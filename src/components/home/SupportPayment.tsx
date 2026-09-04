@@ -18,10 +18,10 @@ export function SupportPayment() {
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <MotionReveal>
             <GlassCard tier={2} className="flex h-full flex-col gap-4 p-6 sm:p-8">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-success/15 text-success">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-success text-white">
                 <SocialIcon platform="whatsapp" className="h-5 w-5" />
               </span>
-              <h3 className="text-lg font-semibold text-ink-primary">Need Help?</h3>
+              <h3 className="text-lg font-semibold text-ink-heading">Need Help?</h3>
               <p className="flex-1 text-sm text-ink-secondary">
                 Talk to our support team on WhatsApp — real people, real answers.
               </p>
@@ -39,10 +39,10 @@ export function SupportPayment() {
 
           <MotionReveal delay={0.08}>
             <GlassCard tier={2} className="flex h-full flex-col gap-4 p-6 sm:p-8">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent/15 text-accent-light">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white">
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h3 className="text-lg font-semibold text-ink-primary">Secure Payment</h3>
+              <h3 className="text-lg font-semibold text-ink-heading">Secure Payment</h3>
               <p className="flex-1 text-sm text-ink-secondary">
                 Secure payments with confirmation at every step of your journey.
               </p>

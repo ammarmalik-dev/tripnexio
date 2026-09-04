@@ -66,14 +66,16 @@ export function HeroCarousel() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Legibility scrim — keeps hero text readable regardless of the photo underneath. */}
-      <div className="absolute inset-0 bg-surface-base/60" aria-hidden="true" />
+      {/* Legibility wash — the reference hero keeps the photo bright and vivid,
+          with dark-navy text, so this is a light (not dark) scrim: a soft
+          wash behind the headline and a fade to the page's white at the
+          bottom, rather than the dark overlay a light-text hero would need. */}
       <div
-        className="absolute inset-0 bg-gradient-to-b from-surface-base/30 via-surface-base/55 to-surface-base"
+        className="absolute inset-0 bg-[radial-gradient(ellipse_65%_55%_at_50%_36%,rgb(247_245_240_/_60%)_0%,transparent_72%)]"
         aria-hidden="true"
       />
       <div
-        className="absolute inset-0 bg-[radial-gradient(circle_at_50%_38%,transparent_0%,var(--surface-base)_78%)]"
+        className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-b from-transparent to-surface-base"
         aria-hidden="true"
       />
 
@@ -118,7 +120,7 @@ export function HeroCarousel() {
                 <span
                   className={cn(
                     "block h-1.5 rounded-pill transition-all duration-300",
-                    i === index ? "w-6 bg-accent-light" : "w-1.5 bg-white/30"
+                    i === index ? "w-6 bg-accent" : "w-1.5 bg-ink-primary/20"
                   )}
                 />
               </button>

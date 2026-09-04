@@ -19,11 +19,11 @@ export interface ButtonProps extends NativeButtonProps {
 
 export const buttonVariantClass: Record<ButtonVariant, string> = {
   primary:
-    "text-white shadow-[0_8px_24px_-8px_rgb(62_111_219_/_55%)] bg-[image:var(--gradient-accent)] hover:brightness-110 focus-visible:outline-accent-light",
+    "text-white shadow-[0_8px_24px_-8px_rgb(62_111_219_/_55%)] bg-[image:var(--gradient-accent)] hover:brightness-110 focus-visible:outline-accent",
   ghost:
-    "text-ink-primary border border-hairline hover:border-glass-border hover:bg-white/[0.03] focus-visible:outline-accent-light",
+    "text-ink-primary border border-hairline hover:border-glass-border hover:bg-white/[0.03] focus-visible:outline-accent",
   glass:
-    "glass-2 text-ink-primary hover:border-glass-border-strong focus-visible:outline-accent-light",
+    "glass-2 text-ink-primary hover:border-glass-border-strong focus-visible:outline-accent",
 };
 
 export const buttonSizeClass: Record<ButtonSize, string> = {

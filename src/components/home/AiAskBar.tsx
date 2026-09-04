@@ -19,7 +19,7 @@ export function AiAskBar() {
   return (
     <GlassCard tier="overlay" className="w-full rounded-2xl p-2 sm:p-2.5">
       <form onSubmit={handleSubmit} className="flex items-center gap-2 sm:gap-3">
-        <Sparkles className="ml-2 h-5 w-5 shrink-0 text-accent-light" aria-hidden="true" />
+        <Sparkles className="ml-2 h-5 w-5 shrink-0 text-accent-on-light" aria-hidden="true" />
         <label htmlFor="ai-ask-input" className="sr-only">
           Ask TripNexio AI
         </label>
@@ -34,7 +34,7 @@ export function AiAskBar() {
         <button
           type="submit"
           aria-label="Ask TripNexio AI"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_24px_-8px_rgb(62_111_219_/_55%)] bg-[image:var(--gradient-accent)] transition-transform duration-150 hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-light"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white shadow-[0_8px_24px_-8px_rgb(62_111_219_/_55%)] bg-[image:var(--gradient-accent)] transition-transform duration-150 hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
         >
           <ArrowUp className="h-5 w-5" aria-hidden="true" />
         </button>

@@ -40,13 +40,13 @@ export function ServiceCard({ title, description, href, image, imageAlt, icon }:
           className="absolute inset-0 bg-gradient-to-t from-surface-1 via-transparent to-transparent"
           aria-hidden="true"
         />
-        <span className="glass-overlay absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-full text-accent-light">
+        <span className="absolute bottom-3 left-3 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-[0_4px_12px_-2px_rgb(17_19_24_/_35%)]">
           {icon}
         </span>
       </div>
 
       <div className="flex flex-1 flex-col gap-2 px-5 pb-5 pt-4">
-        <h3 className="text-base font-semibold tracking-tight text-ink-primary">{title}</h3>
+        <h3 className="text-base font-semibold tracking-tight text-ink-heading">{title}</h3>
         <p className="flex-1 text-sm text-ink-secondary">{description}</p>
         <ButtonLink href={href} variant="ghost" size="sm" className="mt-2 w-fit gap-1.5">
           Start {title.split(" — ")[0]}

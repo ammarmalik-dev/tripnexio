@@ -19,13 +19,13 @@ export default function Home() {
         <HeroCarousel />
         <Container className="relative flex flex-col items-center gap-8 py-28 text-center sm:pb-20 sm:pt-36">
           <MotionReveal>
-            <span className="inline-flex items-center rounded-pill border border-hairline px-4 py-1.5 text-xs font-medium tracking-wide text-ink-secondary">
-              Visa | Flights | OTB
+            <span className="text-xs font-semibold tracking-wide text-ink-accent">
+              Visa &middot; Flights &middot; OTB
             </span>
           </MotionReveal>
 
           <MotionReveal delay={0.08}>
-            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink-primary sm:text-6xl">
+            <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-6xl">
               Your UAE travel,{" "}
               <span className="text-gradient-accent">simplified.</span>
             </h1>
@@ -44,7 +44,7 @@ export default function Home() {
               <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg">
                 Browse Services
               </ButtonLink>
-              <ButtonLink href={utilityLinks.trackStatus.href} variant="ghost" size="lg">
+              <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status
               </ButtonLink>
             </div>

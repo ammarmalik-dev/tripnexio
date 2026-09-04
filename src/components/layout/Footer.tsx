@@ -46,12 +46,12 @@ function FooterColumn({
 }) {
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-sm font-semibold text-ink-primary">{title}</p>
+      <p className="text-sm font-semibold text-ink-on-dark-primary">{title}</p>
       {links.map((link) => (
         <Link
           key={link.label}
           href={link.href}
-          className="text-sm text-ink-secondary transition-colors duration-200 hover:text-ink-primary"
+          className="text-sm text-ink-on-dark-secondary transition-colors duration-200 hover:text-ink-on-dark-primary"
         >
           {link.label}
         </Link>
@@ -62,11 +62,11 @@ function FooterColumn({
 
 export function Footer() {
   return (
-    <footer className="border-t border-hairline">
+    <footer className="surface-dark-block">
       <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
         <div className="flex flex-col gap-4 sm:col-span-2 lg:col-span-1">
-          <Logo />
-          <p className="max-w-xs text-sm text-ink-secondary">{siteConfig.tagline}.</p>
+          <Logo variant="onDark" />
+          <p className="max-w-xs text-sm text-ink-on-dark-secondary">{siteConfig.tagline}.</p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             {socialLinks.map(({ platform, href, label }) => (
               <a
@@ -75,7 +75,7 @@ export function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={label}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink-secondary transition-colors duration-200 hover:border-glass-border hover:text-ink-primary"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline-on-dark text-ink-on-dark-secondary transition-colors duration-200 hover:border-white/30 hover:text-ink-on-dark-primary"
               >
                 <SocialIcon platform={platform} className="h-4 w-4" />
               </a>
@@ -92,8 +92,8 @@ export function Footer() {
         <FooterColumn title="Legal" links={legalLinks} />
       </Container>
 
-      <div className="border-t border-hairline">
-        <Container className="flex flex-col items-center justify-between gap-2 py-6 text-xs text-ink-muted sm:flex-row">
+      <div className="border-t border-hairline-on-dark">
+        <Container className="flex flex-col items-center justify-between gap-2 py-6 text-xs text-ink-on-dark-muted sm:flex-row">
           <p>
             &copy; {new Date().getFullYear()} {siteConfig.legalName}. All rights reserved.
           </p>

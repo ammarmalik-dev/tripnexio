@@ -4,6 +4,13 @@
    TripNexio Design Tokens
    Source of truth: /docs/brand/Brand_Foundation.md (approved brand tokens)
    Swap the four --tn-* raw values below to re-brand the whole product.
+
+   Website default surface is LIGHT (Brand Foundation §13 defines Glass
+   01/02/03 as white-based; "dark glass requires its own validated
+   treatment"). A handful of high-emphasis blocks (footer, the "track your
+   journey" card, the bottom CTA banner) are deliberately dark-navy —
+   those use the separate --surface-dark / --ink-on-dark-* tokens below
+   rather than the default --ink-* ramp.
    ========================================================================== */
 
 :root {
@@ -15,63 +22,77 @@
 
   /* Derived accent ramp (built from approved Electric Blue) */
   --accent: var(--tn-electric-blue);
-  --accent-light: #8fb0f5; /* accessible tint for links/text on dark */
   --accent-dark: var(--tn-deep-navy);
+  /* Small text/links on light surfaces need the darker blue ramp per Brand
+     Foundation §7 (raw Electric Blue is ~4.3:1 on Warm White — fine for
+     large text/icons/fills, short of AA for small body text). */
+  --accent-on-light: #2f57ad;
+  /* Light tint used only inside the dark-navy blocks (footer/CTA/journey
+     card), for accent text/icons that need to read on --surface-dark. */
+  --accent-on-dark: #8fb0f5;
 
-  /* Surfaces — deep near-black base, layered upward */
-  --surface-base: var(--tn-ink-black);
-  --surface-1: #121620;
-  --surface-2: #131a28;
-  --surface-inverse: var(--tn-warm-white);
+  /* Surfaces — warm-white base, layered upward with white cards */
+  --surface-base: var(--tn-warm-white);
+  --surface-1: #ffffff;
+  --surface-2: #ffffff;
+
+  /* Dark-navy block surfaces (footer, CTA banner, journey card) */
+  --surface-dark: var(--tn-deep-navy);
+  --surface-dark-2: #101c36;
 
   /* Semantic status */
-  --success: #34d399;
-  --warning: #fbbf24;
-  --error: #f87171;
-  --info: var(--accent-light);
+  --success: #1f9d68;
+  --warning: #b45f06;
+  --error: #d1435b;
+  --info: var(--accent-on-light);
 
-  /* Text (ink) scale — Warm White opacity ramp for hierarchy */
-  --ink-primary: rgb(247 245 240 / 95%);
-  --ink-secondary: rgb(247 245 240 / 72%);
-  --ink-tertiary: rgb(247 245 240 / 52%);
-  --ink-muted: rgb(247 245 240 / 36%);
-  --ink-disabled: rgb(247 245 240 / 24%);
-  --ink-inverse: var(--tn-ink-black);
-  --ink-accent: var(--accent-light);
+  /* Text (ink) scale — Ink Black opacity ramp, for the default light surface */
+  --ink-primary: rgb(17 19 24 / 92%);
+  --ink-secondary: rgb(17 19 24 / 68%);
+  --ink-tertiary: rgb(17 19 24 / 50%);
+  --ink-muted: rgb(17 19 24 / 34%);
+  --ink-disabled: rgb(17 19 24 / 22%);
+  --ink-heading: var(--tn-deep-navy);
+  --ink-accent: var(--accent-on-light);
 
-  /* Borders */
-  --hairline: rgb(247 245 240 / 6%);
-  --glass-border: rgb(247 245 240 / 10%);
-  --glass-border-strong: rgb(247 245 240 / 18%);
+  /* Text scale for the dark-navy blocks only */
+  --ink-on-dark-primary: rgb(247 245 240 / 95%);
+  --ink-on-dark-secondary: rgb(247 245 240 / 72%);
+  --ink-on-dark-tertiary: rgb(247 245 240 / 52%);
+  --ink-on-dark-muted: rgb(247 245 240 / 36%);
 
-  /* Glass system (Brand Foundation §13, adapted for dark surfaces) */
-  --surface-glass-1: rgb(24 42 77 / 35%);
-  --surface-glass-2: rgb(24 42 77 / 45%);
-  --surface-glass-3: rgb(24 42 77 / 55%);
+  /* Borders — navy-tinted per Brand Foundation §13 glass border specs */
+  --hairline: rgb(24 42 77 / 8%);
+  --glass-border: rgb(24 42 77 / 10%);
+  --glass-border-strong: rgb(24 42 77 / 14%);
+  --hairline-on-dark: rgb(247 245 240 / 12%);
+
+  /* Glass system — white-based (Brand Foundation §13, Glass 01/02/03) */
+  --surface-glass-1: rgb(255 255 255 / 86%);
+  --surface-glass-2: rgb(255 255 255 / 92%);
+  --surface-glass-3: rgb(255 255 255 / 96%);
   --blur-glass-1: 8px;
   --blur-glass-2: 12px;
   --blur-glass-3: 20px;
-  --shadow-glass-1: 0 2px 12px rgb(0 0 0 / 20%);
-  --shadow-glass-2: 0 8px 24px rgb(0 0 0 / 30%);
-  --shadow-glass-3: 0 20px 48px rgb(0 0 0 / 45%);
+  --shadow-glass-1: 0 2px 12px rgb(17 19 24 / 3%);
+  --shadow-glass-2: 0 8px 24px rgb(17 19 24 / 6%);
+  --shadow-glass-3: 0 20px 48px rgb(17 19 24 / 10%);
 
   /*
    * Overlay tier — for floating surfaces shown OVER page content that must
-   * stay fully legible: dropdown/mega-menu panels, the mobile drawer, modals.
-   * Deliberately much more opaque than glass-1/2/3, which are for cards that
-   * sit inline in the page flow (something is always meant to show through).
+   * stay fully legible: the mobile drawer, modals. Deliberately more
+   * opaque than glass-1/2/3.
    */
-  --surface-glass-overlay: rgb(24 42 77 / 97%);
-  --surface-glass-overlay-solid: #182a4d; /* @supports fallback, no backdrop-filter */
+  --surface-glass-overlay: rgb(255 255 255 / 98%);
+  --surface-glass-overlay-solid: #ffffff; /* @supports fallback, no backdrop-filter */
   --blur-glass-overlay: 20px;
-  --border-glass-overlay: rgb(247 245 240 / 16%);
-  --shadow-glass-overlay: 0 24px 64px rgb(0 0 0 / 55%), 0 8px 20px rgb(0 0 0 / 35%);
+  --border-glass-overlay: rgb(24 42 77 / 12%);
+  --shadow-glass-overlay: 0 24px 64px rgb(17 19 24 / 16%), 0 8px 20px rgb(17 19 24 / 8%);
 
-  /* Accent gradient */
+  /* Accent gradient — used for primary button fills */
   --gradient-accent: linear-gradient(
     135deg,
-    var(--accent-light) 0%,
-    var(--accent) 55%,
+    var(--accent) 0%,
     var(--accent-dark) 100%
   );
 
@@ -86,11 +107,13 @@
   --color-surface-base: var(--surface-base);
   --color-surface-1: var(--surface-1);
   --color-surface-2: var(--surface-2);
-  --color-surface-inverse: var(--surface-inverse);
+  --color-surface-dark: var(--surface-dark);
+  --color-surface-dark-2: var(--surface-dark-2);
 
   --color-accent: var(--accent);
-  --color-accent-light: var(--accent-light);
   --color-accent-dark: var(--accent-dark);
+  --color-accent-on-light: var(--accent-on-light);
+  --color-accent-on-dark: var(--accent-on-dark);
 
   --color-success: var(--success);
   --color-warning: var(--warning);
@@ -102,10 +125,16 @@
   --color-ink-tertiary: var(--ink-tertiary);
   --color-ink-muted: var(--ink-muted);
   --color-ink-disabled: var(--ink-disabled);
-  --color-ink-inverse: var(--ink-inverse);
+  --color-ink-heading: var(--ink-heading);
   --color-ink-accent: var(--ink-accent);
 
+  --color-ink-on-dark-primary: var(--ink-on-dark-primary);
+  --color-ink-on-dark-secondary: var(--ink-on-dark-secondary);
+  --color-ink-on-dark-tertiary: var(--ink-on-dark-tertiary);
+  --color-ink-on-dark-muted: var(--ink-on-dark-muted);
+
   --color-hairline: var(--hairline);
+  --color-hairline-on-dark: var(--hairline-on-dark);
   --color-glass-border: var(--glass-border);
   --color-glass-border-strong: var(--glass-border-strong);
 
@@ -132,7 +161,7 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
@@ -141,7 +170,7 @@ body {
 }
 
 /* ==========================================================================
-   Glass surface utilities — Brand Foundation §13, dark-adapted
+   Glass surface utilities — Brand Foundation §13 (white-based)
    ========================================================================== */
 
 @layer components {
@@ -167,12 +196,12 @@ body {
   }
 
   /*
-   * Overlay tier — dropdown/mega-menu panels, the mobile drawer, modals.
-   * Near-opaque by design: legibility over the glass aesthetic. Translucency
-   * lives ONLY in the background-color alpha above — never set `opacity`
-   * on this class or on an ancestor of an element using it, since element
-   * opacity also fades the text/icons inside and can't be corrected by
-   * children. Panels using this class must render with opacity: 1.
+   * Overlay tier — mobile drawer, modals. Near-opaque by design: legibility
+   * over the glass aesthetic. Translucency lives ONLY in the
+   * background-color alpha above — never set `opacity` on this class or on
+   * an ancestor of an element using it, since element opacity also fades
+   * the text/icons inside and can't be corrected by children. Panels using
+   * this class must render with opacity: 1.
    */
   .glass-overlay {
     opacity: 1;
@@ -188,6 +217,13 @@ body {
     .glass-overlay {
       background: var(--surface-glass-overlay-solid);
     }
+  }
+
+  /* Dark-navy block surface — footer, CTA banner, journey card. Solid (not
+     glass) since these sit on a plain light page background. */
+  .surface-dark-block {
+    background: var(--surface-dark);
+    color: var(--ink-on-dark-primary);
   }
 
   .text-gradient-accent {

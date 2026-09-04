@@ -1,33 +1,38 @@
-import { MessageSquareText, ShieldCheck, CreditCard, Workflow, CheckCircle2 } from "lucide-react";
+import { ClipboardList, FileCheck2, Send, Bell, ShieldCheck } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 
 const steps = [
   {
+    step: "01",
     title: "Tell Us",
     description: "Choose your service and share your project details.",
-    icon: MessageSquareText,
+    icon: ClipboardList,
   },
   {
+    step: "02",
     title: "We Verify",
     description: "TripNexio checks documents, requirements and availability.",
-    icon: ShieldCheck,
+    icon: FileCheck2,
   },
   {
+    step: "03",
     title: "Pay",
     description: "Review the summary and complete secure payment.",
-    icon: CreditCard,
+    icon: Send,
   },
   {
+    step: "04",
     title: "We Process",
     description: "Staff, vendor and authority processing happens through our CRM.",
-    icon: Workflow,
+    icon: Bell,
   },
   {
+    step: "05",
     title: "Get Your Result",
     description: "Receive your visa, ticket, OTB or update via real-time tracking.",
-    icon: CheckCircle2,
+    icon: ShieldCheck,
   },
 ];
 
@@ -53,11 +58,14 @@ export function HowItWorks() {
             const Icon = step.icon;
             return (
               <MotionReveal key={step.title} delay={index * 0.06}>
-                <div className="relative flex flex-col items-center gap-3 text-center">
-                  <span className="glass-2 relative z-10 flex h-12 w-12 items-center justify-center rounded-full text-accent-light">
+                <div className="relative flex flex-col items-center gap-2 text-center">
+                  <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <p className="text-sm font-semibold text-ink-primary">{step.title}</p>
+                  <span className="relative z-10 flex h-5 w-8 items-center justify-center rounded-sm bg-surface-dark text-[10px] font-semibold text-ink-on-dark-primary">
+                    {step.step}
+                  </span>
+                  <p className="mt-1 text-sm font-semibold text-ink-heading">{step.title}</p>
                   <p className="text-xs text-ink-tertiary">{step.description}</p>
                 </div>
               </MotionReveal>

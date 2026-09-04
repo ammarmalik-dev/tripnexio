@@ -33,7 +33,7 @@ export function GradientMesh({ className }: GradientMeshProps) {
     },
     {
       className:
-        "left-[20%] bottom-[-20%] h-[30rem] w-[30rem] bg-[radial-gradient(circle_at_center,var(--accent-light)_0%,transparent_70%)] opacity-15",
+        "left-[20%] bottom-[-20%] h-[30rem] w-[30rem] bg-[radial-gradient(circle_at_center,var(--accent-on-dark)_0%,transparent_70%)] opacity-15",
       animate: shouldReduceMotion
         ? undefined
         : { x: [0, 15, -25, 0], y: [0, -15, 10, 0] },

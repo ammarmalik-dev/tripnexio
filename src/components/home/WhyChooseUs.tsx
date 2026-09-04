@@ -50,10 +50,10 @@ export function WhyChooseUs() {
             return (
               <MotionReveal key={reason.title} delay={index * 0.05}>
                 <div className="flex flex-col gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full text-accent-light">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full text-accent-on-light">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <p className="text-sm font-semibold text-ink-primary">{reason.title}</p>
+                  <p className="text-sm font-semibold text-ink-heading">{reason.title}</p>
                   <p className="text-xs text-ink-tertiary">{reason.description}</p>
                 </div>
               </MotionReveal>
