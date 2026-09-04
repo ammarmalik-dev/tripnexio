@@ -1,0 +1,209 @@
+@import "tailwindcss";
+@import "flag-icons/css/flag-icons.min.css";
+
+/* ==========================================================================
+   TripNexio Design Tokens
+   Source of truth: /docs/brand/Brand_Foundation.md (approved brand tokens)
+   Swap the four --tn-* raw values below to re-brand the whole product.
+   ========================================================================== */
+
+:root {
+  /* Raw approved brand tokens */
+  --tn-deep-navy: #182a4d;
+  --tn-electric-blue: #3e6fdb;
+  --tn-warm-white: #f7f5f0;
+  --tn-ink-black: #111318;
+
+  /* Derived accent ramp (built from approved Electric Blue) */
+  --accent: var(--tn-electric-blue);
+  --accent-light: #8fb0f5; /* accessible tint for links/text on dark */
+  --accent-dark: var(--tn-deep-navy);
+
+  /* Surfaces — deep near-black base, layered upward */
+  --surface-base: var(--tn-ink-black);
+  --surface-1: #121620;
+  --surface-2: #131a28;
+  --surface-inverse: var(--tn-warm-white);
+
+  /* Semantic status */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --error: #f87171;
+  --info: var(--accent-light);
+
+  /* Text (ink) scale — Warm White opacity ramp for hierarchy */
+  --ink-primary: rgb(247 245 240 / 95%);
+  --ink-secondary: rgb(247 245 240 / 72%);
+  --ink-tertiary: rgb(247 245 240 / 52%);
+  --ink-muted: rgb(247 245 240 / 36%);
+  --ink-disabled: rgb(247 245 240 / 24%);
+  --ink-inverse: var(--tn-ink-black);
+  --ink-accent: var(--accent-light);
+
+  /* Borders */
+  --hairline: rgb(247 245 240 / 6%);
+  --glass-border: rgb(247 245 240 / 10%);
+  --glass-border-strong: rgb(247 245 240 / 18%);
+
+  /* Glass system (Brand Foundation §13, adapted for dark surfaces) */
+  --surface-glass-1: rgb(24 42 77 / 35%);
+  --surface-glass-2: rgb(24 42 77 / 45%);
+  --surface-glass-3: rgb(24 42 77 / 55%);
+  --blur-glass-1: 8px;
+  --blur-glass-2: 12px;
+  --blur-glass-3: 20px;
+  --shadow-glass-1: 0 2px 12px rgb(0 0 0 / 20%);
+  --shadow-glass-2: 0 8px 24px rgb(0 0 0 / 30%);
+  --shadow-glass-3: 0 20px 48px rgb(0 0 0 / 45%);
+
+  /*
+   * Overlay tier — for floating surfaces shown OVER page content that must
+   * stay fully legible: dropdown/mega-menu panels, the mobile drawer, modals.
+   * Deliberately much more opaque than glass-1/2/3, which are for cards that
+   * sit inline in the page flow (something is always meant to show through).
+   */
+  --surface-glass-overlay: rgb(24 42 77 / 97%);
+  --surface-glass-overlay-solid: #182a4d; /* @supports fallback, no backdrop-filter */
+  --blur-glass-overlay: 20px;
+  --border-glass-overlay: rgb(247 245 240 / 16%);
+  --shadow-glass-overlay: 0 24px 64px rgb(0 0 0 / 55%), 0 8px 20px rgb(0 0 0 / 35%);
+
+  /* Accent gradient */
+  --gradient-accent: linear-gradient(
+    135deg,
+    var(--accent-light) 0%,
+    var(--accent) 55%,
+    var(--accent-dark) 100%
+  );
+
+  /* Motion (Brand Foundation §20) */
+  --duration-fast: 140ms;
+  --duration-standard: 200ms;
+  --duration-modal: 220ms;
+  --ease-out-premium: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@theme inline {
+  --color-surface-base: var(--surface-base);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-inverse: var(--surface-inverse);
+
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-dark: var(--accent-dark);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+  --color-info: var(--info);
+
+  --color-ink-primary: var(--ink-primary);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-tertiary: var(--ink-tertiary);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-disabled: var(--ink-disabled);
+  --color-ink-inverse: var(--ink-inverse);
+  --color-ink-accent: var(--ink-accent);
+
+  --color-hairline: var(--hairline);
+  --color-glass-border: var(--glass-border);
+  --color-glass-border-strong: var(--glass-border-strong);
+
+  /* Radius system (Brand Foundation §12) */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  --font-sans: var(--font-inter);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--surface-base);
+  color: var(--ink-primary);
+}
+
+/* ==========================================================================
+   Glass surface utilities — Brand Foundation §13, dark-adapted
+   ========================================================================== */
+
+@layer components {
+  .glass-1 {
+    background: var(--surface-glass-1);
+    backdrop-filter: blur(var(--blur-glass-1));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-glass-1);
+  }
+
+  .glass-2 {
+    background: var(--surface-glass-2);
+    backdrop-filter: blur(var(--blur-glass-2));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-glass-2);
+  }
+
+  .glass-3 {
+    background: var(--surface-glass-3);
+    backdrop-filter: blur(var(--blur-glass-3));
+    border: 1px solid var(--glass-border-strong);
+    box-shadow: var(--shadow-glass-3);
+  }
+
+  /*
+   * Overlay tier — dropdown/mega-menu panels, the mobile drawer, modals.
+   * Near-opaque by design: legibility over the glass aesthetic. Translucency
+   * lives ONLY in the background-color alpha above — never set `opacity`
+   * on this class or on an ancestor of an element using it, since element
+   * opacity also fades the text/icons inside and can't be corrected by
+   * children. Panels using this class must render with opacity: 1.
+   */
+  .glass-overlay {
+    opacity: 1;
+    background: var(--surface-glass-overlay);
+    backdrop-filter: blur(var(--blur-glass-overlay));
+    border: 1px solid var(--border-glass-overlay);
+    box-shadow: var(--shadow-glass-overlay);
+  }
+
+  /* Browsers without backdrop-filter support get a solid fallback so the
+     panel is never see-through. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass-overlay {
+      background: var(--surface-glass-overlay-solid);
+    }
+  }
+
+  .text-gradient-accent {
+    background-image: var(--gradient-accent);
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+  }
+
+  /* Keeps horizontal-overflow scroll usable without showing scrollbar chrome. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
