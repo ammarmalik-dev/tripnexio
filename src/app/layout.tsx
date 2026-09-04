@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { Toaster } from "@/components/ui/Toaster";
-import { QuickStartProvider } from "@/components/quick-start/QuickStartProvider";
 import { siteConfig } from "@/lib/site-config";
 import "./globals.css";
 
@@ -45,11 +44,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-surface-base text-ink-primary">
-        <QuickStartProvider>
-          <Navbar />
-          <main className="flex-1">{children}</main>
-          <Footer />
-        </QuickStartProvider>
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Footer />
         <Toaster />
       </body>
     </html>
