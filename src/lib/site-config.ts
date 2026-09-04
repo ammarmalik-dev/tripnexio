@@ -26,13 +26,6 @@ export const siteConfig = {
     x: "https://x.com/tripnexio",
     threads: "https://threads.net/@tripnexio",
   },
-  nav: [
-    { label: "New Visa", href: "/services/new-visa" },
-    { label: "Visa Extension", href: "/services/visa-extension" },
-    { label: "Visa Change", href: "/services/visa-change" },
-    { label: "Flight Special Fare", href: "/services/flight-special-fare" },
-    { label: "Track Status", href: "/track" },
-  ],
 } as const;
 
 export type SiteConfig = typeof siteConfig;

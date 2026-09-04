@@ -4,6 +4,12 @@ import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { AiAskBar } from "@/components/home/AiAskBar";
 import { ServicesGrid } from "@/components/home/ServicesGrid";
+import { HowItWorks } from "@/components/home/HowItWorks";
+import { TrackJourneyPreview } from "@/components/home/TrackJourneyPreview";
+import { WhyChooseUs } from "@/components/home/WhyChooseUs";
+import { AboutSection } from "@/components/home/AboutSection";
+import { SupportPayment } from "@/components/home/SupportPayment";
+import { CtaBanner } from "@/components/home/CtaBanner";
 import { headerActions, utilityLinks } from "@/lib/nav-config";
 
 export default function Home() {
@@ -14,7 +20,7 @@ export default function Home() {
         <Container className="relative flex flex-col items-center gap-8 py-28 text-center sm:pb-20 sm:pt-36">
           <MotionReveal>
             <span className="inline-flex items-center rounded-pill border border-hairline px-4 py-1.5 text-xs font-medium tracking-wide text-ink-secondary">
-              Visa &middot; Flights &middot; OTB
+              Visa | Flights | OTB
             </span>
           </MotionReveal>
 
@@ -53,6 +59,12 @@ export default function Home() {
       </Container>
 
       <ServicesGrid />
+      <HowItWorks />
+      <TrackJourneyPreview />
+      <WhyChooseUs />
+      <AboutSection />
+      <SupportPayment />
+      <CtaBanner />
     </>
   );
 }

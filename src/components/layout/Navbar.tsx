@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CircleUser, Menu, PanelRightOpen } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Logo } from "./Logo";
-import { TopUtilityBar } from "./TopUtilityBar";
-import { NavDropdown } from "./NavDropdown";
 import { SiteDrawer } from "./SiteDrawer";
 import { Container } from "@/components/ui/Container";
+import { SocialIcon } from "@/components/ui/SocialIcon";
 import { cn } from "@/lib/cn";
-import { mainNav, headerActions } from "@/lib/nav-config";
+import { mainNav } from "@/lib/nav-config";
+import { siteConfig } from "@/lib/site-config";
 
 const SCROLL_THRESHOLD = 32;
 
@@ -26,12 +26,11 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) =>
+    href.startsWith("/#") ? false : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <header className="contents">
-      <TopUtilityBar />
-
       <div
         className={cn(
           "sticky top-0 z-50 transition-[background-color,backdrop-filter,border-color,box-shadow] duration-300 ease-out",
@@ -43,50 +42,34 @@ export function Navbar() {
 
           <nav
             aria-label="Primary"
-            className="hidden min-w-0 flex-1 items-center justify-center gap-7 lg:flex"
+            className="hidden min-w-0 flex-1 items-center justify-center gap-8 lg:flex"
           >
-            {mainNav.map((item) =>
-              item.type === "dropdown" ? (
-                <NavDropdown
-                  key={item.label}
-                  label={item.label}
-                  items={item.items}
-                  isActive={item.items.some((sub) => isActive(sub.href))}
-                />
-              ) : (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "text-sm font-medium transition-colors duration-200",
-                    isActive(item.href)
-                      ? "text-ink-primary"
-                      : "text-ink-secondary hover:text-ink-primary"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              )
-            )}
+            {mainNav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "text-sm font-medium transition-colors duration-200",
+                  isActive(item.href)
+                    ? "text-ink-primary"
+                    : "text-ink-secondary hover:text-ink-primary"
+                )}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
-          <div className="hidden items-center gap-3 lg:flex">
-            <Link
-              href={headerActions.login.href}
-              aria-label={headerActions.login.label}
-              title={headerActions.login.label}
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-secondary transition-colors duration-200 hover:bg-white/[0.05] hover:text-ink-primary"
+          <div className="hidden lg:flex">
+            <a
+              href={siteConfig.contact.whatsappHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="glass-2 flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border-strong"
             >
-              <CircleUser className="h-5 w-5" aria-hidden="true" />
-            </Link>
-            <button
-              type="button"
-              onClick={() => setDrawerOpen(true)}
-              aria-label="Open menu"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-ink-secondary transition-colors duration-200 hover:bg-white/[0.05] hover:text-ink-primary"
-            >
-              <PanelRightOpen className="h-5 w-5" aria-hidden="true" />
-            </button>
+              <SocialIcon platform="whatsapp" className="h-4 w-4 text-success" />
+              WhatsApp Support
+            </a>
           </div>
 
           <button

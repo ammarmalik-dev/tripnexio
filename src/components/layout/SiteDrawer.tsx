@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, type KeyboardEvent } from "react";
 import Link from "next/link";
-import { ChevronDown, X, Phone, Mail } from "lucide-react";
+import { X, Phone, Mail } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { SocialIcon, type SocialPlatform } from "@/components/ui/SocialIcon";
-import { cn } from "@/lib/cn";
 import { siteConfig } from "@/lib/site-config";
-import { mainNav, utilityLinks, headerActions, headerContact } from "@/lib/nav-config";
+import { mainNav, headerActions, headerContact } from "@/lib/nav-config";
 
 const socialLinks: { platform: SocialPlatform; href: string; label: string }[] = [
   { platform: "instagram", href: siteConfig.socials.instagram, label: "Instagram" },
@@ -24,9 +23,8 @@ interface SiteDrawerProps {
   onClose: () => void;
 }
 
-/** Slide-in site menu — triggered from the sidebar icon on desktop and the hamburger on mobile. */
+/** Slide-in site menu — triggered from the hamburger on smaller screens. */
 export function SiteDrawer({ open, onClose }: SiteDrawerProps) {
-  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const shouldReduceMotion = useReducedMotion();
@@ -66,7 +64,7 @@ export function SiteDrawer({ open, onClose }: SiteDrawerProps) {
   };
 
   return (
-    <AnimatePresence onExitComplete={() => setOpenGroup(null)}>
+    <AnimatePresence>
       {open ? (
         <>
           <motion.div
@@ -104,88 +102,19 @@ export function SiteDrawer({ open, onClose }: SiteDrawerProps) {
             </div>
 
             <nav className="flex flex-col gap-1 px-3 py-4" aria-label="Primary">
-              {mainNav.map((item) => {
-                if (item.type === "link") {
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={onClose}
-                      className="rounded-md px-3 py-3 text-sm font-medium text-ink-primary hover:bg-white/[0.05]"
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                }
-
-                const isOpen = openGroup === item.label;
-                return (
-                  <div key={item.label} className="rounded-md">
-                    <button
-                      type="button"
-                      aria-expanded={isOpen}
-                      onClick={() => setOpenGroup(isOpen ? null : item.label)}
-                      className="flex w-full items-center justify-between rounded-md px-3 py-3 text-sm font-medium text-ink-primary hover:bg-white/[0.05]"
-                    >
-                      {item.label}
-                      <ChevronDown
-                        className={cn("h-4 w-4 transition-transform duration-200", isOpen && "rotate-180")}
-                        aria-hidden="true"
-                      />
-                    </button>
-                    <AnimatePresence initial={false}>
-                      {isOpen ? (
-                        <motion.div
-                          initial={shouldReduceMotion ? undefined : { height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={shouldReduceMotion ? undefined : { height: 0, opacity: 0 }}
-                          transition={{ duration: shouldReduceMotion ? 0 : 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="flex flex-col gap-1 py-1 pl-3">
-                            {item.items.map((sub) => {
-                              const Icon = sub.icon;
-                              return (
-                                <Link
-                                  key={sub.href}
-                                  href={sub.href}
-                                  onClick={onClose}
-                                  className="flex items-start gap-3 rounded-md px-3 py-2.5 hover:bg-white/[0.05]"
-                                >
-                                  <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent-light">
-                                    <Icon className="h-4 w-4" aria-hidden="true" />
-                                  </span>
-                                  <span className="flex flex-col gap-0.5">
-                                    <span className="text-sm font-medium text-ink-primary">{sub.label}</span>
-                                    <span className="text-xs text-ink-tertiary">{sub.description}</span>
-                                  </span>
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      ) : null}
-                    </AnimatePresence>
-                  </div>
-                );
-              })}
+              {mainNav.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={onClose}
+                  className="rounded-md px-3 py-3 text-sm font-medium text-ink-primary hover:bg-white/[0.05]"
+                >
+                  {item.label}
+                </Link>
+              ))}
 
               <div className="my-2 border-t border-hairline" />
 
-              <Link
-                href={utilityLinks.trackStatus.href}
-                onClick={onClose}
-                className="rounded-md px-3 py-3 text-sm font-medium text-ink-primary hover:bg-white/[0.05]"
-              >
-                {utilityLinks.trackStatus.label}
-              </Link>
-              <Link
-                href={utilityLinks.askAi.href}
-                onClick={onClose}
-                className="rounded-md px-3 py-3 text-sm font-medium text-ink-primary hover:bg-white/[0.05]"
-              >
-                {utilityLinks.askAi.label}
-              </Link>
               <Link
                 href={headerActions.login.href}
                 onClick={onClose}
