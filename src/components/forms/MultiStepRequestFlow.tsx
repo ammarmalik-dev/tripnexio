@@ -12,6 +12,8 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Stepper } from "./Stepper";
 import { useMultiStepForm } from "./useMultiStepForm";
 import { RequestSuccessPanel } from "./RequestSuccessPanel";
+import { toast } from "@/components/ui/Toaster";
+import { ApiError } from "@/lib/api/client";
 
 type SubmitState = "idle" | "loading" | "success" | "error";
 
@@ -71,8 +73,10 @@ export function MultiStepRequestFlow<T extends FieldValues>({
       const result = await onSubmit(values);
       setReferenceId(result.referenceId);
       setSubmitState("success");
-    } catch {
+      toast.success(successTitle, { description: `Reference ID: ${result.referenceId}` });
+    } catch (error) {
       setSubmitState("error");
+      toast.error(error instanceof ApiError ? error.message : "Couldn't submit your request. Please try again.");
     }
   });
 

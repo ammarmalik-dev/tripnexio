@@ -4,7 +4,7 @@ import { MultiStepRequestFlow } from "@/components/forms/MultiStepRequestFlow";
 import { Step1BasicDetails } from "./steps/Step1BasicDetails";
 import { Step2ProcessingType } from "./steps/Step2ProcessingType";
 import { Step3Summary } from "./steps/Step3Summary";
-import { submitOtbRequest } from "@/lib/mock-api/otb";
+import { submitOtbRequest } from "@/lib/api/otb";
 import {
   otbRequestSchema,
   otbStepFields,

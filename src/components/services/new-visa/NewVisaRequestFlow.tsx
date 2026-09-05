@@ -4,7 +4,7 @@ import { MultiStepRequestFlow } from "@/components/forms/MultiStepRequestFlow";
 import { Step1TravelDetails } from "./steps/Step1TravelDetails";
 import { Step2ProcessingType } from "./steps/Step2ProcessingType";
 import { Step3Summary } from "./steps/Step3Summary";
-import { submitNewVisaRequest } from "@/lib/mock-api/new-visa";
+import { submitNewVisaRequest } from "@/lib/api/new-visa";
 import {
   newVisaRequestSchema,
   newVisaStepFields,
