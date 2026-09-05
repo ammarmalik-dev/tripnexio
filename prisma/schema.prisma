@@ -1,0 +1,448 @@
+// TripNexio — Prisma schema (M2)
+//
+// Conventions used throughout this file:
+// - Every status/lifecycle field is a Prisma enum (hard requirement).
+// - Every foreign-key scalar and every status/boolean-flag field used for
+//   filtering has an explicit @@index — Prisma does not auto-index FK
+//   columns on PostgreSQL the way it does on MySQL.
+// - Monetary values use Decimal(10,2), never Float.
+// - IDs are cuid() — no DB extension required (vs. Postgres gen_random_uuid()).
+// - Fields marked "computed" (Quotation.margin, Refund.refundAmount) are
+//   plain stored columns; the API layer computes and writes them, they are
+//   not DB generated/computed columns. Keeping them as real columns (rather
+//   than deriving them on every read) matches this schema's audit/reporting
+//   needs — a margin or refund amount must stay stable and queryable even if
+//   the inputs it was computed from are edited later.
+// - No real domain data (airports/airlines/borders/prices) is seeded here —
+//   see prisma/seed.ts, which only inserts clearly-labeled "Sample ..." rows
+//   plus the RBAC bootstrap rows genuinely needed to run the app.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum ServiceType {
+  NEW_VISA
+  VISA_EXTENSION
+  VISA_CHANGE
+  FLIGHT_SPECIAL_FARE
+  RETURN_TICKET
+  OTB
+}
+
+/// Proposed default lead lifecycle — CLAUDE.md only specified "status enum"
+/// for Lead without exact values; review/adjust before relying on these.
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  QUOTED
+  CONVERTED
+  ON_HOLD
+  LOST
+}
+
+/// Proposed default booking lifecycle — same caveat as LeadStatus.
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  EXPIRED
+}
+
+/// Proposed default refund lifecycle — same caveat as LeadStatus.
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+enum DocumentStatus {
+  REQUIRED
+  MISSING
+  RECEIVED
+  VERIFIED
+  REJECTED
+}
+
+enum PaxType {
+  ADULT
+  CHILD
+}
+
+/// Shared by Airport.gccClassification and Border.side — the locked market
+/// scope from CLAUDE.md (India to UAE/GCC), plus OTHER as a fallback.
+enum GccCountry {
+  INDIA
+  UAE
+  SAUDI_ARABIA
+  BAHRAIN
+  KUWAIT
+  OMAN
+  QATAR
+  OTHER
+}
+
+// ---------------------------------------------------------------------------
+// Customer 360
+// ---------------------------------------------------------------------------
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  mobile    String   @unique
+  email     String?  @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  passengers Passenger[]
+  leads      Lead[]
+  bookings   Booking[]
+}
+
+model Passenger {
+  id               String    @id @default(cuid())
+  customerId       String
+  fullName         String
+  passportNumber   String?
+  dob              DateTime?
+  nationality      String?
+  paxType          PaxType
+  passportFrontUrl String?
+  passportBackUrl  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  customer  Customer   @relation(fields: [customerId], references: [id])
+  documents Document[]
+
+  @@index([customerId])
+}
+
+// ---------------------------------------------------------------------------
+// Lead → Quotation → Booking → Payment → Refund
+// ---------------------------------------------------------------------------
+
+model Lead {
+  id              String      @id @default(cuid())
+  customerId      String
+  serviceType     ServiceType
+  source          String?
+  status          LeadStatus  @default(NEW)
+  assignedStaffId String?
+  /// Service-specific captured fields (e.g. destination country + visa type
+  /// for NEW_VISA, entry date for VISA_EXTENSION, Airport-to-Airport vs
+  /// Border Exit choice + selected option for VISA_CHANGE). Shape varies by
+  /// serviceType — validated at the API layer, not by the DB.
+  details         Json
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  assignedStaff User?       @relation(fields: [assignedStaffId], references: [id])
+  quotations    Quotation[]
+  bookings      Booking[]
+
+  @@index([customerId])
+  @@index([serviceType])
+  @@index([status])
+  @@index([assignedStaffId])
+}
+
+model Quotation {
+  id                String    @id @default(cuid())
+  leadId            String
+  airline           String?
+  flightNumber      String?
+  route             String?
+  flightDateTime    DateTime?
+  vendorId          String
+  vendorCost        Decimal   @db.Decimal(10, 2)
+  sellingPrice      Decimal   @db.Decimal(10, 2)
+  /// Computed by the API layer as sellingPrice - vendorCost on write.
+  margin            Decimal   @db.Decimal(10, 2)
+  validityExpiresAt DateTime?
+  isSelected        Boolean   @default(false)
+  isExpired         Boolean   @default(false)
+  alternativeOfId   String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  lead          Lead        @relation(fields: [leadId], references: [id])
+  vendor        Vendor      @relation(fields: [vendorId], references: [id])
+  alternativeOf Quotation?  @relation("QuotationAlternatives", fields: [alternativeOfId], references: [id])
+  alternatives  Quotation[] @relation("QuotationAlternatives")
+
+  @@index([leadId])
+  @@index([vendorId])
+  @@index([alternativeOfId])
+  @@index([isSelected])
+  @@index([isExpired])
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  /// Formatted like TNX-XX-XXXXXX (XX = a service-type short code, e.g. NV,
+  /// OT, VE) — generated by the API layer, not the DB, since the format
+  /// depends on the lead's serviceType.
+  bookingId  String        @unique
+  leadId     String
+  customerId String
+  status     BookingStatus @default(PENDING)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  lead      Lead       @relation(fields: [leadId], references: [id])
+  customer  Customer   @relation(fields: [customerId], references: [id])
+  payments  Payment[]
+  documents Document[]
+
+  @@index([leadId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  bookingId     String
+  amount        Decimal       @db.Decimal(10, 2)
+  gstAmount     Decimal       @db.Decimal(10, 2)
+  gatewayFee    Decimal       @db.Decimal(10, 2)
+  status        PaymentStatus @default(PENDING)
+  gatewayRef    String?
+  paymentLink   String?
+  linkExpiresAt DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  booking Booking  @relation(fields: [bookingId], references: [id])
+  refunds Refund[]
+
+  @@index([bookingId])
+  @@index([status])
+}
+
+model Refund {
+  id                 String       @id @default(cuid())
+  paymentId          String
+  paidAmount         Decimal      @db.Decimal(10, 2)
+  cancellationCharge Decimal      @db.Decimal(10, 2)
+  gatewayCharge      Decimal      @db.Decimal(10, 2)
+  /// Computed by the API layer as paidAmount - cancellationCharge - gatewayCharge on write.
+  refundAmount       Decimal      @db.Decimal(10, 2)
+  reason             String?
+  status             RefundStatus @default(PENDING)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@index([paymentId])
+  @@index([status])
+}
+
+model Document {
+  id          String         @id @default(cuid())
+  passengerId String?
+  bookingId   String?
+  /// e.g. "PASSPORT", "VISA_COPY", "TICKET" — free text since the set of
+  /// document types varies per service; see DocumentRequirement for the
+  /// per-nationality master list this is checked against.
+  type        String
+  status      DocumentStatus @default(REQUIRED)
+  fileUrl     String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  passenger Passenger? @relation(fields: [passengerId], references: [id])
+  booking   Booking?   @relation(fields: [bookingId], references: [id])
+
+  @@index([passengerId])
+  @@index([bookingId])
+  @@index([status])
+}
+
+// ---------------------------------------------------------------------------
+// Audit trail
+// ---------------------------------------------------------------------------
+
+model AuditTrail {
+  id         String   @id @default(cuid())
+  /// Polymorphic reference — e.g. entityType "Booking", entityId the
+  /// Booking's cuid. Not a real FK since it can point at any table.
+  entityType String
+  entityId   String
+  action     String
+  byUserId   String?
+  timestamp  DateTime @default(now())
+  note       String?
+
+  byUser User? @relation(fields: [byUserId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([byUserId])
+  @@index([timestamp])
+}
+
+// ---------------------------------------------------------------------------
+// Vendor
+// ---------------------------------------------------------------------------
+
+model Vendor {
+  id        String      @id @default(cuid())
+  name      String
+  service   ServiceType
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  quotations Quotation[]
+
+  @@index([service])
+  @@index([active])
+}
+
+// ---------------------------------------------------------------------------
+// Masters (admin-managed; see CLAUDE.md hard rule #1 — no real rows seeded)
+// ---------------------------------------------------------------------------
+
+model Airport {
+  id                String     @id @default(cuid())
+  name              String
+  code              String     @unique
+  country           String
+  city              String
+  gccClassification GccCountry
+  activeForA2AEntry Boolean    @default(true)
+  activeForA2AExit  Boolean    @default(true)
+  displayOrder      Int        @default(0)
+  active            Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([gccClassification])
+  @@index([active])
+}
+
+model Airline {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  country     String
+  otbRequired Boolean  @default(false)
+  normalPrice Decimal? @db.Decimal(10, 2)
+  urgentPrice Decimal? @db.Decimal(10, 2)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([otbRequired])
+  @@index([active])
+}
+
+model Border {
+  id                  String     @id @default(cuid())
+  name                String
+  /// The non-UAE country this crossing connects to.
+  side                GccCountry
+  uaeLocation         String
+  destinationLocation String
+  activeForVisaChange Boolean    @default(true)
+  displayOrder        Int        @default(0)
+  active              Boolean    @default(true)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  @@index([side])
+  @@index([active])
+}
+
+model DocumentRequirement {
+  id           String   @id @default(cuid())
+  nationality  String
+  documentName String
+  required     Boolean  @default(true)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([nationality, documentName])
+  @@index([nationality])
+  @@index([active])
+}
+
+model Faq {
+  id           String   @id @default(cuid())
+  question     String
+  answer       String
+  category     String?
+  keywords     String[]
+  displayOrder Int      @default(0)
+  published    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([category])
+  @@index([published])
+}
+
+// ---------------------------------------------------------------------------
+// Staff / RBAC
+// ---------------------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  roleId       String
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  role          Role         @relation(fields: [roleId], references: [id])
+  assignedLeads Lead[]
+  auditEntries  AuditTrail[]
+
+  @@index([roleId])
+  @@index([active])
+}
+
+model Role {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  permissions Permission[] @relation("RolePermissions")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  roles Role[] @relation("RolePermissions")
+}
