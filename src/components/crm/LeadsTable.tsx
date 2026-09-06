@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Search, RotateCw } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -206,7 +207,11 @@ export function LeadsTable() {
             <tbody>
               {items.map((lead) => (
                 <tr key={lead.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
-                  <td className="px-4 py-3 font-medium text-ink-accent">{lead.referenceId}</td>
+                  <td className="px-4 py-3 font-medium">
+                    <Link href={`/crm/leads/${lead.id}`} className="text-ink-accent hover:underline">
+                      {lead.referenceId}
+                    </Link>
+                  </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col">
                       <span className="font-medium text-ink-primary">{lead.customer.name}</span>
