@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { Prisma, type ServiceType } from "../../generated/prisma/client";
 import { formatLeadReference } from "./reference";
+import { writeAudit } from "../audit/log";
 
 export interface LeadContact {
   fullName: string;
@@ -107,13 +108,11 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
       },
     });
 
-    await tx.auditTrail.create({
-      data: {
-        entityType: "Lead",
-        entityId: lead.id,
-        action: "CREATE",
-        note: `${serviceType} lead created via website for customer ${customer.id}`,
-      },
+    await writeAudit(tx, {
+      entityType: "Lead",
+      entityId: lead.id,
+      action: "CREATE",
+      note: `${serviceType} lead created via website for customer ${customer.id}`,
     });
 
     return {
