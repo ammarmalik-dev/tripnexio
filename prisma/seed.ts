@@ -5,7 +5,11 @@
  * of masters rows named "Sample ..." so it's obvious they're placeholders,
  * not a real seeded catalog.
  */
+import bcrypt from "bcryptjs";
 import { db } from "../src/lib/db";
+
+const SAMPLE_STAFF_EMAIL = "admin@tripnexio.com";
+const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 
 async function main() {
   const adminRole = await db.role.upsert({
@@ -38,6 +42,23 @@ async function main() {
   });
 
   console.log(`Roles ready: ${adminRole.name}, ${staffRole.name}`);
+
+  // SAMPLE dev-only staff account so the CRM has someone to log in as —
+  // change this password before any real deployment. Never seed real staff
+  // credentials this way.
+  const staffPasswordHash = await bcrypt.hash(SAMPLE_STAFF_PASSWORD, 10);
+  const staffUser = await db.user.upsert({
+    where: { email: SAMPLE_STAFF_EMAIL },
+    update: {},
+    create: {
+      name: "Sample Admin",
+      email: SAMPLE_STAFF_EMAIL,
+      passwordHash: staffPasswordHash,
+      roleId: adminRole.id,
+      active: true,
+    },
+  });
+  console.log(`Sample staff login ready: ${staffUser.email} / ${SAMPLE_STAFF_PASSWORD} (dev only — change before deploying)`);
 
   const sampleVendor = await db.vendor.upsert({
     where: { id: "sample-vendor-1" },
