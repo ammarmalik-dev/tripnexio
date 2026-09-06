@@ -150,11 +150,92 @@ async function main() {
   };
   await db.border.upsert({ where: { id: "sample-border-2" }, update: sampleBorder2, create: sampleBorder2 });
 
+  const sampleDocRequirement1 = {
+    nationality: "Sample Nationality",
+    serviceType: "NEW_VISA" as const,
+    documentName: "Sample Document",
+    required: true,
+  };
   await db.documentRequirement.upsert({
-    where: { nationality_documentName: { nationality: "Sample Nationality", documentName: "Sample Document" } },
-    update: {},
-    create: { nationality: "Sample Nationality", documentName: "Sample Document", required: true },
+    where: {
+      nationality_serviceType_documentName: {
+        nationality: sampleDocRequirement1.nationality,
+        serviceType: sampleDocRequirement1.serviceType,
+        documentName: sampleDocRequirement1.documentName,
+      },
+    },
+    update: sampleDocRequirement1,
+    create: sampleDocRequirement1,
   });
+
+  const sampleDocRequirement2 = {
+    nationality: "Sample Nationality",
+    serviceType: "OTB" as const,
+    documentName: "Sample Document 2",
+    required: false,
+  };
+  await db.documentRequirement.upsert({
+    where: {
+      nationality_serviceType_documentName: {
+        nationality: sampleDocRequirement2.nationality,
+        serviceType: sampleDocRequirement2.serviceType,
+        documentName: sampleDocRequirement2.documentName,
+      },
+    },
+    update: sampleDocRequirement2,
+    create: sampleDocRequirement2,
+  });
+
+  const samplePricingRule1 = {
+    id: "sample-pricing-rule-1",
+    serviceType: "NEW_VISA" as const,
+    paxType: "ADULT" as const,
+    nationality: null,
+    basePrice: 2000,
+    additionalCharges: 200,
+  };
+  await db.pricingRule.upsert({ where: { id: "sample-pricing-rule-1" }, update: samplePricingRule1, create: samplePricingRule1 });
+
+  const samplePricingRule2 = {
+    id: "sample-pricing-rule-2",
+    serviceType: "NEW_VISA" as const,
+    paxType: "CHILD" as const,
+    nationality: null,
+    basePrice: 1200,
+    additionalCharges: 100,
+  };
+  await db.pricingRule.upsert({ where: { id: "sample-pricing-rule-2" }, update: samplePricingRule2, create: samplePricingRule2 });
+
+  const samplePricingRule3 = {
+    id: "sample-pricing-rule-3",
+    serviceType: "NEW_VISA" as const,
+    paxType: "ADULT" as const,
+    nationality: "Sample Nationality",
+    basePrice: 2500,
+    additionalCharges: 200,
+  };
+  await db.pricingRule.upsert({ where: { id: "sample-pricing-rule-3" }, update: samplePricingRule3, create: samplePricingRule3 });
+
+  const sampleCoupon1 = {
+    code: "SAMPLE10",
+    type: "PERCENTAGE" as const,
+    value: 10,
+    validFrom: new Date("2026-01-01T00:00:00.000Z"),
+    validUntil: new Date("2026-12-31T23:59:59.000Z"),
+    usageLimit: 100,
+  };
+  await db.coupon.upsert({ where: { code: "SAMPLE10" }, update: sampleCoupon1, create: sampleCoupon1 });
+
+  const sampleCoupon2 = {
+    code: "SAMPLE500FLAT",
+    type: "FIXED_AMOUNT" as const,
+    value: 500,
+    validFrom: new Date("2026-01-01T00:00:00.000Z"),
+    validUntil: new Date("2026-06-30T23:59:59.000Z"),
+    usageLimit: null,
+    active: false,
+  };
+  await db.coupon.upsert({ where: { code: "SAMPLE500FLAT" }, update: sampleCoupon2, create: sampleCoupon2 });
 
   await db.faq.upsert({
     where: { id: "sample-faq-1" },

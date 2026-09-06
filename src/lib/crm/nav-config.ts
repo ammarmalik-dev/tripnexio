@@ -11,6 +11,10 @@ import {
   Plane,
   Building2,
   Fence,
+  ClipboardList,
+  Truck,
+  Tags,
+  Ticket,
   type LucideIcon,
 } from "lucide-react";
 
@@ -45,4 +49,8 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Airports", href: "/admin/airports", icon: Building2 },
   { label: "Airlines", href: "/admin/airlines", icon: Plane },
   { label: "Borders", href: "/admin/borders", icon: Fence },
+  { label: "Document Requirements", href: "/admin/document-requirements", icon: ClipboardList },
+  { label: "Vendors", href: "/admin/vendors", icon: Truck },
+  { label: "Pricing", href: "/admin/pricing", icon: Tags },
+  { label: "Coupons", href: "/admin/coupons", icon: Ticket },
 ];

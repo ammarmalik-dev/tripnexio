@@ -7,6 +7,7 @@ import type {
   PaymentStatus,
   RefundStatus,
   GccCountry,
+  CouponType,
 } from "../../generated/prisma/enums";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -102,4 +103,13 @@ export const GCC_COUNTRY_LABELS: Record<GccCountry, string> = {
 
 export const GCC_COUNTRY_OPTIONS: { value: GccCountry; label: string }[] = (
   Object.entries(GCC_COUNTRY_LABELS) as [GccCountry, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const COUPON_TYPE_LABELS: Record<CouponType, string> = {
+  PERCENTAGE: "Percentage",
+  FIXED_AMOUNT: "Fixed Amount",
+};
+
+export const COUPON_TYPE_OPTIONS: { value: CouponType; label: string }[] = (
+  Object.entries(COUPON_TYPE_LABELS) as [CouponType, string][]
 ).map(([value, label]) => ({ value, label }));

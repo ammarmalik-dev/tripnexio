@@ -397,17 +397,68 @@ model Border {
   @@index([active])
 }
 
+/// Drives the customer document checklist per nationality per service —
+/// e.g. a Nepali OTB applicant may need different documents than a Nepali
+/// New Visa applicant, hence serviceType is part of the identity, not just
+/// an optional filter.
 model DocumentRequirement {
-  id           String   @id @default(cuid())
+  id           String      @id @default(cuid())
   nationality  String
+  serviceType  ServiceType
   documentName String
-  required     Boolean  @default(true)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  required     Boolean     @default(true)
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  @@unique([nationality, documentName])
+  @@unique([nationality, serviceType, documentName])
   @@index([nationality])
+  @@index([serviceType])
+  @@index([active])
+}
+
+/// Reference pricing per service/pax-type, optionally overridden per
+/// nationality where the spec requires it (nationality = null means the
+/// rule applies to every nationality). This is a staff-facing reference
+/// table, not an automated pricing engine — the quote builder still takes
+/// staff-entered figures per quotation; wiring this in as a default/
+/// suggestion is future work.
+model PricingRule {
+  id                String      @id @default(cuid())
+  serviceType       ServiceType
+  paxType           PaxType
+  /// null = applies to all nationalities; a specific value overrides it.
+  nationality       String?
+  basePrice         Decimal     @db.Decimal(10, 2)
+  additionalCharges Decimal     @db.Decimal(10, 2) @default(0)
+  active            Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([serviceType])
+  @@index([active])
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+model Coupon {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  type        CouponType
+  /// A percentage (0-100) when type=PERCENTAGE, or a flat rupee amount when type=FIXED_AMOUNT.
+  value       Decimal    @db.Decimal(10, 2)
+  validFrom   DateTime
+  validUntil  DateTime
+  /// null = unlimited uses.
+  usageLimit  Int?
+  usageCount  Int        @default(0)
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
   @@index([active])
 }
 
