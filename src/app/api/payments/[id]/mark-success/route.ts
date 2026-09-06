@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { formatBookingId } from "@/lib/bookings/reference";
+import { getStaffSession } from "@/lib/auth/staff-session";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -15,6 +16,9 @@ interface RouteParams {
  * TNX-XX-XXXXXX id gets assigned, replacing its placeholder.
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
   const { id } = await params;
 
   let body: unknown = {};
@@ -53,7 +57,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       entityType: "Payment",
       entityId: id,
       action: "STATUS_CHANGE",
-      note: "PENDING -> SUCCESS (manual stub — no real gateway yet)",
+      byUserId: session.id,
+      note: `PENDING -> SUCCESS (manual stub — no real gateway yet; by ${session.name})`,
     });
 
     const realBookingId = formatBookingId(payment.booking.lead.serviceType, payment.booking.id);
@@ -65,7 +70,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       entityType: "Booking",
       entityId: payment.bookingId,
       action: "STATUS_CHANGE",
-      note: `PENDING -> CONFIRMED, bookingId assigned (${realBookingId})`,
+      byUserId: session.id,
+      note: `PENDING -> CONFIRMED, bookingId assigned (${realBookingId}) (by ${session.name})`,
     });
 
     let updatedLead = payment.booking.lead;
@@ -76,7 +82,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         entityType: "Lead",
         entityId: updatedLead.id,
         action: "STATUS_CHANGE",
-        note: `${previousStatus} -> CONVERTED (payment succeeded)`,
+        byUserId: session.id,
+        note: `${previousStatus} -> CONVERTED (payment succeeded, marked by ${session.name})`,
       });
     }
 

@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { formatLeadReference } from "@/lib/leads/reference";
+import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -31,6 +32,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   });
   if (!lead) return jsonError(404, "Lead not found.");
 
+  const quotations = await syncExpiredQuotations(lead.quotations);
+
   const details = (lead.details ?? {}) as Record<string, unknown>;
   const passengerIds = Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [];
   const leadPassengers = lead.customer.passengers.filter((passenger) => passengerIds.includes(passenger.id));
@@ -47,7 +50,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
   const entityRefs: { entityType: string; entityId: string }[] = [
     { entityType: "Lead", entityId: lead.id },
-    ...lead.quotations.map((quotation) => ({ entityType: "Quotation", entityId: quotation.id })),
+    ...quotations.map((quotation) => ({ entityType: "Quotation", entityId: quotation.id })),
     ...lead.bookings.map((booking) => ({ entityType: "Booking", entityId: booking.id })),
     ...lead.bookings.flatMap((booking) =>
       booking.payments.map((payment) => ({ entityType: "Payment", entityId: payment.id }))
@@ -117,7 +120,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         fileUrl: document.fileUrl,
       })),
     })),
-    quotations: lead.quotations,
+    quotations,
     bookings: lead.bookings,
     timeline: timeline.map((entry) => ({
       id: entry.id,

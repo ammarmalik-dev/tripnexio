@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
+import { getStaffSession } from "@/lib/auth/staff-session";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -19,6 +20,9 @@ function roundToPaise(value: number): number {
 }
 
 export async function POST(_request: NextRequest, { params }: RouteParams) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
   const { id: bookingId } = await params;
 
   const booking = await db.booking.findUnique({
@@ -62,7 +66,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       entityType: "Payment",
       entityId: created.id,
       action: "CREATE",
-      note: `Payment created for booking ${bookingId} — amount ${amount}`,
+      byUserId: session.id,
+      note: `Payment created for booking ${bookingId} — amount ${amount} (by ${session.name})`,
     });
 
     return created;

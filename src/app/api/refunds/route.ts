@@ -1,0 +1,60 @@
+import type { NextRequest } from "next/server";
+import { refundListQuerySchema } from "@/lib/validation/refund-query-schema";
+import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { db } from "@/lib/db";
+import { getStaffSession } from "@/lib/auth/staff-session";
+import { formatLeadReference } from "@/lib/leads/reference";
+
+export async function GET(request: NextRequest) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
+  const { searchParams } = new URL(request.url);
+  const parsed = refundListQuerySchema.safeParse(Object.fromEntries(searchParams));
+  if (!parsed.success) {
+    return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
+  }
+
+  const { status, search, sort, page, pageSize } = parsed.data;
+
+  const where = {
+    ...(status ? { status } : {}),
+    ...(search
+      ? {
+          OR: [
+            { payment: { booking: { bookingId: { contains: search, mode: "insensitive" as const } } } },
+            { payment: { booking: { customer: { name: { contains: search, mode: "insensitive" as const } } } } },
+            { payment: { booking: { customer: { mobile: { contains: search, mode: "insensitive" as const } } } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [total, refunds] = await Promise.all([
+    db.refund.count({ where }),
+    db.refund.findMany({
+      where,
+      include: { payment: { include: { booking: { include: { customer: true, lead: true } } } } },
+      orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  const items = refunds.map((refund) => ({
+    id: refund.id,
+    paymentId: refund.paymentId,
+    paidAmount: refund.paidAmount,
+    cancellationCharge: refund.cancellationCharge,
+    gatewayCharge: refund.gatewayCharge,
+    refundAmount: refund.refundAmount,
+    reason: refund.reason,
+    status: refund.status,
+    createdAt: refund.createdAt,
+    bookingDisplayId: refund.payment.booking.bookingId,
+    leadReferenceId: formatLeadReference(refund.payment.booking.lead.serviceType, refund.payment.booking.leadId),
+    customer: { name: refund.payment.booking.customer.name, mobile: refund.payment.booking.customer.mobile },
+  }));
+
+  return jsonSuccess({ items, total, page, pageSize });
+}

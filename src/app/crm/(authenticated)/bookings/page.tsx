@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
-import { CrmComingSoon } from "@/components/crm/CrmComingSoon";
+import { BookingsTable } from "@/components/crm/BookingsTable";
 
 export const metadata: Metadata = { title: "Bookings | CRM" };
 
 export default function CrmBookingsPage() {
-  return <CrmComingSoon title="Bookings" />;
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-semibold text-ink-heading">Bookings</h1>
+        <p className="text-sm text-ink-tertiary">Every booking created from a selected quotation.</p>
+      </div>
+      <BookingsTable />
+    </div>
+  );
 }

@@ -3,13 +3,23 @@ import { uploadDocumentSchema } from "@/lib/validation/document-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
+import { getStaffSession } from "@/lib/auth/staff-session";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-/** Accepts an upload URL for an already-hosted file — no file storage is integrated here, this just attaches the URL. */
+/**
+ * Accepts an upload URL for an already-hosted file — no file storage is
+ * integrated here, this just attaches the URL. Staff-gated for now since
+ * there's no customer-facing session system yet (see CLAUDE.md Auth
+ * section) — this becomes the customer's own upload endpoint once that
+ * exists, gated differently at that point.
+ */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
   const { id } = await params;
 
   let body: unknown;
@@ -38,7 +48,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityType: "Document",
       entityId: id,
       action: "UPLOAD",
-      note: `File URL attached; status ${existing.status} -> ${nextStatus}`,
+      byUserId: session.id,
+      note: `File URL attached; status ${existing.status} -> ${nextStatus} (by ${session.name})`,
     });
     return result;
   });

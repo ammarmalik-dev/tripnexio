@@ -1,12 +1,73 @@
 import type { NextRequest } from "next/server";
 import { createBookingSchema } from "@/lib/validation/booking-schema";
+import { bookingListQuerySchema } from "@/lib/validation/booking-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { placeholderBookingId } from "@/lib/bookings/reference";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
+import { getStaffSession } from "@/lib/auth/staff-session";
+import { formatLeadReference } from "@/lib/leads/reference";
+
+export async function GET(request: NextRequest) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
+  const { searchParams } = new URL(request.url);
+  const parsed = bookingListQuerySchema.safeParse(Object.fromEntries(searchParams));
+  if (!parsed.success) {
+    return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
+  }
+
+  const { status, search, sort, page, pageSize } = parsed.data;
+
+  const where = {
+    ...(status ? { status } : {}),
+    ...(search
+      ? {
+          OR: [
+            { bookingId: { contains: search, mode: "insensitive" as const } },
+            { customer: { name: { contains: search, mode: "insensitive" as const } } },
+            { customer: { mobile: { contains: search, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+
+  const [total, bookings] = await Promise.all([
+    db.booking.count({ where }),
+    db.booking.findMany({
+      where,
+      include: {
+        customer: true,
+        lead: true,
+        payments: { orderBy: { createdAt: "desc" }, take: 1 },
+      },
+      orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  const items = bookings.map((booking) => ({
+    id: booking.id,
+    bookingId: booking.bookingId,
+    status: booking.status,
+    createdAt: booking.createdAt,
+    serviceType: booking.lead.serviceType,
+    leadId: booking.leadId,
+    leadReferenceId: formatLeadReference(booking.lead.serviceType, booking.leadId),
+    customer: { name: booking.customer.name, mobile: booking.customer.mobile },
+    latestPayment: booking.payments[0] ? { id: booking.payments[0].id, status: booking.payments[0].status } : null,
+  }));
+
+  return jsonSuccess({ items, total, page, pageSize });
+}
 
 export async function POST(request: NextRequest) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
   let body: unknown;
   try {
     body = await request.json();
@@ -57,7 +118,8 @@ export async function POST(request: NextRequest) {
       entityType: "Booking",
       entityId: created.id,
       action: "CREATE",
-      note: `Booking initiated from quotation ${quotation.id}`,
+      byUserId: session.id,
+      note: `Booking initiated from quotation ${quotation.id} (by ${session.name})`,
     });
 
     return created;

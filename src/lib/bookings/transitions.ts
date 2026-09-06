@@ -16,3 +16,7 @@ export function assertValidBookingTransition(from: BookingStatus, to: BookingSta
   if (ALLOWED_TRANSITIONS[from].includes(to)) return null;
   return `Can't move a booking from ${from} to ${to}.`;
 }
+
+export function getAllowedNextBookingStatuses(from: BookingStatus): BookingStatus[] {
+  return ALLOWED_TRANSITIONS[from];
+}

@@ -1,4 +1,12 @@
-import type { ServiceType, LeadStatus, DocumentStatus, BookingStatus, PaxType } from "../../generated/prisma/enums";
+import type {
+  ServiceType,
+  LeadStatus,
+  DocumentStatus,
+  BookingStatus,
+  PaxType,
+  PaymentStatus,
+  RefundStatus,
+} from "../../generated/prisma/enums";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   NEW_VISA: "New Visa",
@@ -44,7 +52,37 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   REFUNDED: "Refunded",
 };
 
+export const BOOKING_STATUS_OPTIONS: { value: BookingStatus; label: string }[] = (
+  Object.entries(BOOKING_STATUS_LABELS) as [BookingStatus, string][]
+).map(([value, label]) => ({ value, label }));
+
 export const PAX_TYPE_LABELS: Record<PaxType, string> = {
   ADULT: "Adult",
   CHILD: "Child",
 };
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  PENDING: "Pending",
+  SUCCESS: "Success",
+  FAILED: "Failed",
+  EXPIRED: "Expired",
+};
+
+export const PAYMENT_STATUS_OPTIONS: { value: PaymentStatus; label: string }[] = (
+  Object.entries(PAYMENT_STATUS_LABELS) as [PaymentStatus, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const REFUND_STATUS_LABELS: Record<RefundStatus, string> = {
+  PENDING: "Pending",
+  PROCESSING: "Processing",
+  COMPLETED: "Completed",
+  REJECTED: "Rejected",
+};
+
+export const REFUND_STATUS_OPTIONS: { value: RefundStatus; label: string }[] = (
+  Object.entries(REFUND_STATUS_LABELS) as [RefundStatus, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const DOCUMENT_STATUS_OPTIONS: { value: DocumentStatus; label: string }[] = (
+  Object.entries(DOCUMENT_STATUS_LABELS) as [DocumentStatus, string][]
+).map(([value, label]) => ({ value, label }));

@@ -1,8 +1,16 @@
 import type { Metadata } from "next";
-import { CrmComingSoon } from "@/components/crm/CrmComingSoon";
+import { PaymentsTable } from "@/components/crm/PaymentsTable";
 
 export const metadata: Metadata = { title: "Payments | CRM" };
 
 export default function CrmPaymentsPage() {
-  return <CrmComingSoon title="Payments" />;
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-xl font-semibold text-ink-heading">Payments</h1>
+        <p className="text-sm text-ink-tertiary">Every payment across all bookings, with the manual mark-success stub.</p>
+      </div>
+      <PaymentsTable />
+    </div>
+  );
 }

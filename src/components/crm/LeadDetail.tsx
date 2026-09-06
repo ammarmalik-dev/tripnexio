@@ -2,20 +2,28 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { LeadStatusControl } from "./LeadStatusControl";
 import { LeadAssignmentControl } from "./LeadAssignmentControl";
 import { LeadStatusBadge } from "./LeadStatusBadge";
+import { BookingStatusBadge } from "./BookingStatusBadge";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
 import { LeadTimeline } from "./LeadTimeline";
 import { QuoteBuilder } from "./QuoteBuilder";
-import { SERVICE_TYPE_LABELS, BOOKING_STATUS_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
+import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { humanizeKey } from "@/lib/crm/humanize";
-import { getJson, ApiError } from "@/lib/api/client";
+import { getJson, postJson, ApiError } from "@/lib/api/client";
+import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus, BookingStatus, PaymentStatus, PaxType, DocumentStatus } from "../../generated/prisma/enums";
+
+interface QuotationSummary {
+  id: string;
+  isSelected: boolean;
+  isExpired: boolean;
+}
 
 interface PaymentItem {
   id: string;
@@ -69,6 +77,7 @@ interface LeadDetailResponse {
     otherBookings: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   };
   passengers: LeadPassenger[];
+  quotations: QuotationSummary[];
   bookings: BookingItem[];
   timeline: {
     id: string;
@@ -92,6 +101,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   const [lead, setLead] = useState<LeadDetailResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [creatingBooking, setCreatingBooking] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,6 +153,22 @@ export function LeadDetail({ leadId }: { leadId: string }) {
   if (!lead) return null;
 
   const detailEntries = Object.entries(lead.details).filter(([key]) => key !== "passengerIds");
+  const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
+  const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED");
+
+  const handleCreateBooking = async () => {
+    if (!selectedQuotation) return;
+    setCreatingBooking(true);
+    try {
+      await postJson("/api/bookings", { quotationId: selectedQuotation.id });
+      toast.success("Booking created.");
+      setReloadNonce((current) => current + 1);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't create a booking. Please try again.");
+    } finally {
+      setCreatingBooking(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -242,31 +268,45 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             onLeadChanged={() => setReloadNonce((current) => current + 1)}
           />
 
-          {lead.bookings.length > 0 ? (
+          {lead.bookings.length > 0 || selectedQuotation ? (
             <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-              <h2 className="mb-3 text-sm font-semibold text-ink-heading">Bookings &amp; Payments</h2>
-              <div className="flex flex-col gap-3">
-                {lead.bookings.map((booking) => (
-                  <div key={booking.id} className="rounded-lg border border-hairline p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-medium text-ink-accent">{booking.bookingId}</span>
-                      <span className="text-xs text-ink-tertiary">{BOOKING_STATUS_LABELS[booking.status]}</span>
-                    </div>
-                    {booking.payments.length > 0 ? (
-                      <div className="mt-2 flex flex-col gap-1">
-                        {booking.payments.map((payment) => (
-                          <div key={payment.id} className="flex items-center justify-between text-xs text-ink-tertiary">
-                            <span>
-                              ₹{payment.amount} + GST ₹{payment.gstAmount} + fee ₹{payment.gatewayFee}
-                            </span>
-                            <span>{payment.status}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-sm font-semibold text-ink-heading">Bookings &amp; Payments</h2>
+                {selectedQuotation && !hasActiveBooking ? (
+                  <Button type="button" size="sm" variant="ghost" onClick={() => void handleCreateBooking()} isLoading={creatingBooking}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Create Booking
+                  </Button>
+                ) : null}
               </div>
+              {lead.bookings.length === 0 ? (
+                <p className="text-sm text-ink-tertiary">No booking yet — create one from the selected quotation above.</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {lead.bookings.map((booking) => (
+                    <div key={booking.id} className="rounded-lg border border-hairline p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Link href={`/crm/bookings/${booking.id}`} className="text-sm font-medium text-ink-accent hover:underline">
+                          {booking.bookingId}
+                        </Link>
+                        <BookingStatusBadge status={booking.status} />
+                      </div>
+                      {booking.payments.length > 0 ? (
+                        <div className="mt-2 flex flex-col gap-1">
+                          {booking.payments.map((payment) => (
+                            <div key={payment.id} className="flex items-center justify-between text-xs text-ink-tertiary">
+                              <span>
+                                ₹{payment.amount} + GST ₹{payment.gstAmount} + fee ₹{payment.gatewayFee}
+                              </span>
+                              <span>{payment.status}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           ) : null}
         </div>
@@ -314,9 +354,13 @@ export function LeadDetail({ leadId }: { leadId: string }) {
                     </li>
                   ))}
                   {lead.customer.otherBookings.map((booking) => (
-                    <li key={booking.id} className="text-sm text-ink-secondary">
-                      {booking.bookingId}{" "}
-                      <span className="text-xs text-ink-tertiary">{BOOKING_STATUS_LABELS[booking.status]}</span>
+                    <li key={booking.id}>
+                      <Link href={`/crm/bookings/${booking.id}`} className="text-sm text-ink-accent hover:underline">
+                        {booking.bookingId}
+                      </Link>{" "}
+                      <span className="inline-flex items-center gap-1 text-xs text-ink-tertiary">
+                        <BookingStatusBadge status={booking.status} />
+                      </span>
                     </li>
                   ))}
                 </ul>
