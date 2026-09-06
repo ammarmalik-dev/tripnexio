@@ -12,11 +12,15 @@ import { PERMISSION_CATALOG, ADMIN_FULL_PERMISSION } from "../src/lib/auth/permi
 const SAMPLE_STAFF_EMAIL = "admin@tripnexio.com";
 const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 
-// Every day-to-day operational permission — everything except staff.manage
-// and roles.manage, which stay Admin-only (admin.full already covers those
-// for the Admin role, so this list is deliberately the complement of it).
+// Every day-to-day operational permission — everything except staff.manage,
+// roles.manage, and masters.manage, which stay Admin-only (admin.full
+// already covers those for the Admin role, so this list is deliberately
+// the complement of it). Masters (airports/airlines/borders) are reference
+// data an ops lead curates, not something every staff member edits day to
+// day — grant masters.manage to a role explicitly via the Admin Roles
+// screen if a team needs it.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
-  (permission) => !["staff.manage", "roles.manage", ADMIN_FULL_PERMISSION].includes(permission.name)
+  (permission) => !["staff.manage", "roles.manage", "masters.manage", ADMIN_FULL_PERMISSION].includes(permission.name)
 ).map((permission) => permission.name);
 
 async function main() {
@@ -80,49 +84,71 @@ async function main() {
   });
   console.log(`Sample vendors ready: ${sampleVendor.name}, ${sampleFlightVendor.name}`);
 
-  await db.airport.upsert({
-    where: { code: "SA1" },
-    update: {},
-    create: {
-      name: "Sample Airport 1",
-      code: "SA1",
-      country: "Sample Country",
-      city: "Sample City",
-      gccClassification: "UAE",
-      displayOrder: 1,
-    },
-  });
-  await db.airport.upsert({
-    where: { code: "SA2" },
-    update: {},
-    create: {
-      name: "Sample Airport 2",
-      code: "SA2",
-      country: "Sample Country",
-      city: "Sample City",
-      gccClassification: "INDIA",
-      displayOrder: 2,
-    },
-  });
+  // Every masters upsert below repeats its fields in both `update` and
+  // `create` — an empty `update: {}` was tried first, but that's a no-op
+  // once the row already exists from an earlier seed run, so a field added
+  // to `create` later (e.g. airline prices, displayOrder) never actually
+  // reaches a pre-existing sample row. Always keep both in sync.
+  const sampleAirport1 = {
+    name: "Sample Airport 1",
+    code: "SA1",
+    country: "Sample Country",
+    city: "Sample City",
+    gccClassification: "UAE" as const,
+    displayOrder: 1,
+  };
+  await db.airport.upsert({ where: { code: "SA1" }, update: sampleAirport1, create: sampleAirport1 });
 
-  await db.airline.upsert({
-    where: { code: "SL1" },
-    update: {},
-    create: { name: "Sample Airline 1", code: "SL1", country: "Sample Country", otbRequired: true },
-  });
+  const sampleAirport2 = {
+    name: "Sample Airport 2",
+    code: "SA2",
+    country: "Sample Country",
+    city: "Sample City",
+    gccClassification: "INDIA" as const,
+    displayOrder: 2,
+  };
+  await db.airport.upsert({ where: { code: "SA2" }, update: sampleAirport2, create: sampleAirport2 });
 
-  await db.border.upsert({
-    where: { id: "sample-border-1" },
-    update: {},
-    create: {
-      id: "sample-border-1",
-      name: "Sample Border Crossing",
-      side: "OMAN",
-      uaeLocation: "Sample UAE-Side Location",
-      destinationLocation: "Sample Destination-Side Location",
-      displayOrder: 1,
-    },
-  });
+  const sampleAirline1 = {
+    name: "Sample Airline 1",
+    code: "SL1",
+    country: "Sample Country",
+    otbRequired: true,
+    normalPrice: 500,
+    urgentPrice: 1500,
+    displayOrder: 1,
+  };
+  await db.airline.upsert({ where: { code: "SL1" }, update: sampleAirline1, create: sampleAirline1 });
+
+  const sampleAirline2 = {
+    name: "Sample Airline 2",
+    code: "SL2",
+    country: "Sample Country",
+    otbRequired: false,
+    displayOrder: 2,
+  };
+  await db.airline.upsert({ where: { code: "SL2" }, update: sampleAirline2, create: sampleAirline2 });
+
+  const sampleBorder1 = {
+    id: "sample-border-1",
+    name: "Sample Border Crossing",
+    side: "OMAN" as const,
+    uaeLocation: "Sample UAE-Side Location",
+    destinationLocation: "Sample Destination-Side Location",
+    displayOrder: 1,
+  };
+  await db.border.upsert({ where: { id: "sample-border-1" }, update: sampleBorder1, create: sampleBorder1 });
+
+  const sampleBorder2 = {
+    id: "sample-border-2",
+    name: "Sample Border Crossing 2",
+    side: "SAUDI_ARABIA" as const,
+    uaeLocation: "Sample UAE-Side Location 2",
+    destinationLocation: "Sample Destination-Side Location 2",
+    activeForVisaChange: false,
+    displayOrder: 2,
+  };
+  await db.border.upsert({ where: { id: "sample-border-2" }, update: sampleBorder2, create: sampleBorder2 });
 
   await db.documentRequirement.upsert({
     where: { nationality_documentName: { nationality: "Sample Nationality", documentName: "Sample Document" } },

@@ -364,16 +364,17 @@ model Airport {
 }
 
 model Airline {
-  id          String   @id @default(cuid())
-  name        String
-  code        String   @unique
-  country     String
-  otbRequired Boolean  @default(false)
-  normalPrice Decimal? @db.Decimal(10, 2)
-  urgentPrice Decimal? @db.Decimal(10, 2)
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  code         String   @unique
+  country      String
+  otbRequired  Boolean  @default(false)
+  normalPrice  Decimal? @db.Decimal(10, 2)
+  urgentPrice  Decimal? @db.Decimal(10, 2)
+  displayOrder Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@index([otbRequired])
   @@index([active])

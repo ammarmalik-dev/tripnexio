@@ -8,11 +8,12 @@ import { CrmTopbar } from "@/components/crm/CrmTopbar";
 /**
  * Authoritative Admin gate — the fast Edge check in src/proxy.ts only
  * confirms a valid staff session exists, not that it's allowed into Admin.
- * A signed-in staff member without roles.manage/staff.manage/admin.full is
- * redirected straight back to the CRM, the same way a signed-out visitor is
- * redirected to /crm/login — this page never even starts rendering for
- * them, so there's nothing for a limited-role user to see here regardless
- * of what the sidebar link visibility does.
+ * A signed-in staff member without roles.manage/staff.manage/
+ * masters.manage/admin.full is redirected straight back to the CRM, the
+ * same way a signed-out visitor is redirected to /crm/login — this page
+ * never even starts rendering for them, so there's nothing for a
+ * limited-role user to see here regardless of what the sidebar link
+ * visibility does.
  */
 export default async function AdminAuthenticatedLayout({ children }: { children: ReactNode }) {
   const session = await getStaffSession();
@@ -20,7 +21,8 @@ export default async function AdminAuthenticatedLayout({ children }: { children:
     redirect("/crm/login?from=/admin");
   }
 
-  const canAccessAdmin = hasPermission(session, "roles.manage") || hasPermission(session, "staff.manage");
+  const canAccessAdmin =
+    hasPermission(session, "roles.manage") || hasPermission(session, "staff.manage") || hasPermission(session, "masters.manage");
   if (!canAccessAdmin) {
     redirect("/crm/leads");
   }

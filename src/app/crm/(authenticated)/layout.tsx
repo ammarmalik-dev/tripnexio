@@ -11,7 +11,8 @@ export default async function CrmAuthenticatedLayout({ children }: { children: R
     redirect("/crm/login");
   }
 
-  const showAdminLink = hasPermission(session, "roles.manage") || hasPermission(session, "staff.manage");
+  const showAdminLink =
+    hasPermission(session, "roles.manage") || hasPermission(session, "staff.manage") || hasPermission(session, "masters.manage");
 
   return (
     <div className="flex min-h-screen bg-surface-2">

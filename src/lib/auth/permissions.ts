@@ -27,6 +27,7 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "documents.edit", description: "Add documents and set their status" },
   { name: "staff.manage", description: "Create, edit, and deactivate staff accounts" },
   { name: "roles.manage", description: "Create roles and assign permissions" },
+  { name: "masters.manage", description: "Manage master data: airports, airlines, and borders" },
   { name: ADMIN_FULL_PERMISSION, description: "Full system access — bypasses every other permission check" },
 ];
 

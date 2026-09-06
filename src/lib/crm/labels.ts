@@ -6,6 +6,7 @@ import type {
   PaxType,
   PaymentStatus,
   RefundStatus,
+  GccCountry,
 } from "../../generated/prisma/enums";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -85,4 +86,20 @@ export const REFUND_STATUS_OPTIONS: { value: RefundStatus; label: string }[] = (
 
 export const DOCUMENT_STATUS_OPTIONS: { value: DocumentStatus; label: string }[] = (
   Object.entries(DOCUMENT_STATUS_LABELS) as [DocumentStatus, string][]
+).map(([value, label]) => ({ value, label }));
+
+/** The locked market scope from CLAUDE.md (India to UAE/GCC) plus OTHER as a fallback — not sample data, matches the GccCountry enum exactly. */
+export const GCC_COUNTRY_LABELS: Record<GccCountry, string> = {
+  INDIA: "India",
+  UAE: "United Arab Emirates",
+  SAUDI_ARABIA: "Saudi Arabia",
+  BAHRAIN: "Bahrain",
+  KUWAIT: "Kuwait",
+  OMAN: "Oman",
+  QATAR: "Qatar",
+  OTHER: "Other",
+};
+
+export const GCC_COUNTRY_OPTIONS: { value: GccCountry; label: string }[] = (
+  Object.entries(GCC_COUNTRY_LABELS) as [GccCountry, string][]
 ).map(([value, label]) => ({ value, label }));
