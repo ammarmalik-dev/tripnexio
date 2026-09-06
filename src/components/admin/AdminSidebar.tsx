@@ -2,22 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
-import { crmNavItems } from "@/lib/crm/nav-config";
+import { ArrowLeft } from "lucide-react";
+import { adminNavItems } from "@/lib/crm/nav-config";
 import { Logo } from "@/components/layout/Logo";
 import { cn } from "@/lib/cn";
 
-export function CrmSidebar({ showAdminLink = false }: { showAdminLink?: boolean }) {
+export function AdminSidebar() {
   const pathname = usePathname();
 
   return (
     <aside className="glass-2 flex w-60 shrink-0 flex-col gap-6 border-r border-hairline p-4">
       <div className="px-2 pt-1">
         <Logo />
-        <p className="mt-1 text-xs font-medium tracking-wide text-ink-tertiary uppercase">CRM</p>
+        <p className="mt-1 text-xs font-medium tracking-wide text-ink-tertiary uppercase">Admin</p>
       </div>
-      <nav aria-label="CRM" className="flex flex-1 flex-col gap-1">
-        {crmNavItems.map((item) => {
+      <nav aria-label="Admin" className="flex flex-1 flex-col gap-1">
+        {adminNavItems.map((item) => {
           const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
@@ -38,15 +38,13 @@ export function CrmSidebar({ showAdminLink = false }: { showAdminLink?: boolean 
           );
         })}
       </nav>
-      {showAdminLink ? (
-        <Link
-          href="/admin"
-          className="flex items-center gap-2.5 rounded-md border border-hairline px-3 py-2 text-sm font-medium text-ink-secondary transition-colors duration-150 hover:bg-ink-primary/[0.04] hover:text-ink-primary"
-        >
-          <ShieldCheck className="h-4 w-4" aria-hidden="true" />
-          Admin Panel
-        </Link>
-      ) : null}
+      <Link
+        href="/crm/leads"
+        className="flex items-center gap-2.5 rounded-md border border-hairline px-3 py-2 text-sm font-medium text-ink-secondary transition-colors duration-150 hover:bg-ink-primary/[0.04] hover:text-ink-primary"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        Back to CRM
+      </Link>
     </aside>
   );
 }

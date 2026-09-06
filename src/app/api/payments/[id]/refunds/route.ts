@@ -3,7 +3,7 @@ import { createRefundSchema } from "@/lib/validation/refund-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { computeRefundAmount, isOtbBooking } from "@/lib/refunds/pricing";
 
 interface RouteParams {
@@ -12,8 +12,9 @@ interface RouteParams {
 
 /** The refund calculator: staff enters paidAmount/cancellationCharge/gatewayCharge, refundAmount is always computed server-side. */
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("refunds.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   const { id: paymentId } = await params;
 

@@ -4,7 +4,7 @@ import { documentListQuerySchema } from "@/lib/validation/document-query-schema"
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 
 /**
@@ -14,8 +14,8 @@ import { formatLeadReference } from "@/lib/leads/reference";
  * optionally filtered by status.
  */
 export async function GET(request: NextRequest) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("documents.view");
+  if (auth.error) return auth.error;
 
   const { searchParams } = new URL(request.url);
   const bookingId = searchParams.get("bookingId") ?? undefined;
@@ -86,8 +86,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("documents.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   let body: unknown;
   try {

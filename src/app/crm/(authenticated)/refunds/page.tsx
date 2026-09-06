@@ -9,7 +9,7 @@ export default function CrmRefundsPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Refunds</h1>
         <p className="text-sm text-ink-tertiary">
-          Every refund calculated from a successful payment. Initiate a new one from that payment's detail panel.
+          Every refund calculated from a successful payment. Initiate a new one from that payment&apos;s detail panel.
         </p>
       </div>
       <RefundsTable />

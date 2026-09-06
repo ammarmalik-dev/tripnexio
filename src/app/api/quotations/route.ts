@@ -4,12 +4,12 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { computeSellingPrice, isFlightQuote, assertValidityWithinCap } from "@/lib/quotations/pricing";
 
 export async function GET(request: NextRequest) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("quotations.view");
+  if (auth.error) return auth.error;
 
   const { searchParams } = new URL(request.url);
   const leadId = searchParams.get("leadId");
@@ -26,8 +26,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("quotations.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   let body: unknown;
   try {

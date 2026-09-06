@@ -7,6 +7,8 @@ export interface StaffSession {
   name: string;
   email: string;
   role: string;
+  /** Every permission name granted by this user's role — see src/lib/auth/permissions.ts. */
+  permissions: string[];
 }
 
 /**
@@ -14,7 +16,9 @@ export interface StaffSession {
  * Handlers (Node.js runtime — has DB access, unlike middleware). Re-checks
  * the User is still `active` rather than trusting the JWT claims alone, so
  * a deactivated staff account loses access immediately, not just after the
- * token expires.
+ * token expires. Permissions are read fresh from the DB on every call too
+ * (not cached in the JWT), so a role's permissions changing takes effect
+ * immediately rather than waiting for the 8h token to expire.
  */
 export async function getStaffSession(): Promise<StaffSession | null> {
   const cookieStore = await cookies();
@@ -24,8 +28,17 @@ export async function getStaffSession(): Promise<StaffSession | null> {
   const payload = await verifyStaffSessionToken(token);
   if (!payload) return null;
 
-  const user = await db.user.findUnique({ where: { id: payload.sub }, include: { role: true } });
+  const user = await db.user.findUnique({
+    where: { id: payload.sub },
+    include: { role: { include: { permissions: true } } },
+  });
   if (!user || !user.active) return null;
 
-  return { id: user.id, name: user.name, email: user.email, role: user.role.name };
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role.name,
+    permissions: user.role.permissions.map((permission) => permission.name),
+  };
 }

@@ -4,15 +4,16 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { assertValidBookingTransition } from "@/lib/bookings/transitions";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("bookings.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   const { id } = await params;
 

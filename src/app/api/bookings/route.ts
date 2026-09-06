@@ -6,12 +6,12 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { placeholderBookingId } from "@/lib/bookings/reference";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 
 export async function GET(request: NextRequest) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("bookings.view");
+  if (auth.error) return auth.error;
 
   const { searchParams } = new URL(request.url);
   const parsed = bookingListQuerySchema.safeParse(Object.fromEntries(searchParams));
@@ -65,8 +65,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("bookings.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   let body: unknown;
   try {

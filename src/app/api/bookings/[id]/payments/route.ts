@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -20,8 +20,9 @@ function roundToPaise(value: number): number {
 }
 
 export async function POST(_request: NextRequest, { params }: RouteParams) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("payments.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   const { id: bookingId } = await params;
 

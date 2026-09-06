@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { updateLeadStatusSchema } from "@/lib/validation/lead-status-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { writeAudit } from "@/lib/audit/log";
 import { assertValidLeadTransition } from "@/lib/leads/transitions";
 
@@ -11,8 +11,9 @@ interface RouteParams {
 }
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("leads.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   const { id } = await params;
 

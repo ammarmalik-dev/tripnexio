@@ -7,37 +7,45 @@
  */
 import bcrypt from "bcryptjs";
 import { db } from "../src/lib/db";
+import { PERMISSION_CATALOG, ADMIN_FULL_PERMISSION } from "../src/lib/auth/permissions";
 
 const SAMPLE_STAFF_EMAIL = "admin@tripnexio.com";
 const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 
+// Every day-to-day operational permission — everything except staff.manage
+// and roles.manage, which stay Admin-only (admin.full already covers those
+// for the Admin role, so this list is deliberately the complement of it).
+const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
+  (permission) => !["staff.manage", "roles.manage", ADMIN_FULL_PERMISSION].includes(permission.name)
+).map((permission) => permission.name);
+
 async function main() {
+  // The full canonical permission catalog (src/lib/auth/permissions.ts) is
+  // seeded up front so the Admin Roles screen always has every permission
+  // to assign, even to a brand-new role with nothing checked yet.
+  for (const permission of PERMISSION_CATALOG) {
+    await db.permission.upsert({
+      where: { name: permission.name },
+      update: { description: permission.description },
+      create: permission,
+    });
+  }
+
   const adminRole = await db.role.upsert({
     where: { name: "Admin" },
-    update: {},
+    update: { permissions: { set: [{ name: ADMIN_FULL_PERMISSION }] } },
     create: {
       name: "Admin",
-      permissions: {
-        connectOrCreate: [
-          { where: { name: "admin.full" }, create: { name: "admin.full", description: "Full system access" } },
-        ],
-      },
+      permissions: { connect: [{ name: ADMIN_FULL_PERMISSION }] },
     },
   });
 
   const staffRole = await db.role.upsert({
     where: { name: "Staff" },
-    update: {},
+    update: { permissions: { set: STAFF_ROLE_PERMISSIONS.map((name) => ({ name })) } },
     create: {
       name: "Staff",
-      permissions: {
-        connectOrCreate: [
-          { where: { name: "leads.view" }, create: { name: "leads.view", description: "View leads" } },
-          { where: { name: "leads.edit" }, create: { name: "leads.edit", description: "Edit leads" } },
-          { where: { name: "bookings.view" }, create: { name: "bookings.view", description: "View bookings" } },
-          { where: { name: "bookings.edit" }, create: { name: "bookings.edit", description: "Edit bookings" } },
-        ],
-      },
+      permissions: { connect: STAFF_ROLE_PERMISSIONS.map((name) => ({ name })) },
     },
   });
 

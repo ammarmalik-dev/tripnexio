@@ -2,12 +2,12 @@ import type { NextRequest } from "next/server";
 import { paymentListQuerySchema } from "@/lib/validation/payment-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 
 export async function GET(request: NextRequest) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("payments.view");
+  if (auth.error) return auth.error;
 
   const { searchParams } = new URL(request.url);
   const parsed = paymentListQuerySchema.safeParse(Object.fromEntries(searchParams));

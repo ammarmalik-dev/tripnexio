@@ -3,7 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
-import { getStaffSession } from "@/lib/auth/staff-session";
+import { requirePermission } from "@/lib/auth/require-permission";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -11,8 +11,9 @@ interface RouteParams {
 
 /** Selecting a quotation expires every other quotation on the same lead — the spec's "one active quotation" rule. */
 export async function PATCH(_request: NextRequest, { params }: RouteParams) {
-  const session = await getStaffSession();
-  if (!session) return jsonError(401, "Sign in required.");
+  const auth = await requirePermission("quotations.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
 
   const { id } = await params;
 
