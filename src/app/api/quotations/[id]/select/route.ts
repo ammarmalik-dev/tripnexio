@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
+import { getStaffSession } from "@/lib/auth/staff-session";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -10,6 +11,9 @@ interface RouteParams {
 
 /** Selecting a quotation expires every other quotation on the same lead — the spec's "one active quotation" rule. */
 export async function PATCH(_request: NextRequest, { params }: RouteParams) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
   const { id } = await params;
 
   const quotation = await db.quotation.findUnique({ where: { id } });
@@ -33,7 +37,8 @@ export async function PATCH(_request: NextRequest, { params }: RouteParams) {
           entityType: "Quotation",
           entityId: other.id,
           action: "EXPIRE",
-          note: `Expired — quotation ${id} was selected instead for lead ${quotation.leadId}`,
+          byUserId: session.id,
+          note: `Expired — quotation ${id} was selected instead for lead ${quotation.leadId} (by ${session.name})`,
         });
       }
     }
@@ -43,7 +48,8 @@ export async function PATCH(_request: NextRequest, { params }: RouteParams) {
       entityType: "Quotation",
       entityId: id,
       action: "SELECT",
-      note: `Selected for lead ${quotation.leadId}`,
+      byUserId: session.id,
+      note: `Selected for lead ${quotation.leadId} (by ${session.name})`,
     });
 
     const lead = await tx.lead.findUnique({ where: { id: quotation.leadId } });
@@ -53,7 +59,8 @@ export async function PATCH(_request: NextRequest, { params }: RouteParams) {
         entityType: "Lead",
         entityId: lead.id,
         action: "STATUS_CHANGE",
-        note: `${lead.status} -> QUOTED (quotation selected)`,
+        byUserId: session.id,
+        note: `${lead.status} -> QUOTED (quotation selected by ${session.name})`,
       });
     }
 

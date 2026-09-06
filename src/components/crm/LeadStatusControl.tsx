@@ -5,7 +5,7 @@ import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormFiel
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { LEAD_STATUS_LABELS } from "@/lib/crm/labels";
 import { getAllowedNextStatuses } from "@/lib/leads/transitions";
-import { postJson, ApiError } from "@/lib/api/client";
+import { patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { LeadStatus } from "../../generated/prisma/enums";
@@ -24,7 +24,7 @@ export function LeadStatusControl({ leadId, status, onChanged }: LeadStatusContr
     if (!nextStatus || nextStatus === status) return;
     setPending(true);
     try {
-      await postJson(`/api/leads/${leadId}/status`, { status: nextStatus });
+      await patchJson(`/api/leads/${leadId}/status`, { status: nextStatus });
       toast.success(`Status updated to ${LEAD_STATUS_LABELS[nextStatus as LeadStatus]}`);
       onChanged(nextStatus as LeadStatus);
     } catch (error) {

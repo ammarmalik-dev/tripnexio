@@ -39,3 +39,13 @@ export async function getJson<T>(url: string): Promise<T> {
   const response = await fetch(url);
   return unwrapResponse<T>(response);
 }
+
+/** Shared client-side PATCH helper — for the partial-update routes (status/assign/select) that only accept PATCH. */
+export async function patchJson<T>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return unwrapResponse<T>(response);
+}

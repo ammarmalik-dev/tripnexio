@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { getJson, postJson, ApiError } from "@/lib/api/client";
+import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -42,7 +42,7 @@ export function LeadAssignmentControl({ leadId, assignedStaff, onChanged }: Lead
   const handleChange = async (staffId: string) => {
     setPending(true);
     try {
-      await postJson(`/api/leads/${leadId}/assign`, { staffId: staffId || null });
+      await patchJson(`/api/leads/${leadId}/assign`, { staffId: staffId || null });
       const staff = staffOptions.find((option) => option.id === staffId) ?? null;
       toast.success(staff ? `Assigned to ${staff.name}` : "Unassigned");
       onChanged(staff ? { id: staff.id, name: staff.name } : null);

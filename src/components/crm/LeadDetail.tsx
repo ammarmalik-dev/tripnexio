@@ -11,24 +11,11 @@ import { LeadAssignmentControl } from "./LeadAssignmentControl";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
 import { LeadTimeline } from "./LeadTimeline";
+import { QuoteBuilder } from "./QuoteBuilder";
 import { SERVICE_TYPE_LABELS, BOOKING_STATUS_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { humanizeKey } from "@/lib/crm/humanize";
 import { getJson, ApiError } from "@/lib/api/client";
 import type { ServiceType, LeadStatus, BookingStatus, PaymentStatus, PaxType, DocumentStatus } from "../../generated/prisma/enums";
-
-interface QuotationItem {
-  id: string;
-  airline: string | null;
-  flightNumber: string | null;
-  route: string | null;
-  vendorCost: string;
-  sellingPrice: string;
-  margin: string;
-  validityExpiresAt: string | null;
-  isSelected: boolean;
-  isExpired: boolean;
-  createdAt: string;
-}
 
 interface PaymentItem {
   id: string;
@@ -82,7 +69,6 @@ interface LeadDetailResponse {
     otherBookings: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   };
   passengers: LeadPassenger[];
-  quotations: QuotationItem[];
   bookings: BookingItem[];
   timeline: {
     id: string;
@@ -249,38 +235,12 @@ export function LeadDetail({ leadId }: { leadId: string }) {
             )}
           </section>
 
-          {lead.quotations.length > 0 ? (
-            <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-              <h2 className="mb-3 text-sm font-semibold text-ink-heading">Quotations</h2>
-              <div className="flex flex-col gap-2">
-                {lead.quotations.map((quotation) => (
-                  <div
-                    key={quotation.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline p-3 text-sm"
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium text-ink-primary">
-                        {quotation.airline ?? "Quotation"} {quotation.route ? `· ${quotation.route}` : ""}
-                      </span>
-                      <span className="text-xs text-ink-tertiary">
-                        Selling ₹{quotation.sellingPrice} · Margin ₹{quotation.margin}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      {quotation.isSelected ? (
-                        <span className="rounded-full bg-success/10 px-2.5 py-1 font-medium text-success">Selected</span>
-                      ) : null}
-                      {quotation.isExpired ? (
-                        <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-1 font-medium text-ink-tertiary">
-                          Expired
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          <QuoteBuilder
+            leadId={lead.id}
+            serviceType={lead.serviceType}
+            leadStatus={lead.status}
+            onLeadChanged={() => setReloadNonce((current) => current + 1)}
+          />
 
           {lead.bookings.length > 0 ? (
             <section className="rounded-xl border border-hairline bg-surface-1 p-5">

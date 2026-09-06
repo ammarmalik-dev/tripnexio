@@ -169,20 +169,40 @@ model Lead {
 }
 
 model Quotation {
-  id                String    @id @default(cuid())
-  leadId            String
-  airline           String?
-  flightNumber      String?
-  route             String?
-  flightDateTime    DateTime?
+  id           String    @id @default(cuid())
+  leadId       String
+  /// --- Flight Special Fare fields (structured quote) ---
+  airline      String?
+  flightNumber String?
+  route        String?
+  /// Departure date/time for a flight quote.
+  flightDateTime  DateTime?
+  arrivalDateTime DateTime?
+  baggageAllowance String?
+  fareType         String?
+  adultFare        Decimal? @db.Decimal(10, 2)
+  childFare        Decimal? @db.Decimal(10, 2)
+  infantFare       Decimal? @db.Decimal(10, 2)
+  /// --- Visa services / OTB fields (simple fee-based quote) ---
+  feeAmount     Decimal? @db.Decimal(10, 2)
+  fineOrCharges Decimal? @db.Decimal(10, 2)
+  /// --- Commercial fields shared by every service type ---
   vendorId          String
   vendorCost        Decimal   @db.Decimal(10, 2)
+  /// The customer-facing total. For Flight Special Fare this is staff-entered
+  /// directly; for every other service type the API computes it server-side
+  /// as feeAmount + fineOrCharges. Never shown to the customer alongside
+  /// vendorCost/margin — those two stay staff-only.
   sellingPrice      Decimal   @db.Decimal(10, 2)
   /// Computed by the API layer as sellingPrice - vendorCost on write.
   margin            Decimal   @db.Decimal(10, 2)
   validityExpiresAt DateTime?
   isSelected        Boolean   @default(false)
   isExpired         Boolean   @default(false)
+  /// Set when this quote represents an alternative route/option offered
+  /// instead of what the customer originally requested — points at the
+  /// sibling quotation (on the same lead) it stands in for. The UI must
+  /// always render this quotation's own `route`, never the requested one.
   alternativeOfId   String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt

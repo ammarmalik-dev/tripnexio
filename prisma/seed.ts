@@ -65,7 +65,12 @@ async function main() {
     update: {},
     create: { id: "sample-vendor-1", name: "Sample Vendor A", service: "NEW_VISA", active: true },
   });
-  console.log(`Sample vendor ready: ${sampleVendor.name}`);
+  const sampleFlightVendor = await db.vendor.upsert({
+    where: { id: "sample-vendor-2" },
+    update: {},
+    create: { id: "sample-vendor-2", name: "Sample Flight Consolidator", service: "FLIGHT_SPECIAL_FARE", active: true },
+  });
+  console.log(`Sample vendors ready: ${sampleVendor.name}, ${sampleFlightVendor.name}`);
 
   await db.airport.upsert({
     where: { code: "SA1" },

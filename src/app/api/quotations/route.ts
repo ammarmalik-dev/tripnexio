@@ -4,8 +4,13 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
+import { getStaffSession } from "@/lib/auth/staff-session";
+import { computeSellingPrice, isFlightQuote, assertValidityWithinCap } from "@/lib/quotations/pricing";
 
 export async function GET(request: NextRequest) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
   const { searchParams } = new URL(request.url);
   const leadId = searchParams.get("leadId");
   if (!leadId) {
@@ -21,6 +26,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const session = await getStaffSession();
+  if (!session) return jsonError(401, "Sign in required.");
+
   let body: unknown;
   try {
     body = await request.json();
@@ -33,8 +41,26 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const { leadId, vendorId, airline, flightNumber, route, flightDateTime, vendorCost, sellingPrice, validityExpiresAt, alternativeOfId } =
-    parsed.data;
+  const {
+    leadId,
+    vendorId,
+    airline,
+    flightNumber,
+    route,
+    flightDateTime,
+    arrivalDateTime,
+    baggageAllowance,
+    fareType,
+    adultFare,
+    childFare,
+    infantFare,
+    feeAmount,
+    fineOrCharges,
+    vendorCost,
+    sellingPrice,
+    validityExpiresAt,
+    alternativeOfId,
+  } = parsed.data;
 
   const lead = await db.lead.findUnique({ where: { id: leadId } });
   if (!lead) return jsonError(404, "Lead not found.");
@@ -42,6 +68,19 @@ export async function POST(request: NextRequest) {
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
   if (!vendor || !vendor.active) {
     return jsonError(400, "Select a valid, active vendor.", { vendorId: ["This vendor isn't available."] });
+  }
+
+  const flightQuote = isFlightQuote(lead.serviceType);
+  if (flightQuote && sellingPrice == null) {
+    return jsonError(400, "Please check the highlighted fields.", { sellingPrice: ["Enter the selling price."] });
+  }
+  if (!flightQuote && feeAmount == null) {
+    return jsonError(400, "Please check the highlighted fields.", { feeAmount: ["Enter the fee amount."] });
+  }
+
+  const validityError = assertValidityWithinCap(lead.serviceType, validityExpiresAt);
+  if (validityError) {
+    return jsonError(400, validityError, { validityExpiresAt: [validityError] });
   }
 
   if (alternativeOfId) {
@@ -53,8 +92,9 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Margin is always computed server-side — never trust a client-sent value.
-  const margin = sellingPrice - vendorCost;
+  // Selling price and margin are always computed/resolved server-side — never trust a client-sent value.
+  const resolvedSellingPrice = computeSellingPrice(lead.serviceType, { sellingPrice, feeAmount, fineOrCharges });
+  const margin = resolvedSellingPrice - vendorCost;
 
   const quotation = await db.$transaction(async (tx) => {
     const created = await tx.quotation.create({
@@ -65,8 +105,16 @@ export async function POST(request: NextRequest) {
         flightNumber,
         route,
         flightDateTime: flightDateTime ? new Date(flightDateTime) : undefined,
+        arrivalDateTime: arrivalDateTime ? new Date(arrivalDateTime) : undefined,
+        baggageAllowance,
+        fareType,
+        adultFare,
+        childFare,
+        infantFare,
+        feeAmount,
+        fineOrCharges,
         vendorCost,
-        sellingPrice,
+        sellingPrice: resolvedSellingPrice,
         margin,
         validityExpiresAt: validityExpiresAt ? new Date(validityExpiresAt) : undefined,
         alternativeOfId,
@@ -77,7 +125,8 @@ export async function POST(request: NextRequest) {
       entityType: "Quotation",
       entityId: created.id,
       action: "CREATE",
-      note: `Quotation created for lead ${leadId} — margin ${margin}`,
+      byUserId: session.id,
+      note: `Quotation created for lead ${leadId} — margin ${margin} (by ${session.name})`,
     });
 
     return created;
