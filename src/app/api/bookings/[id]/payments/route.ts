@@ -4,15 +4,17 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getTaxFeeRates } from "@/lib/settings/tax-fee-config";
+import { getPaymentGateway } from "@/lib/payments/get-gateway";
+import { isExpiredNow, syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
+import { formatLeadReference } from "@/lib/leads/reference";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-// No real payment gateway is integrated yet (see CLAUDE.md Milestones —
-// that's M2/M3 work). GST/gateway-fee rates come from the admin-managed
-// TaxFeeConfig singleton (see src/lib/settings/tax-fee-config.ts) — no
-// longer hard-coded here.
+// GST/gateway-fee rates come from the admin-managed TaxFeeConfig singleton
+// (see src/lib/settings/tax-fee-config.ts) — no longer hard-coded here.
+const PAYMENT_LINK_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
 function roundToPaise(value: number): number {
   return Math.round(value * 100) / 100;
@@ -27,7 +29,10 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
 
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
-    include: { lead: { include: { quotations: { where: { isSelected: true } } } } },
+    include: {
+      customer: true,
+      lead: { include: { quotations: { where: { isSelected: true } } } },
+    },
   });
   if (!booking) return jsonError(404, "Booking not found.");
   if (booking.status !== "PENDING") {
@@ -39,15 +44,36 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     return jsonError(409, "A pending payment already exists for this booking.");
   }
 
-  const selectedQuotation = booking.lead.quotations[0];
+  const [selectedQuotation] = await syncExpiredQuotations(booking.lead.quotations);
   if (!selectedQuotation) {
     return jsonError(409, "No selected quotation found for this booking's lead.");
+  }
+
+  // Flight quotes have a tight (<=30 min) validity window (see
+  // src/lib/quotations/pricing.ts) that can lapse between booking creation
+  // and payment creation — re-check it right before generating a payment
+  // link, don't just trust that it was valid when the booking was made.
+  if (booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" && isExpiredNow(selectedQuotation)) {
+    return jsonError(409, "This flight quote has expired. Build a new quote for this lead before creating a payment.");
   }
 
   const amount = Number(selectedQuotation.sellingPrice);
   const { gstRate, gatewayFeeRate } = await getTaxFeeRates();
   const gstAmount = roundToPaise(amount * gstRate);
   const gatewayFee = roundToPaise(amount * gatewayFeeRate);
+  const totalAmount = roundToPaise(amount + gstAmount + gatewayFee);
+  const linkExpiresAt = new Date(Date.now() + PAYMENT_LINK_VALIDITY_MS);
+
+  const gateway = getPaymentGateway();
+  const { gatewayRef, paymentLink } = await gateway.createPaymentLink({
+    amountInRupees: totalAmount,
+    description: `TripNexio ${formatLeadReference(booking.lead.serviceType, booking.leadId)}`,
+    customerName: booking.customer.name,
+    customerMobile: booking.customer.mobile,
+    customerEmail: booking.customer.email,
+    notes: { bookingId: booking.id, leadId: booking.leadId },
+    expiresAt: linkExpiresAt,
+  });
 
   const payment = await db.$transaction(async (tx) => {
     const created = await tx.payment.create({
@@ -57,9 +83,9 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
         gstAmount,
         gatewayFee,
         status: "PENDING",
-        // Stub — no real payment gateway yet, see module comment above.
-        paymentLink: `https://pay.tripnexio.example/checkout/${bookingId}`,
-        linkExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        gatewayRef,
+        paymentLink,
+        linkExpiresAt,
       },
     });
 
@@ -68,7 +94,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Payment created for booking ${bookingId} — amount ${amount} (by ${session.name})`,
+      note: `Payment link created for booking ${bookingId} via ${gateway.providerName} — total ₹${totalAmount} (by ${session.name})`,
     });
 
     return created;

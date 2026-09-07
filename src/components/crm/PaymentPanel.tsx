@@ -28,6 +28,8 @@ export interface PaymentData {
   gatewayFee: string;
   status: PaymentStatus;
   gatewayRef: string | null;
+  paymentLink: string | null;
+  linkExpiresAt: string | null;
   createdAt: string;
   refunds: RefundData[];
 }
@@ -108,16 +110,38 @@ export function PaymentPanel({
         </div>
       </dl>
 
+      {payment.status === "PENDING" && payment.paymentLink ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-md bg-surface-2 px-3 py-2 text-xs">
+          <span className="text-ink-tertiary">Send this link to the customer:</span>
+          <a href={payment.paymentLink} target="_blank" rel="noreferrer" className="break-all text-ink-accent hover:underline">
+            {payment.paymentLink}
+          </a>
+          {payment.linkExpiresAt ? (
+            <span className="text-ink-tertiary">
+              (expires {new Date(payment.linkExpiresAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })})
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
         {payment.status === "PENDING" ? (
           <Button type="button" size="sm" onClick={() => void handleMarkSuccess()} isLoading={markingSuccess}>
-            Mark Success
+            Mark Success Manually
           </Button>
         ) : null}
         {payment.status === "SUCCESS" && !showRefundForm ? (
           <Button type="button" size="sm" variant="ghost" onClick={() => setShowRefundForm(true)}>
             Initiate Refund
           </Button>
+        ) : null}
+        {payment.status === "SUCCESS" ? (
+          <a
+            href={`/api/payments/${payment.id}/invoice`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-hairline px-4 text-sm font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border hover:bg-white/[0.03]"
+          >
+            Download Invoice
+          </a>
         ) : null}
       </div>
 

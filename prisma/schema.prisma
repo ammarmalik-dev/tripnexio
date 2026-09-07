@@ -248,7 +248,11 @@ model Payment {
   gstAmount     Decimal       @db.Decimal(10, 2)
   gatewayFee    Decimal       @db.Decimal(10, 2)
   status        PaymentStatus @default(PENDING)
-  gatewayRef    String?
+  /// The gateway's own id for this payment link/order — how an incoming
+  /// webhook is matched back to this row. Unique (Postgres allows multiple
+  /// NULLs under a unique constraint, so this is safe before a payment
+  /// link has been generated).
+  gatewayRef    String?       @unique
   paymentLink   String?
   linkExpiresAt DateTime?
   createdAt     DateTime      @default(now())
