@@ -355,6 +355,72 @@ async function main() {
     });
   }
 
+  // Same 8 events, WHATSAPP channel (Phase 5C) — shorter copy (no subject
+  // line on WhatsApp), and deliberately NO metaTemplateName/Language yet:
+  // those only get filled in once Meta has actually approved this exact
+  // copy as a Message Template (see docs/deployment/WHATSAPP_SETUP.md).
+  // Until then sendNotificationWhatsApp() skips these (audited, not an
+  // error) rather than attempting an unapproved send.
+  const whatsappTemplates = [
+    {
+      id: "notification-template-lead-received-wa",
+      event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
+      body: "Hi {{customerName}}, thanks for your {{serviceType}} request with TripNexio. Reference: {{leadReference}}. Our team will reach out shortly.",
+    },
+    {
+      id: "notification-template-quote-ready-wa",
+      event: NOTIFICATION_EVENTS.QUOTE_READY,
+      body: "Hi {{customerName}}, your quote for {{leadReference}} is ready: {{sellingPrice}} (valid until {{quoteValidUntil}}). Reply here to proceed.",
+    },
+    {
+      id: "notification-template-quote-reminder-wa",
+      event: NOTIFICATION_EVENTS.QUOTE_REMINDER,
+      body: "Hi {{customerName}}, your quote for {{leadReference}} is expiring soon. Let us know if you'd like to proceed.",
+    },
+    {
+      id: "notification-template-quote-expired-wa",
+      event: NOTIFICATION_EVENTS.QUOTE_EXPIRED,
+      body: "Hi {{customerName}}, your quote for {{leadReference}} has expired. Message us for an updated quote.",
+    },
+    {
+      id: "notification-template-payment-received-wa",
+      event: NOTIFICATION_EVENTS.PAYMENT_RECEIVED,
+      body: "Hi {{customerName}}, we've received your payment of {{amount}} for booking {{bookingId}}. Thank you for choosing TripNexio!",
+    },
+    {
+      id: "notification-template-documents-required-wa",
+      event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
+      body: "Hi {{customerName}}, we need {{documentName}} to proceed with {{leadReference}}. Please share it at your earliest convenience.",
+    },
+    {
+      id: "notification-template-document-approved-wa",
+      event: NOTIFICATION_EVENTS.DOCUMENT_APPROVED,
+      body: "Hi {{customerName}}, your {{documentName}} for {{leadReference}} has been verified. 👍",
+    },
+    {
+      id: "notification-template-document-rejected-wa",
+      event: NOTIFICATION_EVENTS.DOCUMENT_REJECTED,
+      body: "Hi {{customerName}}, your {{documentName}} for {{leadReference}} couldn't be verified. Please resubmit a clear copy.",
+    },
+  ];
+  for (const template of whatsappTemplates) {
+    const data = {
+      id: template.id,
+      event: template.event,
+      channel: "WHATSAPP" as const,
+      subject: null,
+      body: template.body,
+      active: true,
+      metaTemplateName: null,
+      metaTemplateLanguage: null,
+    };
+    await db.notificationTemplate.upsert({
+      where: { event_channel: { event: data.event, channel: data.channel } },
+      update: data,
+      create: data,
+    });
+  }
+
   // Matches the values the old hard-coded SAMPLE_GST_RATE (0.05) /
   // SAMPLE_GATEWAY_FEE_RATE (0.02) constants used, so seeding this for the
   // first time doesn't change any existing payment-calculation behavior —

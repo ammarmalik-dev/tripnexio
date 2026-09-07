@@ -5,9 +5,10 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
-import { sendNotificationEmail } from "@/lib/notifications/send-notification-email";
+import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import type { NotificationEvent } from "@/lib/notifications/events";
+import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -70,9 +71,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (event) {
     const recipient = await resolveDocumentRecipient(updated);
     if (recipient) {
-      await sendNotificationEmail({
+      await notifyCustomer({
         event,
-        to: recipient.email,
+        emailTo: recipient.email,
+        whatsappTo: toWhatsAppId(recipient.mobile),
         variables: { customerName: recipient.customerName, documentName: updated.type, leadReference: recipient.leadReference },
         auditTarget: { entityType: "Document", entityId: updated.id },
       });

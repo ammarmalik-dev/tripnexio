@@ -7,8 +7,9 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
-import { sendNotificationEmail } from "@/lib/notifications/send-notification-email";
+import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
+import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
 /**
  * Two modes: pass `bookingId`/`passengerId` for the documents scoped to one
@@ -141,9 +142,10 @@ export async function POST(request: NextRequest) {
 
   const recipient = await resolveDocumentRecipient(document);
   if (recipient) {
-    await sendNotificationEmail({
+    await notifyCustomer({
       event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
-      to: recipient.email,
+      emailTo: recipient.email,
+      whatsappTo: toWhatsAppId(recipient.mobile),
       variables: { customerName: recipient.customerName, documentName: document.type, leadReference: recipient.leadReference },
       auditTarget: { entityType: "Document", entityId: document.id },
     });

@@ -511,12 +511,66 @@ model NotificationTemplate {
   subject   String?
   body      String
   active    Boolean             @default(true)
+  /// WhatsApp only (Phase 5B/C). WhatsApp Cloud API can only send this
+  /// template OUTSIDE an active 24h customer-initiated session as a
+  /// Meta-approved Message Template, referenced by its exact approved name +
+  /// language — never as raw free text. `body` above is still the source
+  /// copy an admin edits and what gets submitted to Meta for approval; these
+  /// two fields are filled in only once Meta has actually approved it (see
+  /// docs/deployment/WHATSAPP_SETUP.md). Null/empty means "not yet approved
+  /// by Meta" — the send is skipped (audited, not silently dropped) rather
+  /// than guessed at.
+  metaTemplateName     String?
+  metaTemplateLanguage String?
   createdAt DateTime            @default(now())
   updatedAt DateTime            @updatedAt
 
   @@unique([event, channel])
   @@index([channel])
   @@index([active])
+}
+
+enum WhatsAppMessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+/// One row per WhatsApp number the bot has ever talked to — the
+/// conversational state machine's persistence (Phase 5C). `state` is a free
+/// string (not a locked enum), same rationale as LeadStatus/BookingStatus:
+/// proposed default set, see src/lib/whatsapp-bot/engine.ts. `leadId` is a
+/// plain cross-reference (no FK relation, same polymorphic-style pattern as
+/// AuditTrail.entityId) since a conversation optionally produces at most one
+/// Lead and nothing else needs to query "this Lead's conversation" yet.
+model WhatsAppConversation {
+  id              String       @id @default(cuid())
+  waId            String       @unique
+  customerName    String?
+  state           String       @default("GREETING")
+  serviceType     ServiceType?
+  collectedFields Json         @default("{}")
+  leadId          String?
+  lastInboundAt   DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([state])
+  @@index([leadId])
+}
+
+/// Full inbound/outbound transcript per WhatsApp number — separate from
+/// AuditTrail (that model is state-change/event oriented, not meant for a
+/// high-volume message transcript) and needed so a human handoff has the
+/// actual conversation to pick up, not just "handoff happened."
+model WhatsAppMessageLog {
+  id        String                   @id @default(cuid())
+  waId      String
+  direction WhatsAppMessageDirection
+  body      String
+  createdAt DateTime                 @default(now())
+
+  @@index([waId])
+  @@index([createdAt])
 }
 
 /// A true singleton — exactly one row, fetched/updated by a fixed id (see

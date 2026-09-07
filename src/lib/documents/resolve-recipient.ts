@@ -3,6 +3,7 @@ import { formatLeadReference } from "../leads/reference";
 
 export interface DocumentRecipient {
   email: string | null;
+  mobile: string;
   customerName: string;
   /** Empty when the document is only linked to a passenger, not a booking — there's no Lead FK on Passenger/Document to derive one from in that case. */
   leadReference: string;
@@ -26,6 +27,7 @@ export async function resolveDocumentRecipient(document: {
     if (!booking) return null;
     return {
       email: booking.customer.email,
+      mobile: booking.customer.mobile,
       customerName: booking.customer.name,
       leadReference: formatLeadReference(booking.lead.serviceType, booking.leadId),
     };
@@ -37,7 +39,7 @@ export async function resolveDocumentRecipient(document: {
       include: { customer: true },
     });
     if (!passenger) return null;
-    return { email: passenger.customer.email, customerName: passenger.customer.name, leadReference: "" };
+    return { email: passenger.customer.email, mobile: passenger.customer.mobile, customerName: passenger.customer.name, leadReference: "" };
   }
 
   return null;

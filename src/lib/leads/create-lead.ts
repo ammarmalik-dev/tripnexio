@@ -2,9 +2,10 @@ import { db } from "../db";
 import { Prisma, type ServiceType } from "../../generated/prisma/client";
 import { formatLeadReference } from "./reference";
 import { writeAudit } from "../audit/log";
-import { sendNotificationEmail } from "../notifications/send-notification-email";
+import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
 export interface LeadContact {
   fullName: string;
@@ -115,7 +116,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
       entityType: "Lead",
       entityId: lead.id,
       action: "CREATE",
-      note: `${serviceType} lead created via website for customer ${customer.id}`,
+      note: `${serviceType} lead created via ${source ?? "Website"} for customer ${customer.id}`,
     });
 
     return {
@@ -125,12 +126,14 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
       status: lead.status,
       customerName: customer.name,
       customerEmail: customer.email,
+      customerMobile: customer.mobile,
     };
   });
 
-  await sendNotificationEmail({
+  await notifyCustomer({
     event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
-    to: result.customerEmail,
+    emailTo: result.customerEmail,
+    whatsappTo: toWhatsAppId(result.customerMobile),
     variables: {
       customerName: result.customerName,
       serviceType: SERVICE_TYPE_LABELS[serviceType],

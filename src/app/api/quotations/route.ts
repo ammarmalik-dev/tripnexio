@@ -6,10 +6,11 @@ import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { computeSellingPrice, isFlightQuote, assertValidityWithinCap } from "@/lib/quotations/pricing";
-import { sendNotificationEmail } from "@/lib/notifications/send-notification-email";
+import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { money } from "@/lib/invoices/render-invoice";
+import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("quotations.view");
@@ -143,9 +144,10 @@ export async function POST(request: NextRequest) {
   // in the data model for "this is the one to actually notify about" beyond
   // "a quote now exists." Revisit if the client wants this scoped tighter
   // (e.g. only on the first quote, or only once staff explicitly shares it).
-  await sendNotificationEmail({
+  await notifyCustomer({
     event: NOTIFICATION_EVENTS.QUOTE_READY,
-    to: lead.customer.email,
+    emailTo: lead.customer.email,
+    whatsappTo: toWhatsAppId(lead.customer.mobile),
     variables: {
       customerName: lead.customer.name,
       leadReference: formatLeadReference(lead.serviceType, lead.id),

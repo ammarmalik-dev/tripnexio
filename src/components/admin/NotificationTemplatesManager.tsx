@@ -22,6 +22,8 @@ interface TemplateData {
   subject: string | null;
   body: string;
   active: boolean;
+  metaTemplateName: string | null;
+  metaTemplateLanguage: string | null;
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -31,12 +33,21 @@ interface FormState {
   channel: NotificationChannel | "";
   subject: string;
   body: string;
+  metaTemplateName: string;
+  metaTemplateLanguage: string;
 }
 
-const EMPTY_FORM: FormState = { event: "", channel: "", subject: "", body: "" };
+const EMPTY_FORM: FormState = { event: "", channel: "", subject: "", body: "", metaTemplateName: "", metaTemplateLanguage: "" };
 
 function toFormState(template: TemplateData): FormState {
-  return { event: template.event, channel: template.channel, subject: template.subject ?? "", body: template.body };
+  return {
+    event: template.event,
+    channel: template.channel,
+    subject: template.subject ?? "",
+    body: template.body,
+    metaTemplateName: template.metaTemplateName ?? "",
+    metaTemplateLanguage: template.metaTemplateLanguage ?? "",
+  };
 }
 
 function buildPayload(form: FormState) {
@@ -45,6 +56,8 @@ function buildPayload(form: FormState) {
     channel: form.channel || undefined,
     subject: form.channel === "EMAIL" && form.subject.trim() !== "" ? form.subject.trim() : undefined,
     body: form.body,
+    metaTemplateName: form.channel === "WHATSAPP" ? form.metaTemplateName.trim() : "",
+    metaTemplateLanguage: form.channel === "WHATSAPP" ? form.metaTemplateLanguage.trim() : "",
   };
 }
 
@@ -110,6 +123,29 @@ function TemplateFields({
         error={errors.body?.[0]}
         disabled={disabled}
       />
+      {form.channel === "WHATSAPP" ? (
+        <div className="grid grid-cols-1 gap-4 rounded-lg border border-dashed border-hairline p-4 sm:grid-cols-2">
+          <TextField
+            label="Meta Template Name"
+            name="metaTemplateName"
+            placeholder="e.g. lead_received_v1"
+            hint="Fill in only once Meta has approved this exact copy — see docs/deployment/WHATSAPP_SETUP.md."
+            value={form.metaTemplateName}
+            onChange={(event) => onChange({ ...form, metaTemplateName: event.target.value })}
+            error={errors.metaTemplateName?.[0]}
+            disabled={disabled}
+          />
+          <TextField
+            label="Meta Template Language"
+            name="metaTemplateLanguage"
+            placeholder="e.g. en or en_US"
+            value={form.metaTemplateLanguage}
+            onChange={(event) => onChange({ ...form, metaTemplateLanguage: event.target.value })}
+            error={errors.metaTemplateLanguage?.[0]}
+            disabled={disabled}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -119,18 +155,24 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
-  const [testEmail, setTestEmail] = useState("");
+  const [testTarget, setTestTarget] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(template));
+  const isWhatsApp = template.channel === "WHATSAPP";
+  const whatsappNotApproved = isWhatsApp && !template.metaTemplateName?.trim();
 
   const handleSendTest = async () => {
     setSendingTest(true);
     try {
-      await postJson(`/api/admin/notification-templates/${template.id}/test-send`, { to: testEmail.trim() });
-      toast.success(`Test email sent to ${testEmail.trim()}. Check the server console if Resend isn't configured yet.`);
+      await postJson(`/api/admin/notification-templates/${template.id}/test-send`, { to: testTarget.trim() });
+      toast.success(
+        isWhatsApp
+          ? `Test WhatsApp message sent to ${testTarget.trim()}. Check the server console if the Cloud API isn't configured yet.`
+          : `Test email sent to ${testTarget.trim()}. Check the server console if Resend isn't configured yet.`
+      );
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Couldn't send a test email. Please try again.");
+      toast.error(error instanceof ApiError ? error.message : "Couldn't send a test. Please try again.");
     } finally {
       setSendingTest(false);
     }
@@ -182,29 +224,31 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
           Save Changes
         </Button>
       </div>
-      {template.channel === "EMAIL" ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-hairline pt-4">
-          <input
-            type="email"
-            placeholder="you@example.com"
-            value={testEmail}
-            onChange={(event) => setTestEmail(event.target.value)}
-            disabled={dirty || sendingTest}
-            className={cn(fieldControlClass, fieldBorderClass(false), "max-w-xs")}
-          />
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            onClick={() => void handleSendTest()}
-            isLoading={sendingTest}
-            disabled={dirty || !testEmail.trim() || !template.active}
-          >
-            Send Test
-          </Button>
-          {dirty ? <span className="text-xs text-ink-tertiary">Save your changes first — this tests the saved template.</span> : null}
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-2 border-t border-hairline pt-4">
+        <input
+          type={isWhatsApp ? "text" : "email"}
+          placeholder={isWhatsApp ? "919876543210" : "you@example.com"}
+          value={testTarget}
+          onChange={(event) => setTestTarget(event.target.value)}
+          disabled={dirty || sendingTest}
+          className={cn(fieldControlClass, fieldBorderClass(false), "max-w-xs")}
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => void handleSendTest()}
+          isLoading={sendingTest}
+          disabled={dirty || !testTarget.trim() || !template.active || whatsappNotApproved}
+        >
+          Send Test
+        </Button>
+        {dirty ? (
+          <span className="text-xs text-ink-tertiary">Save your changes first — this tests the saved template.</span>
+        ) : whatsappNotApproved ? (
+          <span className="text-xs text-ink-tertiary">Set the Meta Template Name above before testing — Meta rejects unapproved templates.</span>
+        ) : null}
+      </div>
     </div>
   );
 }

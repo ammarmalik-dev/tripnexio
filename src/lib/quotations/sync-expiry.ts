@@ -1,8 +1,9 @@
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
-import { sendNotificationEmail } from "../notifications/send-notification-email";
+import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { formatLeadReference } from "../leads/reference";
+import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import type { Quotation } from "../../generated/prisma/client";
 
 export function isExpiredNow(quotation: Pick<Quotation, "validityExpiresAt" | "isExpired">): boolean {
@@ -42,9 +43,10 @@ export async function syncExpiredQuotations<T extends Quotation>(quotations: T[]
   for (const quotation of dueToExpire) {
     const lead = await db.lead.findUnique({ where: { id: quotation.leadId }, include: { customer: true } });
     if (!lead) continue;
-    await sendNotificationEmail({
+    await notifyCustomer({
       event: NOTIFICATION_EVENTS.QUOTE_EXPIRED,
-      to: lead.customer.email,
+      emailTo: lead.customer.email,
+      whatsappTo: toWhatsAppId(lead.customer.mobile),
       variables: { customerName: lead.customer.name, leadReference: formatLeadReference(lead.serviceType, lead.id) },
       auditTarget: { entityType: "Quotation", entityId: quotation.id },
     });
