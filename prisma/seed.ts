@@ -13,14 +13,15 @@ const SAMPLE_STAFF_EMAIL = "admin@tripnexio.com";
 const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 
 // Every day-to-day operational permission — everything except staff.manage,
-// roles.manage, and masters.manage, which stay Admin-only (admin.full
-// already covers those for the Admin role, so this list is deliberately
-// the complement of it). Masters (airports/airlines/borders) are reference
+// roles.manage, masters.manage, and data.export, which stay Admin-only
+// (admin.full already covers those for the Admin role, so this list is
+// deliberately the complement of it). Masters/config data is reference
 // data an ops lead curates, not something every staff member edits day to
-// day — grant masters.manage to a role explicitly via the Admin Roles
+// day, and bulk customer-data export is sensitive enough to keep
+// Admin-only by default — grant either explicitly via the Admin Roles
 // screen if a team needs it.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
-  (permission) => !["staff.manage", "roles.manage", "masters.manage", ADMIN_FULL_PERMISSION].includes(permission.name)
+  (permission) => !["staff.manage", "roles.manage", "masters.manage", "data.export", ADMIN_FULL_PERMISSION].includes(permission.name)
 ).map((permission) => permission.name);
 
 async function main() {
@@ -237,18 +238,67 @@ async function main() {
   };
   await db.coupon.upsert({ where: { code: "SAMPLE500FLAT" }, update: sampleCoupon2, create: sampleCoupon2 });
 
-  await db.faq.upsert({
-    where: { id: "sample-faq-1" },
-    update: {},
-    create: {
-      id: "sample-faq-1",
-      question: "Sample FAQ question?",
-      answer: "Sample FAQ answer — replace with real content before launch.",
-      category: "General",
-      keywords: ["sample"],
-      published: false,
-    },
+  const sampleFaq1 = {
+    id: "sample-faq-1",
+    question: "Sample FAQ question?",
+    answer: "Sample FAQ answer — replace with real content before launch.",
+    serviceType: null,
+    category: "General",
+    keywords: ["sample"],
+    displayOrder: 1,
+    active: true,
+    published: false,
+  };
+  await db.faq.upsert({ where: { id: "sample-faq-1" }, update: sampleFaq1, create: sampleFaq1 });
+
+  const sampleFaq2 = {
+    id: "sample-faq-2",
+    question: "Sample: How long does OTB processing take?",
+    answer: "Sample answer — replace with real, service-specific content before launch.",
+    serviceType: "OTB" as const,
+    category: "Processing Time",
+    keywords: ["sample", "otb", "processing"],
+    displayOrder: 2,
+    active: true,
+    published: true,
+  };
+  await db.faq.upsert({ where: { id: "sample-faq-2" }, update: sampleFaq2, create: sampleFaq2 });
+
+  const sampleTemplate1 = {
+    id: "sample-notification-template-1",
+    event: "SAMPLE_LEAD_CREATED",
+    channel: "WHATSAPP" as const,
+    subject: null,
+    body: "Hi {{customerName}}, thanks for your {{serviceName}} request with TripNexio. Your reference is {{referenceId}} — our team will reach out shortly.",
+  };
+  await db.notificationTemplate.upsert({
+    where: { event_channel: { event: sampleTemplate1.event, channel: sampleTemplate1.channel } },
+    update: sampleTemplate1,
+    create: sampleTemplate1,
   });
+
+  const sampleTemplate2 = {
+    id: "sample-notification-template-2",
+    event: "SAMPLE_PAYMENT_SUCCESS",
+    channel: "EMAIL" as const,
+    subject: "Payment received — {{bookingId}}",
+    body: "Hi {{customerName}},\n\nWe've received your payment of {{amount}} for booking {{bookingId}}. Thank you for choosing TripNexio.",
+  };
+  await db.notificationTemplate.upsert({
+    where: { event_channel: { event: sampleTemplate2.event, channel: sampleTemplate2.channel } },
+    update: sampleTemplate2,
+    create: sampleTemplate2,
+  });
+
+  // Matches the values the old hard-coded SAMPLE_GST_RATE (0.05) /
+  // SAMPLE_GATEWAY_FEE_RATE (0.02) constants used, so seeding this for the
+  // first time doesn't change any existing payment-calculation behavior —
+  // see src/lib/settings/tax-fee-config.ts. Deliberately `update: {}` here
+  // (unlike every other masters upsert above) — once an admin has actually
+  // configured a real rate through /admin/tax-fee, re-running the seed
+  // must NOT silently reset it back to the sample default.
+  const taxFeeConfig = { id: "singleton", gstRatePercent: 5, gatewayFeePercent: 2 };
+  await db.taxFeeConfig.upsert({ where: { id: taxFeeConfig.id }, update: {}, create: taxFeeConfig });
 
   console.log("Sample masters rows ready (clearly labeled — not real domain data).");
 }

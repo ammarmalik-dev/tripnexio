@@ -49,3 +49,9 @@ export async function patchJson<T>(url: string, body: unknown): Promise<T> {
   });
   return unwrapResponse<T>(response);
 }
+
+/** Shared client-side DELETE helper. */
+export async function deleteJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { method: "DELETE" });
+  return unwrapResponse<T>(response);
+}

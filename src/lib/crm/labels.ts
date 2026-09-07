@@ -8,6 +8,7 @@ import type {
   RefundStatus,
   GccCountry,
   CouponType,
+  NotificationChannel,
 } from "../../generated/prisma/enums";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -112,4 +113,13 @@ export const COUPON_TYPE_LABELS: Record<CouponType, string> = {
 
 export const COUPON_TYPE_OPTIONS: { value: CouponType; label: string }[] = (
   Object.entries(COUPON_TYPE_LABELS) as [CouponType, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = {
+  WHATSAPP: "WhatsApp",
+  EMAIL: "Email",
+};
+
+export const NOTIFICATION_CHANNEL_OPTIONS: { value: NotificationChannel; label: string }[] = (
+  Object.entries(NOTIFICATION_CHANNEL_LABELS) as [NotificationChannel, string][]
 ).map(([value, label]) => ({ value, label }));

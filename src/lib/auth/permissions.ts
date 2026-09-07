@@ -27,7 +27,11 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "documents.edit", description: "Add documents and set their status" },
   { name: "staff.manage", description: "Create, edit, and deactivate staff accounts" },
   { name: "roles.manage", description: "Create roles and assign permissions" },
-  { name: "masters.manage", description: "Manage master data: airports, airlines, and borders" },
+  {
+    name: "masters.manage",
+    description: "Manage master/config data: airports, airlines, borders, document requirements, vendors, pricing, coupons, FAQs, notification templates, tax/fee settings",
+  },
+  { name: "data.export", description: "Export core tables (customers, leads, bookings, payments) to CSV" },
   { name: ADMIN_FULL_PERMISSION, description: "Full system access — bypasses every other permission check" },
 ];
 
@@ -39,4 +43,11 @@ export interface PermissionCheckable {
 export function hasPermission(session: PermissionCheckable | null, permission: string): boolean {
   if (!session) return false;
   return session.permissions.includes(ADMIN_FULL_PERMISSION) || session.permissions.includes(permission);
+}
+
+/** Every permission that unlocks the /admin/** section at all (each screen inside still checks its own specific permission). */
+export const ADMIN_SECTION_PERMISSIONS = ["roles.manage", "staff.manage", "masters.manage", "data.export"];
+
+export function canAccessAdminSection(session: PermissionCheckable | null): boolean {
+  return ADMIN_SECTION_PERMISSIONS.some((permission) => hasPermission(session, permission));
 }

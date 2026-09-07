@@ -462,19 +462,71 @@ model Coupon {
   @@index([active])
 }
 
+/// The single knowledge base used by the website, the CRM, and later the
+/// WhatsApp AI (see CLAUDE.md's Modules). `active` is a hard on/off switch
+/// (an inactive FAQ is retired but not deleted); `published` is separate —
+/// an active-but-unpublished FAQ is a draft staff can review before it goes
+/// live on the website.
 model Faq {
-  id           String   @id @default(cuid())
+  id           String       @id @default(cuid())
   question     String
   answer       String
+  /// null = not tied to one service (a general FAQ).
+  serviceType  ServiceType?
   category     String?
   keywords     String[]
-  displayOrder Int      @default(0)
-  published    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  displayOrder Int          @default(0)
+  active       Boolean      @default(true)
+  published    Boolean      @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
+  @@index([serviceType])
   @@index([category])
+  @@index([active])
   @@index([published])
+}
+
+enum NotificationChannel {
+  WHATSAPP
+  EMAIL
+}
+
+/// Configurable copy for staff-triggered/system notifications — no
+/// notification system actually sends anything yet (Phase 5, same as the
+/// Document "FLAG_MISSING" flag above), so `event` is deliberately a free
+/// string rather than a rigid enum: the real event catalog doesn't exist
+/// yet either. `{{placeholder}}` variables in `body`/`subject` are a
+/// convention for whatever Phase 5 substitution logic ends up doing —
+/// nothing parses or validates them today.
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  event     String
+  channel   NotificationChannel
+  /// Email only — WhatsApp messages have no subject line.
+  subject   String?
+  body      String
+  active    Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([event, channel])
+  @@index([channel])
+  @@index([active])
+}
+
+/// A true singleton — exactly one row, fetched/updated by a fixed id (see
+/// src/lib/settings/tax-fee-config.ts). Replaces the SAMPLE_GST_RATE/
+/// SAMPLE_GATEWAY_FEE_RATE constants that used to be hard-coded in the
+/// payment-creation route; every change writes an AuditTrail row so the
+/// rate history isn't lost even though this table itself only holds the
+/// current value.
+model TaxFeeConfig {
+  id                String   @id
+  gstRatePercent    Decimal  @db.Decimal(5, 2)
+  gatewayFeePercent Decimal  @db.Decimal(5, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // ---------------------------------------------------------------------------

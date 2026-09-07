@@ -15,6 +15,10 @@ import {
   Truck,
   Tags,
   Ticket,
+  HelpCircle,
+  MessageSquareText,
+  Percent,
+  Download,
   type LucideIcon,
 } from "lucide-react";
 
@@ -36,12 +40,13 @@ export const crmNavItems: CrmNavItem[] = [
 
 /**
  * Only shown/reachable to staff whose role grants roles.manage,
- * staff.manage, masters.manage, or admin.full — see the Admin layout's
- * server-side check. Every item is visible to anyone who can enter /admin
- * at all; each screen's own API additionally requires its specific
- * permission, so a masters-only admin lands on a "no permission" error
- * state if they click into Roles or Staff (and vice versa) — the API 403
- * is the real gate, this list is just navigation.
+ * staff.manage, masters.manage, data.export, or admin.full — see the
+ * Admin layout's server-side check. Every item is visible to anyone who
+ * can enter /admin at all; each screen's own API additionally requires
+ * its specific permission, so e.g. a masters-only admin lands on a "no
+ * permission" error state if they click into Roles, Staff, or Data
+ * Export (and vice versa) — the API 403 is the real gate, this list is
+ * just navigation.
  */
 export const adminNavItems: CrmNavItem[] = [
   { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck },
@@ -53,4 +58,8 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Vendors", href: "/admin/vendors", icon: Truck },
   { label: "Pricing", href: "/admin/pricing", icon: Tags },
   { label: "Coupons", href: "/admin/coupons", icon: Ticket },
+  { label: "FAQs", href: "/admin/faqs", icon: HelpCircle },
+  { label: "Notification Templates", href: "/admin/notification-templates", icon: MessageSquareText },
+  { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent },
+  { label: "Data Export", href: "/admin/data-export", icon: Download },
 ];

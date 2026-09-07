@@ -3,17 +3,16 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { getTaxFeeRates } from "@/lib/settings/tax-fee-config";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 // No real payment gateway is integrated yet (see CLAUDE.md Milestones —
-// that's M2/M3 work). These are clearly-labeled SAMPLE rates standing in
-// for real, admin-configured tax/gateway-fee settings — not a claim about
-// actual GST or gateway pricing.
-const SAMPLE_GST_RATE = 0.05;
-const SAMPLE_GATEWAY_FEE_RATE = 0.02;
+// that's M2/M3 work). GST/gateway-fee rates come from the admin-managed
+// TaxFeeConfig singleton (see src/lib/settings/tax-fee-config.ts) — no
+// longer hard-coded here.
 
 function roundToPaise(value: number): number {
   return Math.round(value * 100) / 100;
@@ -46,8 +45,9 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   }
 
   const amount = Number(selectedQuotation.sellingPrice);
-  const gstAmount = roundToPaise(amount * SAMPLE_GST_RATE);
-  const gatewayFee = roundToPaise(amount * SAMPLE_GATEWAY_FEE_RATE);
+  const { gstRate, gatewayFeeRate } = await getTaxFeeRates();
+  const gstAmount = roundToPaise(amount * gstRate);
+  const gatewayFee = roundToPaise(amount * gatewayFeeRate);
 
   const payment = await db.$transaction(async (tx) => {
     const created = await tx.payment.create({
