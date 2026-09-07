@@ -44,7 +44,13 @@ export const newVisaStep2Schema = z.object({
   }),
 });
 
-export const newVisaRequestSchema = newVisaStep1Schema.extend(newVisaStep2Schema.shape);
+/** Optional passport-photo upload (Phase 5D — OCR autofill) — see otb-schema.ts's identical field for the full rationale. */
+export const newVisaStep3Schema = z.object({
+  passportImageBase64: z.string().optional(),
+  passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+});
+
+export const newVisaRequestSchema = newVisaStep1Schema.extend(newVisaStep2Schema.shape).extend(newVisaStep3Schema.shape);
 
 export type NewVisaStep1Values = z.infer<typeof newVisaStep1Schema>;
 export type NewVisaStep2Values = z.infer<typeof newVisaStep2Schema>;

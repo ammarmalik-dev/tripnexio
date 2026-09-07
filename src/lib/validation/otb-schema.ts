@@ -40,7 +40,17 @@ export const otbStep2Schema = z.object({
   }),
 });
 
-export const otbRequestSchema = otbStep1Schema.extend(otbStep2Schema.shape);
+/**
+ * Optional passport-photo upload (Phase 5D — OCR autofill). Genuinely
+ * optional: omitting it just skips the OCR step entirely, never blocks
+ * submission — see PassportUploadField.tsx and src/lib/ocr/.
+ */
+export const otbStep3Schema = z.object({
+  passportImageBase64: z.string().optional(),
+  passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+});
+
+export const otbRequestSchema = otbStep1Schema.extend(otbStep2Schema.shape).extend(otbStep3Schema.shape);
 
 export type OtbStep1Values = z.infer<typeof otbStep1Schema>;
 export type OtbStep2Values = z.infer<typeof otbStep2Schema>;

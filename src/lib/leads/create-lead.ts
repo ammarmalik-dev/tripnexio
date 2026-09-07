@@ -34,6 +34,8 @@ export interface CreateLeadResult {
   referenceId: string;
   customerId: string;
   status: string;
+  /** In submission order, matching `input.passengers` (or the single default passenger derived from `contact.fullName`). */
+  passengerIds: string[];
 }
 
 /** Reuses an existing Customer by mobile (primary) or email so returning customers keep their history. */
@@ -127,6 +129,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
       customerName: customer.name,
       customerEmail: customer.email,
       customerMobile: customer.mobile,
+      passengerIds,
     };
   });
 
@@ -142,5 +145,11 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     auditTarget: { entityType: "Lead", entityId: result.leadId },
   });
 
-  return { leadId: result.leadId, referenceId: result.referenceId, customerId: result.customerId, status: result.status };
+  return {
+    leadId: result.leadId,
+    referenceId: result.referenceId,
+    customerId: result.customerId,
+    status: result.status,
+    passengerIds: result.passengerIds,
+  };
 }

@@ -2,6 +2,7 @@
 
 import { useFormContext } from "react-hook-form";
 import { DESTINATION_COUNTRY_OPTIONS, SAMPLE_VISA_TYPE_OPTIONS } from "@/lib/sample-data";
+import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import type { NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
 const processingTypeLabel: Record<NewVisaRequestValues["processingType"], string> = {
@@ -28,26 +29,29 @@ export function Step3Summary() {
     SAMPLE_VISA_TYPE_OPTIONS.find((option) => option.value === values.visaType)?.label ?? values.visaType;
 
   return (
-    <div className="rounded-xl border border-hairline bg-surface-1 px-5">
-      <SummaryRow label="Full Name" value={values.fullName} />
-      <SummaryRow label="Mobile Number" value={values.mobile} />
-      <SummaryRow label="Email" value={values.email} />
-      <SummaryRow label="Destination Country" value={destinationLabel} />
-      <SummaryRow label="Visa Type" value={visaTypeLabel} />
-      <SummaryRow label="Number of Travelers" value={String(values.travelers)} />
-      <SummaryRow
-        label="Travel Date"
-        value={
-          values.travelDate
-            ? new Date(values.travelDate).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })
-            : ""
-        }
-      />
-      <SummaryRow label="Processing Type" value={processingTypeLabel[values.processingType]} />
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl border border-hairline bg-surface-1 px-5">
+        <SummaryRow label="Full Name" value={values.fullName} />
+        <SummaryRow label="Mobile Number" value={values.mobile} />
+        <SummaryRow label="Email" value={values.email} />
+        <SummaryRow label="Destination Country" value={destinationLabel} />
+        <SummaryRow label="Visa Type" value={visaTypeLabel} />
+        <SummaryRow label="Number of Travelers" value={String(values.travelers)} />
+        <SummaryRow
+          label="Travel Date"
+          value={
+            values.travelDate
+              ? new Date(values.travelDate).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })
+              : ""
+          }
+        />
+        <SummaryRow label="Processing Type" value={processingTypeLabel[values.processingType]} />
+      </div>
+      <PassportUploadField base64FieldName="passportImageBase64" mimeFieldName="passportImageMimeType" />
     </div>
   );
 }

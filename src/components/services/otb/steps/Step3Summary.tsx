@@ -2,6 +2,7 @@
 
 import { useFormContext } from "react-hook-form";
 import { SAMPLE_AIRLINE_OPTIONS } from "@/lib/sample-data";
+import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 
 const processingTypeLabel: Record<OtbRequestValues["processingType"], string> = {
@@ -25,24 +26,27 @@ export function Step3Summary() {
     SAMPLE_AIRLINE_OPTIONS.find((option) => option.value === values.airline)?.label ?? values.airline;
 
   return (
-    <div className="rounded-xl border border-hairline bg-surface-1 px-5">
-      <SummaryRow label="Full Name" value={values.fullName} />
-      <SummaryRow label="Mobile Number" value={values.mobile} />
-      <SummaryRow label="Email" value={values.email} />
-      <SummaryRow label="Airline" value={airlineLabel} />
-      <SummaryRow
-        label="Travel Date"
-        value={
-          values.travelDate
-            ? new Date(values.travelDate).toLocaleDateString("en-IN", {
-                day: "numeric",
-                month: "long",
-                year: "numeric",
-              })
-            : ""
-        }
-      />
-      <SummaryRow label="Processing Type" value={processingTypeLabel[values.processingType]} />
+    <div className="flex flex-col gap-4">
+      <div className="rounded-xl border border-hairline bg-surface-1 px-5">
+        <SummaryRow label="Full Name" value={values.fullName} />
+        <SummaryRow label="Mobile Number" value={values.mobile} />
+        <SummaryRow label="Email" value={values.email} />
+        <SummaryRow label="Airline" value={airlineLabel} />
+        <SummaryRow
+          label="Travel Date"
+          value={
+            values.travelDate
+              ? new Date(values.travelDate).toLocaleDateString("en-IN", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })
+              : ""
+          }
+        />
+        <SummaryRow label="Processing Type" value={processingTypeLabel[values.processingType]} />
+      </div>
+      <PassportUploadField base64FieldName="passportImageBase64" mimeFieldName="passportImageMimeType" />
     </div>
   );
 }

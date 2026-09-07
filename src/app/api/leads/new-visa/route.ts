@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { newVisaRequestSchema } from "@/lib/validation/new-visa-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -16,8 +17,18 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const { fullName, mobile, email, destinationCountry, visaType, travelers, travelDate, processingType } =
-    parsed.data;
+  const {
+    fullName,
+    mobile,
+    email,
+    destinationCountry,
+    visaType,
+    travelers,
+    travelDate,
+    processingType,
+    passportImageBase64,
+    passportImageMimeType,
+  } = parsed.data;
 
   try {
     const result = await createLeadFromSubmission({
@@ -25,6 +36,13 @@ export async function POST(request: NextRequest) {
       contact: { fullName, mobile, email },
       details: { destinationCountry, visaType, travelers, travelDate, processingType },
     });
+
+    await handleOptionalPassportUpload({
+      passengerId: result.passengerIds[0],
+      imageBase64: passportImageBase64,
+      mimeType: passportImageMimeType,
+    });
+
     return jsonSuccess(result, 201);
   } catch (error) {
     console.error("[api/leads/new-visa]", error);

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { otbRequestSchema } from "@/lib/validation/otb-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const { fullName, mobile, email, airline, travelDate, processingType } = parsed.data;
+  const { fullName, mobile, email, airline, travelDate, processingType, passportImageBase64, passportImageMimeType } = parsed.data;
 
   try {
     // No nationality field anywhere above — OTB never asks for it (business
@@ -26,6 +27,13 @@ export async function POST(request: NextRequest) {
       contact: { fullName, mobile, email },
       details: { airline, travelDate, processingType },
     });
+
+    await handleOptionalPassportUpload({
+      passengerId: result.passengerIds[0],
+      imageBase64: passportImageBase64,
+      mimeType: passportImageMimeType,
+    });
+
     return jsonSuccess(result, 201);
   } catch (error) {
     console.error("[api/leads/otb]", error);

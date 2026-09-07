@@ -40,6 +40,10 @@ yarn-error.log*
 # prisma — generated client (regenerated via `npx prisma generate`)
 /src/generated/
 
+# local dev file storage (src/lib/storage/local-file-storage.ts) — a
+# placeholder for real object storage; uploaded files never belong in git
+/public/uploads/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

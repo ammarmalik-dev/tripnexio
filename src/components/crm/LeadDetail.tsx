@@ -11,6 +11,7 @@ import { LeadAssignmentControl } from "./LeadAssignmentControl";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { BookingStatusBadge } from "./BookingStatusBadge";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
+import { PassportExtractionReview } from "./PassportExtractionReview";
 import { LeadTimeline } from "./LeadTimeline";
 import { QuoteBuilder } from "./QuoteBuilder";
 import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
@@ -255,6 +256,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
                         ))
                       )}
                     </div>
+                    <PassportExtractionReview passengerId={passenger.id} />
                   </div>
                 ))}
               </div>

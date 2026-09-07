@@ -132,8 +132,9 @@ model Passenger {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  customer  Customer   @relation(fields: [customerId], references: [id])
-  documents Document[]
+  customer            Customer             @relation(fields: [customerId], references: [id])
+  documents           Document[]
+  passportExtractions PassportExtraction[]
 
   @@index([customerId])
 }
@@ -300,8 +301,55 @@ model Document {
   passenger Passenger? @relation(fields: [passengerId], references: [id])
   booking   Booking?   @relation(fields: [bookingId], references: [id])
 
+  passportExtractions PassportExtraction[]
+
   @@index([passengerId])
   @@index([bookingId])
+  @@index([status])
+}
+
+enum OcrExtractionStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  REJECTED
+}
+
+/// One row per OCR attempt on an uploaded passport document — extracted
+/// fields are NEVER auto-applied to a Passenger; a staff member must review
+/// and explicitly confirm (see CLAUDE.md "never save silently"). `mrzValid`
+/// reflects whether the ICAO 9303 check-digit algorithm actually validated
+/// the extracted MRZ (src/lib/ocr/mrz-parser.ts) — a real, computed
+/// confidence signal, not just "the provider returned something."
+model PassportExtraction {
+  id               String              @id @default(cuid())
+  documentId       String
+  passengerId      String
+  /// Which OcrProvider implementation produced this (e.g. "claude",
+  /// "placeholder (no ANTHROPIC_API_KEY configured)") — surfaced in the
+  /// review UI so staff can see when a result is a dev-only sample, not a
+  /// real reading of the uploaded image.
+  provider         String
+  status           OcrExtractionStatus @default(PENDING_REVIEW)
+  /// PassportOcrFields shape (src/lib/ocr/types.ts): fullName, givenNames,
+  /// surname, passportNumber, nationality, dob, sex, expiryDate,
+  /// issuingCountry — whatever the provider could read, staff-editable
+  /// before confirming.
+  extractedFields  Json
+  /// The raw two-line MRZ text as read from the image, when found — kept
+  /// for staff to visually cross-check against the passport in hand.
+  mrzRaw           String?
+  mrzValid         Boolean             @default(false)
+  reviewedByUserId String?
+  reviewedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  document   Document  @relation(fields: [documentId], references: [id])
+  passenger  Passenger @relation(fields: [passengerId], references: [id])
+  reviewedBy User?     @relation(fields: [reviewedByUserId], references: [id])
+
+  @@index([documentId])
+  @@index([passengerId])
   @@index([status])
 }
 
@@ -601,9 +649,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  role          Role         @relation(fields: [roleId], references: [id])
-  assignedLeads Lead[]
-  auditEntries  AuditTrail[]
+  role                       Role                 @relation(fields: [roleId], references: [id])
+  assignedLeads              Lead[]
+  auditEntries               AuditTrail[]
+  reviewedPassportExtractions PassportExtraction[]
 
   @@index([roleId])
   @@index([active])

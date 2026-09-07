@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -54,6 +55,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
     return result;
   });
+
+  // Passport-type documents with a passenger to attach to get OCR run
+  // automatically on upload — never blocks the upload response itself if
+  // OCR fails (e.g. an unsupported image, a provider hiccup); the upload
+  // has already succeeded by this point regardless.
+  if (/passport/i.test(updated.type) && updated.passengerId) {
+    try {
+      await runPassportExtraction(updated.id);
+    } catch (error) {
+      console.error("[documents/upload] passport OCR failed", error);
+    }
+  }
 
   return jsonSuccess(updated);
 }
