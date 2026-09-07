@@ -3,8 +3,11 @@
  * catalog doesn't exist yet" note on the NotificationTemplate model (Phase
  * 4D). Every key here is an `event` value an Admin can create an EMAIL
  * NotificationTemplate for at /admin/notification-templates, and every one
- * except QUOTE_REMINDER is actually triggered somewhere in the app — see
- * CLAUDE.md's "Transactional Email (Resend)" section for exactly where.
+ * is actually triggered somewhere in the app — see CLAUDE.md's "Transactional
+ * Email (Resend)" and "n8n Automation" sections for exactly where.
+ * QUOTE_REMINDER/PAYMENT_REMINDER/LEAD_FOLLOWUP are triggered by the n8n
+ * background workflows (Phase 5E), not a request/webhook — the earlier "no
+ * cron/scheduler in this app" gap is what that phase closes.
  *
  * `variables` documents the {{placeholder}} names each trigger site fills
  * in — kept here (not just in code comments at each call site) so the
@@ -16,9 +19,11 @@ export const NOTIFICATION_EVENTS = {
   QUOTE_REMINDER: "QUOTE_REMINDER",
   QUOTE_EXPIRED: "QUOTE_EXPIRED",
   PAYMENT_RECEIVED: "PAYMENT_RECEIVED",
+  PAYMENT_REMINDER: "PAYMENT_REMINDER",
   DOCUMENTS_REQUIRED: "DOCUMENTS_REQUIRED",
   DOCUMENT_APPROVED: "DOCUMENT_APPROVED",
   DOCUMENT_REJECTED: "DOCUMENT_REJECTED",
+  LEAD_FOLLOWUP: "LEAD_FOLLOWUP",
 } as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[keyof typeof NOTIFICATION_EVENTS];
@@ -27,7 +32,7 @@ export const NOTIFICATION_EVENT_CATALOG: {
   event: NotificationEvent;
   label: string;
   variables: string[];
-  /** false only for QUOTE_REMINDER — seeded so the template exists, but nothing triggers it yet (no cron/scheduler in this app — see CLAUDE.md). */
+  /** Every event is wired now (Phase 5E closed the "no scheduler" gap) — kept for the Admin template editor / Send Test UI, which reads this to build sample previews. */
   wired: boolean;
   sampleVariables: Record<string, string>;
 }[] = [
@@ -52,9 +57,9 @@ export const NOTIFICATION_EVENT_CATALOG: {
   },
   {
     event: NOTIFICATION_EVENTS.QUOTE_REMINDER,
-    label: "Quote reminder (not yet triggered — no scheduler)",
+    label: "Quote expiring soon (reminder)",
     variables: ["customerName", "leadReference"],
-    wired: false,
+    wired: true,
     sampleVariables: { customerName: "Sample Customer", leadReference: "NV-SAMPLE" },
   },
   {
@@ -67,6 +72,13 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.PAYMENT_RECEIVED,
     label: "Payment received",
+    variables: ["customerName", "bookingId", "leadReference", "amount"],
+    wired: true,
+    sampleVariables: { customerName: "Sample Customer", bookingId: "TNX-OT-SAMPLE", leadReference: "OT-SAMPLE", amount: "Rs. 1,605.00" },
+  },
+  {
+    event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,
+    label: "Payment pending (reminder)",
     variables: ["customerName", "bookingId", "leadReference", "amount"],
     wired: true,
     sampleVariables: { customerName: "Sample Customer", bookingId: "TNX-OT-SAMPLE", leadReference: "OT-SAMPLE", amount: "Rs. 1,605.00" },
@@ -91,5 +103,12 @@ export const NOTIFICATION_EVENT_CATALOG: {
     variables: ["customerName", "documentName", "leadReference"],
     wired: true,
     sampleVariables: { customerName: "Sample Customer", documentName: "PASSPORT", leadReference: "NV-SAMPLE" },
+  },
+  {
+    event: NOTIFICATION_EVENTS.LEAD_FOLLOWUP,
+    label: "Lead follow-up (periodic nudge)",
+    variables: ["customerName", "serviceType", "leadReference"],
+    wired: true,
+    sampleVariables: { customerName: "Sample Customer", serviceType: "New Visa", leadReference: "NV-SAMPLE" },
   },
 ];

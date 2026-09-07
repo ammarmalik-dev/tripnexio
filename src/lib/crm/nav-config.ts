@@ -19,6 +19,7 @@ import {
   MessageSquareText,
   Percent,
   Download,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 
@@ -62,4 +63,5 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Notification Templates", href: "/admin/notification-templates", icon: MessageSquareText },
   { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent },
   { label: "Data Export", href: "/admin/data-export", icon: Download },
+  { label: "Automation", href: "/admin/automation", icon: Activity },
 ];

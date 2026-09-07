@@ -677,3 +677,48 @@ model Permission {
 
   roles Role[] @relation("RolePermissions")
 }
+
+// ---------------------------------------------------------------------------
+// Automation (n8n background workflows) — Phase 5E
+// ---------------------------------------------------------------------------
+
+enum AutomationRunStatus {
+  SUCCESS
+  FAILURE
+}
+
+/// One row per invocation of an /api/automation/* endpoint — this is what
+/// the Admin "Automation" monitoring screen reads to show last run/success-
+/// failure per workflow. `workflowKey` matches the n8n workflow's own
+/// identifier (see AUTOMATION_WORKFLOWS.md) — a free string, same rationale
+/// as NotificationTemplate.event: the real key names live in
+/// src/lib/automation/workflows.ts, not a DB-locked enum.
+model AutomationRun {
+  id           String              @id @default(cuid())
+  workflowKey  String
+  status       AutomationRunStatus
+  /// Whatever the job wants to report — e.g. {"remindersSent": 3, "expired": 1, "checked": 40}.
+  summary      Json?
+  errorMessage String?
+  startedAt    DateTime
+  finishedAt   DateTime
+  createdAt    DateTime            @default(now())
+
+  @@index([workflowKey, createdAt])
+}
+
+/// Dedupe/cooldown tracking so a periodic job (n8n calling the same
+/// endpoint every N minutes) doesn't re-notify about the same thing every
+/// run — e.g. only one QUOTE_REMINDER per quotation, or a LEAD_FOLLOWUP
+/// nudge at most once per cooldown window per lead. Deliberately generic
+/// across every reminder-style job rather than adding a bespoke
+/// `reminderSentAt` column to Quotation/Payment/Lead/Document individually.
+model AutomationReminderLog {
+  id         String   @id @default(cuid())
+  event      String
+  entityType String
+  entityId   String
+  sentAt     DateTime @default(now())
+
+  @@index([event, entityType, entityId, sentAt])
+}

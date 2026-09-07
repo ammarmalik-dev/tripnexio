@@ -14,15 +14,18 @@ const SAMPLE_STAFF_EMAIL = "admin@tripnexio.com";
 const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 
 // Every day-to-day operational permission — everything except staff.manage,
-// roles.manage, masters.manage, and data.export, which stay Admin-only
-// (admin.full already covers those for the Admin role, so this list is
-// deliberately the complement of it). Masters/config data is reference
-// data an ops lead curates, not something every staff member edits day to
-// day, and bulk customer-data export is sensitive enough to keep
-// Admin-only by default — grant either explicitly via the Admin Roles
-// screen if a team needs it.
+// roles.manage, masters.manage, data.export, and automation.view, which stay
+// Admin-only (admin.full already covers those for the Admin role, so this
+// list is deliberately the complement of it). Masters/config data is
+// reference data an ops lead curates, not something every staff member
+// edits day to day; bulk customer-data export is sensitive; and automation
+// run history sits under /admin/** alongside them (the whole section is
+// gated as one unit — see ADMIN_SECTION_PERMISSIONS — so keeping this
+// Admin-only avoids exposing the rest of that sidebar to every staff
+// member just to let them see workflow health). Grant it explicitly via
+// the Admin Roles screen if a team wants broader visibility.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
-  (permission) => !["staff.manage", "roles.manage", "masters.manage", "data.export", ADMIN_FULL_PERMISSION].includes(permission.name)
+  (permission) => !["staff.manage", "roles.manage", "masters.manage", "data.export", "automation.view", ADMIN_FULL_PERMISSION].includes(permission.name)
 ).map((permission) => permission.name);
 
 async function main() {
@@ -292,10 +295,12 @@ async function main() {
   });
 
   // The real EMAIL event catalog (src/lib/notifications/events.ts) — every
-  // one of these except QUOTE_REMINDER is actually triggered somewhere in
-  // the app now (Phase 5B). Copy below is obviously placeholder ("Sample:"
-  // prefix on the subject) per hard rule #1 — propose real copy for review
-  // before launch, this only exists so the pipeline has something to send.
+  // one of these is actually triggered somewhere in the app now (Phase 5B
+  // for the request/webhook-triggered events, Phase 5E's n8n workflows for
+  // the periodic ones: QUOTE_REMINDER, PAYMENT_REMINDER, LEAD_FOLLOWUP).
+  // Copy below is obviously placeholder ("Sample:" prefix on the subject)
+  // per hard rule #1 — propose real copy for review before launch, this
+  // only exists so the pipeline has something to send.
   const emailTemplates = [
     {
       id: "notification-template-lead-received",
@@ -328,6 +333,12 @@ async function main() {
       body: "Hi {{customerName}},\n\nWe've received your payment of {{amount}} for booking {{bookingId}}. Your tax invoice is attached.\n\nThank you for choosing TripNexio.\n\n— TripNexio",
     },
     {
+      id: "notification-template-payment-reminder",
+      event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,
+      subject: "Sample: Reminder — complete your payment for {{bookingId}}",
+      body: "Hi {{customerName}},\n\nJust a reminder that your payment of {{amount}} for booking {{bookingId}} is still pending. Let us know if you need any help completing it.\n\n— TripNexio",
+    },
+    {
       id: "notification-template-documents-required",
       event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
       subject: "Sample: Document required — {{leadReference}}",
@@ -345,6 +356,12 @@ async function main() {
       subject: "Sample: Document needs resubmission — {{leadReference}}",
       body: "Hi {{customerName}},\n\nYour {{documentName}} for {{leadReference}} couldn't be verified. Please resubmit a clear copy.\n\n— TripNexio",
     },
+    {
+      id: "notification-template-lead-followup",
+      event: NOTIFICATION_EVENTS.LEAD_FOLLOWUP,
+      subject: "Sample: Still interested in your {{serviceType}} request?",
+      body: "Hi {{customerName}},\n\nJust checking in on your {{serviceType}} request ({{leadReference}}) — let us know if you have any questions or would like to proceed.\n\n— TripNexio",
+    },
   ];
   for (const template of emailTemplates) {
     const data = { id: template.id, event: template.event, channel: "EMAIL" as const, subject: template.subject, body: template.body, active: true };
@@ -355,7 +372,7 @@ async function main() {
     });
   }
 
-  // Same 8 events, WHATSAPP channel (Phase 5C) — shorter copy (no subject
+  // Same events, WHATSAPP channel (Phase 5C, extended in 5E) — shorter copy (no subject
   // line on WhatsApp), and deliberately NO metaTemplateName/Language yet:
   // those only get filled in once Meta has actually approved this exact
   // copy as a Message Template (see docs/deployment/WHATSAPP_SETUP.md).
@@ -388,6 +405,11 @@ async function main() {
       body: "Hi {{customerName}}, we've received your payment of {{amount}} for booking {{bookingId}}. Thank you for choosing TripNexio!",
     },
     {
+      id: "notification-template-payment-reminder-wa",
+      event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,
+      body: "Hi {{customerName}}, your payment of {{amount}} for booking {{bookingId}} is still pending. Let us know if you need help completing it.",
+    },
+    {
       id: "notification-template-documents-required-wa",
       event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
       body: "Hi {{customerName}}, we need {{documentName}} to proceed with {{leadReference}}. Please share it at your earliest convenience.",
@@ -401,6 +423,11 @@ async function main() {
       id: "notification-template-document-rejected-wa",
       event: NOTIFICATION_EVENTS.DOCUMENT_REJECTED,
       body: "Hi {{customerName}}, your {{documentName}} for {{leadReference}} couldn't be verified. Please resubmit a clear copy.",
+    },
+    {
+      id: "notification-template-lead-followup-wa",
+      event: NOTIFICATION_EVENTS.LEAD_FOLLOWUP,
+      body: "Hi {{customerName}}, just checking in on your {{serviceType}} request ({{leadReference}}) — let us know if you'd like to proceed.",
     },
   ];
   for (const template of whatsappTemplates) {
