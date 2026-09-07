@@ -2,6 +2,9 @@ import { db } from "../db";
 import { Prisma, type ServiceType } from "../../generated/prisma/client";
 import { formatLeadReference } from "./reference";
 import { writeAudit } from "../audit/log";
+import { sendNotificationEmail } from "../notifications/send-notification-email";
+import { NOTIFICATION_EVENTS } from "../notifications/events";
+import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 
 export interface LeadContact {
   fullName: string;
@@ -95,7 +98,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     }
   }
 
-  return db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     const customer = await findOrCreateCustomer(tx, contact);
     const passengerIds = await findOrCreatePassengers(tx, customer.id, safePassengers);
 
@@ -120,6 +123,21 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
       referenceId: formatLeadReference(serviceType, lead.id),
       customerId: customer.id,
       status: lead.status,
+      customerName: customer.name,
+      customerEmail: customer.email,
     };
   });
+
+  await sendNotificationEmail({
+    event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
+    to: result.customerEmail,
+    variables: {
+      customerName: result.customerName,
+      serviceType: SERVICE_TYPE_LABELS[serviceType],
+      leadReference: result.referenceId,
+    },
+    auditTarget: { entityType: "Lead", entityId: result.leadId },
+  });
+
+  return { leadId: result.leadId, referenceId: result.referenceId, customerId: result.customerId, status: result.status };
 }

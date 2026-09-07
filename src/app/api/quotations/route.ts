@@ -6,6 +6,10 @@ import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { computeSellingPrice, isFlightQuote, assertValidityWithinCap } from "@/lib/quotations/pricing";
+import { sendNotificationEmail } from "@/lib/notifications/send-notification-email";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
+import { formatLeadReference } from "@/lib/leads/reference";
+import { money } from "@/lib/invoices/render-invoice";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("quotations.view");
@@ -63,7 +67,7 @@ export async function POST(request: NextRequest) {
     alternativeOfId,
   } = parsed.data;
 
-  const lead = await db.lead.findUnique({ where: { id: leadId } });
+  const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
   if (!lead) return jsonError(404, "Lead not found.");
 
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
@@ -131,6 +135,26 @@ export async function POST(request: NextRequest) {
     });
 
     return created;
+  });
+
+  // "Quote ready" fires on every new quotation for this lead, not only the
+  // first one — a lead can reasonably get more than one quote over its
+  // lifetime (a revised offer, an alternative route), and there's no signal
+  // in the data model for "this is the one to actually notify about" beyond
+  // "a quote now exists." Revisit if the client wants this scoped tighter
+  // (e.g. only on the first quote, or only once staff explicitly shares it).
+  await sendNotificationEmail({
+    event: NOTIFICATION_EVENTS.QUOTE_READY,
+    to: lead.customer.email,
+    variables: {
+      customerName: lead.customer.name,
+      leadReference: formatLeadReference(lead.serviceType, lead.id),
+      sellingPrice: money(resolvedSellingPrice),
+      quoteValidUntil: validityExpiresAt
+        ? new Date(validityExpiresAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
+        : "no expiry set",
+    },
+    auditTarget: { entityType: "Quotation", entityId: quotation.id },
   });
 
   return jsonSuccess(quotation, 201);

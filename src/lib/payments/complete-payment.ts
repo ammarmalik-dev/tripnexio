@@ -24,9 +24,9 @@ export async function completePaymentSuccess(
   payment: PaymentWithBookingLead,
   actor: ActorInfo,
   options: { gatewayRef?: string } = {}
-): Promise<{ payment: Payment; booking: Booking; lead: Lead }> {
+): Promise<{ payment: Payment; booking: Booking; lead: Lead; didTransition: boolean }> {
   if (payment.status === "SUCCESS") {
-    return { payment, booking: payment.booking, lead: payment.booking.lead };
+    return { payment, booking: payment.booking, lead: payment.booking.lead, didTransition: false };
   }
 
   const updatedPayment = await tx.payment.update({
@@ -67,7 +67,7 @@ export async function completePaymentSuccess(
     });
   }
 
-  return { payment: updatedPayment, booking: updatedBooking, lead: updatedLead };
+  return { payment: updatedPayment, booking: updatedBooking, lead: updatedLead, didTransition: true };
 }
 
 /**

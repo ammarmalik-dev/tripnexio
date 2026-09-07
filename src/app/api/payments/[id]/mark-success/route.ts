@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { completePaymentSuccess } from "@/lib/payments/complete-payment";
+import { notifyPaymentReceived } from "@/lib/payments/notify-payment-received";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -54,6 +55,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       { gatewayRef: parsed.data.gatewayRef ?? payment.gatewayRef ?? `MANUAL-${crypto.randomUUID().slice(0, 8).toUpperCase()}` }
     )
   );
+
+  if (result.didTransition) {
+    await notifyPaymentReceived(result.payment.id);
+  }
 
   return jsonSuccess(result);
 }

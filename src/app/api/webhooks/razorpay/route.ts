@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { getPaymentGateway } from "@/lib/payments/get-gateway";
 import { completePaymentSuccess, failPayment } from "@/lib/payments/complete-payment";
+import { notifyPaymentReceived } from "@/lib/payments/notify-payment-received";
 
 /**
  * Public route — no staff session exists here, Razorpay calls this directly.
@@ -34,7 +35,10 @@ export async function POST(request: NextRequest) {
   const actor = { actorLabel: `via ${gateway.providerName} webhook (${event.rawEventName}${event.gatewayPaymentId ? `, gateway payment ${event.gatewayPaymentId}` : ""})` };
 
   if (event.type === "PAYMENT_SUCCESS") {
-    await db.$transaction((tx) => completePaymentSuccess(tx, payment, actor));
+    const result = await db.$transaction((tx) => completePaymentSuccess(tx, payment, actor));
+    if (result.didTransition) {
+      await notifyPaymentReceived(result.payment.id);
+    }
   } else {
     await db.$transaction((tx) => failPayment(tx, payment, "FAILED", actor));
   }

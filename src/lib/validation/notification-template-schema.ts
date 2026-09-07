@@ -14,5 +14,10 @@ export const createNotificationTemplateSchema = z.object({
 
 export const updateNotificationTemplateSchema = createNotificationTemplateSchema.partial();
 
+export const testSendNotificationTemplateSchema = z.object({
+  to: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
+});
+
 export type CreateNotificationTemplateValues = z.infer<typeof createNotificationTemplateSchema>;
 export type UpdateNotificationTemplateValues = z.infer<typeof updateNotificationTemplateSchema>;
+export type TestSendNotificationTemplateValues = z.infer<typeof testSendNotificationTemplateSchema>;

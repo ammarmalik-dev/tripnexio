@@ -1,6 +1,7 @@
 import type { PaymentGateway } from "./gateway";
 import { RazorpayGateway } from "./razorpay-gateway";
 import { MockPaymentGateway } from "./mock-gateway";
+import { isPlaceholder } from "@/lib/env-placeholder";
 
 /**
  * A dev-only fallback secret for the mock gateway when RAZORPAY_WEBHOOK_SECRET
@@ -8,10 +9,6 @@ import { MockPaymentGateway } from "./mock-gateway";
  * since getPaymentGateway() only reaches the mock branch without them.
  */
 const MOCK_WEBHOOK_SECRET_FALLBACK = "mock-dev-only-webhook-secret";
-
-function isPlaceholder(value: string | undefined): boolean {
-  return !value || value.trim() === "" || value.startsWith("TODO");
-}
 
 let cached: PaymentGateway | null = null;
 

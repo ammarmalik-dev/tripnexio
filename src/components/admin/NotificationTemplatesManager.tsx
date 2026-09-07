@@ -119,8 +119,22 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(template));
+
+  const handleSendTest = async () => {
+    setSendingTest(true);
+    try {
+      await postJson(`/api/admin/notification-templates/${template.id}/test-send`, { to: testEmail.trim() });
+      toast.success(`Test email sent to ${testEmail.trim()}. Check the server console if Resend isn't configured yet.`);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't send a test email. Please try again.");
+    } finally {
+      setSendingTest(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -168,6 +182,29 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
           Save Changes
         </Button>
       </div>
+      {template.channel === "EMAIL" ? (
+        <div className="flex flex-wrap items-center gap-2 border-t border-hairline pt-4">
+          <input
+            type="email"
+            placeholder="you@example.com"
+            value={testEmail}
+            onChange={(event) => setTestEmail(event.target.value)}
+            disabled={dirty || sendingTest}
+            className={cn(fieldControlClass, fieldBorderClass(false), "max-w-xs")}
+          />
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => void handleSendTest()}
+            isLoading={sendingTest}
+            disabled={dirty || !testEmail.trim() || !template.active}
+          >
+            Send Test
+          </Button>
+          {dirty ? <span className="text-xs text-ink-tertiary">Save your changes first — this tests the saved template.</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

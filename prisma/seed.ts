@@ -8,6 +8,7 @@
 import bcrypt from "bcryptjs";
 import { db } from "../src/lib/db";
 import { PERMISSION_CATALOG, ADMIN_FULL_PERMISSION } from "../src/lib/auth/permissions";
+import { NOTIFICATION_EVENTS } from "../src/lib/notifications/events";
 
 const SAMPLE_STAFF_EMAIL = "admin@tripnexio.com";
 const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
@@ -289,6 +290,70 @@ async function main() {
     update: sampleTemplate2,
     create: sampleTemplate2,
   });
+
+  // The real EMAIL event catalog (src/lib/notifications/events.ts) — every
+  // one of these except QUOTE_REMINDER is actually triggered somewhere in
+  // the app now (Phase 5B). Copy below is obviously placeholder ("Sample:"
+  // prefix on the subject) per hard rule #1 — propose real copy for review
+  // before launch, this only exists so the pipeline has something to send.
+  const emailTemplates = [
+    {
+      id: "notification-template-lead-received",
+      event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
+      subject: "Sample: We've received your {{serviceType}} request — {{leadReference}}",
+      body: "Hi {{customerName}},\n\nThanks for your {{serviceType}} request with TripNexio. Your reference is {{leadReference}} — our team will review it and reach out shortly.\n\n— TripNexio",
+    },
+    {
+      id: "notification-template-quote-ready",
+      event: NOTIFICATION_EVENTS.QUOTE_READY,
+      subject: "Sample: Your TripNexio quote is ready — {{leadReference}}",
+      body: "Hi {{customerName}},\n\nYour quote for {{leadReference}} is ready: {{sellingPrice}} (valid until {{quoteValidUntil}}).\n\nContact us on WhatsApp to proceed.\n\n— TripNexio",
+    },
+    {
+      id: "notification-template-quote-reminder",
+      event: NOTIFICATION_EVENTS.QUOTE_REMINDER,
+      subject: "Sample: Reminder — your TripNexio quote for {{leadReference}} is expiring soon",
+      body: "Hi {{customerName}},\n\nJust a reminder that your quote for {{leadReference}} will expire soon. Let us know if you'd like to proceed.\n\n— TripNexio",
+    },
+    {
+      id: "notification-template-quote-expired",
+      event: NOTIFICATION_EVENTS.QUOTE_EXPIRED,
+      subject: "Sample: Your TripNexio quote for {{leadReference}} has expired",
+      body: "Hi {{customerName}},\n\nThe quote we shared for {{leadReference}} has expired. Contact us and we'll be happy to share an updated quote.\n\n— TripNexio",
+    },
+    {
+      id: "notification-template-payment-received",
+      event: NOTIFICATION_EVENTS.PAYMENT_RECEIVED,
+      subject: "Sample: Payment received — {{bookingId}}",
+      body: "Hi {{customerName}},\n\nWe've received your payment of {{amount}} for booking {{bookingId}}. Your tax invoice is attached.\n\nThank you for choosing TripNexio.\n\n— TripNexio",
+    },
+    {
+      id: "notification-template-documents-required",
+      event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
+      subject: "Sample: Document required — {{leadReference}}",
+      body: "Hi {{customerName}},\n\nWe need the following document to proceed with {{leadReference}}: {{documentName}}. Please share it at your earliest convenience.\n\n— TripNexio",
+    },
+    {
+      id: "notification-template-document-approved",
+      event: NOTIFICATION_EVENTS.DOCUMENT_APPROVED,
+      subject: "Sample: Document verified — {{leadReference}}",
+      body: "Hi {{customerName}},\n\nGood news — your {{documentName}} for {{leadReference}} has been verified.\n\n— TripNexio",
+    },
+    {
+      id: "notification-template-document-rejected",
+      event: NOTIFICATION_EVENTS.DOCUMENT_REJECTED,
+      subject: "Sample: Document needs resubmission — {{leadReference}}",
+      body: "Hi {{customerName}},\n\nYour {{documentName}} for {{leadReference}} couldn't be verified. Please resubmit a clear copy.\n\n— TripNexio",
+    },
+  ];
+  for (const template of emailTemplates) {
+    const data = { id: template.id, event: template.event, channel: "EMAIL" as const, subject: template.subject, body: template.body, active: true };
+    await db.notificationTemplate.upsert({
+      where: { event_channel: { event: data.event, channel: data.channel } },
+      update: data,
+      create: data,
+    });
+  }
 
   // Matches the values the old hard-coded SAMPLE_GST_RATE (0.05) /
   // SAMPLE_GATEWAY_FEE_RATE (0.02) constants used, so seeding this for the
