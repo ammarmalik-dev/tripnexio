@@ -77,7 +77,9 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   };
 
   row("Base Fare (Service Fee)", money(input.baseFare));
-  row(`GST @ ${input.gstRatePercent.toFixed(2)}% (tax on service fee)`, money(input.gstAmount));
+  if (input.gstAmount > 0) {
+    row(`GST @ ${input.gstRatePercent.toFixed(2)}% (tax on service fee)`, money(input.gstAmount));
+  }
   row("Payment Gateway Fee", money(input.gatewayFee));
 
   doc.moveTo(50, doc.y + 2).lineTo(545, doc.y + 2).strokeColor("#cccccc").stroke();

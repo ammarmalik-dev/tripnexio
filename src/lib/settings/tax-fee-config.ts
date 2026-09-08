@@ -7,11 +7,10 @@ import { db } from "../db";
  */
 export const TAX_FEE_CONFIG_ID = "singleton";
 
-// Matches the values the old hard-coded SAMPLE_GST_RATE (0.05) /
-// SAMPLE_GATEWAY_FEE_RATE (0.02) constants used, so behavior is unchanged
-// until an admin actually edits the config. Only used if the seeded
-// singleton row is somehow missing — should not happen in practice.
-const FALLBACK_GST_RATE_PERCENT = 5;
+// GST is OFF by default per the client's locked rule (ADMIN.md/CRM.md:
+// "Current: GST OFF, invoice non-GST"). Only used if the seeded singleton
+// row is somehow missing — should not happen in practice.
+const FALLBACK_GST_RATE_PERCENT = 0;
 const FALLBACK_GATEWAY_FEE_RATE_PERCENT = 2;
 
 export interface TaxFeeRates {

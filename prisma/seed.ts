@@ -448,14 +448,14 @@ async function main() {
     });
   }
 
-  // Matches the values the old hard-coded SAMPLE_GST_RATE (0.05) /
-  // SAMPLE_GATEWAY_FEE_RATE (0.02) constants used, so seeding this for the
-  // first time doesn't change any existing payment-calculation behavior —
-  // see src/lib/settings/tax-fee-config.ts. Deliberately `update: {}` here
-  // (unlike every other masters upsert above) — once an admin has actually
-  // configured a real rate through /admin/tax-fee, re-running the seed
-  // must NOT silently reset it back to the sample default.
-  const taxFeeConfig = { id: "singleton", gstRatePercent: 5, gatewayFeePercent: 2 };
+  // GST is OFF by default per the client's locked rule (ADMIN.md/CRM.md:
+  // "Current: GST OFF, invoice non-GST") — gatewayFeePercent keeps the old
+  // SAMPLE_GATEWAY_FEE_RATE (0.02) value, which was never in conflict.
+  // Deliberately `update: {}` here (unlike every other masters upsert
+  // above) — once an admin has actually configured a real rate through
+  // /admin/tax-fee, re-running the seed must NOT silently reset it back to
+  // this default.
+  const taxFeeConfig = { id: "singleton", gstRatePercent: 0, gatewayFeePercent: 2 };
   await db.taxFeeConfig.upsert({ where: { id: taxFeeConfig.id }, update: {}, create: taxFeeConfig });
 
   console.log("Sample masters rows ready (clearly labeled — not real domain data).");
