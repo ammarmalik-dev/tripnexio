@@ -12,10 +12,11 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Stepper } from "./Stepper";
 import { useMultiStepForm } from "./useMultiStepForm";
 import { RequestSuccessPanel } from "./RequestSuccessPanel";
+import { RequestInfoPanel } from "./RequestInfoPanel";
 import { toast } from "@/components/ui/Toaster";
-import { ApiError } from "@/lib/api/client";
+import { ApiError, RequestIneligibleOutcome } from "@/lib/api/client";
 
-type SubmitState = "idle" | "loading" | "success" | "error";
+type SubmitState = "idle" | "loading" | "success" | "error" | "ineligible";
 
 interface MultiStepRequestFlowProps<T extends FieldValues> {
   eyebrow: string;
@@ -60,6 +61,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
   const { currentIndex, isFirstStep, isLastStep, goNext, goBack } = useMultiStepForm(steps.length);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
   const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [ineligibleOutcome, setIneligibleOutcome] = useState<RequestIneligibleOutcome | null>(null);
   const shouldReduceMotion = useReducedMotion();
 
   const handleNext = async () => {
@@ -75,6 +77,11 @@ export function MultiStepRequestFlow<T extends FieldValues>({
       setSubmitState("success");
       toast.success(successTitle, { description: `Reference ID: ${result.referenceId}` });
     } catch (error) {
+      if (error instanceof RequestIneligibleOutcome) {
+        setIneligibleOutcome(error);
+        setSubmitState("ineligible");
+        return;
+      }
       setSubmitState("error");
       toast.error(error instanceof ApiError ? error.message : "Couldn't submit your request. Please try again.");
     }
@@ -85,6 +92,16 @@ export function MultiStepRequestFlow<T extends FieldValues>({
       <Container className="py-16 sm:py-24">
         <div className="mx-auto max-w-xl">
           <RequestSuccessPanel title={successTitle} description={successDescription} referenceId={referenceId} />
+        </div>
+      </Container>
+    );
+  }
+
+  if (submitState === "ineligible" && ineligibleOutcome) {
+    return (
+      <Container className="py-16 sm:py-24">
+        <div className="mx-auto max-w-xl">
+          <RequestInfoPanel title={ineligibleOutcome.message} description={ineligibleOutcome.description} cta={ineligibleOutcome.cta} />
         </div>
       </Container>
     );

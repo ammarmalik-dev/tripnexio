@@ -12,6 +12,7 @@ import { LeadStatusBadge } from "./LeadStatusBadge";
 import { BookingStatusBadge } from "./BookingStatusBadge";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
 import { PassportExtractionReview } from "./PassportExtractionReview";
+import { VisaExtensionEligibilityPanel } from "./VisaExtensionEligibilityPanel";
 import { LeadTimeline } from "./LeadTimeline";
 import { QuoteBuilder } from "./QuoteBuilder";
 import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
@@ -153,7 +154,8 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
 
   if (!lead) return null;
 
-  const detailEntries = Object.entries(lead.details).filter(([key]) => key !== "passengerIds");
+  const INTERNAL_DETAIL_KEYS = new Set(["passengerIds", "verifiedExpiryDate", "eligibilityOutcome", "verifiedByStaffId", "verifiedAt"]);
+  const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
   const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
   const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED");
 
@@ -229,6 +231,27 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               </dl>
             )}
           </section>
+
+          {lead.serviceType === "VISA_EXTENSION" ? (
+            <VisaExtensionEligibilityPanel
+              leadId={lead.id}
+              verifiedExpiryDate={typeof lead.details.verifiedExpiryDate === "string" ? lead.details.verifiedExpiryDate : undefined}
+              eligibilityOutcome={
+                lead.details.eligibilityOutcome === "ELIGIBLE" ||
+                lead.details.eligibilityOutcome === "URGENT_TODAY" ||
+                lead.details.eligibilityOutcome === "NOT_ELIGIBLE"
+                  ? lead.details.eligibilityOutcome
+                  : undefined
+              }
+              onVerified={(result) =>
+                setLead((current) =>
+                  current
+                    ? { ...current, details: { ...current.details, verifiedExpiryDate: result.verifiedExpiryDate, eligibilityOutcome: result.outcome } }
+                    : current
+                )
+              }
+            />
+          ) : null}
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink-heading">Passengers &amp; Documents</h2>

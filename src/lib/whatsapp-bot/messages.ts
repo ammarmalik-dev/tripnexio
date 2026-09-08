@@ -52,3 +52,11 @@ export function faqFooter(): string {
 export function invalidAnswer(error: string, retryPrompt: string): string {
   return `${error}\n\n${retryPrompt}`;
 }
+
+/** Visa_Extension.md §2/§25: no eligible TripNexio-issued visa found — routes to Visa Change (inside UAE) or New Visa (outside UAE) instead of creating an Extension lead. */
+export function visaExtensionIneligible(redirectLabel: string): string {
+  return (
+    `We currently provide visa extension services only for visas issued through TripNexio, and we couldn't find a matching visa for these details.\n\n` +
+    `It looks like *${redirectLabel}* may be the right service for you instead. Type "menu" to start that request, or "agent" to talk to our team.`
+  );
+}

@@ -159,11 +159,15 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
     }
 
     case "VISA_EXTENSION": {
-      if (!has("destinationCountry")) {
-        return numberedChoiceStep("destinationCountry", "Which country is your visa in?", await getDestinationCountryOptions());
+      if (!has("passportNumber")) return textStep("passportNumber", "What's your passport number?", visaExtensionRequestSchema.shape.passportNumber);
+      if (!has("dob")) return dateStep("dob", "What's your date of birth?", visaExtensionRequestSchema.shape.dob);
+      if (!has("insideUAE")) {
+        return numberedChoiceStep("insideUAE", "Are you currently inside the UAE?", [
+          { value: "yes", label: "Yes, I'm inside the UAE" },
+          { value: "no", label: "No, I'm outside the UAE" },
+        ]);
       }
-      if (!has("entryDate")) return dateStep("entryDate", "What was your entry date into that country?", visaExtensionRequestSchema.shape.entryDate);
-      if (!has("processingType")) return numberedChoiceStep("processingType", "Normal or urgent processing?", PROCESSING_TYPE_OPTIONS);
+      if (!has("entryDate")) return dateStep("entryDate", "What was your UAE entry date?", visaExtensionRequestSchema.shape.entryDate);
       return null;
     }
 
@@ -240,7 +244,12 @@ export function buildLeadDetails(serviceType: ServiceType, collected: Record<str
         processingType: collected.processingType,
       };
     case "VISA_EXTENSION":
-      return { destinationCountry: collected.destinationCountry, entryDate: collected.entryDate, processingType: collected.processingType };
+      return {
+        passportNumber: collected.passportNumber,
+        dob: collected.dob,
+        insideUAE: collected.insideUAE,
+        entryDate: collected.entryDate,
+      };
     case "VISA_CHANGE":
       return collected.changeType === "AIRPORT_TO_AIRPORT"
         ? {

@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { createLeadFromSubmission } from "../leads/create-lead";
+import { checkVisaExtensionEligibility, getIneligibleRedirect } from "../leads/visa-extension-eligibility";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getAiProvider } from "./get-ai-provider";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
@@ -129,6 +130,27 @@ async function continueCollecting(
       return { replyText: messages.handoff("That option isn't available right now."), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };
     }
     return { replyText: nextField.prompt, nextState: "COLLECTING", nextServiceType: serviceType, nextCollectedFields: nextCollected };
+  }
+
+  // Visa_Extension.md §2/§25: no eligible TripNexio-issued visa -> route to
+  // Visa Change/New Visa instead of creating an Extension lead. Same check
+  // the website's POST /api/leads/visa-extension route runs, so a
+  // WhatsApp-originated request can't bypass it.
+  if (serviceType === "VISA_EXTENSION") {
+    const eligibility = await checkVisaExtensionEligibility({
+      passportNumber: nextCollected.passportNumber,
+      dob: nextCollected.dob,
+      mobile: waId,
+    });
+    if (!eligibility.eligible) {
+      const redirect = getIneligibleRedirect(nextCollected.insideUAE === "yes" ? "yes" : "no");
+      return {
+        replyText: messages.visaExtensionIneligible(redirect.label),
+        nextState: "GREETING",
+        nextServiceType: null,
+        nextCollectedFields: {},
+      };
+    }
   }
 
   // Every field collected — create the Lead exactly like the website does.

@@ -10,6 +10,27 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * A distinct outcome from ApiError: the request succeeded (2xx, valid
+ * data) but the *business* answer is "we can't proceed" rather than a
+ * technical failure — e.g. Visa Extension's eligibility gate (no matching
+ * TripNexio-issued visa found). A service's `onSubmit` wrapper throws this
+ * instead of returning a reference id; MultiStepRequestFlow renders it as
+ * an info panel (RequestInfoPanel) with an optional redirect CTA, not the
+ * generic error state.
+ */
+export class RequestIneligibleOutcome extends Error {
+  description: string;
+  cta?: { label: string; href: string };
+
+  constructor(message: string, description: string, cta?: { label: string; href: string }) {
+    super(message);
+    this.name = "RequestIneligibleOutcome";
+    this.description = description;
+    this.cta = cta;
+  }
+}
+
 async function unwrapResponse<T>(response: Response): Promise<T> {
   const payload = await response.json().catch(() => null);
 
