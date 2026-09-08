@@ -95,6 +95,16 @@ enum PaxType {
   INFANT
 }
 
+/// Return_Verified_Ticket.md §5/§6, locked (Step 10, client-locked-spec
+/// roadmap): the customer selects only a visa type (30 or 60 days) and a
+/// travel date — the return/onward date is server-computed from this, never
+/// customer-entered. AUDIT_REPORT.md flagged the pre-Step-10 schema/route as
+/// not confirmed to implement this (it accepted returnDate as free input).
+enum ReturnTicketVisaType {
+  THIRTY_DAYS
+  SIXTY_DAYS
+}
+
 // GccCountry enum removed (Step 6.1, client-locked-spec roadmap) — Airport/
 // Border's country classification is now the admin-managed Country model
 // below, so a new country can be added without a Prisma migration.
@@ -226,6 +236,18 @@ model Booking {
   leadId     String
   customerId String
   status     BookingStatus @default(PENDING)
+  /// Return_Verified_Ticket.md §7, locked (Step 10): "Reservation can be
+  /// issued up to 24 hours before travel. Once issued, the reservation is
+  /// intended to be valid for the next 24 hours... CRM should store issue
+  /// time and expected expiry time." Nullable/meaningful only for
+  /// RETURN_TICKET bookings — same nullable-per-service-shape pattern
+  /// already used on Quotation for its flight-only columns. Set together by
+  /// PATCH /api/bookings/[id]/issue-reservation; reservationExpired is
+  /// lazily flipped by syncExpiredReservations() on read, mirroring
+  /// Quotation.isExpired/syncExpiredQuotations().
+  reservationIssuedAt  DateTime?
+  reservationExpiresAt DateTime?
+  reservationExpired   Boolean   @default(false)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -679,6 +701,24 @@ model TaxFeeConfig {
   gatewayFeePercent Decimal  @db.Decimal(5, 2)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+/// Return_Verified_Ticket.md §6, locked: "The exact date calculation must be
+/// configurable rather than hard-coded if Admin needs to change the
+/// operational rule." A true singleton, same pattern as TaxFeeConfig — the
+/// return/onward date is never customer-entered (see ReturnTicketVisaType
+/// and computeReturnDate() in src/lib/leads/compute-return-date.ts); it's
+/// travelDate + the configured offset for the selected visa type. No
+/// dedicated Admin UI ships in this step (out of this step's scope — see
+/// the roadmap's Step 10 prompt, which asks for the customer-facing flow +
+/// server-side computation, not a new Admin screen); the row is still
+/// DB-editable without a deploy, which is what the locked rule requires.
+model ReturnTicketRuleConfig {
+  id                  String   @id
+  thirtyDayOffsetDays Int
+  sixtyDayOffsetDays  Int
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 // ---------------------------------------------------------------------------

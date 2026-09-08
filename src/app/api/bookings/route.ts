@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { placeholderBookingId } from "@/lib/bookings/reference";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
+import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
       : {}),
   };
 
-  const [total, bookings] = await Promise.all([
+  const [total, bookingsRaw] = await Promise.all([
     db.booking.count({ where }),
     db.booking.findMany({
       where,
@@ -48,6 +49,10 @@ export async function GET(request: NextRequest) {
       take: pageSize,
     }),
   ]);
+  // Return_Verified_Ticket.md §7's 24h reservation window is lazily synced
+  // here too, not just on the detail route — see
+  // feedback_audit_all_readers_of_lazily_synced_state in memory.
+  const bookings = await syncExpiredReservations(bookingsRaw);
 
   const items = bookings.map((booking) => ({
     id: booking.id,

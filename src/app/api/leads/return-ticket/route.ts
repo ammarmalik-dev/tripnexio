@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { returnTicketRequestSchema } from "@/lib/validation/return-ticket-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
+import { computeReturnDate } from "@/lib/leads/compute-return-date";
+import { getReturnTicketRules } from "@/lib/settings/return-ticket-rule-config";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 
 export async function POST(request: NextRequest) {
@@ -16,13 +18,19 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const { fullName, mobile, email, destinationCountry, travelDate, returnDate, travelers } = parsed.data;
+  const { fullName, mobile, email, visaType, travelDate, travelers } = parsed.data;
 
   try {
+    // Return_Verified_Ticket.md §5/§6: the customer never enters a return
+    // date — it's computed here from the selected visa type + the
+    // Admin-configurable offset rule, never trusted from the client.
+    const rules = await getReturnTicketRules();
+    const returnDate = computeReturnDate(travelDate, visaType, rules);
+
     const result = await createLeadFromSubmission({
       serviceType: "RETURN_TICKET",
       contact: { fullName, mobile, email },
-      details: { destinationCountry, travelDate, returnDate, travelers },
+      details: { visaType, travelDate, returnDate, travelers },
     });
     return jsonSuccess(result, 201);
   } catch (error) {

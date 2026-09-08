@@ -478,6 +478,18 @@ async function main() {
   const taxFeeConfig = { id: "singleton", gstRatePercent: 0, gatewayFeePercent: 2 };
   await db.taxFeeConfig.upsert({ where: { id: taxFeeConfig.id }, update: {}, create: taxFeeConfig });
 
+  // Return_Verified_Ticket.md §6: return/onward date = travelDate + this
+  // many days, per the selected visa type — literal reading of "the
+  // configured 30-day rule"/"the configured 60-day rule" (the spec doesn't
+  // specify a buffer). Same `update: {}` rule as taxFeeConfig above — once
+  // an admin has adjusted this, re-seeding must not silently reset it.
+  const returnTicketRuleConfig = { id: "singleton", thirtyDayOffsetDays: 30, sixtyDayOffsetDays: 60 };
+  await db.returnTicketRuleConfig.upsert({
+    where: { id: returnTicketRuleConfig.id },
+    update: {},
+    create: returnTicketRuleConfig,
+  });
+
   console.log("Sample masters rows ready (clearly labeled — not real domain data).");
 }
 

@@ -39,7 +39,7 @@ export const SERVICE_ROUTE_INFO: Record<string, ServiceRouteInfo> = {
     imageAlt: "View of an airplane wing above clouds, backlit by the sun",
   },
   RETURN_TICKET: {
-    href: "/services/return-verified-ticket",
+    href: "/services/return-ticket",
     image: "https://images.unsplash.com/photo-1540339832862-474599807836?auto=format&fit=crop&w=1200&q=80",
     imageAlt: "Interior of an airplane cabin with passengers seated",
   },

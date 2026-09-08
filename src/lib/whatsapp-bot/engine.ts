@@ -155,7 +155,7 @@ async function continueCollecting(
 
   // Every field collected — create the Lead exactly like the website does.
   try {
-    const details = buildLeadDetails(serviceType, nextCollected);
+    const details = await buildLeadDetails(serviceType, nextCollected);
     const result = await createLeadFromSubmission({
       serviceType,
       source: "WhatsApp Bot",

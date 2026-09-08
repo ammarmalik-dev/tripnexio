@@ -69,7 +69,7 @@ export const services: ServiceModule[] = [
     key: "return-verified-ticket",
     title: "Return Verified Ticket",
     description: "A verified return ticket for use with your visa application.",
-    href: "/services/return-verified-ticket",
+    href: "/services/return-ticket",
     icon: TicketCheck,
     image:
       "https://images.unsplash.com/photo-1540339832862-474599807836?auto=format&fit=crop&w=1200&q=80",
