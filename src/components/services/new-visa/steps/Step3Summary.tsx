@@ -1,7 +1,8 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { DESTINATION_COUNTRY_OPTIONS, SAMPLE_VISA_TYPE_OPTIONS } from "@/lib/sample-data";
+import { SAMPLE_VISA_TYPE_OPTIONS } from "@/lib/sample-data";
+import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import type { NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
@@ -22,8 +23,9 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 export function Step3Summary() {
   const { getValues } = useFormContext<NewVisaRequestValues>();
   const values = getValues();
+  const destinationCountryOptions = useDestinationCountryOptions();
   const destinationLabel =
-    DESTINATION_COUNTRY_OPTIONS.find((option) => option.value === values.destinationCountry)?.label ??
+    destinationCountryOptions.find((option) => option.value === values.destinationCountry)?.label ??
     values.destinationCountry;
   const visaTypeLabel =
     SAMPLE_VISA_TYPE_OPTIONS.find((option) => option.value === values.visaType)?.label ?? values.visaType;

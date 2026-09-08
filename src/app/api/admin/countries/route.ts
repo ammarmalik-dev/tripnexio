@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { createBorderSchema } from "@/lib/validation/border-schema";
+import { createCountrySchema } from "@/lib/validation/country-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
@@ -9,11 +9,8 @@ export async function GET() {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
 
-  const borders = await db.border.findMany({
-    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-    include: { country: { select: { id: true, name: true, code: true } } },
-  });
-  return jsonSuccess(borders);
+  const countries = await db.country.findMany({ orderBy: [{ displayOrder: "asc" }, { name: "asc" }] });
+  return jsonSuccess(countries);
 }
 
 export async function POST(request: NextRequest) {
@@ -28,27 +25,27 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Invalid request body.");
   }
 
-  const parsed = createBorderSchema.safeParse(body);
+  const parsed = createCountrySchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
-  if (!country) {
-    return jsonError(400, "Select a valid country.", { countryId: ["This country doesn't exist."] });
+  const existing = await db.country.findUnique({ where: { code: parsed.data.code } });
+  if (existing) {
+    return jsonError(400, "A country with this code already exists.", { code: ["This code is taken."] });
   }
 
-  const border = await db.$transaction(async (tx) => {
-    const created = await tx.border.create({ data: parsed.data });
+  const country = await db.$transaction(async (tx) => {
+    const created = await tx.country.create({ data: parsed.data });
     await writeAudit(tx, {
-      entityType: "Border",
+      entityType: "Country",
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Border crossing "${created.name}" created (by ${session.name})`,
+      note: `Country "${created.name}" (${created.code}) created (by ${session.name})`,
     });
     return created;
   });
 
-  return jsonSuccess(border, 201);
+  return jsonSuccess(country, 201);
 }

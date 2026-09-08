@@ -9,7 +9,10 @@ export async function GET() {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
 
-  const airports = await db.airport.findMany({ orderBy: [{ displayOrder: "asc" }, { name: "asc" }] });
+  const airports = await db.airport.findMany({
+    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+    include: { countryRef: { select: { id: true, name: true, code: true } } },
+  });
   return jsonSuccess(airports);
 }
 
@@ -33,6 +36,11 @@ export async function POST(request: NextRequest) {
   const existing = await db.airport.findUnique({ where: { code: parsed.data.code } });
   if (existing) {
     return jsonError(400, "An airport with this code already exists.", { code: ["This code is taken."] });
+  }
+
+  const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
+  if (!country) {
+    return jsonError(400, "Select a valid country.", { countryId: ["This country doesn't exist."] });
   }
 
   const airport = await db.$transaction(async (tx) => {

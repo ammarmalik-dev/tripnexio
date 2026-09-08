@@ -36,6 +36,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (codeTaken) return jsonError(400, "An airport with this code already exists.", { code: ["This code is taken."] });
   }
 
+  if (parsed.data.countryId) {
+    const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
+    if (!country) return jsonError(400, "Select a valid country.", { countryId: ["This country doesn't exist."] });
+  }
+
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.airport.update({ where: { id }, data: parsed.data });
     await writeAudit(tx, {

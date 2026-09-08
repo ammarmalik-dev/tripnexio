@@ -8,16 +8,16 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { GCC_COUNTRY_OPTIONS } from "@/lib/crm/labels";
+import { useCountries, type CountryOption } from "@/lib/admin/use-countries";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
-import type { GccCountry } from "../../generated/prisma/enums";
 
 interface BorderData {
   id: string;
   name: string;
-  side: GccCountry;
+  countryId: string;
+  country: CountryOption;
   uaeLocation: string;
   destinationLocation: string;
   activeForVisaChange: boolean;
@@ -29,7 +29,7 @@ type FetchState = "loading" | "success" | "error";
 
 interface BorderFormState {
   name: string;
-  side: GccCountry | "";
+  countryId: string;
   uaeLocation: string;
   destinationLocation: string;
   activeForVisaChange: boolean;
@@ -38,7 +38,7 @@ interface BorderFormState {
 
 const EMPTY_FORM: BorderFormState = {
   name: "",
-  side: "",
+  countryId: "",
   uaeLocation: "",
   destinationLocation: "",
   activeForVisaChange: true,
@@ -48,7 +48,7 @@ const EMPTY_FORM: BorderFormState = {
 function toFormState(border: BorderData): BorderFormState {
   return {
     name: border.name,
-    side: border.side,
+    countryId: border.countryId,
     uaeLocation: border.uaeLocation,
     destinationLocation: border.destinationLocation,
     activeForVisaChange: border.activeForVisaChange,
@@ -61,11 +61,13 @@ function BorderFields({
   onChange,
   errors,
   disabled,
+  countryOptions,
 }: {
   form: BorderFormState;
   onChange: (next: BorderFormState) => void;
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
+  countryOptions: CountryOption[];
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -77,20 +79,20 @@ function BorderFields({
         error={errors.name?.[0]}
         disabled={disabled}
       />
-      <FormField label="Non-UAE Side" htmlFor="side" error={errors.side?.[0]}>
+      <FormField label="Non-UAE Side" htmlFor="countryId" error={errors.countryId?.[0]}>
         <select
-          id="side"
-          value={form.side}
+          id="countryId"
+          value={form.countryId}
           disabled={disabled}
-          onChange={(event) => onChange({ ...form, side: event.target.value as GccCountry })}
-          className={cn(fieldControlClass, fieldBorderClass(!!errors.side))}
+          onChange={(event) => onChange({ ...form, countryId: event.target.value })}
+          className={cn(fieldControlClass, fieldBorderClass(!!errors.countryId))}
         >
           <option value="" disabled>
             Select a country
           </option>
-          {GCC_COUNTRY_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
+          {countryOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
             </option>
           ))}
         </select>
@@ -136,7 +138,7 @@ function BorderFields({
 function buildPayload(form: BorderFormState) {
   return {
     name: form.name.trim(),
-    side: form.side || undefined,
+    countryId: form.countryId || undefined,
     uaeLocation: form.uaeLocation.trim(),
     destinationLocation: form.destinationLocation.trim(),
     activeForVisaChange: form.activeForVisaChange,
@@ -144,7 +146,15 @@ function buildPayload(form: BorderFormState) {
   };
 }
 
-function BorderCard({ border, onSaved }: { border: BorderData; onSaved: (border: BorderData) => void }) {
+function BorderCard({
+  border,
+  onSaved,
+  countryOptions,
+}: {
+  border: BorderData;
+  onSaved: (border: BorderData) => void;
+  countryOptions: CountryOption[];
+}) {
   const [form, setForm] = useState<BorderFormState>(toFormState(border));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -195,7 +205,7 @@ function BorderCard({ border, onSaved }: { border: BorderData; onSaved: (border:
           {border.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <BorderFields form={form} onChange={setForm} errors={errors} disabled={saving} />
+      <BorderFields form={form} onChange={setForm} errors={errors} disabled={saving} countryOptions={countryOptions} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -205,7 +215,13 @@ function BorderCard({ border, onSaved }: { border: BorderData; onSaved: (border:
   );
 }
 
-function NewBorderForm({ onCreated }: { onCreated: (border: BorderData) => void }) {
+function NewBorderForm({
+  onCreated,
+  countryOptions,
+}: {
+  onCreated: (border: BorderData) => void;
+  countryOptions: CountryOption[];
+}) {
   const [form, setForm] = useState<BorderFormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
@@ -226,12 +242,12 @@ function NewBorderForm({ onCreated }: { onCreated: (border: BorderData) => void 
     }
   };
 
-  const canSubmit = form.name.trim() && form.side && form.uaeLocation.trim() && form.destinationLocation.trim();
+  const canSubmit = form.name.trim() && form.countryId && form.uaeLocation.trim() && form.destinationLocation.trim();
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Border Crossing</h2>
-      <BorderFields form={form} onChange={setForm} errors={errors} disabled={creating} />
+      <BorderFields form={form} onChange={setForm} errors={errors} disabled={creating} countryOptions={countryOptions} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -247,6 +263,7 @@ export function BordersManager() {
   const [borders, setBorders] = useState<BorderData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const countryOptions = useCountries();
 
   useEffect(() => {
     let cancelled = false;
@@ -305,10 +322,11 @@ export function BordersManager() {
             key={border.id}
             border={border}
             onSaved={(updated) => setBorders((current) => current.map((b) => (b.id === updated.id ? updated : b)))}
+            countryOptions={countryOptions}
           />
         ))
       )}
-      <NewBorderForm onCreated={(created) => setBorders((current) => [...current, created])} />
+      <NewBorderForm onCreated={(created) => setBorders((current) => [...current, created])} countryOptions={countryOptions} />
     </div>
   );
 }

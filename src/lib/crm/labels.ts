@@ -6,7 +6,6 @@ import type {
   PaxType,
   PaymentStatus,
   RefundStatus,
-  GccCountry,
   CouponType,
   NotificationChannel,
 } from "../../generated/prisma/enums";
@@ -90,21 +89,9 @@ export const DOCUMENT_STATUS_OPTIONS: { value: DocumentStatus; label: string }[]
   Object.entries(DOCUMENT_STATUS_LABELS) as [DocumentStatus, string][]
 ).map(([value, label]) => ({ value, label }));
 
-/** The locked market scope from CLAUDE.md (India to UAE/GCC) plus OTHER as a fallback — not sample data, matches the GccCountry enum exactly. */
-export const GCC_COUNTRY_LABELS: Record<GccCountry, string> = {
-  INDIA: "India",
-  UAE: "United Arab Emirates",
-  SAUDI_ARABIA: "Saudi Arabia",
-  BAHRAIN: "Bahrain",
-  KUWAIT: "Kuwait",
-  OMAN: "Oman",
-  QATAR: "Qatar",
-  OTHER: "Other",
-};
-
-export const GCC_COUNTRY_OPTIONS: { value: GccCountry; label: string }[] = (
-  Object.entries(GCC_COUNTRY_LABELS) as [GccCountry, string][]
-).map(([value, label]) => ({ value, label }));
+// GCC_COUNTRY_LABELS/GCC_COUNTRY_OPTIONS removed (Step 6.1, client-locked-
+// spec roadmap) — Country is now a real Admin-managed table, not a fixed
+// enum; see src/lib/admin/use-countries.ts for the client-side fetch hook.
 
 export const COUPON_TYPE_LABELS: Record<CouponType, string> = {
   PERCENTAGE: "Percentage",

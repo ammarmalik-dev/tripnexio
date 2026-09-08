@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { updateBorderSchema } from "@/lib/validation/border-schema";
+import { updateCountrySchema } from "@/lib/validation/country-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
@@ -23,27 +23,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Invalid request body.");
   }
 
-  const parsed = updateBorderSchema.safeParse(body);
+  const parsed = updateCountrySchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const existing = await db.border.findUnique({ where: { id } });
-  if (!existing) return jsonError(404, "Border crossing not found.");
+  const existing = await db.country.findUnique({ where: { id } });
+  if (!existing) return jsonError(404, "Country not found.");
 
-  if (parsed.data.countryId) {
-    const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
-    if (!country) return jsonError(400, "Select a valid country.", { countryId: ["This country doesn't exist."] });
+  if (parsed.data.code && parsed.data.code !== existing.code) {
+    const codeTaken = await db.country.findUnique({ where: { code: parsed.data.code } });
+    if (codeTaken) return jsonError(400, "A country with this code already exists.", { code: ["This code is taken."] });
   }
 
   const updated = await db.$transaction(async (tx) => {
-    const result = await tx.border.update({ where: { id }, data: parsed.data });
+    const result = await tx.country.update({ where: { id }, data: parsed.data });
     await writeAudit(tx, {
-      entityType: "Border",
+      entityType: "Country",
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Border crossing "${result.name}" updated (by ${session.name})`,
+      note: `Country "${result.name}" updated (by ${session.name})`,
     });
     return result;
   });

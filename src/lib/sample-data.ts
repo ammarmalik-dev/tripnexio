@@ -40,15 +40,8 @@ export const SAMPLE_VISA_TYPE_OPTIONS: SelectOption[] = [
 export const SAMPLE_VISA_TYPE_CAPTION =
   "Sample categories shown for preview — our team confirms the exact visa type for you.";
 
-/**
- * Destination countries are the actual locked market scope from CLAUDE.md
- * (India to UAE/GCC only) — not sample/placeholder data.
- */
-export const DESTINATION_COUNTRY_OPTIONS: SelectOption[] = [
-  { value: "uae", label: "United Arab Emirates" },
-  { value: "saudi-arabia", label: "Saudi Arabia" },
-  { value: "bahrain", label: "Bahrain" },
-  { value: "kuwait", label: "Kuwait" },
-  { value: "oman", label: "Oman" },
-  { value: "qatar", label: "Qatar" },
-];
+// DESTINATION_COUNTRY_OPTIONS removed (Step 6.1, client-locked-spec
+// roadmap) — destination countries are now fetched live from the real
+// Admin-managed Country table via the public /api/countries endpoint
+// (src/lib/use-destination-countries.ts), not a hardcoded array, since the
+// client wants to be able to add a country without a code deployment.

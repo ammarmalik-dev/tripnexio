@@ -5,10 +5,10 @@ import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
 import { DateField } from "@/components/forms/DateField";
 import {
-  DESTINATION_COUNTRY_OPTIONS,
   SAMPLE_VISA_TYPE_OPTIONS,
   SAMPLE_VISA_TYPE_CAPTION,
 } from "@/lib/sample-data";
+import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import type { NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
 export function Step1TravelDetails() {
@@ -16,6 +16,7 @@ export function Step1TravelDetails() {
     register,
     formState: { errors },
   } = useFormContext<NewVisaRequestValues>();
+  const destinationCountryOptions = useDestinationCountryOptions();
 
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -44,7 +45,7 @@ export function Step1TravelDetails() {
       <SelectField
         label="Destination Country"
         required
-        options={DESTINATION_COUNTRY_OPTIONS}
+        options={destinationCountryOptions}
         error={errors.destinationCountry?.message}
         {...register("destinationCountry")}
       />

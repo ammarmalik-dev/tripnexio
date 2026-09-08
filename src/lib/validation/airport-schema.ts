@@ -1,7 +1,4 @@
 import { z } from "zod";
-import { GccCountry, type GccCountry as GccCountryType } from "../../generated/prisma/enums";
-
-const gccCountryValues = Object.values(GccCountry) as [GccCountryType, ...GccCountryType[]];
 
 export const createAirportSchema = z.object({
   name: z.string().trim().min(2, "Enter an airport name").max(120, "Name is too long"),
@@ -13,7 +10,7 @@ export const createAirportSchema = z.object({
     .transform((value) => value.toUpperCase()),
   country: z.string().trim().min(2, "Enter a country"),
   city: z.string().trim().min(2, "Enter a city"),
-  gccClassification: z.enum(gccCountryValues, { error: "Select a classification" }),
+  countryId: z.string().min(1, "Select a country"),
   activeForA2AEntry: z.boolean().default(true),
   activeForA2AExit: z.boolean().default(true),
   displayOrder: z.number().int().default(0),

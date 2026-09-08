@@ -6,7 +6,7 @@ import { newVisaRequestSchema } from "../validation/new-visa-schema";
 import { visaExtensionRequestSchema } from "../validation/visa-extension-schema";
 import { flightSpecialFareRequestSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
-import { DESTINATION_COUNTRY_OPTIONS, SAMPLE_VISA_TYPE_OPTIONS, SAMPLE_AIRLINE_OPTIONS } from "../sample-data";
+import { SAMPLE_VISA_TYPE_OPTIONS, SAMPLE_AIRLINE_OPTIONS } from "../sample-data";
 
 export interface ParseResult {
   ok: boolean;
@@ -112,6 +112,12 @@ async function getActiveBorderOptions() {
   return borders.map((border) => ({ value: border.id, label: border.name }));
 }
 
+/** Replaces the old hardcoded DESTINATION_COUNTRY_OPTIONS (Step 6.1, client-locked-spec roadmap) with the real Admin-managed Country list. */
+async function getDestinationCountryOptions() {
+  const countries = await db.country.findMany({ where: { active: true }, orderBy: [{ displayOrder: "asc" }, { name: "asc" }] });
+  return countries.map((country) => ({ value: country.code, label: country.name }));
+}
+
 /**
  * The one function the bot engine calls each turn: given a service and
  * whatever's been collected so far, returns the NEXT field to ask about —
@@ -142,7 +148,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
     }
 
     case "NEW_VISA": {
-      if (!has("destinationCountry")) return numberedChoiceStep("destinationCountry", "Which country is this visa for?", DESTINATION_COUNTRY_OPTIONS);
+      if (!has("destinationCountry")) {
+        return numberedChoiceStep("destinationCountry", "Which country is this visa for?", await getDestinationCountryOptions());
+      }
       if (!has("visaType")) return numberedChoiceStep("visaType", "What type of visa do you need?", SAMPLE_VISA_TYPE_OPTIONS);
       if (!has("travelers")) return textStep("travelers", "How many travelers (1-9)?", newVisaRequestSchema.shape.travelers);
       if (!has("travelDate")) return dateStep("travelDate", "What's your planned travel date?", newVisaRequestSchema.shape.travelDate);
@@ -151,7 +159,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
     }
 
     case "VISA_EXTENSION": {
-      if (!has("destinationCountry")) return numberedChoiceStep("destinationCountry", "Which country is your visa in?", DESTINATION_COUNTRY_OPTIONS);
+      if (!has("destinationCountry")) {
+        return numberedChoiceStep("destinationCountry", "Which country is your visa in?", await getDestinationCountryOptions());
+      }
       if (!has("entryDate")) return dateStep("entryDate", "What was your entry date into that country?", visaExtensionRequestSchema.shape.entryDate);
       if (!has("processingType")) return numberedChoiceStep("processingType", "Normal or urgent processing?", PROCESSING_TYPE_OPTIONS);
       return null;
@@ -195,7 +205,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
     }
 
     case "RETURN_TICKET": {
-      if (!has("destinationCountry")) return numberedChoiceStep("destinationCountry", "Which country is this for?", DESTINATION_COUNTRY_OPTIONS);
+      if (!has("destinationCountry")) {
+        return numberedChoiceStep("destinationCountry", "Which country is this for?", await getDestinationCountryOptions());
+      }
       if (!has("travelDate")) return dateStep("travelDate", "What's your travel date?", returnTicketFieldsSchema.shape.travelDate);
       if (!has("returnDate")) {
         return dateStep(

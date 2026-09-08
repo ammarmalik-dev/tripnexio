@@ -8,11 +8,10 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { GCC_COUNTRY_OPTIONS } from "@/lib/crm/labels";
+import { useCountries, type CountryOption } from "@/lib/admin/use-countries";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
-import type { GccCountry } from "../../generated/prisma/enums";
 
 interface AirportData {
   id: string;
@@ -20,7 +19,8 @@ interface AirportData {
   code: string;
   country: string;
   city: string;
-  gccClassification: GccCountry;
+  countryId: string;
+  countryRef: CountryOption;
   activeForA2AEntry: boolean;
   activeForA2AExit: boolean;
   displayOrder: number;
@@ -34,7 +34,7 @@ interface AirportFormState {
   code: string;
   country: string;
   city: string;
-  gccClassification: GccCountry | "";
+  countryId: string;
   activeForA2AEntry: boolean;
   activeForA2AExit: boolean;
   displayOrder: string;
@@ -45,7 +45,7 @@ const EMPTY_FORM: AirportFormState = {
   code: "",
   country: "",
   city: "",
-  gccClassification: "",
+  countryId: "",
   activeForA2AEntry: true,
   activeForA2AExit: true,
   displayOrder: "0",
@@ -57,7 +57,7 @@ function toFormState(airport: AirportData): AirportFormState {
     code: airport.code,
     country: airport.country,
     city: airport.city,
-    gccClassification: airport.gccClassification,
+    countryId: airport.countryId,
     activeForA2AEntry: airport.activeForA2AEntry,
     activeForA2AExit: airport.activeForA2AExit,
     displayOrder: String(airport.displayOrder),
@@ -69,11 +69,13 @@ function AirportFields({
   onChange,
   errors,
   disabled,
+  countryOptions,
 }: {
   form: AirportFormState;
   onChange: (next: AirportFormState) => void;
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
+  countryOptions: CountryOption[];
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -111,20 +113,20 @@ function AirportFields({
         error={errors.city?.[0]}
         disabled={disabled}
       />
-      <FormField label="GCC Classification" htmlFor="gccClassification" error={errors.gccClassification?.[0]}>
+      <FormField label="GCC Classification" htmlFor="countryId" error={errors.countryId?.[0]}>
         <select
-          id="gccClassification"
-          value={form.gccClassification}
+          id="countryId"
+          value={form.countryId}
           disabled={disabled}
-          onChange={(event) => onChange({ ...form, gccClassification: event.target.value as GccCountry })}
-          className={cn(fieldControlClass, fieldBorderClass(!!errors.gccClassification))}
+          onChange={(event) => onChange({ ...form, countryId: event.target.value })}
+          className={cn(fieldControlClass, fieldBorderClass(!!errors.countryId))}
         >
           <option value="" disabled>
             Select a classification
           </option>
-          {GCC_COUNTRY_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
+          {countryOptions.map((option) => (
+            <option key={option.id} value={option.id}>
+              {option.name}
             </option>
           ))}
         </select>
@@ -166,14 +168,22 @@ function buildPayload(form: AirportFormState) {
     code: form.code.trim(),
     country: form.country.trim(),
     city: form.city.trim(),
-    gccClassification: form.gccClassification || undefined,
+    countryId: form.countryId || undefined,
     activeForA2AEntry: form.activeForA2AEntry,
     activeForA2AExit: form.activeForA2AExit,
     displayOrder: Number(form.displayOrder) || 0,
   };
 }
 
-function AirportCard({ airport, onSaved }: { airport: AirportData; onSaved: (airport: AirportData) => void }) {
+function AirportCard({
+  airport,
+  onSaved,
+  countryOptions,
+}: {
+  airport: AirportData;
+  onSaved: (airport: AirportData) => void;
+  countryOptions: CountryOption[];
+}) {
   const [form, setForm] = useState<AirportFormState>(toFormState(airport));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -224,7 +234,7 @@ function AirportCard({ airport, onSaved }: { airport: AirportData; onSaved: (air
           {airport.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <AirportFields form={form} onChange={setForm} errors={errors} disabled={saving} />
+      <AirportFields form={form} onChange={setForm} errors={errors} disabled={saving} countryOptions={countryOptions} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -234,7 +244,13 @@ function AirportCard({ airport, onSaved }: { airport: AirportData; onSaved: (air
   );
 }
 
-function NewAirportForm({ onCreated }: { onCreated: (airport: AirportData) => void }) {
+function NewAirportForm({
+  onCreated,
+  countryOptions,
+}: {
+  onCreated: (airport: AirportData) => void;
+  countryOptions: CountryOption[];
+}) {
   const [form, setForm] = useState<AirportFormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
@@ -255,12 +271,12 @@ function NewAirportForm({ onCreated }: { onCreated: (airport: AirportData) => vo
     }
   };
 
-  const canSubmit = form.name.trim() && form.code.trim() && form.country.trim() && form.city.trim() && form.gccClassification;
+  const canSubmit = form.name.trim() && form.code.trim() && form.country.trim() && form.city.trim() && form.countryId;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Airport</h2>
-      <AirportFields form={form} onChange={setForm} errors={errors} disabled={creating} />
+      <AirportFields form={form} onChange={setForm} errors={errors} disabled={creating} countryOptions={countryOptions} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -276,6 +292,7 @@ export function AirportsManager() {
   const [airports, setAirports] = useState<AirportData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const countryOptions = useCountries();
 
   useEffect(() => {
     let cancelled = false;
@@ -334,10 +351,11 @@ export function AirportsManager() {
             key={airport.id}
             airport={airport}
             onSaved={(updated) => setAirports((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
+            countryOptions={countryOptions}
           />
         ))
       )}
-      <NewAirportForm onCreated={(created) => setAirports((current) => [...current, created])} />
+      <NewAirportForm onCreated={(created) => setAirports((current) => [...current, created])} countryOptions={countryOptions} />
     </div>
   );
 }

@@ -89,18 +89,9 @@ enum PaxType {
   CHILD
 }
 
-/// Shared by Airport.gccClassification and Border.side — the locked market
-/// scope from CLAUDE.md (India to UAE/GCC), plus OTHER as a fallback.
-enum GccCountry {
-  INDIA
-  UAE
-  SAUDI_ARABIA
-  BAHRAIN
-  KUWAIT
-  OMAN
-  QATAR
-  OTHER
-}
+// GccCountry enum removed (Step 6.1, client-locked-spec roadmap) — Airport/
+// Border's country classification is now the admin-managed Country model
+// below, so a new country can be added without a Prisma migration.
 
 // ---------------------------------------------------------------------------
 // Customer 360
@@ -397,21 +388,44 @@ model Vendor {
 // Masters (admin-managed; see CLAUDE.md hard rule #1 — no real rows seeded)
 // ---------------------------------------------------------------------------
 
+/// Fully admin-manageable — replaces the old fixed GccCountry enum (Step 6.1,
+/// client-locked-spec roadmap: client wants to add/edit countries without a
+/// code deployment). `code` keeps the same identifiers the old enum used
+/// (INDIA, UAE, SAUDI_ARABIA, ...) for continuity with existing data/labels,
+/// but is now a plain unique string, not a fixed enum — a new one is just a
+/// new row.
+model Country {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  active       Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  airports Airport[]
+  borders  Border[]
+
+  @@index([active])
+}
+
 model Airport {
-  id                String     @id @default(cuid())
+  id                String   @id @default(cuid())
   name              String
-  code              String     @unique
+  code              String   @unique
   country           String
   city              String
-  gccClassification GccCountry
-  activeForA2AEntry Boolean    @default(true)
-  activeForA2AExit  Boolean    @default(true)
-  displayOrder      Int        @default(0)
-  active            Boolean    @default(true)
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  countryId         String
+  activeForA2AEntry Boolean  @default(true)
+  activeForA2AExit  Boolean  @default(true)
+  displayOrder      Int      @default(0)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  @@index([gccClassification])
+  countryRef Country @relation(fields: [countryId], references: [id])
+
+  @@index([countryId])
   @@index([active])
 }
 
@@ -433,19 +447,21 @@ model Airline {
 }
 
 model Border {
-  id                  String     @id @default(cuid())
+  id                  String   @id @default(cuid())
   name                String
   /// The non-UAE country this crossing connects to.
-  side                GccCountry
+  countryId           String
   uaeLocation         String
   destinationLocation String
-  activeForVisaChange Boolean    @default(true)
-  displayOrder        Int        @default(0)
-  active              Boolean    @default(true)
-  createdAt           DateTime   @default(now())
-  updatedAt           DateTime   @updatedAt
+  activeForVisaChange Boolean  @default(true)
+  displayOrder        Int      @default(0)
+  active              Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  @@index([side])
+  country Country @relation(fields: [countryId], references: [id])
+
+  @@index([countryId])
   @@index([active])
 }
 

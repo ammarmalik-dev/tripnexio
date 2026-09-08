@@ -119,7 +119,7 @@ async function main() {
     code: "SA1",
     country: "Sample Country",
     city: "Sample City",
-    gccClassification: "UAE" as const,
+    countryId: "cty_uae",
     displayOrder: 1,
   };
   await db.airport.upsert({ where: { code: "SA1" }, update: sampleAirport1, create: sampleAirport1 });
@@ -129,7 +129,7 @@ async function main() {
     code: "SA2",
     country: "Sample Country",
     city: "Sample City",
-    gccClassification: "INDIA" as const,
+    countryId: "cty_india",
     displayOrder: 2,
   };
   await db.airport.upsert({ where: { code: "SA2" }, update: sampleAirport2, create: sampleAirport2 });
@@ -157,7 +157,7 @@ async function main() {
   const sampleBorder1 = {
     id: "sample-border-1",
     name: "Sample Border Crossing",
-    side: "OMAN" as const,
+    countryId: "cty_oman",
     uaeLocation: "Sample UAE-Side Location",
     destinationLocation: "Sample Destination-Side Location",
     displayOrder: 1,
@@ -167,7 +167,7 @@ async function main() {
   const sampleBorder2 = {
     id: "sample-border-2",
     name: "Sample Border Crossing 2",
-    side: "SAUDI_ARABIA" as const,
+    countryId: "cty_saudi_arabia",
     uaeLocation: "Sample UAE-Side Location 2",
     destinationLocation: "Sample Destination-Side Location 2",
     activeForVisaChange: false,
