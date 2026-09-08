@@ -50,7 +50,7 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function BookingDetail({ bookingId }: { bookingId: string }) {
+export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: string; canApproveRefunds: boolean }) {
   const [state, setState] = useState<FetchState>("loading");
   const [booking, setBooking] = useState<BookingDetailResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -183,6 +183,7 @@ export function BookingDetail({ bookingId }: { bookingId: string }) {
                     payment={payment}
                     serviceType={booking.serviceType}
                     onChanged={() => setReloadNonce((current) => current + 1)}
+                    canApproveRefunds={canApproveRefunds}
                   />
                 ))}
               </div>

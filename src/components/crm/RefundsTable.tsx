@@ -45,7 +45,7 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function RefundsTable() {
+export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean }) {
   const [status, setStatus] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -218,6 +218,7 @@ export function RefundsTable() {
                       refundId={refund.id}
                       status={statusOverrides[refund.id] ?? refund.status}
                       onChanged={(next) => setStatusOverrides((current) => ({ ...current, [refund.id]: next }))}
+                      canApprove={canApproveRefunds}
                     />
                   </td>
                   <td className="px-4 py-3 text-ink-tertiary">{formatDate(refund.createdAt)}</td>

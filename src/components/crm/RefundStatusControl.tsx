@@ -14,9 +14,17 @@ interface RefundStatusControlProps {
   refundId: string;
   status: RefundStatus;
   onChanged: (status: RefundStatus) => void;
+  /**
+   * CRM.md §21: "CRM raises, Admin approves/rejects — CRM cannot approve its
+   * own refund." When false, the viewer can see the refund is awaiting
+   * approval but the actual transition control is hidden — the server
+   * enforces this too (PATCH /api/refunds/[id]/status requires
+   * refunds.approve), this is just the matching UI state, not the real gate.
+   */
+  canApprove: boolean;
 }
 
-export function RefundStatusControl({ refundId, status, onChanged }: RefundStatusControlProps) {
+export function RefundStatusControl({ refundId, status, onChanged, canApprove }: RefundStatusControlProps) {
   const [pending, setPending] = useState(false);
   const nextStatuses = getAllowedNextRefundStatuses(status);
 
@@ -37,7 +45,11 @@ export function RefundStatusControl({ refundId, status, onChanged }: RefundStatu
   return (
     <div className="flex items-center gap-3">
       <RefundStatusBadge status={status} />
-      {nextStatuses.length > 0 ? (
+      {nextStatuses.length === 0 ? (
+        <span className="text-xs text-ink-tertiary">Final status</span>
+      ) : !canApprove ? (
+        <span className="text-xs text-ink-tertiary">Awaiting Admin approval</span>
+      ) : (
         <>
           <label htmlFor={`refund-status-select-${refundId}`} className="sr-only">
             Change refund status
@@ -59,8 +71,6 @@ export function RefundStatusControl({ refundId, status, onChanged }: RefundStatu
             ))}
           </select>
         </>
-      ) : (
-        <span className="text-xs text-ink-tertiary">Final status</span>
       )}
     </div>
   );

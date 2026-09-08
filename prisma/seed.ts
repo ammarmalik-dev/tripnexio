@@ -24,8 +24,16 @@ const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 // Admin-only avoids exposing the rest of that sidebar to every staff
 // member just to let them see workflow health). Grant it explicitly via
 // the Admin Roles screen if a team wants broader visibility.
+//
+// refunds.approve is also excluded — CRM.md §21's locked rule is "CRM
+// raises, Admin approves/rejects; CRM cannot approve its own refund." Staff
+// keeps refunds.edit (create/calculate a refund, which always lands as
+// PENDING) but not the approval transition.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
-  (permission) => !["staff.manage", "roles.manage", "masters.manage", "data.export", "automation.view", ADMIN_FULL_PERMISSION].includes(permission.name)
+  (permission) =>
+    !["staff.manage", "roles.manage", "masters.manage", "data.export", "automation.view", "refunds.approve", ADMIN_FULL_PERMISSION].includes(
+      permission.name
+    )
 ).map((permission) => permission.name);
 
 async function main() {

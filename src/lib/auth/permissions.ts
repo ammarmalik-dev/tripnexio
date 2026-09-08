@@ -22,7 +22,11 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "payments.view", description: "View payments" },
   { name: "payments.edit", description: "Create payments and mark them successful" },
   { name: "refunds.view", description: "View refunds" },
-  { name: "refunds.edit", description: "Calculate refunds and change their status" },
+  { name: "refunds.edit", description: "Calculate/raise refunds (status stays Pending until approved)" },
+  {
+    name: "refunds.approve",
+    description: "Approve or reject a raised refund (move it to Processing/Completed/Rejected) — CRM staff cannot approve their own refunds",
+  },
   { name: "documents.view", description: "View documents" },
   { name: "documents.edit", description: "Add documents and set their status" },
   { name: "staff.manage", description: "Create, edit, and deactivate staff accounts" },

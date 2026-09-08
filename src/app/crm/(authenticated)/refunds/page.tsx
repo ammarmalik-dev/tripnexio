@@ -1,9 +1,14 @@
 import type { Metadata } from "next";
 import { RefundsTable } from "@/components/crm/RefundsTable";
+import { getStaffSession } from "@/lib/auth/staff-session";
+import { hasPermission } from "@/lib/auth/permissions";
 
 export const metadata: Metadata = { title: "Refunds | CRM" };
 
-export default function CrmRefundsPage() {
+export default async function CrmRefundsPage() {
+  const session = await getStaffSession();
+  const canApproveRefunds = hasPermission(session, "refunds.approve");
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -12,7 +17,7 @@ export default function CrmRefundsPage() {
           Every refund calculated from a successful payment. Initiate a new one from that payment&apos;s detail panel.
         </p>
       </div>
-      <RefundsTable />
+      <RefundsTable canApproveRefunds={canApproveRefunds} />
     </div>
   );
 }

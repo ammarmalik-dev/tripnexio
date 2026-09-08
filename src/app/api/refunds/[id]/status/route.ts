@@ -10,8 +10,14 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+// CRM.md §21: "CRM raises, Admin approves/rejects — CRM cannot approve its
+// own refund." Every status transition here IS the approval action (the
+// refund is always created PENDING by POST /api/payments/[id]/refunds,
+// which stays gated by the more permissive refunds.edit) — so this route
+// requires the dedicated refunds.approve permission (or admin.full), not
+// refunds.edit.
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
-  const auth = await requirePermission("refunds.edit");
+  const auth = await requirePermission("refunds.approve");
   if (auth.error) return auth.error;
   const { session } = auth;
 

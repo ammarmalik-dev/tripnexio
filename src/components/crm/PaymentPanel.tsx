@@ -42,10 +42,12 @@ export function PaymentPanel({
   payment,
   serviceType,
   onChanged,
+  canApproveRefunds,
 }: {
   payment: PaymentData;
   serviceType: ServiceType;
   onChanged: () => void;
+  canApproveRefunds: boolean;
 }) {
   const [markingSuccess, setMarkingSuccess] = useState(false);
   const [showRefundForm, setShowRefundForm] = useState(false);
@@ -165,6 +167,7 @@ export function PaymentPanel({
                   refundId={refund.id}
                   status={refundStatuses[refund.id] ?? refund.status}
                   onChanged={(next) => setRefundStatuses((current) => ({ ...current, [refund.id]: next }))}
+                  canApprove={canApproveRefunds}
                 />
                 <span className="font-semibold text-ink-heading">{money(refund.refundAmount)}</span>
               </div>
