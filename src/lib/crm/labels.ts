@@ -61,6 +61,7 @@ export const BOOKING_STATUS_OPTIONS: { value: BookingStatus; label: string }[] =
 export const PAX_TYPE_LABELS: Record<PaxType, string> = {
   ADULT: "Adult",
   CHILD: "Child",
+  INFANT: "Infant",
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {

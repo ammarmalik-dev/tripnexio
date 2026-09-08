@@ -15,9 +15,11 @@ export interface LeadContact {
 
 export interface LeadPassengerInput {
   fullName: string;
-  paxType?: "ADULT" | "CHILD";
+  paxType?: "ADULT" | "CHILD" | "INFANT";
   nationality?: string;
   passportNumber?: string;
+  /** ISO date string (YYYY-MM-DD). */
+  dob?: string;
 }
 
 export interface CreateLeadInput {
@@ -73,6 +75,7 @@ async function findOrCreatePassengers(
           paxType: passenger.paxType ?? "ADULT",
           nationality: passenger.nationality,
           passportNumber: passenger.passportNumber,
+          dob: passenger.dob ? new Date(passenger.dob) : undefined,
         },
       }));
     ids.push(record.id);

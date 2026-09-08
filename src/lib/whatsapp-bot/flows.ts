@@ -5,7 +5,7 @@ import { otbRequestSchema } from "../validation/otb-schema";
 import { newVisaRequestSchema } from "../validation/new-visa-schema";
 import { visaExtensionRequestSchema } from "../validation/visa-extension-schema";
 import { visaChangeRequestSchema } from "../validation/visa-change-schema";
-import { flightSpecialFareRequestSchema } from "../validation/flight-special-fare-schema";
+import { flightSpecialFareRequestSchema, flightPassengerSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
 import { SAMPLE_VISA_TYPE_OPTIONS, SAMPLE_AIRLINE_OPTIONS } from "../sample-data";
 
@@ -198,7 +198,11 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           },
         };
       }
-      if (!has("passengers")) return textStep("passengers", "How many passengers (1-9)?", flightSpecialFareRequestSchema.shape.passengers);
+      // Bot captures only the primary passenger's DOB (no dynamic
+      // "+Add Another Passenger" equivalent in the conversational flow,
+      // same explicit simplification as Visa Change) -- enough to compute
+      // their Adult/Child/Infant type per §7.
+      if (!has("dob")) return dateStep("dob", "What's the passenger's date of birth?", flightPassengerSchema.shape.dob);
       return null;
     }
 
@@ -255,12 +259,19 @@ export function buildLeadDetails(serviceType: ServiceType, collected: Record<str
         nationality: collected.nationality,
       };
     case "FLIGHT_SPECIAL_FARE":
+      // Bot captures only the primary passenger's DOB (no dynamic
+      // "+Add Another Passenger" equivalent) -- kept in details for staff
+      // visibility; not wired into the Passenger row's own dob/paxType
+      // since engine.ts's lead-creation call doesn't build a custom
+      // per-service passengers array for any service today (same
+      // simplification already noted for Visa Change).
       return {
         origin: collected.origin,
         destination: collected.destination,
         travelDate: collected.travelDate,
         returnDate: collected.returnDate || undefined,
-        passengers: collected.passengers,
+        passengerCount: 1,
+        passengerDob: collected.dob,
       };
     case "RETURN_TICKET":
       return {

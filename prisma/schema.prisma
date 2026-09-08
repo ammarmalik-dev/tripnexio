@@ -84,9 +84,15 @@ enum DocumentStatus {
   REJECTED
 }
 
+/// INFANT added Step 9 (client-locked-spec roadmap): Flight_Special_Fare.md
+/// §7/§12 locks Adult(12+)/Child(2-11)/Infant(<2) passenger typing, computed
+/// from DOB on travel date, and Quotation.infantFare already existed as a
+/// quote field with nowhere to record an actual infant passenger — this
+/// closes that gap (AUDIT_REPORT.md §2.4, flagged CONFLICTING).
 enum PaxType {
   ADULT
   CHILD
+  INFANT
 }
 
 // GccCountry enum removed (Step 6.1, client-locked-spec roadmap) — Airport/
