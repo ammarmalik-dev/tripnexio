@@ -1,4 +1,5 @@
 import {
+  LayoutDashboard,
   ListChecks,
   Users,
   FileText,
@@ -32,6 +33,11 @@ export interface CrmNavItem {
 }
 
 export const crmNavItems: CrmNavItem[] = [
+  // Just this one item, not a full reorg — CRM.md §3's grouped nav
+  // structure (Command Centre / Sales / Operations / ...) is roadmap
+  // Step 12's job. Without this, the new /crm dashboard (this step) would
+  // be unreachable from the sidebar once staff navigate away from it.
+  { label: "Command Centre", href: "/crm", icon: LayoutDashboard },
   { label: "Leads", href: "/crm/leads", icon: ListChecks },
   { label: "Customers", href: "/crm/customers", icon: Users },
   { label: "Quotations", href: "/crm/quotations", icon: FileText },

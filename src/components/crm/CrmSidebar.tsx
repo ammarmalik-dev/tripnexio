@@ -18,7 +18,11 @@ export function CrmSidebar({ showAdminLink = false }: { showAdminLink?: boolean 
       </div>
       <nav aria-label="CRM" className="flex flex-1 flex-col gap-1">
         {crmNavItems.map((item) => {
-          const isActive = pathname === item.href || pathname?.startsWith(`${item.href}/`);
+          // "/crm" itself (Command Centre) is a prefix of every other item's
+          // href, so it needs an exact match only — otherwise it would show
+          // as active on every CRM page.
+          const isActive =
+            item.href === "/crm" ? pathname === "/crm" : pathname === item.href || pathname?.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
             <Link
