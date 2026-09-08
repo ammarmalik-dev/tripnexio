@@ -2,7 +2,6 @@ import type { NextRequest } from "next/server";
 import { visaChangeRequestSchema } from "@/lib/validation/visa-change-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
-import { db } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -17,52 +16,32 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const { fullName, mobile, email, processingType, changeType } = parsed.data;
+  const { fullName, passportNumber, visaLastDate, mobile, email, nationality, paxType, additionalPassengers, changeType } = parsed.data;
 
-  // Zod only checked that these ids are non-empty strings — the customer
-  // picked them from a <select>, but the API still confirms server-side
-  // that they're real, active master rows (never trust a client-sent id).
-  if (changeType === "AIRPORT_TO_AIRPORT") {
-    const { departureAirportId, arrivalAirportId } = parsed.data;
-    const [departure, arrival] = await Promise.all([
-      db.airport.findUnique({ where: { id: departureAirportId } }),
-      db.airport.findUnique({ where: { id: arrivalAirportId } }),
-    ]);
-    if (!departure || !departure.active || !departure.activeForA2AExit) {
-      return jsonError(400, "Select a valid departure airport.", {
-        departureAirportId: ["This airport isn't available for Airport-to-Airport exit."],
-      });
-    }
-    if (!arrival || !arrival.active || !arrival.activeForA2AEntry) {
-      return jsonError(400, "Select a valid arrival airport.", {
-        arrivalAirportId: ["This airport isn't available for Airport-to-Airport entry."],
-      });
-    }
-  } else {
-    const { borderId } = parsed.data;
-    const border = await db.border.findUnique({ where: { id: borderId } });
-    if (!border || !border.active || !border.activeForVisaChange) {
-      return jsonError(400, "Select a valid border crossing.", {
-        borderId: ["This border crossing isn't available for Visa Change."],
-      });
-    }
-  }
+  const allPassengers = [
+    { fullName, passportNumber, visaLastDate, nationality, paxType },
+    ...additionalPassengers,
+  ];
 
   try {
-    const details =
-      changeType === "AIRPORT_TO_AIRPORT"
-        ? {
-            changeType,
-            departureAirportId: parsed.data.departureAirportId,
-            arrivalAirportId: parsed.data.arrivalAirportId,
-            processingType,
-          }
-        : { changeType, borderId: parsed.data.borderId, processingType };
-
     const result = await createLeadFromSubmission({
       serviceType: "VISA_CHANGE",
       contact: { fullName, mobile, email },
-      details,
+      passengers: allPassengers.map((p) => ({
+        fullName: p.fullName,
+        passportNumber: p.passportNumber,
+        nationality: p.nationality,
+        paxType: p.paxType,
+      })),
+      details: {
+        changeType,
+        // visaLastDate has no dedicated Passenger column (it's tied to
+        // THIS specific visa being changed, not a permanent passenger
+        // attribute) -- kept as lead-scoped data, keyed by passport number
+        // so it stays associated with the right passenger even though the
+        // Passenger rows themselves are matched/created separately above.
+        passengers: allPassengers.map((p) => ({ passportNumber: p.passportNumber, visaLastDate: p.visaLastDate })),
+      },
     });
     return jsonSuccess(result, 201);
   } catch (error) {

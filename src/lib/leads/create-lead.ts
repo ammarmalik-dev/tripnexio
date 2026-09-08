@@ -17,6 +17,7 @@ export interface LeadPassengerInput {
   fullName: string;
   paxType?: "ADULT" | "CHILD";
   nationality?: string;
+  passportNumber?: string;
 }
 
 export interface CreateLeadInput {
@@ -71,6 +72,7 @@ async function findOrCreatePassengers(
           fullName: passenger.fullName,
           paxType: passenger.paxType ?? "ADULT",
           nationality: passenger.nationality,
+          passportNumber: passenger.passportNumber,
         },
       }));
     ids.push(record.id);

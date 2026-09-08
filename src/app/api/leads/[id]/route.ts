@@ -89,6 +89,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         fullName: passenger.fullName,
         paxType: passenger.paxType,
         nationality: passenger.nationality,
+        passportNumber: passenger.passportNumber,
       })),
       otherLeads: lead.customer.leads
         .filter((otherLead) => otherLead.id !== lead.id)
@@ -113,6 +114,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       fullName: passenger.fullName,
       paxType: passenger.paxType,
       nationality: passenger.nationality,
+      passportNumber: passenger.passportNumber,
       documents: passenger.documents.map((document) => ({
         id: document.id,
         type: document.type,

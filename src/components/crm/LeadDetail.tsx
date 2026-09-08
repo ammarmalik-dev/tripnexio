@@ -13,6 +13,7 @@ import { BookingStatusBadge } from "./BookingStatusBadge";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
 import { PassportExtractionReview } from "./PassportExtractionReview";
 import { VisaExtensionEligibilityPanel } from "./VisaExtensionEligibilityPanel";
+import { VisaChangeBorderDetailsPanel } from "./VisaChangeBorderDetailsPanel";
 import { LeadTimeline } from "./LeadTimeline";
 import { QuoteBuilder } from "./QuoteBuilder";
 import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
@@ -56,6 +57,7 @@ interface LeadPassenger {
   fullName: string;
   paxType: PaxType;
   nationality: string | null;
+  passportNumber: string | null;
   documents: PassengerDocument[];
 }
 
@@ -154,7 +156,15 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
 
   if (!lead) return null;
 
-  const INTERNAL_DETAIL_KEYS = new Set(["passengerIds", "verifiedExpiryDate", "eligibilityOutcome", "verifiedByStaffId", "verifiedAt"]);
+  const INTERNAL_DETAIL_KEYS = new Set([
+    "passengerIds",
+    "verifiedExpiryDate",
+    "eligibilityOutcome",
+    "verifiedByStaffId",
+    "verifiedAt",
+    "borderOperationalDetails",
+    "passengers",
+  ]);
   const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
   const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
   const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED");
@@ -253,6 +263,29 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
             />
           ) : null}
 
+          {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "BORDER_EXIT" ? (
+            <VisaChangeBorderDetailsPanel
+              leadId={lead.id}
+              existing={
+                lead.details.borderOperationalDetails && typeof lead.details.borderOperationalDetails === "object"
+                  ? (lead.details.borderOperationalDetails as {
+                      borderId: string;
+                      borderName: string;
+                      pickupLocation: string;
+                      reportingTime: string;
+                      pickupPersonName: string;
+                      customerContactNumber: string;
+                    })
+                  : undefined
+              }
+              onSaved={(details) =>
+                setLead((current) =>
+                  current ? { ...current, details: { ...current.details, borderOperationalDetails: details } } : current
+                )
+              }
+            />
+          ) : null}
+
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink-heading">Passengers &amp; Documents</h2>
             {lead.passengers.length === 0 ? (
@@ -266,6 +299,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
                       <span className="text-xs text-ink-tertiary">
                         {PAX_TYPE_LABELS[passenger.paxType]}
                         {passenger.nationality ? ` · ${passenger.nationality}` : ""}
+                        {passenger.passportNumber ? ` · ${passenger.passportNumber}` : ""}
                       </span>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">

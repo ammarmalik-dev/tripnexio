@@ -4,6 +4,7 @@ import type { ServiceType } from "../../generated/prisma/enums";
 import { otbRequestSchema } from "../validation/otb-schema";
 import { newVisaRequestSchema } from "../validation/new-visa-schema";
 import { visaExtensionRequestSchema } from "../validation/visa-extension-schema";
+import { visaChangeRequestSchema } from "../validation/visa-change-schema";
 import { flightSpecialFareRequestSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
 import { SAMPLE_VISA_TYPE_OPTIONS, SAMPLE_AIRLINE_OPTIONS } from "../sample-data";
@@ -99,18 +100,10 @@ const PROCESSING_TYPE_OPTIONS = [
   { value: "urgent", label: "Urgent" },
 ];
 
-async function getActiveAirportOptions(direction: "exit" | "entry") {
-  const airports = await db.airport.findMany({
-    where: { active: true, ...(direction === "exit" ? { activeForA2AExit: true } : { activeForA2AEntry: true }) },
-    orderBy: { displayOrder: "asc" },
-  });
-  return airports.map((airport) => ({ value: airport.id, label: `${airport.name} (${airport.code})` }));
-}
-
-async function getActiveBorderOptions() {
-  const borders = await db.border.findMany({ where: { active: true, activeForVisaChange: true }, orderBy: { displayOrder: "asc" } });
-  return borders.map((border) => ({ value: border.id, label: border.name }));
-}
+// getActiveAirportOptions/getActiveBorderOptions removed (Step 8,
+// client-locked-spec roadmap) -- the customer never picks a specific
+// airport/border, only the A2A-vs-Border method (see the VISA_CHANGE case
+// below); staff picks the actual airport/border later from the CRM.
 
 /** Replaces the old hardcoded DESTINATION_COUNTRY_OPTIONS (Step 6.1, client-locked-spec roadmap) with the real Admin-managed Country list. */
 async function getDestinationCountryOptions() {
@@ -172,19 +165,20 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
     }
 
     case "VISA_CHANGE": {
+      // Visa_Change.md §4/§5/§7/§14, Locked Rules #2/#3/#4/#6/#19: the
+      // customer picks only the METHOD -- the actual airport/border is
+      // staff-selected from the Admin master after the lead exists and
+      // availability is confirmed. Never ask the customer to choose a
+      // specific airport/border here.
       if (!has("changeType")) {
         return numberedChoiceStep("changeType", "Is this an Airport-to-Airport change or a Border Exit?", [
           { value: "AIRPORT_TO_AIRPORT", label: "Airport to Airport" },
           { value: "BORDER_EXIT", label: "Border Exit" },
         ]);
       }
-      if (collected.changeType === "AIRPORT_TO_AIRPORT") {
-        if (!has("departureAirportId")) return numberedChoiceStep("departureAirportId", "Which airport are you departing from?", await getActiveAirportOptions("exit"));
-        if (!has("arrivalAirportId")) return numberedChoiceStep("arrivalAirportId", "Which airport are you arriving at?", await getActiveAirportOptions("entry"));
-      } else {
-        if (!has("borderId")) return numberedChoiceStep("borderId", "Which border crossing?", await getActiveBorderOptions());
-      }
-      if (!has("processingType")) return numberedChoiceStep("processingType", "Normal or urgent processing?", PROCESSING_TYPE_OPTIONS);
+      if (!has("passportNumber")) return textStep("passportNumber", "What's your passport number?", visaChangeRequestSchema.shape.passportNumber);
+      if (!has("visaLastDate")) return dateStep("visaLastDate", "What's your current visa's last date?", visaChangeRequestSchema.shape.visaLastDate);
+      if (!has("nationality")) return textStep("nationality", "What's your nationality?", visaChangeRequestSchema.shape.nationality);
       return null;
     }
 
@@ -251,14 +245,15 @@ export function buildLeadDetails(serviceType: ServiceType, collected: Record<str
         entryDate: collected.entryDate,
       };
     case "VISA_CHANGE":
-      return collected.changeType === "AIRPORT_TO_AIRPORT"
-        ? {
-            changeType: collected.changeType,
-            departureAirportId: collected.departureAirportId,
-            arrivalAirportId: collected.arrivalAirportId,
-            processingType: collected.processingType,
-          }
-        : { changeType: collected.changeType, borderId: collected.borderId, processingType: collected.processingType };
+      // Bot only ever captures the primary/single passenger (createLeadFromSubmission's
+      // default fullName-derived passenger) -- no "+Add Another Passenger" equivalent
+      // in the conversational flow, unlike the website. A reasonable, explicit
+      // simplification, not a silent gap: staff can still see these raw answers.
+      return {
+        changeType: collected.changeType,
+        passengers: [{ passportNumber: collected.passportNumber, visaLastDate: collected.visaLastDate }],
+        nationality: collected.nationality,
+      };
     case "FLIGHT_SPECIAL_FARE":
       return {
         origin: collected.origin,
