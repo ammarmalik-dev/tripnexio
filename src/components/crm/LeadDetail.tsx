@@ -97,7 +97,7 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function LeadDetail({ leadId }: { leadId: string }) {
+export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canReassignLeads: boolean }) {
   const [state, setState] = useState<FetchState>("loading");
   const [lead, setLead] = useState<LeadDetailResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -200,6 +200,7 @@ export function LeadDetail({ leadId }: { leadId: string }) {
           <LeadAssignmentControl
             leadId={lead.id}
             assignedStaff={lead.assignedStaff}
+            canReassign={canReassignLeads}
             onChanged={(assignedStaff) =>
               setLead((current) =>
                 current

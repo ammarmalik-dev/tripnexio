@@ -29,11 +29,23 @@ const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 // raises, Admin approves/rejects; CRM cannot approve its own refund." Staff
 // keeps refunds.edit (create/calculate a refund, which always lands as
 // PENDING) but not the approval transition.
+//
+// leads.reassign is also excluded — CRM.md §34/ADMIN.md §12's locked rule is
+// "normal CRM staff CANNOT assign/reassign... Admin CAN." Staff keeps
+// leads.edit (claim/assign a currently-unassigned lead) but not the
+// reassignment of a lead already assigned to someone else.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
   (permission) =>
-    !["staff.manage", "roles.manage", "masters.manage", "data.export", "automation.view", "refunds.approve", ADMIN_FULL_PERMISSION].includes(
-      permission.name
-    )
+    ![
+      "staff.manage",
+      "roles.manage",
+      "masters.manage",
+      "data.export",
+      "automation.view",
+      "refunds.approve",
+      "leads.reassign",
+      ADMIN_FULL_PERMISSION,
+    ].includes(permission.name)
 ).map((permission) => permission.name);
 
 async function main() {

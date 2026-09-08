@@ -14,7 +14,11 @@ export const ADMIN_FULL_PERMISSION = "admin.full";
 
 export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "leads.view", description: "View leads" },
-  { name: "leads.edit", description: "Edit leads (status, assignment)" },
+  { name: "leads.edit", description: "Edit lead status and claim/assign an unassigned lead" },
+  {
+    name: "leads.reassign",
+    description: "Reassign a lead that's already assigned to someone else, or unassign it — CRM staff cannot reassign leads on their own",
+  },
   { name: "quotations.view", description: "View quotations" },
   { name: "quotations.edit", description: "Build and select quotations" },
   { name: "bookings.view", description: "View bookings" },

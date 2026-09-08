@@ -3,12 +3,19 @@ import { assignLeadSchema } from "@/lib/validation/lead-assign-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { hasPermission } from "@/lib/auth/permissions";
 import { writeAudit } from "@/lib/audit/log";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+// CRM.md §34 / ADMIN.md §12: "normal CRM staff CANNOT assign/reassign...
+// Admin CAN." leads.edit only covers claiming/assigning a currently-
+// UNASSIGNED lead. Moving a lead that's already assigned to someone else
+// (including unassigning it) is a reassignment and requires the dedicated
+// leads.reassign permission (or admin.full) — checked further down, once
+// the lead's current assignment state is known.
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("leads.edit");
   if (auth.error) return auth.error;
@@ -30,6 +37,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const lead = await db.lead.findUnique({ where: { id } });
   if (!lead) return jsonError(404, "Lead not found.");
+
+  const isReassignment = lead.assignedStaffId !== null && lead.assignedStaffId !== parsed.data.staffId;
+  if (isReassignment && !hasPermission(session, "leads.reassign")) {
+    return jsonError(403, "This lead is already assigned — only an Admin can reassign it.");
+  }
 
   let staffName: string | null = null;
   if (parsed.data.staffId) {
