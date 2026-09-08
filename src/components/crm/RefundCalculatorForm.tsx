@@ -6,7 +6,7 @@ import { TextField } from "@/components/forms/TextField";
 import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
 import { createRefundSchema, type CreateRefundValues } from "@/lib/validation/refund-schema";
-import { computeRefundAmount, SAMPLE_OTB_FIXED_SERVICE_CHARGE } from "@/lib/refunds/pricing";
+import { computeRefundAmount, OTB_FIXED_SERVICE_CHARGE } from "@/lib/refunds/pricing";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 interface RefundCalculatorFormProps {
@@ -79,8 +79,8 @@ export function RefundCalculatorForm({
         <label className="flex items-start gap-2 text-sm text-ink-secondary">
           <input type="checkbox" className="mt-0.5" {...register("otbValidated")} />
           <span>
-            OTB already validated with the airline — deduct the fixed service charge (SAMPLE ₹
-            {SAMPLE_OTB_FIXED_SERVICE_CHARGE}, pending the real figure from the OTB spec).
+            OTB already validated with the airline — deduct the fixed service charge (₹
+            {OTB_FIXED_SERVICE_CHARGE}, per the OTB spec).
           </span>
         </label>
       ) : null}
