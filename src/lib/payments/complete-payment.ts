@@ -41,7 +41,10 @@ export async function completePaymentSuccess(
     note: `${payment.status} -> SUCCESS (${actor.actorLabel})`,
   });
 
-  const realBookingId = formatBookingId(payment.booking.lead.serviceType, payment.booking.id);
+  // Derived from the Lead's own id (not the Booking row's id) — see the doc
+  // comment on formatBookingId: this is the "Lead ID becomes Booking ID"
+  // rule, not a fresh, unrelated identifier.
+  const realBookingId = formatBookingId(payment.booking.lead.serviceType, payment.booking.leadId);
   const updatedBooking = await tx.booking.update({
     where: { id: payment.bookingId },
     data: { bookingId: realBookingId, status: "CONFIRMED" },
