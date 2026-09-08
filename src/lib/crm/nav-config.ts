@@ -21,6 +21,7 @@ import {
   Download,
   Activity,
   Globe2,
+  LayoutGrid,
   type LucideIcon,
 } from "lucide-react";
 
@@ -54,6 +55,7 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck },
   { label: "Staff", href: "/admin/users", icon: UserCog },
   { label: "Countries", href: "/admin/countries", icon: Globe2 },
+  { label: "Services", href: "/admin/services", icon: LayoutGrid },
   { label: "Airports", href: "/admin/airports", icon: Building2 },
   { label: "Airlines", href: "/admin/airlines", icon: Plane },
   { label: "Borders", href: "/admin/borders", icon: Fence },

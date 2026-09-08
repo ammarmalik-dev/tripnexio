@@ -388,6 +388,30 @@ model Vendor {
 // Masters (admin-managed; see CLAUDE.md hard rule #1 — no real rows seeded)
 // ---------------------------------------------------------------------------
 
+/// Admin-editable presentation/metadata layer over the 6 locked services
+/// (Step 6.2, client-locked-spec roadmap: client wants to edit existing
+/// services' name/description/icon/order/on-off without a code deployment).
+/// `code` matches the ServiceType enum's string values exactly and is
+/// validated against it server-side (src/lib/validation/service-schema.ts)
+/// -- this does NOT replace ServiceType, which stays the business-logic
+/// type-safety enum across Lead/Quotation/Booking/DocumentRequirement/
+/// PricingRule/Faq. A genuinely new (7th) service still needs a developer
+/// to build its request flow/schema/route; once built, its metadata
+/// registers here instead of needing a Prisma enum migration.
+model Service {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String
+  shortDescription String
+  iconName         String
+  active           Boolean  @default(true)
+  displayOrder     Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([active])
+}
+
 /// Fully admin-manageable — replaces the old fixed GccCountry enum (Step 6.1,
 /// client-locked-spec roadmap: client wants to add/edit countries without a
 /// code deployment). `code` keeps the same identifiers the old enum used
