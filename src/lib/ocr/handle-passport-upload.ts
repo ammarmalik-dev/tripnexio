@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
-import { saveUploadedImage } from "../storage/local-file-storage";
+import { saveUploadedFile } from "../storage/local-file-storage";
 import { runPassportExtraction } from "./extract-passport";
 
 /**
@@ -16,7 +16,7 @@ export async function handleOptionalPassportUpload(input: { passengerId: string;
   if (!input.imageBase64 || !input.mimeType) return;
 
   try {
-    const { url } = await saveUploadedImage(input.imageBase64, input.mimeType, "passports");
+    const { url } = await saveUploadedFile(input.imageBase64, input.mimeType, "passports");
     const document = await db.document.create({
       data: { passengerId: input.passengerId, type: "PASSPORT", status: "RECEIVED", fileUrl: url },
     });

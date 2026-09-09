@@ -12,6 +12,7 @@ import { BookingPassengerStatusControl } from "./BookingPassengerStatusControl";
 import { ExtensionOutcomeControl } from "./ExtensionOutcomeControl";
 import { PaymentPanel, type PaymentData } from "./PaymentPanel";
 import { DocumentStatusControl } from "./DocumentStatusControl";
+import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
@@ -63,6 +64,13 @@ type FetchState = "loading" | "success" | "error";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** Step 16 (audit §3.6) — same type-name convention /api/documents/[id]/upload already auto-triggers OCR on. */
+function extractionTypeForDocument(type: string): "TICKET" | "VISA" | null {
+  if (/ticket/i.test(type)) return "TICKET";
+  if (/visa/i.test(type)) return "VISA";
+  return null;
 }
 
 export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: string; canApproveRefunds: boolean }) {
@@ -259,25 +267,38 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                         {passengerDocuments.length === 0 ? (
                           <p className="text-xs text-ink-tertiary">No documents for this passenger yet.</p>
                         ) : (
-                          passengerDocuments.map((document) => (
-                            <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-2 px-3 py-2 text-sm">
-                              <span className="text-ink-primary">{document.type}</span>
-                              <DocumentStatusControl
-                                documentId={document.id}
-                                status={document.status}
-                                onChanged={(status) =>
-                                  setBooking((current) =>
-                                    current
-                                      ? {
-                                          ...current,
-                                          documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
-                                        }
-                                      : current
-                                  )
-                                }
-                              />
-                            </div>
-                          ))
+                          passengerDocuments.map((document) => {
+                            const extractionType = extractionTypeForDocument(document.type);
+                            return (
+                              <div key={document.id} className="rounded-md bg-surface-2 px-3 py-2 text-sm">
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <span className="text-ink-primary">{document.type}</span>
+                                  <DocumentStatusControl
+                                    documentId={document.id}
+                                    status={document.status}
+                                    onChanged={(status) =>
+                                      setBooking((current) =>
+                                        current
+                                          ? {
+                                              ...current,
+                                              documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
+                                            }
+                                          : current
+                                      )
+                                    }
+                                  />
+                                </div>
+                                {extractionType ? (
+                                  <DocumentExtractionReview
+                                    documentId={document.id}
+                                    documentType={extractionType}
+                                    hasFile={Boolean(document.fileUrl)}
+                                    onUploaded={() => setReloadNonce((current) => current + 1)}
+                                  />
+                                ) : null}
+                              </div>
+                            );
+                          })
                         )}
                       </div>
                     </div>
@@ -295,25 +316,38 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                 <h2 className="mb-3 text-sm font-semibold text-ink-heading">General Documents</h2>
                 <p className="mb-3 text-xs text-ink-tertiary">Not tied to a specific passenger.</p>
                 <div className="flex flex-col gap-2">
-                  {generalDocuments.map((document) => (
-                    <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline p-3 text-sm">
-                      <span className="font-medium text-ink-primary">{document.type}</span>
-                      <DocumentStatusControl
-                        documentId={document.id}
-                        status={document.status}
-                        onChanged={(status) =>
-                          setBooking((current) =>
-                            current
-                              ? {
-                                  ...current,
-                                  documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
-                                }
-                              : current
-                          )
-                        }
-                      />
-                    </div>
-                  ))}
+                  {generalDocuments.map((document) => {
+                    const extractionType = extractionTypeForDocument(document.type);
+                    return (
+                      <div key={document.id} className="rounded-lg border border-hairline p-3 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-medium text-ink-primary">{document.type}</span>
+                          <DocumentStatusControl
+                            documentId={document.id}
+                            status={document.status}
+                            onChanged={(status) =>
+                              setBooking((current) =>
+                                current
+                                  ? {
+                                      ...current,
+                                      documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
+                                    }
+                                  : current
+                              )
+                            }
+                          />
+                        </div>
+                        {extractionType ? (
+                          <DocumentExtractionReview
+                            documentId={document.id}
+                            documentType={extractionType}
+                            hasFile={Boolean(document.fileUrl)}
+                            onUploaded={() => setReloadNonce((current) => current + 1)}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </section>
             );

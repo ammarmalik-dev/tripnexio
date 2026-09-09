@@ -1,28 +1,29 @@
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
-import { readImageBytes } from "../storage/local-file-storage";
+import { readFileBytes } from "../storage/local-file-storage";
 import { getOcrProvider } from "./get-provider";
 import { parseMrz } from "./mrz-parser";
 import type { PassportOcrFields } from "./types";
-import type { PassportExtraction } from "../../generated/prisma/client";
+import type { DocumentExtraction } from "../../generated/prisma/client";
 
 /**
  * Runs OCR on an already-uploaded passport Document and records the result
- * as a PENDING_REVIEW PassportExtraction — never touches the Passenger row
- * itself (see PATCH /api/passport-extractions/[id] for the only path that
- * does, and only on an explicit staff confirm). Called right after upload
- * from both trigger points: the CRM's document-upload route and the
- * customer-facing lead-intake routes that accept an optional passport photo.
+ * as a PENDING_REVIEW DocumentExtraction (extractionType PASSPORT) — never
+ * touches the Passenger row itself (see PATCH /api/document-extractions/[id]
+ * for the only path that does, and only on an explicit staff confirm).
+ * Called right after upload from both trigger points: the CRM's
+ * document-upload route and the customer-facing lead-intake routes that
+ * accept an optional passport photo.
  */
-export async function runPassportExtraction(documentId: string): Promise<PassportExtraction> {
+export async function runPassportExtraction(documentId: string): Promise<DocumentExtraction> {
   const document = await db.document.findUnique({ where: { id: documentId } });
   if (!document) throw new Error("Document not found.");
   if (!document.fileUrl) throw new Error("Document has no file to read.");
   if (!document.passengerId) throw new Error("Document has no passenger to attach the extraction to.");
 
-  const { base64, mimeType } = await readImageBytes(document.fileUrl);
+  const { base64, mimeType } = await readFileBytes(document.fileUrl);
   const provider = getOcrProvider();
-  const result = await provider.extractPassport({ imageBase64: base64, mimeType });
+  const result = await provider.extractPassport({ fileBase64: base64, mimeType });
 
   const mrz = result.mrzRaw ? parseMrz(result.mrzRaw) : null;
 
@@ -44,10 +45,11 @@ export async function runPassportExtraction(documentId: string): Promise<Passpor
   const extractedFields: PassportOcrFields = mrz ? { ...result.fields, ...stripUndefined(mrzFields) } : result.fields;
 
   const extraction = await db.$transaction(async (tx) => {
-    const created = await tx.passportExtraction.create({
+    const created = await tx.documentExtraction.create({
       data: {
         documentId: document.id,
         passengerId: document.passengerId!,
+        extractionType: "PASSPORT",
         provider: result.provider,
         extractedFields: extractedFields as object,
         mrzRaw: result.mrzRaw,
@@ -55,10 +57,10 @@ export async function runPassportExtraction(documentId: string): Promise<Passpor
       },
     });
     await writeAudit(tx, {
-      entityType: "PassportExtraction",
+      entityType: "DocumentExtraction",
       entityId: created.id,
       action: "CREATE",
-      note: `OCR ran on document ${document.id} via ${result.provider}${mrz ? ` (MRZ ${mrz.valid ? "valid" : "found but checksum mismatch"})` : " (no MRZ found)"}`,
+      note: `Passport OCR ran on document ${document.id} via ${result.provider}${mrz ? ` (MRZ ${mrz.valid ? "valid" : "found but checksum mismatch"})` : " (no MRZ found)"}`,
     });
     return created;
   });

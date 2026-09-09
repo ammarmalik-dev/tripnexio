@@ -50,7 +50,7 @@ function ReviewCard({ extraction, onResolved }: { extraction: ExtractionData; on
   const handleConfirm = async () => {
     setSubmitting("confirm");
     try {
-      await patchJson(`/api/passport-extractions/${extraction.id}`, { action: "confirm", fields });
+      await patchJson(`/api/document-extractions/${extraction.id}`, { action: "confirm", fields });
       toast.success("Passport details applied to the passenger record.");
       onResolved();
     } catch (error) {
@@ -63,7 +63,7 @@ function ReviewCard({ extraction, onResolved }: { extraction: ExtractionData; on
   const handleReject = async () => {
     setSubmitting("reject");
     try {
-      await patchJson(`/api/passport-extractions/${extraction.id}`, { action: "reject" });
+      await patchJson(`/api/document-extractions/${extraction.id}`, { action: "reject" });
       toast.success("Extraction rejected — nothing was changed on the passenger.");
       onResolved();
     } catch (error) {
@@ -119,7 +119,7 @@ function ReviewCard({ extraction, onResolved }: { extraction: ExtractionData; on
  * upload a passport photo directly (or shows whatever the customer already
  * attached at submission time) and review/edit/confirm the OCR-extracted
  * fields before anything touches the Passenger record. See
- * src/lib/ocr/extract-passport.ts and /api/passport-extractions/[id] — no
+ * src/lib/ocr/extract-passport.ts and /api/document-extractions/[id] — no
  * path from OCR to the database skips this review step.
  */
 export function PassportExtractionReview({ passengerId }: { passengerId: string }) {
@@ -129,7 +129,7 @@ export function PassportExtractionReview({ passengerId }: { passengerId: string 
 
   const reload = async () => {
     try {
-      const result = await getJson<ExtractionData[]>(`/api/passport-extractions?passengerId=${passengerId}`);
+      const result = await getJson<ExtractionData[]>(`/api/document-extractions?passengerId=${passengerId}`);
       setExtractions(result);
     } catch {
       // Non-critical — the passenger card still renders fine without this section populated.
@@ -141,7 +141,7 @@ export function PassportExtractionReview({ passengerId }: { passengerId: string 
 
     async function load() {
       try {
-        const result = await getJson<ExtractionData[]>(`/api/passport-extractions?passengerId=${passengerId}`);
+        const result = await getJson<ExtractionData[]>(`/api/document-extractions?passengerId=${passengerId}`);
         if (cancelled) return;
         setExtractions(result);
       } catch {

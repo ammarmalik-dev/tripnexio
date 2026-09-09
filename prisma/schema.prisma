@@ -151,10 +151,10 @@ model Passenger {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  customer            Customer             @relation(fields: [customerId], references: [id])
-  documents           Document[]
-  passportExtractions PassportExtraction[]
-  bookingLinks        BookingPassenger[]
+  customer     Customer             @relation(fields: [customerId], references: [id])
+  documents    Document[]
+  extractions  DocumentExtraction[]
+  bookingLinks BookingPassenger[]
 
   @@index([customerId])
 }
@@ -280,11 +280,12 @@ model Booking {
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
-  lead      Lead       @relation(fields: [leadId], references: [id])
-  customer  Customer   @relation(fields: [customerId], references: [id])
-  payments  Payment[]
-  documents Document[]
-  passengers BookingPassenger[]
+  lead        Lead       @relation(fields: [leadId], references: [id])
+  customer    Customer   @relation(fields: [customerId], references: [id])
+  payments    Payment[]
+  documents   Document[]
+  passengers  BookingPassenger[]
+  extractions DocumentExtraction[]
 
   @@index([leadId])
   @@index([customerId])
@@ -408,7 +409,7 @@ model Document {
   passenger Passenger? @relation(fields: [passengerId], references: [id])
   booking   Booking?   @relation(fields: [bookingId], references: [id])
 
-  passportExtractions PassportExtraction[]
+  extractions DocumentExtraction[]
 
   @@index([passengerId])
   @@index([bookingId])
@@ -421,29 +422,52 @@ enum OcrExtractionStatus {
   REJECTED
 }
 
-/// One row per OCR attempt on an uploaded passport document — extracted
-/// fields are NEVER auto-applied to a Passenger; a staff member must review
-/// and explicitly confirm (see CLAUDE.md "never save silently"). `mrzValid`
-/// reflects whether the ICAO 9303 check-digit algorithm actually validated
-/// the extracted MRZ (src/lib/ocr/mrz-parser.ts) — a real, computed
-/// confidence signal, not just "the provider returned something."
-model PassportExtraction {
-  id               String              @id @default(cuid())
-  documentId       String
-  passengerId      String
+/// Step 16 (client-locked-spec roadmap, audit §3.6): CRM.md §17 (Ticket OCR)
+/// and §18 (Visa OCR) extend the OCR pipeline this app already had for
+/// passports (Phase 5D) to two more document types. Generalized from the
+/// old passport-only `PassportExtraction` model into one shared model with
+/// an `extractionType` discriminator, per the roadmap prompt's own
+/// preference ("rather than bolting this onto the passport-specific
+/// model") — the three types share the same review/confirm-or-reject
+/// lifecycle, just different field shapes and confirm targets.
+///
+/// `passengerId`/`bookingId` are both optional (a passport extraction
+/// always has a passengerId, matching Document's own passport requirement;
+/// a ticket/visa extraction may be tied to a specific passenger, a booking
+/// generally, or both, mirroring Document's own optionality).
+///
+/// Confirm targets differ by type — see PATCH /api/document-extractions/[id]:
+/// - PASSPORT: applies the reviewed fields onto the Passenger row (unchanged
+///   behavior from the old PassportExtraction model).
+/// - TICKET/VISA: there is no dedicated Ticket/Visa entity in this schema to
+///   write structured fields onto (CRM.md's own document is a functional
+///   reference, not a literal schema spec) — inventing new Booking columns
+///   for this would be exactly the kind of unscoped addition CLAUDE.md's
+///   hard rules warn against. "Ticket data is stored against the booking"
+///   (§17) is satisfied by the extraction row itself: it's already linked
+///   to the booking via `document.bookingId`, and once CONFIRMED, its
+///   (possibly staff-edited) `extractedFields` IS the permanent, verified
+///   record — displayed on the Booking detail page. Confirming just moves
+///   status to CONFIRMED with the final edited fields; no other row changes.
+model DocumentExtraction {
+  id             String                 @id @default(cuid())
+  documentId     String
+  passengerId    String?
+  bookingId      String?
+  extractionType DocumentExtractionType
   /// Which OcrProvider implementation produced this (e.g. "claude",
   /// "placeholder (no ANTHROPIC_API_KEY configured)") — surfaced in the
   /// review UI so staff can see when a result is a dev-only sample, not a
-  /// real reading of the uploaded image.
-  provider         String
-  status           OcrExtractionStatus @default(PENDING_REVIEW)
-  /// PassportOcrFields shape (src/lib/ocr/types.ts): fullName, givenNames,
-  /// surname, passportNumber, nationality, dob, sex, expiryDate,
-  /// issuingCountry — whatever the provider could read, staff-editable
-  /// before confirming.
-  extractedFields  Json
-  /// The raw two-line MRZ text as read from the image, when found — kept
-  /// for staff to visually cross-check against the passport in hand.
+  /// real reading of the uploaded document.
+  provider       String
+  status         OcrExtractionStatus    @default(PENDING_REVIEW)
+  /// Shape depends on extractionType — PassportOcrFields, TicketOcrFields,
+  /// or VisaOcrFields (src/lib/ocr/types.ts) — whatever the provider could
+  /// read, staff-editable before confirming.
+  extractedFields Json
+  /// Passport-only — the raw two-line MRZ text as read from the image, when
+  /// found, kept for staff to visually cross-check. Always null for
+  /// TICKET/VISA (no MRZ on those document types).
   mrzRaw           String?
   mrzValid         Boolean             @default(false)
   reviewedByUserId String?
@@ -452,12 +476,21 @@ model PassportExtraction {
   updatedAt        DateTime            @updatedAt
 
   document   Document  @relation(fields: [documentId], references: [id])
-  passenger  Passenger @relation(fields: [passengerId], references: [id])
+  passenger  Passenger? @relation(fields: [passengerId], references: [id])
+  booking    Booking?   @relation(fields: [bookingId], references: [id])
   reviewedBy User?     @relation(fields: [reviewedByUserId], references: [id])
 
   @@index([documentId])
   @@index([passengerId])
+  @@index([bookingId])
   @@index([status])
+  @@index([extractionType])
+}
+
+enum DocumentExtractionType {
+  PASSPORT
+  TICKET
+  VISA
 }
 
 // ---------------------------------------------------------------------------
@@ -823,10 +856,10 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  role                       Role                 @relation(fields: [roleId], references: [id])
-  assignedLeads              Lead[]
-  auditEntries               AuditTrail[]
-  reviewedPassportExtractions PassportExtraction[]
+  role                    Role                 @relation(fields: [roleId], references: [id])
+  assignedLeads           Lead[]
+  auditEntries            AuditTrail[]
+  reviewedDocumentExtractions DocumentExtraction[]
 
   @@index([roleId])
   @@index([active])

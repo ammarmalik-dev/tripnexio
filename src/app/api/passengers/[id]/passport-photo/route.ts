@@ -4,7 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { saveUploadedImage } from "@/lib/storage/local-file-storage";
+import { saveUploadedFile } from "@/lib/storage/local-file-storage";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 
 interface RouteParams {
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    const { url } = await saveUploadedImage(parsed.data.imageBase64, parsed.data.mimeType, "passports");
+    const { url } = await saveUploadedFile(parsed.data.imageBase64, parsed.data.mimeType, "passports");
 
     const document = await db.$transaction(async (tx) => {
       const created = await tx.document.create({
