@@ -19,6 +19,8 @@ export interface RefundData {
   reason: string | null;
   status: RefundStatus;
   createdAt: string;
+  /** CRM.md §21 (Step 14) — empty means the refund applied to the whole booking. */
+  passengerIds: string[];
 }
 
 export interface PaymentData {
@@ -41,11 +43,14 @@ function money(value: string | number): string {
 export function PaymentPanel({
   payment,
   serviceType,
+  passengers,
   onChanged,
   canApproveRefunds,
 }: {
   payment: PaymentData;
   serviceType: ServiceType;
+  /** This booking's own passengers — passed through to the refund calculator's passenger-selection checkboxes (CRM.md §21, Step 14). */
+  passengers: { id: string; fullName: string }[];
   onChanged: () => void;
   canApproveRefunds: boolean;
 }) {
@@ -151,6 +156,7 @@ export function PaymentPanel({
         <RefundCalculatorForm
           serviceType={serviceType}
           defaultPaidAmount={total}
+          passengers={passengers}
           onSubmit={handleCreateRefund}
           onCancel={() => setShowRefundForm(false)}
           submitting={creatingRefund}
@@ -176,6 +182,16 @@ export function PaymentPanel({
                 {money(refund.gatewayCharge)}
                 {refund.reason ? ` · ${refund.reason}` : ""}
               </p>
+              {refund.passengerIds.length > 0 ? (
+                <p className="text-xs text-ink-tertiary">
+                  Applies to:{" "}
+                  {refund.passengerIds
+                    .map((pid) => passengers.find((passenger) => passenger.id === pid)?.fullName ?? pid)
+                    .join(", ")}
+                </p>
+              ) : (
+                <p className="text-xs text-ink-tertiary">Applies to: whole booking</p>
+              )}
             </div>
           ))}
         </div>

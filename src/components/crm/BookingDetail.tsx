@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { BookingStatusControl } from "./BookingStatusControl";
+import { BookingPassengerStatusControl } from "./BookingPassengerStatusControl";
 import { PaymentPanel, type PaymentData } from "./PaymentPanel";
 import { DocumentStatusControl } from "./DocumentStatusControl";
 import { AddDocumentForm } from "./AddDocumentForm";
@@ -22,6 +23,15 @@ interface DocumentItem {
   status: DocumentStatus;
   fileUrl: string | null;
   createdAt: string;
+  passengerId: string | null;
+}
+
+interface BookingPassengerItem {
+  id: string;
+  fullName: string;
+  paxType: PaxType;
+  /** Independently settable from the booking-level status above — CRM.md §12 (Step 14). */
+  status: BookingStatus;
 }
 
 interface BookingDetailResponse {
@@ -40,6 +50,8 @@ interface BookingDetailResponse {
     email: string | null;
     passengers: { id: string; fullName: string; paxType: PaxType }[];
   };
+  /** This booking's own passengers, each with an independent status and their own documents — distinct from customer.passengers (full Customer-360 history). */
+  passengers: BookingPassengerItem[];
   payments: PaymentData[];
   documents: DocumentItem[];
 }
@@ -182,6 +194,7 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                     key={payment.id}
                     payment={payment}
                     serviceType={booking.serviceType}
+                    passengers={booking.passengers}
                     onChanged={() => setReloadNonce((current) => current + 1)}
                     canApproveRefunds={canApproveRefunds}
                   />
@@ -191,40 +204,106 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
           </section>
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Documents</h2>
-            <div className="mb-3">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-ink-heading">Passengers</h2>
+              <span className="text-xs text-ink-tertiary">Each passenger has its own status and documents.</span>
+            </div>
+            <div className="mb-4">
               <AddDocumentForm
                 bookingId={booking.id}
-                passengers={booking.customer.passengers}
+                passengers={booking.passengers}
                 onAdded={() => setReloadNonce((current) => current + 1)}
               />
             </div>
-            {booking.documents.length === 0 ? (
-              <p className="text-sm text-ink-tertiary">No documents recorded for this booking yet.</p>
+            {booking.passengers.length === 0 ? (
+              <p className="text-sm text-ink-tertiary">No passengers linked to this booking.</p>
             ) : (
-              <div className="flex flex-col gap-2">
-                {booking.documents.map((document) => (
-                  <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline p-3 text-sm">
-                    <span className="font-medium text-ink-primary">{document.type}</span>
-                    <DocumentStatusControl
-                      documentId={document.id}
-                      status={document.status}
-                      onChanged={(status) =>
-                        setBooking((current) =>
-                          current
-                            ? {
-                                ...current,
-                                documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
-                              }
-                            : current
-                        )
-                      }
-                    />
-                  </div>
-                ))}
+              <div className="flex flex-col gap-4">
+                {booking.passengers.map((passenger) => {
+                  const passengerDocuments = booking.documents.filter((document) => document.passengerId === passenger.id);
+                  return (
+                    <div key={passenger.id} className="rounded-lg border border-hairline p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-ink-primary">{passenger.fullName}</p>
+                        <BookingPassengerStatusControl
+                          bookingId={booking.id}
+                          passengerId={passenger.id}
+                          status={passenger.status}
+                          onChanged={(status) =>
+                            setBooking((current) =>
+                              current
+                                ? {
+                                    ...current,
+                                    passengers: current.passengers.map((p) => (p.id === passenger.id ? { ...p, status } : p)),
+                                  }
+                                : current
+                            )
+                          }
+                        />
+                      </div>
+                      <div className="mt-2 flex flex-col gap-2">
+                        {passengerDocuments.length === 0 ? (
+                          <p className="text-xs text-ink-tertiary">No documents for this passenger yet.</p>
+                        ) : (
+                          passengerDocuments.map((document) => (
+                            <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-surface-2 px-3 py-2 text-sm">
+                              <span className="text-ink-primary">{document.type}</span>
+                              <DocumentStatusControl
+                                documentId={document.id}
+                                status={document.status}
+                                onChanged={(status) =>
+                                  setBooking((current) =>
+                                    current
+                                      ? {
+                                          ...current,
+                                          documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
+                                        }
+                                      : current
+                                  )
+                                }
+                              />
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
+
+          {(() => {
+            const generalDocuments = booking.documents.filter((document) => !document.passengerId);
+            if (generalDocuments.length === 0) return null;
+            return (
+              <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+                <h2 className="mb-3 text-sm font-semibold text-ink-heading">General Documents</h2>
+                <p className="mb-3 text-xs text-ink-tertiary">Not tied to a specific passenger.</p>
+                <div className="flex flex-col gap-2">
+                  {generalDocuments.map((document) => (
+                    <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-hairline p-3 text-sm">
+                      <span className="font-medium text-ink-primary">{document.type}</span>
+                      <DocumentStatusControl
+                        documentId={document.id}
+                        status={document.status}
+                        onChanged={(status) =>
+                          setBooking((current) =>
+                            current
+                              ? {
+                                  ...current,
+                                  documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
+                                }
+                              : current
+                          )
+                        }
+                      />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })()}
         </div>
 
         <div className="flex flex-col gap-6">

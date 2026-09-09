@@ -8,6 +8,8 @@ export const createRefundSchema = z.object({
   reason: z.string().trim().min(1).optional(),
   /** Only relevant for OTB bookings — see src/lib/refunds/pricing.ts. */
   otbValidated: z.boolean().optional(),
+  /** CRM.md §21 (Step 14) — empty/omitted means "applies to the whole booking", same as every refund before this step. */
+  passengerIds: z.array(z.string()).optional(),
 });
 
 const refundStatusValues = Object.values(RefundStatus) as [RefundStatusType, ...RefundStatusType[]];

@@ -154,6 +154,7 @@ model Passenger {
   customer            Customer             @relation(fields: [customerId], references: [id])
   documents           Document[]
   passportExtractions PassportExtraction[]
+  bookingLinks        BookingPassenger[]
 
   @@index([customerId])
 }
@@ -270,9 +271,45 @@ model Booking {
   customer  Customer   @relation(fields: [customerId], references: [id])
   payments  Payment[]
   documents Document[]
+  passengers BookingPassenger[]
 
   @@index([leadId])
   @@index([customerId])
+  @@index([status])
+}
+
+/// CRM.md §12, locked (Step 14, audit §3.3): "Each PAX must be
+/// independently visible... Do not force all PAX into one combined status
+/// where individual processing is required." Establishes the first-ever
+/// direct Booking<->Passenger link — until now, "which passengers belong to
+/// this booking" only existed indirectly via the parent Lead's
+/// `details.passengerIds` JSON array (see create-lead.ts), which Document
+/// already relies on for its own optional `passengerId`. One row created
+/// per Lead.details.passengerIds entry when a Booking is created
+/// (POST /api/bookings) — see that route.
+///
+/// `status` reuses BookingStatus rather than a new bespoke enum, so
+/// Booking.status can genuinely stay "the aggregate/rollup view" the
+/// roadmap prompt asks for (same vocabulary, finer grain) instead of two
+/// unrelated status systems. CRM.md §14 separately describes a much larger,
+/// fully Admin-configurable per-service status list ("Every service has its
+/// own status workflow... only statuses configured by Admin... available")
+/// — that is a distinct, unbuilt feature (its own future roadmap step), not
+/// what this reuses or replaces.
+model BookingPassenger {
+  id          String        @id @default(cuid())
+  bookingId   String
+  passengerId String
+  status      BookingStatus @default(PENDING)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  booking   Booking   @relation(fields: [bookingId], references: [id])
+  passenger Passenger @relation(fields: [passengerId], references: [id])
+
+  @@unique([bookingId, passengerId])
+  @@index([bookingId])
+  @@index([passengerId])
   @@index([status])
 }
 
@@ -309,6 +346,24 @@ model Refund {
   /// Computed by the API layer as paidAmount - cancellationCharge - gatewayCharge on write.
   refundAmount       Decimal      @db.Decimal(10, 2)
   reason             String?
+  /// CRM.md §21, locked (Step 14, audit §3.5, CONFLICTING): "Refunds
+  /// require... Passenger selection where partial passenger refund
+  /// applies." Empty (the default) = applies to the whole booking/payment,
+  /// same as every refund before this step. A plain Passenger.id array, not
+  /// a join table — there's no per-refund metadata beyond "which
+  /// passengers" to justify one. Judgment call: `refundAmount` itself is
+  /// still computed the existing way (paidAmount - charges, staff-entered
+  /// figures) — §21 also says "Calculate eligible refund based on
+  /// configured passenger allocation/charges", but no per-passenger price
+  /// breakdown exists anywhere in this schema (Quotation.sellingPrice is
+  /// one total for the whole booking) to compute an automatic split from.
+  /// Inventing one (e.g. an even split by passenger count) would be exactly
+  /// the kind of fabricated business rule CRM.md §21 itself warns against
+  /// for the adjacent "Generic non-passenger partial refund" case ("Keep as
+  /// OPEN QUESTION. Do not invent a calculation formula") — the same
+  /// caution applies here. Passenger selection is real and stored; the
+  /// amount stays staff-entered until real per-passenger pricing exists.
+  passengerIds       String[]     @default([])
   status             RefundStatus @default(PENDING)
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt

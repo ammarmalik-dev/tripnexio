@@ -107,6 +107,13 @@ export async function POST(request: NextRequest) {
     return jsonError(409, "This lead already has an active booking.");
   }
 
+  // Every Lead always has at least one passenger (createLeadFromSubmission
+  // defaults to one derived from the contact's own name when the service
+  // doesn't collect a real passenger list) — see create-lead.ts. Same
+  // `details.passengerIds` convention GET /api/leads/[id] already reads.
+  const leadDetails = (quotation.lead.details ?? {}) as Record<string, unknown>;
+  const passengerIds = Array.isArray(leadDetails.passengerIds) ? (leadDetails.passengerIds as string[]) : [];
+
   // bookingId gets its real TNX-XX-XXXXXX value once payment succeeds (see
   // /api/payments/[id]/mark-success) — this placeholder just satisfies the
   // column's NOT NULL/unique constraint until then.
@@ -119,6 +126,16 @@ export async function POST(request: NextRequest) {
         status: "PENDING",
       },
     });
+
+    // CRM.md §12 (Step 14): each passenger gets its own status row,
+    // independently visible from the booking-level status above — see
+    // BookingPassenger's own schema doc comment for why it reuses
+    // BookingStatus. Starts at the same status as the booking itself.
+    if (passengerIds.length > 0) {
+      await tx.bookingPassenger.createMany({
+        data: passengerIds.map((passengerId) => ({ bookingId: created.id, passengerId, status: created.status })),
+      });
+    }
 
     await writeAudit(tx, {
       entityType: "Booking",

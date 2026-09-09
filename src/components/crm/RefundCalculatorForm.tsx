@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { TextField } from "@/components/forms/TextField";
@@ -12,6 +13,8 @@ import type { ServiceType } from "../../generated/prisma/enums";
 interface RefundCalculatorFormProps {
   serviceType: ServiceType;
   defaultPaidAmount: number;
+  /** This booking's own passengers — CRM.md §21 (Step 14) passenger-level partial refund selection. Empty selection = whole-booking refund, unchanged from before this step. */
+  passengers: { id: string; fullName: string }[];
   onSubmit: (values: CreateRefundValues) => Promise<void>;
   onCancel: () => void;
   submitting: boolean;
@@ -20,11 +23,13 @@ interface RefundCalculatorFormProps {
 export function RefundCalculatorForm({
   serviceType,
   defaultPaidAmount,
+  passengers,
   onSubmit,
   onCancel,
   submitting,
 }: RefundCalculatorFormProps) {
   const isOtb = serviceType === "OTB";
+  const [selectedPassengerIds, setSelectedPassengerIds] = useState<string[]>([]);
   const {
     register,
     handleSubmit,
@@ -34,6 +39,12 @@ export function RefundCalculatorForm({
     resolver: zodResolver(createRefundSchema),
     defaultValues: { paidAmount: defaultPaidAmount, cancellationCharge: 0, gatewayCharge: 0, otbValidated: false },
   });
+
+  const togglePassenger = (id: string) => {
+    setSelectedPassengerIds((current) => (current.includes(id) ? current.filter((pid) => pid !== id) : [...current, id]));
+  };
+
+  const submitWithPassengers = (values: CreateRefundValues) => onSubmit({ ...values, passengerIds: selectedPassengerIds });
 
   const numberField = (name: "paidAmount" | "cancellationCharge" | "gatewayCharge") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
@@ -47,7 +58,39 @@ export function RefundCalculatorForm({
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 rounded-lg border border-hairline bg-surface-1 p-4">
+    <form onSubmit={handleSubmit(submitWithPassengers)} className="flex flex-col gap-4 rounded-lg border border-hairline bg-surface-1 p-4">
+      {passengers.length > 0 ? (
+        <FormField label="Applies to" htmlFor="refund-passengers">
+          <div id="refund-passengers" className="flex flex-col gap-1.5">
+            <p className="text-xs text-ink-tertiary">
+              Leave everyone unchecked for a whole-booking refund, or select specific passenger(s) for a
+              passenger-level partial refund.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {passengers.map((passenger) => (
+                <label key={passenger.id} className="flex items-center gap-1.5 text-sm text-ink-secondary">
+                  <input
+                    type="checkbox"
+                    checked={selectedPassengerIds.includes(passenger.id)}
+                    onChange={() => togglePassenger(passenger.id)}
+                  />
+                  {passenger.fullName}
+                </label>
+              ))}
+            </div>
+            {selectedPassengerIds.length > 0 ? (
+              <p className="text-xs font-medium text-ink-primary">
+                Selected:{" "}
+                {passengers
+                  .filter((passenger) => selectedPassengerIds.includes(passenger.id))
+                  .map((passenger) => passenger.fullName)
+                  .join(", ")}
+              </p>
+            ) : null}
+          </div>
+        </FormField>
+      ) : null}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <TextField
           label="Paid Amount (₹)"

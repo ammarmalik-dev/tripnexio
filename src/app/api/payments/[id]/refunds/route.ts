@@ -32,19 +32,40 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
-    include: { booking: { include: { lead: true } } },
+    include: {
+      booking: {
+        include: { lead: true, passengers: { include: { passenger: true } } },
+      },
+    },
   });
   if (!payment) return jsonError(404, "Payment not found.");
   if (payment.status !== "SUCCESS") {
     return jsonError(409, "Only a successful payment can be refunded.");
   }
 
-  const { paidAmount, cancellationCharge, gatewayCharge, reason, otbValidated } = parsed.data;
+  const { paidAmount, cancellationCharge, gatewayCharge, reason, otbValidated, passengerIds } = parsed.data;
+
+  // CRM.md §21 (Step 14): "Passenger selection where partial passenger
+  // refund applies" — validated against this booking's own passengers, not
+  // trusted blindly from the client.
+  const bookingPassengerIds = new Set(payment.booking.passengers.map((bp) => bp.passengerId));
+  const invalidPassengerIds = (passengerIds ?? []).filter((pid) => !bookingPassengerIds.has(pid));
+  if (invalidPassengerIds.length > 0) {
+    return jsonError(400, "One or more selected passengers don't belong to this booking.", {
+      passengerIds: ["Invalid passenger selection."],
+    });
+  }
+
   const serviceType = payment.booking.lead.serviceType;
   const refundAmount = computeRefundAmount(serviceType, { paidAmount, cancellationCharge, gatewayCharge, otbValidated });
 
   const otbNote =
     isOtbBooking(serviceType) && otbValidated ? " (includes the SAMPLE OTB fixed service charge deduction)" : "";
+
+  const passengerNames = (passengerIds ?? [])
+    .map((pid) => payment.booking.passengers.find((bp) => bp.passengerId === pid)?.passenger.fullName)
+    .filter((name): name is string => Boolean(name));
+  const passengerNote = passengerNames.length > 0 ? ` — passengers: ${passengerNames.join(", ")}` : "";
 
   const refund = await db.$transaction(async (tx) => {
     const created = await tx.refund.create({
@@ -56,6 +77,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         refundAmount,
         reason,
         status: "PENDING",
+        passengerIds: passengerIds ?? [],
       },
     });
 
@@ -64,7 +86,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Refund calculated for payment ${paymentId}: ₹${refundAmount}${otbNote} (by ${session.name})${reason ? ` — reason: ${reason}` : ""}`,
+      note: `Refund calculated for payment ${paymentId}: ₹${refundAmount}${otbNote}${passengerNote} (by ${session.name})${reason ? ` — reason: ${reason}` : ""}`,
     });
 
     return created;

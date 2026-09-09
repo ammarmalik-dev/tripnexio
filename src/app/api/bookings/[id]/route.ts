@@ -22,6 +22,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       documents: { orderBy: { createdAt: "desc" } },
       lead: { include: { quotations: { where: { isSelected: true } } } },
       customer: { include: { passengers: true } },
+      // CRM.md §12 (Step 14) — this booking's own passengers, each with an
+      // independently visible status, distinct from customer.passengers
+      // below (that stays the full Customer-360 history across every
+      // lead/booking, same split LeadDetail.tsx already uses).
+      passengers: { include: { passenger: true }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!booking) return jsonError(404, "Booking not found.");
@@ -54,6 +59,16 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         paxType: passenger.paxType,
       })),
     },
+    // Documents aren't duplicated onto each passenger here — the client
+    // derives "this passenger's documents" by filtering the flat
+    // `documents` array below by `passengerId`, so there's exactly one
+    // place a document's status ever lives, not two copies to keep in sync.
+    passengers: booking.passengers.map((bookingPassenger) => ({
+      id: bookingPassenger.passenger.id,
+      fullName: bookingPassenger.passenger.fullName,
+      paxType: bookingPassenger.passenger.paxType,
+      status: bookingPassenger.status,
+    })),
     payments: booking.payments,
     documents: booking.documents,
   });
