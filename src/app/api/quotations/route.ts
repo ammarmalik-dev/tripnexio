@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { createQuotationSchema } from "@/lib/validation/quotation-schema";
+import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
@@ -11,6 +12,30 @@ import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { money } from "@/lib/invoices/render-invoice";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import type { Quotation } from "@/generated/prisma/client";
+
+/**
+ * SELECTED/EXPIRED/PENDING is derived — Quotation only stores
+ * isSelected/isExpired booleans. Computed live against `validityExpiresAt`
+ * (not just the possibly-stale `isExpired` column) — matching
+ * isExpiredNow() in src/lib/quotations/sync-expiry.ts — WITHOUT persisting
+ * the flip or firing a QUOTE_EXPIRED notification. That write+notify side
+ * effect belongs to the dedicated n8n automation job
+ * (/api/automation/quote-expiry) or the small, lead-scoped sync already run
+ * when opening one lead's own quotations — never a page-load of this
+ * standalone list. See this route's own history: an earlier version called
+ * syncExpiredQuotations() here on every past-due quotation across the
+ * whole table, which in a long-lived dev DB meant one list-page load
+ * synchronously sent hundreds of "quote expired" emails before it could
+ * even respond — a real production risk if the automation job ever falls
+ * behind, not just a dev-environment artifact.
+ */
+function quotationStatus(quotation: Pick<Quotation, "isSelected" | "isExpired" | "validityExpiresAt">, now: Date): "SELECTED" | "EXPIRED" | "PENDING" {
+  if (quotation.isSelected) return "SELECTED";
+  const liveExpired = quotation.isExpired || (quotation.validityExpiresAt !== null && quotation.validityExpiresAt < now);
+  if (liveExpired) return "EXPIRED";
+  return "PENDING";
+}
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("quotations.view");
@@ -18,16 +43,92 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const leadId = searchParams.get("leadId");
-  if (!leadId) {
-    return jsonError(400, "Provide a leadId query parameter.");
+
+  // Existing lead-scoped mode (QuoteBuilder.tsx) — unchanged, still a plain array.
+  if (leadId) {
+    const lead = await db.lead.findUnique({ where: { id: leadId } });
+    if (!lead) return jsonError(404, "Lead not found.");
+
+    const quotations = await db.quotation.findMany({ where: { leadId }, orderBy: { createdAt: "desc" } });
+    const refreshed = await syncExpiredQuotations(quotations);
+    return jsonSuccess(refreshed);
   }
 
-  const lead = await db.lead.findUnique({ where: { id: leadId } });
-  if (!lead) return jsonError(404, "Lead not found.");
+  // Standalone list mode (Step 13, audit §3.2) — paginated, filterable,
+  // mirrors GET /api/leads and GET /api/bookings' shape.
+  const parsed = quotationListQuerySchema.safeParse(Object.fromEntries(searchParams));
+  if (!parsed.success) {
+    return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
+  }
+  const { serviceType, status, search, sort, page, pageSize } = parsed.data;
+  const now = new Date();
 
-  const quotations = await db.quotation.findMany({ where: { leadId }, orderBy: { createdAt: "desc" } });
-  const refreshed = await syncExpiredQuotations(quotations);
-  return jsonSuccess(refreshed);
+  // "EXPIRED"/"PENDING" filter live against validityExpiresAt (not just the
+  // stored isExpired column) — see quotationStatus()'s doc comment above
+  // for why this route never writes isExpired or fires a notification
+  // itself. A selected quotation is never "expired" for filtering purposes
+  // even if its validity window has technically lapsed (selection already
+  // forces isExpired=false and expires every sibling quote instead — see
+  // PATCH /api/quotations/[id]/select).
+  const liveExpiredCondition = { OR: [{ isExpired: true }, { validityExpiresAt: { lt: now } }] };
+
+  // Built as one `lead` sub-filter (rather than spreading two separately
+  // shaped `{ lead: ... }` objects into `where`) so a serviceType filter and
+  // a search term combine correctly instead of one silently overwriting the
+  // other's `lead` key.
+  const where = {
+    ...(status === "SELECTED" ? { isSelected: true } : {}),
+    ...(status === "EXPIRED" ? { isSelected: false, ...liveExpiredCondition } : {}),
+    ...(status === "PENDING"
+      ? { isSelected: false, isExpired: false, OR: [{ validityExpiresAt: null }, { validityExpiresAt: { gte: now } }] }
+      : {}),
+    ...(serviceType || search
+      ? {
+          lead: {
+            ...(serviceType ? { serviceType } : {}),
+            ...(search
+              ? {
+                  customer: {
+                    OR: [
+                      { name: { contains: search, mode: "insensitive" as const } },
+                      { mobile: { contains: search, mode: "insensitive" as const } },
+                    ],
+                  },
+                }
+              : {}),
+          },
+        }
+      : {}),
+  };
+
+  const [total, quotations] = await Promise.all([
+    db.quotation.count({ where }),
+    db.quotation.findMany({
+      where,
+      include: { lead: { include: { customer: true } } },
+      orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+
+  const items = quotations.map((quotation) => ({
+    id: quotation.id,
+    leadId: quotation.leadId,
+    leadReferenceId: formatLeadReference(quotation.lead.serviceType, quotation.leadId),
+    serviceType: quotation.lead.serviceType,
+    status: quotationStatus(quotation, now),
+    sellingPrice: quotation.sellingPrice,
+    // Internal-only — never sent to a customer-facing view (same rule
+    // QuoteCard.tsx already follows). Included here because this whole
+    // screen is staff-only (quotations.view-gated); the UI marks it
+    // "(internal)" per the roadmap prompt's explicit ask.
+    margin: quotation.margin,
+    customer: { name: quotation.lead.customer.name, mobile: quotation.lead.customer.mobile },
+    createdAt: quotation.createdAt,
+  }));
+
+  return jsonSuccess({ items, total, page, pageSize });
 }
 
 export async function POST(request: NextRequest) {
