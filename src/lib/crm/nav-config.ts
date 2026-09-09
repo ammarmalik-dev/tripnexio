@@ -32,19 +32,41 @@ export interface CrmNavItem {
   icon: LucideIcon;
 }
 
-export const crmNavItems: CrmNavItem[] = [
-  // Just this one item, not a full reorg — CRM.md §3's grouped nav
-  // structure (Command Centre / Sales / Operations / ...) is roadmap
-  // Step 12's job. Without this, the new /crm dashboard (this step) would
-  // be unreachable from the sidebar once staff navigate away from it.
-  { label: "Command Centre", href: "/crm", icon: LayoutDashboard },
-  { label: "Leads", href: "/crm/leads", icon: ListChecks },
-  { label: "Customers", href: "/crm/customers", icon: Users },
-  { label: "Quotations", href: "/crm/quotations", icon: FileText },
-  { label: "Bookings", href: "/crm/bookings", icon: CalendarCheck },
-  { label: "Payments", href: "/crm/payments", icon: CreditCard },
-  { label: "Refunds", href: "/crm/refunds", icon: RotateCcw },
-  { label: "Documents", href: "/crm/documents", icon: FolderOpen },
+export interface CrmNavGroup {
+  /** null = no group heading (Command Centre stands alone at the top). */
+  label: string | null;
+  items: CrmNavItem[];
+}
+
+/**
+ * CRM.md §3's grouped nav structure (Step 12, audit §3.1), scoped to the
+ * roadmap prompt's own explicit group/item list — Command Centre / Sales
+ * (Leads, Customers, Quotations) / Operations (Bookings, Payments, Refunds,
+ * Documents) — which is every item that already exists in this app today.
+ * CRM.md §3 itself also lists Resources/Analytics/Communication/Help/
+ * Profile groups (Vendors, Reports, Notifications, Knowledge Base, etc.),
+ * none of which have a built CRM screen yet, so none are added here —
+ * this reorganizes existing navigation, it doesn't invent new destinations.
+ */
+export const crmNavGroups: CrmNavGroup[] = [
+  { label: null, items: [{ label: "Command Centre", href: "/crm", icon: LayoutDashboard }] },
+  {
+    label: "Sales",
+    items: [
+      { label: "Leads", href: "/crm/leads", icon: ListChecks },
+      { label: "Customers", href: "/crm/customers", icon: Users },
+      { label: "Quotations", href: "/crm/quotations", icon: FileText },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { label: "Bookings", href: "/crm/bookings", icon: CalendarCheck },
+      { label: "Payments", href: "/crm/payments", icon: CreditCard },
+      { label: "Refunds", href: "/crm/refunds", icon: RotateCcw },
+      { label: "Documents", href: "/crm/documents", icon: FolderOpen },
+    ],
+  },
 ];
 
 /**

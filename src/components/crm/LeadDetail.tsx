@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { LeadStatusControl } from "./LeadStatusControl";
 import { LeadAssignmentControl } from "./LeadAssignmentControl";
+import { LeadTemperatureControl } from "./LeadTemperatureControl";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { BookingStatusBadge } from "./BookingStatusBadge";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
@@ -20,7 +21,7 @@ import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { humanizeKey } from "@/lib/crm/humanize";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
-import type { ServiceType, LeadStatus, BookingStatus, PaymentStatus, PaxType, DocumentStatus } from "../../generated/prisma/enums";
+import type { ServiceType, LeadStatus, LeadTemperature, BookingStatus, PaymentStatus, PaxType, DocumentStatus } from "../../generated/prisma/enums";
 
 interface QuotationSummary {
   id: string;
@@ -66,6 +67,7 @@ interface LeadDetailResponse {
   referenceId: string;
   serviceType: ServiceType;
   status: LeadStatus;
+  temperature: LeadTemperature | null;
   source: string | null;
   details: Record<string, unknown>;
   createdAt: string;
@@ -220,6 +222,11 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
                   : current
               )
             }
+          />
+          <LeadTemperatureControl
+            leadId={lead.id}
+            temperature={lead.temperature}
+            onChanged={(temperature) => setLead((current) => (current ? { ...current, temperature } : current))}
           />
         </div>
       </div>

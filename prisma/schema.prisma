@@ -51,6 +51,18 @@ enum LeadStatus {
   LOST
 }
 
+/// CRM.md §5, locked: "Lead temperature: Cold, Warm, Hot." Step 12
+/// (client-locked-spec roadmap, audit §3.1). Nullable on Lead — no natural
+/// default at intake (a customer/WhatsApp submission carries no signal for
+/// this), so a lead has no temperature until staff explicitly classifies
+/// it; "settable by staff" in the roadmap prompt reads as an explicit
+/// action, not an auto-assigned default.
+enum LeadTemperature {
+  COLD
+  WARM
+  HOT
+}
+
 /// Proposed default booking lifecycle — same caveat as LeadStatus.
 enum BookingStatus {
   PENDING
@@ -151,11 +163,13 @@ model Passenger {
 // ---------------------------------------------------------------------------
 
 model Lead {
-  id              String      @id @default(cuid())
+  id              String           @id @default(cuid())
   customerId      String
   serviceType     ServiceType
   source          String?
-  status          LeadStatus  @default(NEW)
+  status          LeadStatus       @default(NEW)
+  /// CRM.md §5 (Step 12) — staff-set, no default; see the enum's own doc comment.
+  temperature     LeadTemperature?
   assignedStaffId String?
   /// Service-specific captured fields (e.g. destination country + visa type
   /// for NEW_VISA, entry date for VISA_EXTENSION, Airport-to-Airport vs
@@ -173,6 +187,7 @@ model Lead {
   @@index([customerId])
   @@index([serviceType])
   @@index([status])
+  @@index([temperature])
   @@index([assignedStaffId])
 }
 

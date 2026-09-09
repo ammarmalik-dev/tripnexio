@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
-import { crmNavItems } from "@/lib/crm/nav-config";
+import { crmNavGroups } from "@/lib/crm/nav-config";
 import { Logo } from "@/components/layout/Logo";
 import { cn } from "@/lib/cn";
 
@@ -16,31 +16,38 @@ export function CrmSidebar({ showAdminLink = false }: { showAdminLink?: boolean 
         <Logo />
         <p className="mt-1 text-xs font-medium tracking-wide text-ink-tertiary uppercase">CRM</p>
       </div>
-      <nav aria-label="CRM" className="flex flex-1 flex-col gap-1">
-        {crmNavItems.map((item) => {
-          // "/crm" itself (Command Centre) is a prefix of every other item's
-          // href, so it needs an exact match only — otherwise it would show
-          // as active on every CRM page.
-          const isActive =
-            item.href === "/crm" ? pathname === "/crm" : pathname === item.href || pathname?.startsWith(`${item.href}/`);
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive ? "page" : undefined}
-              className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150",
-                isActive
-                  ? "bg-accent/10 text-ink-accent"
-                  : "text-ink-secondary hover:bg-ink-primary/[0.04] hover:text-ink-primary"
-              )}
-            >
-              <Icon className="h-4 w-4" aria-hidden="true" />
-              {item.label}
-            </Link>
-          );
-        })}
+      <nav aria-label="CRM" className="flex flex-1 flex-col gap-5">
+        {crmNavGroups.map((group, groupIndex) => (
+          <div key={group.label ?? `group-${groupIndex}`} className="flex flex-col gap-1">
+            {group.label ? (
+              <p className="px-3 pb-1 text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">{group.label}</p>
+            ) : null}
+            {group.items.map((item) => {
+              // "/crm" itself (Command Centre) is a prefix of every other
+              // item's href, so it needs an exact match only — otherwise it
+              // would show as active on every CRM page.
+              const isActive =
+                item.href === "/crm" ? pathname === "/crm" : pathname === item.href || pathname?.startsWith(`${item.href}/`);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={cn(
+                    "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors duration-150",
+                    isActive
+                      ? "bg-accent/10 text-ink-accent"
+                      : "text-ink-secondary hover:bg-ink-primary/[0.04] hover:text-ink-primary"
+                  )}
+                >
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
       {showAdminLink ? (
         <Link

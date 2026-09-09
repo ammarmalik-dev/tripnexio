@@ -9,16 +9,18 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { LeadStatusBadge } from "./LeadStatusBadge";
-import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { LeadTemperatureBadge } from "./LeadTemperatureBadge";
+import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TEMPERATURE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
-import type { ServiceType, LeadStatus } from "../../generated/prisma/enums";
+import type { ServiceType, LeadStatus, LeadTemperature } from "../../generated/prisma/enums";
 
 interface LeadListItem {
   id: string;
   referenceId: string;
   serviceType: ServiceType;
   status: LeadStatus;
+  temperature: LeadTemperature | null;
   source: string | null;
   createdAt: string;
   customer: { name: string; mobile: string; email: string | null };
@@ -42,6 +44,7 @@ function formatDate(iso: string): string {
 export function LeadsTable() {
   const [serviceType, setServiceType] = useState("");
   const [status, setStatus] = useState("");
+  const [temperature, setTemperature] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -65,6 +68,7 @@ export function LeadsTable() {
         const params = new URLSearchParams();
         if (serviceType) params.set("serviceType", serviceType);
         if (status) params.set("status", status);
+        if (temperature) params.set("temperature", temperature);
         if (search) params.set("search", search);
         params.set("sort", sort);
 
@@ -84,7 +88,7 @@ export function LeadsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, status, search, sort, refreshNonce]);
+  }, [serviceType, status, temperature, search, sort, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -132,6 +136,23 @@ export function LeadsTable() {
         >
           <option value="">All statuses</option>
           {LEAD_STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor="filter-temperature" className="sr-only">
+          Filter by temperature
+        </label>
+        <select
+          id="filter-temperature"
+          value={temperature}
+          onChange={(event) => setTemperature(event.target.value)}
+          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+        >
+          <option value="">All temperatures</option>
+          {LEAD_TEMPERATURE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -200,6 +221,7 @@ export function LeadsTable() {
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Service</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Temperature</th>
                 <th className="px-4 py-3">Assigned</th>
                 <th className="px-4 py-3">Created</th>
               </tr>
@@ -221,6 +243,9 @@ export function LeadsTable() {
                   <td className="px-4 py-3 text-ink-secondary">{SERVICE_TYPE_LABELS[lead.serviceType]}</td>
                   <td className="px-4 py-3">
                     <LeadStatusBadge status={lead.status} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <LeadTemperatureBadge temperature={lead.temperature} />
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">{lead.assignedStaff?.name ?? "Unassigned"}</td>
                   <td className="px-4 py-3 text-ink-tertiary">{formatDate(lead.createdAt)}</td>

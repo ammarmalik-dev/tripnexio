@@ -72,6 +72,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     referenceId: formatLeadReference(lead.serviceType, lead.id),
     serviceType: lead.serviceType,
     status: lead.status,
+    temperature: lead.temperature,
     source: lead.source,
     details: lead.details,
     createdAt: lead.createdAt,

@@ -1,6 +1,7 @@
 import type {
   ServiceType,
   LeadStatus,
+  LeadTemperature,
   DocumentStatus,
   BookingStatus,
   PaxType,
@@ -35,6 +36,16 @@ export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
 
 export const LEAD_STATUS_OPTIONS: { value: LeadStatus; label: string }[] = (
   Object.entries(LEAD_STATUS_LABELS) as [LeadStatus, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const LEAD_TEMPERATURE_LABELS: Record<LeadTemperature, string> = {
+  HOT: "Hot",
+  WARM: "Warm",
+  COLD: "Cold",
+};
+
+export const LEAD_TEMPERATURE_OPTIONS: { value: LeadTemperature; label: string }[] = (
+  Object.entries(LEAD_TEMPERATURE_LABELS) as [LeadTemperature, string][]
 ).map(([value, label]) => ({ value, label }));
 
 export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {

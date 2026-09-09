@@ -198,9 +198,9 @@ export function CommandCentre({ staffName }: CommandCentreProps) {
             <h2 className="text-sm font-semibold text-ink-heading">Sales Overview</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
               <KpiCard label="New Leads" value={data.sales.newLeads} />
-              <KpiCard label="Hot Leads" value={data.sales.hotLeads} comingSoonHint="Requires Lead Temperature — a later roadmap step" />
-              <KpiCard label="Warm Leads" value={data.sales.warmLeads} comingSoonHint="Requires Lead Temperature — a later roadmap step" />
-              <KpiCard label="Cold Leads" value={data.sales.coldLeads} comingSoonHint="Requires Lead Temperature — a later roadmap step" />
+              <KpiCard label="Hot Leads" value={data.sales.hotLeads} />
+              <KpiCard label="Warm Leads" value={data.sales.warmLeads} />
+              <KpiCard label="Cold Leads" value={data.sales.coldLeads} />
               <KpiCard label="Qualified Leads" value={data.sales.qualifiedLeads} />
               <KpiCard label="Quotations" value={data.sales.quotationsCreated} />
               <KpiCard label="Accepted Quotations" value={data.sales.acceptedQuotations} />

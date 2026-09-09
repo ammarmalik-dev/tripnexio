@@ -7,21 +7,20 @@ export interface DashboardPeriod {
 }
 
 /**
- * CRM.md §4 lists "Hot/Warm/Cold Leads" and "Delayed" as possible KPIs, but
- * this app has no `LeadTemperature` field yet (that's roadmap Step 12, not
- * done) and no Delay/DelayAnalysis model at all (a later, unscoped feature —
- * CRM.md §30 has its own "Delay Analysis" nav item). Per CLAUDE.md hard rule
- * #1 ("never invent authoritative domain data... don't fabricate numbers"),
- * these are surfaced to the UI as `available: false` rather than a fake 0 or
- * a silently-dropped KPI — the card renders a "Coming soon" state instead of
- * a number.
+ * CRM.md §4 lists "Hot/Warm/Cold Leads" as a possible KPI — real as of Step
+ * 12 (the `Lead.temperature` field). "Delayed" is still `null`: there's no
+ * Delay/DelayAnalysis model at all yet (a later, unscoped feature — CRM.md
+ * §30 has its own "Delay Analysis" nav item). Per CLAUDE.md hard rule #1
+ * ("never invent authoritative domain data... don't fabricate numbers"),
+ * an unbuildable KPI stays `null` -> the UI's "Coming soon" state, rather
+ * than a fake 0 or being silently dropped.
  */
 export interface SalesOverview {
   newLeads: number;
   qualifiedLeads: number;
-  hotLeads: null;
-  warmLeads: null;
-  coldLeads: null;
+  hotLeads: number;
+  warmLeads: number;
+  coldLeads: number;
   quotationsCreated: number;
   acceptedQuotations: number;
   /** Percentage, 0-100, one decimal place. */
@@ -80,8 +79,11 @@ const ACTION_QUEUE_GROUP_LIMIT = 8;
 export async function getSalesOverview(period: DashboardPeriod): Promise<SalesOverview> {
   const createdInPeriod = { createdAt: { gte: period.startDate, lte: period.endDate } };
 
-  const [leadStatusGroups, quotationsCreated, acceptedQuotations, paymentStatusGroups] = await Promise.all([
-    db.lead.groupBy({ by: ["status"], where: createdInPeriod, _count: { _all: true } }),
+  const [leadGroups, quotationsCreated, acceptedQuotations, paymentStatusGroups] = await Promise.all([
+    // Grouping by both status and temperature in one query (rather than two
+    // separate groupBy calls) — same connection-pool-pressure reasoning as
+    // the rest of this file.
+    db.lead.groupBy({ by: ["status", "temperature"], where: createdInPeriod, _count: { _all: true } }),
     db.quotation.count({ where: createdInPeriod }),
     // Approximation: Quotation has no separate "acceptedAt" timestamp, so
     // this counts quotations created in the period that are currently
@@ -90,17 +92,20 @@ export async function getSalesOverview(period: DashboardPeriod): Promise<SalesOv
     db.payment.groupBy({ by: ["status"], where: createdInPeriod, _count: { _all: true } }),
   ]);
 
-  const leadCount = (status: string) => leadStatusGroups.find((g) => g.status === status)?._count._all ?? 0;
-  const totalLeadsInPeriod = leadStatusGroups.reduce((sum, g) => sum + g._count._all, 0);
+  const leadCountByStatus = (status: string) =>
+    leadGroups.filter((g) => g.status === status).reduce((sum, g) => sum + g._count._all, 0);
+  const leadCountByTemperature = (temperature: string) =>
+    leadGroups.filter((g) => g.temperature === temperature).reduce((sum, g) => sum + g._count._all, 0);
+  const totalLeadsInPeriod = leadGroups.reduce((sum, g) => sum + g._count._all, 0);
   const paymentCount = (status: string) => paymentStatusGroups.find((g) => g.status === status)?._count._all ?? 0;
-  const convertedLeadsInPeriod = leadCount("CONVERTED");
+  const convertedLeadsInPeriod = leadCountByStatus("CONVERTED");
 
   return {
-    newLeads: leadCount("NEW"),
-    qualifiedLeads: leadCount("QUALIFIED"),
-    hotLeads: null,
-    warmLeads: null,
-    coldLeads: null,
+    newLeads: leadCountByStatus("NEW"),
+    qualifiedLeads: leadCountByStatus("QUALIFIED"),
+    hotLeads: leadCountByTemperature("HOT"),
+    warmLeads: leadCountByTemperature("WARM"),
+    coldLeads: leadCountByTemperature("COLD"),
     quotationsCreated,
     acceptedQuotations,
     conversionRate: totalLeadsInPeriod === 0 ? 0 : Math.round((convertedLeadsInPeriod / totalLeadsInPeriod) * 1000) / 10,
