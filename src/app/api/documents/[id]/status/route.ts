@@ -9,6 +9,7 @@ import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import type { NotificationEvent } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { createTask, autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,6 +37,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const existing = await db.document.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Document not found.");
 
+  // Resolved once up front (not inside the transaction) since it's only
+  // needed to populate the new Task's display fields, same booking->lead
+  // join resolveDocumentRecipient already does for the email trigger below.
+  const booking = existing.bookingId ? await db.booking.findUnique({ where: { id: existing.bookingId }, include: { lead: true } }) : null;
+
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.document.update({ where: { id }, data: { status: parsed.data.status } });
     await writeAudit(tx, {
@@ -57,6 +63,26 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         byUserId: session.id,
         note: `Flagged for customer — document "${existing.type}"`,
       });
+
+      // Step 17 (audit §3.8) — "Missing document -> Document Collection
+      // Task," wired into this existing flag point rather than a new
+      // detection path.
+      await createTask(tx, {
+        type: "DOCUMENT_COLLECTION",
+        title: `Collect missing document: ${existing.type}`,
+        reason: `Document flagged MISSING (by ${session.name})`,
+        entityType: "Document",
+        entityId: id,
+        leadId: booking?.leadId,
+        bookingId: existing.bookingId,
+        passengerId: existing.passengerId,
+        serviceType: booking?.lead.serviceType,
+      });
+    } else {
+      // Additive, not a new status/audit behavior of its own — closes out
+      // whatever Document Collection task this document's own prior MISSING
+      // flag opened, since the thing it asked staff to do no longer applies.
+      await autoCompleteTasksForEntity(tx, "Document", id, `Document status moved to ${parsed.data.status} — no longer missing`);
     }
 
     return result;

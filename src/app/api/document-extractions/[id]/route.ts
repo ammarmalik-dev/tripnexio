@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -62,6 +63,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         byUserId: session.id,
         note: `Extraction rejected — no changes applied (by ${session.name})`,
       });
+      await autoCompleteTasksForEntity(tx, "DocumentExtraction", id, `Extraction rejected by staff — nothing left to verify`);
       return rejected;
     });
     return jsonSuccess(updated);
@@ -109,6 +111,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         byUserId: session.id,
         note: `Passport extraction confirmed and applied to passenger ${extraction.passengerId} (by ${session.name})`,
       });
+      await autoCompleteTasksForEntity(tx, "DocumentExtraction", id, "Extraction confirmed by staff");
       return confirmed;
     });
 
@@ -129,6 +132,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       byUserId: session.id,
       note: `${extraction.extractionType === "TICKET" ? "Ticket" : "Visa"} extraction confirmed (by ${session.name})`,
     });
+    await autoCompleteTasksForEntity(tx, "DocumentExtraction", id, "Extraction confirmed by staff");
     return confirmed;
   });
 

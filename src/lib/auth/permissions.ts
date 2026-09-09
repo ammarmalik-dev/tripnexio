@@ -33,6 +33,8 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   },
   { name: "documents.view", description: "View documents" },
   { name: "documents.edit", description: "Add documents and set their status" },
+  { name: "tasks.view", description: "View CRM tasks" },
+  { name: "tasks.edit", description: "Assign tasks and change their status" },
   { name: "staff.manage", description: "Create, edit, and deactivate staff accounts" },
   { name: "roles.manage", description: "Create roles and assign permissions" },
   {

@@ -9,6 +9,9 @@ import type {
   RefundStatus,
   CouponType,
   NotificationChannel,
+  TaskType,
+  TaskPriority,
+  TaskStatus,
 } from "../../generated/prisma/enums";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -121,4 +124,36 @@ export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = 
 
 export const NOTIFICATION_CHANNEL_OPTIONS: { value: NotificationChannel; label: string }[] = (
   Object.entries(NOTIFICATION_CHANNEL_LABELS) as [NotificationChannel, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const TASK_TYPE_LABELS: Record<TaskType, string> = {
+  DOCUMENT_COLLECTION: "Document Collection",
+  MANUAL_VERIFICATION: "Manual Verification",
+  QUOTE_FOLLOW_UP: "Quote Follow-up",
+};
+
+export const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = (
+  Object.entries(TASK_TYPE_LABELS) as [TaskType, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const TASK_PRIORITY_LABELS: Record<TaskPriority, string> = {
+  LOW: "Low",
+  NORMAL: "Normal",
+  HIGH: "High",
+  URGENT: "Urgent",
+};
+
+export const TASK_PRIORITY_OPTIONS: { value: TaskPriority; label: string }[] = (
+  Object.entries(TASK_PRIORITY_LABELS) as [TaskPriority, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
+  OPEN: "Open",
+  IN_PROGRESS: "In Progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+};
+
+export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = (
+  Object.entries(TASK_STATUS_LABELS) as [TaskStatus, string][]
 ).map(([value, label]) => ({ value, label }));

@@ -9,6 +9,7 @@ import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { createTask } from "@/lib/tasks/create-task";
 
 const REMINDER_WINDOW_MS = 15 * 60 * 1000;
 const REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -58,6 +59,23 @@ export async function POST(request: NextRequest) {
         });
         await logReminder("QUOTE_REMINDER", "Quotation", quotation.id);
         remindersSent++;
+
+        // Step 17 (audit §3.8) — "quote about to expire" is one of the
+        // roadmap prompt's own named trigger points, wired into this
+        // existing reminder window/dedup rather than a new detection path.
+        // Deduped by the same wasRecentlyReminded guard above, so this only
+        // fires once per quotation, same as the customer reminder itself.
+        await createTask(db, {
+          type: "QUOTE_FOLLOW_UP",
+          priority: "HIGH",
+          title: `Follow up — quote expiring soon (${formatLeadReference(quotation.lead.serviceType, quotation.lead.id)})`,
+          reason: `Quotation validity expires within ${Math.round(REMINDER_WINDOW_MS / 60000)} minutes`,
+          entityType: "Quotation",
+          entityId: quotation.id,
+          leadId: quotation.leadId,
+          serviceType: quotation.lead.serviceType,
+          dueDate: quotation.validityExpiresAt,
+        });
       }
 
       return { checked: candidates.length, expired: expiredCount, remindersSent };

@@ -3,6 +3,7 @@ import { writeAudit } from "../audit/log";
 import { readFileBytes } from "../storage/local-file-storage";
 import { getOcrProvider } from "./get-provider";
 import { parseMrz } from "./mrz-parser";
+import { createTask } from "../tasks/create-task";
 import type { PassportOcrFields } from "./types";
 import type { DocumentExtraction } from "../../generated/prisma/client";
 
@@ -16,7 +17,7 @@ import type { DocumentExtraction } from "../../generated/prisma/client";
  * accept an optional passport photo.
  */
 export async function runPassportExtraction(documentId: string): Promise<DocumentExtraction> {
-  const document = await db.document.findUnique({ where: { id: documentId } });
+  const document = await db.document.findUnique({ where: { id: documentId }, include: { booking: { include: { lead: true } } } });
   if (!document) throw new Error("Document not found.");
   if (!document.fileUrl) throw new Error("Document has no file to read.");
   if (!document.passengerId) throw new Error("Document has no passenger to attach the extraction to.");
@@ -62,6 +63,21 @@ export async function runPassportExtraction(documentId: string): Promise<Documen
       action: "CREATE",
       note: `Passport OCR ran on document ${document.id} via ${result.provider}${mrz ? ` (MRZ ${mrz.valid ? "valid" : "found but checksum mismatch"})` : " (no MRZ found)"}`,
     });
+
+    // Step 17 (audit §3.8) — "OCR extraction pending review -> Manual
+    // Verification Task," wired into this existing creation point.
+    await createTask(tx, {
+      type: "MANUAL_VERIFICATION",
+      title: "Review passport OCR extraction",
+      reason: `${result.provider} extraction pending staff review`,
+      entityType: "DocumentExtraction",
+      entityId: created.id,
+      leadId: document.booking?.leadId,
+      bookingId: document.bookingId,
+      passengerId: document.passengerId,
+      serviceType: document.booking?.lead.serviceType,
+    });
+
     return created;
   });
 

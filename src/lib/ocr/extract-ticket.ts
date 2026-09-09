@@ -2,6 +2,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { readFileBytes } from "../storage/local-file-storage";
 import { getOcrProvider } from "./get-provider";
+import { createTask } from "../tasks/create-task";
 import type { DocumentExtraction } from "../../generated/prisma/client";
 
 /**
@@ -13,7 +14,7 @@ import type { DocumentExtraction } from "../../generated/prisma/client";
  * until an explicit staff confirm (PATCH /api/document-extractions/[id]).
  */
 export async function runTicketExtraction(documentId: string): Promise<DocumentExtraction> {
-  const document = await db.document.findUnique({ where: { id: documentId } });
+  const document = await db.document.findUnique({ where: { id: documentId }, include: { booking: { include: { lead: true } } } });
   if (!document) throw new Error("Document not found.");
   if (!document.fileUrl) throw new Error("Document has no file to read.");
   if (!document.passengerId && !document.bookingId) {
@@ -41,6 +42,21 @@ export async function runTicketExtraction(documentId: string): Promise<DocumentE
       action: "CREATE",
       note: `Ticket OCR ran on document ${document.id} via ${result.provider}`,
     });
+
+    // Step 17 (audit §3.8) — "OCR extraction pending review -> Manual
+    // Verification Task," wired into this existing creation point.
+    await createTask(tx, {
+      type: "MANUAL_VERIFICATION",
+      title: "Review ticket OCR extraction",
+      reason: `${result.provider} extraction pending staff review`,
+      entityType: "DocumentExtraction",
+      entityId: created.id,
+      leadId: document.booking?.leadId,
+      bookingId: document.bookingId,
+      passengerId: document.passengerId,
+      serviceType: document.booking?.lead.serviceType,
+    });
+
     return created;
   });
 
