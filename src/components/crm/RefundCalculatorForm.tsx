@@ -3,16 +3,18 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Info } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
 import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
 import { createRefundSchema, type CreateRefundValues } from "@/lib/validation/refund-schema";
-import { computeRefundAmount, OTB_FIXED_SERVICE_CHARGE } from "@/lib/refunds/pricing";
-import type { ServiceType } from "../../generated/prisma/enums";
+import { computeRefundAmount } from "@/lib/refunds/pricing";
+import type { RefundRuleResult } from "@/lib/refunds/rules";
 
 interface RefundCalculatorFormProps {
-  serviceType: ServiceType;
   defaultPaidAmount: number;
+  /** Step 15 (audit §7.4) — the applicable per-service refund rule, computed server-side (see GET /api/bookings/[id]). Always `allowed` here — PaymentPanel hides this form entirely when it isn't. */
+  refundRule: RefundRuleResult;
   /** This booking's own passengers — CRM.md §21 (Step 14) passenger-level partial refund selection. Empty selection = whole-booking refund, unchanged from before this step. */
   passengers: { id: string; fullName: string }[];
   onSubmit: (values: CreateRefundValues) => Promise<void>;
@@ -21,14 +23,13 @@ interface RefundCalculatorFormProps {
 }
 
 export function RefundCalculatorForm({
-  serviceType,
   defaultPaidAmount,
+  refundRule,
   passengers,
   onSubmit,
   onCancel,
   submitting,
 }: RefundCalculatorFormProps) {
-  const isOtb = serviceType === "OTB";
   const [selectedPassengerIds, setSelectedPassengerIds] = useState<string[]>([]);
   const {
     register,
@@ -37,7 +38,7 @@ export function RefundCalculatorForm({
     formState: { errors },
   } = useForm<CreateRefundValues>({
     resolver: zodResolver(createRefundSchema),
-    defaultValues: { paidAmount: defaultPaidAmount, cancellationCharge: 0, gatewayCharge: 0, otbValidated: false },
+    defaultValues: { paidAmount: defaultPaidAmount, cancellationCharge: 0, gatewayCharge: 0 },
   });
 
   const togglePassenger = (id: string) => {
@@ -50,15 +51,23 @@ export function RefundCalculatorForm({
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
 
   const watched = watch();
-  const previewAmount = computeRefundAmount(serviceType, {
-    paidAmount: Number(watched.paidAmount) || 0,
-    cancellationCharge: Number(watched.cancellationCharge) || 0,
-    gatewayCharge: Number(watched.gatewayCharge) || 0,
-    otbValidated: watched.otbValidated,
+  const paidAmount = Number(watched.paidAmount) || 0;
+  const cancellationCharge = Number(watched.cancellationCharge) || 0;
+  const gatewayCharge = Number(watched.gatewayCharge) || 0;
+  const previewAmount = computeRefundAmount({
+    paidAmount,
+    cancellationCharge,
+    gatewayCharge,
+    fixedDeduction: refundRule.fixedDeduction,
   });
 
   return (
     <form onSubmit={handleSubmit(submitWithPassengers)} className="flex flex-col gap-4 rounded-lg border border-hairline bg-surface-1 p-4">
+      <div className="flex items-start gap-2 rounded-md bg-accent/[0.06] px-3 py-2.5 text-xs text-ink-secondary">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ink-accent" aria-hidden="true" />
+        <span>{refundRule.label}</span>
+      </div>
+
       {passengers.length > 0 ? (
         <FormField label="Applies to" htmlFor="refund-passengers">
           <div id="refund-passengers" className="flex flex-col gap-1.5">
@@ -118,16 +127,6 @@ export function RefundCalculatorForm({
         />
       </div>
 
-      {isOtb ? (
-        <label className="flex items-start gap-2 text-sm text-ink-secondary">
-          <input type="checkbox" className="mt-0.5" {...register("otbValidated")} />
-          <span>
-            OTB already validated with the airline — deduct the fixed service charge (₹
-            {OTB_FIXED_SERVICE_CHARGE}, per the OTB spec).
-          </span>
-        </label>
-      ) : null}
-
       <TextField
         label="Reason"
         placeholder="e.g. Customer cancelled travel plans"
@@ -139,6 +138,13 @@ export function RefundCalculatorForm({
         <div id="refund-preview" className="rounded-md border border-hairline bg-surface-2 px-3.5 py-2.5 text-lg font-semibold text-ink-heading">
           ₹{previewAmount.toLocaleString("en-IN")}
         </div>
+        {refundRule.fixedDeduction > 0 ? (
+          <p className="mt-1.5 text-xs text-ink-tertiary">
+            = ₹{paidAmount.toLocaleString("en-IN")} paid − ₹{cancellationCharge.toLocaleString("en-IN")} cancellation −
+            ₹{gatewayCharge.toLocaleString("en-IN")} gateway − ₹{refundRule.fixedDeduction.toLocaleString("en-IN")}{" "}
+            rule deduction
+          </p>
+        ) : null}
       </FormField>
 
       <div className="flex justify-end gap-2">

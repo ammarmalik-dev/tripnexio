@@ -6,8 +6,6 @@ export const createRefundSchema = z.object({
   cancellationCharge: z.number({ error: "Enter the cancellation charge" }).nonnegative("Cancellation charge can't be negative"),
   gatewayCharge: z.number({ error: "Enter the gateway charge" }).nonnegative("Gateway charge can't be negative"),
   reason: z.string().trim().min(1).optional(),
-  /** Only relevant for OTB bookings — see src/lib/refunds/pricing.ts. */
-  otbValidated: z.boolean().optional(),
   /** CRM.md §21 (Step 14) — empty/omitted means "applies to the whole booking", same as every refund before this step. */
   passengerIds: z.array(z.string()).optional(),
 });

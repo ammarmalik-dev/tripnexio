@@ -264,6 +264,19 @@ model Booking {
   reservationIssuedAt  DateTime?
   reservationExpiresAt DateTime?
   reservationExpired   Boolean   @default(false)
+  /// Visa_Extension.md §17/§18, locked (Step 15, audit §7.4): "Not Accepted"
+  /// (sponsor/authority didn't accept the extension — refund minus gateway)
+  /// and "Rejected" (formal rejection — no refund) are explicitly separate
+  /// CRM statuses with different refund treatment, which the generic
+  /// `BookingStatus`/`RefundStatus` enums have no way to represent — this is
+  /// the schema addition the roadmap prompt calls for. Nullable/meaningful
+  /// only for VISA_EXTENSION bookings, same nullable-per-service-shape
+  /// pattern as the reservation fields above. Set via
+  /// PATCH /api/bookings/[id]/extension-outcome, which also moves
+  /// Booking.status to CANCELLED (neither outcome is a successful
+  /// completion) — see src/lib/refunds/rules.ts for how this drives the
+  /// refund rule engine.
+  extensionOutcome ExtensionOutcome?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
 
@@ -276,6 +289,11 @@ model Booking {
   @@index([leadId])
   @@index([customerId])
   @@index([status])
+}
+
+enum ExtensionOutcome {
+  NOT_ACCEPTED
+  REJECTED
 }
 
 /// CRM.md §12, locked (Step 14, audit §3.3): "Each PAX must be

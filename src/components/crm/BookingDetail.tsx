@@ -9,13 +9,14 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { BookingStatusControl } from "./BookingStatusControl";
 import { BookingPassengerStatusControl } from "./BookingPassengerStatusControl";
+import { ExtensionOutcomeControl } from "./ExtensionOutcomeControl";
 import { PaymentPanel, type PaymentData } from "./PaymentPanel";
 import { DocumentStatusControl } from "./DocumentStatusControl";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
-import type { BookingStatus, DocumentStatus, PaxType, ServiceType } from "../../generated/prisma/enums";
+import type { BookingStatus, DocumentStatus, ExtensionOutcome, PaxType, ServiceType } from "../../generated/prisma/enums";
 
 interface DocumentItem {
   id: string;
@@ -38,6 +39,8 @@ interface BookingDetailResponse {
   id: string;
   bookingId: string;
   status: BookingStatus;
+  /** Visa Extension only — Visa_Extension.md §17-18 (Step 15). */
+  extensionOutcome: ExtensionOutcome | null;
   createdAt: string;
   leadId: string;
   leadReferenceId: string;
@@ -159,11 +162,23 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
             {booking.customer.name} · {booking.customer.mobile} · Created {formatDate(booking.createdAt)}
           </p>
         </div>
-        <BookingStatusControl
-          bookingId={booking.id}
-          status={booking.status}
-          onChanged={(status) => setBooking((current) => (current ? { ...current, status } : current))}
-        />
+        <div className="flex flex-col items-end gap-2">
+          <BookingStatusControl
+            bookingId={booking.id}
+            status={booking.status}
+            onChanged={(status) => setBooking((current) => (current ? { ...current, status } : current))}
+          />
+          {booking.serviceType === "VISA_EXTENSION" ? (
+            <ExtensionOutcomeControl
+              bookingId={booking.id}
+              outcome={booking.extensionOutcome}
+              // A full reload (not a local patch) — this also changes which
+              // refund rule applies to every payment below, and that's only
+              // ever computed server-side (GET /api/bookings/[id]).
+              onChanged={() => setReloadNonce((current) => current + 1)}
+            />
+          ) : null}
+        </div>
       </div>
 
       {missingDocuments.length > 0 ? (
@@ -193,7 +208,6 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                   <PaymentPanel
                     key={payment.id}
                     payment={payment}
-                    serviceType={booking.serviceType}
                     passengers={booking.passengers}
                     onChanged={() => setReloadNonce((current) => current + 1)}
                     canApproveRefunds={canApproveRefunds}

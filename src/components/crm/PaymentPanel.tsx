@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { RefundStatusControl } from "./RefundStatusControl";
@@ -8,7 +9,8 @@ import { RefundCalculatorForm } from "./RefundCalculatorForm";
 import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import type { CreateRefundValues } from "@/lib/validation/refund-schema";
-import type { PaymentStatus, RefundStatus, ServiceType } from "../../generated/prisma/enums";
+import type { RefundRuleResult } from "@/lib/refunds/rules";
+import type { PaymentStatus, RefundStatus } from "../../generated/prisma/enums";
 
 export interface RefundData {
   id: string;
@@ -34,6 +36,8 @@ export interface PaymentData {
   linkExpiresAt: string | null;
   createdAt: string;
   refunds: RefundData[];
+  /** Step 15 (audit §7.4) — the applicable per-service refund rule; null when this payment isn't SUCCESS (a refund can't apply yet regardless). */
+  refundRule: RefundRuleResult | null;
 }
 
 function money(value: string | number): string {
@@ -42,13 +46,11 @@ function money(value: string | number): string {
 
 export function PaymentPanel({
   payment,
-  serviceType,
   passengers,
   onChanged,
   canApproveRefunds,
 }: {
   payment: PaymentData;
-  serviceType: ServiceType;
   /** This booking's own passengers — passed through to the refund calculator's passenger-selection checkboxes (CRM.md §21, Step 14). */
   passengers: { id: string; fullName: string }[];
   onChanged: () => void;
@@ -137,7 +139,7 @@ export function PaymentPanel({
             Mark Success Manually
           </Button>
         ) : null}
-        {payment.status === "SUCCESS" && !showRefundForm ? (
+        {payment.status === "SUCCESS" && payment.refundRule?.allowed && !showRefundForm ? (
           <Button type="button" size="sm" variant="ghost" onClick={() => setShowRefundForm(true)}>
             Initiate Refund
           </Button>
@@ -152,10 +154,17 @@ export function PaymentPanel({
         ) : null}
       </div>
 
-      {showRefundForm ? (
+      {payment.status === "SUCCESS" && payment.refundRule && !payment.refundRule.allowed ? (
+        <div className="flex items-start gap-2 rounded-md border border-error/20 bg-error/[0.06] px-3 py-2.5 text-xs text-error">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <span>{payment.refundRule.label}</span>
+        </div>
+      ) : null}
+
+      {showRefundForm && payment.refundRule?.allowed ? (
         <RefundCalculatorForm
-          serviceType={serviceType}
           defaultPaidAmount={total}
+          refundRule={payment.refundRule}
           passengers={passengers}
           onSubmit={handleCreateRefund}
           onCancel={() => setShowRefundForm(false)}

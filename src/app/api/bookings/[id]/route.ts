@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
+import { evaluateRefundRule, documentsValidated } from "@/lib/refunds/rules";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,10 +37,30 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   // action might live) per feedback_audit_all_readers_of_lazily_synced_state.
   const [synced] = await syncExpiredReservations([booking]);
 
+  // Step 15 (audit §7.4): computed once per SUCCESS payment (only those can
+  // ever be refunded) and attached so the refund calculator UI can surface
+  // "which rule applied and why" *before* staff even opens the form, not
+  // just as an error after they submit.
+  const docsValidated = documentsValidated(booking.documents);
+  const paymentsWithRule = booking.payments.map((payment) => ({
+    ...payment,
+    refundRule:
+      payment.status === "SUCCESS"
+        ? evaluateRefundRule({
+            serviceType: booking.lead.serviceType,
+            bookingStatus: synced.status,
+            documentsValidated: docsValidated,
+            extensionOutcome: synced.extensionOutcome,
+            paymentSucceededAt: payment.updatedAt,
+          })
+        : null,
+  }));
+
   return jsonSuccess({
     id: synced.id,
     bookingId: synced.bookingId,
     status: synced.status,
+    extensionOutcome: synced.extensionOutcome,
     createdAt: synced.createdAt,
     reservationIssuedAt: synced.reservationIssuedAt,
     reservationExpiresAt: synced.reservationExpiresAt,
@@ -69,7 +90,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       paxType: bookingPassenger.passenger.paxType,
       status: bookingPassenger.status,
     })),
-    payments: booking.payments,
+    payments: paymentsWithRule,
     documents: booking.documents,
   });
 }

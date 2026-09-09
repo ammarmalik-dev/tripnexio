@@ -4,7 +4,8 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { computeRefundAmount, isOtbBooking } from "@/lib/refunds/pricing";
+import { computeRefundAmount } from "@/lib/refunds/pricing";
+import { evaluateRefundRule, documentsValidated } from "@/lib/refunds/rules";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     where: { id: paymentId },
     include: {
       booking: {
-        include: { lead: true, passengers: { include: { passenger: true } } },
+        include: { lead: true, passengers: { include: { passenger: true } }, documents: true },
       },
     },
   });
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(409, "Only a successful payment can be refunded.");
   }
 
-  const { paidAmount, cancellationCharge, gatewayCharge, reason, otbValidated, passengerIds } = parsed.data;
+  const { paidAmount, cancellationCharge, gatewayCharge, reason, passengerIds } = parsed.data;
 
   // CRM.md §21 (Step 14): "Passenger selection where partial passenger
   // refund applies" — validated against this booking's own passengers, not
@@ -56,11 +57,27 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   }
 
-  const serviceType = payment.booking.lead.serviceType;
-  const refundAmount = computeRefundAmount(serviceType, { paidAmount, cancellationCharge, gatewayCharge, otbValidated });
+  // Step 15 (audit §7.4): the per-service refund rule engine — decides
+  // whether a refund is allowed at all right now, and the mandatory
+  // fixedDeduction on top of whatever staff enter. `payment.updatedAt` is
+  // used as "payment succeeded at" — Payment has no separate success-
+  // timestamp column, and this row is otherwise only ever updated by the
+  // PENDING->SUCCESS transition (completePaymentSuccess), so it's a
+  // reasonable proxy.
+  const rule = evaluateRefundRule({
+    serviceType: payment.booking.lead.serviceType,
+    bookingStatus: payment.booking.status,
+    documentsValidated: documentsValidated(payment.booking.documents),
+    extensionOutcome: payment.booking.extensionOutcome,
+    paymentSucceededAt: payment.updatedAt,
+  });
+  if (!rule.allowed) {
+    return jsonError(409, rule.label);
+  }
 
-  const otbNote =
-    isOtbBooking(serviceType) && otbValidated ? " (includes the SAMPLE OTB fixed service charge deduction)" : "";
+  const refundAmount = computeRefundAmount({ paidAmount, cancellationCharge, gatewayCharge, fixedDeduction: rule.fixedDeduction });
+
+  const ruleNote = rule.fixedDeduction > 0 ? ` (includes ₹${rule.fixedDeduction} per: ${rule.label})` : "";
 
   const passengerNames = (passengerIds ?? [])
     .map((pid) => payment.booking.passengers.find((bp) => bp.passengerId === pid)?.passenger.fullName)
@@ -86,11 +103,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Refund calculated for payment ${paymentId}: ₹${refundAmount}${otbNote}${passengerNote} (by ${session.name})${reason ? ` — reason: ${reason}` : ""}`,
+      note: `Refund calculated for payment ${paymentId}: ₹${refundAmount}${ruleNote}${passengerNote} (by ${session.name})${reason ? ` — reason: ${reason}` : ""}`,
     });
 
     return created;
   });
 
-  return jsonSuccess(refund, 201);
+  return jsonSuccess({ ...refund, appliedRule: rule }, 201);
 }
