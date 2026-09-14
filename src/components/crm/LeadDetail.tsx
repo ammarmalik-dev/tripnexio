@@ -16,6 +16,7 @@ import { PassportExtractionReview } from "./PassportExtractionReview";
 import { VisaExtensionEligibilityPanel } from "./VisaExtensionEligibilityPanel";
 import { VisaChangeBorderDetailsPanel } from "./VisaChangeBorderDetailsPanel";
 import { LeadTimeline } from "./LeadTimeline";
+import { CommunicationsPanel } from "./CommunicationsPanel";
 import { QuoteBuilder } from "./QuoteBuilder";
 import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { humanizeKey } from "@/lib/crm/humanize";
@@ -376,6 +377,11 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               )}
             </section>
           ) : null}
+
+          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Communications</h2>
+            <CommunicationsPanel leadId={lead.id} />
+          </section>
         </div>
 
         <div className="flex flex-col gap-6">

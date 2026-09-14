@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
+import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,25 +39,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const passengerIds = Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [];
   const leadPassengers = lead.customer.passengers.filter((passenger) => passengerIds.includes(passenger.id));
 
-  const bookingIds = lead.bookings.map((booking) => booking.id);
-  const relatedDocuments = await db.document.findMany({
-    where: {
-      OR: [
-        bookingIds.length ? { bookingId: { in: bookingIds } } : undefined,
-        passengerIds.length ? { passengerId: { in: passengerIds } } : undefined,
-      ].filter((clause): clause is NonNullable<typeof clause> => Boolean(clause)),
-    },
-  });
-
-  const entityRefs: { entityType: string; entityId: string }[] = [
-    { entityType: "Lead", entityId: lead.id },
-    ...quotations.map((quotation) => ({ entityType: "Quotation", entityId: quotation.id })),
-    ...lead.bookings.map((booking) => ({ entityType: "Booking", entityId: booking.id })),
-    ...lead.bookings.flatMap((booking) =>
-      booking.payments.map((payment) => ({ entityType: "Payment", entityId: payment.id }))
-    ),
-    ...relatedDocuments.map((document) => ({ entityType: "Document", entityId: document.id })),
-  ];
+  const entityRefs = await getLeadRelatedEntityRefs(id);
 
   const timeline =
     entityRefs.length > 0

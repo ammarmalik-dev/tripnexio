@@ -874,11 +874,19 @@ model WhatsAppConversation {
 /// high-volume message transcript) and needed so a human handoff has the
 /// actual conversation to pick up, not just "handoff happened."
 model WhatsAppMessageLog {
-  id        String                   @id @default(cuid())
-  waId      String
-  direction WhatsAppMessageDirection
-  body      String
-  createdAt DateTime                 @default(now())
+  id           String                   @id @default(cuid())
+  waId         String
+  direction    WhatsAppMessageDirection
+  body         String
+  /// Step 18 (audit §3.7) — null for every bot-driven message (inbound
+  /// customer messages and the bot's own automated replies, both written
+  /// by the webhook route); set to the staff member's id only for a manual
+  /// send from the CRM Communications screen, so the timeline can show
+  /// "sent by {name}" vs. the automated conversation.
+  sentByUserId String?
+  createdAt    DateTime                 @default(now())
+
+  sentByUser User? @relation(fields: [sentByUserId], references: [id])
 
   @@index([waId])
   @@index([createdAt])
@@ -936,6 +944,7 @@ model User {
   reviewedDocumentExtractions DocumentExtraction[]
   assignedTasks               Task[]               @relation("TaskAssignee")
   completedTasks              Task[]               @relation("TaskCompletedBy")
+  sentWhatsAppMessages        WhatsAppMessageLog[]
 
   @@index([roleId])
   @@index([active])
