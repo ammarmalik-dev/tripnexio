@@ -9,6 +9,74 @@ import bcrypt from "bcryptjs";
 import { db } from "../src/lib/db";
 import { PERMISSION_CATALOG, ADMIN_FULL_PERMISSION } from "../src/lib/auth/permissions";
 import { NOTIFICATION_EVENTS } from "../src/lib/notifications/events";
+import { SERVICE_STATUS_SEED } from "./seed-service-statuses";
+
+/**
+ * Step 19 Unit 1 (audit §3.9/§7.3) — seeds each service's real, locked
+ * status list (see seed-service-statuses.ts's own header for sourcing)
+ * plus a "next in the same group" transition chain and each service's
+ * explicit extra branches. Idempotent (upsert on the serviceType/scope/name
+ * unique constraint) so re-running the seed after an Admin has edited a
+ * status via /admin/service-statuses only touches name/group collisions,
+ * never blindly overwrites — matches this file's own established
+ * always-sync-update-and-create convention (see the airport/airline/border
+ * upserts above for the gotcha this avoids).
+ */
+async function seedServiceStatuses() {
+  for (const def of SERVICE_STATUS_SEED) {
+    const idByName = new Map<string, string>();
+
+    for (const [index, status] of def.statuses.entries()) {
+      const data = {
+        serviceType: def.serviceType,
+        scope: "BOOKING" as const,
+        name: status.name,
+        group: status.group ?? null,
+        // Position within this service's own seed array — preserves the
+        // exact order each status's source MD lists it in.
+        displayOrder: index,
+        isTerminal: status.isTerminal ?? false,
+        blocksRefund: status.blocksRefund ?? false,
+        customerLabel: status.customerLabel ?? null,
+        mapsToBookingStatus: status.mapsToBookingStatus ?? null,
+      };
+      const row = await db.serviceStatus.upsert({
+        where: { serviceType_scope_name: { serviceType: def.serviceType, scope: "BOOKING", name: status.name } },
+        update: data,
+        create: data,
+      });
+      idByName.set(status.name, row.id);
+    }
+
+    // Auto-chain: consecutive statuses within the same group, in seed order.
+    const byGroup = new Map<string | undefined, string[]>();
+    for (const status of def.statuses) {
+      const key = status.group;
+      const names = byGroup.get(key) ?? [];
+      names.push(status.name);
+      byGroup.set(key, names);
+    }
+
+    const pairs: [string, string][] = [];
+    for (const names of byGroup.values()) {
+      for (let i = 0; i < names.length - 1; i++) {
+        pairs.push([names[i], names[i + 1]]);
+      }
+    }
+    pairs.push(...(def.extraTransitions ?? []));
+
+    for (const [fromName, toName] of pairs) {
+      const fromId = idByName.get(fromName);
+      const toId = idByName.get(toName);
+      if (!fromId || !toId || fromId === toId) continue;
+      await db.serviceStatusTransition.upsert({
+        where: { fromStatusId_toStatusId: { fromStatusId: fromId, toStatusId: toId } },
+        update: {},
+        create: { fromStatusId: fromId, toStatusId: toId },
+      });
+    }
+  }
+}
 
 const SAMPLE_STAFF_EMAIL = "admin@tripnexio.com";
 const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
@@ -491,6 +559,9 @@ async function main() {
   });
 
   console.log("Sample masters rows ready (clearly labeled — not real domain data).");
+
+  await seedServiceStatuses();
+  console.log("Per-service status catalogs ready (Step 19, seeded from the locked service MDs).");
 }
 
 main()

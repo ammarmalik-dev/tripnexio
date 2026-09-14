@@ -170,6 +170,15 @@ model Lead {
   serviceType     ServiceType
   source          String?
   status          LeadStatus       @default(NEW)
+  /// Step 19 (audit §3.9/§7.3) — the per-service-configurable granular
+  /// status layered ON TOP OF `status` above, not replacing it. `status`
+  /// stays the coarse sales-pipeline signal every existing consumer
+  /// (dashboard KPIs, lead-followup automation, the WhatsApp bot) already
+  /// reads; this optional FK is where a future service-specific Lead-level
+  /// status control would attach, once/if one is built — see
+  /// ServiceStatus's own doc comment for why the granular case-processing
+  /// detail this step is really about lives at the Booking level instead.
+  serviceStatusId String?
   /// CRM.md §5 (Step 12) — staff-set, no default; see the enum's own doc comment.
   temperature     LeadTemperature?
   assignedStaffId String?
@@ -181,8 +190,9 @@ model Lead {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  customer      Customer    @relation(fields: [customerId], references: [id])
-  assignedStaff User?       @relation(fields: [assignedStaffId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  assignedStaff User?          @relation(fields: [assignedStaffId], references: [id])
+  serviceStatus ServiceStatus? @relation(fields: [serviceStatusId], references: [id])
   quotations    Quotation[]
   bookings      Booking[]
   tasks         Task[]
@@ -192,6 +202,7 @@ model Lead {
   @@index([status])
   @@index([temperature])
   @@index([assignedStaffId])
+  @@index([serviceStatusId])
 }
 
 model Quotation {
@@ -279,19 +290,32 @@ model Booking {
   /// completion) — see src/lib/refunds/rules.ts for how this drives the
   /// refund rule engine.
   extensionOutcome     ExtensionOutcome?
+  /// Step 19 (audit §3.9/§7.3) — the per-service, Admin-configured granular
+  /// operational status (CRM.md §14: "every service has its own status
+  /// workflow"). `status` above is deliberately KEPT as the coarse
+  /// system-level lifecycle every existing consumer already reads (the
+  /// refund rule engine's blocksRefund check, the Task Engine, Command
+  /// Centre KPIs, payment-success flow) — this FK is the new layer staff
+  /// actually pick from in the Change Status modal; setting it cascades an
+  /// update to `status` via ServiceStatus.mapsToBookingStatus, so none of
+  /// those existing consumers need to change. See ServiceStatus's own
+  /// schema comment for the full design rationale.
+  serviceStatusId      String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
-  lead        Lead                 @relation(fields: [leadId], references: [id])
-  customer    Customer             @relation(fields: [customerId], references: [id])
-  payments    Payment[]
-  documents   Document[]
-  passengers  BookingPassenger[]
-  extractions DocumentExtraction[]
-  tasks       Task[]
+  lead          Lead                 @relation(fields: [leadId], references: [id])
+  customer      Customer             @relation(fields: [customerId], references: [id])
+  serviceStatus ServiceStatus?       @relation(fields: [serviceStatusId], references: [id])
+  payments      Payment[]
+  documents     Document[]
+  passengers    BookingPassenger[]
+  extractions   DocumentExtraction[]
+  tasks         Task[]
 
   @@index([leadId])
   @@index([customerId])
+  @@index([serviceStatusId])
   @@index([status])
 }
 
@@ -516,6 +540,118 @@ model AuditTrail {
   @@index([entityType, entityId])
   @@index([byUserId])
   @@index([timestamp])
+}
+
+// ---------------------------------------------------------------------------
+// Per-Service Status Engine (Step 19, audit §3.9/§7.3) — Unit 1 of the
+// roadmap's proposed multi-unit breakdown: schema + Admin CRUD only, no
+// Lead/Booking control wiring yet (that's Units 2-3).
+//
+// CRM.md §14, locked: "Every service has its own status workflow. CRM must
+// never use one universal status list for all services." The pre-existing
+// LeadStatus/BookingStatus enums are exactly that universal list the rule
+// forbids — but they're also load-bearing for a dozen+ other subsystems
+// that only care about the coarse lifecycle stage, not per-service detail:
+// the refund rule engine's hard-block check (src/lib/refunds/rules.ts,
+// keyed on BookingStatus.PROCESSING), the Task Engine, Command Centre KPIs,
+// lead-followup automation, and the payment-success flow (Booking ->
+// CONFIRMED, Lead -> CONVERTED). Rewriting all of those to read a free-form
+// Admin-configurable status table in one shot would be the "one giant
+// migration" the roadmap prompt explicitly said not to do.
+//
+// The design instead LAYERS ServiceStatus on top of the existing enums
+// rather than replacing them: `mapsToBookingStatus`/`mapsToLeadStatus`
+// lets each granular status declare which coarse enum value it corresponds
+// to, so setting a Lead/Booking's serviceStatusId can cascade-update the
+// existing `status` column — every existing consumer keeps reading the
+// coarse enum unmodified, while staff's actual Change Status control
+// (Units 2-3) offers the real per-service list CRM.md asks for.
+//
+// `blocksRefund` generalizes the refund engine's hard-coded
+// "BookingStatus.PROCESSING means sent to an external party" interpretation
+// (Step 15) into admin-configurable per-status data — Unit 3 wires
+// src/lib/refunds/rules.ts to also honor this flag once real Bookings
+// start carrying a serviceStatusId.
+//
+// `customerLabel` is the CRM.md §14 "customer-safe status" mapping,
+// deliberately a plain nullable column rather than a separate join table —
+// it's a strict one-to-one per status, not a many-to-one the client's docs
+// ever describe. Left null almost everywhere on purpose: ADMIN.md §45 #6
+// explicitly lists "final customer-safe status mapping" as an OPEN ITEM,
+// not something to invent; seeded only where CRM.md itself gives a literal
+// example (New Visa's "Applied to Embassy" -> "Application submitted for
+// processing").
+//
+// Every ServiceStatus row below is seeded from a service MD's own already-
+// locked, named status list (New_Visa.md §10, OTB.md §18, Visa_Change.md
+// §25, Visa_Extension.md §19, Return_Verified_Ticket.md §24,
+// Flight_Special_Fare.md §23) — real client-authored content, not invented
+// SAMPLE data (CLAUDE.md hard rule #1). All seeded at `scope: BOOKING`: the
+// granular case-processing detail every one of those lists describes is
+// booking-level work (BookingStatus is already the richer of the two
+// coarse enums for exactly this reason); LeadStatus's simpler sales-funnel
+// stages have no distinct per-service breakdown anywhere in the client's
+// docs, so `scope: LEAD` stays available in the schema for symmetry/future
+// use but is intentionally not seeded or wired to a control in this step.
+// ---------------------------------------------------------------------------
+
+enum StatusScope {
+  LEAD
+  BOOKING
+}
+
+model ServiceStatus {
+  id                  String         @id @default(cuid())
+  serviceType         ServiceType
+  scope               StatusScope
+  /// Internal/operational name, e.g. "Applied to Embassy" — exactly as
+  /// named in the service's own locked MD.
+  name                String
+  /// Optional UI grouping label — only OTB.md's own spec groups its
+  /// statuses into named clusters (Booking/Verification/Airline/
+  /// Exceptions); null for every other service's flat list.
+  group               String?
+  displayOrder        Int            @default(0)
+  isTerminal          Boolean        @default(false)
+  /// See module comment — generalizes the refund engine's hard-coded
+  /// "sent to an external party" cutoff into per-status admin-configured data.
+  blocksRefund        Boolean        @default(false)
+  /// CRM.md §14's "customer-safe status" — see module comment for why this
+  /// stays null almost everywhere for now.
+  customerLabel       String?
+  /// See module comment — only one of these two is meaningful per row,
+  /// matching `scope`; not enforced at the DB level, validated at the API layer.
+  mapsToLeadStatus    LeadStatus?
+  mapsToBookingStatus BookingStatus?
+  active              Boolean        @default(true)
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  leads           Lead[]
+  bookings        Booking[]
+  fromTransitions ServiceStatusTransition[] @relation("FromStatus")
+  toTransitions   ServiceStatusTransition[] @relation("ToStatus")
+
+  @@unique([serviceType, scope, name])
+  @@index([serviceType, scope])
+}
+
+/// Admin-editable transition matrix replacing the hard-coded transition
+/// maps in src/lib/leads/transitions.ts / src/lib/bookings/transitions.ts
+/// for whichever service+scope has been migrated onto ServiceStatus —
+/// ADMIN.md §17: "Admin configures: available statuses, status
+/// transitions, workflow order... per service/sub-service."
+model ServiceStatusTransition {
+  id           String @id @default(cuid())
+  fromStatusId String
+  toStatusId   String
+
+  from ServiceStatus @relation("FromStatus", fields: [fromStatusId], references: [id])
+  to   ServiceStatus @relation("ToStatus", fields: [toStatusId], references: [id])
+
+  @@unique([fromStatusId, toStatusId])
+  @@index([fromStatusId])
+  @@index([toStatusId])
 }
 
 // ---------------------------------------------------------------------------

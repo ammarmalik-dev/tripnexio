@@ -24,6 +24,7 @@ import {
   Activity,
   Globe2,
   LayoutGrid,
+  Waypoints,
   type LucideIcon,
 } from "lucide-react";
 
@@ -98,4 +99,5 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent },
   { label: "Data Export", href: "/admin/data-export", icon: Download },
   { label: "Automation", href: "/admin/automation", icon: Activity },
+  { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints },
 ];
