@@ -24,12 +24,19 @@ export async function GET(_request: Request, { params }: RouteParams) {
   }
 
   const baseFare = Number(payment.amount);
+  // Step 22 (audit §7.8) — coupon discount reduces the base GST/gateway
+  // fee are computed on; see render-invoice.ts's buildInvoicePdfForPayment
+  // for the identical computation (this route duplicates it rather than
+  // calling that one, so it can tell a 404 (missing) apart from a 409
+  // (non-SUCCESS) — buildInvoicePdfForPayment collapses both to null).
+  const couponDiscount = Number(payment.couponDiscount ?? 0);
+  const netAmount = baseFare - couponDiscount;
   const gstAmount = Number(payment.gstAmount);
   const gatewayFee = Number(payment.gatewayFee);
-  const total = baseFare + gstAmount + gatewayFee;
+  const total = netAmount + gstAmount + gatewayFee;
   // Derived from what was actually charged on this payment, not today's
   // config — a rate change later shouldn't rewrite a historical invoice.
-  const gstRatePercent = baseFare > 0 ? (gstAmount / baseFare) * 100 : 0;
+  const gstRatePercent = netAmount > 0 ? (gstAmount / netAmount) * 100 : 0;
 
   const pdf = await renderInvoicePdf({
     invoiceNumber: `INV-${payment.id.slice(-8).toUpperCase()}`,
@@ -40,6 +47,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
     customerMobile: payment.booking.customer.mobile,
     customerEmail: payment.booking.customer.email,
     baseFare,
+    couponCode: payment.couponCode,
+    couponDiscount,
     gstAmount,
     gstRatePercent,
     gatewayFee,

@@ -25,6 +25,9 @@ export const createQuotationSchema = z.object({
   // Visa services / OTB fields (simple fee-based quote)
   feeAmount: z.number().nonnegative("Fee can't be negative").optional(),
   fineOrCharges: z.number().nonnegative("Fine/charges can't be negative").optional(),
+
+  /** CRM.md §10 (Step 22) — resolved and validated server-side; rejected outright for a flight quote. Empty string clears an already-applied coupon. */
+  couponCode: z.string().trim().optional(),
 });
 
 export const updateQuotationSchema = createQuotationSchema.omit({ leadId: true }).partial();

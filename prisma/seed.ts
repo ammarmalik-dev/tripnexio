@@ -589,6 +589,13 @@ async function main() {
     create: protectionPlanConfig,
   });
 
+  // ADMIN.md §25: "Current employee coupon limit: ₹500... an Admin
+  // configuration value, not permanent hard-coded logic." Same `update: {}`
+  // rule as the other singleton configs above — once an admin edits this,
+  // re-seeding must not silently reset it.
+  const couponConfig = { id: "singleton", employeeCouponCap: 500 };
+  await db.couponConfig.upsert({ where: { id: couponConfig.id }, update: {}, create: couponConfig });
+
   console.log("Sample masters rows ready (clearly labeled — not real domain data).");
 
   await seedServiceStatuses();

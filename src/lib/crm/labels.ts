@@ -8,6 +8,7 @@ import type {
   PaymentStatus,
   RefundStatus,
   CouponType,
+  CouponCategory,
   NotificationChannel,
   TaskType,
   TaskPriority,
@@ -116,6 +117,17 @@ export const COUPON_TYPE_LABELS: Record<CouponType, string> = {
 
 export const COUPON_TYPE_OPTIONS: { value: CouponType; label: string }[] = (
   Object.entries(COUPON_TYPE_LABELS) as [CouponType, string][]
+).map(([value, label]) => ({ value, label }));
+
+/** CRM.md §8 / ADMIN.md §25 (Step 22) — who the coupon is for, separate from CouponType's discount shape. */
+export const COUPON_CATEGORY_LABELS: Record<CouponCategory, string> = {
+  EMPLOYEE: "Employee",
+  EXTERNAL: "External",
+  ABANDONED_QUOTATION: "Abandoned Quotation",
+};
+
+export const COUPON_CATEGORY_OPTIONS: { value: CouponCategory; label: string }[] = (
+  Object.entries(COUPON_CATEGORY_LABELS) as [CouponCategory, string][]
 ).map(([value, label]) => ({ value, label }));
 
 export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = {

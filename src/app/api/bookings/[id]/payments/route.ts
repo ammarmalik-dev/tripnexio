@@ -58,10 +58,16 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   }
 
   const amount = Number(selectedQuotation.sellingPrice);
+  // Step 22 (audit §3.2/§4.2/§7.8) — CRM.md §10: "...− Coupon + Gateway
+  // Charge = Customer Payable." The coupon was already resolved and
+  // snapshotted onto the Quotation when it was applied; GST/gateway fee
+  // are computed on the amount AFTER the discount, not the original.
+  const couponDiscount = Number(selectedQuotation.couponDiscount ?? 0);
+  const netAmount = Math.max(0, amount - couponDiscount);
   const { gstRate, gatewayFeeRate } = await getTaxFeeRates();
-  const gstAmount = roundToPaise(amount * gstRate);
-  const gatewayFee = roundToPaise(amount * gatewayFeeRate);
-  const totalAmount = roundToPaise(amount + gstAmount + gatewayFee);
+  const gstAmount = roundToPaise(netAmount * gstRate);
+  const gatewayFee = roundToPaise(netAmount * gatewayFeeRate);
+  const totalAmount = roundToPaise(netAmount + gstAmount + gatewayFee);
   const linkExpiresAt = new Date(Date.now() + PAYMENT_LINK_VALIDITY_MS);
 
   const gateway = getPaymentGateway();
@@ -82,6 +88,9 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
         amount,
         gstAmount,
         gatewayFee,
+        couponId: selectedQuotation.couponId,
+        couponCode: selectedQuotation.couponCode,
+        couponDiscount: selectedQuotation.couponId ? couponDiscount : undefined,
         status: "PENDING",
         gatewayRef,
         paymentLink,
@@ -94,7 +103,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Payment link created for booking ${bookingId} via ${gateway.providerName} — total ₹${totalAmount} (by ${session.name})`,
+      note: `Payment link created for booking ${bookingId} via ${gateway.providerName} — total ₹${totalAmount}${selectedQuotation.couponId ? ` (coupon ${selectedQuotation.couponCode} applied, -₹${couponDiscount})` : ""} (by ${session.name})`,
     });
 
     return created;

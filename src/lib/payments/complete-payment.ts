@@ -41,6 +41,25 @@ export async function completePaymentSuccess(
     note: `${payment.status} -> SUCCESS (${actor.actorLabel})`,
   });
 
+  // Step 22 (audit §3.2/§4.2/§7.8) — "increment Coupon.usageCount on
+  // successful payment (not on quote creation, since a quote can expire
+  // unused)." This is the one place across both trigger points (manual
+  // mark-success and the gateway webhook) that a payment ever genuinely
+  // transitions to SUCCESS — gated by the same didTransition semantics
+  // this function already guarantees (an already-SUCCESS payment returns
+  // early above, before this point), so a redelivered webhook can never
+  // double-increment.
+  if (payment.couponId) {
+    await tx.coupon.update({ where: { id: payment.couponId }, data: { usageCount: { increment: 1 } } });
+    await writeAudit(tx, {
+      entityType: "Coupon",
+      entityId: payment.couponId,
+      action: "USAGE_INCREMENT",
+      byUserId: actor.byUserId,
+      note: `Used on payment ${payment.id} (${actor.actorLabel})`,
+    });
+  }
+
   // Derived from the Lead's own id (not the Booking row's id) — see the doc
   // comment on formatBookingId: this is the "Lead ID becomes Booking ID"
   // rule, not a fresh, unrelated identifier.

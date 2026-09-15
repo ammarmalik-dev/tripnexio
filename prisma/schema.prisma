@@ -234,6 +234,17 @@ model Quotation {
   sellingPrice      Decimal   @db.Decimal(10, 2)
   /// Computed by the API layer as sellingPrice - vendorCost on write.
   margin            Decimal   @db.Decimal(10, 2)
+  /// --- Step 22 (audit §3.2/§4.2/§7.8) — CRM.md §10's pricing formula ---
+  /// Never set for a Flight Special Fare quote — §10 gives flight its own
+  /// formula ("Selling Amount + Configured Gateway Charge = Customer
+  /// Payable") with no coupon term at all. `couponDiscount` is a snapshot
+  /// computed once when the code is applied (src/lib/coupons/apply.ts),
+  /// not recalculated later — same config-snapshot precedent as `margin`
+  /// and `sellingPrice` itself, so an Admin editing the coupon afterward
+  /// doesn't retroactively change an already-quoted discount.
+  couponId          String?
+  couponCode        String?
+  couponDiscount    Decimal?  @db.Decimal(10, 2)
   validityExpiresAt DateTime?
   isSelected        Boolean   @default(false)
   isExpired         Boolean   @default(false)
@@ -247,11 +258,13 @@ model Quotation {
 
   lead          Lead        @relation(fields: [leadId], references: [id])
   vendor        Vendor      @relation(fields: [vendorId], references: [id])
+  coupon        Coupon?     @relation(fields: [couponId], references: [id])
   alternativeOf Quotation?  @relation("QuotationAlternatives", fields: [alternativeOfId], references: [id])
   alternatives  Quotation[] @relation("QuotationAlternatives")
 
   @@index([leadId])
   @@index([vendorId])
+  @@index([couponId])
   @@index([alternativeOfId])
   @@index([isSelected])
   @@index([isExpired])
@@ -362,26 +375,41 @@ model BookingPassenger {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  bookingId     String
-  amount        Decimal       @db.Decimal(10, 2)
-  gstAmount     Decimal       @db.Decimal(10, 2)
-  gatewayFee    Decimal       @db.Decimal(10, 2)
-  status        PaymentStatus @default(PENDING)
+  id             String        @id @default(cuid())
+  bookingId      String
+  /// The pre-discount base fare — GST/gatewayFee below are computed on
+  /// `amount - couponDiscount`, not on `amount` itself (Step 22, audit
+  /// §7.8), so the original figure stays visible on the invoice as its own
+  /// line even after a coupon is applied.
+  amount         Decimal       @db.Decimal(10, 2)
+  gstAmount      Decimal       @db.Decimal(10, 2)
+  gatewayFee     Decimal       @db.Decimal(10, 2)
+  /// Snapshotted from the selected Quotation at payment-creation time — see
+  /// Quotation.couponDiscount's own doc comment for the config-snapshot
+  /// rationale. `couponId` is what src/lib/payments/complete-payment.ts
+  /// increments Coupon.usageCount against, once, only on the real
+  /// PENDING -> SUCCESS transition (never on quote creation — a quote can
+  /// expire unused).
+  couponId       String?
+  couponCode     String?
+  couponDiscount Decimal?      @db.Decimal(10, 2)
+  status         PaymentStatus @default(PENDING)
   /// The gateway's own id for this payment link/order — how an incoming
   /// webhook is matched back to this row. Unique (Postgres allows multiple
   /// NULLs under a unique constraint, so this is safe before a payment
   /// link has been generated).
-  gatewayRef    String?       @unique
-  paymentLink   String?
-  linkExpiresAt DateTime?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  gatewayRef     String?       @unique
+  paymentLink    String?
+  linkExpiresAt  DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   booking Booking  @relation(fields: [bookingId], references: [id])
+  coupon  Coupon?  @relation(fields: [couponId], references: [id])
   refunds Refund[]
 
   @@index([bookingId])
+  @@index([couponId])
   @@index([status])
 }
 
@@ -907,22 +935,59 @@ enum CouponType {
   FIXED_AMOUNT
 }
 
+/// Step 22 (audit §3.2/§4.2/§7.8) — CRM.md §8's own three named categories
+/// ("Employee coupon / External coupon where configured / Abandoned
+/// quotation coupon"), a separate dimension from CouponType above (that's
+/// the discount SHAPE — percentage vs. flat; this is who the coupon is
+/// FOR). Existing rows backfill to EXTERNAL (the closest "normal" default)
+/// on migration; new coupons must pick one explicitly.
+enum CouponCategory {
+  EMPLOYEE
+  EXTERNAL
+  ABANDONED_QUOTATION
+}
+
 model Coupon {
-  id         String     @id @default(cuid())
-  code       String     @unique
+  id         String         @id @default(cuid())
+  code       String         @unique
   type       CouponType
   /// A percentage (0-100) when type=PERCENTAGE, or a flat rupee amount when type=FIXED_AMOUNT.
-  value      Decimal    @db.Decimal(10, 2)
+  value      Decimal        @db.Decimal(10, 2)
+  /// ADMIN.md §25 / CRM.md §8: "Support: Employee coupon, External coupon
+  /// where configured, Abandoned quotation coupon." Only EMPLOYEE is
+  /// actually enforced differently today (the ₹500 cap, see
+  /// CouponConfig) — EXTERNAL/ABANDONED_QUOTATION exist as real,
+  /// selectable categories for Admin's own reporting/organization, with no
+  /// extra business rule layered on them yet since none is specified.
+  category   CouponCategory @default(EXTERNAL)
   validFrom  DateTime
   validUntil DateTime
   /// null = unlimited uses.
   usageLimit Int?
-  usageCount Int        @default(0)
-  active     Boolean    @default(true)
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  usageCount Int            @default(0)
+  active     Boolean        @default(true)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  quotations Quotation[]
+  payments   Payment[]
 
   @@index([active])
+  @@index([category])
+}
+
+/// True singleton (same pattern as TaxFeeConfig/ProtectionPlanConfig) —
+/// ADMIN.md §25: "Current employee coupon limit: ₹500... This should be an
+/// Admin configuration value, not permanent hard-coded logic." Applied as a
+/// ceiling on the actual DISCOUNT AMOUNT an EMPLOYEE-category coupon can
+/// apply (src/lib/coupons/apply.ts), not a cap on the coupon's own face
+/// value — a percentage-type Employee coupon could otherwise compute a
+/// discount over the cap depending on the quote total.
+model CouponConfig {
+  id                String   @id
+  employeeCouponCap Decimal  @db.Decimal(10, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 /// The single knowledge base used by the website, the CRM, and later the

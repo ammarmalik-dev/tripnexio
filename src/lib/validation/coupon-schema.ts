@@ -1,7 +1,13 @@
 import { z } from "zod";
-import { CouponType, type CouponType as CouponTypeType } from "../../generated/prisma/enums";
+import {
+  CouponType,
+  CouponCategory,
+  type CouponType as CouponTypeType,
+  type CouponCategory as CouponCategoryType,
+} from "../../generated/prisma/enums";
 
 const couponTypeValues = Object.values(CouponType) as [CouponTypeType, ...CouponTypeType[]];
+const couponCategoryValues = Object.values(CouponCategory) as [CouponCategoryType, ...CouponCategoryType[]];
 const isoDate = (message: string) => z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), message);
 
 const couponBaseSchema = z.object({
@@ -12,6 +18,8 @@ const couponBaseSchema = z.object({
     .max(30, "Code is too long")
     .transform((value) => value.toUpperCase()),
   type: z.enum(couponTypeValues, { error: "Select a coupon type" }),
+  /** CRM.md §8 / ADMIN.md §25 (Step 22) — Employee/External/Abandoned Quotation. */
+  category: z.enum(couponCategoryValues, { error: "Select a coupon category" }),
   value: z.number({ error: "Enter the coupon value" }).positive("Value must be greater than 0"),
   validFrom: isoDate("Enter a valid start date"),
   validUntil: isoDate("Enter a valid end date"),

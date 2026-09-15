@@ -28,6 +28,8 @@ export interface RefundData {
 export interface PaymentData {
   id: string;
   amount: string;
+  couponCode: string | null;
+  couponDiscount: string | null;
   gstAmount: string;
   gatewayFee: string;
   status: PaymentStatus;
@@ -61,7 +63,8 @@ export function PaymentPanel({
   const [creatingRefund, setCreatingRefund] = useState(false);
   const [refundStatuses, setRefundStatuses] = useState<Record<string, RefundStatus>>({});
 
-  const total = Number(payment.amount) + Number(payment.gstAmount) + Number(payment.gatewayFee);
+  const couponDiscount = Number(payment.couponDiscount ?? 0);
+  const total = Number(payment.amount) - couponDiscount + Number(payment.gstAmount) + Number(payment.gatewayFee);
 
   const handleMarkSuccess = async () => {
     setMarkingSuccess(true);
@@ -105,6 +108,12 @@ export function PaymentPanel({
           <dt className="text-xs text-ink-tertiary">Base</dt>
           <dd className="font-medium text-ink-primary">{money(payment.amount)}</dd>
         </div>
+        {payment.couponCode ? (
+          <div className="flex flex-col">
+            <dt className="text-xs text-ink-tertiary">Coupon ({payment.couponCode})</dt>
+            <dd className="font-medium text-success">− {money(couponDiscount)}</dd>
+          </div>
+        ) : null}
         <div className="flex flex-col">
           <dt className="text-xs text-ink-tertiary">GST</dt>
           <dd className="font-medium text-ink-primary">{money(payment.gstAmount)}</dd>

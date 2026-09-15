@@ -19,6 +19,8 @@ export interface QuoteCardData {
   vendorCost: string;
   sellingPrice: string;
   margin: string;
+  couponCode: string | null;
+  couponDiscount: string | null;
   validityExpiresAt: string | null;
   isSelected: boolean;
   isExpired: boolean;
@@ -138,6 +140,12 @@ export function QuoteCard({
               <dd className="font-medium text-ink-primary">{money(quotation.fineOrCharges)}</dd>
             </div>
           ) : null}
+          {quotation.couponCode ? (
+            <div className="flex justify-between gap-2">
+              <dt className="text-ink-tertiary">Coupon ({quotation.couponCode})</dt>
+              <dd className="font-medium text-success">− {money(quotation.couponDiscount)}</dd>
+            </div>
+          ) : null}
         </dl>
       )}
 
@@ -145,6 +153,11 @@ export function QuoteCard({
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-semibold text-ink-heading">
             {isFlightQuote ? "Selling Price" : "Total"}: {money(quotation.sellingPrice)}
+            {quotation.couponDiscount ? (
+              <span className="ml-1.5 text-xs font-normal text-ink-tertiary">
+                (payable {money(String(Number(quotation.sellingPrice) - Number(quotation.couponDiscount)))} after coupon)
+              </span>
+            ) : null}
           </span>
           <span className="text-xs text-ink-tertiary">
             Vendor: {vendorName} · <span title="Internal — never shown to the customer">Cost {money(quotation.vendorCost)} · Margin {money(quotation.margin)} (internal)</span>

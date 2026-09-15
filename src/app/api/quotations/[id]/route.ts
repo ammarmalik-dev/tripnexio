@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { computeSellingPrice, assertValidityWithinCap } from "@/lib/quotations/pricing";
+import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -56,14 +57,33 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   });
   const margin = sellingPrice - vendorCost;
 
+  // Step 22 (audit §3.2/§4.2/§7.8) — pulled out of the raw spread below and
+  // re-resolved server-side rather than trusting `couponCode` as a plain
+  // passthrough string. `couponCode` absent from the body = leave the
+  // existing coupon (if any) untouched; an explicit empty string clears it.
+  const { couponCode, ...restOfPatch } = parsed.data;
+  let couponFields: { couponId: string | null; couponCode: string | null; couponDiscount: number | null } | undefined;
+  if (couponCode !== undefined) {
+    if (couponCode === "") {
+      couponFields = { couponId: null, couponCode: null, couponDiscount: null };
+    } else {
+      const result = await resolveCouponForQuotation(couponCode, lead.serviceType, sellingPrice);
+      if (!result.ok) {
+        return jsonError(400, result.error, { couponCode: [result.error] });
+      }
+      couponFields = { couponId: result.coupon.couponId, couponCode: result.coupon.couponCode, couponDiscount: result.coupon.discountAmount };
+    }
+  }
+
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.quotation.update({
       where: { id },
       data: {
-        ...parsed.data,
+        ...restOfPatch,
         vendorCost,
         sellingPrice,
         margin,
+        ...couponFields,
         flightDateTime: parsed.data.flightDateTime ? new Date(parsed.data.flightDateTime) : undefined,
         arrivalDateTime: parsed.data.arrivalDateTime ? new Date(parsed.data.arrivalDateTime) : undefined,
         validityExpiresAt: parsed.data.validityExpiresAt ? new Date(parsed.data.validityExpiresAt) : undefined,
@@ -75,7 +95,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Updated by ${session.name} — margin now ${margin}`,
+      note: `Updated by ${session.name} — margin now ${margin}${couponFields ? (couponFields.couponCode ? `, coupon ${couponFields.couponCode} applied (-₹${couponFields.couponDiscount})` : ", coupon removed") : ""}`,
     });
 
     return result;

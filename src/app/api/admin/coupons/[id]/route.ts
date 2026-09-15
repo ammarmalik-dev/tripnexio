@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { getEmployeeCouponCap } from "@/lib/settings/coupon-config";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,6 +39,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   // updateCouponSchema is a plain .partial() (no cross-field refine), so re-check the merged result here.
   const nextType = parsed.data.type ?? existing.type;
+  const nextCategory = parsed.data.category ?? existing.category;
   const nextValue = parsed.data.value ?? Number(existing.value);
   const nextValidFrom = parsed.data.validFrom ? new Date(parsed.data.validFrom) : existing.validFrom;
   const nextValidUntil = parsed.data.validUntil ? new Date(parsed.data.validUntil) : existing.validUntil;
@@ -47,6 +49,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
   if (nextType === "PERCENTAGE" && nextValue > 100) {
     return jsonError(400, "A percentage discount can't exceed 100.", { value: ["Can't exceed 100 for a percentage coupon."] });
+  }
+  if (nextCategory === "EMPLOYEE" && nextType === "FIXED_AMOUNT") {
+    const cap = await getEmployeeCouponCap();
+    if (nextValue > cap) {
+      return jsonError(400, `An Employee coupon's value can't exceed the configured cap (₹${cap}).`, { value: [`Can't exceed ₹${cap}.`] });
+    }
   }
 
   const updated = await db.$transaction(async (tx) => {

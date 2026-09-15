@@ -8,16 +8,17 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { COUPON_TYPE_OPTIONS } from "@/lib/crm/labels";
+import { COUPON_TYPE_OPTIONS, COUPON_CATEGORY_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
-import type { CouponType } from "../../generated/prisma/enums";
+import type { CouponType, CouponCategory } from "../../generated/prisma/enums";
 
 interface CouponData {
   id: string;
   code: string;
   type: CouponType;
+  category: CouponCategory;
   value: string;
   validFrom: string;
   validUntil: string;
@@ -31,13 +32,14 @@ type FetchState = "loading" | "success" | "error";
 interface FormState {
   code: string;
   type: CouponType | "";
+  category: CouponCategory | "";
   value: string;
   validFrom: string;
   validUntil: string;
   usageLimit: string;
 }
 
-const EMPTY_FORM: FormState = { code: "", type: "", value: "", validFrom: "", validUntil: "", usageLimit: "" };
+const EMPTY_FORM: FormState = { code: "", type: "", category: "", value: "", validFrom: "", validUntil: "", usageLimit: "" };
 
 function toDateInputValue(iso: string): string {
   return iso.slice(0, 10);
@@ -47,6 +49,7 @@ function toFormState(coupon: CouponData): FormState {
   return {
     code: coupon.code,
     type: coupon.type,
+    category: coupon.category,
     value: coupon.value,
     validFrom: toDateInputValue(coupon.validFrom),
     validUntil: toDateInputValue(coupon.validUntil),
@@ -88,6 +91,29 @@ function CouponFields({
             Select a type
           </option>
           {COUPON_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </FormField>
+      <FormField
+        label="Category"
+        htmlFor="category"
+        error={errors.category?.[0]}
+        hint="Employee coupons are capped at the configured limit above, regardless of this coupon's own value."
+      >
+        <select
+          id="category"
+          value={form.category}
+          disabled={disabled}
+          onChange={(event) => onChange({ ...form, category: event.target.value as CouponCategory })}
+          className={cn(fieldControlClass, fieldBorderClass(!!errors.category))}
+        >
+          <option value="" disabled>
+            Select a category
+          </option>
+          {COUPON_CATEGORY_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -140,6 +166,7 @@ function buildPayload(form: FormState) {
   return {
     code: form.code.trim(),
     type: form.type || undefined,
+    category: form.category || undefined,
     value: form.value === "" ? undefined : Number(form.value),
     validFrom: form.validFrom ? new Date(form.validFrom).toISOString() : undefined,
     validUntil: form.validUntil ? new Date(form.validUntil).toISOString() : undefined,
@@ -191,6 +218,9 @@ function CouponCard({ coupon, onSaved }: { coupon: CouponData; onSaved: (coupon:
         >
           {coupon.active ? "Active" : "Disabled"}
         </span>
+        <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-1 text-xs font-medium text-ink-secondary">
+          {COUPON_CATEGORY_OPTIONS.find((o) => o.value === coupon.category)?.label}
+        </span>
         <span className="text-xs text-ink-tertiary">
           Used {coupon.usageCount} time{coupon.usageCount === 1 ? "" : "s"}
           {coupon.usageLimit != null ? ` of ${coupon.usageLimit}` : " · unlimited"}
@@ -230,7 +260,7 @@ function NewCouponForm({ onCreated }: { onCreated: (coupon: CouponData) => void 
     }
   };
 
-  const canSubmit = form.code.trim() && form.type && form.value.trim() !== "" && form.validFrom && form.validUntil;
+  const canSubmit = form.code.trim() && form.type && form.category && form.value.trim() !== "" && form.validFrom && form.validUntil;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
@@ -240,6 +270,63 @@ function NewCouponForm({ onCreated }: { onCreated: (coupon: CouponData) => void 
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           Create Coupon
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** ADMIN.md §25 (Step 22): "This should be an Admin configuration value, not permanent hard-coded logic." */
+function EmployeeCouponCapCard() {
+  const [state, setState] = useState<FetchState>("loading");
+  const [cap, setCap] = useState("");
+  const [savedCap, setSavedCap] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getJson<{ employeeCouponCap: string }>("/api/admin/coupon-config")
+      .then((result) => {
+        if (cancelled) return;
+        setCap(result.employeeCouponCap);
+        setSavedCap(result.employeeCouponCap);
+        setState("success");
+      })
+      .catch(() => {
+        if (!cancelled) setState("error");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updated = await patchJson<{ employeeCouponCap: string }>("/api/admin/coupon-config", { employeeCouponCap: Number(cap) });
+      toast.success("Employee coupon cap updated.");
+      setCap(updated.employeeCouponCap);
+      setSavedCap(updated.employeeCouponCap);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't update the cap. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (state === "loading") return <Skeleton className="h-24 w-full max-w-md" />;
+  if (state === "error") return null;
+
+  return (
+    <div className="flex max-w-md flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
+      <h2 className="text-sm font-semibold text-ink-heading">Employee Coupon Cap</h2>
+      <p className="text-xs text-ink-tertiary">
+        The maximum discount any Employee-category coupon can apply, regardless of its own configured value. Currently ₹500 per ADMIN.md §25.
+      </p>
+      <div className="flex items-end gap-2">
+        <TextField label="Cap (₹)" name="employeeCouponCap" type="number" step="0.01" value={cap} onChange={(event) => setCap(event.target.value)} disabled={saving} className="flex-1" />
+        <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={cap === savedCap || cap.trim() === ""}>
+          Save
         </Button>
       </div>
     </div>
@@ -301,6 +388,7 @@ export function CouponsManager() {
 
   return (
     <div className="flex flex-col gap-4">
+      <EmployeeCouponCapCard />
       {coupons.length === 0 ? (
         <EmptyState title="No coupons yet" description="Add the first one using the form below." />
       ) : (

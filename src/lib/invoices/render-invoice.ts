@@ -16,6 +16,9 @@ export interface InvoicePdfInput {
   customerMobile: string;
   customerEmail: string | null;
   baseFare: number;
+  /** CRM.md §8: "Coupon discount must remain a separate invoice line" (Step 22, audit §7.8) — null/0 renders no line at all. */
+  couponCode: string | null;
+  couponDiscount: number;
   gstAmount: number;
   gstRatePercent: number;
   gatewayFee: number;
@@ -77,6 +80,9 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   };
 
   row("Base Fare (Service Fee)", money(input.baseFare));
+  if (input.couponDiscount > 0) {
+    row(`Coupon Discount (${input.couponCode ?? "applied"})`, `- ${money(input.couponDiscount)}`);
+  }
   if (input.gstAmount > 0) {
     row(`GST @ ${input.gstRatePercent.toFixed(2)}% (tax on service fee)`, money(input.gstAmount));
   }
@@ -121,10 +127,14 @@ export async function buildInvoicePdfForPayment(paymentId: string): Promise<Paym
   if (!payment || payment.status !== "SUCCESS") return null;
 
   const baseFare = Number(payment.amount);
+  const couponDiscount = Number(payment.couponDiscount ?? 0);
+  const netAmount = baseFare - couponDiscount;
   const gstAmount = Number(payment.gstAmount);
   const gatewayFee = Number(payment.gatewayFee);
-  const total = baseFare + gstAmount + gatewayFee;
-  const gstRatePercent = baseFare > 0 ? (gstAmount / baseFare) * 100 : 0;
+  // Total reflects what was actually charged: base minus the coupon, plus GST/gateway (both already computed on the discounted amount at payment-creation time).
+  const total = netAmount + gstAmount + gatewayFee;
+  // GST rate is reconstructed against netAmount (what it was actually computed on), not baseFare — otherwise a coupon would make the displayed rate look lower than it really was.
+  const gstRatePercent = netAmount > 0 ? (gstAmount / netAmount) * 100 : 0;
   const invoiceNumber = `INV-${payment.id.slice(-8).toUpperCase()}`;
 
   const pdf = await renderInvoicePdf({
@@ -136,6 +146,8 @@ export async function buildInvoicePdfForPayment(paymentId: string): Promise<Paym
     customerMobile: payment.booking.customer.mobile,
     customerEmail: payment.booking.customer.email,
     baseFare,
+    couponCode: payment.couponCode,
+    couponDiscount,
     gstAmount,
     gstRatePercent,
     gatewayFee,

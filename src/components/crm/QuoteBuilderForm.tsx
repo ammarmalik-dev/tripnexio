@@ -53,7 +53,7 @@ export function QuoteBuilderForm({
   const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
 
-  const optionalField = (name: "airline" | "flightNumber" | "route" | "baggageAllowance" | "fareType") =>
+  const optionalField = (name: "airline" | "flightNumber" | "route" | "baggageAllowance" | "fareType" | "couponCode") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
 
   return (
@@ -160,6 +160,12 @@ export function QuoteBuilderForm({
             hint="Optional — added on top of the fee."
             {...numberField("fineOrCharges")}
             error={errors.fineOrCharges?.message}
+          />
+          <TextField
+            label="Coupon Code"
+            hint="Optional — validated on save (active, within date range, under usage limit)."
+            {...optionalField("couponCode")}
+            error={errors.couponCode?.message}
           />
         </div>
       )}

@@ -7,6 +7,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { computeSellingPrice, isFlightQuote, assertValidityWithinCap } from "@/lib/quotations/pricing";
+import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { formatLeadReference } from "@/lib/leads/reference";
@@ -167,6 +168,7 @@ export async function POST(request: NextRequest) {
     sellingPrice,
     validityExpiresAt,
     alternativeOfId,
+    couponCode,
   } = parsed.data;
 
   const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
@@ -203,6 +205,18 @@ export async function POST(request: NextRequest) {
   const resolvedSellingPrice = computeSellingPrice(lead.serviceType, { sellingPrice, feeAmount, fineOrCharges });
   const margin = resolvedSellingPrice - vendorCost;
 
+  // Step 22 (audit §3.2/§4.2/§7.8) — resolved and validated here, not
+  // trusted from the client; rejected outright for a flight quote (see
+  // resolveCouponForQuotation's own doc comment on why).
+  let appliedCoupon: { couponId: string; couponCode: string; discountAmount: number } | null = null;
+  if (couponCode) {
+    const result = await resolveCouponForQuotation(couponCode, lead.serviceType, resolvedSellingPrice);
+    if (!result.ok) {
+      return jsonError(400, result.error, { couponCode: [result.error] });
+    }
+    appliedCoupon = result.coupon;
+  }
+
   const quotation = await db.$transaction(async (tx) => {
     const created = await tx.quotation.create({
       data: {
@@ -223,6 +237,9 @@ export async function POST(request: NextRequest) {
         vendorCost,
         sellingPrice: resolvedSellingPrice,
         margin,
+        couponId: appliedCoupon?.couponId,
+        couponCode: appliedCoupon?.couponCode,
+        couponDiscount: appliedCoupon?.discountAmount,
         validityExpiresAt: validityExpiresAt ? new Date(validityExpiresAt) : undefined,
         alternativeOfId,
       },
@@ -233,11 +250,13 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Quotation created for lead ${leadId} — margin ${margin} (by ${session.name})`,
+      note: `Quotation created for lead ${leadId} — margin ${margin}${appliedCoupon ? `, coupon ${appliedCoupon.couponCode} applied (-₹${appliedCoupon.discountAmount})` : ""} (by ${session.name})`,
     });
 
     return created;
   });
+
+  const payableAfterCoupon = resolvedSellingPrice - (appliedCoupon?.discountAmount ?? 0);
 
   // "Quote ready" fires on every new quotation for this lead, not only the
   // first one — a lead can reasonably get more than one quote over its
@@ -252,7 +271,7 @@ export async function POST(request: NextRequest) {
     variables: {
       customerName: lead.customer.name,
       leadReference: formatLeadReference(lead.serviceType, lead.id),
-      sellingPrice: money(resolvedSellingPrice),
+      sellingPrice: money(payableAfterCoupon),
       quoteValidUntil: validityExpiresAt
         ? new Date(validityExpiresAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
         : "no expiry set",
