@@ -1006,6 +1006,51 @@ model CouponConfig {
   updatedAt         DateTime @updatedAt
 }
 
+/// Step 28 (audit §4.8) — ADMIN.md §28: "Expense categories should use
+/// Admin-managed dropdown options... Admin can later add/disable/reorder
+/// categories." The 16 "Initial examples" ADMIN.md itself names verbatim
+/// (Advertising, Salary, Domain, VPS/Hosting, AI, API, WhatsApp, Email,
+/// Software, OCR, Payment Gateway, Vendor, Office, Marketing, Operations,
+/// Other) are seeded for real (not "Sample ..." placeholders) — these are
+/// the client's own locked starting list, not invented data, same
+/// treatment Step 19 gave the locked per-service status lists.
+model ExpenseCategory {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  displayOrder Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  expenses Expense[]
+
+  @@index([active])
+}
+
+/// Step 28 (audit §4.8) — ADMIN.md §28's expense entries, feeding the P&L
+/// report (§29). `date` (the expense's own date, @db.Date — no
+/// time-of-day component, matching StaffLeave's precedent) is distinct
+/// from `createdAt` (when the record was entered) — a staff member
+/// logging last week's hosting invoice today shouldn't have it counted
+/// against today's P&L period.
+model Expense {
+  id           String   @id @default(cuid())
+  categoryId   String
+  amount       Decimal  @db.Decimal(10, 2)
+  date         DateTime @db.Date
+  note         String?
+  recordedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id])
+  recordedBy User            @relation(fields: [recordedById], references: [id])
+
+  @@index([categoryId])
+  @@index([date])
+  @@index([recordedById])
+}
+
 /// The single knowledge base used by the website, the CRM, and later the
 /// WhatsApp AI (see CLAUDE.md's Modules). `active` is a hard on/off switch
 /// (an inactive FAQ is retired but not deleted); `published` is separate —
@@ -1269,6 +1314,7 @@ model User {
   completedTasks              Task[]               @relation("TaskCompletedBy")
   sentWhatsAppMessages        WhatsAppMessageLog[]
   leaves                      StaffLeave[]
+  recordedExpenses            Expense[]
 
   @@index([roleId])
   @@index([active])

@@ -44,6 +44,7 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "data.export", description: "Export core tables (customers, leads, bookings, payments) to CSV" },
   { name: "automation.view", description: "View background automation (n8n workflow) run history and health" },
   { name: "ai.assist", description: "Use the Admin AI Command Center — natural-language read-only queries across bookings, refunds, payments, staff workload, and integration health" },
+  { name: "finance.manage", description: "Record/edit expenses and view the P&L report — ADMIN.md §29: internal vendor cost and margin must remain Admin-only" },
   { name: ADMIN_FULL_PERMISSION, description: "Full system access — bypasses every other permission check" },
 ];
 
@@ -67,7 +68,7 @@ export function hasPermission(session: PermissionCheckable | null, permission: s
  * feedback_admin_section_all_or_nothing_gating in project memory for the
  * general shape of this gotcha.
  */
-export const ADMIN_SECTION_PERMISSIONS = ["roles.manage", "staff.manage", "masters.manage", "data.export", "automation.view", "leads.reassign", "ai.assist"];
+export const ADMIN_SECTION_PERMISSIONS = ["roles.manage", "staff.manage", "masters.manage", "data.export", "automation.view", "leads.reassign", "ai.assist", "finance.manage"];
 
 export function canAccessAdminSection(session: PermissionCheckable | null): boolean {
   return ADMIN_SECTION_PERMISSIONS.some((permission) => hasPermission(session, permission));

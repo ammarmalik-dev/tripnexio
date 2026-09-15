@@ -28,6 +28,8 @@ import {
   CalendarOff,
   Repeat,
   Sparkles,
+  Receipt,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -108,4 +110,6 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Automation", href: "/admin/automation", icon: Activity },
   { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints },
   { label: "Protection Plan", href: "/admin/protection-plan", icon: ShieldCheck },
+  { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt },
+  { label: "Expenses", href: "/admin/expenses", icon: Wallet },
 ];

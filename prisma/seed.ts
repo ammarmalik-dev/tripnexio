@@ -108,6 +108,10 @@ const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 // payments, staff workload) in one place regardless of the asker's other
 // granular permissions — the same reasoning masters.manage/data.export
 // already use for staying Admin-only.
+//
+// finance.manage is also excluded — ADMIN.md §29's explicit rule: "Internal
+// vendor cost and margin must remain Admin-only." Expenses and the P&L
+// report both surface exactly those figures.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
   (permission) =>
     ![
@@ -119,6 +123,7 @@ const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
       "refunds.approve",
       "leads.reassign",
       "ai.assist",
+      "finance.manage",
       ADMIN_FULL_PERMISSION,
     ].includes(permission.name)
 ).map((permission) => permission.name);
@@ -607,6 +612,37 @@ async function main() {
 
   await seedServiceStatuses();
   console.log("Per-service status catalogs ready (Step 19, seeded from the locked service MDs).");
+
+  // Step 28 (audit §4.8) — ADMIN.md §28's own "Initial examples" list,
+  // verbatim and in the given order. These are the client's own locked
+  // starting categories, not invented/sample data — seeded for real, same
+  // treatment the per-service status lists got in Step 19.
+  const EXPENSE_CATEGORIES = [
+    "Advertising",
+    "Salary",
+    "Domain",
+    "VPS / Hosting",
+    "AI",
+    "API",
+    "WhatsApp",
+    "Email",
+    "Software",
+    "OCR",
+    "Payment Gateway",
+    "Vendor",
+    "Office",
+    "Marketing",
+    "Operations",
+    "Other",
+  ];
+  // update: {} deliberately, not the full data object — ADMIN.md §28 says
+  // "Admin can later add/disable/reorder categories," so once seeded, a
+  // re-run must never silently undo an admin's own displayOrder/active
+  // edit. Same convention as the singleton config rows above.
+  for (const [index, name] of EXPENSE_CATEGORIES.entries()) {
+    await db.expenseCategory.upsert({ where: { name }, update: {}, create: { name, displayOrder: index, active: true } });
+  }
+  console.log("Expense categories ready (Step 28, ADMIN.md §28's locked starter list).");
 }
 
 main()
