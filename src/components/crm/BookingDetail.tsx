@@ -38,6 +38,20 @@ interface BookingPassengerItem {
   status: BookingStatus;
 }
 
+/** Step 23 (audit §7.6) — frozen at booking creation, never re-fetched live. */
+interface DocumentChecklistSnapshotPassenger {
+  passengerId: string;
+  fullName: string;
+  nationality: string | null;
+  requirements: { documentName: string; required: boolean }[];
+}
+
+interface DocumentChecklistSnapshot {
+  generatedAt: string;
+  serviceType: ServiceType;
+  passengers: DocumentChecklistSnapshotPassenger[];
+}
+
 interface BookingDetailResponse {
   id: string;
   bookingId: string;
@@ -62,6 +76,8 @@ interface BookingDetailResponse {
   documents: DocumentItem[];
   /** New Visa only (Step 20, audit §7.1) — one per passenger, empty array for every other service. */
   protectionPlans: ProtectionPlanData[];
+  /** Step 23 (audit §7.6) — null for a booking created before this field existed. */
+  documentChecklistSnapshot: DocumentChecklistSnapshot | null;
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -248,6 +264,7 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                 {booking.passengers.map((passenger) => {
                   const passengerDocuments = booking.documents.filter((document) => document.passengerId === passenger.id);
                   const protectionPlan = booking.protectionPlans.find((plan) => plan.passengerId === passenger.id);
+                  const checklist = booking.documentChecklistSnapshot?.passengers.find((p) => p.passengerId === passenger.id);
                   return (
                     <div key={passenger.id} className="rounded-lg border border-hairline p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -268,6 +285,21 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                           }
                         />
                       </div>
+                      {checklist && checklist.requirements.length > 0 ? (
+                        <div className="mt-2 border-t border-hairline pt-2">
+                          <p className="text-xs font-medium text-ink-tertiary">
+                            Required documents (as of booking creation{checklist.nationality ? ` — ${checklist.nationality}` : ""})
+                          </p>
+                          <ul className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                            {checklist.requirements.map((item) => (
+                              <li key={item.documentName} className="text-xs text-ink-secondary">
+                                {item.documentName}
+                                {!item.required ? <span className="text-ink-tertiary"> (optional)</span> : null}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
                       {protectionPlan ? (
                         <div className="mt-2 border-t border-hairline pt-2">
                           <ProtectionPlanControl

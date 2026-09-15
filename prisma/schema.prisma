@@ -315,6 +315,22 @@ model Booking {
   /// those existing consumers need to change. See ServiceStatus's own
   /// schema comment for the full design rationale.
   serviceStatusId      String?
+  /// Step 23 (audit §7.6) — ADMIN.md §19/§40/§46(#11): admin config changes
+  /// apply immediately to new work, but a paid booking must retain what it
+  /// was created against. Pricing/GST already behave this way by accident
+  /// (stored computed-once columns, never re-read live) — this is the same
+  /// treatment made explicit for the document checklist, which until now
+  /// had no equivalent (`DocumentRequirement` is a live, current-state
+  /// table). Written once at booking creation (POST /api/bookings) from the
+  /// then-current active DocumentRequirement rows, resolved per this
+  /// booking's own passengers via each one's `Passenger.nationality` —
+  /// there's no single "the booking's nationality" in this schema, only a
+  /// per-passenger one, so the snapshot is grouped that way too. Null for
+  /// any booking created before this field existed (no backfill — there's
+  /// no way to know what config applied at that booking's own creation time
+  /// after the fact) and for any passenger with no nationality on file. See
+  /// src/lib/bookings/document-checklist-snapshot.ts for the shape.
+  documentChecklistSnapshot Json?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 

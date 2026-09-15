@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import type { Prisma } from "@/generated/prisma/client";
 import { createBookingSchema } from "@/lib/validation/booking-schema";
 import { bookingListQuerySchema } from "@/lib/validation/booking-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -10,6 +11,7 @@ import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { getProtectionPlanDefaultPrice } from "@/lib/settings/protection-plan-config";
+import { buildDocumentChecklistSnapshot } from "@/lib/bookings/document-checklist-snapshot";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("bookings.view");
@@ -123,6 +125,20 @@ export async function POST(request: NextRequest) {
   // one, this add-on is New Visa-specific per the source doc.
   const protectionPlanPrice = quotation.lead.serviceType === "NEW_VISA" ? await getProtectionPlanDefaultPrice() : null;
 
+  // Step 23 (audit §7.6) — resolved from the then-current active
+  // DocumentRequirement rows and frozen onto the Booking row below, so a
+  // later Admin edit to the checklist never retroactively changes what this
+  // already-paid booking requires. See buildDocumentChecklistSnapshot's own
+  // doc comment for why it's grouped per passenger rather than per booking.
+  const snapshotPassengers =
+    passengerIds.length > 0
+      ? await db.passenger.findMany({
+          where: { id: { in: passengerIds } },
+          select: { id: true, fullName: true, nationality: true },
+        })
+      : [];
+  const documentChecklistSnapshot = await buildDocumentChecklistSnapshot(quotation.lead.serviceType, snapshotPassengers);
+
   // bookingId gets its real TNX-XX-XXXXXX value once payment succeeds (see
   // /api/payments/[id]/mark-success) — this placeholder just satisfies the
   // column's NOT NULL/unique constraint until then.
@@ -133,6 +149,7 @@ export async function POST(request: NextRequest) {
         leadId: quotation.leadId,
         customerId: quotation.lead.customerId,
         status: "PENDING",
+        documentChecklistSnapshot: documentChecklistSnapshot as unknown as Prisma.InputJsonValue,
       },
     });
 

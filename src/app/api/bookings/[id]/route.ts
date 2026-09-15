@@ -96,5 +96,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     payments: paymentsWithRule,
     documents: booking.documents,
     protectionPlans: booking.protectionPlans,
+    // Step 23 (audit §7.6) — null for any booking created before this field
+    // existed; the UI simply omits the checklist section in that case.
+    documentChecklistSnapshot: synced.documentChecklistSnapshot,
   });
 }
