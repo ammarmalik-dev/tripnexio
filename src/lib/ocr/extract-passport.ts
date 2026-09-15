@@ -2,6 +2,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { readFileBytes } from "../storage/local-file-storage";
 import { getOcrProvider } from "./get-provider";
+import { callOcrProviderWithFailureAudit } from "./call-with-failure-audit";
 import { parseMrz } from "./mrz-parser";
 import { createTask } from "../tasks/create-task";
 import type { PassportOcrFields } from "./types";
@@ -24,7 +25,7 @@ export async function runPassportExtraction(documentId: string): Promise<Documen
 
   const { base64, mimeType } = await readFileBytes(document.fileUrl);
   const provider = getOcrProvider();
-  const result = await provider.extractPassport({ fileBase64: base64, mimeType });
+  const result = await callOcrProviderWithFailureAudit(document.id, () => provider.extractPassport({ fileBase64: base64, mimeType }));
 
   const mrz = result.mrzRaw ? parseMrz(result.mrzRaw) : null;
 

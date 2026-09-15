@@ -2,6 +2,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { readFileBytes } from "../storage/local-file-storage";
 import { getOcrProvider } from "./get-provider";
+import { callOcrProviderWithFailureAudit } from "./call-with-failure-audit";
 import { createTask } from "../tasks/create-task";
 import type { DocumentExtraction } from "../../generated/prisma/client";
 
@@ -23,7 +24,7 @@ export async function runVisaExtraction(documentId: string): Promise<DocumentExt
 
   const { base64, mimeType } = await readFileBytes(document.fileUrl);
   const provider = getOcrProvider();
-  const result = await provider.extractVisa({ fileBase64: base64, mimeType });
+  const result = await callOcrProviderWithFailureAudit(document.id, () => provider.extractVisa({ fileBase64: base64, mimeType }));
 
   const extraction = await db.$transaction(async (tx) => {
     const created = await tx.documentExtraction.create({

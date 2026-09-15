@@ -71,15 +71,35 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   const linkExpiresAt = new Date(Date.now() + PAYMENT_LINK_VALIDITY_MS);
 
   const gateway = getPaymentGateway();
-  const { gatewayRef, paymentLink } = await gateway.createPaymentLink({
-    amountInRupees: totalAmount,
-    description: `TripNexio ${formatLeadReference(booking.lead.serviceType, booking.leadId)}`,
-    customerName: booking.customer.name,
-    customerMobile: booking.customer.mobile,
-    customerEmail: booking.customer.email,
-    notes: { bookingId: booking.id, leadId: booking.leadId },
-    expiresAt: linkExpiresAt,
-  });
+  // Step 25 (audit §4.5) — the payment gateway integration had no failure
+  // visibility anywhere (unlike email/WhatsApp's EMAIL_FAILED/WHATSAPP_FAILED
+  // audit rows) — a createPaymentLink() error just threw uncaught, no signal
+  // for the Admin integrations dashboard to show as "last error." This
+  // records the same real signal, without changing the existing throw/500
+  // behavior a caller-side failure already had.
+  let gatewayRef: string;
+  let paymentLink: string;
+  try {
+    const linkResult = await gateway.createPaymentLink({
+      amountInRupees: totalAmount,
+      description: `TripNexio ${formatLeadReference(booking.lead.serviceType, booking.leadId)}`,
+      customerName: booking.customer.name,
+      customerMobile: booking.customer.mobile,
+      customerEmail: booking.customer.email,
+      notes: { bookingId: booking.id, leadId: booking.leadId },
+      expiresAt: linkExpiresAt,
+    });
+    gatewayRef = linkResult.gatewayRef;
+    paymentLink = linkResult.paymentLink;
+  } catch (error) {
+    await writeAudit(db, {
+      entityType: "Booking",
+      entityId: booking.id,
+      action: "PAYMENT_GATEWAY_ERROR",
+      note: `${gateway.providerName} createPaymentLink failed: ${error instanceof Error ? error.message : String(error)}`,
+    });
+    throw error;
+  }
 
   const payment = await db.$transaction(async (tx) => {
     const created = await tx.payment.create({
