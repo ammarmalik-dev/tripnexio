@@ -28,13 +28,41 @@ export async function POST(request: NextRequest) {
     processingType,
     passportImageBase64,
     passportImageMimeType,
+    protectionPlanInterested,
+    protectionPlanTermsAccepted,
   } = parsed.data;
+
+  // New_Visa.md §8: "without agreement the Protection Plan cannot be
+  // purchased" — even though this is only an expressed-interest flag, not
+  // a real purchase, server-side validation still shouldn't trust a client
+  // that sends interested:true without also sending termsAccepted:true.
+  if (protectionPlanInterested && !protectionPlanTermsAccepted) {
+    return jsonError(400, "Accept the Protection Plan terms to express interest, or leave it unchecked.", {
+      protectionPlanTermsAccepted: ["Accept the terms first."],
+    });
+  }
 
   try {
     const result = await createLeadFromSubmission({
       serviceType: "NEW_VISA",
       contact: { fullName, mobile, email },
-      details: { destinationCountry, visaType, travelers, travelDate, processingType },
+      details: {
+        destinationCountry,
+        visaType,
+        travelers,
+        travelDate,
+        processingType,
+        // Step 20 (audit §7.1) — expressed interest only, captured at
+        // intake time; the ACTUAL Protection Plan purchase (with a real
+        // per-passenger record and price) only happens once a Booking
+        // exists — see POST /api/bookings, which pre-offers it to every
+        // passenger on a NEW_VISA booking regardless of this flag. Staff
+        // sees this on the Lead as a heads-up that the customer already
+        // expressed interest and acknowledged the terms shown at intake.
+        ...(protectionPlanInterested
+          ? { protectionPlanInterested: true, protectionPlanTermsAcceptedAt: new Date().toISOString() }
+          : {}),
+      },
     });
 
     await handleOptionalPassportUpload({

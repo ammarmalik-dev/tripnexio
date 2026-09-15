@@ -9,6 +9,7 @@ import { isExpiredNow } from "@/lib/quotations/sync-expiry";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
+import { getProtectionPlanDefaultPrice } from "@/lib/settings/protection-plan-config";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("bookings.view");
@@ -114,6 +115,14 @@ export async function POST(request: NextRequest) {
   const leadDetails = (quotation.lead.details ?? {}) as Record<string, unknown>;
   const passengerIds = Array.isArray(leadDetails.passengerIds) ? (leadDetails.passengerIds as string[]) : [];
 
+  // Step 20 (audit §7.1) — New_Visa.md §8: "Protection Plan is offered
+  // after processing selection and before payment." This is the earliest
+  // point in this app's real flow where a Booking (and therefore a fixed
+  // passenger list) exists at all, so every NEW_VISA booking's passengers
+  // get a Protection Plan row pre-offered here — other services don't get
+  // one, this add-on is New Visa-specific per the source doc.
+  const protectionPlanPrice = quotation.lead.serviceType === "NEW_VISA" ? await getProtectionPlanDefaultPrice() : null;
+
   // bookingId gets its real TNX-XX-XXXXXX value once payment succeeds (see
   // /api/payments/[id]/mark-success) — this placeholder just satisfies the
   // column's NOT NULL/unique constraint until then.
@@ -134,6 +143,23 @@ export async function POST(request: NextRequest) {
     if (passengerIds.length > 0) {
       await tx.bookingPassenger.createMany({
         data: passengerIds.map((passengerId) => ({ bookingId: created.id, passengerId, status: created.status })),
+      });
+    }
+
+    if (protectionPlanPrice !== null && passengerIds.length > 0) {
+      await tx.protectionPlan.createMany({
+        data: passengerIds.map((passengerId) => ({
+          bookingId: created.id,
+          passengerId,
+          status: "OFFERED",
+          price: protectionPlanPrice,
+        })),
+      });
+      await writeAudit(tx, {
+        entityType: "Booking",
+        entityId: created.id,
+        action: "PROTECTION_PLAN_OFFERED",
+        note: `Protection Plan offered to ${passengerIds.length} passenger(s) at ₹${protectionPlanPrice} each`,
       });
     }
 

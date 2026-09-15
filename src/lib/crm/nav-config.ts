@@ -100,4 +100,5 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Data Export", href: "/admin/data-export", icon: Download },
   { label: "Automation", href: "/admin/automation", icon: Activity },
   { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints },
+  { label: "Protection Plan", href: "/admin/protection-plan", icon: ShieldCheck },
 ];

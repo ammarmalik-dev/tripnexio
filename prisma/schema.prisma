@@ -151,11 +151,12 @@ model Passenger {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  customer     Customer             @relation(fields: [customerId], references: [id])
-  documents    Document[]
-  extractions  DocumentExtraction[]
-  bookingLinks BookingPassenger[]
-  tasks        Task[]
+  customer        Customer             @relation(fields: [customerId], references: [id])
+  documents       Document[]
+  extractions     DocumentExtraction[]
+  bookingLinks    BookingPassenger[]
+  tasks           Task[]
+  protectionPlans ProtectionPlan[]
 
   @@index([customerId])
 }
@@ -304,14 +305,15 @@ model Booking {
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
 
-  lead          Lead                 @relation(fields: [leadId], references: [id])
-  customer      Customer             @relation(fields: [customerId], references: [id])
-  serviceStatus ServiceStatus?       @relation(fields: [serviceStatusId], references: [id])
-  payments      Payment[]
-  documents     Document[]
-  passengers    BookingPassenger[]
-  extractions   DocumentExtraction[]
-  tasks         Task[]
+  lead            Lead                 @relation(fields: [leadId], references: [id])
+  customer        Customer             @relation(fields: [customerId], references: [id])
+  serviceStatus   ServiceStatus?       @relation(fields: [serviceStatusId], references: [id])
+  payments        Payment[]
+  documents       Document[]
+  passengers      BookingPassenger[]
+  extractions     DocumentExtraction[]
+  tasks           Task[]
+  protectionPlans ProtectionPlan[]
 
   @@index([leadId])
   @@index([customerId])
@@ -1040,6 +1042,100 @@ model TaxFeeConfig {
   gatewayFeePercent Decimal  @db.Decimal(5, 2)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Protection Plan (Step 20, audit §7.1) — New_Visa.md §8-9, locked. A
+// per-passenger, per-booking add-on, priced by Admin-configured default
+// (seeded ₹5,000), requiring mandatory T&C acceptance before it can move to
+// PURCHASED, gated by a staff eligibility review (never fully automated —
+// New_Visa.md §8 itself: "OCR can flag possible issues, but OCR is not the
+// final decision-maker").
+//
+// Addressed by (bookingId, passengerId), NOT a FK to BookingPassenger's own
+// row id — matching this schema's own existing convention (PATCH
+// /api/bookings/[id]/passengers/[passengerId]/status, Step 14, already
+// addresses "this passenger within this booking" the same way, and the
+// Booking detail API doesn't even expose BookingPassenger's own row id
+// today). Reusing that shape keeps this consistent with the rest of the
+// booking-passenger surface rather than introducing a second addressing
+// scheme.
+// ---------------------------------------------------------------------------
+
+/// Exact 14-status list from New_Visa.md §9 — do not rename/reorder/add to
+/// this without re-reading that section; the prompt for this step
+/// explicitly required transcribing it verbatim, not inventing names.
+enum ProtectionPlanStatus {
+  NOT_OFFERED
+  OFFERED
+  SELECTED_TERMS_PENDING
+  TERMS_ACCEPTED
+  PURCHASED
+  UNDER_ELIGIBILITY_REVIEW
+  ELIGIBLE
+  INELIGIBLE
+  CANCELLED
+  REFUND_UNDER_REVIEW
+  REFUND_APPROVED
+  REFUND_REJECTED
+  REFUND_PROCESSING
+  REFUND_COMPLETED
+}
+
+/// True singleton (same pattern as TaxFeeConfig) — Admin-configurable
+/// default price and, since New_Visa.md §8 never gives literal T&C prose or
+/// a final eligibility-condition list ("other configured exclusions"),
+/// admin-editable text/list fields instead of hard-coded strings so the
+/// real legal copy can be entered without a code change (seeded with an
+/// obviously-labeled SAMPLE terms text per CLAUDE.md hard rule #1 — the
+/// eligibility conditions themselves ARE given verbatim in §8, so those are
+/// seeded for real, not as samples).
+model ProtectionPlanConfig {
+  id                    String   @id
+  defaultPrice          Decimal  @db.Decimal(10, 2)
+  termsText             String
+  /// String array (e.g. ["Fresh/first-time passport", ...]) — §8's own
+  /// eligibility list, editable so Admin can add "other configured
+  /// exclusions" without a migration.
+  eligibilityConditions Json
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model ProtectionPlan {
+  id              String               @id @default(cuid())
+  bookingId       String
+  passengerId     String
+  status          ProtectionPlanStatus @default(NOT_OFFERED)
+  /// Snapshotted from ProtectionPlanConfig.defaultPrice at offer time — same
+  /// config-snapshot precedent as Quotation.sellingPrice (ADMIN.md §11:
+  /// "paid bookings retain committed configuration"), so a later admin price
+  /// change doesn't alter an already-offered/purchased plan.
+  price           Decimal              @db.Decimal(10, 2)
+  /// Set only once, when status first reaches PURCHASED — "mandatory
+  /// acceptance... without agreement the Protection Plan cannot be
+  /// purchased" (§8). No separate terms-text snapshot column: the
+  /// AuditTrail row written at that moment already carries the exact
+  /// ProtectionPlanConfig.termsText shown, which is enough to prove what
+  /// was accepted without duplicating the text on every row.
+  termsAcceptedAt DateTime?
+  /// Staff-entered free text when moving to INELIGIBLE or REFUND_REJECTED —
+  /// no fixed reason-code list is specified anywhere in the source doc.
+  decisionNote    String?
+  /// Only ever set to `price` (full refund) — no partial-refund tier is
+  /// specified for Protection Plan anywhere in New_Visa.md, unlike the
+  /// service-level refund rules in src/lib/refunds/rules.ts.
+  refundAmount    Decimal?             @db.Decimal(10, 2)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  booking   Booking   @relation(fields: [bookingId], references: [id])
+  passenger Passenger @relation(fields: [passengerId], references: [id])
+
+  @@unique([bookingId, passengerId])
+  @@index([bookingId])
+  @@index([passengerId])
+  @@index([status])
 }
 
 /// Return_Verified_Ticket.md §6, locked: "The exact date calculation must be

@@ -10,6 +10,7 @@ import { QuoteBuilderForm } from "./QuoteBuilderForm";
 import { QuoteCard, type QuoteCardData } from "./QuoteCard";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { isFlightQuote } from "@/lib/quotations/pricing";
+import { ProtectionPlanNote } from "./ProtectionPlanNote";
 import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus } from "../../generated/prisma/enums";
 import type { QuoteFormValues } from "@/lib/validation/quotation-schema";
@@ -125,6 +126,8 @@ export function QuoteBuilder({
           </Button>
         ) : null}
       </div>
+
+      {serviceType === "NEW_VISA" ? <ProtectionPlanNote /> : null}
 
       {showForm ? (
         <div className="mb-4">

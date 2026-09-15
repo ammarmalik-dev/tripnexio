@@ -14,6 +14,7 @@ import { PaymentPanel, type PaymentData } from "./PaymentPanel";
 import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
+import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -58,6 +59,8 @@ interface BookingDetailResponse {
   passengers: BookingPassengerItem[];
   payments: PaymentData[];
   documents: DocumentItem[];
+  /** New Visa only (Step 20, audit §7.1) — one per passenger, empty array for every other service. */
+  protectionPlans: ProtectionPlanData[];
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -243,6 +246,7 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
               <div className="flex flex-col gap-4">
                 {booking.passengers.map((passenger) => {
                   const passengerDocuments = booking.documents.filter((document) => document.passengerId === passenger.id);
+                  const protectionPlan = booking.protectionPlans.find((plan) => plan.passengerId === passenger.id);
                   return (
                     <div key={passenger.id} className="rounded-lg border border-hairline p-3">
                       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -263,6 +267,20 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                           }
                         />
                       </div>
+                      {protectionPlan ? (
+                        <div className="mt-2 border-t border-hairline pt-2">
+                          <ProtectionPlanControl
+                            plan={protectionPlan}
+                            onChanged={(updated) =>
+                              setBooking((current) =>
+                                current
+                                  ? { ...current, protectionPlans: current.protectionPlans.map((p) => (p.id === updated.id ? updated : p)) }
+                                  : current
+                              )
+                            }
+                          />
+                        </div>
+                      ) : null}
                       <div className="mt-2 flex flex-col gap-2">
                         {passengerDocuments.length === 0 ? (
                           <p className="text-xs text-ink-tertiary">No documents for this passenger yet.</p>

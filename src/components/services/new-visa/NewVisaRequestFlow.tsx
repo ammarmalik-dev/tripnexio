@@ -29,6 +29,8 @@ export function NewVisaRequestFlow() {
         travelers: "1",
         travelDate: "",
         processingType: undefined,
+        protectionPlanInterested: false,
+        protectionPlanTermsAccepted: false,
       }}
       stepFields={newVisaStepFields}
       stepLabels={newVisaStepLabels}

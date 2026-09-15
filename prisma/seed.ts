@@ -558,6 +558,37 @@ async function main() {
     create: returnTicketRuleConfig,
   });
 
+  // New_Visa.md §8: "Default reference price: ₹5,000, configurable by
+  // Admin." Eligibility conditions are the doc's own §8 list, transcribed
+  // verbatim (real spec content, not a SAMPLE placeholder). termsText IS a
+  // SAMPLE placeholder — the doc never gives literal T&C prose ("full
+  // applicable conditions are displayed" describes a requirement, not
+  // wording) — per CLAUDE.md hard rule #1, propose the real copy to the
+  // client for review before replacing this. Same `update: {}` rule as
+  // taxFeeConfig/returnTicketRuleConfig above — once an admin has edited
+  // this, re-seeding must not silently reset it.
+  const protectionPlanConfig = {
+    id: "singleton",
+    defaultPrice: 5000,
+    termsText:
+      "SAMPLE TERMS — replace with the real Protection Plan terms and conditions before this goes live. " +
+      "By purchasing Protection Plan, the passenger acknowledges the eligibility conditions shown, agrees " +
+      "that TripNexio's decision on eligibility is final, and accepts that Protection Plan may be " +
+      "cancelled with a refund if found ineligible after purchase, per the terms shown at the time of purchase.",
+    eligibilityConditions: [
+      "Fresh/first-time passport",
+      "No relevant GCC travel history",
+      "No relevant legal/immigration issue",
+      "No applicable fine/penalty",
+      "No false/forged/misleading information",
+    ],
+  };
+  await db.protectionPlanConfig.upsert({
+    where: { id: protectionPlanConfig.id },
+    update: {},
+    create: protectionPlanConfig,
+  });
+
   console.log("Sample masters rows ready (clearly labeled — not real domain data).");
 
   await seedServiceStatuses();

@@ -1,10 +1,89 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { SAMPLE_VISA_TYPE_OPTIONS } from "@/lib/sample-data";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import { PassportUploadField } from "@/components/forms/PassportUploadField";
+import { getJson } from "@/lib/api/client";
 import type { NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
+
+interface ProtectionPlanPublicConfig {
+  defaultPrice: string;
+  termsText: string;
+  eligibilityConditions: string[];
+}
+
+/**
+ * New_Visa.md §8 (Step 20, audit §7.1) — this is the customer flow's ONLY
+ * touchpoint with Protection Plan: expressing interest + acknowledging the
+ * terms at intake time, carried into Lead.details for staff to see. The
+ * actual chargeable purchase only happens later once a real Booking (and
+ * therefore a real per-passenger record) exists — see
+ * src/app/api/leads/new-visa/route.ts's own comment.
+ */
+function ProtectionPlanOptIn() {
+  const { watch, setValue } = useFormContext<NewVisaRequestValues>();
+  const [config, setConfig] = useState<ProtectionPlanPublicConfig | null>(null);
+  const interested = watch("protectionPlanInterested");
+  const termsAccepted = watch("protectionPlanTermsAccepted");
+
+  useEffect(() => {
+    let cancelled = false;
+    getJson<ProtectionPlanPublicConfig>("/api/protection-plan-config")
+      .then((result) => {
+        if (!cancelled) setConfig(result);
+      })
+      .catch(() => {
+        // Non-critical — Protection Plan is optional; the rest of the request still works without it.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (!config) return null;
+
+  return (
+    <div className="rounded-xl border border-hairline bg-surface-1 p-5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-ink-heading">Protection Plan (optional)</h3>
+        <span className="text-sm font-medium text-ink-accent">₹{config.defaultPrice} / eligible passenger</span>
+      </div>
+      <p className="mb-2 text-xs text-ink-tertiary">Subject to eligibility review. Conditions include:</p>
+      <ul className="mb-3 list-inside list-disc text-xs text-ink-tertiary">
+        {config.eligibilityConditions.map((condition) => (
+          <li key={condition}>{condition}</li>
+        ))}
+      </ul>
+      <label className="mb-2 flex items-center gap-2 text-sm text-ink-secondary">
+        <input
+          type="checkbox"
+          checked={interested}
+          onChange={(event) => {
+            setValue("protectionPlanInterested", event.target.checked);
+            if (!event.target.checked) setValue("protectionPlanTermsAccepted", false);
+          }}
+        />
+        I&apos;m interested in Protection Plan
+      </label>
+      {interested ? (
+        <>
+          <p className="mb-2 max-h-24 overflow-y-auto rounded-md bg-surface-2 p-2 text-xs text-ink-tertiary">{config.termsText}</p>
+          <label className="flex items-start gap-2 text-xs text-ink-secondary">
+            <input
+              type="checkbox"
+              checked={termsAccepted}
+              onChange={(event) => setValue("protectionPlanTermsAccepted", event.target.checked)}
+              className="mt-0.5"
+            />
+            I have read and accept the Protection Plan terms above.
+          </label>
+        </>
+      ) : null}
+    </div>
+  );
+}
 
 const processingTypeLabel: Record<NewVisaRequestValues["processingType"], string> = {
   normal: "Normal",
@@ -54,6 +133,7 @@ export function Step3Summary() {
         <SummaryRow label="Processing Type" value={processingTypeLabel[values.processingType]} />
       </div>
       <PassportUploadField base64FieldName="passportImageBase64" mimeFieldName="passportImageMimeType" />
+      <ProtectionPlanOptIn />
     </div>
   );
 }

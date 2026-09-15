@@ -28,6 +28,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       // below (that stays the full Customer-360 history across every
       // lead/booking, same split LeadDetail.tsx already uses).
       passengers: { include: { passenger: true }, orderBy: { createdAt: "asc" } },
+      // Step 20 (audit §7.1) — same flat-array-filtered-by-passengerId
+      // convention as `documents` below, not duplicated onto each passenger.
+      protectionPlans: { orderBy: { createdAt: "asc" } },
     },
   });
   if (!booking) return jsonError(404, "Booking not found.");
@@ -92,5 +95,6 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     })),
     payments: paymentsWithRule,
     documents: booking.documents,
+    protectionPlans: booking.protectionPlans,
   });
 }

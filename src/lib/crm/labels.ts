@@ -12,6 +12,7 @@ import type {
   TaskType,
   TaskPriority,
   TaskStatus,
+  ProtectionPlanStatus,
 } from "../../generated/prisma/enums";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -156,4 +157,26 @@ export const TASK_STATUS_LABELS: Record<TaskStatus, string> = {
 
 export const TASK_STATUS_OPTIONS: { value: TaskStatus; label: string }[] = (
   Object.entries(TASK_STATUS_LABELS) as [TaskStatus, string][]
+).map(([value, label]) => ({ value, label }));
+
+/** Exact 14-status list, New_Visa.md §9 — display labels only, values must match the enum verbatim. */
+export const PROTECTION_PLAN_STATUS_LABELS: Record<ProtectionPlanStatus, string> = {
+  NOT_OFFERED: "Not Offered",
+  OFFERED: "Offered",
+  SELECTED_TERMS_PENDING: "Selected — Terms Pending",
+  TERMS_ACCEPTED: "Terms Accepted",
+  PURCHASED: "Purchased",
+  UNDER_ELIGIBILITY_REVIEW: "Under Eligibility Review",
+  ELIGIBLE: "Eligible",
+  INELIGIBLE: "Ineligible",
+  CANCELLED: "Cancelled",
+  REFUND_UNDER_REVIEW: "Refund Under Review",
+  REFUND_APPROVED: "Refund Approved",
+  REFUND_REJECTED: "Refund Rejected",
+  REFUND_PROCESSING: "Refund Processing",
+  REFUND_COMPLETED: "Refund Completed",
+};
+
+export const PROTECTION_PLAN_STATUS_OPTIONS: { value: ProtectionPlanStatus; label: string }[] = (
+  Object.entries(PROTECTION_PLAN_STATUS_LABELS) as [ProtectionPlanStatus, string][]
 ).map(([value, label]) => ({ value, label }));
