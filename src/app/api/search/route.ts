@@ -3,19 +3,8 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { formatLeadReference, parseLeadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
-import type { ServiceType } from "@/generated/prisma/enums";
-
-/** Reverse of SERVICE_REFERENCE_PREFIX in src/lib/leads/reference.ts. */
-const REFERENCE_PREFIX_TO_SERVICE: Record<string, ServiceType> = {
-  NV: "NEW_VISA",
-  VE: "VISA_EXTENSION",
-  VC: "VISA_CHANGE",
-  FF: "FLIGHT_SPECIAL_FARE",
-  RT: "RETURN_TICKET",
-  OTB: "OTB",
-};
 
 interface SearchResultItem {
   type: "lead" | "booking";
@@ -69,24 +58,21 @@ export async function GET(request: NextRequest) {
   // everywhere a lead reference is displayed (LeadsTable, BookingDetail's
   // "leadReferenceId" link, etc.), not a stored column — reverse-derived
   // the same way formatLeadReference() forward-derives it. ---
-  const referenceMatch = /^([A-Za-z]+)-([A-Za-z0-9]+)$/.exec(query);
-  if (canViewLeads && referenceMatch) {
-    const serviceType = REFERENCE_PREFIX_TO_SERVICE[referenceMatch[1].toUpperCase()];
-    if (serviceType) {
-      const leads = await db.lead.findMany({
-        where: { serviceType, id: { endsWith: referenceMatch[2].toLowerCase() } },
-        include: { customer: true },
-        take: RESULT_LIMIT_PER_QUERY_DIMENSION,
+  const parsedReference = parseLeadReference(query);
+  if (canViewLeads && parsedReference) {
+    const leads = await db.lead.findMany({
+      where: { serviceType: parsedReference.serviceType, id: { endsWith: parsedReference.suffix } },
+      include: { customer: true },
+      take: RESULT_LIMIT_PER_QUERY_DIMENSION,
+    });
+    for (const lead of leads) {
+      leadResults.set(lead.id, {
+        type: "lead",
+        id: lead.id,
+        title: formatLeadReference(lead.serviceType, lead.id),
+        subtitle: `${lead.customer.name} · ${SERVICE_TYPE_LABELS[lead.serviceType]}`,
+        href: `/crm/leads/${lead.id}`,
       });
-      for (const lead of leads) {
-        leadResults.set(lead.id, {
-          type: "lead",
-          id: lead.id,
-          title: formatLeadReference(lead.serviceType, lead.id),
-          subtitle: `${lead.customer.name} · ${SERVICE_TYPE_LABELS[lead.serviceType]}`,
-          href: `/crm/leads/${lead.id}`,
-        });
-      }
     }
   }
 

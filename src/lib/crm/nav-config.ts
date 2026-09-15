@@ -27,6 +27,7 @@ import {
   Waypoints,
   CalendarOff,
   Repeat,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -76,9 +77,9 @@ export const crmNavGroups: CrmNavGroup[] = [
 
 /**
  * Only shown/reachable to staff whose role grants roles.manage,
- * staff.manage, masters.manage, data.export, leads.reassign (added Step
- * 26 — see ADMIN_SECTION_PERMISSIONS's own doc comment), or admin.full —
- * see the Admin layout's server-side check. Every item is visible to anyone who
+ * staff.manage, masters.manage, data.export, leads.reassign, ai.assist
+ * (added Step 26/27 — see ADMIN_SECTION_PERMISSIONS's own doc comment), or
+ * admin.full — see the Admin layout's server-side check. Every item is visible to anyone who
  * can enter /admin at all; each screen's own API additionally requires
  * its specific permission, so e.g. a masters-only admin lands on a "no
  * permission" error state if they click into Roles, Staff, or Data
@@ -86,6 +87,7 @@ export const crmNavGroups: CrmNavGroup[] = [
  * just navigation.
  */
 export const adminNavItems: CrmNavItem[] = [
+  { label: "AI Command Center", href: "/admin/command-center", icon: Sparkles },
   { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck },
   { label: "Staff", href: "/admin/users", icon: UserCog },
   { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff },

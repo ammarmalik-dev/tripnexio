@@ -102,6 +102,12 @@ const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 // "normal CRM staff CANNOT assign/reassign... Admin CAN." Staff keeps
 // leads.edit (claim/assign a currently-unassigned lead) but not the
 // reassignment of a lead already assigned to someone else.
+//
+// ai.assist is also excluded — ADMIN.md §10 frames the AI Command Center as
+// "a core Admin capability," and it surfaces cross-domain data (refunds,
+// payments, staff workload) in one place regardless of the asker's other
+// granular permissions — the same reasoning masters.manage/data.export
+// already use for staying Admin-only.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
   (permission) =>
     ![
@@ -112,6 +118,7 @@ const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
       "automation.view",
       "refunds.approve",
       "leads.reassign",
+      "ai.assist",
       ADMIN_FULL_PERMISSION,
     ].includes(permission.name)
 ).map((permission) => permission.name);
