@@ -30,6 +30,7 @@ import {
   Sparkles,
   Receipt,
   Wallet,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -112,4 +113,5 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Protection Plan", href: "/admin/protection-plan", icon: ShieldCheck },
   { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt },
   { label: "Expenses", href: "/admin/expenses", icon: Wallet },
+  { label: "P&L Report", href: "/admin/pnl-report", icon: TrendingUp },
 ];
