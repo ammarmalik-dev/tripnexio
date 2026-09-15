@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { toast } from "@/components/ui/Toaster";
+import { GlobalSearch } from "./GlobalSearch";
 
 interface CrmTopbarProps {
   staffName: string;
@@ -23,8 +24,9 @@ export function CrmTopbar({ staffName, staffRole }: CrmTopbarProps) {
   };
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-end border-b border-hairline bg-surface-1 px-6">
-      <div className="flex items-center gap-3">
+    <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-hairline bg-surface-1 px-6">
+      <GlobalSearch />
+      <div className="flex shrink-0 items-center gap-3">
         <div className="text-right">
           <p className="text-sm font-medium text-ink-primary">{staffName}</p>
           <p className="text-xs text-ink-tertiary">{staffRole}</p>
