@@ -1,0 +1,23 @@
+import { z } from "zod";
+
+const staffLeaveBaseSchema = z.object({
+  userId: z.string().min(1, "Select a staff member"),
+  startDate: z.string().min(1, "Select a start date"),
+  endDate: z.string().min(1, "Select an end date"),
+  reason: z.string().trim().max(200, "Reason is too long").optional(),
+});
+
+function crossFieldChecks(value: z.infer<typeof staffLeaveBaseSchema>, ctx: z.RefinementCtx) {
+  if (new Date(value.endDate) < new Date(value.startDate)) {
+    ctx.addIssue({ code: "custom", message: "End date must be on or after the start date", path: ["endDate"] });
+  }
+}
+
+export const createStaffLeaveSchema = staffLeaveBaseSchema.superRefine(crossFieldChecks);
+// A leave record's staff member isn't editable after creation — delete and
+// re-add instead, same as every other masters screen treats an identity
+// field (e.g. Coupon.code isn't relevant here, but the pattern matches).
+export const updateStaffLeaveSchema = staffLeaveBaseSchema.omit({ userId: true }).partial();
+
+export type CreateStaffLeaveValues = z.infer<typeof createStaffLeaveSchema>;
+export type UpdateStaffLeaveValues = z.infer<typeof updateStaffLeaveSchema>;

@@ -1268,9 +1268,37 @@ model User {
   assignedTasks               Task[]               @relation("TaskAssignee")
   completedTasks              Task[]               @relation("TaskCompletedBy")
   sentWhatsAppMessages        WhatsAppMessageLog[]
+  leaves                      StaffLeave[]
 
   @@index([roleId])
   @@index([active])
+}
+
+/// Step 26 Unit 3 (audit §3.11/§4.7) — ADMIN.md §13's "Staff leave" roster:
+/// "1. Staff becomes unavailable. 2. Affected open work is identified.
+/// 3. Replacement staff can be recommended." This model covers step 1 (and
+/// feeds step 2/3's UI — see src/lib/staff/eligible-for-assignment.ts,
+/// which now excludes a staff member with a current leave row from
+/// auto-assignment suggestions, and the Admin bulk-reassignment screen,
+/// Unit 4, for actually moving a leave-affected staff member's open work).
+/// A plain date-range row per leave period, not a single "on leave: yes/no"
+/// flag — a staff member can have multiple leave periods over time, and
+/// this keeps the full history rather than only ever knowing the current
+/// state.
+model StaffLeave {
+  id        String   @id @default(cuid())
+  userId    String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  reason    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([startDate])
+  @@index([endDate])
 }
 
 model Role {

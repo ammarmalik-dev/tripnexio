@@ -25,7 +25,22 @@ export async function getEligibleStaffForAssignment(): Promise<EligibleStaffMemb
     include: { role: { include: { permissions: true } } },
   });
 
+  // Step 26 Unit 3 (audit §3.11/§4.7) — ADMIN.md §13's roster: a staff
+  // member with a current leave row is excluded from suggestions, same as
+  // an inactive account. `today` anchored to UTC midnight to match how the
+  // `@db.Date` startDate/endDate columns are stored/compared (date-only,
+  // no time-of-day component) — see feedback_pg_timestamp_local_time_parsing
+  // in project memory for why this matters.
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const currentLeaves = await db.staffLeave.findMany({
+    where: { startDate: { lte: today }, endDate: { gte: today } },
+    select: { userId: true },
+  });
+  const staffIdsOnLeave = new Set(currentLeaves.map((leave) => leave.userId));
+
   return staff
+    .filter((member) => !staffIdsOnLeave.has(member.id))
     .filter((member) => hasPermission({ permissions: member.role.permissions.map((permission) => permission.name) }, "leads.edit"))
     .map((member) => ({ id: member.id, name: member.name }));
 }

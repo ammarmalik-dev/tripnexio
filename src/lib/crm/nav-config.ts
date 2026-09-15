@@ -25,6 +25,7 @@ import {
   Globe2,
   LayoutGrid,
   Waypoints,
+  CalendarOff,
   type LucideIcon,
 } from "lucide-react";
 
@@ -85,6 +86,7 @@ export const crmNavGroups: CrmNavGroup[] = [
 export const adminNavItems: CrmNavItem[] = [
   { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck },
   { label: "Staff", href: "/admin/users", icon: UserCog },
+  { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff },
   { label: "Countries", href: "/admin/countries", icon: Globe2 },
   { label: "Services", href: "/admin/services", icon: LayoutGrid },
   { label: "Airports", href: "/admin/airports", icon: Building2 },
