@@ -1,8 +1,8 @@
-import { db } from "../db";
 import { createLeadFromSubmission } from "../leads/create-lead";
 import { checkVisaExtensionEligibility, getIneligibleRedirect } from "../leads/visa-extension-eligibility";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getAiProvider } from "./get-ai-provider";
+import { answerFaqQuestion } from "@/lib/faq/answer-faq";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
 import { getNextField, buildLeadDetails } from "./flows";
 import * as messages from "./messages";
@@ -176,12 +176,9 @@ async function continueCollecting(
 }
 
 async function answerFaqOrHandoff(question: string): Promise<EngineResult> {
-  const faqs = await db.faq.findMany({ where: { active: true, published: true } });
-  const ai = getAiProvider();
-  const result = await ai.answerFaq(
-    question,
-    faqs.map((faq) => ({ question: faq.question, answer: faq.answer, category: faq.category }))
-  );
+  // Step 29 (audit §2.8) — shared with the website's Ask AI page
+  // (POST /api/ai/ask) via src/lib/faq/answer-faq.ts, not duplicated here.
+  const result = await answerFaqQuestion(question);
 
   if (result.answer) {
     return { replyText: `${result.answer}\n\n${messages.faqFooter()}`, nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };

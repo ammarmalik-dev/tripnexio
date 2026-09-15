@@ -7,6 +7,7 @@ import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ChatBubble } from "./ChatBubble";
 import { siteConfig } from "@/lib/site-config";
+import { postJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { buttonBaseClass, buttonVariantClass, buttonSizeClass } from "@/components/ui/Button";
 
@@ -14,26 +15,41 @@ interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** Shown under a handoff reply (no confident FAQ match, or a request error) — same CTAs the greeting shows. */
+  showHandoffCta?: boolean;
 }
 
 const GREETING: ChatMessage = {
   id: "greeting",
   role: "assistant",
-  content:
-    "Hi! I'm TripNexio AI — a preview for now, so I can't answer live yet. Tell me what you need and I'll point you to our support team.",
+  content: "Hi! I'm TripNexio AI. Ask me anything about our visa and flight services — I'll answer from our FAQ knowledge base.",
+  showHandoffCta: true,
 };
 
-const CANNED_REPLY =
-  "Thanks for the details! This preview can't process requests yet, but our support team can help right away.";
+const NOT_FOUND_REPLY =
+  "I don't have a confident answer to that from our FAQs. Let's get you to a real person instead:";
 
-function createMessage(role: ChatMessage["role"], content: string): ChatMessage {
-  return { id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role, content };
+const ERROR_REPLY = "Something went wrong on our end — let's get you to a real person instead:";
+
+function createMessage(role: ChatMessage["role"], content: string, showHandoffCta?: boolean): ChatMessage {
+  return { id: `${role}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role, content, showHandoffCta };
 }
 
 interface AiChatShellProps {
   initialQuery?: string;
 }
 
+/**
+ * Step 29 (audit §2.8) — wired onto the real, Claude-powered, hallucination-
+ * guarded FAQ engine via POST /api/ai/ask (shared with the WhatsApp bot,
+ * see src/lib/faq/answer-faq.ts) — no more always-the-same canned reply.
+ * A null `answer` (the hallucination guard's own "not confidently
+ * covered" signal) always hands off to WhatsApp/staff, never gets
+ * papered over with an invented reply. This never claims to check live
+ * availability or take a real action — CLAUDE.md's "NOT a self-service
+ * live-booking engine" constraint — it only ever answers from the stored
+ * FAQ content.
+ */
 export function AiChatShell({ initialQuery }: AiChatShellProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     initialQuery ? [GREETING, createMessage("user", initialQuery)] : [GREETING]
@@ -44,13 +60,44 @@ export function AiChatShell({ initialQuery }: AiChatShellProps) {
   const shouldReduceMotion = useReducedMotion();
   const inputId = useId();
 
+  // Pure network call, no setState — kept state-free so both call sites
+  // below (the initial-query effect and handleSubmit) apply its result to
+  // state themselves, each inline in its own lexically-local scope. Fix
+  // pattern already needed 3 times earlier this session: a
+  // react-hooks/set-state-in-effect violation isn't just about a setState
+  // call written directly in the effect body — it's also raised when the
+  // effect calls out to another component-scoped function whose body
+  // contains one, so the setState-applying logic has to live directly
+  // inside a function declared INSIDE the effect, not merely referenced
+  // from component scope.
+  const requestAiAnswer = async (question: string): Promise<{ ok: true; answer: string | null } | { ok: false; message: string }> => {
+    try {
+      const result = await postJson<{ question: string; answer: string | null }>("/api/ai/ask", { question });
+      return { ok: true, answer: result.answer };
+    } catch (error) {
+      return { ok: false, message: error instanceof ApiError ? error.message : ERROR_REPLY };
+    }
+  };
+
   useEffect(() => {
     if (!initialQuery) return;
-    const timer = setTimeout(() => {
-      setMessages((current) => [...current, createMessage("assistant", CANNED_REPLY)]);
+    let cancelled = false;
+    async function run() {
+      setIsTyping(true);
+      const result = await requestAiAnswer(initialQuery!);
+      if (cancelled) return;
+      if (result.ok) {
+        const content = result.answer ?? NOT_FOUND_REPLY;
+        setMessages((current) => [...current, createMessage("assistant", content, !result.answer)]);
+      } else {
+        setMessages((current) => [...current, createMessage("assistant", result.message, true)]);
+      }
       setIsTyping(false);
-    }, 900);
-    return () => clearTimeout(timer);
+    }
+    void run();
+    return () => {
+      cancelled = true;
+    };
     // Only ever run for the initial query this component mounted with.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -67,11 +114,15 @@ export function AiChatShell({ initialQuery }: AiChatShellProps) {
     setMessages((current) => [...current, createMessage("user", trimmed)]);
     setDraft("");
     setIsTyping(true);
-
-    setTimeout(() => {
-      setMessages((current) => [...current, createMessage("assistant", CANNED_REPLY)]);
+    void requestAiAnswer(trimmed).then((result) => {
+      if (result.ok) {
+        const content = result.answer ?? NOT_FOUND_REPLY;
+        setMessages((current) => [...current, createMessage("assistant", content, !result.answer)]);
+      } else {
+        setMessages((current) => [...current, createMessage("assistant", result.message, true)]);
+      }
       setIsTyping(false);
-    }, 900);
+    });
   };
 
   return (
@@ -82,7 +133,7 @@ export function AiChatShell({ initialQuery }: AiChatShellProps) {
         </span>
         <div className="flex flex-col">
           <p className="text-sm font-semibold text-ink-heading">TripNexio AI</p>
-          <p className="text-xs text-ink-tertiary">Preview — connects you to our support team</p>
+          <p className="text-xs text-ink-tertiary">AI-assisted — answers from our FAQ knowledge base, not live availability</p>
         </div>
       </div>
 
@@ -98,7 +149,7 @@ export function AiChatShell({ initialQuery }: AiChatShellProps) {
               >
                 <ChatBubble role={message.role}>
                   <p>{message.content}</p>
-                  {message.id === "greeting" ? (
+                  {message.showHandoffCta ? (
                     <div className="flex flex-wrap gap-2 pt-1">
                       <a
                         href={siteConfig.contact.whatsappHref}

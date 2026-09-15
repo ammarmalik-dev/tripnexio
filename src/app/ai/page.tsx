@@ -6,7 +6,7 @@ import { AiChatShell } from "@/components/ai/AiChatShell";
 
 export const metadata: Metadata = {
   title: "Ask TripNexio AI",
-  description: "Ask TripNexio AI about visa and flight services — a preview that connects you to our support team.",
+  description: "Ask TripNexio AI about visa and flight services — AI-assisted answers from our FAQ knowledge base.",
 };
 
 interface AiPageProps {
@@ -25,8 +25,8 @@ export default async function AskAiPage({ searchParams }: AiPageProps) {
             Ask TripNexio AI
           </h1>
           <p className="max-w-lg text-sm text-ink-secondary sm:text-base">
-            A quick preview of what&rsquo;s coming — for now, it connects you
-            straight to our support team.
+            AI-assisted answers from our FAQ knowledge base — for anything else, it connects you straight to our
+            support team.
           </p>
         </MotionReveal>
 
