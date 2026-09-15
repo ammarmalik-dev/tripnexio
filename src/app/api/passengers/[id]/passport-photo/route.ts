@@ -4,7 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { saveUploadedFile } from "@/lib/storage/local-file-storage";
+import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 
 interface RouteParams {
@@ -49,6 +49,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { url } = await saveUploadedFile(parsed.data.imageBase64, parsed.data.mimeType, "passports");
 
+    // New_Visa.md §18: "If staff requests a new passport: old passport file
+    // is deleted, new becomes active." This route always creates a fresh
+    // Document row (never updates one in place), so any prior PASSPORT
+    // document(s) for this passenger are the ones being superseded here.
+    const priorPassportDocs = await db.document.findMany({
+      where: { passengerId, type: "PASSPORT", fileUrl: { not: null }, purgedAt: null },
+    });
+
     const document = await db.$transaction(async (tx) => {
       const created = await tx.document.create({
         data: { passengerId, type: "PASSPORT", status: "RECEIVED", fileUrl: url },
@@ -60,8 +68,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         byUserId: session.id,
         note: `Passport photo uploaded via CRM (by ${session.name})`,
       });
+      for (const prior of priorPassportDocs) {
+        await tx.document.update({ where: { id: prior.id }, data: { fileUrl: null, purgedAt: new Date() } });
+        await writeAudit(tx, {
+          entityType: "Document",
+          entityId: prior.id,
+          action: "SUPERSEDED",
+          byUserId: session.id,
+          note: `Old passport file deleted — superseded by document ${created.id} (by ${session.name})`,
+        });
+      }
       return created;
     });
+
+    // Best-effort, after the DB commit — same reasoning as the generic upload route's own replacement cleanup.
+    for (const prior of priorPassportDocs) {
+      void deleteUploadedFile(prior.fileUrl!);
+    }
 
     const extraction = await runPassportExtraction(document.id);
     return jsonSuccess({ document, extraction }, 201);

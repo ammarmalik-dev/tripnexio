@@ -4,7 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { saveUploadedFile } from "@/lib/storage/local-file-storage";
+import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { runTicketExtraction } from "@/lib/ocr/extract-ticket";
 import { runVisaExtraction } from "@/lib/ocr/extract-visa";
@@ -73,6 +73,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
     return result;
   });
+
+  // New_Visa.md §18: "old file is deleted, new becomes active." Only for a
+  // genuine replacement (a real prior local file, different from the new
+  // one) — best-effort, after the DB commit so a slow/failed disk delete
+  // never blocks the response the staff member is waiting on.
+  if (existing.fileUrl && existing.fileUrl !== fileUrl) {
+    void deleteUploadedFile(existing.fileUrl);
+  }
 
   // OCR runs automatically based on the document's own `type`, matching
   // whichever extraction pipeline applies — never blocks the upload

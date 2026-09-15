@@ -42,6 +42,30 @@ export async function saveUploadedFile(base64Data: string, mimeType: string, sub
 }
 
 /**
+ * Best-effort delete of a file this app itself wrote (a local `/uploads/...`
+ * path from saveUploadedFile) — used by the document-retention purge job
+ * (Step 21, audit §7.5) and by the upload routes when a new file replaces
+ * an old one (New_Visa.md §18: "old file is deleted"). Silently no-ops for
+ * an external http(s) URL (the CRM's "paste an already-hosted URL" flow) —
+ * this app doesn't own that file and has no business deleting it. Swallows
+ * "file already gone" (ENOENT) since the caller's goal ("this file no
+ * longer exists on disk") is already satisfied either way; other errors
+ * are logged, not thrown, since a failed cleanup shouldn't block whatever
+ * DB update the caller is also making.
+ */
+export async function deleteUploadedFile(fileUrl: string): Promise<void> {
+  if (!fileUrl.startsWith("/")) return;
+
+  const absolutePath = path.join(process.cwd(), "public", fileUrl.replace(/^\//, ""));
+  try {
+    await fs.unlink(absolutePath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
+    console.error(`[local-file-storage] couldn't delete "${fileUrl}"`, error);
+  }
+}
+
+/**
  * Reads file bytes back given a `Document.fileUrl` — handles both a
  * relative path this app itself wrote (via saveUploadedFile, read straight
  * off disk) and a real external http(s) URL (fetched over the network,

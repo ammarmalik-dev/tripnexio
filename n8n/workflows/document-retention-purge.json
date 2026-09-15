@@ -1,0 +1,59 @@
+{
+  "name": "TripNexio - Document Retention Purge",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "b1c4a9d2-3e5f-4a7b-9c1d-6f8e2a4b7c9d",
+      "name": "Weekly Sunday at 3:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "notes": "Set this n8n instance's timezone to Asia/Kolkata so this actually fires at 3:00 AM IST. Runs weekly, not daily — this is a destructive cleanup job, not a customer-facing reminder, so it doesn't need tight timing."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIPNEXIO_BASE_URL }}/api/automation/document-retention",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "d3e5f7a9-4b6c-4d8e-a2f4-7b9c1d3e5f7a",
+      "name": "Call Document Retention API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "TripNexio Automation Key"
+        }
+      },
+      "notes": "Set jsonBody to {\"dryRun\": true} first and confirm the wouldPurge/wouldPurgeDocumentIds counts look right before ever switching this to a real (non-dry-run) call."
+    }
+  ],
+  "connections": {
+    "Weekly Sunday at 3:00 AM": {
+      "main": [[{ "node": "Call Document Retention API", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

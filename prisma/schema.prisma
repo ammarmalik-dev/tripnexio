@@ -432,6 +432,16 @@ model Document {
   type        String
   status      DocumentStatus @default(REQUIRED)
   fileUrl     String?
+  /// Step 21 (audit §7.5) — New_Visa.md §27: set when the retention-purge
+  /// automation deletes this document's file (3+ months past the
+  /// booking's processing completion, Passport/Visa types exempted). The
+  /// row itself is kept (so Customer/Booking history still shows a
+  /// document of this type existed) — only `fileUrl` is cleared. Also set
+  /// by the same purge path when staff replace a file (§18: "old file is
+  /// deleted") — see PATCH /api/documents/[id]/upload and
+  /// POST /api/passengers/[id]/passport-photo, though those clear this on
+  /// the *superseded* row, not the new one.
+  purgedAt    DateTime?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 

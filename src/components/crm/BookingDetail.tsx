@@ -15,6 +15,7 @@ import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
+import { ReusableDocumentsPrompt } from "./ReusableDocumentsPrompt";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -281,6 +282,11 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                           />
                         </div>
                       ) : null}
+                      <ReusableDocumentsPrompt
+                        passengerId={passenger.id}
+                        bookingId={booking.id}
+                        onReused={() => setReloadNonce((current) => current + 1)}
+                      />
                       <div className="mt-2 flex flex-col gap-2">
                         {passengerDocuments.length === 0 ? (
                           <p className="text-xs text-ink-tertiary">No documents for this passenger yet.</p>
