@@ -26,6 +26,7 @@ import {
   LayoutGrid,
   Waypoints,
   CalendarOff,
+  Repeat,
   type LucideIcon,
 } from "lucide-react";
 
@@ -75,8 +76,9 @@ export const crmNavGroups: CrmNavGroup[] = [
 
 /**
  * Only shown/reachable to staff whose role grants roles.manage,
- * staff.manage, masters.manage, data.export, or admin.full — see the
- * Admin layout's server-side check. Every item is visible to anyone who
+ * staff.manage, masters.manage, data.export, leads.reassign (added Step
+ * 26 — see ADMIN_SECTION_PERMISSIONS's own doc comment), or admin.full —
+ * see the Admin layout's server-side check. Every item is visible to anyone who
  * can enter /admin at all; each screen's own API additionally requires
  * its specific permission, so e.g. a masters-only admin lands on a "no
  * permission" error state if they click into Roles, Staff, or Data
@@ -87,6 +89,7 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck },
   { label: "Staff", href: "/admin/users", icon: UserCog },
   { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff },
+  { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat },
   { label: "Countries", href: "/admin/countries", icon: Globe2 },
   { label: "Services", href: "/admin/services", icon: LayoutGrid },
   { label: "Airports", href: "/admin/airports", icon: Building2 },

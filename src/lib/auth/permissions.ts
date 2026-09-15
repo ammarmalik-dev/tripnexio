@@ -56,8 +56,17 @@ export function hasPermission(session: PermissionCheckable | null, permission: s
   return session.permissions.includes(ADMIN_FULL_PERMISSION) || session.permissions.includes(permission);
 }
 
-/** Every permission that unlocks the /admin/** section at all (each screen inside still checks its own specific permission). */
-export const ADMIN_SECTION_PERMISSIONS = ["roles.manage", "staff.manage", "masters.manage", "data.export", "automation.view"];
+/**
+ * Every permission that unlocks the /admin/** section at all (each screen
+ * inside still checks its own specific permission). leads.reassign joined
+ * this list in Step 26 — without it, a role holding ONLY leads.reassign
+ * (and none of the other admin-only permissions) would be redirected away
+ * by the Admin layout's own gate before ever reaching the Bulk
+ * Reassignment screen its permission is specifically meant to unlock. See
+ * feedback_admin_section_all_or_nothing_gating in project memory for the
+ * general shape of this gotcha.
+ */
+export const ADMIN_SECTION_PERMISSIONS = ["roles.manage", "staff.manage", "masters.manage", "data.export", "automation.view", "leads.reassign"];
 
 export function canAccessAdminSection(session: PermissionCheckable | null): boolean {
   return ADMIN_SECTION_PERMISSIONS.some((permission) => hasPermission(session, permission));
