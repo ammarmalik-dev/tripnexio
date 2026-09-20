@@ -1,0 +1,79 @@
+MY MSG:
+Assalam o alaikum bhai. Project ka poora scope confirm kar raha hoon taake dono ki understanding same rahe aur baad mein koi confusion na ho.
+
+Website: Modern glassy responsive site (mobile + desktop) with poore service journeys, New Visa, Visa Extension, Visa Change, Flight Special Fare, Return Verified Ticket, aur OTB. Plus Track Status aur Ask TripNexio AI flow. Guest browsing chalega, history/tracking ke liye login zaroori hoga.
+
+Login: Email + Password, Google login, aur Guest checkout.
+
+CRM (staff ke liye): Leads, customers, passengers, quotations, bookings, payments, refunds, documents, communications, aur customer history/timeline. Har service ka status flow, staff verification, quote builder with timer, OTB requirement check, aur vendor cost/margin (customer ko nahi dikhega).
+
+Admin panel: Services, pricing, coupons, vendors, staff roles aur permissions. Masters: Airport, Airline, Border, Documents, FAQ, aur notification templates. Sab kuch code chhue baghair configure hoga.
+
+Automation: WhatsApp + Email notifications, quote expiry timers, OTB auto-checks, reminders aur follow-ups, aur n8n monitoring view.
+
+Integrations: Payment gateway + invoice system with GST aur gateway fee calculation, Resend email, WhatsApp API, aur OCR (passport se details).
+
+Deployment aur handover: Local development, phir Hostinger VPS pe staging aur production. Git branch workflow, Prisma migrations, tested backups, rollback, deployment docs, complete source code aur GitHub repo, API aur env documentation, aapke system par setup + basic training, admin mein data export, aur 30-day bug support.
+
+Aapki taraf se yeh cheezein chahiye hongi (aapke apne account/kharche par): Domain, Hostinger VPS, WhatsApp API credentials (Meta token + Phone Number ID), Resend API key, aur koi bhi paid third-party service.
+
+CLIENT REPLY:
+OCR missing tha isme baki sab ok he
+
+MY MSG:
+OCR: Passport se automatic details nikalna (name, passport number, DOB etc.), taake customer ko manually type na karna pade.
+Am i right?
+
+CLIENT MSG:
+Yes and docs ke data fetch hojaye system me crm mai easy ho
+
+MY MSG:
+OCR: Passport aur documents se automatic details nikalna (name, passport number, DOB etc.), jo seedha system/CRM mein fetch ho jayein, taake manual entry na karni pade aur staff ka kaam asaan ho.
+
+CLIENT MSG:
+Yes
+
+CLIENT MSG:
+We need to see visible progress starting tomorrow. We cannot wait another day. Please let me know immediately if you can handle this. If you cannot start tomorrow, we will need to end this contract and we will hire another developer.
+As discussed, the project completion timeline is 15 days from the date the milestone was created, including weekends and other non-working days.
+
+However, the milestone was created two days ago, and you confirmed that you would start once the milestone was created. I had to follow up for an update, and you are now saying that you will start tomorrow.
+
+I am okay with the agreed 15-day timeline, but I need the work to actually start tomorrow and the project to be completed within the original 15-day deadline calculated from the milestone creation date. The 15-day timeline should not be extended because the work was started late.
+
+Please confirm that you will start tomorrow and complete the full project within the original 15-day deadline. Payment will be released only after the agreed work is completed and reviewed.
+
+MY MSG:
+Brother, I completely understand your concern. I just wanted to clarify one thing so there is no misunderstanding between us.
+
+As I mentioned earlier, I was considering the 15 days as working days. You created the milestone late Friday night, but even after that I spent time over the weekend reviewing the project so I could understand everything properly and start in the right direction. I have also spent the weekdays going through the complete project overview and aligning the requirements.
+
+Even today I was still reviewing everything and preparing the structure. My plan was to start properly from Monday, but since you need visible progress, I will also work during the upcoming weekend for you. I don't want the project to be delayed because of this.
+
+I am also sending you a theme that I found very suitable for the platform. I really liked it and was planning to start working on it, but I thought it would be better to show it to you first. If you prefer, I can skip waiting for approval and directly start working on it and show you the actual progress.
+
+Please don't worry, brother. I am taking this project seriously and I will make sure you start seeing proper progress from tomorrow. I am fully committed to getting this done for you.
+
+https://triprex-nextjs.vercel.app/index2
+I found this theme and I really like it for our project. I feel it will be a very good starting point for the platform and I can customize it according to all of your requirements.
+
+I was thinking of starting the development on this theme, so I wanted to share it with you first. If you are okay with it, I’ll start working on it directly from tomorrow and begin showing you the progress.
+
+Please have a look when you get a chance, and don’t worry, I’ll take care of the rest.
+
+
+CLIENT MSG:
+You mentioned 12 days in the chat, and during our call you clearly said 15 days including non-working days, which means 12 working days in total. Please refer to the attached screenshots of our chat for reference.
+
+The milestone was created two days ago, and you had confirmed that you would start once the milestone was created. Now you are saying that you will start tomorrow.
+
+I have no issue with the agreed timeline, but the 15-day total timeline / 12 working days should be counted from the milestone creation date, as discussed, and should not be extended because the actual work is starting later.
+
+Please make sure the work starts tomorrow and the project is completed within the originally agreed timeline.
+
+Atlys.com
+Visa2fly.com
+Check these
+
+Need create customised as per given design simple we dont need any theme
+Glassy, Live, Animations, site
