@@ -13,12 +13,15 @@
  * of each status against the existing coarse BookingStatus lifecycle and
  * the refund-engine cutoffs already established in src/lib/refunds/rules.ts
  * (Step 15) — same "review before relying on it" caveat as every other
- * proposed-default lifecycle in this schema. `customerLabel` is left null
- * everywhere except the one literal example CRM.md §14 itself gives
- * (New Visa's "Applied to Embassy" -> "Application submitted for
- * processing", applied to New Visa's closest equivalent status,
- * "Submitted to Embassy") — ADMIN.md §45 #6 lists the full mapping as an
- * explicitly open item, not something to invent.
+ * proposed-default lifecycle in this schema. `customerLabel` carries the
+ * customer-facing status wording from the client's 2026-09 per-service
+ * Developer Handover documents ("CRM statuses stay as they are; the shorter
+ * lists are what the customer sees"). It's filled only where an internal
+ * status clearly corresponds to a customer-facing one — internal steps with
+ * no customer-facing counterpart stay null, and Admin can adjust any mapping
+ * at /admin/service-statuses. New Visa's "Submitted to Embassy" now reads
+ * "Applied to Embassy" per the handover (CRM.md §14's older example wording
+ * was "Application submitted for processing").
  *
  * Transitions are seeded as a straightforward "next status in the same
  * group, in the order given" chain, plus a handful of explicit named
@@ -53,25 +56,25 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
     statuses: [
       { name: "Draft", mapsToBookingStatus: "PENDING" },
       { name: "Payment Pending", mapsToBookingStatus: "PENDING" },
-      { name: "Payment Received", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Pending", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Received", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Payment Received", customerLabel: "Application Received", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Documents Pending", customerLabel: "Documents Upload Pending", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Documents Received", customerLabel: "Documents Uploaded", mapsToBookingStatus: "CONFIRMED" },
       { name: "OCR / Validation", mapsToBookingStatus: "CONFIRMED" },
       { name: "Staff Verification", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Ready for Submission", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Ready for Submission", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED" },
       {
         name: "Submitted to Embassy",
+        customerLabel: "Applied to Embassy",
         mapsToBookingStatus: "PROCESSING",
         blocksRefund: true,
-        customerLabel: "Application submitted for processing.",
       },
       { name: "Embassy Reviewing", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Additional Document Requested", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Additional Document Requested", customerLabel: "Additional Documents Required", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Customer Upload Pending", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Re-validation", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Re-submitted", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Approved", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Rejected", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
+      { name: "Re-validation", customerLabel: "Additional Documents Validated", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Re-submitted", customerLabel: "Additional Documents Submitted", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Approved", customerLabel: "Visa Approved", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Rejected", customerLabel: "Rejected", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
       { name: "Visa PDF Delivered", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Completed", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
     ],
@@ -85,7 +88,7 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
   {
     serviceType: "VISA_EXTENSION",
     statuses: [
-      { name: "Extension Lead Created", mapsToBookingStatus: "PENDING" },
+      { name: "Extension Lead Created", customerLabel: "Extension Request Received", mapsToBookingStatus: "PENDING" },
       { name: "Under Staff Review", mapsToBookingStatus: "PENDING" },
       { name: "Visa Verification Required", mapsToBookingStatus: "PENDING" },
       { name: "Eligibility Review", mapsToBookingStatus: "PENDING" },
@@ -93,10 +96,10 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "Quotation Ready", mapsToBookingStatus: "CONFIRMED" },
       { name: "Payment Pending", mapsToBookingStatus: "CONFIRMED" },
       { name: "Payment Received", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Processing", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Processing", customerLabel: "Applied to Embassy", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Additional Information Required", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Re-processing", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Extended", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Extended", customerLabel: "Approved", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Visa Delivered", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Completed", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
       // Alternative outcomes (Visa_Extension.md §19) — Not Accepted vs.
@@ -104,7 +107,7 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       // built as Booking.extensionOutcome in Step 15.
       { name: "Not Eligible", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
       { name: "Not Accepted", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
-      { name: "Rejected", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
+      { name: "Rejected", customerLabel: "Rejected", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
       { name: "Cancelled", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
       { name: "Refund Processing", group: "Alternative Outcomes", mapsToBookingStatus: "REFUNDED" },
       { name: "Refund Completed", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "REFUNDED" },
@@ -121,7 +124,7 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
   {
     serviceType: "VISA_CHANGE",
     statuses: [
-      { name: "Lead Created", mapsToBookingStatus: "PENDING" },
+      { name: "Lead Created", customerLabel: "Visa Change Request Received", mapsToBookingStatus: "PENDING" },
       { name: "Availability Check", mapsToBookingStatus: "PENDING" },
       { name: "Availability Confirmed", mapsToBookingStatus: "PENDING" },
       { name: "Customer Notified", mapsToBookingStatus: "PENDING" },
@@ -131,14 +134,14 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "Booking ID Generated", mapsToBookingStatus: "CONFIRMED" },
       { name: "Documents Pending", mapsToBookingStatus: "CONFIRMED" },
       { name: "Documents Received", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Verified", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Package Generated", mapsToBookingStatus: "PROCESSING" },
+      { name: "Documents Verified", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Package Generated", customerLabel: "Package Generated", mapsToBookingStatus: "PROCESSING" },
       { name: "Exit Pending", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Exit Completed", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "New Visa Processing", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Additional Documents Required", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Visa Approved", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Visa Rejected", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
+      { name: "Exit Completed", customerLabel: "Border Exited", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "New Visa Processing", customerLabel: "New Visa Applied to Embassy", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Additional Documents Required", customerLabel: "Additional Documents Required", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Visa Approved", customerLabel: "Visa Approved", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Visa Rejected", customerLabel: "Rejected", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
       { name: "Visa Delivered", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Completed", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
     ],
@@ -148,20 +151,20 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
     serviceType: "RETURN_TICKET",
     statuses: [
       { name: "Return Ticket Upsell Offered", mapsToBookingStatus: "PENDING" },
-      { name: "Application Started", mapsToBookingStatus: "PENDING" },
+      { name: "Application Started", customerLabel: "Request Received", mapsToBookingStatus: "PENDING" },
       { name: "Payment Pending", mapsToBookingStatus: "PENDING" },
       { name: "Payment Successful", mapsToBookingStatus: "CONFIRMED" },
       { name: "Booking Generated", mapsToBookingStatus: "CONFIRMED" },
       { name: "Documents Required", mapsToBookingStatus: "CONFIRMED" },
       { name: "Document Validation Pending", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Validated", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Documents Validated", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED" },
       {
         name: "Forwarded to Airline / Vendor",
         mapsToBookingStatus: "PROCESSING",
         blocksRefund: true,
       },
-      { name: "Ticket / Reservation Processing", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Ticket Issued", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Ticket / Reservation Processing", customerLabel: "Sent to Airlines", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Ticket Issued", customerLabel: "Ticket Issued", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Delivered", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Completed", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
       // Exceptions (Return_Verified_Ticket.md §24)
@@ -183,21 +186,21 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
     statuses: [
       // Booking
       { name: "OTB Upsell Offered", group: "Booking", mapsToBookingStatus: "PENDING" },
-      { name: "OTB Application Started", group: "Booking", mapsToBookingStatus: "PENDING" },
+      { name: "OTB Application Started", customerLabel: "OTB Application Received", group: "Booking", mapsToBookingStatus: "PENDING" },
       { name: "Payment Pending", group: "Booking", mapsToBookingStatus: "PENDING" },
       { name: "Payment Successful", group: "Booking", mapsToBookingStatus: "CONFIRMED" },
       { name: "OTB Booking Generated", group: "Booking", mapsToBookingStatus: "CONFIRMED" },
       // Verification
       { name: "Staff Verification Pending", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Required", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Documents Required", customerLabel: "Documents Upload Pending", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
       { name: "Document Validation Pending", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Validated", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Documents Validated", customerLabel: "Documents Validated", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
       // Airline
       { name: "Ready for Submission", group: "Airline", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Submitted to Airline", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Submitted to Airline", customerLabel: "Sent to Airlines", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Airline Processing", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Additional Documents Required", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "OTB Approved", group: "Airline", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
+      { name: "Additional Documents Required", customerLabel: "Additional Documents Required", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "OTB Approved", customerLabel: "OTB Updated", group: "Airline", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
       { name: "OTB Rejected", group: "Airline", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
       // Exceptions
       { name: "OTB Not Required", group: "Exceptions", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
@@ -229,12 +232,12 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "Expired", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
       { name: "New Quote Requested", mapsToBookingStatus: "PENDING" },
       { name: "Payment Pending", mapsToBookingStatus: "PENDING" },
-      { name: "Paid", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Paid", customerLabel: "Payment Completed", mapsToBookingStatus: "CONFIRMED" },
       { name: "Final Confirmation", mapsToBookingStatus: "CONFIRMED" },
       { name: "Alternative Offered", mapsToBookingStatus: "PENDING" },
       { name: "Additional Payment Pending", mapsToBookingStatus: "CONFIRMED" },
       { name: "Refund Pending", mapsToBookingStatus: "REFUNDED" },
-      { name: "Ticket Issued", isTerminal: true, mapsToBookingStatus: "COMPLETED" },
+      { name: "Ticket Issued", customerLabel: "Ticket Issued", isTerminal: true, mapsToBookingStatus: "COMPLETED" },
       { name: "Cancelled", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
       { name: "Follow-up Due", mapsToBookingStatus: "PENDING" },
     ],
