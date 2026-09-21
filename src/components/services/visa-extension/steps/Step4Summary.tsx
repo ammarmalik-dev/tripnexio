@@ -16,7 +16,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function Step3Summary() {
+export function Step4Summary() {
   const { getValues } = useFormContext<VisaExtensionRequestValues>();
   const values = getValues();
 
@@ -30,7 +30,20 @@ export function Step3Summary() {
         <SummaryRow label="Date of Birth" value={formatDate(values.dob)} />
         <SummaryRow label="Currently Inside UAE" value={values.insideUAE === "yes" ? "Yes" : "No"} />
         <SummaryRow label="UAE Entry Date" value={formatDate(values.entryDate)} />
+        <SummaryRow label="Passport Copy" value={values.passportImageBase64 ? "Uploaded" : "Missing"} />
       </div>
+      {values.additionalApplicants.map((applicant, index) => (
+        <div key={index} className="rounded-xl border border-hairline bg-surface-1 px-5">
+          <p className="pt-3 text-xs font-medium uppercase tracking-wide text-ink-accent">
+            Applicant {index + 2}
+          </p>
+          <SummaryRow label="Full Name" value={applicant.fullName} />
+          <SummaryRow label="Passport Number" value={applicant.passportNumber} />
+          <SummaryRow label="Date of Birth" value={formatDate(applicant.dob)} />
+          <SummaryRow label="UAE Entry Date" value={formatDate(applicant.entryDate)} />
+          <SummaryRow label="Passport Copy" value={applicant.passportImageBase64 ? "Uploaded" : "Missing"} />
+        </div>
+      ))}
       <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-tertiary">
         We currently offer Visa Extension only for visas originally issued through TripNexio. We&apos;ll check your
         details and confirm your eligibility before any fee is calculated.

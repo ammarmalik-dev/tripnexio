@@ -4,6 +4,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
+import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import type { VisaExtensionRequestValues } from "@/lib/validation/visa-extension-schema";
 
 const MIN_DOB = "1900-01-01";
@@ -67,6 +68,14 @@ export function Step1Identity() {
           { value: "yes", label: "Yes", description: "I'm currently inside the UAE." },
           { value: "no", label: "No", description: "I'm currently outside the UAE." },
         ]}
+      />
+      <PassportUploadField
+        base64FieldName="passportImageBase64"
+        mimeFieldName="passportImageMimeType"
+        label="Passport copy"
+        description="Upload a clear photo of your passport's main page. It's attached to your request so our team can validate it right away."
+        required
+        error={errors.passportImageBase64?.message ?? errors.passportImageMimeType?.message}
       />
     </div>
   );

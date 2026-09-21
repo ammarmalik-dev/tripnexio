@@ -19,14 +19,25 @@ const MAX_BYTES = 8 * 1024 * 1024;
 export function PassportUploadField({
   base64FieldName,
   mimeFieldName,
+  label = "Passport photo (optional)",
+  description = "Attach a photo of your passport's main page and we'll pre-fill your details for our team to confirm — this speeds up processing. Completely optional.",
+  required = false,
+  error: externalError,
 }: {
   base64FieldName: string;
   mimeFieldName: string;
+  /** Overrides the default optional-upload copy — used by flows where the upload is mandatory. */
+  label?: string;
+  description?: string;
+  required?: boolean;
+  /** Validation message from the form's own schema (e.g. "Upload a copy of the passport"). */
+  error?: string;
 }) {
   const { setValue, watch } = useFormContext();
   const [fileName, setFileName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasValue = Boolean(watch(base64FieldName));
+  const inputId = `upload-${base64FieldName.replace(/[^a-zA-Z0-9]/g, "-")}`;
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -46,8 +57,8 @@ export function PassportUploadField({
     reader.onload = () => {
       const result = typeof reader.result === "string" ? reader.result : "";
       const base64 = result.split(",")[1] ?? "";
-      setValue(base64FieldName, base64, { shouldValidate: false });
-      setValue(mimeFieldName, file.type, { shouldValidate: false });
+      setValue(base64FieldName, base64, { shouldValidate: required });
+      setValue(mimeFieldName, file.type, { shouldValidate: required });
       setFileName(file.name);
     };
     reader.onerror = () => setError("Couldn't read that file — please try again.");
@@ -56,14 +67,14 @@ export function PassportUploadField({
 
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <label className="text-sm font-medium text-ink-primary" htmlFor="passport-upload">
-        Passport photo (optional)
+      <label className="text-sm font-medium text-ink-primary" htmlFor={inputId}>
+        {label}
+        {required ? <span className="ml-0.5 text-error" aria-hidden="true">*</span> : null}
       </label>
-      <p className="text-xs text-ink-tertiary">
-        Attach a photo of your passport&apos;s main page and we&apos;ll pre-fill your details for our team to confirm — this speeds up processing. Completely optional.
-      </p>
+      <p className="text-xs text-ink-tertiary">{description}</p>
       <input
-        id="passport-upload"
+        id={inputId}
+        aria-invalid={!!externalError}
         type="file"
         accept={ALLOWED_TYPES.join(",")}
         onChange={handleChange}
@@ -75,7 +86,7 @@ export function PassportUploadField({
           {fileName} attached
         </span>
       ) : null}
-      {error ? <span className="text-xs text-error">{error}</span> : null}
+      {error || externalError ? <span className="text-xs text-error">{error ?? externalError}</span> : null}
     </div>
   );
 }

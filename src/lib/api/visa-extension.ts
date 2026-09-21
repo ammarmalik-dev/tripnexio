@@ -6,6 +6,7 @@ interface VisaExtensionIneligibleResponse {
   eligible: false;
   redirect: { service: "VISA_CHANGE" | "NEW_VISA"; href: string; label: string };
   message: string;
+  ineligibleApplicants?: string[];
 }
 
 type VisaExtensionResponse = ({ eligible: true } & CreateLeadResult) | VisaExtensionIneligibleResponse;
@@ -16,7 +17,9 @@ export async function submitVisaExtensionRequest(values: VisaExtensionRequestVal
   if (!result.eligible) {
     throw new RequestIneligibleOutcome(
       "We couldn't find an eligible TripNexio visa",
-      `${result.message} ${
+      `${result.message}${
+        result.ineligibleApplicants?.length ? ` Not matched: ${result.ineligibleApplicants.join(", ")}.` : ""
+      } ${
         result.redirect.service === "VISA_CHANGE"
           ? "Since you're inside the UAE, our Visa Change service may help instead."
           : "Since you're outside the UAE, you can apply for a New Visa instead."

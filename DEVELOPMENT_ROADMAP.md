@@ -291,6 +291,24 @@ These are large, foundational modules described in exhaustive detail across ever
 
 ---
 
+## Phase 9 — Client Handover Updates (2026-09-20 handover docs)
+
+**Source:** `client-message/HANDOVER_UPDATES_AUDIT.md`. Built one task at a time, in the order the client-side owner assigns them.
+**Status key:** ⬜ not started · 🟦 in progress · ✅ done
+
+| # | Task | Status |
+|---|------|--------|
+| H1 | Visa Extension: multi-applicant + per-applicant passport copy uploaded before Lead submission (per-applicant eligibility check, applicant-wise storage) | ✅ |
+| H2 | Visa Extension: staff-facing panel showing the matched prior TripNexio visa for each applicant on the Lead detail page | ⬜ |
+| H3 | Visa Change: applicant-wise document upload before Lead submission | ⬜ |
+| H4 | New Visa: per-traveller array (Occupation, passport, DOB), minor/guardian rule | ⬜ |
+| H5 | OTB: multi-applicant + travel-date/Urgent gating | ⬜ |
+| H6 | Return Ticket / Special Fare / status lists / Visa Change itineraries | ⬜ blocked on client decisions (see audit) |
+
+**H1 notes:** Passport copy is the only document collected (the real per-service required-document list is Admin-configured and wasn't specified for Extension). Additional applicants collect Full Name, Passport Number, DOB and UAE Entry Date (locked spec §4 uses Entry Date, not the handover doc's "Visa Expiry Date"; DOB is needed for the passport+DOB eligibility lookup). Max 5 additional applicants. If any applicant has no eligible TripNexio visa, no Lead is created and the ineligible names are shown.
+
+---
+
 ## Summary: Suggested Execution Order
 
 1. Steps 1-4 (critical fixes) — do immediately, small and urgent.
