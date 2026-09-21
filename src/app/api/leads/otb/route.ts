@@ -4,6 +4,7 @@ import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { db } from "@/lib/db";
+import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { getOtbGlobalRules, resolveAirlineRules } from "@/lib/otb/get-otb-rules";
 import { evaluateOtbTravelDate, workingDaysUntil } from "@/lib/otb/processing-rules";
 
@@ -85,7 +86,22 @@ export async function POST(request: NextRequest) {
       mimeType: passportImageMimeType,
     });
 
-    return jsonSuccess(result, 201);
+
+    // Pay right after the form when the airline has a configured price for
+    // this processing type (see the return-ticket route for the failure rule).
+    let payToken: string | undefined;
+    try {
+      const checkout = await createAutoCheckout({
+        leadId: result.leadId,
+        serviceType: "OTB",
+        totalPrice: Number.isFinite(unitPrice) ? unitPrice * applicants.length : 0,
+      });
+      payToken = checkout?.token;
+    } catch (checkoutError) {
+      console.error("[api/leads/otb] auto checkout failed", checkoutError);
+    }
+
+    return jsonSuccess({ ...result, payToken }, 201);
   } catch (error) {
     console.error("[api/leads/otb]", error);
     return jsonError(500, "Something went wrong while submitting your request. Please try again.");

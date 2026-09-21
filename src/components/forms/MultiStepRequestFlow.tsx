@@ -5,6 +5,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { FormProvider, useForm, type DefaultValues, type FieldValues, type Path, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { ZodType } from "zod";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { Button } from "@/components/ui/Button";
@@ -35,7 +36,8 @@ interface MultiStepRequestFlowProps<T extends FieldValues> {
    * returned issue is set as a manual field error and blocks moving on.
    */
   extraStepValidation?: Record<number, (values: T) => { path: string; message: string }[]>;
-  onSubmit: (values: T) => Promise<{ referenceId: string }>;
+  /** `nextUrl` (e.g. the customer's payment page) sends the customer straight on after a successful submit. */
+  onSubmit: (values: T) => Promise<{ referenceId: string; nextUrl?: string }>;
   successTitle: string;
   successDescription: string;
 }
@@ -69,7 +71,9 @@ export function MultiStepRequestFlow<T extends FieldValues>({
   });
   const { currentIndex, isFirstStep, isLastStep, goNext, goBack } = useMultiStepForm(steps.length);
   const [submitState, setSubmitState] = useState<SubmitState>("idle");
+  const router = useRouter();
   const [referenceId, setReferenceId] = useState<string | null>(null);
+  const [nextUrl, setNextUrl] = useState<string | null>(null);
   const [ineligibleOutcome, setIneligibleOutcome] = useState<RequestIneligibleOutcome | null>(null);
   const shouldReduceMotion = useReducedMotion();
 
@@ -91,8 +95,10 @@ export function MultiStepRequestFlow<T extends FieldValues>({
     try {
       const result = await onSubmit(values);
       setReferenceId(result.referenceId);
+      setNextUrl(result.nextUrl ?? null);
       setSubmitState("success");
       toast.success(successTitle, { description: `Reference ID: ${result.referenceId}` });
+      if (result.nextUrl) router.push(result.nextUrl);
     } catch (error) {
       if (error instanceof RequestIneligibleOutcome) {
         setIneligibleOutcome(error);
@@ -108,7 +114,12 @@ export function MultiStepRequestFlow<T extends FieldValues>({
     return (
       <Container className="py-16 sm:py-24">
         <div className="mx-auto max-w-xl">
-          <RequestSuccessPanel title={successTitle} description={successDescription} referenceId={referenceId} />
+          <RequestSuccessPanel
+            title={successTitle}
+            description={successDescription}
+            referenceId={referenceId}
+            cta={nextUrl ? { label: "Continue to payment", href: nextUrl } : undefined}
+          />
         </div>
       </Container>
     );

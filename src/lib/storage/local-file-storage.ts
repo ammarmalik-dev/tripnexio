@@ -1,8 +1,10 @@
 import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
+import { db } from "../db";
 
 const UPLOADS_ROOT = path.join(process.cwd(), "public", "uploads");
+const DB_FILE_PREFIX = "/api/files/";
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -31,14 +33,27 @@ export async function saveUploadedFile(base64Data: string, mimeType: string, sub
     throw new Error(`Unsupported file type "${mimeType}" — use JPEG, PNG, GIF, WebP, or PDF.`);
   }
 
-  const dir = path.join(UPLOADS_ROOT, subdir);
-  await fs.mkdir(dir, { recursive: true });
+  const buffer = Buffer.from(base64Data, "base64");
 
-  const filename = `${crypto.randomUUID()}.${extension}`;
-  const absolutePath = path.join(dir, filename);
-  await fs.writeFile(absolutePath, Buffer.from(base64Data, "base64"));
+  // Local disk first (a VPS). On a host with no writable disk (serverless),
+  // or when FILE_STORAGE=db, fall back to keeping the bytes in the database
+  // (FileBlob), served by GET /api/files/[id].
+  if (process.env.FILE_STORAGE !== "db") {
+    try {
+      const dir = path.join(UPLOADS_ROOT, subdir);
+      await fs.mkdir(dir, { recursive: true });
+      const filename = `${crypto.randomUUID()}.${extension}`;
+      const absolutePath = path.join(dir, filename);
+      await fs.writeFile(absolutePath, buffer);
+      return { url: `/uploads/${subdir}/${filename}`, absolutePath };
+    } catch (error) {
+      console.warn("[file-storage] local disk isn't writable, storing in the database instead:", (error as Error).message);
+    }
+  }
 
-  return { url: `/uploads/${subdir}/${filename}`, absolutePath };
+  const id = crypto.randomUUID();
+  await db.fileBlob.create({ data: { id, mimeType, data: buffer } });
+  return { url: `/api/files/${id}`, absolutePath: "" };
 }
 
 /**
@@ -55,6 +70,10 @@ export async function saveUploadedFile(base64Data: string, mimeType: string, sub
  */
 export async function deleteUploadedFile(fileUrl: string): Promise<void> {
   if (!fileUrl.startsWith("/")) return;
+  if (fileUrl.startsWith(DB_FILE_PREFIX)) {
+    await db.fileBlob.deleteMany({ where: { id: fileUrl.slice(DB_FILE_PREFIX.length) } });
+    return;
+  }
 
   const absolutePath = path.join(process.cwd(), "public", fileUrl.replace(/^\//, ""));
   try {
@@ -73,6 +92,12 @@ export async function deleteUploadedFile(fileUrl: string): Promise<void> {
  * already-hosted URL" upload flow).
  */
 export async function readFileBytes(fileUrl: string): Promise<{ base64: string; mimeType: string }> {
+  if (fileUrl.startsWith(DB_FILE_PREFIX)) {
+    const blob = await db.fileBlob.findUnique({ where: { id: fileUrl.slice(DB_FILE_PREFIX.length) } });
+    if (!blob) throw new Error(`Stored file "${fileUrl}" no longer exists.`);
+    return { base64: Buffer.from(blob.data).toString("base64"), mimeType: blob.mimeType };
+  }
+
   if (fileUrl.startsWith("/")) {
     const absolutePath = path.join(process.cwd(), "public", fileUrl.replace(/^\//, ""));
     const buffer = await fs.readFile(absolutePath);

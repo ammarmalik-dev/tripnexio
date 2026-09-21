@@ -4,6 +4,7 @@ import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { computeReturnDate } from "@/lib/leads/compute-return-date";
 import { getReturnTicketRules } from "@/lib/settings/return-ticket-rule-config";
 import { db } from "@/lib/db";
+import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 
 export async function POST(request: NextRequest) {
@@ -66,7 +67,23 @@ export async function POST(request: NextRequest) {
         applicants,
       },
     });
-    return jsonSuccess(result, 201);
+
+    // Pay right after the form (client handover): the price comes straight
+    // from Admin config, so create the payment now. A failure here must never
+    // lose the Lead — staff can still send a payment link from the CRM.
+    let payToken: string | undefined;
+    try {
+      const checkout = await createAutoCheckout({
+        leadId: result.leadId,
+        serviceType: "RETURN_TICKET",
+        totalPrice: ratePerApplicant * applicants.length,
+      });
+      payToken = checkout?.token;
+    } catch (checkoutError) {
+      console.error("[api/leads/return-ticket] auto checkout failed", checkoutError);
+    }
+
+    return jsonSuccess({ ...result, payToken }, 201);
   } catch (error) {
     console.error("[api/leads/return-ticket]", error);
     return jsonError(500, "Something went wrong while submitting your request. Please try again.");

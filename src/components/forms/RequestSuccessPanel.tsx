@@ -6,10 +6,12 @@ interface RequestSuccessPanelProps {
   title: string;
   description: string;
   referenceId: string;
+  /** Primary next step (e.g. pay now); shown before the generic Track Status button. */
+  cta?: { label: string; href: string };
 }
 
 /** Shared post-submit success state for any request flow. */
-export function RequestSuccessPanel({ title, description, referenceId }: RequestSuccessPanelProps) {
+export function RequestSuccessPanel({ title, description, referenceId, cta }: RequestSuccessPanelProps) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-xl border border-hairline bg-surface-1 px-6 py-14 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success/10 text-success">
@@ -23,7 +25,12 @@ export function RequestSuccessPanel({ title, description, referenceId }: Request
         Reference ID: <span className="text-ink-accent">{referenceId}</span>
       </p>
       <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-        <ButtonLink href={utilityLinks.trackStatus.href} variant="primary" size="md">
+        {cta ? (
+          <ButtonLink href={cta.href} variant="primary" size="md">
+            {cta.label}
+          </ButtonLink>
+        ) : null}
+        <ButtonLink href={utilityLinks.trackStatus.href} variant={cta ? "ghost" : "primary"} size="md">
           Track Status
         </ButtonLink>
         <ButtonLink href={headerActions.getStarted.href} variant="ghost" size="md">
