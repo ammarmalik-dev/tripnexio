@@ -15,6 +15,7 @@ export interface QuoteCardData {
   infantFare: string | null;
   feeAmount: string | null;
   fineOrCharges: string | null;
+  flightTicketPrice: string | null;
   vendorId: string;
   vendorCost: string;
   sellingPrice: string;
@@ -39,6 +40,7 @@ function money(value: string | null): string | null {
 export function QuoteCard({
   quotation,
   isFlightQuote,
+  hasItinerary = false,
   vendorName,
   now,
   onSelect,
@@ -46,6 +48,8 @@ export function QuoteCard({
 }: {
   quotation: QuoteCardData;
   isFlightQuote: boolean;
+  /** Visa Change itinerary option: simple fee pricing plus flight details. */
+  hasItinerary?: boolean;
   vendorName: string;
   now: number;
   onSelect: () => void;
@@ -60,7 +64,9 @@ export function QuoteCard({
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-ink-primary">
-              {isFlightQuote ? `${quotation.airline ?? "Quotation"}${quotation.flightNumber ? ` ${quotation.flightNumber}` : ""}` : "Quotation"}
+              {isFlightQuote || hasItinerary
+                ? `${quotation.airline ?? (hasItinerary ? "Itinerary option" : "Quotation")}${quotation.flightNumber ? ` ${quotation.flightNumber}` : ""}`
+                : "Quotation"}
             </span>
             {quotation.isSelected ? (
               <span className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">Selected</span>
@@ -72,7 +78,7 @@ export function QuoteCard({
               <span className="rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">Alternative Route</span>
             ) : null}
           </div>
-          {isFlightQuote && quotation.route ? <span className="text-sm text-ink-secondary">{quotation.route}</span> : null}
+          {(isFlightQuote || hasItinerary) && quotation.route ? <span className="text-sm text-ink-secondary">{quotation.route}</span> : null}
         </div>
         {quotation.validityExpiresAt ? (
           <QuoteCountdown validityExpiresAt={quotation.validityExpiresAt} now={now} />
@@ -128,6 +134,30 @@ export function QuoteCard({
         </dl>
       ) : (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+          {hasItinerary && quotation.flightDateTime ? (
+            <div className="flex justify-between gap-2">
+              <dt className="text-ink-tertiary">Departure</dt>
+              <dd className="font-medium text-ink-primary">{formatDateTime(quotation.flightDateTime)}</dd>
+            </div>
+          ) : null}
+          {hasItinerary && quotation.arrivalDateTime ? (
+            <div className="flex justify-between gap-2">
+              <dt className="text-ink-tertiary">Arrival</dt>
+              <dd className="font-medium text-ink-primary">{formatDateTime(quotation.arrivalDateTime)}</dd>
+            </div>
+          ) : null}
+          {hasItinerary && quotation.baggageAllowance ? (
+            <div className="flex justify-between gap-2">
+              <dt className="text-ink-tertiary">Baggage</dt>
+              <dd className="font-medium text-ink-primary">{quotation.baggageAllowance}</dd>
+            </div>
+          ) : null}
+          {hasItinerary && money(quotation.flightTicketPrice) ? (
+            <div className="flex justify-between gap-2">
+              <dt className="text-ink-tertiary">Flight Ticket</dt>
+              <dd className="font-medium text-ink-primary">{money(quotation.flightTicketPrice)}</dd>
+            </div>
+          ) : null}
           {money(quotation.feeAmount) ? (
             <div className="flex justify-between gap-2">
               <dt className="text-ink-tertiary">Fee</dt>

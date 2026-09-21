@@ -221,6 +221,8 @@ model Quotation {
   adultFare         Decimal?  @db.Decimal(10, 2)
   childFare         Decimal?  @db.Decimal(10, 2)
   infantFare        Decimal?  @db.Decimal(10, 2)
+  /// Visa Change itinerary options: the flight-ticket component of one itinerary, added on top of feeAmount + fineOrCharges.
+  flightTicketPrice Decimal?  @db.Decimal(10, 2)
   /// --- Visa services / OTB fields (simple fee-based quote) ---
   feeAmount         Decimal?  @db.Decimal(10, 2)
   fineOrCharges     Decimal?  @db.Decimal(10, 2)

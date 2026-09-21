@@ -54,6 +54,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     sellingPrice: parsed.data.sellingPrice ?? (existing.sellingPrice ? Number(existing.sellingPrice) : undefined),
     feeAmount: parsed.data.feeAmount ?? (existing.feeAmount ? Number(existing.feeAmount) : undefined),
     fineOrCharges: parsed.data.fineOrCharges ?? (existing.fineOrCharges ? Number(existing.fineOrCharges) : undefined),
+    flightTicketPrice:
+      parsed.data.flightTicketPrice ?? (existing.flightTicketPrice ? Number(existing.flightTicketPrice) : undefined),
   });
   const margin = sellingPrice - vendorCost;
 

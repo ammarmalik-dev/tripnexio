@@ -305,12 +305,14 @@ These are large, foundational modules described in exhaustive detail across ever
 | H5 | OTB: multi-applicant + travel-date/Urgent gating | ⬜ |
 | H6a | Return Ticket: Admin-managed destination countries with per-applicant rate + 30/60/90 validity, passport number, multi-applicant, indicative price | ✅ |
 | H6b | Special Fare: searchable airport dropdowns from the Admin airport database (+ CSV bulk import); multiple itineraries per lead | ✅ |
-| H6c | Visa Change: 2-3 itinerary options per lead (different flight timings) | ⬜ |
+| H6c | Visa Change: 2-3 itinerary options per lead (different flight timings) | ✅ |
 | H6d | Status lists: client confirmed — CRM statuses stay as already seeded; the new shorter lists are customer-facing only | ⬜ (customer-facing status labels) |
 
 **Client answers (2026-09-21):** Return Ticket is no longer UAE-only (all Middle East, Admin adds/removes countries and rates). Special Fare scope is Admin-controlled (GCC/India irrelevant), airports Admin-addable, needs multiple itineraries. CRM statuses = the old seeded ones. Visa Change needs 2-3 itineraries. CRM/Admin docs still to come from the client.
 
 **H6b notes:** Departure/Arrival on the Special Fare form are now searchable comboboxes over `GET /api/airports` (public, active airports; matches city/name/code/country). Free text is still accepted so the form works while the list is being filled. Admin → Airports gained a CSV bulk import (`name,code,city,country`; upsert by code; country must already exist under Admin → Countries). No real airport list was seeded or invented — the client supplies the file (e.g. an IATA/OpenFlights export). Multiple itineraries: a lead can already carry several simultaneous flight quotes (verified 3 at once); selecting one expires the rest.
+
+**H6c notes:** Visa Change quotes can now be itinerary options: the quote form gets an optional Itinerary block (airline, flight number, route, departure/arrival, baggage) and a Flight Ticket price that is added to the visa fee + charges (`Quotation.flightTicketPrice`, ignored for every other service). Staff adds one quote per itinerary option; they stay active side by side, and selecting the one the customer picks expires the others. There is no customer portal yet, so the customer's choice is recorded by staff. Prices stay staff/Admin-entered.
 
 **H6a notes:** Destinations live in `ReturnTicketDestination` (one per Country, `/admin/return-ticket-destinations`). The seed adds one SAMPLE UAE row at a placeholder ₹100 — the client sets real rates. The form shows an indicative price only; the Lead/quotation flow is unchanged (staff confirm final pricing). The WhatsApp bot's Return Ticket flow is unchanged (UAE, 30/60 days).
 

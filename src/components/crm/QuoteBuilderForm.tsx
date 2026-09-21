@@ -21,6 +21,8 @@ interface AlternativeOption {
 
 interface QuoteBuilderFormProps {
   isFlightQuote: boolean;
+  /** Visa Change: this quote is one itinerary option (flight details + ticket price on top of the visa fee). */
+  hasItinerary?: boolean;
   vendors: VendorOption[];
   alternativeOptions: AlternativeOption[];
   onSubmit: (values: QuoteFormValues) => Promise<void>;
@@ -36,6 +38,7 @@ function maxValidityLocalIso(): string {
 
 export function QuoteBuilderForm({
   isFlightQuote,
+  hasItinerary = false,
   vendors,
   alternativeOptions,
   onSubmit,
@@ -50,7 +53,7 @@ export function QuoteBuilderForm({
     resolver: zodResolver(buildQuoteFormSchema(isFlightQuote)),
   });
 
-  const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges") =>
+  const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "flightTicketPrice") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
 
   const optionalField = (name: "airline" | "flightNumber" | "route" | "baggageAllowance" | "fareType" | "couponCode") =>
@@ -161,6 +164,16 @@ export function QuoteBuilderForm({
             {...numberField("fineOrCharges")}
             error={errors.fineOrCharges?.message}
           />
+          {hasItinerary ? (
+            <TextField
+              label="Flight Ticket (₹)"
+              type="number"
+              step="0.01"
+              hint="Optional — this itinerary's flight-ticket price, added to the total."
+              {...numberField("flightTicketPrice")}
+              error={errors.flightTicketPrice?.message}
+            />
+          ) : null}
           <TextField
             label="Coupon Code"
             hint="Optional — validated on save (active, within date range, under usage limit)."
@@ -169,6 +182,33 @@ export function QuoteBuilderForm({
           />
         </div>
       )}
+
+      {hasItinerary ? (
+        <fieldset className="flex flex-col gap-4 rounded-lg border border-dashed border-hairline p-4">
+          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-accent">
+            Itinerary (optional)
+          </legend>
+          <p className="text-xs text-ink-tertiary">
+            Add one quote per itinerary option (e.g. morning / afternoon / evening flight) so the customer can pick
+            the timing that suits them.
+          </p>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField label="Airline" {...optionalField("airline")} error={errors.airline?.message} />
+            <TextField label="Flight Number" {...optionalField("flightNumber")} error={errors.flightNumber?.message} />
+          </div>
+          <TextField label="Route" placeholder="e.g. DXB → MCT" {...optionalField("route")} error={errors.route?.message} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField label="Departure" type="datetime-local" {...register("flightDateTime")} error={errors.flightDateTime?.message} />
+            <TextField label="Arrival" type="datetime-local" {...register("arrivalDateTime")} error={errors.arrivalDateTime?.message} />
+          </div>
+          <TextField
+            label="Baggage Allowance"
+            placeholder="e.g. 30kg checked"
+            {...optionalField("baggageAllowance")}
+            error={errors.baggageAllowance?.message}
+          />
+        </fieldset>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { QuoteBuilderForm } from "./QuoteBuilderForm";
 import { QuoteCard, type QuoteCardData } from "./QuoteCard";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
-import { isFlightQuote } from "@/lib/quotations/pricing";
+import { isFlightQuote, supportsItinerary } from "@/lib/quotations/pricing";
 import { ProtectionPlanNote } from "./ProtectionPlanNote";
 import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus } from "../../generated/prisma/enums";
@@ -35,6 +35,7 @@ export function QuoteBuilder({
   onLeadChanged: () => void;
 }) {
   const flightQuote = isFlightQuote(serviceType);
+  const hasItinerary = supportsItinerary(serviceType);
   const [state, setState] = useState<FetchState>("loading");
   const [quotations, setQuotations] = useState<QuoteCardData[]>([]);
   const [vendors, setVendors] = useState<VendorRecord[]>([]);
@@ -122,7 +123,7 @@ export function QuoteBuilder({
         {canQuote && !showForm ? (
           <Button type="button" size="sm" variant="ghost" onClick={() => setShowForm(true)}>
             <Plus className="h-4 w-4" aria-hidden="true" />
-            New Quote
+            {hasItinerary ? "New Itinerary Option" : "New Quote"}
           </Button>
         ) : null}
       </div>
@@ -133,6 +134,7 @@ export function QuoteBuilder({
         <div className="mb-4">
           <QuoteBuilderForm
             isFlightQuote={flightQuote}
+            hasItinerary={hasItinerary}
             vendors={vendors}
             alternativeOptions={flightQuote ? alternativeOptions : []}
             onSubmit={handleCreate}
@@ -173,6 +175,7 @@ export function QuoteBuilder({
               key={quotation.id}
               quotation={quotation}
               isFlightQuote={flightQuote}
+              hasItinerary={hasItinerary}
               vendorName={vendorName(quotation.vendorId)}
               now={now}
               onSelect={() => void handleSelect(quotation.id)}

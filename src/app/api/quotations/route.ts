@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { computeSellingPrice, isFlightQuote, assertValidityWithinCap } from "@/lib/quotations/pricing";
+import { computeSellingPrice, isFlightQuote, supportsItinerary, assertValidityWithinCap } from "@/lib/quotations/pricing";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
@@ -164,6 +164,7 @@ export async function POST(request: NextRequest) {
     infantFare,
     feeAmount,
     fineOrCharges,
+    flightTicketPrice,
     vendorCost,
     sellingPrice,
     validityExpiresAt,
@@ -202,7 +203,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Selling price and margin are always computed/resolved server-side — never trust a client-sent value.
-  const resolvedSellingPrice = computeSellingPrice(lead.serviceType, { sellingPrice, feeAmount, fineOrCharges });
+  const resolvedSellingPrice = computeSellingPrice(lead.serviceType, { sellingPrice, feeAmount, fineOrCharges, flightTicketPrice });
   const margin = resolvedSellingPrice - vendorCost;
 
   // Step 22 (audit §3.2/§4.2/§7.8) — resolved and validated here, not
@@ -234,6 +235,7 @@ export async function POST(request: NextRequest) {
         infantFare,
         feeAmount,
         fineOrCharges,
+        flightTicketPrice: supportsItinerary(lead.serviceType) ? flightTicketPrice : undefined,
         vendorCost,
         sellingPrice: resolvedSellingPrice,
         margin,
