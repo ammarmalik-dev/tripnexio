@@ -63,8 +63,8 @@ export default function Home() {
       <TrackJourneyPreview />
       <WhyChooseUs />
       <AboutSection />
-      <SupportPayment />
       <CtaBanner />
+      <SupportPayment />
     </>
   );
 }

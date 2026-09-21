@@ -5,7 +5,7 @@ import { headerActions, utilityLinks } from "@/lib/nav-config";
 
 export function CtaBanner() {
   return (
-    <section className="pb-20 sm:pb-28">
+    <section className="">
       <Container>
         <MotionReveal>
           <div className="surface-dark-block flex flex-col items-center gap-6 rounded-xl p-8 text-center sm:p-12">
