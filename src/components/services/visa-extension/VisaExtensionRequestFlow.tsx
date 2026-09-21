@@ -2,9 +2,8 @@
 
 import { MultiStepRequestFlow } from "@/components/forms/MultiStepRequestFlow";
 import { Step1Identity } from "./steps/Step1Identity";
-import { Step2EntryDate } from "./steps/Step2EntryDate";
-import { Step3Applicants } from "./steps/Step3Applicants";
-import { Step4Summary } from "./steps/Step4Summary";
+import { Step2Applicants } from "./steps/Step2Applicants";
+import { Step3Summary } from "./steps/Step3Summary";
 import { submitVisaExtensionRequest } from "@/lib/api/visa-extension";
 import {
   visaExtensionRequestSchema,
@@ -13,7 +12,7 @@ import {
   type VisaExtensionRequestValues,
 } from "@/lib/validation/visa-extension-schema";
 
-const steps = [Step1Identity, Step2EntryDate, Step3Applicants, Step4Summary];
+const steps = [Step1Identity, Step2Applicants, Step3Summary];
 
 export function VisaExtensionRequestFlow() {
   return (
@@ -26,9 +25,7 @@ export function VisaExtensionRequestFlow() {
         mobile: "",
         email: "",
         passportNumber: "",
-        dob: "",
-        insideUAE: undefined,
-        entryDate: "",
+        visaExpiryDate: "",
         passportImageBase64: "",
         additionalApplicants: [],
       }}

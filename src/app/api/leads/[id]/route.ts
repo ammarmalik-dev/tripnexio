@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
+import { findPriorTripNexioVisaByPassport } from "@/lib/leads/visa-extension-eligibility";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,6 +39,27 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const details = (lead.details ?? {}) as Record<string, unknown>;
   const passengerIds = Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [];
   const leadPassengers = lead.customer.passengers.filter((passenger) => passengerIds.includes(passenger.id));
+
+  // Visa Extension handover doc: staff see, per applicant, whether that
+  // passport number already has a visa issued through TripNexio.
+  const priorVisaMatches =
+    lead.serviceType === "VISA_EXTENSION"
+      ? await Promise.all(
+          leadPassengers
+            .filter((passenger) => passenger.passportNumber)
+            .map(async (passenger) => {
+              const match = await findPriorTripNexioVisaByPassport(passenger.passportNumber as string);
+              return {
+                passengerId: passenger.id,
+                fullName: passenger.fullName,
+                passportNumber: passenger.passportNumber as string,
+                match: match
+                  ? { ...match, referenceId: formatLeadReference("NEW_VISA", match.leadId) }
+                  : null,
+              };
+            })
+        )
+      : [];
 
   const entityRefs = await getLeadRelatedEntityRefs(id);
 
@@ -106,6 +128,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         fileUrl: document.fileUrl,
       })),
     })),
+    priorVisaMatches,
     quotations,
     bookings: lead.bookings,
     timeline: timeline.map((entry) => ({

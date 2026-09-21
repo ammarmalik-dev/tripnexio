@@ -16,7 +16,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function Step4Summary() {
+export function Step3Summary() {
   const { getValues } = useFormContext<VisaExtensionRequestValues>();
   const values = getValues();
 
@@ -27,9 +27,7 @@ export function Step4Summary() {
         <SummaryRow label="Mobile Number" value={values.mobile} />
         <SummaryRow label="Email" value={values.email} />
         <SummaryRow label="Passport Number" value={values.passportNumber} />
-        <SummaryRow label="Date of Birth" value={formatDate(values.dob)} />
-        <SummaryRow label="Currently Inside UAE" value={values.insideUAE === "yes" ? "Yes" : "No"} />
-        <SummaryRow label="UAE Entry Date" value={formatDate(values.entryDate)} />
+        <SummaryRow label="Visa Expiry Date" value={formatDate(values.visaExpiryDate)} />
         <SummaryRow label="Passport Copy" value={values.passportImageBase64 ? "Uploaded" : "Missing"} />
       </div>
       {values.additionalApplicants.map((applicant, index) => (
@@ -39,14 +37,13 @@ export function Step4Summary() {
           </p>
           <SummaryRow label="Full Name" value={applicant.fullName} />
           <SummaryRow label="Passport Number" value={applicant.passportNumber} />
-          <SummaryRow label="Date of Birth" value={formatDate(applicant.dob)} />
-          <SummaryRow label="UAE Entry Date" value={formatDate(applicant.entryDate)} />
+          <SummaryRow label="Visa Expiry Date" value={formatDate(applicant.visaExpiryDate)} />
           <SummaryRow label="Passport Copy" value={applicant.passportImageBase64 ? "Uploaded" : "Missing"} />
         </div>
       ))}
       <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-tertiary">
-        We currently offer Visa Extension only for visas originally issued through TripNexio. We&apos;ll check your
-        details and confirm your eligibility before any fee is calculated.
+        Our team will validate each applicant&apos;s details and documents, then send you a quotation. No payment is
+        needed at this stage.
       </p>
     </div>
   );

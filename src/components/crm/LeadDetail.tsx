@@ -20,6 +20,7 @@ import { CommunicationsPanel } from "./CommunicationsPanel";
 import { QuoteBuilder } from "./QuoteBuilder";
 import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { humanizeKey } from "@/lib/crm/humanize";
+import { VisaExtensionPriorVisaPanel, type PriorVisaMatchItem } from "./VisaExtensionPriorVisaPanel";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus, LeadTemperature, BookingStatus, PaymentStatus, PaxType, DocumentStatus } from "../../generated/prisma/enums";
@@ -84,6 +85,7 @@ interface LeadDetailResponse {
     otherBookings: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   };
   passengers: LeadPassenger[];
+  priorVisaMatches: PriorVisaMatchItem[];
   quotations: QuotationSummary[];
   bookings: BookingItem[];
   timeline: {
@@ -167,6 +169,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
     "verifiedAt",
     "borderOperationalDetails",
     "passengers",
+    "applicants",
   ]);
   const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
   const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
@@ -249,6 +252,17 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               </dl>
             )}
           </section>
+
+          {lead.serviceType === "VISA_EXTENSION" ? (
+            <VisaExtensionPriorVisaPanel
+              items={lead.priorVisaMatches}
+              visaExpiryByPassport={Object.fromEntries(
+                (Array.isArray(lead.details.applicants) ? (lead.details.applicants as { passportNumber?: string; visaExpiryDate?: string }[]) : [])
+                  .filter((a) => a.passportNumber && a.visaExpiryDate)
+                  .map((a) => [a.passportNumber as string, a.visaExpiryDate as string])
+              )}
+            />
+          ) : null}
 
           {lead.serviceType === "VISA_EXTENSION" ? (
             <VisaExtensionEligibilityPanel

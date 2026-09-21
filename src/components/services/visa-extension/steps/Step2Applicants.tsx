@@ -9,10 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { MAX_ADDITIONAL_APPLICANTS, type VisaExtensionRequestValues } from "@/lib/validation/visa-extension-schema";
 
 const MIN_DATE = "1900-01-01";
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
+const MAX_DATE = "2100-12-31";
 
 /**
  * Optional step — extending for more than one person. Each additional
@@ -20,7 +17,7 @@ function todayIso() {
  * collected before the Lead exists. Mobile/email aren't asked again: they're
  * already captured from the primary applicant.
  */
-export function Step3Applicants() {
+export function Step2Applicants() {
   const {
     register,
     control,
@@ -60,20 +57,12 @@ export function Step3Applicants() {
                 {...register(`additionalApplicants.${index}.passportNumber` as const)}
               />
               <DateField
-                label="Date of Birth"
+                label="Visa Expiry Date"
                 required
                 min={MIN_DATE}
-                max={todayIso()}
-                error={applicantErrors?.dob?.message}
-                {...register(`additionalApplicants.${index}.dob` as const)}
-              />
-              <DateField
-                label="UAE Entry Date"
-                required
-                min={MIN_DATE}
-                max={todayIso()}
-                error={applicantErrors?.entryDate?.message}
-                {...register(`additionalApplicants.${index}.entryDate` as const)}
+                max={MAX_DATE}
+                error={applicantErrors?.visaExpiryDate?.message}
+                {...register(`additionalApplicants.${index}.visaExpiryDate` as const)}
               />
             </div>
             <PassportUploadField
@@ -96,8 +85,7 @@ export function Step3Applicants() {
             append({
               fullName: "",
               passportNumber: "",
-              dob: "",
-              entryDate: "",
+              visaExpiryDate: "",
               passportImageBase64: "",
               passportImageMimeType: undefined as unknown as "image/jpeg",
             })

@@ -66,3 +66,52 @@ export function getIneligibleRedirect(insideUAE: "yes" | "no"): { service: "VISA
     ? { service: "VISA_CHANGE", href: "/services/visa-change", label: "Visa Change" }
     : { service: "NEW_VISA", href: "/services/new-visa", label: "New Visa" };
 }
+
+export interface PriorTripNexioVisa {
+  leadId: string;
+  createdAt: Date;
+  /** Real Booking id (TNX-XX-XXXXXX) of the earlier visa, when one exists. */
+  bookingId: string | null;
+  /** Captured on the earlier New Visa request — shown to staff as-is, never guessed. */
+  destinationCountry: string | null;
+  visaType: string | null;
+  travelDate: string | null;
+}
+
+/**
+ * Staff-facing lookup (Visa Extension handover doc): "check each applicant's
+ * Passport Number against existing records to verify whether the applicant
+ * previously received a visa through TripNexio." Passport-number-only, unlike
+ * checkVisaExtensionEligibility above (which also needs DOB and is the
+ * WhatsApp bot's gate). Uses the same proxy for "received a visa": a NEW_VISA
+ * Lead that reached CONVERTED. Returns the most recent match, or null.
+ */
+export async function findPriorTripNexioVisaByPassport(passportNumber: string): Promise<PriorTripNexioVisa | null> {
+  const passengers = await db.passenger.findMany({
+    where: { passportNumber: { equals: passportNumber.trim(), mode: "insensitive" } },
+    select: { customerId: true },
+  });
+  if (passengers.length === 0) return null;
+
+  const lead = await db.lead.findFirst({
+    where: {
+      customerId: { in: Array.from(new Set(passengers.map((p) => p.customerId))) },
+      serviceType: "NEW_VISA",
+      status: "CONVERTED",
+    },
+    orderBy: { createdAt: "desc" },
+    include: { bookings: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  if (!lead) return null;
+
+  const details = (lead.details ?? {}) as Record<string, unknown>;
+  const text = (value: unknown) => (typeof value === "string" && value ? value : null);
+  return {
+    leadId: lead.id,
+    createdAt: lead.createdAt,
+    bookingId: lead.bookings[0]?.bookingId ?? null,
+    destinationCountry: text(details.destinationCountry),
+    visaType: text(details.visaType),
+    travelDate: text(details.travelDate),
+  };
+}

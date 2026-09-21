@@ -1,19 +1,17 @@
 import { z } from "zod";
 
 /**
- * Visa Extension request validation — rewritten against the real locked
- * spec (client-message/Visa_Extension.md), replacing the earlier
- * placeholder shape (which had destinationCountry/processingType fields
- * that this service doesn't actually use — Extension scope is UAE-only,
- * §1, and there's no staff-facing "processing type" selection anywhere in
- * the spec, unlike OTB).
+ * Visa Extension website request validation, per the client's updated
+ * Developer Handover: every applicant gives Full Name, Passport Number and
+ * Visa Expiry Date (the primary applicant also Mobile + Email), plus their
+ * own passport copy, all before the Lead is created. Whether an applicant
+ * previously received a visa through TripNexio is checked by staff against
+ * the passport number (see visa-extension-eligibility.ts), not used to block
+ * the submission.
  *
- * §2/§25: eligibility is gated on a prior TripNexio-issued visa, looked up
- * server-side by passportNumber+dob (new/unknown customer path) or mobile
- * (existing customer path) — see src/lib/leads/visa-extension-eligibility.ts.
- * `insideUAE` drives the no-match redirect (§2, §25): inside UAE -> Visa
- * Change, outside UAE -> New Visa.
- * §4: Entry Date is mandatory for every request, no exceptions.
+ * `dob` / `entryDate` below are only for the WhatsApp bot's own
+ * conversational eligibility flow (client-message/Visa_Extension.md
+ * §2/§25/§4) — they are not part of the website form any more.
  */
 
 export const MAX_ADDITIONAL_APPLICANTS = 5;
@@ -31,33 +29,24 @@ const todayAtMidnight = () => {
   return d;
 };
 
-export const visaExtensionStep1Schema = z.object({
-  fullName: z
+const dateString = (message: string, invalid: string) =>
+  z
     .string()
-    .trim()
-    .min(2, "Enter your full name")
-    .max(80, "Full name is too long"),
-  mobile: z
-    .string()
-    .trim()
-    .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
-  email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
-  passportNumber: z
-    .string()
-    .trim()
-    .min(4, "Enter your passport number")
-    .max(20, "Passport number is too long")
-    .transform((value) => value.toUpperCase()),
-  dob: z
-    .string()
-    .min(1, "Select your date of birth")
-    .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid date of birth"),
-  insideUAE: z.enum(["yes", "no"], { error: "Let us know if you're currently inside the UAE" }),
-  ...passportImageFields,
-});
+    .min(1, message)
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), invalid);
 
-export const visaExtensionStep2Schema = z.object({
-  /// Mandatory per the locked spec §4 — not `.optional()`.
+const fullNameField = z.string().trim().min(2, "Enter the full name").max(80, "Full name is too long");
+const passportNumberField = z
+  .string()
+  .trim()
+  .min(4, "Enter the passport number")
+  .max(20, "Passport number is too long")
+  .transform((value) => value.toUpperCase());
+const visaExpiryDateField = dateString("Enter the visa expiry date", "Enter a valid visa expiry date");
+
+/** WhatsApp-bot-only field validators (see file header). */
+export const visaExtensionBotFieldSchemas = {
+  dob: dateString("Select your date of birth", "Enter a valid date of birth"),
   entryDate: z
     .string()
     .min(1, "Entry date is required")
@@ -65,40 +54,42 @@ export const visaExtensionStep2Schema = z.object({
       const date = new Date(value);
       return !Number.isNaN(date.getTime()) && date <= todayAtMidnight();
     }, "Entry date can't be in the future"),
-});
+};
 
-/**
- * Additional applicants (Visa Extension handover doc): same identity details
- * as the primary applicant minus mobile/email (already captured from the
- * primary), plus their own passport copy — all before the Lead is created.
- * `dob` is required because eligibility is checked per applicant by
- * passport + DOB; `entryDate` follows the locked spec §4.
- */
-export const additionalApplicantSchema = z.object({
-  fullName: visaExtensionStep1Schema.shape.fullName,
-  passportNumber: visaExtensionStep1Schema.shape.passportNumber,
-  dob: visaExtensionStep1Schema.shape.dob,
-  entryDate: visaExtensionStep2Schema.shape.entryDate,
+export const visaExtensionStep1Schema = z.object({
+  fullName: fullNameField,
+  mobile: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
+  email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
+  passportNumber: passportNumberField,
+  visaExpiryDate: visaExpiryDateField,
   ...passportImageFields,
 });
 
-export const visaExtensionStep3Schema = z.object({
+/** Same details as the primary applicant minus mobile/email (already captured from the primary), plus their own passport copy. */
+export const additionalApplicantSchema = z.object({
+  fullName: fullNameField,
+  passportNumber: passportNumberField,
+  visaExpiryDate: visaExpiryDateField,
+  ...passportImageFields,
+});
+
+export const visaExtensionStep2Schema = z.object({
   additionalApplicants: z.array(additionalApplicantSchema).max(MAX_ADDITIONAL_APPLICANTS),
 });
 
-export const visaExtensionRequestSchema = visaExtensionStep1Schema
-  .extend(visaExtensionStep2Schema.shape)
-  .extend(visaExtensionStep3Schema.shape);
+export const visaExtensionRequestSchema = visaExtensionStep1Schema.extend(visaExtensionStep2Schema.shape);
 
 export type AdditionalApplicantValues = z.infer<typeof additionalApplicantSchema>;
 export type VisaExtensionStep1Values = z.infer<typeof visaExtensionStep1Schema>;
 export type VisaExtensionRequestValues = z.infer<typeof visaExtensionRequestSchema>;
 
 export const visaExtensionStepFields: Record<number, (keyof VisaExtensionRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "passportNumber", "dob", "insideUAE", "passportImageBase64"],
-  1: ["entryDate"],
-  2: ["additionalApplicants"],
-  3: [],
+  0: ["fullName", "mobile", "email", "passportNumber", "visaExpiryDate", "passportImageBase64"],
+  1: ["additionalApplicants"],
+  2: [],
 };
 
-export const visaExtensionStepLabels = ["Your Details", "Entry Date", "Other Applicants", "Summary"];
+export const visaExtensionStepLabels = ["Your Details", "Other Applicants", "Summary"];

@@ -1,32 +1,8 @@
 import type { VisaExtensionRequestValues } from "@/lib/validation/visa-extension-schema";
 import type { CreateLeadResult } from "@/lib/leads/create-lead";
-import { postJson, RequestIneligibleOutcome } from "./client";
-
-interface VisaExtensionIneligibleResponse {
-  eligible: false;
-  redirect: { service: "VISA_CHANGE" | "NEW_VISA"; href: string; label: string };
-  message: string;
-  ineligibleApplicants?: string[];
-}
-
-type VisaExtensionResponse = ({ eligible: true } & CreateLeadResult) | VisaExtensionIneligibleResponse;
+import { postJson } from "./client";
 
 export async function submitVisaExtensionRequest(values: VisaExtensionRequestValues): Promise<{ referenceId: string }> {
-  const result = await postJson<VisaExtensionResponse>("/api/leads/visa-extension", values);
-
-  if (!result.eligible) {
-    throw new RequestIneligibleOutcome(
-      "We couldn't find an eligible TripNexio visa",
-      `${result.message}${
-        result.ineligibleApplicants?.length ? ` Not matched: ${result.ineligibleApplicants.join(", ")}.` : ""
-      } ${
-        result.redirect.service === "VISA_CHANGE"
-          ? "Since you're inside the UAE, our Visa Change service may help instead."
-          : "Since you're outside the UAE, you can apply for a New Visa instead."
-      }`,
-      { label: `Go to ${result.redirect.label}`, href: result.redirect.href }
-    );
-  }
-
+  const result = await postJson<CreateLeadResult>("/api/leads/visa-extension", values);
   return { referenceId: result.referenceId };
 }

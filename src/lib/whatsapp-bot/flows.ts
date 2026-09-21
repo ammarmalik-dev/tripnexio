@@ -3,7 +3,7 @@ import { db } from "../db";
 import type { ServiceType } from "../../generated/prisma/enums";
 import { otbRequestSchema } from "../validation/otb-schema";
 import { newVisaRequestSchema } from "../validation/new-visa-schema";
-import { visaExtensionRequestSchema } from "../validation/visa-extension-schema";
+import { visaExtensionBotFieldSchemas, visaExtensionRequestSchema } from "../validation/visa-extension-schema";
 import { visaChangeRequestSchema } from "../validation/visa-change-schema";
 import { flightSpecialFareRequestSchema, flightPassengerSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
@@ -155,14 +155,14 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
 
     case "VISA_EXTENSION": {
       if (!has("passportNumber")) return textStep("passportNumber", "What's your passport number?", visaExtensionRequestSchema.shape.passportNumber);
-      if (!has("dob")) return dateStep("dob", "What's your date of birth?", visaExtensionRequestSchema.shape.dob);
+      if (!has("dob")) return dateStep("dob", "What's your date of birth?", visaExtensionBotFieldSchemas.dob);
       if (!has("insideUAE")) {
         return numberedChoiceStep("insideUAE", "Are you currently inside the UAE?", [
           { value: "yes", label: "Yes, I'm inside the UAE" },
           { value: "no", label: "No, I'm outside the UAE" },
         ]);
       }
-      if (!has("entryDate")) return dateStep("entryDate", "What was your UAE entry date?", visaExtensionRequestSchema.shape.entryDate);
+      if (!has("entryDate")) return dateStep("entryDate", "What was your UAE entry date?", visaExtensionBotFieldSchemas.entryDate);
       return null;
     }
 

@@ -299,13 +299,13 @@ These are large, foundational modules described in exhaustive detail across ever
 | # | Task | Status |
 |---|------|--------|
 | H1 | Visa Extension: multi-applicant + per-applicant passport copy uploaded before Lead submission (per-applicant eligibility check, applicant-wise storage) | ✅ |
-| H2 | Visa Extension: staff-facing panel showing the matched prior TripNexio visa for each applicant on the Lead detail page | ⬜ |
+| H2 | Visa Extension: staff-facing panel showing the matched prior TripNexio visa for each applicant on the Lead detail page | ✅ |
 | H3 | Visa Change: applicant-wise document upload before Lead submission | ⬜ |
 | H4 | New Visa: per-traveller array (Occupation, passport, DOB), minor/guardian rule | ⬜ |
 | H5 | OTB: multi-applicant + travel-date/Urgent gating | ⬜ |
 | H6 | Return Ticket / Special Fare / status lists / Visa Change itineraries | ⬜ blocked on client decisions (see audit) |
 
-**H1 notes:** Passport copy is the only document collected (the real per-service required-document list is Admin-configured and wasn't specified for Extension). Additional applicants collect Full Name, Passport Number, DOB and UAE Entry Date (locked spec §4 uses Entry Date, not the handover doc's "Visa Expiry Date"; DOB is needed for the passport+DOB eligibility lookup). Max 5 additional applicants. If any applicant has no eligible TripNexio visa, no Lead is created and the ineligible names are shown.
+**H1/H2 notes (handover doc is treated as authoritative over the older locked spec):** Website form collects Full Name, Passport Number, Visa Expiry Date and a passport copy per applicant (primary also Mobile + Email); max 5 additional applicants. DOB / "inside UAE" / Entry Date were removed from the website form. Eligibility no longer blocks the submission — the Lead is always created and the CRM lead page ("Previous TripNexio Visa Check") shows each applicant's passport-number match against prior converted New Visa leads (with booking id and captured visa details), or "no match — follow the configured eligibility and rejection process". The existing staff Eligibility panel (verified expiry date/outcome) is unchanged. The WhatsApp bot keeps its own DOB/entry-date eligibility gate (`visaExtensionBotFieldSchemas`), untouched. Only a passport copy is collected as a document (the real required-document list is Admin-configured).
 
 ---
 
