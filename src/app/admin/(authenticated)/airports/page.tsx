@@ -11,7 +11,7 @@ export default function AdminAirportsPage() {
         <h1 className="text-xl font-semibold text-ink-heading">Airports</h1>
         <p className="text-sm text-ink-tertiary">
           The airport database behind the Special Fare departure/arrival search and Airport-to-Airport visa change
-          routing. Add airports one by one below, or bulk-import a CSV. A few clearly-labeled SAMPLE rows are seeded
+          routing. Add airports one by one below, or bulk-import a CSV (columns: iata_code, airport_name, city, country). You can also search, filter, edit, disable or remove any airport. A few clearly-labeled SAMPLE rows are seeded
           for development.
         </p>
       </div>

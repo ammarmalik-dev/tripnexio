@@ -577,7 +577,7 @@ async function main() {
   await db.returnTicketDestination.upsert({
     where: { countryId: "cty_uae" },
     update: {},
-    create: { countryId: "cty_uae", ratePerApplicant: 100, validityOptions: ["THIRTY_DAYS", "SIXTY_DAYS"], displayOrder: 0 },
+    create: { countryId: "cty_uae", ratePerApplicant: 100, validityOptions: ["THIRTY_DAYS", "SIXTY_DAYS", "NINETY_DAYS"], displayOrder: 0 },
   });
 
   // New_Visa.md §8: "Default reference price: ₹5,000, configurable by

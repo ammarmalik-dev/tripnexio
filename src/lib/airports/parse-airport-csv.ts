@@ -50,9 +50,10 @@ function splitCsv(text: string): string[][] {
 }
 
 /**
- * Parses an admin-supplied airport CSV. The header row must contain
- * name, code, city and country (any order, case-insensitive) — this is the
- * client's own data, never something the app invents (hard rule #1).
+ * Parses an admin-supplied airport CSV in the client's agreed format: the
+ * header row is `iata_code,airport_name,city,country` (any column order,
+ * case-insensitive) — this is the client's own data, never something the app
+ * invents (hard rule #1).
  */
 export function parseAirportCsv(text: string): AirportCsvParseResult {
   const records = splitCsv(text.replace(/^﻿/, ""));
@@ -61,14 +62,15 @@ export function parseAirportCsv(text: string): AirportCsvParseResult {
   const header = records[0].map((value) => value.trim().toLowerCase());
   const columnIndex = (name: string) => header.indexOf(name);
   const indexes = {
-    name: columnIndex("name"),
-    code: columnIndex("code"),
+    name: columnIndex("airport_name"),
+    code: columnIndex("iata_code"),
     city: columnIndex("city"),
     country: columnIndex("country"),
   };
+  const columnNames: Record<string, string> = { name: "airport_name", code: "iata_code", city: "city", country: "country" };
   const missing = Object.entries(indexes)
     .filter(([, index]) => index === -1)
-    .map(([name]) => name);
+    .map(([name]) => columnNames[name]);
   if (missing.length > 0) {
     return { rows: [], errors: [{ line: 1, message: `Missing required column(s): ${missing.join(", ")}.` }] };
   }

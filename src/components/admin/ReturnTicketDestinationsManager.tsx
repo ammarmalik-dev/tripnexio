@@ -189,7 +189,7 @@ function NewDestinationForm({
   onCreated: (d: DestinationData) => void;
 }) {
   const [countryId, setCountryId] = useState("");
-  const [form, setForm] = useState<FormState>({ rate: "", validity: ["THIRTY_DAYS"], displayOrder: "0" });
+  const [form, setForm] = useState<FormState>({ rate: "", validity: [...RETURN_TICKET_VISA_TYPES], displayOrder: "0" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
 
@@ -204,7 +204,7 @@ function NewDestinationForm({
       toast.success(`${created.countryName} added.`);
       onCreated(created);
       setCountryId("");
-      setForm({ rate: "", validity: ["THIRTY_DAYS"], displayOrder: "0" });
+      setForm({ rate: "", validity: [...RETURN_TICKET_VISA_TYPES], displayOrder: "0" });
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
       toast.error(error instanceof ApiError ? error.message : "Couldn't add this destination. Please try again.");

@@ -55,3 +55,31 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   return jsonSuccess(updated);
 }
+
+export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+  const auth = await requirePermission("masters.manage");
+  if (auth.error) return auth.error;
+  const { session } = auth;
+  const { id } = await params;
+
+  const existing = await db.airport.findUnique({ where: { id } });
+  if (!existing) return jsonError(404, "Airport not found.");
+
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.airport.delete({ where: { id } });
+      await writeAudit(tx, {
+        entityType: "Airport",
+        entityId: id,
+        action: "DELETE",
+        byUserId: session.id,
+        note: `Airport "${existing.name}" (${existing.code}) removed (by ${session.name})`,
+      });
+    });
+  } catch (error) {
+    console.error("[api/admin/airports DELETE]", error);
+    return jsonError(409, "This airport is still referenced elsewhere and can't be removed. Disable it instead.");
+  }
+
+  return jsonSuccess({ id });
+}

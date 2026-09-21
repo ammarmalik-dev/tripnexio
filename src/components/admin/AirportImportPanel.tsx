@@ -14,7 +14,7 @@ interface ImportResult {
   errors: { line: number; message: string }[];
 }
 
-const CSV_EXAMPLE = "name,code,city,country\n<airport name>,<IATA code>,<city>,<country code or name>";
+const CSV_EXAMPLE = "iata_code,airport_name,city,country\n<IATA code>,<airport name>,<city>,<country code or name>";
 
 /**
  * Bulk-load airports from a CSV the client supplies (e.g. an export from
@@ -53,7 +53,7 @@ export function AirportImportPanel() {
     <section className="flex flex-col gap-3 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">Bulk Import (CSV)</h2>
       <p className="text-xs text-ink-tertiary">
-        Columns: <code>name, code, city, country</code>. Existing codes are updated, new ones are added. The country
+        Columns: <code>iata_code, airport_name, city, country</code>. Existing codes are updated, new ones are added. The country
         must already exist under Admin → Countries (matched by code or name).
       </p>
       <input

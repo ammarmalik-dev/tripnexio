@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { useCountries, type CountryOption } from "@/lib/admin/use-countries";
-import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
+import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -28,6 +28,9 @@ interface AirportData {
 }
 
 type FetchState = "loading" | "success" | "error";
+
+/** Keeps the page responsive once a large CSV has been imported — search/filter narrows the rest. */
+const MAX_VISIBLE_AIRPORTS = 50;
 
 interface AirportFormState {
   name: string;
@@ -178,16 +181,20 @@ function buildPayload(form: AirportFormState) {
 function AirportCard({
   airport,
   onSaved,
+  onDeleted,
   countryOptions,
 }: {
   airport: AirportData;
   onSaved: (airport: AirportData) => void;
+  onDeleted: (id: string) => void;
   countryOptions: CountryOption[];
 }) {
   const [form, setForm] = useState<AirportFormState>(toFormState(airport));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
+  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const [removing, setRemoving] = useState(false);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(airport));
 
@@ -219,6 +226,20 @@ function AirportCard({
     }
   };
 
+  const handleRemove = async () => {
+    setRemoving(true);
+    try {
+      await deleteJson(`/api/admin/airports/${airport.id}`);
+      toast.success(`Airport "${airport.name}" removed.`);
+      onDeleted(airport.id);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't remove this airport. Please try again.");
+      setConfirmingRemove(false);
+    } finally {
+      setRemoving(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -230,9 +251,25 @@ function AirportCard({
         >
           {airport.active ? "Active" : "Disabled"}
         </span>
-        <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
-          {airport.active ? "Disable" : "Enable"}
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
+            {airport.active ? "Disable" : "Enable"}
+          </Button>
+          {confirmingRemove ? (
+            <>
+              <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingRemove(false)} disabled={removing}>
+                Keep
+              </Button>
+              <Button type="button" size="sm" onClick={() => void handleRemove()} isLoading={removing}>
+                Confirm remove
+              </Button>
+            </>
+          ) : (
+            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingRemove(true)}>
+              Remove
+            </Button>
+          )}
+        </div>
       </div>
       <AirportFields form={form} onChange={setForm} errors={errors} disabled={saving} countryOptions={countryOptions} />
       <div className="flex justify-end">
@@ -293,6 +330,9 @@ export function AirportsManager() {
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const countryOptions = useCountries();
+  const [search, setSearch] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -341,19 +381,76 @@ export function AirportsManager() {
     );
   }
 
+  const term = search.trim().toLowerCase();
+  const filtered = airports.filter((airport) => {
+    if (countryFilter && airport.countryId !== countryFilter) return false;
+    if (statusFilter === "active" && !airport.active) return false;
+    if (statusFilter === "disabled" && airport.active) return false;
+    if (!term) return true;
+    return [airport.name, airport.code, airport.city, airport.country].some((value) => value.toLowerCase().includes(term));
+  });
+  const visible = filtered.slice(0, MAX_VISIBLE_AIRPORTS);
+
   return (
     <div className="flex flex-col gap-4">
-      {airports.length === 0 ? (
-        <EmptyState title="No airports yet" description="Add the first one using the form below." />
-      ) : (
-        airports.map((airport) => (
-          <AirportCard
-            key={airport.id}
-            airport={airport}
-            onSaved={(updated) => setAirports((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
-            countryOptions={countryOptions}
+      {airports.length > 0 ? (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <TextField
+            label="Search"
+            name="airport-search"
+            placeholder="Name, code, city or country"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
           />
-        ))
+          <FormField label="Country" htmlFor="airport-country-filter">
+            <select
+              id="airport-country-filter"
+              value={countryFilter}
+              onChange={(event) => setCountryFilter(event.target.value)}
+              className={cn(fieldControlClass, fieldBorderClass(false))}
+            >
+              <option value="">All countries</option>
+              {countryOptions.map((country) => (
+                <option key={country.id} value={country.id}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Status" htmlFor="airport-status-filter">
+            <select
+              id="airport-status-filter"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as "all" | "active" | "disabled")}
+              className={cn(fieldControlClass, fieldBorderClass(false))}
+            >
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="disabled">Disabled</option>
+            </select>
+          </FormField>
+        </div>
+      ) : null}
+      {airports.length === 0 ? (
+        <EmptyState title="No airports yet" description="Add the first one using the form below, or bulk-import a CSV above." />
+      ) : filtered.length === 0 ? (
+        <EmptyState title="No airports match" description="Try a different search or filter." />
+      ) : (
+        <>
+          <p className="text-xs text-ink-tertiary">
+            Showing {visible.length} of {filtered.length} airport{filtered.length === 1 ? "" : "s"}
+            {filtered.length > visible.length ? " — narrow the search to see the rest." : "."}
+          </p>
+          {visible.map((airport) => (
+            <AirportCard
+              key={airport.id}
+              airport={airport}
+              onSaved={(updated) => setAirports((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
+              onDeleted={(id) => setAirports((current) => current.filter((a) => a.id !== id))}
+              countryOptions={countryOptions}
+            />
+          ))}
+        </>
       )}
       <NewAirportForm onCreated={(created) => setAirports((current) => [...current, created])} countryOptions={countryOptions} />
     </div>
