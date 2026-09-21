@@ -3,6 +3,8 @@ import { newVisaRequestSchema } from "@/lib/validation/new-visa-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
+import { findNewVisaTravellerIssues } from "@/lib/validation/new-visa-schema";
+import { computePaxType } from "@/lib/leads/pax-type";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -23,14 +25,52 @@ export async function POST(request: NextRequest) {
     email,
     destinationCountry,
     visaType,
-    travelers,
     travelDate,
     processingType,
     passportImageBase64,
     passportImageMimeType,
     protectionPlanInterested,
     protectionPlanTermsAccepted,
+    passportNumber,
+    dob,
+    occupation,
+    guardianFullName,
+    guardianPassportNumber,
+    guardianRelationship,
+    additionalTravellers,
   } = parsed.data;
+
+  const travellers = [
+    {
+      fullName,
+      passportNumber,
+      dob,
+      occupation,
+      guardianFullName,
+      guardianPassportNumber,
+      guardianRelationship,
+      passportImageBase64,
+      passportImageMimeType,
+    },
+    ...additionalTravellers,
+  ];
+
+  // Handover doc: every traveller needs a passport copy, and anyone under 18
+  // needs guardian details — enforced server-side, not just by the form.
+  const travellerIssues = findNewVisaTravellerIssues({
+    dob,
+    guardianFullName,
+    guardianPassportNumber,
+    guardianRelationship,
+    passportImageBase64,
+    additionalTravellers,
+  });
+  const missingMime = travellers.some((t) => t.passportImageBase64 && !t.passportImageMimeType);
+  if (travellerIssues.length > 0 || missingMime) {
+    const fieldErrors: Record<string, string[]> = {};
+    for (const issue of travellerIssues) fieldErrors[issue.path] = [issue.message];
+    return jsonError(400, "Please complete every traveller's details.", fieldErrors);
+  }
 
   // New_Visa.md §8: "without agreement the Protection Plan cannot be
   // purchased" — even though this is only an expressed-interest flag, not
@@ -46,11 +86,32 @@ export async function POST(request: NextRequest) {
     const result = await createLeadFromSubmission({
       serviceType: "NEW_VISA",
       contact: { fullName, mobile, email },
+      passengers: travellers.map((t) => ({
+        fullName: t.fullName,
+        passportNumber: t.passportNumber,
+        dob: t.dob,
+        paxType: computePaxType(t.dob, travelDate),
+      })),
       details: {
         destinationCountry,
         visaType,
-        travelers,
+        travelers: String(travellers.length),
         travelDate,
+        // Applicant-wise record, in the same order as details.passengerIds.
+        applicants: travellers.map((t) => ({
+          fullName: t.fullName,
+          passportNumber: t.passportNumber,
+          occupation: t.occupation,
+          ...(t.guardianFullName
+            ? {
+                guardian: {
+                  fullName: t.guardianFullName,
+                  passportNumber: t.guardianPassportNumber,
+                  relationship: t.guardianRelationship,
+                },
+              }
+            : {}),
+        })),
         processingType,
         // Step 20 (audit §7.1) — expressed interest only, captured at
         // intake time; the ACTUAL Protection Plan purchase (with a real
@@ -65,11 +126,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    await handleOptionalPassportUpload({
-      passengerId: result.passengerIds[0],
-      imageBase64: passportImageBase64,
-      mimeType: passportImageMimeType,
-    });
+    // Never throws (see handleOptionalPassportUpload); passengerIds follow the travellers' order.
+    await Promise.all(
+      travellers.map((traveller, index) =>
+        handleOptionalPassportUpload({
+          passengerId: result.passengerIds[index],
+          imageBase64: traveller.passportImageBase64,
+          mimeType: traveller.passportImageMimeType,
+        })
+      )
+    );
 
     return jsonSuccess(result, 201);
   } catch (error) {

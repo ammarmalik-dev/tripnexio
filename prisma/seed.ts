@@ -570,6 +570,13 @@ async function main() {
     create: returnTicketRuleConfig,
   });
 
+  // New Visa occupation dropdown — the starting list the client specified;
+  // Admin adds/removes options at /admin/occupations. `update: {}` so a
+  // re-seed never resurrects an option the admin removed or renames one.
+  for (const [index, name] of ["Employee", "Business", "Retired", "Student", "Housewife", "None"].entries()) {
+    await db.occupation.upsert({ where: { name }, update: {}, create: { name, displayOrder: index } });
+  }
+
   // Return Ticket destinations are Admin-managed (client update). One
   // SAMPLE row so the website form has something to show in a fresh dev DB —
   // the ₹100 rate is a placeholder, not a real price; the client sets real

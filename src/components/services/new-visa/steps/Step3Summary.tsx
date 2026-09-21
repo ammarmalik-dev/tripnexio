@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { SAMPLE_VISA_TYPE_OPTIONS } from "@/lib/sample-data";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
-import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import { getJson } from "@/lib/api/client";
-import type { NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
+import { GUARDIAN_RELATIONSHIP_LABELS, type NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
 interface ProtectionPlanPublicConfig {
   defaultPrice: string;
@@ -117,7 +116,7 @@ export function Step3Summary() {
         <SummaryRow label="Email" value={values.email} />
         <SummaryRow label="Destination Country" value={destinationLabel} />
         <SummaryRow label="Visa Type" value={visaTypeLabel} />
-        <SummaryRow label="Number of Travelers" value={String(values.travelers)} />
+        <SummaryRow label="Number of Travelers" value={String(1 + values.additionalTravellers.length)} />
         <SummaryRow
           label="Travel Date"
           value={
@@ -132,7 +131,23 @@ export function Step3Summary() {
         />
         <SummaryRow label="Processing Type" value={processingTypeLabel[values.processingType]} />
       </div>
-      <PassportUploadField base64FieldName="passportImageBase64" mimeFieldName="passportImageMimeType" />
+      {[
+        { name: values.fullName, ...values },
+        ...values.additionalTravellers,
+      ].map((traveller, index) => (
+        <div key={index} className="rounded-xl border border-hairline bg-surface-1 px-5">
+          <p className="pt-3 text-xs font-medium uppercase tracking-wide text-ink-accent">
+            Traveller {index + 1} — {index === 0 ? values.fullName : (traveller as { fullName: string }).fullName}
+          </p>
+          <SummaryRow label="Passport Number" value={traveller.passportNumber} />
+          <SummaryRow label="Date of Birth" value={traveller.dob ? new Date(traveller.dob).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : ""} />
+          <SummaryRow label="Occupation" value={traveller.occupation} />
+          {traveller.guardianFullName ? (
+            <SummaryRow label="Guardian" value={`${traveller.guardianFullName} (${traveller.guardianRelationship ? GUARDIAN_RELATIONSHIP_LABELS[traveller.guardianRelationship] : ""})`} />
+          ) : null}
+          <SummaryRow label="Passport Copy" value={traveller.passportImageBase64 ? "Uploaded" : "Missing"} />
+        </div>
+      ))}
       <ProtectionPlanOptIn />
     </div>
   );

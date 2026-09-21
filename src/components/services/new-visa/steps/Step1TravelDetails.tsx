@@ -57,15 +57,6 @@ export function Step1TravelDetails() {
         error={errors.visaType?.message}
         {...register("visaType")}
       />
-      <TextField
-        label="Number of Travelers"
-        type="number"
-        min={1}
-        max={9}
-        required
-        error={errors.travelers?.message}
-        {...register("travelers")}
-      />
       <div className="sm:col-span-2">
         <DateField
           label="Travel Date"

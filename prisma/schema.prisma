@@ -1435,3 +1435,18 @@ model AutomationReminderLog {
 
   @@index([event, entityType, entityId, sentAt])
 }
+
+/// Admin-managed occupation options for the New Visa traveller form (client:
+/// starts as Employee / Business / Retired / Student / Housewife / None, and
+/// Admin can add and remove options). Leads store the chosen name as text, so
+/// removing an option never affects existing requests.
+model Occupation {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  displayOrder Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([active])
+}

@@ -2,17 +2,19 @@
 
 import { MultiStepRequestFlow } from "@/components/forms/MultiStepRequestFlow";
 import { Step1TravelDetails } from "./steps/Step1TravelDetails";
+import { StepTravellers } from "./steps/StepTravellers";
 import { Step2ProcessingType } from "./steps/Step2ProcessingType";
 import { Step3Summary } from "./steps/Step3Summary";
 import { submitNewVisaRequest } from "@/lib/api/new-visa";
 import {
+  findNewVisaTravellerIssues,
   newVisaRequestSchema,
   newVisaStepFields,
   newVisaStepLabels,
   type NewVisaRequestValues,
 } from "@/lib/validation/new-visa-schema";
 
-const steps = [Step1TravelDetails, Step2ProcessingType, Step3Summary];
+const steps = [Step1TravelDetails, StepTravellers, Step2ProcessingType, Step3Summary];
 
 export function NewVisaRequestFlow() {
   return (
@@ -28,6 +30,11 @@ export function NewVisaRequestFlow() {
         visaType: "",
         travelers: "1",
         travelDate: "",
+        passportNumber: "",
+        dob: "",
+        occupation: "",
+        passportImageBase64: "",
+        additionalTravellers: [],
         processingType: undefined,
         protectionPlanInterested: false,
         protectionPlanTermsAccepted: false,
@@ -35,6 +42,7 @@ export function NewVisaRequestFlow() {
       stepFields={newVisaStepFields}
       stepLabels={newVisaStepLabels}
       steps={steps}
+      extraStepValidation={{ 1: findNewVisaTravellerIssues }}
       onSubmit={submitNewVisaRequest}
       successTitle="Request submitted"
       successDescription="Your New Visa request has been received. Our team will review the details and get in touch shortly."

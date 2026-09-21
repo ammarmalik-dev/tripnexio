@@ -171,6 +171,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
     "passengers",
     "applicants",
   ]);
+  // (New Visa/Visa Extension/Return Ticket store an applicant-wise list under details.applicants.)
   const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
   const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
   const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED");
