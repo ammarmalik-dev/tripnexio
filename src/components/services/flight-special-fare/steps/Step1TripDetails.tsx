@@ -1,6 +1,7 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
+import { AirportSearchField } from "@/components/forms/AirportSearchField";
 import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
 import type { FlightSpecialFareRequestValues } from "@/lib/validation/flight-special-fare-schema";
@@ -50,8 +51,8 @@ export function Step1TripDetails() {
         {...register("email")}
       />
       <div className="hidden sm:block" aria-hidden="true" />
-      <TextField label="Departure City / Airport" required error={errors.origin?.message} {...register("origin")} />
-      <TextField label="Arrival City / Airport" required error={errors.destination?.message} {...register("destination")} />
+      <AirportSearchField name="origin" label="Departure City / Airport" required error={errors.origin?.message} />
+      <AirportSearchField name="destination" label="Arrival City / Airport" required error={errors.destination?.message} />
       <DateField
         label="Travel Date"
         required

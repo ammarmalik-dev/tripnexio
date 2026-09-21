@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AirportsManager } from "@/components/admin/AirportsManager";
+import { AirportImportPanel } from "@/components/admin/AirportImportPanel";
 
 export const metadata: Metadata = { title: "Airports | Admin" };
 
@@ -9,10 +10,12 @@ export default function AdminAirportsPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Airports</h1>
         <p className="text-sm text-ink-tertiary">
-          Manage the airport master list used for Airport-to-Airport visa change routing. A few clearly-labeled
-          SAMPLE rows are seeded for development — propose the real India/GCC list for review before it replaces them.
+          The airport database behind the Special Fare departure/arrival search and Airport-to-Airport visa change
+          routing. Add airports one by one below, or bulk-import a CSV. A few clearly-labeled SAMPLE rows are seeded
+          for development.
         </p>
       </div>
+      <AirportImportPanel />
       <AirportsManager />
     </div>
   );
