@@ -27,6 +27,14 @@ interface MultiStepRequestFlowProps<T extends FieldValues> {
   stepFields: Record<number, (keyof T)[]>;
   stepLabels: string[];
   steps: ComponentType[];
+  /**
+   * Optional cross-field checks that run after a step's own field validation
+   * passes — for rules the per-step zod fields can't express (e.g. "every
+   * applicant must have uploaded a document", where the upload fields are
+   * optional in the schema so earlier steps aren't blocked by them). Each
+   * returned issue is set as a manual field error and blocks moving on.
+   */
+  extraStepValidation?: Record<number, (values: T) => { path: string; message: string }[]>;
   onSubmit: (values: T) => Promise<{ referenceId: string }>;
   successTitle: string;
   successDescription: string;
@@ -46,6 +54,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
   stepFields,
   stepLabels,
   steps,
+  extraStepValidation,
   onSubmit,
   successTitle,
   successDescription,
@@ -66,7 +75,15 @@ export function MultiStepRequestFlow<T extends FieldValues>({
 
   const handleNext = async () => {
     const valid = await methods.trigger(stepFields[currentIndex] as Path<T>[]);
-    if (valid) goNext();
+    if (!valid) return;
+    const issues = extraStepValidation?.[currentIndex]?.(methods.getValues()) ?? [];
+    if (issues.length > 0) {
+      for (const issue of issues) {
+        methods.setError(issue.path as Path<T>, { type: "manual", message: issue.message });
+      }
+      return;
+    }
+    goNext();
   };
 
   const submitHandler = methods.handleSubmit(async (values: T) => {

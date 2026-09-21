@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFormContext } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 import { FileText, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import type { VisaChangeRequestValues } from "@/lib/validation/visa-change-schema";
 
 interface DocumentRequirementItem {
@@ -13,14 +14,21 @@ interface DocumentRequirementItem {
 }
 
 /**
- * Visa_Change.md §11: "After nationality is available, show the applicable
- * Admin-configured document checklist. Do NOT show final pricing at this
- * stage." Informational only — actual upload happens after payment (§20),
- * so this step never blocks continuing.
+ * Visa_Change.md §11: the Admin-configured document checklist for the
+ * nationality (no final pricing here). Per the client's updated Visa Change
+ * handover, each applicant's passport copy is now uploaded HERE, before the
+ * Lead is created (this supersedes §20's upload-after-payment for the
+ * passport copy); any other documents on the checklist are still requested by
+ * staff after review.
  */
 export function Step3DocumentChecklist() {
-  const { getValues } = useFormContext<VisaChangeRequestValues>();
+  const {
+    getValues,
+    control,
+    formState: { errors },
+  } = useFormContext<VisaChangeRequestValues>();
   const nationality = getValues("nationality");
+  const additionalPassengers = useWatch({ control, name: "additionalPassengers" }) ?? [];
   const [items, setItems] = useState<DocumentRequirementItem[] | null>(null);
 
   useEffect(() => {
@@ -79,9 +87,31 @@ export function Step3DocumentChecklist() {
         </ul>
       )}
 
+      <div className="flex flex-col gap-3">
+        <p className="text-sm font-semibold text-ink-heading">Upload passport copies</p>
+        <PassportUploadField
+          base64FieldName="passportImageBase64"
+          mimeFieldName="passportImageMimeType"
+          label={`Passport copy — ${getValues("fullName") || "You"}`}
+          description="Upload a clear photo of the passport main page."
+          required
+          error={errors.passportImageBase64?.message}
+        />
+        {additionalPassengers.map((passenger, index) => (
+          <PassportUploadField
+            key={index}
+            base64FieldName={`additionalPassengers.${index}.passportImageBase64`}
+            mimeFieldName={`additionalPassengers.${index}.passportImageMimeType`}
+            label={`Passport copy — ${passenger.fullName || `Passenger ${index + 2}`}`}
+            description="Upload a clear photo of this passenger's passport main page."
+            required
+            error={errors.additionalPassengers?.[index]?.passportImageBase64?.message}
+          />
+        ))}
+      </div>
       <p className="text-xs text-ink-tertiary">
-        You don&apos;t need to upload anything yet — you&apos;ll be asked for these after your Visa Change package is
-        confirmed and paid for. Existing valid documents on file can be reused.
+        Our team validates each applicant&apos;s details and passport copy before sending your quotation. Any other
+        documents on the checklist are requested after review — existing valid documents on file can be reused.
       </p>
     </div>
   );

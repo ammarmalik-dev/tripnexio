@@ -300,7 +300,7 @@ These are large, foundational modules described in exhaustive detail across ever
 |---|------|--------|
 | H1 | Visa Extension: multi-applicant + per-applicant passport copy uploaded before Lead submission (per-applicant eligibility check, applicant-wise storage) | ✅ |
 | H2 | Visa Extension: staff-facing panel showing the matched prior TripNexio visa for each applicant on the Lead detail page | ✅ |
-| H3 | Visa Change: applicant-wise document upload before Lead submission | ⬜ |
+| H3 | Visa Change: applicant-wise document upload before Lead submission | ✅ |
 | H4 | New Visa: per-traveller array (Occupation, passport, DOB), minor/guardian rule | ⬜ |
 | H5 | OTB: multi-applicant + travel-date/Urgent gating | ⬜ |
 | H6a | Return Ticket: Admin-managed destination countries with per-applicant rate + 30/60/90 validity, passport number, multi-applicant, indicative price | ✅ |
@@ -311,6 +311,8 @@ These are large, foundational modules described in exhaustive detail across ever
 **Client answers (2026-09-21):** Return Ticket is no longer UAE-only (all Middle East, Admin adds/removes countries and rates). Special Fare scope is Admin-controlled (GCC/India irrelevant), airports Admin-addable, needs multiple itineraries. CRM statuses = the old seeded ones. Visa Change needs 2-3 itineraries. CRM/Admin docs still to come from the client.
 
 **H6b notes:** Departure/Arrival on the Special Fare form are now searchable comboboxes over `GET /api/airports` (public, active airports; matches city/name/code/country). Free text is still accepted so the form works while the list is being filled. Admin → Airports gained a CSV bulk import (`name,code,city,country`; upsert by code; country must already exist under Admin → Countries). No real airport list was seeded or invented — the client supplies the file (e.g. an IATA/OpenFlights export). Multiple itineraries: a lead can already carry several simultaneous flight quotes (verified 3 at once); selecting one expires the rest.
+
+**H3 notes:** The Documents step of the Visa Change form now requires a passport copy per applicant (primary + each additional passenger); the API route re-checks this server-side (400 with per-applicant field errors) and attaches each image to its own Passenger as a PASSPORT Document (OCR review as before). This supersedes Visa_Change.md §20's upload-after-payment for the passport copy only. To support "every applicant must upload" without blocking the earlier identity step, `MultiStepRequestFlow` gained an optional `extraStepValidation` prop.
 
 **H6c notes:** Visa Change quotes can now be itinerary options: the quote form gets an optional Itinerary block (airline, flight number, route, departure/arrival, baggage) and a Flight Ticket price that is added to the visa fee + charges (`Quotation.flightTicketPrice`, ignored for every other service). Staff adds one quote per itinerary option; they stay active side by side, and selecting the one the customer picks expires the others. There is no customer portal yet, so the customer's choice is recorded by staff. Prices stay staff/Admin-entered.
 

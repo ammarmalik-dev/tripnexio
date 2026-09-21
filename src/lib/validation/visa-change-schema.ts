@@ -25,6 +25,17 @@ import { z } from "zod";
  * removed, it was a copy-paste leftover from the OTB schema shape.
  */
 
+/**
+ * Applicant-wise passport copy (Visa Change handover doc: documents are
+ * uploaded per applicant before the Lead is created). Optional in the schema
+ * so the identity step isn't blocked by them — the documents step and the
+ * API route both require them explicitly.
+ */
+const passportImageFields = {
+  passportImageBase64: z.string().optional(),
+  passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+};
+
 export const visaChangePassengerSchema = z.object({
   fullName: z.string().trim().min(2, "Enter the passenger's full name").max(80, "Name is too long"),
   passportNumber: z
@@ -39,6 +50,7 @@ export const visaChangePassengerSchema = z.object({
     .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid date"),
   nationality: z.string().trim().min(2, "Enter nationality").max(56, "Nationality is too long"),
   paxType: z.enum(["ADULT", "CHILD"], { error: "Select adult or child" }),
+  ...passportImageFields,
 });
 
 export const visaChangeStep1Schema = z.object({
@@ -68,10 +80,25 @@ export const visaChangeStep2Schema = z.object({
   // schemas' own note on this); the actual default lives in this flow's
   // `defaultValues` prop instead.
   paxType: z.enum(["ADULT", "CHILD"]),
+  ...passportImageFields,
   additionalPassengers: z.array(visaChangePassengerSchema),
 });
 
 export const visaChangeRequestSchema = visaChangeStep1Schema.extend(visaChangeStep2Schema.shape);
+
+/** Applicants missing a passport copy, as `path` + message issues (primary first, then additional passengers in order). */
+export function findMissingPassportImages(values: {
+  passportImageBase64?: string;
+  additionalPassengers: { passportImageBase64?: string }[];
+}): { path: string; message: string }[] {
+  const message = "Upload a copy of the passport";
+  const issues: { path: string; message: string }[] = [];
+  if (!values.passportImageBase64) issues.push({ path: "passportImageBase64", message });
+  values.additionalPassengers.forEach((passenger, index) => {
+    if (!passenger.passportImageBase64) issues.push({ path: `additionalPassengers.${index}.passportImageBase64`, message });
+  });
+  return issues;
+}
 
 export type VisaChangePassengerValues = z.infer<typeof visaChangePassengerSchema>;
 export type VisaChangeRequestValues = z.infer<typeof visaChangeRequestSchema>;
