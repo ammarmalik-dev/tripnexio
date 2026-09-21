@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 import { ServiceType, type ServiceType as ServiceTypeType, PaxType, type PaxType as PaxTypeType } from "../../generated/prisma/enums";
 
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeType, ...ServiceTypeType[]];
@@ -14,7 +15,7 @@ export const createPricingRuleSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const updatePricingRuleSchema = createPricingRuleSchema.partial();
+export const updatePricingRuleSchema = partialUpdateSchema(createPricingRuleSchema);
 
 export type CreatePricingRuleValues = z.infer<typeof createPricingRuleSchema>;
 export type UpdatePricingRuleValues = z.infer<typeof updatePricingRuleSchema>;

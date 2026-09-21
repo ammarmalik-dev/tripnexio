@@ -872,17 +872,22 @@ model Airport {
 }
 
 model Airline {
-  id           String   @id @default(cuid())
-  name         String
-  code         String   @unique
-  country      String
-  otbRequired  Boolean  @default(false)
-  normalPrice  Decimal? @db.Decimal(10, 2)
-  urgentPrice  Decimal? @db.Decimal(10, 2)
-  displayOrder Int      @default(0)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                     String   @id @default(cuid())
+  name                   String
+  code                   String   @unique
+  country                String
+  otbRequired            Boolean  @default(false)
+  normalPrice            Decimal? @db.Decimal(10, 2)
+  urgentPrice            Decimal? @db.Decimal(10, 2)
+  /// Per-airline OTB processing timelines in WORKING days; null = use the
+  /// global OtbRuleConfig value (client: "process time as per airlines,
+  /// Admin can configure").
+  standardProcessingDays Int?
+  urgentProcessingDays   Int?
+  displayOrder           Int      @default(0)
+  active                 Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   @@index([otbRequired])
   @@index([active])
@@ -1449,4 +1454,16 @@ model Occupation {
   updatedAt    DateTime @updatedAt
 
   @@index([active])
+}
+
+/// Global OTB processing timelines (working days), used whenever an airline
+/// has no override of its own. Singleton row (fixed id), same pattern as
+/// TaxFeeConfig. `urgentProcessingDays` stays null until the client states it:
+/// while null, an urgent request is accepted for any future travel date.
+model OtbRuleConfig {
+  id                     String   @id
+  standardProcessingDays Int
+  urgentProcessingDays   Int?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 }

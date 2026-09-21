@@ -2,6 +2,7 @@
 
 import { MultiStepRequestFlow } from "@/components/forms/MultiStepRequestFlow";
 import { Step1BasicDetails } from "./steps/Step1BasicDetails";
+import { StepApplicants } from "./steps/StepApplicants";
 import { Step2ProcessingType } from "./steps/Step2ProcessingType";
 import { Step3Summary } from "./steps/Step3Summary";
 import { submitOtbRequest } from "@/lib/api/otb";
@@ -12,7 +13,7 @@ import {
   type OtbRequestValues,
 } from "@/lib/validation/otb-schema";
 
-const steps = [Step1BasicDetails, Step2ProcessingType, Step3Summary];
+const steps = [Step1BasicDetails, StepApplicants, Step2ProcessingType, Step3Summary];
 
 export function OtbRequestFlow() {
   return (
@@ -24,9 +25,12 @@ export function OtbRequestFlow() {
         fullName: "",
         mobile: "",
         email: "",
+        passportNumber: "",
         airline: "",
         travelDate: "",
         processingType: undefined,
+        additionalApplicants: [],
+        hasReturnTicket: undefined,
       }}
       stepFields={otbStepFields}
       stepLabels={otbStepLabels}

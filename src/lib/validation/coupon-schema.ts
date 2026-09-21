@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 import {
   CouponType,
   CouponCategory,
@@ -38,7 +39,7 @@ function crossFieldChecks(value: z.infer<typeof couponBaseSchema>, ctx: z.Refine
 }
 
 export const createCouponSchema = couponBaseSchema.superRefine(crossFieldChecks);
-export const updateCouponSchema = couponBaseSchema.partial();
+export const updateCouponSchema = partialUpdateSchema(couponBaseSchema);
 
 export type CreateCouponValues = z.infer<typeof createCouponSchema>;
 export type UpdateCouponValues = z.infer<typeof updateCouponSchema>;

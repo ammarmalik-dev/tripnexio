@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 import { RETURN_TICKET_VISA_TYPES } from "@/lib/leads/compute-return-date";
 
 export const createReturnTicketDestinationSchema = z.object({
@@ -12,4 +13,4 @@ export const createReturnTicketDestinationSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const updateReturnTicketDestinationSchema = createReturnTicketDestinationSchema.partial();
+export const updateReturnTicketDestinationSchema = partialUpdateSchema(createReturnTicketDestinationSchema);

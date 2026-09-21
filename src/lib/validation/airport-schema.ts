@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 
 export const createAirportSchema = z.object({
   name: z.string().trim().min(2, "Enter an airport name").max(120, "Name is too long"),
@@ -17,7 +18,7 @@ export const createAirportSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const updateAirportSchema = createAirportSchema.partial();
+export const updateAirportSchema = partialUpdateSchema(createAirportSchema);
 
 export type CreateAirportValues = z.infer<typeof createAirportSchema>;
 export type UpdateAirportValues = z.infer<typeof updateAirportSchema>;

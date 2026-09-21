@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 
 export const createCountrySchema = z.object({
   code: z
@@ -12,7 +13,7 @@ export const createCountrySchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const updateCountrySchema = createCountrySchema.partial();
+export const updateCountrySchema = partialUpdateSchema(createCountrySchema);
 
 export type CreateCountryValues = z.infer<typeof createCountrySchema>;
 export type UpdateCountryValues = z.infer<typeof updateCountrySchema>;

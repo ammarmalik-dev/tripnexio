@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 
 export const createBorderSchema = z.object({
   name: z.string().trim().min(2, "Enter a crossing name").max(120, "Name is too long"),
@@ -10,7 +11,7 @@ export const createBorderSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const updateBorderSchema = createBorderSchema.partial();
+export const updateBorderSchema = partialUpdateSchema(createBorderSchema);
 
 export type CreateBorderValues = z.infer<typeof createBorderSchema>;
 export type UpdateBorderValues = z.infer<typeof updateBorderSchema>;

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 import { ServiceType, StatusScope, LeadStatus, BookingStatus, type ServiceType as ServiceTypeT, type StatusScope as StatusScopeT, type LeadStatus as LeadStatusT, type BookingStatus as BookingStatusT } from "../../generated/prisma/enums";
 
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeT, ...ServiceTypeT[]];
@@ -19,10 +20,9 @@ export const createServiceStatusSchema = z.object({
   mapsToBookingStatus: z.enum(bookingStatusValues).nullable().optional(),
 });
 
-export const updateServiceStatusSchema = createServiceStatusSchema
-  .omit({ serviceType: true, scope: true })
-  .partial()
-  .extend({ active: z.boolean().optional() });
+export const updateServiceStatusSchema = partialUpdateSchema(
+  createServiceStatusSchema.omit({ serviceType: true, scope: true }).extend({ active: z.boolean().optional() })
+);
 
 export const createServiceStatusTransitionSchema = z.object({
   fromStatusId: z.string().trim().min(1),

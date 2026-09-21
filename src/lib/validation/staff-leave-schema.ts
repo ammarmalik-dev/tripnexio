@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 
 const staffLeaveBaseSchema = z.object({
   userId: z.string().min(1, "Select a staff member"),
@@ -17,7 +18,7 @@ export const createStaffLeaveSchema = staffLeaveBaseSchema.superRefine(crossFiel
 // A leave record's staff member isn't editable after creation — delete and
 // re-add instead, same as every other masters screen treats an identity
 // field (e.g. Coupon.code isn't relevant here, but the pattern matches).
-export const updateStaffLeaveSchema = staffLeaveBaseSchema.omit({ userId: true }).partial();
+export const updateStaffLeaveSchema = partialUpdateSchema(staffLeaveBaseSchema.omit({ userId: true }));
 
 export type CreateStaffLeaveValues = z.infer<typeof createStaffLeaveSchema>;
 export type UpdateStaffLeaveValues = z.infer<typeof updateStaffLeaveSchema>;

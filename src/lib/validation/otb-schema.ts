@@ -50,16 +50,52 @@ export const otbStep3Schema = z.object({
   passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
 });
 
-export const otbRequestSchema = otbStep1Schema.extend(otbStep2Schema.shape).extend(otbStep3Schema.shape);
+export const MAX_ADDITIONAL_OTB_APPLICANTS = 8;
+
+const passportNumberField = z
+  .string()
+  .trim()
+  .min(4, "Enter the passport number")
+  .max(20, "Passport number is too long")
+  .transform((value) => value.toUpperCase());
+
+/** Client handover: the primary applicant also gives a passport number; additional applicants give only name + passport number. */
+export const otbApplicantsSchema = z.object({
+  passportNumber: passportNumberField,
+  additionalApplicants: z
+    .array(
+      z.object({
+        fullName: z.string().trim().min(2, "Enter the full name").max(80, "Full name is too long"),
+        passportNumber: passportNumberField,
+      })
+    )
+    .max(MAX_ADDITIONAL_OTB_APPLICANTS),
+});
+
+/**
+ * Return-ticket cross-sell: OTB is only granted with a return ticket. A
+ * customer without one still submits (staff follow up and offer the Return
+ * Verified Ticket service), so this never blocks — it's captured on the Lead.
+ */
+export const otbReturnTicketSchema = z.object({
+  hasReturnTicket: z.enum(["yes", "no"], { error: "Tell us whether you have a return ticket" }),
+});
+
+export const otbRequestSchema = otbStep1Schema
+  .extend(otbStep2Schema.shape)
+  .extend(otbStep3Schema.shape)
+  .extend(otbApplicantsSchema.shape)
+  .extend(otbReturnTicketSchema.shape);
 
 export type OtbStep1Values = z.infer<typeof otbStep1Schema>;
 export type OtbStep2Values = z.infer<typeof otbStep2Schema>;
 export type OtbRequestValues = z.infer<typeof otbRequestSchema>;
 
 export const otbStepFields: Record<number, (keyof OtbRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "airline", "travelDate"],
-  1: ["processingType"],
-  2: [],
+  0: ["fullName", "mobile", "email", "passportNumber", "airline", "travelDate"],
+  1: ["additionalApplicants"],
+  2: ["processingType"],
+  3: ["hasReturnTicket"],
 };
 
-export const otbStepLabels = ["Basic Details", "Processing Type", "Summary"];
+export const otbStepLabels = ["Basic Details", "Other Applicants", "Processing Type", "Summary"];

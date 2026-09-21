@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 
 export const createExpenseCategorySchema = z.object({
   name: z.string().trim().min(2, "Enter a category name").max(60, "Name is too long"),
@@ -6,7 +7,7 @@ export const createExpenseCategorySchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const updateExpenseCategorySchema = createExpenseCategorySchema.partial();
+export const updateExpenseCategorySchema = partialUpdateSchema(createExpenseCategorySchema);
 
 export type CreateExpenseCategoryValues = z.infer<typeof createExpenseCategorySchema>;
 export type UpdateExpenseCategoryValues = z.infer<typeof updateExpenseCategorySchema>;

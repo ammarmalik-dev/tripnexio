@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 import { NotificationChannel, type NotificationChannel as NotificationChannelType } from "../../generated/prisma/enums";
 
 const channelValues = Object.values(NotificationChannel) as [NotificationChannelType, ...NotificationChannelType[]];
@@ -15,7 +16,7 @@ export const createNotificationTemplateSchema = z.object({
   metaTemplateLanguage: z.string().trim().max(20).optional(),
 });
 
-export const updateNotificationTemplateSchema = createNotificationTemplateSchema.partial();
+export const updateNotificationTemplateSchema = partialUpdateSchema(createNotificationTemplateSchema);
 
 /** `to` is an email for an EMAIL template's test-send, or a WhatsApp id (digits) for a WHATSAPP one — the route validates the shape against the template's own channel since this schema alone can't know which. */
 export const testSendNotificationTemplateSchema = z.object({

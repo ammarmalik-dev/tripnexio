@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 
 export const createOccupationSchema = z.object({
   name: z.string().trim().min(2, "Enter an occupation").max(60, "Name is too long"),
@@ -6,4 +7,4 @@ export const createOccupationSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const updateOccupationSchema = createOccupationSchema.partial();
+export const updateOccupationSchema = partialUpdateSchema(createOccupationSchema);

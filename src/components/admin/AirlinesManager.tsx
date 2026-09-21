@@ -19,6 +19,8 @@ interface AirlineData {
   otbRequired: boolean;
   normalPrice: string | null;
   urgentPrice: string | null;
+  standardProcessingDays: number | null;
+  urgentProcessingDays: number | null;
   displayOrder: number;
   active: boolean;
 }
@@ -32,6 +34,8 @@ interface AirlineFormState {
   otbRequired: boolean;
   normalPrice: string;
   urgentPrice: string;
+  standardProcessingDays: string;
+  urgentProcessingDays: string;
   displayOrder: string;
 }
 
@@ -42,6 +46,8 @@ const EMPTY_FORM: AirlineFormState = {
   otbRequired: false,
   normalPrice: "",
   urgentPrice: "",
+  standardProcessingDays: "",
+  urgentProcessingDays: "",
   displayOrder: "0",
 };
 
@@ -53,6 +59,8 @@ function toFormState(airline: AirlineData): AirlineFormState {
     otbRequired: airline.otbRequired,
     normalPrice: airline.normalPrice ?? "",
     urgentPrice: airline.urgentPrice ?? "",
+    standardProcessingDays: airline.standardProcessingDays === null ? "" : String(airline.standardProcessingDays),
+    urgentProcessingDays: airline.urgentProcessingDays === null ? "" : String(airline.urgentProcessingDays),
     displayOrder: String(airline.displayOrder),
   };
 }
@@ -127,6 +135,30 @@ function AirlineFields({
         error={errors.urgentPrice?.[0]}
         disabled={disabled}
       />
+      <TextField
+        label="Standard OTB processing (working days)"
+        name="standardProcessingDays"
+        type="number"
+        min={1}
+        placeholder="Uses the default"
+        hint="Optional — overrides Admin → OTB Timelines for this airline."
+        value={form.standardProcessingDays}
+        onChange={(event) => onChange({ ...form, standardProcessingDays: event.target.value })}
+        error={errors.standardProcessingDays?.[0]}
+        disabled={disabled}
+      />
+      <TextField
+        label="Urgent OTB processing (working days)"
+        name="urgentProcessingDays"
+        type="number"
+        min={0}
+        placeholder="Uses the default"
+        hint="Optional — overrides the default for this airline."
+        value={form.urgentProcessingDays}
+        onChange={(event) => onChange({ ...form, urgentProcessingDays: event.target.value })}
+        error={errors.urgentProcessingDays?.[0]}
+        disabled={disabled}
+      />
       <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input
           type="checkbox"
@@ -148,6 +180,8 @@ function buildPayload(form: AirlineFormState) {
     otbRequired: form.otbRequired,
     normalPrice: form.normalPrice.trim() === "" ? undefined : Number(form.normalPrice),
     urgentPrice: form.urgentPrice.trim() === "" ? undefined : Number(form.urgentPrice),
+    standardProcessingDays: form.standardProcessingDays.trim() === "" ? null : Number(form.standardProcessingDays),
+    urgentProcessingDays: form.urgentProcessingDays.trim() === "" ? null : Number(form.urgentProcessingDays),
     displayOrder: Number(form.displayOrder) || 0,
   };
 }

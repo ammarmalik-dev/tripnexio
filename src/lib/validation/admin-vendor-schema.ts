@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { partialUpdateSchema } from "./partial-update";
 import { ServiceType, type ServiceType as ServiceTypeType } from "../../generated/prisma/enums";
 
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeType, ...ServiceTypeType[]];
@@ -10,7 +11,7 @@ export const createAdminVendorSchema = z.object({
   active: z.boolean().default(true),
 });
 
-export const updateAdminVendorSchema = createAdminVendorSchema.partial();
+export const updateAdminVendorSchema = partialUpdateSchema(createAdminVendorSchema);
 
 export type CreateAdminVendorValues = z.infer<typeof createAdminVendorSchema>;
 export type UpdateAdminVendorValues = z.infer<typeof updateAdminVendorSchema>;
