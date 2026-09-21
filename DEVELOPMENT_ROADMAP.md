@@ -303,7 +303,14 @@ These are large, foundational modules described in exhaustive detail across ever
 | H3 | Visa Change: applicant-wise document upload before Lead submission | ⬜ |
 | H4 | New Visa: per-traveller array (Occupation, passport, DOB), minor/guardian rule | ⬜ |
 | H5 | OTB: multi-applicant + travel-date/Urgent gating | ⬜ |
-| H6 | Return Ticket / Special Fare / status lists / Visa Change itineraries | ⬜ blocked on client decisions (see audit) |
+| H6a | Return Ticket: Admin-managed destination countries with per-applicant rate + 30/60/90 validity, passport number, multi-applicant, indicative price | ✅ |
+| H6b | Special Fare: searchable airport dropdowns (CSV import for admin), multiple itineraries per lead | ⬜ |
+| H6c | Visa Change: 2-3 itinerary options per lead (different flight timings) | ⬜ |
+| H6d | Status lists: client confirmed — CRM statuses stay as already seeded; the new shorter lists are customer-facing only | ⬜ (customer-facing status labels) |
+
+**Client answers (2026-09-21):** Return Ticket is no longer UAE-only (all Middle East, Admin adds/removes countries and rates). Special Fare scope is Admin-controlled (GCC/India irrelevant), airports Admin-addable, needs multiple itineraries. CRM statuses = the old seeded ones. Visa Change needs 2-3 itineraries. CRM/Admin docs still to come from the client.
+
+**H6a notes:** Destinations live in `ReturnTicketDestination` (one per Country, `/admin/return-ticket-destinations`). The seed adds one SAMPLE UAE row at a placeholder ₹100 — the client sets real rates. The form shows an indicative price only; the Lead/quotation flow is unchanged (staff confirm final pricing). The WhatsApp bot's Return Ticket flow is unchanged (UAE, 30/60 days).
 
 **H1/H2 notes (handover doc is treated as authoritative over the older locked spec):** Website form collects Full Name, Passport Number, Visa Expiry Date and a passport copy per applicant (primary also Mobile + Email); max 5 additional applicants. DOB / "inside UAE" / Entry Date were removed from the website form. Eligibility no longer blocks the submission — the Lead is always created and the CRM lead page ("Previous TripNexio Visa Check") shows each applicant's passport-number match against prior converted New Visa leads (with booking id and captured visa details), or "no match — follow the configured eligibility and rejection process". The existing staff Eligibility panel (verified expiry date/outcome) is unchanged. The WhatsApp bot keeps its own DOB/entry-date eligibility gate (`visaExtensionBotFieldSchemas`), untouched. Only a passport copy is collected as a document (the real required-document list is Admin-configured).
 

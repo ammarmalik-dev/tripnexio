@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { RETURN_TICKET_VISA_TYPES } from "@/lib/leads/compute-return-date";
 
 const todayAtMidnight = () => {
   const now = new Date();
@@ -31,7 +32,7 @@ export const returnTicketFieldsSchema = z.object({
     .trim()
     .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
-  visaType: z.enum(["THIRTY_DAYS", "SIXTY_DAYS"], { message: "Select your UAE visa type" }),
+  visaType: z.enum(RETURN_TICKET_VISA_TYPES, { message: "Select your visa validity" }),
   travelDate: z
     .string()
     .min(1, "Select a travel date")
@@ -45,13 +46,39 @@ export const returnTicketFieldsSchema = z.object({
     .regex(/^[1-9]$/, "Enter a number between 1 and 9 (contact us directly for 9+)"),
 });
 
-export const returnTicketRequestSchema = returnTicketFieldsSchema;
+export const MAX_ADDITIONAL_RETURN_TICKET_APPLICANTS = 8;
+
+const passportNumberField = z
+  .string()
+  .trim()
+  .min(4, "Enter the passport number")
+  .max(20, "Passport number is too long")
+  .transform((value) => value.toUpperCase());
+
+export const returnTicketAdditionalApplicantSchema = z.object({
+  fullName: z.string().trim().min(2, "Enter the full name").max(80, "Full name is too long"),
+  passportNumber: passportNumberField,
+});
+
+/**
+ * Website request (client update): destination country is admin-managed
+ * (see ReturnTicketDestination), the primary applicant also gives a passport
+ * number, and secondary applicants give only Full Name + Passport Number.
+ * The passenger count is derived (1 + additional applicants), so `travelers`
+ * from the WhatsApp-bot field schema above is omitted here.
+ */
+export const returnTicketRequestSchema = returnTicketFieldsSchema.omit({ travelers: true }).extend({
+  passportNumber: passportNumberField,
+  destinationCountryId: z.string().min(1, "Select a destination country"),
+  additionalApplicants: z.array(returnTicketAdditionalApplicantSchema).max(MAX_ADDITIONAL_RETURN_TICKET_APPLICANTS),
+});
 
 export type ReturnTicketRequestValues = z.infer<typeof returnTicketRequestSchema>;
 
 export const returnTicketStepFields: Record<number, (keyof ReturnTicketRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "visaType", "travelDate", "travelers"],
-  1: [],
+  0: ["fullName", "mobile", "email", "passportNumber", "destinationCountryId", "visaType", "travelDate"],
+  1: ["additionalApplicants"],
+  2: [],
 };
 
-export const returnTicketStepLabels = ["Trip Details", "Summary"];
+export const returnTicketStepLabels = ["Trip Details", "Other Applicants", "Summary"];

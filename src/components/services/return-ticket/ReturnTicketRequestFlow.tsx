@@ -2,7 +2,8 @@
 
 import { MultiStepRequestFlow } from "@/components/forms/MultiStepRequestFlow";
 import { Step1TripDetails } from "./steps/Step1TripDetails";
-import { Step2Summary } from "./steps/Step2Summary";
+import { Step2Applicants } from "./steps/Step2Applicants";
+import { Step3Summary } from "./steps/Step3Summary";
 import { submitReturnTicketRequest } from "@/lib/api/return-ticket";
 import {
   returnTicketRequestSchema,
@@ -11,7 +12,7 @@ import {
   type ReturnTicketRequestValues,
 } from "@/lib/validation/return-ticket-schema";
 
-const steps = [Step1TripDetails, Step2Summary];
+const steps = [Step1TripDetails, Step2Applicants, Step3Summary];
 
 export function ReturnTicketRequestFlow() {
   return (
@@ -23,9 +24,11 @@ export function ReturnTicketRequestFlow() {
         fullName: "",
         mobile: "",
         email: "",
+        passportNumber: "",
+        destinationCountryId: "",
         visaType: undefined,
         travelDate: "",
-        travelers: "1",
+        additionalApplicants: [],
       }}
       stepFields={returnTicketStepFields}
       stepLabels={returnTicketStepLabels}

@@ -3,23 +3,43 @@
 import { useFormContext, useWatch } from "react-hook-form";
 import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
+import { SelectField } from "@/components/forms/SelectField";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { ErrorState } from "@/components/ui/ErrorState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { RETURN_TICKET_VISA_TYPE_LABELS } from "@/lib/leads/compute-return-date";
+import { formatRupees, useReturnTicketDestinations } from "@/lib/return-ticket/use-return-ticket-destinations";
 import type { ReturnTicketRequestValues } from "@/lib/validation/return-ticket-schema";
 
 /**
- * Return_Verified_Ticket.md §5/§10, locked: customer provides name,
- * passenger count, visa type (30/60 days), and travel date only — no
- * destination (UAE-only service, §3) and no return/onward date (§6: that's
- * computed server-side, never customer-entered — see Step2Summary.tsx's
- * comment for why it isn't previewed here either).
+ * Return_Verified_Ticket.md §5/§10: no customer-entered return/onward date
+ * (computed server-side). Per the client's update, the destination country,
+ * its rate and the visa-validity options come from Admin configuration.
  */
 export function Step1TripDetails() {
   const {
     register,
     control,
+    setValue,
     formState: { errors },
   } = useFormContext<ReturnTicketRequestValues>();
+  const destinationCountryId = useWatch({ control, name: "destinationCountryId" });
   const visaType = useWatch({ control, name: "visaType" });
+  const { state, destinations, errorMessage } = useReturnTicketDestinations();
+
+  if (state === "loading") return <Skeleton className="h-64 w-full" />;
+  if (state === "error") return <ErrorState title="Couldn't load destinations" description={errorMessage} />;
+  if (destinations.length === 0) {
+    return (
+      <EmptyState
+        title="No destinations available yet"
+        description="Return Verified Ticket destinations haven't been set up. Please contact us on WhatsApp."
+      />
+    );
+  }
+
+  const selected = destinations.find((d) => d.countryId === destinationCountryId);
 
   return (
     <div className="flex flex-col gap-5">
@@ -41,30 +61,39 @@ export function Step1TripDetails() {
           error={errors.email?.message}
           {...register("email")}
         />
-        <TextField
-          label="Number of Passengers"
-          type="number"
-          min={1}
-          max={9}
+        <TextField label="Passport Number" required error={errors.passportNumber?.message} {...register("passportNumber")} />
+        <SelectField
+          label="Destination Country"
           required
-          error={errors.travelers?.message}
-          {...register("travelers")}
+          placeholder="Select a country"
+          options={destinations.map((d) => ({ value: d.countryId, label: d.countryName }))}
+          error={errors.destinationCountryId?.message}
+          {...register("destinationCountryId", {
+            onChange: () => setValue("visaType", undefined as unknown as ReturnTicketRequestValues["visaType"]),
+          })}
         />
         <DateField label="Travel Date" required error={errors.travelDate?.message} {...register("travelDate")} />
       </div>
 
-      <RadioCardGroup<ReturnTicketRequestValues>
-        name="visaType"
-        label="UAE Visa Type"
-        required
-        register={register}
-        selectedValue={visaType}
-        error={errors.visaType?.message}
-        options={[
-          { value: "THIRTY_DAYS", label: "30 Days" },
-          { value: "SIXTY_DAYS", label: "60 Days" },
-        ]}
-      />
+      {selected ? (
+        <>
+          <p className="text-sm text-ink-secondary">
+            Rate for {selected.countryName}: <strong>{formatRupees(selected.ratePerApplicant)}</strong> per applicant.
+          </p>
+          <RadioCardGroup<ReturnTicketRequestValues>
+            name="visaType"
+            label="Visa Validity"
+            required
+            register={register}
+            selectedValue={visaType}
+            error={errors.visaType?.message}
+            options={selected.validityOptions.map((option) => ({
+              value: option,
+              label: RETURN_TICKET_VISA_TYPE_LABELS[option],
+            }))}
+          />
+        </>
+      ) : null}
     </div>
   );
 }

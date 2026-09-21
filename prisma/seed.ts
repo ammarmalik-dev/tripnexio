@@ -563,11 +563,21 @@ async function main() {
   // configured 30-day rule"/"the configured 60-day rule" (the spec doesn't
   // specify a buffer). Same `update: {}` rule as taxFeeConfig above — once
   // an admin has adjusted this, re-seeding must not silently reset it.
-  const returnTicketRuleConfig = { id: "singleton", thirtyDayOffsetDays: 30, sixtyDayOffsetDays: 60 };
+  const returnTicketRuleConfig = { id: "singleton", thirtyDayOffsetDays: 30, sixtyDayOffsetDays: 60, ninetyDayOffsetDays: 90 };
   await db.returnTicketRuleConfig.upsert({
     where: { id: returnTicketRuleConfig.id },
     update: {},
     create: returnTicketRuleConfig,
+  });
+
+  // Return Ticket destinations are Admin-managed (client update). One
+  // SAMPLE row so the website form has something to show in a fresh dev DB —
+  // the ₹100 rate is a placeholder, not a real price; the client sets real
+  // countries/rates at /admin/return-ticket-destinations (hard rule #1).
+  await db.returnTicketDestination.upsert({
+    where: { countryId: "cty_uae" },
+    update: {},
+    create: { countryId: "cty_uae", ratePerApplicant: 100, validityOptions: ["THIRTY_DAYS", "SIXTY_DAYS"], displayOrder: 0 },
   });
 
   // New_Visa.md §8: "Default reference price: ₹5,000, configurable by
