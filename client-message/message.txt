@@ -77,3 +77,41 @@ Check these
 
 Need create customised as per given design simple we dont need any theme
 Glassy, Live, Animations, site
+
+
+
+
+new messages from client 23-sep-2026 now current messages
+
+Real Return Ticket Rates: Please provide the per-applicant rate for each country and confirm which validity options should be available (30/60/90 days).?
+Return Ticket Rates
+Return Ticket rates must be configured separately for each destination country.
+The rate should be calculated per applicant Only
+Required validity options: 30, 60, and 90 days.- all same rate just need configure by desination.
+Admin must be able to configure or update country-wise rates from the Admin panel.
+The UAE rate currently added is only a sample and should remain editable.
+Currently, only a sample UAE rate has been added. OTB: Please confirm the standard processing timeline in days so we can correctly configure and display the Urgent option.
+OTB Processing Timeline
+Configure the standard OTB processing timeline as 24 working days.
+If the travel date falls within the standard processing timeline, the system should suggest the Urgent option, if available. process time as per airlines admin can configure
+Admin must be able to change the standard and urgent processing timelines.
+New Visa: Please confirm the age limit for a minor (child) and which guardian details should be collected (e.g., name and passport number). Also, should Occupation remain a free-text field or be provided as a dropdown?
+New Visa Minor/Child Rules
+Any applicant below 18 years should be treated as a minor.
+Display the message: “Apply with Parent/Guardian.”
+Collect the following guardian details:
+Guardian Full Name
+Guardian Passport Number
+Relationship with the Minor link with one of parent
+Occupation should be a dropdown field. Employee, Business, Retired, Student, Housewife, None, rest admin can add and remove occupations
+Admin should be able to configure or update the occupation options from the Admin panel.
+Airport List: A CSV file with the columns name, code, city, and country (for example, an IATA-based Middle East + India airport list). We will import it into the system with one click from the Admin panel. We cannot create the airport data ourselves because it needs to match your required/approved airport list.
+Airport Master Data Requirement
+
+Admin must be able to add, edit, and remove airports directly from the Admin panel, as we currently do not have a complete approved airport list.
+
+The CSV import format must contain only these columns:
+
+iata_code,airport_name,city,country
+
+Admin should also be able to search, filter, and manage airport records.
