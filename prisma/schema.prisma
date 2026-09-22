@@ -171,6 +171,13 @@ model Lead {
   serviceType     ServiceType
   source          String?
   status          LeadStatus       @default(NEW)
+  /// Unguessable token for the guest customer review page (/quote/<token>):
+  /// see staff-prepared quotation(s), approve one, then pay — same pattern as
+  /// Booking.customerToken for the pay-right-after-the-form services. Set at
+  /// creation for the services that go through a staff quotation (New Visa,
+  /// Visa Extension, Visa Change, Flight Special Fare); null for OTB/Return
+  /// Ticket, which skip straight to a Booking.customerToken instead.
+  customerToken   String?          @unique
   /// Step 19 (audit §3.9/§7.3) — the per-service-configurable granular
   /// status layered ON TOP OF `status` above, not replacing it. `status`
   /// stays the coarse sales-pipeline signal every existing consumer

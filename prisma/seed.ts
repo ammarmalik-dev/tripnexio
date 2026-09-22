@@ -412,7 +412,7 @@ async function main() {
       id: "notification-template-quote-ready",
       event: NOTIFICATION_EVENTS.QUOTE_READY,
       subject: "Sample: Your TripNexio quote is ready — {{leadReference}}",
-      body: "Hi {{customerName}},\n\nYour quote for {{leadReference}} is ready: {{sellingPrice}} (valid until {{quoteValidUntil}}).\n\nContact us on WhatsApp to proceed.\n\n— TripNexio",
+      body: "Hi {{customerName}},\n\nYour quote for {{leadReference}} is ready: {{sellingPrice}} (valid until {{quoteValidUntil}}).\n\nReview and approve it here: {{reviewLink}}\n\n— TripNexio",
     },
     {
       id: "notification-template-quote-reminder",
@@ -487,7 +487,7 @@ async function main() {
     {
       id: "notification-template-quote-ready-wa",
       event: NOTIFICATION_EVENTS.QUOTE_READY,
-      body: "Hi {{customerName}}, your quote for {{leadReference}} is ready: {{sellingPrice}} (valid until {{quoteValidUntil}}). Reply here to proceed.",
+      body: "Hi {{customerName}}, your quote for {{leadReference}} is ready: {{sellingPrice}} (valid until {{quoteValidUntil}}). Review and pay here: {{reviewLink}}",
     },
     {
       id: "notification-template-quote-reminder-wa",

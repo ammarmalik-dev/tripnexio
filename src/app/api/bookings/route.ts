@@ -1,17 +1,12 @@
 import type { NextRequest } from "next/server";
-import type { Prisma } from "@/generated/prisma/client";
 import { createBookingSchema } from "@/lib/validation/booking-schema";
+import { createBookingFromQuotation } from "@/lib/bookings/create-booking";
 import { bookingListQuerySchema } from "@/lib/validation/booking-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
-import { writeAudit } from "@/lib/audit/log";
-import { placeholderBookingId } from "@/lib/bookings/reference";
-import { isExpiredNow } from "@/lib/quotations/sync-expiry";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { formatLeadReference } from "@/lib/leads/reference";
-import { getProtectionPlanDefaultPrice } from "@/lib/settings/protection-plan-config";
-import { buildDocumentChecklistSnapshot } from "@/lib/bookings/document-checklist-snapshot";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("bookings.view");
@@ -89,107 +84,13 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const quotation = await db.quotation.findUnique({
-    where: { id: parsed.data.quotationId },
-    include: { lead: true },
+  const result = await createBookingFromQuotation(parsed.data.quotationId, {
+    byUserId: session.id,
+    label: `by ${session.name}`,
   });
-  if (!quotation) return jsonError(404, "Quotation not found.");
-  if (!quotation.isSelected) {
-    return jsonError(409, "Select this quotation before booking it.", {
-      quotationId: ["This quotation hasn't been selected yet."],
-    });
-  }
-  if (isExpiredNow(quotation)) {
-    return jsonError(409, "This quotation has expired.", { quotationId: ["This quotation has expired."] });
+  if (!result.ok) {
+    return jsonError(result.status, result.error, result.status === 409 ? { quotationId: [result.error] } : undefined);
   }
 
-  const existingActiveBooking = await db.booking.findFirst({
-    where: { leadId: quotation.leadId, status: { not: "CANCELLED" } },
-  });
-  if (existingActiveBooking) {
-    return jsonError(409, "This lead already has an active booking.");
-  }
-
-  // Every Lead always has at least one passenger (createLeadFromSubmission
-  // defaults to one derived from the contact's own name when the service
-  // doesn't collect a real passenger list) — see create-lead.ts. Same
-  // `details.passengerIds` convention GET /api/leads/[id] already reads.
-  const leadDetails = (quotation.lead.details ?? {}) as Record<string, unknown>;
-  const passengerIds = Array.isArray(leadDetails.passengerIds) ? (leadDetails.passengerIds as string[]) : [];
-
-  // Step 20 (audit §7.1) — New_Visa.md §8: "Protection Plan is offered
-  // after processing selection and before payment." This is the earliest
-  // point in this app's real flow where a Booking (and therefore a fixed
-  // passenger list) exists at all, so every NEW_VISA booking's passengers
-  // get a Protection Plan row pre-offered here — other services don't get
-  // one, this add-on is New Visa-specific per the source doc.
-  const protectionPlanPrice = quotation.lead.serviceType === "NEW_VISA" ? await getProtectionPlanDefaultPrice() : null;
-
-  // Step 23 (audit §7.6) — resolved from the then-current active
-  // DocumentRequirement rows and frozen onto the Booking row below, so a
-  // later Admin edit to the checklist never retroactively changes what this
-  // already-paid booking requires. See buildDocumentChecklistSnapshot's own
-  // doc comment for why it's grouped per passenger rather than per booking.
-  const snapshotPassengers =
-    passengerIds.length > 0
-      ? await db.passenger.findMany({
-          where: { id: { in: passengerIds } },
-          select: { id: true, fullName: true, nationality: true },
-        })
-      : [];
-  const documentChecklistSnapshot = await buildDocumentChecklistSnapshot(quotation.lead.serviceType, snapshotPassengers);
-
-  // bookingId gets its real TNX-XX-XXXXXX value once payment succeeds (see
-  // /api/payments/[id]/mark-success) — this placeholder just satisfies the
-  // column's NOT NULL/unique constraint until then.
-  const booking = await db.$transaction(async (tx) => {
-    const created = await tx.booking.create({
-      data: {
-        bookingId: placeholderBookingId(),
-        leadId: quotation.leadId,
-        customerId: quotation.lead.customerId,
-        status: "PENDING",
-        documentChecklistSnapshot: documentChecklistSnapshot as unknown as Prisma.InputJsonValue,
-      },
-    });
-
-    // CRM.md §12 (Step 14): each passenger gets its own status row,
-    // independently visible from the booking-level status above — see
-    // BookingPassenger's own schema doc comment for why it reuses
-    // BookingStatus. Starts at the same status as the booking itself.
-    if (passengerIds.length > 0) {
-      await tx.bookingPassenger.createMany({
-        data: passengerIds.map((passengerId) => ({ bookingId: created.id, passengerId, status: created.status })),
-      });
-    }
-
-    if (protectionPlanPrice !== null && passengerIds.length > 0) {
-      await tx.protectionPlan.createMany({
-        data: passengerIds.map((passengerId) => ({
-          bookingId: created.id,
-          passengerId,
-          status: "OFFERED",
-          price: protectionPlanPrice,
-        })),
-      });
-      await writeAudit(tx, {
-        entityType: "Booking",
-        entityId: created.id,
-        action: "PROTECTION_PLAN_OFFERED",
-        note: `Protection Plan offered to ${passengerIds.length} passenger(s) at ₹${protectionPlanPrice} each`,
-      });
-    }
-
-    await writeAudit(tx, {
-      entityType: "Booking",
-      entityId: created.id,
-      action: "CREATE",
-      byUserId: session.id,
-      note: `Booking initiated from quotation ${quotation.id} (by ${session.name})`,
-    });
-
-    return created;
-  });
-
-  return jsonSuccess(booking, 201);
+  return jsonSuccess(result.booking, 201);
 }

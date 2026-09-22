@@ -6,6 +6,10 @@ import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { generateToken } from "../quotations/select-quotation";
+
+/** The services that go through a staff-prepared quotation the customer reviews at /quote/<token>. */
+const QUOTE_REVIEW_SERVICES = new Set<ServiceType>(["NEW_VISA", "VISA_EXTENSION", "VISA_CHANGE", "FLIGHT_SPECIAL_FARE"]);
 
 export interface LeadContact {
   fullName: string;
@@ -110,12 +114,19 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     const customer = await findOrCreateCustomer(tx, contact);
     const passengerIds = await findOrCreatePassengers(tx, customer.id, safePassengers);
 
+    // A customer review/payment token is only useful for the services that
+    // actually get a staff-prepared quotation to review (see
+    // QUOTE_REVIEW_SERVICES) — OTB/Return Ticket skip straight to a
+    // Booking.customerToken via the automatic checkout instead.
+    const customerToken = QUOTE_REVIEW_SERVICES.has(serviceType) ? generateToken() : undefined;
+
     const lead = await tx.lead.create({
       data: {
         customerId: customer.id,
         serviceType,
         source: source ?? "Website",
         details: { ...safeDetails, passengerIds } as Prisma.InputJsonValue,
+        customerToken,
       },
     });
 

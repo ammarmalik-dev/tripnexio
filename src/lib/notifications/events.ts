@@ -46,13 +46,14 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.QUOTE_READY,
     label: "Quote ready",
-    variables: ["customerName", "leadReference", "sellingPrice", "quoteValidUntil"],
+    variables: ["customerName", "leadReference", "sellingPrice", "quoteValidUntil", "reviewLink"],
     wired: true,
     sampleVariables: {
       customerName: "Sample Customer",
       leadReference: "NV-SAMPLE",
       sellingPrice: "Rs. 25,000.00",
       quoteValidUntil: "7 Sept 2026, 6:30 pm",
+      reviewLink: "https://tripnexio.com/quote/sample-token",
     },
   },
   {

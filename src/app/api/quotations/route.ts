@@ -13,6 +13,8 @@ import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { money } from "@/lib/invoices/render-invoice";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { siteConfig } from "@/lib/site-config";
+import { ensureLeadCustomerToken } from "@/lib/quotations/select-quotation";
 import type { Quotation } from "@/generated/prisma/client";
 
 /**
@@ -259,6 +261,7 @@ export async function POST(request: NextRequest) {
   });
 
   const payableAfterCoupon = resolvedSellingPrice - (appliedCoupon?.discountAmount ?? 0);
+  const reviewToken = await ensureLeadCustomerToken(lead);
 
   // "Quote ready" fires on every new quotation for this lead, not only the
   // first one — a lead can reasonably get more than one quote over its
@@ -277,6 +280,7 @@ export async function POST(request: NextRequest) {
       quoteValidUntil: validityExpiresAt
         ? new Date(validityExpiresAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
         : "no expiry set",
+      reviewLink: `${siteConfig.url}/quote/${reviewToken}`,
     },
     auditTarget: { entityType: "Quotation", entityId: quotation.id },
   });
