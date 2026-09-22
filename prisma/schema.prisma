@@ -126,12 +126,18 @@ enum ReturnTicketVisaType {
 // ---------------------------------------------------------------------------
 
 model Customer {
-  id        String   @id @default(cuid())
-  name      String
-  mobile    String   @unique
-  email     String?  @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  mobile       String   @unique
+  email        String?  @unique
+  /// Set only once a customer actually registers/logs in — a guest's
+  /// Customer row (created by findOrCreateCustomer at lead-submission time,
+  /// see src/lib/leads/create-lead.ts) has no password until they later
+  /// register with the same mobile/email, at which point registration
+  /// claims that existing row instead of creating a duplicate.
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   passengers Passenger[]
   leads      Lead[]

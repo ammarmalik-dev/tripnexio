@@ -303,6 +303,7 @@ These are large, foundational modules described in exhaustive detail across ever
 | H3 | Visa Change: applicant-wise document upload before Lead submission | ✅ |
 | H4 | New Visa: per-traveller array (Occupation, passport, DOB, passport copy), minor/guardian rule, Admin-managed occupations | ✅ |
 | H5 | OTB: multi-applicant + travel-date/Urgent gating (24 working days, Admin-configurable, per-airline override) | ✅ |
+| H10 | Customer login/register: real sessions, guest-account claiming, My Account (requests/bookings) page | ✅ |
 | H9 | CRM: "Copy Payment Link" button on Booking detail (shares the customer's /pay/<token> for any booking) | ✅ |
 | H8 | New Visa / Visa Extension / Visa Change / Flight Special Fare: customer-facing quote review + approve + pay page | ✅ |
 | H7 | Return Ticket + OTB: pay right after the form (guest /pay/<token> page), then upload documents after payment | ✅ |
@@ -314,6 +315,8 @@ These are large, foundational modules described in exhaustive detail across ever
 **Client answers (2026-09-21):** Return Ticket is no longer UAE-only (all Middle East, Admin adds/removes countries and rates). Special Fare scope is Admin-controlled (GCC/India irrelevant), airports Admin-addable, needs multiple itineraries. CRM statuses = the old seeded ones. Visa Change needs 2-3 itineraries. CRM/Admin docs still to come from the client.
 
 **H6b notes:** Departure/Arrival on the Special Fare form are now searchable comboboxes over `GET /api/airports` (public, active airports; matches city/name/code/country). Free text is still accepted so the form works while the list is being filled. Admin → Airports gained a CSV bulk import (`name,code,city,country`; upsert by code; country must already exist under Admin → Countries). No real airport list was seeded or invented — the client supplies the file (e.g. an IATA/OpenFlights export). Multiple itineraries: a lead can already carry several simultaneous flight quotes (verified 3 at once); selecting one expires the rest.
+
+**H10 notes:** `Customer.passwordHash` (nullable) added — a guest's Customer row (created by any lead-intake route) has none until they later register with the same mobile/email, at which point registration claims that existing row (same convention `findOrCreateCustomer` already used) instead of creating a duplicate, so their prior request history appears immediately on `/account`. `src/lib/auth/customer-session.ts`/`get-customer-session.ts` mirror the staff session pattern exactly (jose JWT, httpOnly cookie) but with their own `CUSTOMER_SESSION_SECRET`/cookie/30-day TTL — a fully separate system from staff auth, per CLAUDE.md's Auth section. `/account` (Server Component, redirects to `/login` if signed out) lists the customer's own Leads and Bookings with customer-friendly status wording (`src/lib/account/labels.ts` — a small local map, not the separate granular `ServiceStatus.customerLabel` catalog). Google OAuth stays a placeholder (`GoogleButton` still toasts "not connected") — building the real authorization-code flow now, with no `GOOGLE_CLIENT_ID`/`SECRET` from the client to test against, isn't worth doing until those exist. The Navbar wasn't changed — the client-approved reference design deliberately has no login icon there; `/login`/`/register`/`/account` are reachable directly.
 
 **H8 notes:** Every lead for these 4 services now gets a `customerToken` (New Visa, Visa Extension, Visa Change, Flight Special Fare — OTB/Return Ticket keep using their own Booking-level token from H7's auto-checkout instead). When staff create a quotation, `QUOTE_READY`'s email/WhatsApp now includes a `{{reviewLink}}` to `/quote/<token>`, where the customer sees the quote(s) — Special Fare's alternative routes or Visa Change's itinerary options included, side by side, minus internal fields (vendor cost, margin) — and approves one. Approving reuses the exact same select → book → create-payment pipeline the CRM already used for staff-driven bookings (refactored into `selectQuotation()` / `createBookingFromQuotation()` so both paths share one implementation), then sends the customer straight to the existing `/pay/<token>` page from H7. As a side effect every Booking now gets a `customerToken` regardless of how it was created, so staff can also grab a shareable payment link for any booking from the CRM (no new UI for that yet — the token exists, just not surfaced there). These four services define no post-payment document checklist (unlike Return Ticket/OTB), so the payment page's document section stays empty for them — their existing pre-lead / staff-side document flows are unchanged.
 
@@ -336,6 +339,13 @@ These are large, foundational modules described in exhaustive detail across ever
 **H1/H2 notes (handover doc is treated as authoritative over the older locked spec):** Website form collects Full Name, Passport Number, Visa Expiry Date and a passport copy per applicant (primary also Mobile + Email); max 5 additional applicants. DOB / "inside UAE" / Entry Date were removed from the website form. Eligibility no longer blocks the submission — the Lead is always created and the CRM lead page ("Previous TripNexio Visa Check") shows each applicant's passport-number match against prior converted New Visa leads (with booking id and captured visa details), or "no match — follow the configured eligibility and rejection process". The existing staff Eligibility panel (verified expiry date/outcome) is unchanged. The WhatsApp bot keeps its own DOB/entry-date eligibility gate (`visaExtensionBotFieldSchemas`), untouched. Only a passport copy is collected as a document (the real required-document list is Admin-configured).
 
 ---
+
+## Pre-existing pending items (from before Phase 9), closed 2026-09-23
+
+- **Customer login/register**: real sessions built — see H10 below (Phase 9 tracker).
+- **WhatsApp button-menu (Step 30)**: done — see Step 30 above.
+- **Deployment governance runbook (Step 31)**: done — `docs/deployment/DEPLOYMENT_RUNBOOK.md`.
+- **og-image.png**: added.
 
 ## Summary: Suggested Execution Order
 

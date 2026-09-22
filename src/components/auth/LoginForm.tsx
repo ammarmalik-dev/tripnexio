@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TextField } from "@/components/forms/TextField";
 import { PasswordField } from "@/components/forms/PasswordField";
@@ -12,10 +13,11 @@ import { AuthDivider } from "./AuthDivider";
 import { GoogleButton } from "./GoogleButton";
 import { GuestContinueLink } from "./GuestContinueLink";
 import { AuthSuccessNotice } from "./AuthSuccessNotice";
-import { loginUser } from "@/lib/mock-api/auth";
+import { postJson, ApiError } from "@/lib/api/client";
 import { loginSchema, type LoginValues } from "@/lib/validation/auth-schema";
 
 export function LoginForm() {
+  const router = useRouter();
   const [signedIn, setSignedIn] = useState(false);
   const {
     register,
@@ -28,21 +30,21 @@ export function LoginForm() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await loginUser(values);
-      toast.success("Signed in — this is a preview, so nothing was saved.");
+      await postJson("/api/auth/login", values);
+      toast.success("Signed in.");
       setSignedIn(true);
-    } catch {
-      // Not reachable from this deterministic mock today — kept so the UI
-      // has a real error branch ready once Auth.js is wired up (M2).
-      toast.error("Couldn't sign you in right now. Please try again.");
+      router.refresh();
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't sign you in right now. Please try again.");
     }
   });
 
   if (signedIn) {
     return (
       <AuthSuccessNotice
-        title="Signed in (preview)"
-        description="Auth isn't live yet — once M2 ships, this will take you to your dashboard."
+        title="Signed in"
+        description="Welcome back — your requests and bookings are linked to your account."
+        cta={{ label: "Go to My Account", href: "/account" }}
       />
     );
   }

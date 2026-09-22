@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { TextField } from "@/components/forms/TextField";
 import { PasswordField } from "@/components/forms/PasswordField";
@@ -12,37 +13,44 @@ import { AuthDivider } from "./AuthDivider";
 import { GoogleButton } from "./GoogleButton";
 import { GuestContinueLink } from "./GuestContinueLink";
 import { AuthSuccessNotice } from "./AuthSuccessNotice";
-import { registerUser } from "@/lib/mock-api/auth";
+import { postJson, ApiError } from "@/lib/api/client";
 import { registerSchema, type RegisterValues } from "@/lib/validation/auth-schema";
 
 export function RegisterForm() {
+  const router = useRouter();
   const [registered, setRegistered] = useState(false);
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { fullName: "", mobile: "", email: "", password: "", confirmPassword: "" },
   });
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await registerUser(values);
-      toast.success("Account created — this is a preview, so nothing was saved.");
+      await postJson("/api/auth/register", values);
+      toast.success("Account created — you're signed in.");
       setRegistered(true);
-    } catch {
-      // Not reachable from this deterministic mock today — kept so the UI
-      // has a real error branch ready once Auth.js is wired up (M2).
-      toast.error("Couldn't create your account right now. Please try again.");
+      router.refresh();
+    } catch (error) {
+      if (error instanceof ApiError && error.fieldErrors) {
+        for (const [field, messages] of Object.entries(error.fieldErrors)) {
+          if (messages?.[0]) setError(field as keyof RegisterValues, { message: messages[0] });
+        }
+      }
+      toast.error(error instanceof ApiError ? error.message : "Couldn't create your account right now. Please try again.");
     }
   });
 
   if (registered) {
     return (
       <AuthSuccessNotice
-        title="Account created (preview)"
-        description="Auth isn't live yet — once M2 ships, this will sign you in automatically."
+        title="Account created"
+        description="You're signed in. Your next requests will be linked to your account automatically."
+        cta={{ label: "Go to My Account", href: "/account" }}
       />
     );
   }
@@ -56,6 +64,15 @@ export function RegisterForm() {
           required
           error={errors.fullName?.message}
           {...register("fullName")}
+        />
+        <TextField
+          label="Mobile Number"
+          type="tel"
+          autoComplete="tel"
+          placeholder="+91 98765 43210"
+          required
+          error={errors.mobile?.message}
+          {...register("mobile")}
         />
         <TextField
           label="Email"

@@ -10,6 +10,10 @@ export type LoginValues = z.infer<typeof loginSchema>;
 export const registerSchema = z
   .object({
     fullName: z.string().trim().min(2, "Enter your full name").max(80, "Full name is too long"),
+    mobile: z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
     email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
     password: z
       .string()
