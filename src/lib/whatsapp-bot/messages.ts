@@ -45,6 +45,14 @@ export function stillHandedOff(): string {
   return `Our team has this — they'll reach out shortly. Need anything else in the meantime? Type "menu" to start over.`;
 }
 
+export function trackInstructions(): string {
+  return (
+    `You can check your request's status here: ${siteConfig.url}/track — just enter the reference ID we sent you.\n\n` +
+    `Don't have it handy? Message us your name or mobile number and our team will look it up.\n\n` +
+    `Type "menu" anytime to start over.`
+  );
+}
+
 export function faqFooter(): string {
   return `_Did that answer your question? Type "menu" to see what else I can help with, or "agent" to talk to our team._`;
 }

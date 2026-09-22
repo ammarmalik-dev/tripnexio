@@ -8,7 +8,13 @@ interface CloudApiWebhookPayload {
     changes?: {
       field?: string;
       value?: {
-        messages?: { from: string; type: string; text?: { body: string } }[];
+        messages?: {
+          from: string;
+          type: string;
+          text?: { body: string };
+          /** Present when the customer tapped a row in an interactive list menu (see src/lib/whatsapp-bot/menu.ts). */
+          interactive?: { type: string; list_reply?: { id: string; title: string }; button_reply?: { id: string; title: string } };
+        }[];
         contacts?: { profile?: { name?: string } }[];
       };
     }[];
@@ -59,16 +65,28 @@ export async function POST(request: NextRequest) {
   }
 
   const message = payload.entry?.[0]?.changes?.[0]?.value?.messages?.[0];
-  if (!message || message.type !== "text" || !message.text?.body) {
-    // Status callbacks (delivered/read receipts), non-text messages, etc. — nothing for the bot to do.
+  if (!message) {
+    // Status callbacks (delivered/read receipts) — nothing for the bot to do.
     return new Response("OK", { status: 200 });
   }
 
+  // A tapped menu row: the engine reads the row id (e.g. "MENU_NEW_VISA")
+  // exactly like typed text (see engine.ts's tappedService check), so the
+  // rest of this route doesn't need to know taps exist. The row's own
+  // TITLE (not the raw id) is what gets logged, so the WhatsAppMessageLog
+  // transcript reads naturally ("New Visa" rather than "MENU_NEW_VISA").
+  const interactiveReply = message.type === "interactive" ? (message.interactive?.list_reply ?? message.interactive?.button_reply) : null;
+  const text = interactiveReply?.id ?? message.text?.body;
+  if (!text) {
+    // Non-text, non-interactive message types (image, location, etc.) — nothing for the bot to do.
+    return new Response("OK", { status: 200 });
+  }
+  const loggedText = interactiveReply?.title ?? text;
+
   const waId = message.from;
   const profileName = payload.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name ?? null;
-  const text = message.text.body;
 
-  await db.whatsAppMessageLog.create({ data: { waId, direction: "INBOUND", body: text } });
+  await db.whatsAppMessageLog.create({ data: { waId, direction: "INBOUND", body: loggedText } });
 
   const conversation = await db.whatsAppConversation.upsert({
     where: { waId },
@@ -86,7 +104,11 @@ export async function POST(request: NextRequest) {
   await db.whatsAppMessageLog.create({ data: { waId, direction: "OUTBOUND", body: result.replyText } });
 
   try {
-    await gateway.sendSessionText(waId, result.replyText);
+    if (result.replyMenu) {
+      await gateway.sendInteractiveList(waId, result.replyMenu);
+    } else {
+      await gateway.sendSessionText(waId, result.replyText);
+    }
   } catch (error) {
     // The reply failed to actually deliver, but the conversation state is
     // already saved — log and move on rather than throwing, since Meta

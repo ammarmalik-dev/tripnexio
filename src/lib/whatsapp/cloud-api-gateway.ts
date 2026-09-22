@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { SendMessageResult, SendTemplateMessageInput, WhatsAppGateway } from "./gateway";
+import type { SendInteractiveListInput, SendMessageResult, SendTemplateMessageInput, WhatsAppGateway } from "./gateway";
 
 const GRAPH_API_VERSION = "v21.0";
 
@@ -42,6 +42,25 @@ export class WhatsAppCloudApiGateway implements WhatsAppGateway {
 
   async sendSessionText(to: string, body: string): Promise<SendMessageResult> {
     return this.send({ to, type: "text", text: { body, preview_url: false } });
+  }
+
+  async sendInteractiveList(to: string, input: SendInteractiveListInput): Promise<SendMessageResult> {
+    return this.send({
+      to,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        body: { text: input.bodyText },
+        ...(input.footerText ? { footer: { text: input.footerText } } : {}),
+        action: {
+          button: input.buttonText,
+          sections: input.sections.map((section) => ({
+            ...(section.title ? { title: section.title } : {}),
+            rows: section.rows.map((row) => ({ id: row.id, title: row.title, ...(row.description ? { description: row.description } : {}) })),
+          })),
+        },
+      },
+    });
   }
 
   async sendTemplateMessage(to: string, input: SendTemplateMessageInput): Promise<SendMessageResult> {

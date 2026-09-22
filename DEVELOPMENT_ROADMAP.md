@@ -277,9 +277,9 @@ These are large, foundational modules described in exhaustive detail across ever
 
 
 
-### Step 30 — WhatsApp menu-driven UX (client decision needed)
+### Step 30 — WhatsApp menu-driven UX ✅
 **Audit ref:** §6 (PARTIALLY BUILT / diverges from spec's stated UX shape)
-**Action:** Not a coding step yet. The client's docs describe an admin-configurable button-menu WhatsApp experience (Visa/Flights/OTB/Return Ticket/Track Booking/Other); what's built is free-form AI intent detection instead. Both are legitimate, but ask the client directly: *"Do you want the WhatsApp bot to show a button menu of services, or is the current free-form 'just type what you need' AI approach acceptable?"* If they want the menu, that's a moderate follow-up prompt to add an Admin-configurable menu layer in front of the existing intent engine (menu button tap = pre-fills the same intent the AI would have detected) — don't rebuild the underlying engine.
+**Status:** Client chose the button-menu option. Built as a real, tappable WhatsApp interactive list (Meta Cloud API session message, `WhatsAppGateway.sendInteractiveList`) shown on every greeting: the 6 services (Visa/Flights/OTB/Return Ticket + New Visa + Visa Extension — pulled live from the same Admin-managed `Service` rows the website's ServicesGrid uses, via `src/lib/whatsapp-bot/menu.ts`, so it's genuinely Admin-configurable without a second place to edit it) plus **Track my request** and **Talk to our team**. Tapping a row is handled in `engine.ts` *before* any AI call and maps deterministically to the exact same `startCollecting()`/handoff paths free text already used — the underlying engine wasn't rebuilt. Free-text natural-language input (English or Hinglish) still works exactly as before at every state; the menu only adds an option, never a gate. `ConsoleWhatsAppGateway` logs the rendered menu so this is fully exercised without real Meta credentials. Verified: menu shown on first contact and on "menu"/"restart", a tap starts the right service flow, Track/Agent taps handled, inbound message log shows the row's readable title (not its raw id), and free-text classification (including the Hinglish example) is unaffected.
 
 ---
 

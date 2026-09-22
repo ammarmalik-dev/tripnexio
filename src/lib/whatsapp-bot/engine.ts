@@ -4,17 +4,32 @@ import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getAiProvider } from "./get-ai-provider";
 import { answerFaqQuestion } from "@/lib/faq/answer-faq";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
+import { buildWelcomeMenu, serviceTypeFromMenuId, MENU_TRACK_ID, MENU_AGENT_ID } from "./menu";
 import { getNextField, buildLeadDetails } from "./flows";
 import * as messages from "./messages";
 import type { ServiceType } from "../../generated/prisma/enums";
+
+const SERVICE_TYPES = ["NEW_VISA", "VISA_EXTENSION", "VISA_CHANGE", "FLIGHT_SPECIAL_FARE", "RETURN_TICKET", "OTB"] as const;
 import type { WhatsAppConversation } from "../../generated/prisma/client";
 
 export interface EngineResult {
   replyText: string;
+  /** Present only for the greeting menu — the webhook route sends this as a real tappable WhatsApp list instead of (not in addition to) replyText, which stays as the plain-text fallback for the message log/console gateway. */
+  replyMenu?: Awaited<ReturnType<typeof buildWelcomeMenu>>;
   nextState: string;
   nextServiceType: ServiceType | null;
   nextCollectedFields: Record<string, string>;
   leadId?: string;
+}
+
+async function greetingReply(profileName: string | null): Promise<EngineResult> {
+  return {
+    replyText: messages.welcomeMenu(profileName),
+    replyMenu: await buildWelcomeMenu(),
+    nextState: "GREETING",
+    nextServiceType: null,
+    nextCollectedFields: {},
+  };
 }
 
 const RESTART_RE = /^(restart|start over|menu|hi|hello|hey)$/i;
@@ -42,7 +57,7 @@ export async function handleInboundMessage(
     // Universal escape hatch — works from any state, including mid-collection or handed-off
     // (none of the fields the bot ever asks for would legitimately be answered "hi"/"menu"/"restart").
     if (RESTART_RE.test(trimmed)) {
-      return { replyText: messages.welcomeMenu(profileName), nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
+      return await greetingReply(profileName);
     }
 
     if (conversation.state === "HANDED_OFF") {
@@ -58,6 +73,24 @@ export async function handleInboundMessage(
 
     if (effectiveState === "COLLECTING" && conversation.serviceType) {
       return await continueCollecting(conversation.serviceType, conversation.waId, conversation.collectedFields as Record<string, string>, trimmed);
+    }
+
+    // A tapped menu row is handled before any AI call — Meta echoes the row
+    // id back as the message body for an interactive reply (see the webhook
+    // route), so this only ever fires for an actual tap, never a
+    // coincidentally-matching typed string (row ids are prefixed "MENU_" and
+    // not something a customer would type unprompted). A tap maps deterministically
+    // to the exact same startCollecting()/handoff paths free text would
+    // eventually classify into — no separate menu-only code path to maintain.
+    const tappedService = serviceTypeFromMenuId(trimmed, SERVICE_TYPES);
+    if (tappedService) {
+      return await startCollecting(tappedService);
+    }
+    if (trimmed === MENU_TRACK_ID) {
+      return { replyText: messages.trackInstructions(), nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
+    }
+    if (trimmed === MENU_AGENT_ID) {
+      return { replyText: messages.handoff("Sure —"), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };
     }
 
     // GREETING (or freshly reset from COMPLETED) — classify intent.
@@ -76,7 +109,7 @@ export async function handleInboundMessage(
       return await answerFaqOrHandoff(trimmed);
     }
 
-    return { replyText: messages.welcomeMenu(profileName), nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
+    return await greetingReply(profileName);
   } catch (error) {
     console.error("[whatsapp-bot] engine error", error);
     return { replyText: messages.handoff("Something went wrong on our end."), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };
@@ -106,7 +139,7 @@ async function continueCollecting(
 
   // Every field already collected somehow (shouldn't normally reach here — COMPLETED handles this) — safety net.
   if (!currentField) {
-    return { replyText: messages.welcomeMenu(null), nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
+    return await greetingReply(null);
   }
   if (currentField.unavailable) {
     return { replyText: messages.handoff("That option isn't available right now."), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };

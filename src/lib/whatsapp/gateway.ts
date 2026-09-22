@@ -11,6 +11,31 @@ export interface SendMessageResult {
   id: string | null;
 }
 
+export interface InteractiveListRow {
+  /** Echoed back verbatim in the customer's reply — how the webhook knows which row was tapped. Max 200 chars per Meta's limit. */
+  id: string;
+  /** Max 24 chars per Meta's limit. */
+  title: string;
+  /** Max 72 chars per Meta's limit. */
+  description?: string;
+}
+
+export interface InteractiveListSection {
+  /** Max 24 chars per Meta's limit. */
+  title?: string;
+  rows: InteractiveListRow[];
+}
+
+export interface SendInteractiveListInput {
+  /** Max 1024 chars. */
+  bodyText: string;
+  /** The button the customer taps to open the list — max 20 chars. */
+  buttonText: string;
+  /** Max 10 rows total across all sections. */
+  sections: InteractiveListSection[];
+  footerText?: string;
+}
+
 /**
  * Service-layer interface for outbound WhatsApp — mirrors PaymentGateway/
  * EmailSender's shape so it can be swapped later without touching call
@@ -25,6 +50,8 @@ export interface SendMessageResult {
 export interface WhatsAppGateway {
   readonly providerName: string;
   sendSessionText(to: string, body: string): Promise<SendMessageResult>;
+  /** A real tappable WhatsApp list menu — a session message like sendSessionText (same 24h-window rule), not a template. */
+  sendInteractiveList(to: string, input: SendInteractiveListInput): Promise<SendMessageResult>;
   sendTemplateMessage(to: string, input: SendTemplateMessageInput): Promise<SendMessageResult>;
   /** Verifies Meta's `X-Hub-Signature-256` header against the raw webhook body. */
   verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean;

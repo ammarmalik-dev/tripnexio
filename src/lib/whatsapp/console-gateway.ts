@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { SendMessageResult, SendTemplateMessageInput, WhatsAppGateway } from "./gateway";
+import type { SendInteractiveListInput, SendMessageResult, SendTemplateMessageInput, WhatsAppGateway } from "./gateway";
 import { verifyMetaSignature } from "./cloud-api-gateway";
 
 /**
@@ -16,6 +16,12 @@ export class ConsoleWhatsAppGateway implements WhatsAppGateway {
 
   async sendSessionText(to: string, body: string): Promise<SendMessageResult> {
     console.log(`[whatsapp:console] session text to ${to}\n---\n${body}\n---`);
+    return { id: `console_wa_${crypto.randomUUID()}` };
+  }
+
+  async sendInteractiveList(to: string, input: SendInteractiveListInput): Promise<SendMessageResult> {
+    const rows = input.sections.flatMap((section) => section.rows.map((row) => `${row.id}: ${row.title}`));
+    console.log(`[whatsapp:console] interactive list to ${to}\n---\n${input.bodyText}\n[${input.buttonText}]\n${rows.join("\n")}\n---`);
     return { id: `console_wa_${crypto.randomUUID()}` };
   }
 
