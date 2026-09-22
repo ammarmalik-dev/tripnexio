@@ -340,6 +340,254 @@ These are large, foundational modules described in exhaustive detail across ever
 
 ---
 
+---
+
+## Phase 10 — Tier 1: Immediate service-flow fixes (2026-09-23 client answers)
+
+**Source:** `client-message/ADMIN_CRM_CONSOLIDATION_AUDIT.md` Tier 1. Small, concrete, each already-confirmed by the client — build in this order, Step 35 depends on nothing else here but is the biggest of the four.
+
+### Step 32 — OTB Urgent: support hour-level TAT (8 working hours), not just days
+**Audit ref:** Tier 1 #1
+**Problem:** The client confirmed Urgent OTB processing is 8 *working hours*, and each airline can have its own TAT — `workingDaysUntil()`/`evaluateOtbTravelDate()` (`src/lib/otb/processing-rules.ts`) only reason in whole days, so a same-day or next-day request can't be correctly evaluated for Urgent eligibility.
+
+**Prompt to use:**
+> "OTB's Urgent processing timeline is confirmed at 8 working hours (client answer, 2026-09-23), and each airline can configure its own Standard/Urgent TAT, with Urgent suggested only when the *available time* (not just available days) falls within the configured TAT. Extend `src/lib/otb/processing-rules.ts`/`get-otb-rules.ts` to support an hour-level Urgent check alongside the existing day-level Standard check — define working hours (e.g. a fixed business-hours window, Mon-Fri) and compute hours-until-travel the same rigorous way `workingDaysUntil` computes days. Update `Airline.urgentProcessingDays`/`OtbRuleConfig.urgentProcessingDays` (or add hour-equivalent fields) and the Admin OTB Timelines / Airlines screens accordingly. Verify with a travel date a few hours away, a day away, and safely inside the standard window."
+
+---
+
+### Step 33 — New Visa: guardian relationship is Father/Mother only
+**Audit ref:** Tier 1 #2
+**Problem:** `GUARDIAN_RELATIONSHIPS` in `src/lib/validation/new-visa-schema.ts` includes "Legal guardian" — the client has now confirmed only Father/Mother.
+
+**Prompt to use:**
+> "Per the client's confirmed answer (2026-09-23), remove 'Legal guardian' from `GUARDIAN_RELATIONSHIPS`/`GUARDIAN_RELATIONSHIP_LABELS` in `src/lib/validation/new-visa-schema.ts`, leaving only Father/Mother. Update the New Visa traveller form's relationship dropdown accordingly. Verify a minor traveller's guardian-relationship field only offers the two options."
+
+---
+
+### Step 34 — Visa Extension & Visa Change: also require Visa Copy before Lead submission
+**Audit ref:** Tier 1 #3
+**Problem:** H1/H3 only collect a Passport copy per applicant before Lead submission. The client has confirmed both Passport *and* Visa Copy are required before submission for these two services.
+
+**Prompt to use:**
+> "Per the client's confirmed answer (2026-09-23), both Visa Extension and Visa Change need a Visa Copy upload per applicant, in addition to the existing required Passport copy, before the Lead is created. Extend both services' schemas/forms/API routes the same way the passport-copy requirement was built (reuse `PassportUploadField`/`findMissingPassportImages`-style validation, or generalize it for a second document type). Attach each Visa Copy as its own `Document` (type `VISA_COPY`) linked to the correct Passenger, same as the passport upload. Verify server-side rejection when either document is missing, for both the primary and additional applicants."
+
+---
+
+### Step 35 — New Visa: pivot to pay-right-after-the-form with a real pricing config
+**Audit ref:** Tier 1 #4 (largest item in this phase)
+**Problem:** The client's confirmed flow is *Basic form → Lead → Payment → Booking → Documents* — the same "pay right after the form" pattern as Return Ticket/OTB (H7), not New Visa's current quote-review-and-approve pattern (H8). This needs a real, Admin-managed New Visa pricing config (by country + visa type) to compute the price automatically — `PricingRule` exists but has never been wired to anything (flagged since Phase 4C).
+
+**Prompt to use:**
+> "Per the client's confirmed answer (2026-09-23), change New Visa's flow to match Return Ticket/OTB's pay-right-after-the-form pattern: after the traveller-details form, the customer goes straight to `/pay/<token>` (reuse `createAutoCheckout`/`createPendingPayment`), not the H8 quote-review page. Build a real New Visa pricing config — either extend `ReturnTicketDestination`'s pattern into a new `NewVisaDestination`-style model (country + visa type + rate, Admin-managed) or finally wire the existing `PricingRule` model (serviceType/paxType/nationality/basePrice/additionalCharges) into a price-computation function, whichever fits the client's actual country/visa-type/traveller-count pricing shape better — confirm which if unclear rather than guessing. Compute the total from the traveller count (adult/child/infant per `computePaxType`). After payment, keep the existing post-payment document flow (Return Ticket/OTB's document-upload pattern) — note New Visa already collects passport+guardian docs *before* the Lead in H4, so decide whether any further post-payment upload is actually needed or whether H4's pre-lead documents already satisfy this. Staff/Admin can still see and, if needed, override the auto-computed price from the CRM. Verify end-to-end with a real country+visa-type rate, and confirm the old H8 quote-review path for New Visa is fully replaced, not left dangling."
+
+---
+
+## Phase 11 — Tier 2: Shared masters & Admin panel consolidation (`Admin FINAL Developer Handover`)
+
+**Source:** `client-message/ADMIN_CRM_CONSOLIDATION_AUDIT.md` Tier 2. The document's own core rule: *"Do not create duplicate master data or separate configuration screens where one common control can serve multiple services."* Build roughly in this order — masters/foundations first, since several later steps (Pricing/Documents/Timeline controls, New Visa Country Configuration) depend on them.
+
+### Step 36 — Extend the Vendor model (POC, GST/payment details, multi-service)
+**Audit ref:** Tier 2 §12
+**Problem:** `Vendor` is currently just `name/service/active` — one service per vendor, no contact/GST/payment fields, no per-service cost/performance tracking without duplicating vendor records.
+
+**Prompt to use:**
+> "Extend the `Vendor` model per the Admin FINAL handover §12: add POC name/mobile/email, GST/tax details, payment/account details, and change the service link from a single `ServiceType` to a many-relation (a vendor can support multiple services/sub-services) without creating duplicate Vendor rows per service. Update the Admin Vendors screen and `GET /api/vendors` (used by the quote builder) accordingly. Keep existing Quotation→Vendor references working. Verify a vendor can be created once and linked to 2+ services, and that vendor cost/rate stays trackable service-wise."
+
+---
+
+### Step 37 — Wire the common Airline master into Return Ticket and Special Fare
+**Audit ref:** Tier 2 §9
+**Problem:** `Airline` is only actually used by OTB today — Return Ticket and Special Fare's schemas have no Airline reference, contradicting the "one common airline list for all applicable services" rule.
+
+**Prompt to use:**
+> "Per Admin FINAL handover §9, wire the existing `Airline` master into Return Ticket and Special Fare wherever an airline is currently free text (e.g. Special Fare's quote-builder `airline` field, and anywhere Return Ticket captures a carrier). Reuse the same Admin-managed Airline list OTB already uses — do not create a second airline list. Verify both services' relevant forms/quote fields now pull from the shared master."
+
+---
+
+### Step 38 — Staff Leave: approval workflow
+**Audit ref:** Tier 2 §2
+**Problem:** `StaffLeave` currently has no `status`/approver/approval-date — leave requests can be recorded but never explicitly approved or rejected.
+
+**Prompt to use:**
+> "Add an approval workflow to `StaffLeave`: a `status` enum (PENDING/APPROVED/REJECTED), `approvedByUserId`, `approvedAt`, and a `type` (e.g. sick/casual/other, keep it simple unless the client specifies categories). Staff can apply for leave from the CRM; Admin can approve/reject, and can also directly create a leave entry for any staff member. Approved leave must continue to exclude that staff member from auto-assignment (already true for existing StaffLeave rows — keep that working, just gate it on APPROVED status now instead of any row's mere existence). Verify: a staff-created leave request starts PENDING and doesn't yet exclude them from assignment; approving it does."
+
+---
+
+### Step 39 — Service-wise staff permissions
+**Audit ref:** Tier 2 §1
+**Problem:** Every RBAC permission today (`leads.view`, `leads.edit`, etc.) applies uniformly across all services — there's no way to grant a staff member access to OTB and Return Ticket leads but not Visa Change ones.
+
+**Prompt to use:**
+> "Add service-scoping to the existing RBAC system per Admin FINAL handover §1, inside the current Roles & Permissions module — do not build a second permission system. Design: either (a) a new join table scoping a Role's (or User's) existing permissions to a specific `ServiceType` set, or (b) a per-user `allowedServices: ServiceType[]` field checked alongside the existing permission check in `requirePermission()`/`getStaffSession()`. Pick whichever fits the existing permission-check call sites with the least disruption, and explain the choice. Every service-scoped CRM screen (Leads, Quotations, Bookings, Documents, etc.) must filter to the staff member's allowed services, and every relevant API route must 403 on a service outside their scope. Verify: a staff user granted only OTB+Return Ticket can act on those leads but gets 403/an empty filtered list for a Visa Change lead."
+
+---
+
+### Step 40 — One central Pricing Control, wired into real pricing
+**Audit ref:** Tier 2 §4
+**Problem:** Pricing is scattered (`PricingRule` exists but unused; New Visa's Step 35 needs it; OTB/Return Ticket have their own ad-hoc rate fields on `Airline`/`ReturnTicketDestination`). The client wants one control covering service/sub-service, country, nationality, adult/child/infant, normal/express, vendor cost, selling price, extra charges, and validity dates.
+
+**Prompt to use:**
+> "Build the one central Pricing Control the Admin FINAL handover §4 describes, using/extending the existing `PricingRule` model as the base (add country, normal/express, and validity-date fields if missing). This becomes the actual price-computation source for New Visa (Step 35) and any other auto-priced service, while `ReturnTicketDestination` and `Airline.normalPrice/urgentPrice` can either be migrated into this central model or left as-is if the client confirms per-service rate shapes genuinely differ too much to unify — don't force a bad-fit merge silently, flag it if so. Pricing changes must never alter an already-paid/confirmed booking's frozen price (existing quotations already snapshot `sellingPrice`/`margin` — confirm this still holds). Verify a price computed for a new request reflects the latest Admin-configured rule, while an already-booked one doesn't change when the rule is edited afterward."
+
+---
+
+### Step 41 — One central Document Requirements control
+**Audit ref:** Tier 2 §5
+**Problem:** `DocumentRequirement` (nationality+serviceType+documentName) is close to what's asked but needs confirming/extending for country and applicant-category rules, and a bulk-apply-to-multiple-services option.
+
+**Prompt to use:**
+> "Extend the Admin Document Requirements screen per Admin FINAL handover §5: confirm/add a country dimension (distinct from nationality if the client means something different by it — ask if ambiguous), support applicant-category rules (adult/child/infant, primary/additional), and add a bulk-apply action that copies a checklist from one service/country to others in one action. Verify New Visa's country setup (Step 43) can reference this same control, not a separate one."
+
+---
+
+### Step 42 — One central Timeline/SLA control
+**Audit ref:** Tier 2 §6
+**Problem:** Only OTB has a real SLA config (`OtbRuleConfig`, extended in Step 32). Every other service has no configurable timeline for document verification, quotation response, or payment deadline.
+
+**Prompt to use:**
+> "Generalize `OtbRuleConfig`'s pattern (Step 32) into a shared Timeline/SLA control per Admin FINAL handover §6: normal/urgent processing time, document verification time, expected completion time, quotation response time, and payment deadline, configurable by service, and by country/sub-service/vendor/processing-type where the client actually needs that granularity (confirm rather than over-building every dimension speculatively). Wire these into existing reminder/escalation automation (the n8n jobs from Phase 5E) where a matching trigger already exists, and flag any SLA type that has no automation hook yet rather than silently doing nothing with it. Verify the config is readable/editable from one Admin screen covering every service, not per-service pages."
+
+---
+
+### Step 43 — New Visa Country Configuration screen
+**Audit ref:** Tier 2 §7
+**Problem:** No screen exists for Admin to manage New Visa's countries (add/edit/activate/deactivate) connected to the Pricing/Documents/Timeline controls built in Steps 40-42.
+
+**Prompt to use:**
+> "Build the New Visa Country Configuration screen per Admin FINAL handover §7: country name/code, visa category, duration, processing type, description, terms and conditions — each country setup should reference the central Pricing (Step 40), Documents (Step 41), and Timeline (Step 42) controls rather than duplicating fields locally. This is also what Step 35's New Visa pricing depends on for its country dimension — sequence accordingly if Step 35 was built first with a placeholder shape. Verify New Visa's request flow (Step 35) picks up a country's configured price/documents/timeline correctly."
+
+---
+
+### Step 44 — Invoice Builder (Proforma + Tax)
+**Audit ref:** Tier 2 §13
+**Problem:** Only a fixed `pdfkit` tax-invoice template exists (Phase 5A) — no Proforma option, no Admin-configurable company/bank/signatory details.
+
+**Prompt to use:**
+> "Build an Invoice Builder per Admin FINAL handover §13: support both Proforma and Tax Invoice (gated by the existing Tax/Fee config), with customer/company details, GST/HSN-SAC where applicable, invoice number/date, booking/reference ID, line items, discount, tax breakup, total, and payment details. Company logo/details/bank details/terms/signatory should be Admin-configurable (this overlaps with Step 45's System Configuration — decide which screen owns invoice-specific branding vs. site-wide branding and don't duplicate the field). Keep invoices linked to quotation/booking/payment records and printable/PDF-ready, extending `src/lib/invoices/render-invoice.ts` rather than replacing it outright if it can be generalized. Verify both invoice types render correctly for a real booking/payment."
+
+---
+
+### Step 45 — Admin System Configuration screen
+**Audit ref:** Tier 2 §19
+**Problem:** Company info, branding, currency, timezone, data retention, backup, and maintenance-mode settings are scattered across env vars and hard-coded `site-config.ts` — no single Admin screen.
+
+**Prompt to use:**
+> "Build a System Configuration screen per Admin FINAL handover §19: company information, branding, currency, timezone, data-retention policy, backup settings, maintenance mode, and system notification preferences. Keep secrets (API keys) in env vars as already established (never move a secret into this DB-backed config) — this screen is for non-secret operational settings only. Maintenance mode should actually gate customer-facing routes when enabled (confirm the exact intended behavior — full site down vs. a banner — rather than guessing). Verify a changed setting (e.g. timezone) actually affects something real, not just gets stored inertly."
+
+---
+
+### Step 46 — Admin sidebar: group into dropdown sections
+**Audit ref:** Tier 2 §20
+**Problem:** `adminNavItems` is a flat list of ~25 items — the client wants grouped sections (People & Access, Service Configuration, Master Data, Vendors, Sales & Quotations, Finance & Invoices, Reports & Exports, System Settings).
+
+**Prompt to use:**
+> "Regroup the Admin sidebar (`src/lib/crm/nav-config.ts`'s `adminNavItems` + `AdminSidebar.tsx`) into collapsible grouped sections per Admin FINAL handover §20, using the client's suggested group names as a starting point. This is UI-only — every existing route/permission stays the same, only the navigation presentation changes. Verify every existing Admin page is still reachable, just organized, and that section visibility still respects each item's underlying permission check (not just hidden-but-reachable)."
+
+---
+
+## Phase 12 — Tier 3: CRM → "Internal Dashboard" overhaul (`Internal Dashboard Merged`)
+
+**Source:** `client-message/ADMIN_CRM_CONSOLIDATION_AUDIT.md` Tier 3 — the largest and riskiest phase, since Step 49 (Lead status enum) is genuinely cross-cutting. Do Step 49 early and carefully, before building features that reference the new status list (53, 54).
+
+### Step 47 — Rebrand: "CRM" → "Internal Dashboard"
+**Audit ref:** Tier 3 §1 (naming only)
+**Problem:** Every employee-facing label says "CRM" — the client wants "Internal Dashboard" in the employee-facing interface (Admin panel naming can stay as-is unless told otherwise).
+
+**Prompt to use:**
+> "Rename every employee-facing 'CRM' label to 'Internal Dashboard' (sidebar title, page titles, staff-facing copy) — this is a labeling change, not a route/URL restructure unless the client confirms they also want `/crm` renamed to `/dashboard` or similar (ask if unclear; renaming URLs breaks any existing bookmarks/links). Verify no user-facing 'CRM' text remains in the staff interface."
+
+---
+
+### Step 48 — New staff login page (Admin/Team Member types, Google, Forgot Password)
+**Audit ref:** Tier 3 §1
+**Problem:** `/crm/login` is one plain email/password form — no login-type selector, no Google option, no password reset anywhere in the app (customer-facing Google login is also still a placeholder — see H10).
+
+**Prompt to use:**
+> "Redesign the staff login page per Internal Dashboard Merged §1: one page with an Admin Login / Team Member Login selector (suggested employee caption: 'Welcome back! Let's make every journey seamless.'), plus Google Login and Forgot Password. Google login for staff needs real `GOOGLE_CLIENT_ID`/`SECRET` the client hasn't provided yet — build the button as a clearly-labeled placeholder (same `isPlaceholder()` pattern used everywhere else) rather than a fake flow. Forgot Password needs a real reset-token + email flow (reuse the Resend integration) — build this one for real since it needs no new credentials. Verify: both login types authenticate correctly against the existing staff session system, and a forgot-password request actually emails a working reset link."
+
+---
+
+### Step 49 — Lead Status enum migration (7 → 11 values)
+**Audit ref:** Tier 3 §6 — **do this carefully, as its own reviewed step; it's the most cross-cutting change in this phase.**
+**Problem:** Current `LeadStatus` (`NEW/CONTACTED/QUALIFIED/QUOTED/CONVERTED/ON_HOLD/LOST`) doesn't match the client's suggested list (`New/Contacted/Follow-up Required/Customer Responded/Qualified/Quotation Created/Quotation Accepted/Payment Pending/Converted/Lost/Closed`).
+
+**Prompt to use:**
+> "Migrate `LeadStatus` to the client's 11-value list from Internal Dashboard Merged §6. This touches: the Prisma enum + migration (Postgres enum changes need care — added values are safe, removed/renamed values need every existing row mapped first), `src/lib/leads/transitions.ts`'s transition map, every place that writes a `LeadStatus` (quotation-select, payment-mark-success, WhatsApp bot, n8n automation), `LeadStatusBadge.tsx` and any other status-display component, and Lead Temperature (`Hot/Warm/Cold/Not Set` — confirm this matches the existing `LeadTemperature` enum, likely just an added 'Not Set' default). Write a data migration mapping every existing Lead's current status to the closest new one (e.g. QUALIFIED→Qualified, QUOTED→'Quotation Created' or 'Quotation Accepted' depending on whether it's selected, ON_HOLD→closest fit, propose the exact mapping for review rather than guessing silently). Verify: every existing Lead still has a valid, sensible status after migration, and every status-transition code path (quotation select, payment success, staff manual status change) still works end-to-end."
+
+---
+
+### Step 50 — Employee rosters + "Unassigned" display rule
+**Audit ref:** Tier 3 §2
+**Problem:** Unassigned leads just show `assignedStaff: null` today; there's no roster-based assignment or the specific "show Unassigned but still display the inactive assignee's name" rule.
+
+**Prompt to use:**
+> "Per Internal Dashboard Merged §2: remove the general 'Unassigned' filter/section as a first-class bucket (keep it derivable, not a dead-end). When a record's assigned employee is inactive, the UI should show 'Unassigned' as the effective state while still displaying the originally-assigned agent's name for context (e.g. 'Unassigned (was: Staff Name)'). Assignment should route through Step 39's service-wise permissions and existing roster/auto-assign logic (Phase 6) — confirm this doesn't conflict with Step 38's leave-approval gating. Verify: reassigning a lead away from a now-inactive staff member works, and the inactive staff member's name still shows in the record's history even after reassignment."
+
+---
+
+### Step 51 — Manual/Offline Lead & Payment Collection form
+**Audit ref:** Tier 3 §8
+**Problem:** No staff-facing form exists to create a Lead for a customer who contacted TripNexio offline (phone/walk-in) — every Lead today only comes from a customer's own website/WhatsApp submission.
+
+**Prompt to use:**
+> "Build a Manual Lead / Offline Payment Collection form in the CRM per Internal Dashboard Merged §8: Name, Mobile, Email, Source, Service (+ 'Other'), Travel Date, traveller count, Adult/Child details. For fixed-rate services (New Visa post-Step-35, OTB, Return Ticket), auto-calculate the amount from the Pricing Control (Step 40); allow staff to apply eligible coupons and permitted extra charges. After creation, offer a Payment Link (reuse `createPendingPayment`) or Bank Transfer option with a slip-upload field; a confirmed bank transfer needs an explicit staff approval step before the booking converts (reuse/extend the existing mark-success pattern, gated by permission). If a service needs a quotation instead, route to Quotations; if payment isn't completed, keep it as a Lead for follow-up. Verify the full path for one fixed-rate service (payment link) and one bank-transfer path (upload slip → approve → booking converts)."
+
+---
+
+### Step 52 — Extra Payment Collection against an existing Booking
+**Audit ref:** Tier 3 §9
+**Problem:** Today's payment flow only ever creates one payment tied to a booking's selected quotation — there's no "charge this booking again" path for an add-on/extra fee.
+
+**Prompt to use:**
+> "Add Extra Payment Collection per Internal Dashboard Merged §9: staff search by Booking ID or Lead reference, the system auto-fetches customer/booking details, and staff create an additional payment (amount, reason/description) against that booking — reuse `createPendingPayment`'s gateway-link logic but decouple it from requiring a *newly selected* quotation, since the booking is already confirmed. Show extra-payment transactions in their own filterable, CSV-exportable report, separate from the primary per-booking payment list. Verify a booking can receive a normal payment and a later extra payment, both tracked distinctly."
+
+---
+
+### Step 53 — Command Centre rebuild: action-based KPIs
+**Audit ref:** Tier 3 §3 — build after Step 49 (Lead status) is stable, since these KPI groupings reference specific statuses.
+**Problem:** The existing `/crm` dashboard (Phase 3A) shows counts; it's not action-based with the specific groupings the client wants, and cards aren't clickable into filtered lists.
+
+**Prompt to use:**
+> "Rebuild the Command Centre per Internal Dashboard Merged §3: a Sales Overview group (New/Hot/Warm/Cold/Qualified Leads, Quotations, Accepted Quotations, Conversion Rate, Payment Pending, Payment Received) and an Operations Overview group (Active Bookings, Documents Pending, Customer Action Required, Staff Action Required, External Processing, Delayed Bookings, Refunds Raised, Completed Bookings), plus a 'Most Action Required' section (overdue follow-ups, approaching travel dates, pending documents/payments, quotations awaiting approval, pending refunds, delayed bookings, unassigned-due-to-inactive-staff work). Every KPI card and action item must be clickable, opening the relevant screen pre-filtered. Verify each card's number matches what its linked filtered list actually shows."
+
+---
+
+### Step 54 — Standardize date-range filters + CSV export across major CRM sections
+**Audit ref:** Tier 3 §4
+**Problem:** Some list screens have filters, but not the specific Last-7/30/90-days + custom-range pattern, consistently, everywhere.
+
+**Prompt to use:**
+> "Add a shared date-range filter component (quick options: Last 7/30/90 Days, plus a custom range) and CSV export to every major CRM list screen that doesn't already have both (Leads, Quotations, Bookings, Payments, Refunds, and any new screens from Steps 51-53) — build one reusable component/hook rather than repeating the pattern per screen. Verify filtering + export works consistently across at least 3 of these screens."
+
+---
+
+### Step 55 — Extend customer self-upload to all 6 services
+**Audit ref:** Tier 3 §11 (partial — staff-side upload already exists)
+**Problem:** Customers can only upload their own documents post-payment for Return Ticket/OTB (H7's `/pay/<token>` page). The other 4 services have no customer-facing upload surface at all outside the pre-lead flows already built (H1/H3/H4/H34).
+
+**Prompt to use:**
+> "Extend customer document upload to the other 4 services, reusing H7's `/pay/<token>` document-upload pattern where a post-payment upload makes sense, or the customer's `/account` page (H10) for anything requested after the fact (e.g. a staff-requested additional document). Every upload must stay linked to the correct Lead/Booking and applicant, and be recorded in the activity timeline — confirm both already hold for the existing upload paths before extending. Verify a customer can upload a staff-requested additional document for a non-checkout service and staff see it immediately."
+
+---
+
+### Step 56 — Staff-composed email from the CRM, with AI-assisted drafting
+**Audit ref:** Tier 3 §13
+**Problem:** All email today is system-triggered (`notifyCustomer()` on specific events) — there's no "staff writes a free-form email to this customer" feature, and no AI drafting assistance for email or WhatsApp messages.
+
+**Prompt to use:**
+> "Add a 'compose email' action on a Lead/Customer/Booking (CRM) that sends from the official company email via the existing Resend integration, logged to the activity timeline exactly like system-triggered emails. Add an AI-assist action (reuse the existing Claude integration pattern from the WhatsApp bot/OCR work) that drafts, improves, or corrects a message the staff member is writing — for both this email composer and CRM-side WhatsApp replies, if a CRM-side WhatsApp reply surface doesn't exist yet, flag that as a prerequisite rather than assuming it. Verify a staff-sent email is delivered (or console-logged in dev, per the existing swappable-provider pattern) and shows up in the customer's timeline."
+
+---
+
+### Step 57 — Dashboard shortcuts / navigation polish
+**Audit ref:** Tier 3 §12
+**Problem:** Coupons, FAQs, Refunds, Tasks, and Payment Link Generation already exist as separate screens but aren't surfaced as quick shortcuts from the main dashboard.
+
+**Prompt to use:**
+> "Add dashboard shortcuts per Internal Dashboard Merged §12 for Coupons, FAQs, Refunds, Tasks, and Payment Link Generation (make the last one genuinely easy to reach for both online and offline/manual customer handling — link it from both the Command Centre and Step 51's manual-lead flow). A 'Knowledge Centre' isn't built anywhere yet — confirm with the client what this should actually contain (internal staff documentation/SOPs?) before building it, rather than guessing its scope. This is primarily navigation/UX — verify every shortcut lands on the correct existing screen."
+
+---
+
 ## Pre-existing pending items (from before Phase 9), closed 2026-09-23
 
 - **Customer login/register**: real sessions built — see H10 below (Phase 9 tracker).
@@ -359,5 +607,8 @@ These are large, foundational modules described in exhaustive detail across ever
 8. Steps 24-28 (Admin productivity tools) — lower urgency, build when the above is stable.
 9. Steps 29-30 (integration refinements) — Step 30 needs a client decision first.
 10. Step 31 (deployment governance) — last, once feature work is substantially done.
+11. Steps 32-35 (Phase 10, Tier 1 fixes) — small, do these first of the new work; Step 35 (New Visa payment pivot) is the biggest.
+12. Steps 36-46 (Phase 11, Admin consolidation) — masters/foundations (36-39) before the central Pricing/Documents/Timeline controls (40-42), which Step 43 depends on; 44-46 are lower-risk additions.
+13. Steps 47-57 (Phase 12, Internal Dashboard) — do Step 49 (Lead status migration) early and carefully; Steps 53-54 depend on it being stable first.
 
 At each step, follow `CLAUDE.md`'s existing hard rules: no invented domain data, work incrementally, migrations via Prisma and committed to git, commit after each working unit, and give numbered next steps at the end of every response.
