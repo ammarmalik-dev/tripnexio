@@ -6,7 +6,7 @@ import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { db } from "@/lib/db";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { getOtbGlobalRules, resolveAirlineRules } from "@/lib/otb/get-otb-rules";
-import { evaluateOtbTravelDate, workingDaysUntil } from "@/lib/otb/processing-rules";
+import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       return jsonError(400, "That airline isn't available for OTB.", { airline: ["Select an available airline."] });
     }
     const rules = resolveAirlineRules(airlineRecord, await getOtbGlobalRules());
-    const outcome = evaluateOtbTravelDate(workingDaysUntil(travelDate), rules);
+    const outcome = evaluateOtbTravelDate(travelDate, rules);
     if (outcome.status === "BLOCKED") {
       return jsonError(400, outcome.message ?? "That travel date can't be processed.", { travelDate: [outcome.message ?? "Choose a later date."] });
     }

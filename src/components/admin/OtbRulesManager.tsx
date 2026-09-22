@@ -10,7 +10,7 @@ import { toast } from "@/components/ui/Toaster";
 
 interface Rules {
   standardProcessingDays: number;
-  urgentProcessingDays: number | null;
+  urgentProcessingHours: number | null;
 }
 
 export function OtbRulesManager() {
@@ -32,7 +32,7 @@ export function OtbRulesManager() {
         if (cancelled) return;
         setRules(result);
         setStandard(String(result.standardProcessingDays));
-        setUrgent(result.urgentProcessingDays === null ? "" : String(result.urgentProcessingDays));
+        setUrgent(result.urgentProcessingHours === null ? "" : String(result.urgentProcessingHours));
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -62,7 +62,7 @@ export function OtbRulesManager() {
   }
 
   const nextUrgent = urgent.trim() === "" ? null : Number(urgent);
-  const dirty = rules !== null && (Number(standard) !== rules.standardProcessingDays || nextUrgent !== rules.urgentProcessingDays);
+  const dirty = rules !== null && (Number(standard) !== rules.standardProcessingDays || nextUrgent !== rules.urgentProcessingHours);
 
   const save = async () => {
     setSaving(true);
@@ -70,7 +70,7 @@ export function OtbRulesManager() {
     try {
       const updated = await patchJson<Rules>("/api/admin/otb-rules", {
         standardProcessingDays: Number(standard),
-        urgentProcessingDays: nextUrgent,
+        urgentProcessingHours: nextUrgent,
       });
       setRules(updated);
       toast.success("OTB timelines updated.");
@@ -96,15 +96,15 @@ export function OtbRulesManager() {
           disabled={saving}
         />
         <TextField
-          label="Urgent processing (working days)"
-          name="urgentProcessingDays"
+          label="Urgent processing (working hours)"
+          name="urgentProcessingHours"
           type="number"
           min={0}
           placeholder="Not set"
           hint="Leave blank if there's no minimum for urgent requests."
           value={urgent}
           onChange={(event) => setUrgent(event.target.value)}
-          error={errors.urgentProcessingDays?.[0]}
+          error={errors.urgentProcessingHours?.[0]}
           disabled={saving}
         />
       </div>

@@ -15,7 +15,7 @@ export const createAirlineSchema = z.object({
   urgentPrice: z.number().nonnegative("Price can't be negative").optional(),
   /** Working-day overrides for this airline; null clears the override (falls back to Admin → OTB Timelines). */
   standardProcessingDays: z.number().int().min(1, "At least 1 working day").max(365).nullable().optional(),
-  urgentProcessingDays: z.number().int().min(0).max(365).nullable().optional(),
+  urgentProcessingHours: z.number().int().min(0).max(200).nullable().optional(),
   displayOrder: z.number().int().default(0),
   active: z.boolean().default(true),
 });

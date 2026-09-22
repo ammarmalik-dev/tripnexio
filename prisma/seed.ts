@@ -570,13 +570,13 @@ async function main() {
     create: returnTicketRuleConfig,
   });
 
-  // OTB processing timelines (working days) — the client's answer: standard
-  // = 24. Urgent stays unset until the client states it. `update: {}` so a
-  // re-seed never resets what an admin has since configured.
+  // OTB processing timelines — client's confirmed answers: standard = 24
+  // working days (2026-09-21), urgent = 8 working hours (2026-09-23).
+  // `update: {}` so a re-seed never resets what an admin has since configured.
   await db.otbRuleConfig.upsert({
     where: { id: "singleton" },
     update: {},
-    create: { id: "singleton", standardProcessingDays: 24, urgentProcessingDays: null },
+    create: { id: "singleton", standardProcessingDays: 24, urgentProcessingHours: 8 },
   });
 
   // New Visa occupation dropdown — the starting list the client specified;

@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest) {
       entityId: OTB_RULE_CONFIG_ID,
       action: "UPDATE",
       byUserId: session.id,
-      note: `OTB timelines set to standard ${parsed.data.standardProcessingDays} / urgent ${parsed.data.urgentProcessingDays ?? "not set"} working days (by ${session.name})`,
+      note: `OTB timelines set to standard ${parsed.data.standardProcessingDays} working days / urgent ${parsed.data.urgentProcessingHours ?? "not set"} working hours (by ${session.name})`,
     });
   });
 

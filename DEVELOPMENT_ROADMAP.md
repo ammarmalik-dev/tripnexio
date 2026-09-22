@@ -346,7 +346,7 @@ These are large, foundational modules described in exhaustive detail across ever
 
 **Source:** `client-message/ADMIN_CRM_CONSOLIDATION_AUDIT.md` Tier 1. Small, concrete, each already-confirmed by the client — build in this order, Step 35 depends on nothing else here but is the biggest of the four.
 
-### Step 32 — OTB Urgent: support hour-level TAT (8 working hours), not just days
+### Step 32 — OTB Urgent: support hour-level TAT (8 working hours), not just days ✅
 **Audit ref:** Tier 1 #1
 **Problem:** The client confirmed Urgent OTB processing is 8 *working hours*, and each airline can have its own TAT — `workingDaysUntil()`/`evaluateOtbTravelDate()` (`src/lib/otb/processing-rules.ts`) only reason in whole days, so a same-day or next-day request can't be correctly evaluated for Urgent eligibility.
 
@@ -354,6 +354,8 @@ These are large, foundational modules described in exhaustive detail across ever
 > "OTB's Urgent processing timeline is confirmed at 8 working hours (client answer, 2026-09-23), and each airline can configure its own Standard/Urgent TAT, with Urgent suggested only when the *available time* (not just available days) falls within the configured TAT. Extend `src/lib/otb/processing-rules.ts`/`get-otb-rules.ts` to support an hour-level Urgent check alongside the existing day-level Standard check — define working hours (e.g. a fixed business-hours window, Mon-Fri) and compute hours-until-travel the same rigorous way `workingDaysUntil` computes days. Update `Airline.urgentProcessingDays`/`OtbRuleConfig.urgentProcessingDays` (or add hour-equivalent fields) and the Admin OTB Timelines / Airlines screens accordingly. Verify with a travel date a few hours away, a day away, and safely inside the standard window."
 
 ---
+
+**Step 32 notes:** `Airline.urgentProcessingHours`/`OtbRuleConfig.urgentProcessingHours` (renamed from `...Days`, a genuine unit change, not a smaller day count — client confirmed 8 working *hours*). New `workingHoursUntil()` (`src/lib/otb/processing-rules.ts`) computes business hours (Mon-Fri, 9am-6pm — **assumption, business hours weren't specified anywhere, flag for client confirmation**) against **IST** specifically (not UTC, since the app otherwise computes in UTC but the actual business operates on India time — a fixed +5:30 offset, no timezone library needed since India has no DST). `evaluateOtbTravelDate()`'s signature changed to take `travelDate` directly (computes both the day and hour checks internally) rather than a pre-computed day count. Seeded default is now the confirmed 8 hours (previously left unset). A real boundary bug was caught and fixed before landing (comparing an IST-shifted cursor against an un-shifted target day both mis-counted the travel day itself as available hours) — verified against hand-traced examples (partial first day, full multi-day span, weekend skip, before/after business hours, same-day travel) before touching the API layer.
 
 ### Step 33 — New Visa: guardian relationship is Father/Mother only
 **Audit ref:** Tier 1 #2

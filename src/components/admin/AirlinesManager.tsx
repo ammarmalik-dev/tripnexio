@@ -20,7 +20,7 @@ interface AirlineData {
   normalPrice: string | null;
   urgentPrice: string | null;
   standardProcessingDays: number | null;
-  urgentProcessingDays: number | null;
+  urgentProcessingHours: number | null;
   displayOrder: number;
   active: boolean;
 }
@@ -35,7 +35,7 @@ interface AirlineFormState {
   normalPrice: string;
   urgentPrice: string;
   standardProcessingDays: string;
-  urgentProcessingDays: string;
+  urgentProcessingHours: string;
   displayOrder: string;
 }
 
@@ -47,7 +47,7 @@ const EMPTY_FORM: AirlineFormState = {
   normalPrice: "",
   urgentPrice: "",
   standardProcessingDays: "",
-  urgentProcessingDays: "",
+  urgentProcessingHours: "",
   displayOrder: "0",
 };
 
@@ -60,7 +60,7 @@ function toFormState(airline: AirlineData): AirlineFormState {
     normalPrice: airline.normalPrice ?? "",
     urgentPrice: airline.urgentPrice ?? "",
     standardProcessingDays: airline.standardProcessingDays === null ? "" : String(airline.standardProcessingDays),
-    urgentProcessingDays: airline.urgentProcessingDays === null ? "" : String(airline.urgentProcessingDays),
+    urgentProcessingHours: airline.urgentProcessingHours === null ? "" : String(airline.urgentProcessingHours),
     displayOrder: String(airline.displayOrder),
   };
 }
@@ -148,15 +148,15 @@ function AirlineFields({
         disabled={disabled}
       />
       <TextField
-        label="Urgent OTB processing (working days)"
-        name="urgentProcessingDays"
+        label="Urgent OTB processing (working hours)"
+        name="urgentProcessingHours"
         type="number"
         min={0}
         placeholder="Uses the default"
         hint="Optional — overrides the default for this airline."
-        value={form.urgentProcessingDays}
-        onChange={(event) => onChange({ ...form, urgentProcessingDays: event.target.value })}
-        error={errors.urgentProcessingDays?.[0]}
+        value={form.urgentProcessingHours}
+        onChange={(event) => onChange({ ...form, urgentProcessingHours: event.target.value })}
+        error={errors.urgentProcessingHours?.[0]}
         disabled={disabled}
       />
       <label className="flex items-center gap-2 text-sm text-ink-secondary">
@@ -181,7 +181,7 @@ function buildPayload(form: AirlineFormState) {
     normalPrice: form.normalPrice.trim() === "" ? undefined : Number(form.normalPrice),
     urgentPrice: form.urgentPrice.trim() === "" ? undefined : Number(form.urgentPrice),
     standardProcessingDays: form.standardProcessingDays.trim() === "" ? null : Number(form.standardProcessingDays),
-    urgentProcessingDays: form.urgentProcessingDays.trim() === "" ? null : Number(form.urgentProcessingDays),
+    urgentProcessingHours: form.urgentProcessingHours.trim() === "" ? null : Number(form.urgentProcessingHours),
     displayOrder: Number(form.displayOrder) || 0,
   };
 }

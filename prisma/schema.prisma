@@ -896,11 +896,14 @@ model Airline {
   otbRequired            Boolean  @default(false)
   normalPrice            Decimal? @db.Decimal(10, 2)
   urgentPrice            Decimal? @db.Decimal(10, 2)
-  /// Per-airline OTB processing timelines in WORKING days; null = use the
-  /// global OtbRuleConfig value (client: "process time as per airlines,
-  /// Admin can configure").
+  /// Per-airline OTB processing timelines; null = use the global
+  /// OtbRuleConfig value (client: "process time as per airlines, Admin can
+  /// configure"). standardProcessingDays is in WORKING DAYS;
+  /// urgentProcessingHours is in WORKING HOURS (client answer, 2026-09-23:
+  /// "Urgent OTB processing time: 8 working hours") — deliberately a
+  /// different unit, not a smaller day count.
   standardProcessingDays Int?
-  urgentProcessingDays   Int?
+  urgentProcessingHours  Int?
   displayOrder           Int      @default(0)
   active                 Boolean  @default(true)
   createdAt              DateTime @default(now())
@@ -1473,14 +1476,15 @@ model Occupation {
   @@index([active])
 }
 
-/// Global OTB processing timelines (working days), used whenever an airline
-/// has no override of its own. Singleton row (fixed id), same pattern as
-/// TaxFeeConfig. `urgentProcessingDays` stays null until the client states it:
-/// while null, an urgent request is accepted for any future travel date.
+/// Global OTB processing timelines, used whenever an airline has no
+/// override of its own. Singleton row (fixed id), same pattern as
+/// TaxFeeConfig. `standardProcessingDays` is WORKING DAYS (client-confirmed
+/// 24); `urgentProcessingHours` is WORKING HOURS (client-confirmed 8,
+/// 2026-09-23) — a deliberately different unit, not a smaller day count.
 model OtbRuleConfig {
   id                     String   @id
   standardProcessingDays Int
-  urgentProcessingDays   Int?
+  urgentProcessingHours  Int?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 }

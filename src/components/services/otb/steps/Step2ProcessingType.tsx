@@ -6,7 +6,7 @@ import { AlertTriangle } from "lucide-react";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { evaluateOtbTravelDate, workingDaysUntil } from "@/lib/otb/processing-rules";
+import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
 import { formatOtbRupees, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { siteConfig } from "@/lib/site-config";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
@@ -30,7 +30,7 @@ export function Step2ProcessingType() {
   const { state, airlines } = useOtbAirlines();
 
   const airline = airlines.find((a) => a.code === airlineCode);
-  const outcome = airline ? evaluateOtbTravelDate(workingDaysUntil(travelDate), airline) : null;
+  const outcome = airline ? evaluateOtbTravelDate(travelDate, airline) : null;
 
   // A previously chosen type may no longer be valid after the airline/date changed.
   const allowedKey = outcome?.allowed.join(",") ?? "";
