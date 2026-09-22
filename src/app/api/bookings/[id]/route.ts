@@ -62,6 +62,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   return jsonSuccess({
     id: synced.id,
     bookingId: synced.bookingId,
+    customerToken: synced.customerToken,
     status: synced.status,
     extensionOutcome: synced.extensionOutcome,
     createdAt: synced.createdAt,

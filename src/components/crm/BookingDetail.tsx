@@ -8,6 +8,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { BookingStatusControl } from "./BookingStatusControl";
+import { CopyPaymentLinkButton } from "./CopyPaymentLinkButton";
 import { BookingPassengerStatusControl } from "./BookingPassengerStatusControl";
 import { ExtensionOutcomeControl } from "./ExtensionOutcomeControl";
 import { PaymentPanel, type PaymentData } from "./PaymentPanel";
@@ -55,6 +56,7 @@ interface DocumentChecklistSnapshot {
 interface BookingDetailResponse {
   id: string;
   bookingId: string;
+  customerToken: string | null;
   status: BookingStatus;
   /** Visa Extension only — Visa_Extension.md §17-18 (Step 15). */
   extensionOutcome: ExtensionOutcome | null;
@@ -189,6 +191,7 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
           <p className="text-xs text-ink-tertiary">
             {booking.customer.name} · {booking.customer.mobile} · Created {formatDate(booking.createdAt)}
           </p>
+          <CopyPaymentLinkButton customerToken={booking.customerToken} />
         </div>
         <div className="flex flex-col items-end gap-2">
           <BookingStatusControl

@@ -303,6 +303,7 @@ These are large, foundational modules described in exhaustive detail across ever
 | H3 | Visa Change: applicant-wise document upload before Lead submission | ✅ |
 | H4 | New Visa: per-traveller array (Occupation, passport, DOB, passport copy), minor/guardian rule, Admin-managed occupations | ✅ |
 | H5 | OTB: multi-applicant + travel-date/Urgent gating (24 working days, Admin-configurable, per-airline override) | ✅ |
+| H9 | CRM: "Copy Payment Link" button on Booking detail (shares the customer's /pay/<token> for any booking) | ✅ |
 | H8 | New Visa / Visa Extension / Visa Change / Flight Special Fare: customer-facing quote review + approve + pay page | ✅ |
 | H7 | Return Ticket + OTB: pay right after the form (guest /pay/<token> page), then upload documents after payment | ✅ |
 | H6a | Return Ticket: Admin-managed destination countries with per-applicant rate + 30/60/90 validity, passport number, multi-applicant, indicative price | ✅ |
