@@ -6,6 +6,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 
 export async function GET(request: NextRequest) {
@@ -22,6 +23,7 @@ export async function GET(request: NextRequest) {
 
   const where = {
     ...(status ? { status } : {}),
+    ...(!isServiceScopeUnrestricted(auth.session) ? { lead: serviceTypeCondition(auth.session) } : {}),
     ...(search
       ? {
           OR: [
@@ -83,6 +85,11 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+
+  const quotation = await db.quotation.findUnique({ where: { id: parsed.data.quotationId }, include: { lead: true } });
+  if (!quotation) return jsonError(404, "Quotation not found.");
+  const scopeError = assertServiceAccess(session, quotation.lead.serviceType);
+  if (scopeError) return scopeError;
 
   const result = await createBookingFromQuotation(parsed.data.quotationId, {
     byUserId: session.id,

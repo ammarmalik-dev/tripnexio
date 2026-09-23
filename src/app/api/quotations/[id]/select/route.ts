@@ -1,6 +1,8 @@
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { selectQuotation } from "@/lib/quotations/select-quotation";
 
 interface RouteParams {
@@ -14,6 +16,11 @@ export async function PATCH(_request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id } = await params;
+
+  const quotation = await db.quotation.findUnique({ where: { id }, include: { lead: true } });
+  if (!quotation) return jsonError(404, "Quotation not found.");
+  const scopeError = assertServiceAccess(session, quotation.lead.serviceType);
+  if (scopeError) return scopeError;
 
   const result = await selectQuotation(id, { byUserId: session.id, label: `by ${session.name}` });
   if (!result.ok) {

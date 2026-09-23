@@ -1,7 +1,11 @@
+import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { getEligibleStaffForAssignment } from "@/lib/staff/eligible-for-assignment";
 import { getStaffWorkloads } from "@/lib/staff/workload";
+import type { ServiceType } from "@/generated/prisma/enums";
+
+const SERVICE_TYPES: ServiceType[] = ["NEW_VISA", "VISA_EXTENSION", "VISA_CHANGE", "FLIGHT_SPECIAL_FARE", "RETURN_TICKET", "OTB"];
 
 /**
  * Step 26 Unit 2 (audit §3.11/§4.7) — ADMIN.md §13's rule applied as a
@@ -19,11 +23,16 @@ import { getStaffWorkloads } from "@/lib/staff/workload";
  * signed-in staff member couldn't already piece together from the Leads
  * list plus GET /api/staff/workload.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await getStaffSession();
   if (!session) return jsonError(401, "Sign in required.");
 
-  const eligibleStaff = await getEligibleStaffForAssignment();
+  const service = new URL(request.url).searchParams.get("service");
+  if (service && !SERVICE_TYPES.includes(service as ServiceType)) {
+    return jsonError(400, "Invalid service query parameter.");
+  }
+
+  const eligibleStaff = await getEligibleStaffForAssignment(service ? (service as ServiceType) : undefined);
   if (eligibleStaff.length === 0) {
     return jsonSuccess({ suggestion: null });
   }

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
@@ -31,6 +32,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
   const lead = await db.lead.findUnique({ where: { id }, include: { customer: true } });
   if (!lead) return jsonError(404, "Lead not found.");
+  const scopeError = assertServiceAccess(auth.session, lead.serviceType);
+  if (scopeError) return scopeError;
 
   const entityRefs = await getLeadRelatedEntityRefs(id);
   const emailAuditRows = entityRefs.length

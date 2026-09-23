@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { getStaffSession } from "@/lib/auth/staff-session";
+import { isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { getSalesOverview, getOperationsOverview, getActionQueue } from "@/lib/crm/dashboard";
 
 const DEFAULT_PERIOD_DAYS = 30;
@@ -31,13 +32,17 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "startDate must be before endDate.");
   }
 
+  // Step 39 — a scoped staff member's landing page only aggregates their
+  // allowed services (undefined = unrestricted, the query stays unchanged).
+  const scope = isServiceScopeUnrestricted(session) ? undefined : session.allowedServiceTypes;
+
   // Sequential, not Promise.all — see the comment on getSalesOverview() in
   // src/lib/crm/dashboard.ts for why this dashboard route deliberately
   // avoids firing many DB queries at once against this environment's
   // connection-pool-limited local Postgres.
-  const sales = await getSalesOverview({ startDate, endDate });
-  const operations = await getOperationsOverview();
-  const actionQueue = await getActionQueue();
+  const sales = await getSalesOverview({ startDate, endDate }, scope);
+  const operations = await getOperationsOverview(scope);
+  const actionQueue = await getActionQueue(scope);
 
   return jsonSuccess({
     period: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },

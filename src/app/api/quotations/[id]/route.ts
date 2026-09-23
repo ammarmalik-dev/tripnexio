@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { computeSellingPrice, assertValidityWithinCap } from "@/lib/quotations/pricing";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
@@ -36,6 +37,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const lead = await db.lead.findUnique({ where: { id: existing.leadId } });
   if (!lead) return jsonError(404, "Lead not found.");
+  const scopeError = assertServiceAccess(session, lead.serviceType);
+  if (scopeError) return scopeError;
 
   if (parsed.data.vendorId) {
     const vendor = await db.vendor.findUnique({ where: { id: parsed.data.vendorId } });

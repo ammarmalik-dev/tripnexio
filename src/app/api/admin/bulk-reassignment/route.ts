@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { hasServiceAccess } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 import type { BookingStatus } from "@/generated/prisma/enums";
 
@@ -90,7 +91,10 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Choose a different staff member to reassign to.", { toStaffId: ["Must be different from the current owner."] });
   }
 
-  const toStaff = await db.user.findUnique({ where: { id: parsed.data.toStaffId } });
+  const toStaff = await db.user.findUnique({
+    where: { id: parsed.data.toStaffId },
+    include: { role: { include: { permissions: true } } },
+  });
   if (!toStaff || !toStaff.active) {
     return jsonError(400, "Select a valid, active staff member.", { toStaffId: ["This staff member isn't available."] });
   }
@@ -102,6 +106,13 @@ export async function POST(request: NextRequest) {
   const staleLeads = leads.filter((lead) => lead.assignedStaffId !== parsed.data.fromStaffId);
   if (staleLeads.length > 0) {
     return jsonError(409, "Some selected work has already been reassigned by someone else — refresh and try again.");
+  }
+
+  // Step 39 — don't bulk-move work onto someone scoped out of that service.
+  const toStaffScope = { permissions: toStaff.role.permissions.map((p) => p.name), allowedServiceTypes: toStaff.allowedServiceTypes };
+  const outOfScopeLeads = leads.filter((lead) => !hasServiceAccess(toStaffScope, lead.serviceType));
+  if (outOfScopeLeads.length > 0) {
+    return jsonError(400, `${toStaff.name} isn't scoped for ${outOfScopeLeads.length} of the selected item(s)' service(s).`);
   }
 
   const reassigned = await db.$transaction(async (tx) => {

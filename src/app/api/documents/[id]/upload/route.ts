@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { runTicketExtraction } from "@/lib/ocr/extract-ticket";
@@ -41,8 +42,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const existing = await db.document.findUnique({ where: { id } });
+  const existing = await db.document.findUnique({ where: { id }, include: { booking: { include: { lead: true } } } });
   if (!existing) return jsonError(404, "Document not found.");
+  // A passenger-only document (no booking) isn't service-scoped — see documents/route.ts's own note on why.
+  if (existing.booking) {
+    const scopeError = assertServiceAccess(session, existing.booking.lead.serviceType);
+    if (scopeError) return scopeError;
+  }
 
   let fileUrl: string;
   if ("fileUrl" in parsed.data) {

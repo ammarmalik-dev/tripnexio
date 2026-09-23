@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { hasPermission } from "@/lib/auth/permissions";
+import { assertServiceAccess, hasServiceAccess } from "@/lib/auth/service-scope";
 import { writeAudit } from "@/lib/audit/log";
 
 interface RouteParams {
@@ -37,6 +38,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const lead = await db.lead.findUnique({ where: { id } });
   if (!lead) return jsonError(404, "Lead not found.");
+  const scopeError = assertServiceAccess(session, lead.serviceType);
+  if (scopeError) return scopeError;
 
   const isReassignment = lead.assignedStaffId !== null && lead.assignedStaffId !== parsed.data.staffId;
   if (isReassignment && !hasPermission(session, "leads.reassign")) {
@@ -45,9 +48,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   let staffName: string | null = null;
   if (parsed.data.staffId) {
-    const staff = await db.user.findUnique({ where: { id: parsed.data.staffId } });
+    const staff = await db.user.findUnique({
+      where: { id: parsed.data.staffId },
+      include: { role: { include: { permissions: true } } },
+    });
     if (!staff || !staff.active) {
       return jsonError(400, "Select a valid, active staff member.", { staffId: ["This staff member isn't available."] });
+    }
+    // Don't assign a lead to someone scoped out of its service — mirrors
+    // the requesting staff member's own check above, applied to the target.
+    if (!hasServiceAccess({ permissions: staff.role.permissions.map((p) => p.name), allowedServiceTypes: staff.allowedServiceTypes }, lead.serviceType)) {
+      return jsonError(400, "This staff member isn't scoped for this lead's service.", {
+        staffId: ["This staff member doesn't have access to this service."],
+      });
     }
     staffName = staff.name;
   }

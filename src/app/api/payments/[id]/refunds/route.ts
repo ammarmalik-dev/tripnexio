@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { computeRefundAmount } from "@/lib/refunds/pricing";
 import { evaluateRefundRule, documentsValidated } from "@/lib/refunds/rules";
 
@@ -40,6 +41,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     },
   });
   if (!payment) return jsonError(404, "Payment not found.");
+  const scopeError = assertServiceAccess(session, payment.booking.lead.serviceType);
+  if (scopeError) return scopeError;
   if (payment.status !== "SUCCESS") {
     return jsonError(409, "Only a successful payment can be refunded.");
   }

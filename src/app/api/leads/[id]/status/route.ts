@@ -3,6 +3,7 @@ import { updateLeadStatusSchema } from "@/lib/validation/lead-status-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { writeAudit } from "@/lib/audit/log";
 import { assertValidLeadTransition } from "@/lib/leads/transitions";
 
@@ -31,6 +32,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const lead = await db.lead.findUnique({ where: { id } });
   if (!lead) return jsonError(404, "Lead not found.");
+  const scopeError = assertServiceAccess(auth.session, lead.serviceType);
+  if (scopeError) return scopeError;
 
   const transitionError = assertValidLeadTransition(lead.status, parsed.data.status);
   if (transitionError) return jsonError(409, transitionError);

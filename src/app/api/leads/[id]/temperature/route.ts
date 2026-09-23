@@ -3,6 +3,7 @@ import { updateLeadTemperatureSchema } from "@/lib/validation/lead-temperature-s
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { writeAudit } from "@/lib/audit/log";
 import { LEAD_TEMPERATURE_LABELS } from "@/lib/crm/labels";
 
@@ -36,6 +37,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const lead = await db.lead.findUnique({ where: { id } });
   if (!lead) return jsonError(404, "Lead not found.");
+  const scopeError = assertServiceAccess(session, lead.serviceType);
+  if (scopeError) return scopeError;
 
   const nextLabel = parsed.data.temperature ? LEAD_TEMPERATURE_LABELS[parsed.data.temperature] : "Not set";
   const previousLabel = lead.temperature ? LEAD_TEMPERATURE_LABELS[lead.temperature] : "Not set";

@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated } from "@/lib/refunds/rules";
@@ -34,6 +35,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     },
   });
   if (!booking) return jsonError(404, "Booking not found.");
+  const scopeError = assertServiceAccess(auth.session, booking.lead.serviceType);
+  if (scopeError) return scopeError;
 
   // Return_Verified_Ticket.md §7: "Staff should be able to see the internal
   // expiry information" — synced here (not just wherever a future issue

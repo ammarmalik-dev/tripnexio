@@ -3,6 +3,7 @@ import { markPaymentSuccessSchema } from "@/lib/validation/payment-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { completePaymentSuccess } from "@/lib/payments/complete-payment";
 import { notifyPaymentReceived } from "@/lib/payments/notify-payment-received";
 
@@ -43,6 +44,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     include: { booking: { include: { lead: true } } },
   });
   if (!payment) return jsonError(404, "Payment not found.");
+  const scopeError = assertServiceAccess(session, payment.booking.lead.serviceType);
+  if (scopeError) return scopeError;
   if (payment.status !== "PENDING") {
     return jsonError(409, `This payment is already ${payment.status.toLowerCase()}.`);
   }

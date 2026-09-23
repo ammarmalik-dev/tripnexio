@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { assertValidBookingTransition } from "@/lib/bookings/transitions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 
 interface RouteParams {
   params: Promise<{ id: string; passengerId: string }>;
@@ -37,9 +38,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const bookingPassenger = await db.bookingPassenger.findUnique({
     where: { bookingId_passengerId: { bookingId, passengerId } },
-    include: { passenger: true },
+    include: { passenger: true, booking: { include: { lead: true } } },
   });
   if (!bookingPassenger) return jsonError(404, "This passenger isn't linked to this booking.");
+  const scopeError = assertServiceAccess(session, bookingPassenger.booking.lead.serviceType);
+  if (scopeError) return scopeError;
 
   const transitionError = assertValidBookingTransition(bookingPassenger.status, parsed.data.status);
   if (transitionError) return jsonError(409, transitionError);

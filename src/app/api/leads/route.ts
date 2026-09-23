@@ -3,6 +3,7 @@ import { leadListQuerySchema } from "@/lib/validation/lead-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { serviceTypeCondition } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 
 export async function GET(request: NextRequest) {
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   const { serviceType, status, temperature, search, sort, page, pageSize } = parsed.data;
 
   const where = {
-    ...(serviceType ? { serviceType } : {}),
+    ...serviceTypeCondition(auth.session, serviceType),
     ...(status ? { status } : {}),
     ...(temperature ? { temperature } : {}),
     ...(search

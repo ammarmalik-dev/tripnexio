@@ -218,6 +218,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
           />
           <LeadAssignmentControl
             leadId={lead.id}
+            serviceType={lead.serviceType}
             assignedStaff={lead.assignedStaff}
             canReassign={canReassignLeads}
             onChanged={(assignedStaff) =>

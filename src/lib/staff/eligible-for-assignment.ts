@@ -1,5 +1,7 @@
 import { db } from "@/lib/db";
 import { hasPermission } from "@/lib/auth/permissions";
+import { hasServiceAccess } from "@/lib/auth/service-scope";
+import type { ServiceType } from "../../generated/prisma/enums";
 
 export interface EligibleStaffMember {
   id: string;
@@ -13,13 +15,13 @@ export interface EligibleStaffMember {
  * "least loaded staff member" could be an Admin account that never
  * services leads day to day, which isn't what "least loaded" is supposed
  * to mean. ADMIN.md §13 also lists service/country/capability matching as
- * possible assignment factors, but the roadmap for this step scoped this
- * narrower (PAX-workload + leave only) — no service-specialization concept
- * exists anywhere in this schema to match against, so none is invented
- * here; every staff member who can work leads at all is equally eligible
- * for every service type today.
+ * possible assignment factors — Step 39 finally builds the service half of
+ * that (country/other capability matching still isn't invented here): when
+ * `serviceType` is given, a staff member scoped out of it (Step 39's
+ * User.allowedServiceTypes) is excluded from the candidate list exactly
+ * like an inactive or on-leave one.
  */
-export async function getEligibleStaffForAssignment(): Promise<EligibleStaffMember[]> {
+export async function getEligibleStaffForAssignment(serviceType?: ServiceType): Promise<EligibleStaffMember[]> {
   const staff = await db.user.findMany({
     where: { active: true },
     include: { role: { include: { permissions: true } } },
@@ -44,5 +46,10 @@ export async function getEligibleStaffForAssignment(): Promise<EligibleStaffMemb
   return staff
     .filter((member) => !staffIdsOnLeave.has(member.id))
     .filter((member) => hasPermission({ permissions: member.role.permissions.map((permission) => permission.name) }, "leads.edit"))
+    .filter(
+      (member) =>
+        !serviceType ||
+        hasServiceAccess({ permissions: member.role.permissions.map((p) => p.name), allowedServiceTypes: member.allowedServiceTypes }, serviceType)
+    )
     .map((member) => ({ id: member.id, name: member.name }));
 }

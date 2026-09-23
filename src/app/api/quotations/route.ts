@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { computeSellingPrice, isFlightQuote, supportsItinerary, assertValidityWithinCap } from "@/lib/quotations/pricing";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { notifyCustomer } from "@/lib/notifications/notify";
@@ -52,6 +53,8 @@ export async function GET(request: NextRequest) {
   if (leadId) {
     const lead = await db.lead.findUnique({ where: { id: leadId } });
     if (!lead) return jsonError(404, "Lead not found.");
+    const scopeError = assertServiceAccess(auth.session, lead.serviceType);
+    if (scopeError) return scopeError;
 
     const quotations = await db.quotation.findMany({ where: { leadId }, orderBy: { createdAt: "desc" } });
     const refreshed = await syncExpiredQuotations(quotations);
@@ -86,10 +89,10 @@ export async function GET(request: NextRequest) {
     ...(status === "PENDING"
       ? { isSelected: false, isExpired: false, OR: [{ validityExpiresAt: null }, { validityExpiresAt: { gte: now } }] }
       : {}),
-    ...(serviceType || search
+    ...(serviceType || search || !isServiceScopeUnrestricted(auth.session)
       ? {
           lead: {
-            ...(serviceType ? { serviceType } : {}),
+            ...serviceTypeCondition(auth.session, serviceType),
             ...(search
               ? {
                   customer: {
@@ -177,6 +180,8 @@ export async function POST(request: NextRequest) {
 
   const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
   if (!lead) return jsonError(404, "Lead not found.");
+  const scopeError = assertServiceAccess(session, lead.serviceType);
+  if (scopeError) return scopeError;
 
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
   if (!vendor || !vendor.active) {

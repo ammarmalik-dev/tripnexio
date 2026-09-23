@@ -1,6 +1,7 @@
 import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { renderInvoicePdf } from "@/lib/invoices/render-invoice";
 
@@ -19,6 +20,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
     include: { booking: { include: { customer: true, lead: true } } },
   });
   if (!payment) return jsonError(404, "Payment not found.");
+  const scopeError = assertServiceAccess(auth.session, payment.booking.lead.serviceType);
+  if (scopeError) return scopeError;
   if (payment.status !== "SUCCESS") {
     return jsonError(409, "An invoice is only available for a successful payment.");
   }

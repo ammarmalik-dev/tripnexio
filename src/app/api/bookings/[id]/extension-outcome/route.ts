@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { assertValidBookingTransition } from "@/lib/bookings/transitions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -40,6 +41,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const booking = await db.booking.findUnique({ where: { id }, include: { lead: true } });
   if (!booking) return jsonError(404, "Booking not found.");
+  const scopeError = assertServiceAccess(session, booking.lead.serviceType);
+  if (scopeError) return scopeError;
   if (booking.lead.serviceType !== "VISA_EXTENSION") {
     return jsonError(409, "This outcome only applies to Visa Extension bookings.");
   }

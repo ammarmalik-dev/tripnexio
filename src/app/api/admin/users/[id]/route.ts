@@ -57,6 +57,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(parsed.data.name ? { name: parsed.data.name } : {}),
         ...(parsed.data.roleId ? { roleId: parsed.data.roleId } : {}),
         ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),
+        ...(parsed.data.allowedServiceTypes !== undefined ? { allowedServiceTypes: parsed.data.allowedServiceTypes } : {}),
       },
       include: { role: true },
     });
@@ -66,6 +67,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (parsed.data.roleId && parsed.data.roleId !== existing.roleId) changeNotes.push(`role ${existing.role.name} -> ${newRole.name}`);
     if (parsed.data.active !== undefined && parsed.data.active !== existing.active) {
       changeNotes.push(parsed.data.active ? "reactivated" : "deactivated");
+    }
+    if (parsed.data.allowedServiceTypes !== undefined) {
+      changeNotes.push(
+        parsed.data.allowedServiceTypes.length > 0 ? `services scoped to ${parsed.data.allowedServiceTypes.join(", ")}` : "services unrestricted"
+      );
     }
 
     await writeAudit(tx, {
@@ -85,5 +91,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     email: updated.email,
     active: updated.active,
     role: { id: updated.role.id, name: updated.role.name },
+    allowedServiceTypes: updated.allowedServiceTypes,
   });
 }

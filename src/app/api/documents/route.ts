@@ -5,6 +5,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
 import { notifyCustomer } from "@/lib/notifications/notify";
@@ -26,6 +27,16 @@ export async function GET(request: NextRequest) {
   const passengerId = searchParams.get("passengerId") ?? undefined;
 
   if (bookingId || passengerId) {
+    if (bookingId) {
+      const booking = await db.booking.findUnique({ where: { id: bookingId }, include: { lead: true } });
+      if (!booking) return jsonError(404, "Booking not found.");
+      const scopeError = assertServiceAccess(auth.session, booking.lead.serviceType);
+      if (scopeError) return scopeError;
+    }
+    // A passenger-only lookup (no bookingId) isn't service-scoped — a
+    // passenger can have leads across multiple services, so there's no
+    // single serviceType to check (see serviceTypeCondition's own note on
+    // Document below for the same reasoning applied to the review queue).
     const documents = await db.document.findMany({
       where: { bookingId, passengerId },
       orderBy: { createdAt: "desc" },
@@ -39,14 +50,26 @@ export async function GET(request: NextRequest) {
   }
   const { status, search, sort, page, pageSize } = parsed.data;
 
+  // A document scoped to a Passenger only (no Booking) has no single
+  // derivable serviceType — a passenger can have leads across multiple
+  // services — so it's never hidden by scoping (shown to anyone with
+  // documents.view, regardless of their allowedServiceTypes); only a
+  // Booking-linked document is actually filtered.
   const where = {
     ...(status ? { status } : {}),
+    ...(!isServiceScopeUnrestricted(auth.session)
+      ? { OR: [{ bookingId: null }, { booking: { lead: serviceTypeCondition(auth.session) } }] }
+      : {}),
     ...(search
       ? {
-          OR: [
-            { type: { contains: search, mode: "insensitive" as const } },
-            { booking: { bookingId: { contains: search, mode: "insensitive" as const } } },
-            { passenger: { fullName: { contains: search, mode: "insensitive" as const } } },
+          AND: [
+            {
+              OR: [
+                { type: { contains: search, mode: "insensitive" as const } },
+                { booking: { bookingId: { contains: search, mode: "insensitive" as const } } },
+                { passenger: { fullName: { contains: search, mode: "insensitive" as const } } },
+              ],
+            },
           ],
         }
       : {}),
@@ -113,10 +136,12 @@ export async function POST(request: NextRequest) {
     }
   }
   if (parsed.data.bookingId) {
-    const booking = await db.booking.findUnique({ where: { id: parsed.data.bookingId } });
+    const booking = await db.booking.findUnique({ where: { id: parsed.data.bookingId }, include: { lead: true } });
     if (!booking) {
       return jsonError(400, "Booking not found.", { bookingId: ["No booking with this id."] });
     }
+    const scopeError = assertServiceAccess(session, booking.lead.serviceType);
+    if (scopeError) return scopeError;
   }
 
   const document = await db.$transaction(async (tx) => {

@@ -2,6 +2,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { canIssueReservation, computeReservationExpiry } from "@/lib/bookings/reservation";
 
 interface RouteParams {
@@ -24,6 +25,8 @@ export async function PATCH(_request: Request, { params }: RouteParams) {
 
   const booking = await db.booking.findUnique({ where: { id }, include: { lead: true } });
   if (!booking) return jsonError(404, "Booking not found.");
+  const scopeError = assertServiceAccess(session, booking.lead.serviceType);
+  if (scopeError) return scopeError;
   if (booking.lead.serviceType !== "RETURN_TICKET") {
     return jsonError(409, "Only Return Verified Ticket bookings have an issue-then-expire reservation window.");
   }

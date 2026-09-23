@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertValidTaskTransition } from "@/lib/tasks/transitions";
 
 interface RouteParams {
@@ -31,6 +32,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const task = await db.task.findUnique({ where: { id } });
   if (!task) return jsonError(404, "Task not found.");
+  // task.serviceType is nullable (denormalized, not every trigger can
+  // resolve one) — a null-serviceType task is never scope-checked.
+  if (task.serviceType) {
+    const scopeError = assertServiceAccess(session, task.serviceType);
+    if (scopeError) return scopeError;
+  }
 
   const transitionError = assertValidTaskTransition(task.status, parsed.data.status);
   if (transitionError) return jsonError(409, transitionError);

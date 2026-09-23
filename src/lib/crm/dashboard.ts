@@ -1,5 +1,16 @@
 import { db } from "../db";
 import { formatLeadReference } from "../leads/reference";
+import type { ServiceType } from "../../generated/prisma/enums";
+
+/**
+ * Step 39: `undefined` (the normal case, an unrestricted session) means no
+ * filter at all — every function below stays byte-for-byte the same query
+ * it always was. A scoped staff member's dashboard only aggregates their
+ * allowed services' numbers, so a scoped view never leaks out-of-scope
+ * volume/KPI figures — the whole point of scoping would otherwise be
+ * undermined by the one screen every staff member sees on login.
+ */
+type ServiceScope = ServiceType[] | undefined;
 
 export interface DashboardPeriod {
   startDate: Date;
@@ -76,20 +87,26 @@ const ACTION_QUEUE_GROUP_LIMIT = 8;
  * model, keeping this page's peak concurrent connection usage well under
  * that limit instead of firing a dozen-plus queries at once.
  */
-export async function getSalesOverview(period: DashboardPeriod): Promise<SalesOverview> {
+export async function getSalesOverview(period: DashboardPeriod, allowedServiceTypes?: ServiceScope): Promise<SalesOverview> {
   const createdInPeriod = { createdAt: { gte: period.startDate, lte: period.endDate } };
+  const leadScope = allowedServiceTypes ? { serviceType: { in: allowedServiceTypes } } : {};
+  const leadRelationScope = allowedServiceTypes ? { lead: { serviceType: { in: allowedServiceTypes } } } : {};
 
   const [leadGroups, quotationsCreated, acceptedQuotations, paymentStatusGroups] = await Promise.all([
     // Grouping by both status and temperature in one query (rather than two
     // separate groupBy calls) — same connection-pool-pressure reasoning as
     // the rest of this file.
-    db.lead.groupBy({ by: ["status", "temperature"], where: createdInPeriod, _count: { _all: true } }),
-    db.quotation.count({ where: createdInPeriod }),
+    db.lead.groupBy({ by: ["status", "temperature"], where: { ...createdInPeriod, ...leadScope }, _count: { _all: true } }),
+    db.quotation.count({ where: { ...createdInPeriod, ...leadRelationScope } }),
     // Approximation: Quotation has no separate "acceptedAt" timestamp, so
     // this counts quotations created in the period that are currently
     // selected — not necessarily selected within the period itself.
-    db.quotation.count({ where: { ...createdInPeriod, isSelected: true } }),
-    db.payment.groupBy({ by: ["status"], where: createdInPeriod, _count: { _all: true } }),
+    db.quotation.count({ where: { ...createdInPeriod, isSelected: true, ...leadRelationScope } }),
+    db.payment.groupBy({
+      by: ["status"],
+      where: { ...createdInPeriod, ...(allowedServiceTypes ? { booking: { lead: { serviceType: { in: allowedServiceTypes } } } } : {}) },
+      _count: { _all: true },
+    }),
   ]);
 
   const leadCountByStatus = (status: string) =>
@@ -119,11 +136,21 @@ export async function getSalesOverview(period: DashboardPeriod): Promise<SalesOv
  * CRM.md §4's "what needs action now", a live operational snapshot, not a
  * count of things created in a date range.
  */
-export async function getOperationsOverview(): Promise<OperationsOverview> {
+export async function getOperationsOverview(allowedServiceTypes?: ServiceScope): Promise<OperationsOverview> {
+  const bookingLeadScope = allowedServiceTypes ? { lead: { serviceType: { in: allowedServiceTypes } } } : {};
   const [bookingStatusGroups, documentStatusGroups, refundsRaised] = await Promise.all([
-    db.booking.groupBy({ by: ["status"], _count: { _all: true } }),
-    db.document.groupBy({ by: ["status"], _count: { _all: true } }),
-    db.refund.count({ where: { status: "PENDING" } }),
+    db.booking.groupBy({ by: ["status"], where: bookingLeadScope, _count: { _all: true } }),
+    // A passenger-only document (no booking) has no derivable serviceType —
+    // same reasoning as the review queue (src/app/api/documents/route.ts)
+    // — so it's simply excluded from a scoped count rather than guessed at.
+    db.document.groupBy({
+      by: ["status"],
+      where: allowedServiceTypes ? { booking: { lead: { serviceType: { in: allowedServiceTypes } } } } : {},
+      _count: { _all: true },
+    }),
+    db.refund.count({
+      where: { status: "PENDING", ...(allowedServiceTypes ? { payment: { booking: { lead: { serviceType: { in: allowedServiceTypes } } } } } : {}) },
+    }),
   ]);
 
   const bookingCount = (status: string) => bookingStatusGroups.find((g) => g.status === status)?._count._all ?? 0;
@@ -166,9 +193,12 @@ export interface ActionQueueGroups {
  * lead intake) has nowhere to link to yet, since /crm/customers is still a
  * placeholder screen.
  */
-export async function getActionQueue(): Promise<ActionQueueGroups> {
+export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promise<ActionQueueGroups> {
   const now = new Date();
   const staleCutoff = new Date(now.getTime() - LEAD_STALLED_AFTER_MS);
+  const leadScope = allowedServiceTypes ? { serviceType: { in: allowedServiceTypes } } : {};
+  const leadRelationScope = allowedServiceTypes ? { lead: { serviceType: { in: allowedServiceTypes } } } : {};
+  const bookingLeadScope = allowedServiceTypes ? { booking: { lead: { serviceType: { in: allowedServiceTypes } } } } : {};
 
   // Sequential, not Promise.all — same connection-pool-pressure reasoning as
   // getSalesOverview/getOperationsOverview above, but these 8 queries are
@@ -176,49 +206,49 @@ export async function getActionQueue(): Promise<ActionQueueGroups> {
   // simply not firing them all at once rather than restructuring the query
   // shape.
   const expiringQuotes = await db.quotation.findMany({
-    where: { isExpired: false, isSelected: false, validityExpiresAt: { gt: now } },
+    where: { isExpired: false, isSelected: false, validityExpiresAt: { gt: now }, ...leadRelationScope },
     orderBy: { validityExpiresAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
     include: { lead: { include: { customer: true } } },
   });
   const documentsMissing = await db.document.findMany({
-    where: { status: "MISSING", bookingId: { not: null } },
+    where: { status: "MISSING", bookingId: { not: null }, ...bookingLeadScope },
     orderBy: { updatedAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
     include: { booking: { include: { customer: true } } },
   });
   const documentsReceived = await db.document.findMany({
-    where: { status: "RECEIVED", bookingId: { not: null } },
+    where: { status: "RECEIVED", bookingId: { not: null }, ...bookingLeadScope },
     orderBy: { updatedAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
     include: { booking: { include: { customer: true } } },
   });
   const documentsRejected = await db.document.findMany({
-    where: { status: "REJECTED", bookingId: { not: null } },
+    where: { status: "REJECTED", bookingId: { not: null }, ...bookingLeadScope },
     orderBy: { updatedAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
     include: { booking: { include: { customer: true } } },
   });
   const pendingRefunds = await db.refund.findMany({
-    where: { status: "PENDING" },
+    where: { status: "PENDING", ...(allowedServiceTypes ? { payment: bookingLeadScope } : {}) },
     orderBy: { createdAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
     include: { payment: { include: { booking: { include: { customer: true } } } } },
   });
   const newBookings = await db.booking.findMany({
-    where: { status: "PENDING" },
+    where: { status: "PENDING", ...leadRelationScope },
     orderBy: { createdAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
     include: { customer: true },
   });
   const staleLeads = await db.lead.findMany({
-    where: { status: { in: [...LEAD_STALLED_STATUSES] }, updatedAt: { lt: staleCutoff } },
+    where: { status: { in: [...LEAD_STALLED_STATUSES] }, updatedAt: { lt: staleCutoff }, ...leadScope },
     orderBy: { updatedAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
     include: { customer: true },
   });
   const selectedQuotations = await db.quotation.findMany({
-    where: { isSelected: true },
+    where: { isSelected: true, ...leadRelationScope },
     include: { lead: { include: { customer: true, bookings: true } } },
   });
 

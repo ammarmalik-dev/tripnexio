@@ -20,6 +20,7 @@ export async function GET() {
       active: user.active,
       createdAt: user.createdAt,
       role: { id: user.role.id, name: user.role.name },
+      allowedServiceTypes: user.allowedServiceTypes,
     }))
   );
 }
@@ -55,7 +56,14 @@ export async function POST(request: NextRequest) {
 
   const user = await db.$transaction(async (tx) => {
     const created = await tx.user.create({
-      data: { name: parsed.data.name, email: parsed.data.email, passwordHash, roleId: parsed.data.roleId, active: true },
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        passwordHash,
+        roleId: parsed.data.roleId,
+        active: true,
+        allowedServiceTypes: parsed.data.allowedServiceTypes ?? [],
+      },
       include: { role: true },
     });
 
@@ -64,14 +72,21 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Staff account "${created.name}" (${created.email}) created with role ${created.role.name} (by ${session.name})`,
+      note: `Staff account "${created.name}" (${created.email}) created with role ${created.role.name}${created.allowedServiceTypes.length > 0 ? `, scoped to ${created.allowedServiceTypes.join(", ")}` : ""} (by ${session.name})`,
     });
 
     return created;
   });
 
   return jsonSuccess(
-    { id: user.id, name: user.name, email: user.email, active: user.active, role: { id: user.role.id, name: user.role.name } },
+    {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      active: user.active,
+      role: { id: user.role.id, name: user.role.name },
+      allowedServiceTypes: user.allowedServiceTypes,
+    },
     201
   );
 }

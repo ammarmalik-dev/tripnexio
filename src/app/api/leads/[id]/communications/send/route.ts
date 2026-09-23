@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { getEmailSender } from "@/lib/email/get-sender";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
@@ -45,6 +46,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const lead = await db.lead.findUnique({ where: { id }, include: { customer: true } });
   if (!lead) return jsonError(404, "Lead not found.");
+  const scopeError = assertServiceAccess(session, lead.serviceType);
+  if (scopeError) return scopeError;
 
   if (parsed.data.channel === "EMAIL") {
     if (!lead.customer.email) {

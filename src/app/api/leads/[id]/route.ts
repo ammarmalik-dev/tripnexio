@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
@@ -33,6 +34,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     },
   });
   if (!lead) return jsonError(404, "Lead not found.");
+  const scopeError = assertServiceAccess(auth.session, lead.serviceType);
+  if (scopeError) return scopeError;
 
   const quotations = await syncExpiredQuotations(lead.quotations);
 

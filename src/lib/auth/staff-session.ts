@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { db } from "../db";
 import { SESSION_COOKIE_NAME, verifyStaffSessionToken } from "./session";
+import type { ServiceType } from "../../generated/prisma/enums";
 
 export interface StaffSession {
   id: string;
@@ -9,6 +10,8 @@ export interface StaffSession {
   role: string;
   /** Every permission name granted by this user's role — see src/lib/auth/permissions.ts. */
   permissions: string[];
+  /** Step 39 — empty = unrestricted. See src/lib/auth/service-scope.ts. */
+  allowedServiceTypes: ServiceType[];
 }
 
 /**
@@ -40,5 +43,6 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     email: user.email,
     role: user.role.name,
     permissions: user.role.permissions.map((permission) => permission.name),
+    allowedServiceTypes: user.allowedServiceTypes,
   };
 }

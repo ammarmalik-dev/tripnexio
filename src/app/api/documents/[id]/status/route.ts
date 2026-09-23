@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
@@ -41,6 +42,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   // needed to populate the new Task's display fields, same booking->lead
   // join resolveDocumentRecipient already does for the email trigger below.
   const booking = existing.bookingId ? await db.booking.findUnique({ where: { id: existing.bookingId }, include: { lead: true } }) : null;
+  // A passenger-only document (no booking) isn't service-scoped — see the
+  // list route's own note on why.
+  if (booking) {
+    const scopeError = assertServiceAccess(session, booking.lead.serviceType);
+    if (scopeError) return scopeError;
+  }
 
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.document.update({ where: { id }, data: { status: parsed.data.status } });

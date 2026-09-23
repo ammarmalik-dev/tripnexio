@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import type { ServiceType } from "../../generated/prisma/enums";
 
 interface StaffOption {
   id: string;
@@ -24,6 +25,8 @@ interface AssignmentSuggestion {
 
 interface LeadAssignmentControlProps {
   leadId: string;
+  /** Step 39 — only staff scoped for this service (or unrestricted) are offered, both in the dropdown and the suggestion. */
+  serviceType: ServiceType;
   assignedStaff: { id: string; name: string } | null;
   onChanged: (staff: { id: string; name: string } | null) => void;
   /**
@@ -36,7 +39,7 @@ interface LeadAssignmentControlProps {
   canReassign: boolean;
 }
 
-export function LeadAssignmentControl({ leadId, assignedStaff, onChanged, canReassign }: LeadAssignmentControlProps) {
+export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onChanged, canReassign }: LeadAssignmentControlProps) {
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
   const [pending, setPending] = useState(false);
   const [suggestion, setSuggestion] = useState<AssignmentSuggestion | null>(null);
@@ -45,7 +48,7 @@ export function LeadAssignmentControl({ leadId, assignedStaff, onChanged, canRea
     let cancelled = false;
     async function loadStaff() {
       try {
-        const staff = await getJson<StaffOption[]>("/api/staff");
+        const staff = await getJson<StaffOption[]>(`/api/staff?service=${serviceType}`);
         if (!cancelled) setStaffOptions(staff);
       } catch {
         // The select just stays empty (besides Unassigned) — not worth a toast for a background list load.
@@ -55,7 +58,7 @@ export function LeadAssignmentControl({ leadId, assignedStaff, onChanged, canRea
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [serviceType]);
 
   // Step 26 Unit 2 (audit §3.11/§4.7) — only meaningful for a currently-
   // unassigned lead; there's no "suggest a reassignment" case here, only
@@ -69,7 +72,9 @@ export function LeadAssignmentControl({ leadId, assignedStaff, onChanged, canRea
         return;
       }
       try {
-        const result = await getJson<{ suggestion: AssignmentSuggestion | null }>("/api/staff/suggest-assignment");
+        const result = await getJson<{ suggestion: AssignmentSuggestion | null }>(
+          `/api/staff/suggest-assignment?service=${serviceType}`
+        );
         if (!cancelled) setSuggestion(result.suggestion);
       } catch {
         // Non-critical background hint — the manual select still works without it.
@@ -79,7 +84,7 @@ export function LeadAssignmentControl({ leadId, assignedStaff, onChanged, canRea
     return () => {
       cancelled = true;
     };
-  }, [assignedStaff]);
+  }, [assignedStaff, serviceType]);
 
   const handleChange = async (staffId: string) => {
     setPending(true);

@@ -3,6 +3,7 @@ import { taskListQuerySchema } from "@/lib/validation/task-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 
 /** Staff-facing task inbox (Step 17, audit §3.8) — every Task, auto-created from an existing trigger point (see src/lib/tasks/create-task.ts's callers), optionally filtered. */
@@ -17,11 +18,18 @@ export async function GET(request: NextRequest) {
   }
   const { status, type, priority, assignedToId, sort, page, pageSize } = parsed.data;
 
+  // Task.serviceType is nullable (denormalized, not every trigger can
+  // resolve one) — a null-serviceType task is never hidden by scoping,
+  // since there's nothing to check it against; only a resolved one is
+  // actually filtered.
   const where = {
     ...(status ? { status } : {}),
     ...(type ? { type } : {}),
     ...(priority ? { priority } : {}),
     ...(assignedToId ? { assignedToId: assignedToId === "unassigned" ? null : assignedToId } : {}),
+    ...(!isServiceScopeUnrestricted(auth.session)
+      ? { OR: [{ serviceType: null }, { serviceType: { in: auth.session.allowedServiceTypes } }] }
+      : {}),
   };
 
   const orderBy = sort === "dueDate_asc" ? { dueDate: "asc" as const } : { createdAt: sort === "createdAt_asc" ? ("asc" as const) : ("desc" as const) };

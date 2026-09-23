@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { assertValidBookingTransition } from "@/lib/bookings/transitions";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -29,8 +30,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const booking = await db.booking.findUnique({ where: { id } });
+  const booking = await db.booking.findUnique({ where: { id }, include: { lead: true } });
   if (!booking) return jsonError(404, "Booking not found.");
+  const scopeError = assertServiceAccess(session, booking.lead.serviceType);
+  if (scopeError) return scopeError;
 
   const transitionError = assertValidBookingTransition(booking.status, parsed.data.status);
   if (transitionError) return jsonError(409, transitionError);

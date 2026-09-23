@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { getReusableDocumentsForPassenger } from "@/lib/documents/reuse";
 
 interface RouteParams {
@@ -40,6 +41,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
   if (!parsed.data.bookingId && !parsed.data.passengerId) {
     return jsonError(400, "Specify a bookingId or passengerId to attach the reused document to.");
+  }
+
+  if (parsed.data.bookingId) {
+    const targetBooking = await db.booking.findUnique({ where: { id: parsed.data.bookingId }, include: { lead: true } });
+    if (!targetBooking) return jsonError(400, "Booking not found.", { bookingId: ["No booking with this id."] });
+    const scopeError = assertServiceAccess(session, targetBooking.lead.serviceType);
+    if (scopeError) return scopeError;
   }
 
   const source = await db.document.findUnique({ where: { id } });

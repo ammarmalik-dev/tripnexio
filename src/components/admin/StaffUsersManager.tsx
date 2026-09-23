@@ -13,6 +13,8 @@ import { createStaffUserSchema, type CreateStaffUserValues } from "@/lib/validat
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
+import type { ServiceType } from "../../generated/prisma/enums";
 
 interface RoleOption {
   id: string;
@@ -26,6 +28,31 @@ interface StaffUser {
   active: boolean;
   createdAt: string;
   role: { id: string; name: string };
+  /** Step 39 — empty = unrestricted (every existing account starts this way). */
+  allowedServiceTypes: ServiceType[];
+}
+
+/** Compact checkbox grid reused by both the per-row editor and the New Staff form. */
+function ServiceScopeChecklist({
+  selected,
+  onToggle,
+  disabled,
+}: {
+  selected: ServiceType[];
+  onToggle: (service: ServiceType) => void;
+  disabled: boolean;
+}) {
+  const selectedSet = new Set(selected);
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1">
+      {SERVICE_TYPE_OPTIONS.map((option) => (
+        <label key={option.value} className="flex items-center gap-1.5 text-xs text-ink-secondary">
+          <input type="checkbox" checked={selectedSet.has(option.value)} disabled={disabled} onChange={() => onToggle(option.value)} />
+          {option.label}
+        </label>
+      ))}
+    </div>
+  );
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -42,17 +69,20 @@ function NewStaffForm({ roles, onCreated }: { roles: RoleOption[]; onCreated: (u
     formState: { errors },
   } = useForm<CreateStaffUserValues>({ resolver: zodResolver(createStaffUserSchema) });
   const [submitting, setSubmitting] = useState(false);
+  const [allowedServiceTypes, setAllowedServiceTypes] = useState<ServiceType[]>([]);
+
+  const toggleService = (service: ServiceType) => {
+    setAllowedServiceTypes((current) => (current.includes(service) ? current.filter((s) => s !== service) : [...current, service]));
+  };
 
   const onSubmit = async (values: CreateStaffUserValues) => {
     setSubmitting(true);
     try {
-      const created = await postJson<{ id: string; name: string; email: string; active: boolean; role: { id: string; name: string } }>(
-        "/api/admin/users",
-        values
-      );
+      const created = await postJson<Omit<StaffUser, "createdAt">>("/api/admin/users", { ...values, allowedServiceTypes });
       toast.success(`Staff account "${created.name}" created.`);
       onCreated({ ...created, createdAt: new Date().toISOString() });
       reset();
+      setAllowedServiceTypes([]);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't create this staff account. Please try again.");
     } finally {
@@ -88,6 +118,11 @@ function NewStaffForm({ roles, onCreated }: { roles: RoleOption[]; onCreated: (u
           </select>
         </FormField>
       </div>
+      <div>
+        <span className="mb-1.5 block text-sm font-medium text-ink-primary">Service Scope</span>
+        <ServiceScopeChecklist selected={allowedServiceTypes} onToggle={toggleService} disabled={submitting} />
+        <p className="mt-1 text-xs text-ink-tertiary">Leave every box unchecked for unrestricted access to every service.</p>
+      </div>
       <div className="flex justify-end">
         <Button type="submit" size="sm" isLoading={submitting}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -95,6 +130,44 @@ function NewStaffForm({ roles, onCreated }: { roles: RoleOption[]; onCreated: (u
         </Button>
       </div>
     </form>
+  );
+}
+
+function ServiceScopeCell({ user, onSaved }: { user: StaffUser; onSaved: (user: StaffUser) => void }) {
+  const [selected, setSelected] = useState<ServiceType[]>(user.allowedServiceTypes);
+  const [saving, setSaving] = useState(false);
+
+  const dirty = JSON.stringify([...selected].sort()) !== JSON.stringify([...user.allowedServiceTypes].sort());
+
+  const toggle = (service: ServiceType) => {
+    setSelected((current) => (current.includes(service) ? current.filter((s) => s !== service) : [...current, service]));
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updated = await patchJson<StaffUser>(`/api/admin/users/${user.id}`, { allowedServiceTypes: selected });
+      toast.success(
+        updated.allowedServiceTypes.length > 0 ? `${updated.name}'s service scope updated.` : `${updated.name} is now unrestricted.`
+      );
+      onSaved(updated);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't update this staff member's service scope. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <ServiceScopeChecklist selected={selected} onToggle={toggle} disabled={saving} />
+      {selected.length === 0 ? <span className="text-xs text-ink-tertiary">Unrestricted</span> : null}
+      {dirty ? (
+        <Button type="button" size="sm" variant="ghost" onClick={() => void handleSave()} isLoading={saving}>
+          Save Scope
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -186,12 +259,13 @@ export function StaffUsersManager() {
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-        <table className="w-full min-w-[720px] border-collapse text-sm">
+        <table className="w-full min-w-[920px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Role</th>
+              <th className="px-4 py-3">Service Scope</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Created</th>
               <th className="px-4 py-3" />
@@ -215,6 +289,12 @@ export function StaffUsersManager() {
                       </option>
                     ))}
                   </select>
+                </td>
+                <td className="px-4 py-3 min-w-[220px]">
+                  <ServiceScopeCell
+                    user={user}
+                    onSaved={(updated) => setUsers((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+                  />
                 </td>
                 <td className="px-4 py-3">
                   <span

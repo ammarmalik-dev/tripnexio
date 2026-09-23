@@ -1400,14 +1400,30 @@ model ReturnTicketRuleConfig {
 // ---------------------------------------------------------------------------
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  roleId       String
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String        @id @default(cuid())
+  name                String
+  email               String        @unique
+  passwordHash        String
+  roleId              String
+  active              Boolean       @default(true)
+  /// Step 39 (Admin FINAL handover §1): per-user service scoping, not
+  /// per-Role — chosen over a Role-level join table specifically because
+  /// the roadmap's own example ("a staff user granted only OTB+Return
+  /// Ticket") is per-individual; conflating it onto Role would force a
+  /// dedicated Role per distinct service combination even when permissions
+  /// are otherwise identical. Empty array (the default) = UNRESTRICTED —
+  /// every existing user keeps full access with zero migration risk;
+  /// restriction only kicks in once an admin explicitly sets a non-empty
+  /// list. admin.full always bypasses this too (src/lib/auth/service-scope.ts),
+  /// mirroring hasPermission()'s own bypass rule. A native enum-array
+  /// column, not a join table (unlike VendorService's precedent) — the
+  /// same idiom this schema already uses for ReturnTicketDestination.
+  /// validityOptions, and nothing in this app ever needs to query "which
+  /// users are scoped to service X" in reverse, so a join table's extra
+  /// model/migration/relation would buy nothing here.
+  allowedServiceTypes ServiceType[] @default([])
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   role                        Role                 @relation(fields: [roleId], references: [id])
   assignedLeads               Lead[]

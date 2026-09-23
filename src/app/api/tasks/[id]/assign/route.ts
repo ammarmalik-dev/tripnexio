@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -30,6 +31,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const task = await db.task.findUnique({ where: { id } });
   if (!task) return jsonError(404, "Task not found.");
+  if (task.serviceType) {
+    const scopeError = assertServiceAccess(session, task.serviceType);
+    if (scopeError) return scopeError;
+  }
 
   let staffName: string | null = null;
   if (parsed.data.assignedToId) {

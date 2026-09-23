@@ -3,6 +3,7 @@ import { refundListQuerySchema } from "@/lib/validation/refund-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 
 export async function GET(request: NextRequest) {
@@ -19,6 +20,9 @@ export async function GET(request: NextRequest) {
 
   const where = {
     ...(status ? { status } : {}),
+    ...(!isServiceScopeUnrestricted(auth.session)
+      ? { payment: { booking: { lead: serviceTypeCondition(auth.session) } } }
+      : {}),
     ...(search
       ? {
           OR: [
