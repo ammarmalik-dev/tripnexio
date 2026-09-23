@@ -5,6 +5,8 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { findNewVisaTravellerIssues } from "@/lib/validation/new-visa-schema";
 import { computePaxType } from "@/lib/leads/pax-type";
+import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
+import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -82,15 +84,17 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const paxTypes = travellers.map((t) => computePaxType(t.dob, travelDate));
+
   try {
     const result = await createLeadFromSubmission({
       serviceType: "NEW_VISA",
       contact: { fullName, mobile, email },
-      passengers: travellers.map((t) => ({
+      passengers: travellers.map((t, index) => ({
         fullName: t.fullName,
         passportNumber: t.passportNumber,
         dob: t.dob,
-        paxType: computePaxType(t.dob, travelDate),
+        paxType: paxTypes[index],
       })),
       details: {
         destinationCountry,
@@ -116,10 +120,11 @@ export async function POST(request: NextRequest) {
         // Step 20 (audit §7.1) — expressed interest only, captured at
         // intake time; the ACTUAL Protection Plan purchase (with a real
         // per-passenger record and price) only happens once a Booking
-        // exists — see POST /api/bookings, which pre-offers it to every
-        // passenger on a NEW_VISA booking regardless of this flag. Staff
-        // sees this on the Lead as a heads-up that the customer already
-        // expressed interest and acknowledged the terms shown at intake.
+        // exists — see createAutoCheckout below, which pre-offers it to
+        // every passenger on a NEW_VISA booking regardless of this flag.
+        // Staff sees this on the Lead as a heads-up that the customer
+        // already expressed interest and acknowledged the terms shown at
+        // intake.
         ...(protectionPlanInterested
           ? { protectionPlanInterested: true, protectionPlanTermsAcceptedAt: new Date().toISOString() }
           : {}),
@@ -137,7 +142,25 @@ export async function POST(request: NextRequest) {
       )
     );
 
-    return jsonSuccess(result, 201);
+    // Pay right after the form (client answer, 2026-09-23) — the price is
+    // Admin-configured (country + Normal/Express, per-traveller Adult/
+    // Child/Infant), computed here rather than trusted from the client. A
+    // failure (including no configured rate) must never lose the Lead —
+    // staff can still build a manual quotation and send a payment link.
+    let payToken: string | undefined;
+    try {
+      const price = await computeNewVisaPrice({ countryCode: destinationCountry, processingType, travellerPaxTypes: paxTypes });
+      if (price) {
+        const checkout = await createAutoCheckout({ leadId: result.leadId, serviceType: "NEW_VISA", totalPrice: price.total });
+        payToken = checkout?.token;
+      } else {
+        console.warn(`[api/leads/new-visa] no NewVisaPricing configured for country=${destinationCountry} processingType=${processingType}`);
+      }
+    } catch (checkoutError) {
+      console.error("[api/leads/new-visa] auto checkout failed", checkoutError);
+    }
+
+    return jsonSuccess({ ...result, payToken }, 201);
   } catch (error) {
     console.error("[api/leads/new-visa]", error);
     return jsonError(500, "Something went wrong while submitting your request. Please try again.");

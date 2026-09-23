@@ -379,7 +379,7 @@ These are large, foundational modules described in exhaustive detail across ever
 
 **Step 34 notes:** `handleOptionalPassportUpload` gained an optional `documentType` param (defaults to `"PASSPORT"`, only runs passport OCR extraction for that type) so it could be reused for `VISA_COPY` without a second upload function. Visa Extension's schema requires both images directly (matching its existing required-field pattern); Visa Change's stay optional-in-schema, enforced via `findMissingApplicantDocuments` (renamed from `findMissingPassportImages`, now checks both document types) + `extraStepValidation`, matching its existing pattern. Verified server-side rejection when either document is missing, for both primary and additional applicants, on both services, and confirmed both documents land as separate `Document` rows (`PASSPORT`/`VISA_COPY`) on the correct Passenger.
 
-### Step 35 — New Visa: pivot to pay-right-after-the-form with a real pricing config
+### Step 35 — New Visa: pivot to pay-right-after-the-form with a real pricing config ✅
 **Audit ref:** Tier 1 #4 (largest item in this phase)
 **Problem:** The client's confirmed flow is *Basic form → Lead → Payment → Booking → Documents* — the same "pay right after the form" pattern as Return Ticket/OTB (H7), not New Visa's current quote-review-and-approve pattern (H8). This needs a real, Admin-managed New Visa pricing config (by country + visa type) to compute the price automatically — `PricingRule` exists but has never been wired to anything (flagged since Phase 4C).
 
@@ -388,7 +388,17 @@ These are large, foundational modules described in exhaustive detail across ever
 
 ---
 
-## Phase 11 — Tier 2: Shared masters & Admin panel consolidation (`Admin FINAL Developer Handover`)
+**Step 35 notes:** Re-read `client-message/New_Visa.md`'s original locked flow (§3/§5) before designing this — it confirms a "Final quotation" step already existed before payment in the ORIGINAL spec (now auto-computed rather than staff-prepared) and that "Document upload" is a real, separate post-payment step (§5 step 16), distinct from H4's pre-lead passport+guardian documents — so both were kept, not treated as redundant.
+
+Built a new `NewVisaPricing` model (country + Normal/Express, separate Adult/Child/Infant rates — matches the locked rule "Adult/Child pricing is separate," §6/§8) rather than forcing the existing unused `PricingRule` model to fit — `PricingRule`'s only dimensions are paxType/nationality, with no country or processing-type axis, so it genuinely didn't match New Visa's actual pricing shape (same reasoning that led to `ReturnTicketDestination` being its own model instead of `PricingRule` earlier). `visaType` (the sample tourist/business/etc. categories) is deliberately **not** a pricing dimension — those are still illustrative sample data, and pricing against an invented category would be worse than not pricing by it.
+
+`createLeadFromSubmission` no longer generates a `Lead.customerToken` for `NEW_VISA` (removed from `QUOTE_REVIEW_SERVICES`) — the old H8 quote-review path is fully retired for new New Visa leads (old already-created tokens/quotations from before this change still work, nothing deleted). `createAutoCheckout` widened to accept `NEW_VISA` and now also offers Protection Plan to every passenger (it didn't before — only the staff-driven `createBookingFromQuotation` path did), so New Visa keeps that behavior after the pivot. A missing pricing rule (unconfigured country/processing-type combo) never loses the Lead — it's still created, just without a payment link, so staff can follow up manually; verified this explicitly, not just assumed.
+
+Post-payment documents: rather than hardcode a document list the client never gave (unlike Return Ticket/OTB, whose lists came verbatim from their own handover docs), New Visa's `/pay/<token>` checklist is read **dynamically** from the existing Admin-managed `DocumentRequirement` table (nationality defaulted to "India" — New Visa's form never asks nationality, and the whole market scope is India-sourced, matching how OTB already never asks it either). With only a `"Sample Nationality"` row seeded today, this correctly shows an empty checklist rather than a fabricated one.
+
+Verified end-to-end: a 2-traveller (adult+child) submission against a real seeded UAE/Normal rate correctly auto-created a Quotation+Booking+payment link, paid successfully, assigned a real `TNX-NV-...` booking id, and offered Protection Plan to both passengers; an unconfigured country (Oman) and an unconfigured processing type (urgent) both still created the Lead with no payment link; a new Admin-added Oman/Express rate was picked up by the very next matching request with no redeploy; editing that rate's price took effect immediately on the next request.
+
+## Phase 11 —## Phase 11 — Tier 2: Shared masters & Admin panel consolidation (`Admin FINAL Developer Handover`)
 
 **Source:** `client-message/ADMIN_CRM_CONSOLIDATION_AUDIT.md` Tier 2. The document's own core rule: *"Do not create duplicate master data or separate configuration screens where one common control can serve multiple services."* Build roughly in this order — masters/foundations first, since several later steps (Pricing/Documents/Timeline controls, New Visa Country Configuration) depend on them.
 

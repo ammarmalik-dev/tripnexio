@@ -8,8 +8,13 @@ import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { generateToken } from "../quotations/select-quotation";
 
-/** The services that go through a staff-prepared quotation the customer reviews at /quote/<token>. */
-const QUOTE_REVIEW_SERVICES = new Set<ServiceType>(["NEW_VISA", "VISA_EXTENSION", "VISA_CHANGE", "FLIGHT_SPECIAL_FARE"]);
+/**
+ * The services that go through a staff-prepared quotation the customer
+ * reviews at /quote/<token>. New Visa moved OFF this list in Step 35 — it
+ * now pays right after the form, like OTB/Return Ticket, since its price is
+ * auto-computable from Admin-configured country+processing-type rates.
+ */
+const QUOTE_REVIEW_SERVICES = new Set<ServiceType>(["VISA_EXTENSION", "VISA_CHANGE", "FLIGHT_SPECIAL_FARE"]);
 
 export interface LeadContact {
   fullName: string;

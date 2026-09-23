@@ -596,6 +596,16 @@ async function main() {
     create: { countryId: "cty_uae", ratePerApplicant: 100, validityOptions: ["THIRTY_DAYS", "SIXTY_DAYS", "NINETY_DAYS"], displayOrder: 0 },
   });
 
+  // New Visa pricing (Step 35, client update: pay right after the form) —
+  // one SAMPLE row (UAE, Normal) so the website form can actually be paid
+  // for in a fresh dev DB. Placeholder rates, not real prices — the client
+  // sets real country/processing-type rates at /admin/new-visa-pricing.
+  await db.newVisaPricing.upsert({
+    where: { countryId_processingType: { countryId: "cty_uae", processingType: "normal" } },
+    update: {},
+    create: { countryId: "cty_uae", processingType: "normal", adultPrice: 5000, childPrice: 3500, infantPrice: 1000, displayOrder: 0 },
+  });
+
   // New_Visa.md §8: "Default reference price: ₹5,000, configurable by
   // Admin." Eligibility conditions are the doc's own §8 list, transcribed
   // verbatim (real spec content, not a SAMPLE placeholder). termsText IS a

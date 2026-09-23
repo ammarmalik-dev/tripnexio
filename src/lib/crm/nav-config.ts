@@ -98,6 +98,7 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Countries", href: "/admin/countries", icon: Globe2 },
   { label: "Services", href: "/admin/services", icon: LayoutGrid },
   { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket },
+  { label: "New Visa Pricing", href: "/admin/new-visa-pricing", icon: Tags },
   { label: "Occupations", href: "/admin/occupations", icon: ClipboardList },
   { label: "OTB Timelines", href: "/admin/otb-rules", icon: Percent },
   { label: "Airports", href: "/admin/airports", icon: Building2 },

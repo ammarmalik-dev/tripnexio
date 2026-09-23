@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { getPaymentGateway } from "../payments/get-gateway";
 import { formatLeadReference } from "../leads/reference";
-import { getCheckoutDocumentTypes } from "./required-documents";
+import { getCheckoutDocumentTypes, getNewVisaCheckoutDocumentTypes } from "./required-documents";
 
 /** Loads everything the guest /pay/<token> page needs, or null for an unknown token. Never exposes internal fields (vendor cost, margin, staff notes). */
 export async function loadCheckoutByToken(token: string) {
@@ -25,6 +25,12 @@ export async function loadCheckoutByToken(token: string) {
   const gatewayFee = payment ? Number(payment.gatewayFee) : 0;
   const discount = Number(payment?.couponDiscount ?? 0);
 
+  const documentTypes = paid
+    ? booking.lead.serviceType === "NEW_VISA"
+      ? await getNewVisaCheckoutDocumentTypes()
+      : getCheckoutDocumentTypes(booking.lead.serviceType)
+    : [];
+
   return {
     booking,
     view: {
@@ -46,7 +52,7 @@ export async function loadCheckoutByToken(token: string) {
         : null,
       demoGateway: getPaymentGateway().providerName === "mock",
       applicants: booking.passengers.map((row) => ({ id: row.passenger.id, fullName: row.passenger.fullName })),
-      documentTypes: paid ? getCheckoutDocumentTypes(booking.lead.serviceType) : [],
+      documentTypes,
       documents: booking.documents
         .filter((document) => document.passengerId)
         .map((document) => ({ passengerId: document.passengerId as string, type: document.type, status: document.status })),

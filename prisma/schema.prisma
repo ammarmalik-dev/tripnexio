@@ -864,6 +864,7 @@ model Country {
   airports                Airport[]
   borders                 Border[]
   returnTicketDestination ReturnTicketDestination?
+  newVisaPricing          NewVisaPricing[]
 
   @@index([active])
 }
@@ -1329,6 +1330,36 @@ model ReturnTicketDestination {
 
   country Country @relation(fields: [countryId], references: [id])
 
+  @@index([active])
+}
+
+/// Admin-managed New Visa pricing (Step 35, client answer 2026-09-23: "pay
+/// right after the form" — the price must be auto-computable, not
+/// staff-quoted). Dimensions taken directly from what New_Visa.md's own
+/// locked flow already asks the customer for and shows before payment:
+/// destination country, Normal/Express processing, and separate Adult/Child
+/// pricing (§6/§8, locked rule — "Adult/Child pricing is separate").
+/// `visaType` (the sample tourist/business/etc. categories) is deliberately
+/// NOT a pricing dimension here — those are still illustrative sample
+/// options (see SAMPLE_VISA_TYPE_OPTIONS), and pricing by an invented
+/// category would be worse than not pricing by it at all; revisit if the
+/// client gives a real, final visa-type list.
+model NewVisaPricing {
+  id             String   @id @default(cuid())
+  countryId      String
+  /// "normal" | "urgent" — matches the existing processingType values used elsewhere (OTB, this form's own step).
+  processingType String
+  adultPrice     Decimal  @db.Decimal(10, 2)
+  childPrice     Decimal  @db.Decimal(10, 2)
+  infantPrice    Decimal  @db.Decimal(10, 2)
+  active         Boolean  @default(true)
+  displayOrder   Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id])
+
+  @@unique([countryId, processingType])
   @@index([active])
 }
 

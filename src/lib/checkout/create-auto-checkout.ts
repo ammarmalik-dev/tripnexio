@@ -3,6 +3,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { placeholderBookingId } from "../bookings/reference";
 import { createPendingPayment } from "../payments/create-payment";
+import { getProtectionPlanDefaultPrice } from "../settings/protection-plan-config";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 const DIRECT_VENDOR_NAME = "Direct (auto-priced)";
@@ -21,7 +22,7 @@ const DIRECT_VENDOR_NAME = "Direct (auto-priced)";
  */
 export async function createAutoCheckout(input: {
   leadId: string;
-  serviceType: Extract<ServiceType, "OTB" | "RETURN_TICKET">;
+  serviceType: Extract<ServiceType, "OTB" | "RETURN_TICKET" | "NEW_VISA">;
   totalPrice: number;
 }): Promise<{ token: string } | null> {
   const { leadId, serviceType, totalPrice } = input;
@@ -37,6 +38,13 @@ export async function createAutoCheckout(input: {
     (await db.vendor.create({ data: { name: DIRECT_VENDOR_NAME, service: serviceType } }));
 
   const token = crypto.randomBytes(16).toString("hex");
+
+  // New_Visa.md §6/step 10: "Protection Plan is offered after processing
+  // selection and before payment" — the staff-driven createBookingFromQuotation
+  // path already offers it for every New Visa booking; this auto-checkout
+  // path needs the exact same offer since New Visa no longer goes through
+  // that function (Step 35 pivot).
+  const protectionPlanPrice = serviceType === "NEW_VISA" ? await getProtectionPlanDefaultPrice() : null;
 
   const { booking, quotation } = await db.$transaction(async (tx) => {
     const createdQuotation = await tx.quotation.create({
@@ -65,6 +73,23 @@ export async function createAutoCheckout(input: {
     if (passengerIds.length > 0) {
       await tx.bookingPassenger.createMany({
         data: passengerIds.map((passengerId) => ({ bookingId: createdBooking.id, passengerId, status: "PENDING" as const })),
+      });
+    }
+
+    if (protectionPlanPrice !== null && passengerIds.length > 0) {
+      await tx.protectionPlan.createMany({
+        data: passengerIds.map((passengerId) => ({
+          bookingId: createdBooking.id,
+          passengerId,
+          status: "OFFERED",
+          price: protectionPlanPrice,
+        })),
+      });
+      await writeAudit(tx, {
+        entityType: "Booking",
+        entityId: createdBooking.id,
+        action: "PROTECTION_PLAN_OFFERED",
+        note: `Protection Plan offered to ${passengerIds.length} passenger(s) at ₹${protectionPlanPrice} each`,
       });
     }
 
