@@ -357,7 +357,7 @@ These are large, foundational modules described in exhaustive detail across ever
 
 **Step 32 notes:** `Airline.urgentProcessingHours`/`OtbRuleConfig.urgentProcessingHours` (renamed from `...Days`, a genuine unit change, not a smaller day count — client confirmed 8 working *hours*). New `workingHoursUntil()` (`src/lib/otb/processing-rules.ts`) computes business hours (Mon-Fri, 9am-6pm — **assumption, business hours weren't specified anywhere, flag for client confirmation**) against **IST** specifically (not UTC, since the app otherwise computes in UTC but the actual business operates on India time — a fixed +5:30 offset, no timezone library needed since India has no DST). `evaluateOtbTravelDate()`'s signature changed to take `travelDate` directly (computes both the day and hour checks internally) rather than a pre-computed day count. Seeded default is now the confirmed 8 hours (previously left unset). A real boundary bug was caught and fixed before landing (comparing an IST-shifted cursor against an un-shifted target day both mis-counted the travel day itself as available hours) — verified against hand-traced examples (partial first day, full multi-day span, weekend skip, before/after business hours, same-day travel) before touching the API layer.
 
-### Step 33 — New Visa: guardian relationship is Father/Mother only
+### Step 33 — New Visa: guardian relationship is Father/Mother only ✅
 **Audit ref:** Tier 1 #2
 **Problem:** `GUARDIAN_RELATIONSHIPS` in `src/lib/validation/new-visa-schema.ts` includes "Legal guardian" — the client has now confirmed only Father/Mother.
 
@@ -365,6 +365,8 @@ These are large, foundational modules described in exhaustive detail across ever
 > "Per the client's confirmed answer (2026-09-23), remove 'Legal guardian' from `GUARDIAN_RELATIONSHIPS`/`GUARDIAN_RELATIONSHIP_LABELS` in `src/lib/validation/new-visa-schema.ts`, leaving only Father/Mother. Update the New Visa traveller form's relationship dropdown accordingly. Verify a minor traveller's guardian-relationship field only offers the two options."
 
 ---
+
+**Step 33 notes:** `GUARDIAN_RELATIONSHIPS` now `["FATHER", "MOTHER"]` only. The form dropdown is generated from this array (not hardcoded), so no separate UI fix was needed. Verified server-side rejection of `"LEGAL_GUARDIAN"` (400) and acceptance of both remaining options with a real minor+guardian submission.
 
 ### Step 34 — Visa Extension & Visa Change: also require Visa Copy before Lead submission
 **Audit ref:** Tier 1 #3

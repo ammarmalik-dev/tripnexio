@@ -73,11 +73,11 @@ export const newVisaStep3Schema = z.object({
   protectionPlanTermsAccepted: z.boolean(),
 });
 
-export const GUARDIAN_RELATIONSHIPS = ["FATHER", "MOTHER", "LEGAL_GUARDIAN"] as const;
+/** Client confirmed (2026-09-23): Father/Mother only — no Legal Guardian option. */
+export const GUARDIAN_RELATIONSHIPS = ["FATHER", "MOTHER"] as const;
 export const GUARDIAN_RELATIONSHIP_LABELS: Record<(typeof GUARDIAN_RELATIONSHIPS)[number], string> = {
   FATHER: "Father",
   MOTHER: "Mother",
-  LEGAL_GUARDIAN: "Legal guardian",
 };
 export const MAX_ADDITIONAL_TRAVELLERS = 8;
 
