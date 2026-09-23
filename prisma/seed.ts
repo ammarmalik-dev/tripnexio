@@ -336,35 +336,99 @@ async function main() {
     create: sampleDocRequirement2,
   });
 
-  const samplePricingRule1 = {
-    id: "sample-pricing-rule-1",
-    serviceType: "NEW_VISA" as const,
-    paxType: "ADULT" as const,
-    nationality: null,
-    basePrice: 2000,
-    additionalCharges: 200,
-  };
-  await db.pricingRule.upsert({ where: { id: "sample-pricing-rule-1" }, update: samplePricingRule1, create: samplePricingRule1 });
+  // Step 40 (Admin FINAL handover §4): PricingRule is now the real central
+  // pricing control — replaces the retired NewVisaPricing model. This
+  // UAE/normal set (adult/child/infant) is what makes a fresh dev DB's New
+  // Visa website form actually payable end-to-end, same rates the old
+  // NewVisaPricing sample row used. A second, nationality-specific override
+  // row demonstrates that dimension still works (not used by New Visa's own
+  // lookup today, since its form never asks nationality — see
+  // computeNewVisaPrice's own doc comment — but real for any future service
+  // that does ask).
+  //
+  // PricingRule has no DB-level unique constraint on the (serviceType,
+  // countryId, processingType, paxType, nationality) tuple (see the
+  // model's own doc comment), so a plain upsert-by-fixed-id can't detect a
+  // pre-existing row created by something else with a different id — which
+  // is exactly what happens on a DB that went through the Step 40
+  // migration (it data-migrates the old NewVisaPricing sample row into
+  // PricingRule with a random id) and then this seed. find-or-create by
+  // the semantic key instead, so re-running this after that migration
+  // converges onto the migrated row rather than creating a duplicate.
+  async function upsertPricingRuleByKey(input: {
+    fallbackId: string;
+    serviceType: "NEW_VISA";
+    countryId: string | null;
+    processingType: string | null;
+    paxType: "ADULT" | "CHILD" | "INFANT";
+    nationality: string | null;
+    vendorCost: number;
+    sellingPrice: number;
+    additionalCharges: number;
+  }) {
+    const { fallbackId, ...fields } = input;
+    const existing = await db.pricingRule.findFirst({
+      where: {
+        serviceType: fields.serviceType,
+        countryId: fields.countryId,
+        processingType: fields.processingType,
+        paxType: fields.paxType,
+        nationality: fields.nationality,
+      },
+    });
+    if (existing) {
+      return db.pricingRule.update({ where: { id: existing.id }, data: fields });
+    }
+    return db.pricingRule.create({ data: { id: fallbackId, ...fields } });
+  }
 
-  const samplePricingRule2 = {
-    id: "sample-pricing-rule-2",
-    serviceType: "NEW_VISA" as const,
-    paxType: "CHILD" as const,
+  await upsertPricingRuleByKey({
+    fallbackId: "sample-pricing-rule-1",
+    serviceType: "NEW_VISA",
+    countryId: "cty_uae",
+    processingType: "normal",
+    paxType: "ADULT",
     nationality: null,
-    basePrice: 1200,
-    additionalCharges: 100,
-  };
-  await db.pricingRule.upsert({ where: { id: "sample-pricing-rule-2" }, update: samplePricingRule2, create: samplePricingRule2 });
+    vendorCost: 0,
+    sellingPrice: 5000,
+    additionalCharges: 0,
+  });
 
-  const samplePricingRule3 = {
-    id: "sample-pricing-rule-3",
-    serviceType: "NEW_VISA" as const,
-    paxType: "ADULT" as const,
+  await upsertPricingRuleByKey({
+    fallbackId: "sample-pricing-rule-2",
+    serviceType: "NEW_VISA",
+    countryId: "cty_uae",
+    processingType: "normal",
+    paxType: "CHILD",
+    nationality: null,
+    vendorCost: 0,
+    sellingPrice: 3500,
+    additionalCharges: 0,
+  });
+
+  await upsertPricingRuleByKey({
+    fallbackId: "sample-pricing-rule-3",
+    serviceType: "NEW_VISA",
+    countryId: "cty_uae",
+    processingType: "normal",
+    paxType: "INFANT",
+    nationality: null,
+    vendorCost: 0,
+    sellingPrice: 1000,
+    additionalCharges: 0,
+  });
+
+  await upsertPricingRuleByKey({
+    fallbackId: "sample-pricing-rule-4",
+    serviceType: "NEW_VISA",
+    countryId: null,
+    processingType: null,
+    paxType: "ADULT",
     nationality: "Sample Nationality",
-    basePrice: 2500,
+    vendorCost: 0,
+    sellingPrice: 2500,
     additionalCharges: 200,
-  };
-  await db.pricingRule.upsert({ where: { id: "sample-pricing-rule-3" }, update: samplePricingRule3, create: samplePricingRule3 });
+  });
 
   const sampleCoupon1 = {
     code: "SAMPLE10",
@@ -641,15 +705,9 @@ async function main() {
     create: { countryId: "cty_uae", ratePerApplicant: 100, validityOptions: ["THIRTY_DAYS", "SIXTY_DAYS", "NINETY_DAYS"], displayOrder: 0 },
   });
 
-  // New Visa pricing (Step 35, client update: pay right after the form) —
-  // one SAMPLE row (UAE, Normal) so the website form can actually be paid
-  // for in a fresh dev DB. Placeholder rates, not real prices — the client
-  // sets real country/processing-type rates at /admin/new-visa-pricing.
-  await db.newVisaPricing.upsert({
-    where: { countryId_processingType: { countryId: "cty_uae", processingType: "normal" } },
-    update: {},
-    create: { countryId: "cty_uae", processingType: "normal", adultPrice: 5000, childPrice: 3500, infantPrice: 1000, displayOrder: 0 },
-  });
+  // New Visa pricing (Step 35, "pay right after the form"; Step 40, moved
+  // onto the central PricingRule table) — the UAE/normal sample rows are
+  // seeded above alongside the rest of PricingRule's sample data.
 
   // New_Visa.md §8: "Default reference price: ₹5,000, configurable by
   // Admin." Eligibility conditions are the doc's own §8 list, transcribed

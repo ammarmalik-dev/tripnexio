@@ -151,10 +151,15 @@ export async function POST(request: NextRequest) {
     try {
       const price = await computeNewVisaPrice({ countryCode: destinationCountry, processingType, travellerPaxTypes: paxTypes });
       if (price) {
-        const checkout = await createAutoCheckout({ leadId: result.leadId, serviceType: "NEW_VISA", totalPrice: price.total });
+        const checkout = await createAutoCheckout({
+          leadId: result.leadId,
+          serviceType: "NEW_VISA",
+          totalPrice: price.total,
+          vendorCost: price.vendorCost,
+        });
         payToken = checkout?.token;
       } else {
-        console.warn(`[api/leads/new-visa] no NewVisaPricing configured for country=${destinationCountry} processingType=${processingType}`);
+        console.warn(`[api/leads/new-visa] no PricingRule configured for country=${destinationCountry} processingType=${processingType}`);
       }
     } catch (checkoutError) {
       console.error("[api/leads/new-visa] auto checkout failed", checkoutError);

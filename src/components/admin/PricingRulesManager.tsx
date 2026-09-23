@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
+import { SelectField } from "@/components/forms/SelectField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { SERVICE_TYPE_OPTIONS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
@@ -15,14 +16,30 @@ import { cn } from "@/lib/cn";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
+const PROCESSING_TYPE_OPTIONS = [
+  { value: "normal", label: "Normal" },
+  { value: "urgent", label: "Urgent" },
+];
+
+interface CountryData {
+  id: string;
+  name: string;
+  active: boolean;
+}
 
 interface PricingRuleData {
   id: string;
   serviceType: ServiceType;
+  countryId: string | null;
+  country: { id: string; name: string; code: string } | null;
+  processingType: string | null;
   paxType: PaxType;
   nationality: string | null;
-  basePrice: string;
+  vendorCost: string;
+  sellingPrice: string;
   additionalCharges: string;
+  validityFrom: string | null;
+  validityUntil: string | null;
   active: boolean;
 }
 
@@ -30,21 +47,42 @@ type FetchState = "loading" | "success" | "error";
 
 interface FormState {
   serviceType: ServiceType | "";
+  countryId: string;
+  processingType: "" | "normal" | "urgent";
   paxType: PaxType | "";
   nationality: string;
-  basePrice: string;
+  vendorCost: string;
+  sellingPrice: string;
   additionalCharges: string;
+  validityFrom: string;
+  validityUntil: string;
 }
 
-const EMPTY_FORM: FormState = { serviceType: "", paxType: "", nationality: "", basePrice: "", additionalCharges: "0" };
+const EMPTY_FORM: FormState = {
+  serviceType: "",
+  countryId: "",
+  processingType: "",
+  paxType: "",
+  nationality: "",
+  vendorCost: "0",
+  sellingPrice: "",
+  additionalCharges: "0",
+  validityFrom: "",
+  validityUntil: "",
+};
 
 function toFormState(rule: PricingRuleData): FormState {
   return {
     serviceType: rule.serviceType,
+    countryId: rule.countryId ?? "",
+    processingType: (rule.processingType as "normal" | "urgent" | null) ?? "",
     paxType: rule.paxType,
     nationality: rule.nationality ?? "",
-    basePrice: rule.basePrice,
+    vendorCost: rule.vendorCost,
+    sellingPrice: rule.sellingPrice,
     additionalCharges: rule.additionalCharges,
+    validityFrom: rule.validityFrom ? rule.validityFrom.slice(0, 10) : "",
+    validityUntil: rule.validityUntil ? rule.validityUntil.slice(0, 10) : "",
   };
 }
 
@@ -53,11 +91,13 @@ function PricingFields({
   onChange,
   errors,
   disabled,
+  countries,
 }: {
   form: FormState;
   onChange: (next: FormState) => void;
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
+  countries: CountryData[];
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -73,6 +113,33 @@ function PricingFields({
             Select a service
           </option>
           {SERVICE_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </FormField>
+      <SelectField
+        label="Country"
+        name="countryId"
+        placeholder="All countries (not country-specific)"
+        options={countries.map((c) => ({ value: c.id, label: c.name }))}
+        value={form.countryId}
+        onChange={(event) => onChange({ ...form, countryId: event.target.value })}
+        error={errors.countryId?.[0]}
+        disabled={disabled}
+        hint="Optional — leave unset for a rule not tied to a destination country."
+      />
+      <FormField label="Processing Type" htmlFor="processingType" error={errors.processingType?.[0]}>
+        <select
+          id="processingType"
+          value={form.processingType}
+          disabled={disabled}
+          onChange={(event) => onChange({ ...form, processingType: event.target.value as "" | "normal" | "urgent" })}
+          className={cn(fieldControlClass, fieldBorderClass(!!errors.processingType))}
+        >
+          <option value="">Any / not applicable</option>
+          {PROCESSING_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -108,13 +175,24 @@ function PricingFields({
         hint="Optional — leave blank for a rule that applies to every nationality."
       />
       <TextField
-        label="Base Price (₹)"
-        name="basePrice"
+        label="Vendor Cost (₹)"
+        name="vendorCost"
         type="number"
         step="0.01"
-        value={form.basePrice}
-        onChange={(event) => onChange({ ...form, basePrice: event.target.value })}
-        error={errors.basePrice?.[0]}
+        value={form.vendorCost}
+        onChange={(event) => onChange({ ...form, vendorCost: event.target.value })}
+        error={errors.vendorCost?.[0]}
+        disabled={disabled}
+        hint="Internal — never shown to the customer."
+      />
+      <TextField
+        label="Selling Price (₹)"
+        name="sellingPrice"
+        type="number"
+        step="0.01"
+        value={form.sellingPrice}
+        onChange={(event) => onChange({ ...form, sellingPrice: event.target.value })}
+        error={errors.sellingPrice?.[0]}
         disabled={disabled}
       />
       <TextField
@@ -128,6 +206,26 @@ function PricingFields({
         disabled={disabled}
         hint="e.g. service fee, processing charge."
       />
+      <TextField
+        label="Validity From"
+        name="validityFrom"
+        type="date"
+        value={form.validityFrom}
+        onChange={(event) => onChange({ ...form, validityFrom: event.target.value })}
+        error={errors.validityFrom?.[0]}
+        disabled={disabled}
+        hint="Optional."
+      />
+      <TextField
+        label="Validity Until"
+        name="validityUntil"
+        type="date"
+        value={form.validityUntil}
+        onChange={(event) => onChange({ ...form, validityUntil: event.target.value })}
+        error={errors.validityUntil?.[0]}
+        disabled={disabled}
+        hint="Optional."
+      />
     </div>
   );
 }
@@ -135,14 +233,27 @@ function PricingFields({
 function buildPayload(form: FormState) {
   return {
     serviceType: form.serviceType || undefined,
+    countryId: form.countryId === "" ? undefined : form.countryId,
+    processingType: form.processingType === "" ? undefined : form.processingType,
     paxType: form.paxType || undefined,
     nationality: form.nationality.trim() === "" ? undefined : form.nationality.trim(),
-    basePrice: form.basePrice === "" ? undefined : Number(form.basePrice),
+    vendorCost: form.vendorCost === "" ? 0 : Number(form.vendorCost),
+    sellingPrice: form.sellingPrice === "" ? undefined : Number(form.sellingPrice),
     additionalCharges: form.additionalCharges === "" ? 0 : Number(form.additionalCharges),
+    validityFrom: form.validityFrom === "" ? undefined : form.validityFrom,
+    validityUntil: form.validityUntil === "" ? undefined : form.validityUntil,
   };
 }
 
-function PricingCard({ rule, onSaved }: { rule: PricingRuleData; onSaved: (rule: PricingRuleData) => void }) {
+function PricingCard({
+  rule,
+  countries,
+  onSaved,
+}: {
+  rule: PricingRuleData;
+  countries: CountryData[];
+  onSaved: (rule: PricingRuleData) => void;
+}) {
   const [form, setForm] = useState<FormState>(toFormState(rule));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -190,7 +301,7 @@ function PricingCard({ rule, onSaved }: { rule: PricingRuleData; onSaved: (rule:
           {rule.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <PricingFields form={form} onChange={setForm} errors={errors} disabled={saving} />
+      <PricingFields form={form} onChange={setForm} errors={errors} disabled={saving} countries={countries} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -200,7 +311,7 @@ function PricingCard({ rule, onSaved }: { rule: PricingRuleData; onSaved: (rule:
   );
 }
 
-function NewPricingRuleForm({ onCreated }: { onCreated: (rule: PricingRuleData) => void }) {
+function NewPricingRuleForm({ countries, onCreated }: { countries: CountryData[]; onCreated: (rule: PricingRuleData) => void }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
@@ -221,12 +332,12 @@ function NewPricingRuleForm({ onCreated }: { onCreated: (rule: PricingRuleData) 
     }
   };
 
-  const canSubmit = form.serviceType && form.paxType && form.basePrice.trim() !== "";
+  const canSubmit = form.serviceType && form.paxType && form.sellingPrice.trim() !== "";
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Pricing Rule</h2>
-      <PricingFields form={form} onChange={setForm} errors={errors} disabled={creating} />
+      <PricingFields form={form} onChange={setForm} errors={errors} disabled={creating} countries={countries} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -237,9 +348,20 @@ function NewPricingRuleForm({ onCreated }: { onCreated: (rule: PricingRuleData) 
   );
 }
 
+/**
+ * Step 40 (Admin FINAL handover §4): "Use the existing Pricing module as
+ * the central pricing control" — this is now the real price-computation
+ * source for New Visa (and any future auto-priced service), not just a
+ * staff-facing reference table. Deliberately does NOT cover OTB
+ * (Airline.normalPrice/urgentPrice, keyed by airline not country) or
+ * Return Ticket (ReturnTicketDestination.ratePerApplicant, flat rate,
+ * currently no adult/child/infant split) — see PricingRule's own schema
+ * doc comment for why those two were flagged rather than force-merged.
+ */
 export function PricingRulesManager() {
   const [state, setState] = useState<FetchState>("loading");
   const [rules, setRules] = useState<PricingRuleData[]>([]);
+  const [countries, setCountries] = useState<CountryData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
 
@@ -249,9 +371,13 @@ export function PricingRulesManager() {
     async function load() {
       setState("loading");
       try {
-        const result = await getJson<PricingRuleData[]>("/api/admin/pricing-rules");
+        const [ruleList, countryList] = await Promise.all([
+          getJson<PricingRuleData[]>("/api/admin/pricing-rules"),
+          getJson<CountryData[]>("/api/admin/countries"),
+        ]);
         if (cancelled) return;
-        setRules(result);
+        setRules(ruleList);
+        setCountries(countryList.filter((c) => c.active));
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -270,7 +396,7 @@ export function PricingRulesManager() {
     return (
       <div className="flex flex-col gap-3">
         {Array.from({ length: 2 }).map((_, index) => (
-          <Skeleton key={index} className="h-40 w-full" />
+          <Skeleton key={index} className="h-56 w-full" />
         ))}
       </div>
     );
@@ -299,11 +425,12 @@ export function PricingRulesManager() {
           <PricingCard
             key={rule.id}
             rule={rule}
+            countries={countries}
             onSaved={(updated) => setRules((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
           />
         ))
       )}
-      <NewPricingRuleForm onCreated={(created) => setRules((current) => [...current, created])} />
+      <NewPricingRuleForm countries={countries} onCreated={(created) => setRules((current) => [...current, created])} />
     </div>
   );
 }

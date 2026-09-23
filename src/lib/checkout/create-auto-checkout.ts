@@ -19,13 +19,20 @@ const DIRECT_VENDOR_NAME = "Direct (auto-priced)";
  * The quotation needs a vendor: an active vendor for the service if one
  * exists, otherwise an internal "Direct (auto-priced)" one (vendorCost 0, so
  * margin equals the price until staff enter the real cost).
+ *
+ * `vendorCost` (Step 40) is optional and defaults to 0 — only New Visa's
+ * central PricingRule actually tracks a vendor cost figure today (OTB's
+ * `Airline`/Return Ticket's `ReturnTicketDestination` have no such field),
+ * so those two callers keep the pre-existing "margin equals the price"
+ * behavior unless/until they gain one too.
  */
 export async function createAutoCheckout(input: {
   leadId: string;
   serviceType: Extract<ServiceType, "OTB" | "RETURN_TICKET" | "NEW_VISA">;
   totalPrice: number;
+  vendorCost?: number;
 }): Promise<{ token: string } | null> {
-  const { leadId, serviceType, totalPrice } = input;
+  const { leadId, serviceType, totalPrice, vendorCost = 0 } = input;
   if (!(totalPrice > 0)) return null;
 
   const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
@@ -53,11 +60,11 @@ export async function createAutoCheckout(input: {
       data: {
         leadId,
         vendorId: vendor.id,
-        vendorCost: 0,
+        vendorCost,
         feeAmount: totalPrice,
         fineOrCharges: 0,
         sellingPrice: totalPrice,
-        margin: totalPrice,
+        margin: totalPrice - vendorCost,
         isSelected: true,
       },
     });
@@ -99,7 +106,7 @@ export async function createAutoCheckout(input: {
       entityType: "Quotation",
       entityId: createdQuotation.id,
       action: "CREATE",
-      note: `Automatic quotation ₹${totalPrice} from Admin-configured pricing (website checkout)`,
+      note: `Automatic quotation ₹${totalPrice} from Admin-configured pricing (website checkout)${vendorCost > 0 ? ` — vendor cost ₹${vendorCost}` : ""}`,
     });
     await writeAudit(tx, {
       entityType: "Booking",

@@ -15,6 +15,12 @@ export interface SelectFieldProps extends Omit<SelectHTMLAttributes<HTMLSelectEl
 
 export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
   ({ name, label, options, placeholder = "Select an option", error, hint, required, className, ...props }, ref) => {
+    // React errors if both `value` and `defaultValue` are set on the same
+    // <select> (controlled vs. uncontrolled must be picked, not both) — a
+    // controlled caller (passing `value`, e.g. PricingRulesManager) must
+    // not also get the `defaultValue=""` this component uses for its
+    // uncontrolled/react-hook-form-register() callers (which pass neither).
+    const controlled = "value" in props;
     return (
       <FormField label={label} htmlFor={name} error={error} hint={hint} required={required}>
         <div className="relative">
@@ -22,7 +28,7 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
             ref={ref}
             id={name}
             name={name}
-            defaultValue=""
+            {...(controlled ? {} : { defaultValue: "" })}
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : hint ? `${name}-hint` : undefined}
             className={cn(fieldControlClass, fieldBorderClass(!!error), "appearance-none pr-9", className)}

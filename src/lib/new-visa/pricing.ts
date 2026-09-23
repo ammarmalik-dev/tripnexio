@@ -5,15 +5,18 @@ export interface NewVisaPriceBreakdown {
   ratePerType: { adultPrice: number; childPrice: number; infantPrice: number };
   travellerCount: number;
   total: number;
+  /** Step 40 — summed from PricingRule.vendorCost across all travellers, so New Visa's auto-checkout can finally record a real margin instead of always defaulting to 0. */
+  vendorCost: number;
 }
 
 /**
- * Auto-computes the New Visa total from Admin-configured `NewVisaPricing`
- * (country + Normal/Express, separate Adult/Child/Infant rates — see the
- * model's own doc comment for why visaType isn't a pricing dimension).
- * Returns null when no rate is configured for this country+processingType,
- * so the caller can fail safe (no payment created, no price guessed) rather
- * than silently charging ₹0 or fabricating a number.
+ * Step 40 (Admin FINAL handover §4): reads the central `PricingRule` table
+ * — replaces the retired `NewVisaPricing` model. One row per
+ * (NEW_VISA, country, processingType, paxType) with `nationality: null`
+ * (New Visa's own form never asks nationality, so only the catch-all rows
+ * apply). Returns `null` — never a guessed/fallback price — if any
+ * traveller's paxType has no configured rule, matching the old function's
+ * fail-safe behavior exactly.
  */
 export async function computeNewVisaPrice(input: {
   countryCode: string;
@@ -23,21 +26,40 @@ export async function computeNewVisaPrice(input: {
   const country = await db.country.findUnique({ where: { code: input.countryCode } });
   if (!country) return null;
 
-  const rule = await db.newVisaPricing.findFirst({
-    where: { countryId: country.id, processingType: input.processingType, active: true, country: { active: true } },
+  const uniquePaxTypes = [...new Set(input.travellerPaxTypes)];
+  const rules = await db.pricingRule.findMany({
+    where: {
+      serviceType: "NEW_VISA",
+      countryId: country.id,
+      processingType: input.processingType,
+      paxType: { in: uniquePaxTypes },
+      nationality: null,
+      active: true,
+      country: { active: true },
+    },
   });
-  if (!rule) return null;
+
+  const ruleFor = (paxType: PaxType) => rules.find((rule) => rule.paxType === paxType);
+  if (uniquePaxTypes.some((paxType) => !ruleFor(paxType))) return null;
+
+  const rateFor = (paxType: PaxType) => {
+    const rule = ruleFor(paxType)!;
+    return Number(rule.sellingPrice) + Number(rule.additionalCharges);
+  };
+  const vendorCostFor = (paxType: PaxType) => Number(ruleFor(paxType)!.vendorCost);
 
   const ratePerType = {
-    adultPrice: Number(rule.adultPrice),
-    childPrice: Number(rule.childPrice),
-    infantPrice: Number(rule.infantPrice),
+    adultPrice: uniquePaxTypes.includes("ADULT") ? rateFor("ADULT") : 0,
+    childPrice: uniquePaxTypes.includes("CHILD") ? rateFor("CHILD") : 0,
+    infantPrice: uniquePaxTypes.includes("INFANT") ? rateFor("INFANT") : 0,
   };
 
-  const rateFor = (paxType: PaxType) =>
-    paxType === "ADULT" ? ratePerType.adultPrice : paxType === "CHILD" ? ratePerType.childPrice : ratePerType.infantPrice;
+  let total = 0;
+  let vendorCost = 0;
+  for (const paxType of input.travellerPaxTypes) {
+    total += rateFor(paxType);
+    vendorCost += vendorCostFor(paxType);
+  }
 
-  const total = input.travellerPaxTypes.reduce((sum, paxType) => sum + rateFor(paxType), 0);
-
-  return { ratePerType, travellerCount: input.travellerPaxTypes.length, total };
+  return { ratePerType, travellerCount: input.travellerPaxTypes.length, total, vendorCost };
 }

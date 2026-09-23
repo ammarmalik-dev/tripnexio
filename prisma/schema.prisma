@@ -887,7 +887,7 @@ model Country {
   airports                Airport[]
   borders                 Border[]
   returnTicketDestination ReturnTicketDestination?
-  newVisaPricing          NewVisaPricing[]
+  pricingRules            PricingRule[]
 
   @@index([active])
 }
@@ -976,26 +976,68 @@ model DocumentRequirement {
   @@index([active])
 }
 
-/// Reference pricing per service/pax-type, optionally overridden per
-/// nationality where the spec requires it (nationality = null means the
-/// rule applies to every nationality). This is a staff-facing reference
-/// table, not an automated pricing engine — the quote builder still takes
-/// staff-entered figures per quotation; wiring this in as a default/
-/// suggestion is future work.
+/// Step 40 (Admin FINAL handover §4 — "Use the existing Pricing module as
+/// the central pricing control"): the real price-computation source for
+/// New Visa (migrated off the retired NewVisaPricing model) and any future
+/// auto-priced service, not just a staff-facing reference table anymore.
+/// One row per service/country/processingType/paxType(/nationality
+/// override) — mirrors NewVisaPricing's country+processingType keying,
+/// generalized across services. `countryId`/`processingType` are nullable
+/// since not every service needs them (§4: "country where applicable").
+/// `nationality` = null means the rule applies to every nationality; a
+/// specific value overrides it. No DB-level uniqueness beyond the FK/index
+/// below (nullable-column uniqueness semantics get messy in Postgres —
+/// multiple NULLs are allowed, same reasoning as this model's own original
+/// doc comment) — the admin routes check for an exact-match duplicate
+/// server-side instead.
+///
+/// **Frozen-price rule preserved**: this table is read only at
+/// quotation-creation time (createAutoCheckout / the manual quote-builder
+/// route) — Quotation.sellingPrice/vendorCost/margin are snapshotted as
+/// plain stored columns with no FK back here, so an Admin editing a rule
+/// later never changes an already-quoted/booked price (ADMIN.md §19,
+/// locked: "paid bookings retain their committed pricing/configuration
+/// snapshot").
+///
+/// **Deliberately NOT unified here** (§4 permits leaving a genuinely
+/// bad-fit service as-is rather than forcing it): OTB's rate
+/// (`Airline.normalPrice`/`urgentPrice`) is keyed by *airline*, not
+/// country — there's no country dimension in OTB's own locked pricing
+/// spec at all, so folding it in would mean inventing a fake country per
+/// airline or bolting on a second identifying key, not a clean fit.
+/// Return Ticket's `ReturnTicketDestination.ratePerApplicant` stays a flat
+/// per-country rate too — its own locked spec (Return_Verified_Ticket.md
+/// §11) actually describes adult/child/infant pricing, but that was never
+/// built; migrating it here would mean fabricating child/infant prices
+/// that don't exist today, which hard rule #1 forbids. Both are flagged
+/// for the client to weigh in on, not silently forced into this shape.
 model PricingRule {
   id                String      @id @default(cuid())
   serviceType       ServiceType
+  countryId         String?
+  /// "normal" | "urgent" — same convention as New Visa's/OTB's own processingType strings elsewhere. Null = not applicable to this service.
+  processingType    String?
   paxType           PaxType
   /// null = applies to all nationalities; a specific value overrides it.
   nationality       String?
-  basePrice         Decimal     @db.Decimal(10, 2)
+  /// Internal — never shown to the customer. Same never-trust-the-client
+  /// pattern as Quotation.vendorCost/margin: staff/Admin-entered, used to
+  /// compute the auto-priced Quotation's own margin at checkout time.
+  vendorCost        Decimal     @default(0) @db.Decimal(10, 2)
+  sellingPrice      Decimal     @db.Decimal(10, 2)
   additionalCharges Decimal     @default(0) @db.Decimal(10, 2)
+  validityFrom      DateTime?
+  validityUntil     DateTime?
   active            Boolean     @default(true)
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
+  country Country? @relation(fields: [countryId], references: [id])
+
   @@index([serviceType])
   @@index([active])
+  @@index([countryId])
+  @@index([serviceType, countryId, processingType])
 }
 
 enum CouponType {
@@ -1353,36 +1395,6 @@ model ReturnTicketDestination {
 
   country Country @relation(fields: [countryId], references: [id])
 
-  @@index([active])
-}
-
-/// Admin-managed New Visa pricing (Step 35, client answer 2026-09-23: "pay
-/// right after the form" — the price must be auto-computable, not
-/// staff-quoted). Dimensions taken directly from what New_Visa.md's own
-/// locked flow already asks the customer for and shows before payment:
-/// destination country, Normal/Express processing, and separate Adult/Child
-/// pricing (§6/§8, locked rule — "Adult/Child pricing is separate").
-/// `visaType` (the sample tourist/business/etc. categories) is deliberately
-/// NOT a pricing dimension here — those are still illustrative sample
-/// options (see SAMPLE_VISA_TYPE_OPTIONS), and pricing by an invented
-/// category would be worse than not pricing by it at all; revisit if the
-/// client gives a real, final visa-type list.
-model NewVisaPricing {
-  id             String   @id @default(cuid())
-  countryId      String
-  /// "normal" | "urgent" — matches the existing processingType values used elsewhere (OTB, this form's own step).
-  processingType String
-  adultPrice     Decimal  @db.Decimal(10, 2)
-  childPrice     Decimal  @db.Decimal(10, 2)
-  infantPrice    Decimal  @db.Decimal(10, 2)
-  active         Boolean  @default(true)
-  displayOrder   Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  country Country @relation(fields: [countryId], references: [id])
-
-  @@unique([countryId, processingType])
   @@index([active])
 }
 
