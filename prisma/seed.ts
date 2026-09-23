@@ -177,17 +177,56 @@ async function main() {
   });
   console.log(`Sample staff login ready: ${staffUser.email} / ${SAMPLE_STAFF_PASSWORD} (dev only — change before deploying)`);
 
-  const sampleVendor = await db.vendor.upsert({
-    where: { id: "sample-vendor-1" },
-    update: {},
-    create: { id: "sample-vendor-1", name: "Sample Vendor A", service: "NEW_VISA", active: true },
+  // Step 36 (Admin FINAL handover §12): Vendor.service was replaced by a
+  // VendorService join table so one vendor can cover multiple services.
+  // Sample Vendor A is re-seeded covering TWO services specifically to
+  // demonstrate that (it was NEW_VISA-only before this step). Service links
+  // are synced via delete+recreate rather than nested upsert fields, so
+  // re-running the seed always converges to this exact list.
+  async function upsertSampleVendor(input: {
+    id: string;
+    name: string;
+    services: Array<"NEW_VISA" | "VISA_EXTENSION" | "FLIGHT_SPECIAL_FARE">;
+    pocName: string;
+    mobile: string;
+    email: string;
+  }) {
+    const fields = {
+      name: input.name,
+      pocName: input.pocName,
+      mobile: input.mobile,
+      email: input.email,
+      processingDetails: "Sample processing notes — replace with the real vendor's workflow.",
+      availability: "Mon–Sat, 9am–8pm IST",
+      active: true,
+    };
+    const vendor = await db.vendor.upsert({
+      where: { id: input.id },
+      update: fields,
+      create: { id: input.id, ...fields },
+    });
+    await db.vendorService.deleteMany({ where: { vendorId: vendor.id } });
+    await db.vendorService.createMany({ data: input.services.map((service) => ({ vendorId: vendor.id, service })) });
+    return vendor;
+  }
+
+  const sampleVendor = await upsertSampleVendor({
+    id: "sample-vendor-1",
+    name: "Sample Vendor A",
+    services: ["NEW_VISA", "VISA_EXTENSION"],
+    pocName: "Sample POC",
+    mobile: "+91 90000 00001",
+    email: "vendor-a@example.com",
   });
-  const sampleFlightVendor = await db.vendor.upsert({
-    where: { id: "sample-vendor-2" },
-    update: {},
-    create: { id: "sample-vendor-2", name: "Sample Flight Consolidator", service: "FLIGHT_SPECIAL_FARE", active: true },
+  const sampleFlightVendor = await upsertSampleVendor({
+    id: "sample-vendor-2",
+    name: "Sample Flight Consolidator",
+    services: ["FLIGHT_SPECIAL_FARE"],
+    pocName: "Sample Flight POC",
+    mobile: "+91 90000 00002",
+    email: "vendor-b@example.com",
   });
-  console.log(`Sample vendors ready: ${sampleVendor.name}, ${sampleFlightVendor.name}`);
+  console.log(`Sample vendors ready: ${sampleVendor.name} (2 services), ${sampleFlightVendor.name} (1 service)`);
 
   // Every masters upsert below repeats its fields in both `update` and
   // `create` — an empty `update: {}` was tried first, but that's a no-op

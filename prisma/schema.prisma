@@ -804,18 +804,41 @@ model Task {
 // Vendor
 // ---------------------------------------------------------------------------
 
+/// §12 (Admin FINAL handover): one vendor can support multiple services/sub-services
+/// without duplicate Vendor rows — service coverage lives on VendorService below.
+/// Vendor cost/rate stays trackable service-wise through each Quotation's own
+/// vendorCost (a Quotation is always scoped to its Lead's serviceType), not a field here.
 model Vendor {
-  id        String      @id @default(cuid())
-  name      String
-  service   ServiceType
-  active    Boolean     @default(true)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  mobile            String?
+  email             String?
+  pocName           String?
+  processingDetails String?
+  availability      String?
+  gstNumber         String?
+  paymentDetails    String?
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
+  services   VendorService[]
   quotations Quotation[]
 
-  @@index([service])
   @@index([active])
+}
+
+/// Join table: which services/sub-services a Vendor is linked to (§12 "service coverage").
+model VendorService {
+  id        String      @id @default(cuid())
+  vendorId  String
+  service   ServiceType
+  createdAt DateTime    @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id])
+
+  @@unique([vendorId, service])
+  @@index([service])
 }
 
 // ---------------------------------------------------------------------------

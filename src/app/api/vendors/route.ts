@@ -24,9 +24,12 @@ export async function GET(request: NextRequest) {
   }
 
   const vendors = await db.vendor.findMany({
-    where: { active: true, ...(service ? { service: service as ServiceType } : {}) },
+    where: {
+      active: true,
+      ...(service ? { services: { some: { service: service as ServiceType } } } : {}),
+    },
     orderBy: { name: "asc" },
   });
 
-  return jsonSuccess(vendors.map((vendor) => ({ id: vendor.id, name: vendor.name, service: vendor.service })));
+  return jsonSuccess(vendors.map((vendor) => ({ id: vendor.id, name: vendor.name })));
 }

@@ -31,8 +31,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const existing = await db.vendor.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Vendor not found.");
 
+  const { services, ...vendorFields } = parsed.data;
+
   const updated = await db.$transaction(async (tx) => {
-    const result = await tx.vendor.update({ where: { id }, data: parsed.data });
+    if (services) {
+      // Replace the vendor's service coverage wholesale — simpler and safer than
+      // diffing add/remove, and this route is never called with a huge service list.
+      await tx.vendorService.deleteMany({ where: { vendorId: id } });
+      await tx.vendorService.createMany({ data: services.map((service) => ({ vendorId: id, service })) });
+    }
+    const result = await tx.vendor.update({
+      where: { id },
+      data: vendorFields,
+      include: { services: { orderBy: { service: "asc" } } },
+    });
     await writeAudit(tx, {
       entityType: "Vendor",
       entityId: id,

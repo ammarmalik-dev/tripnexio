@@ -34,8 +34,10 @@ export async function createAutoCheckout(input: {
   const passengerIds = Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [];
 
   const vendor =
-    (await db.vendor.findFirst({ where: { service: serviceType, active: true }, orderBy: { createdAt: "asc" } })) ??
-    (await db.vendor.create({ data: { name: DIRECT_VENDOR_NAME, service: serviceType } }));
+    (await db.vendor.findFirst({
+      where: { active: true, services: { some: { service: serviceType } } },
+      orderBy: { createdAt: "asc" },
+    })) ?? (await db.vendor.create({ data: { name: DIRECT_VENDOR_NAME, services: { create: [{ service: serviceType }] } } }));
 
   const token = crypto.randomBytes(16).toString("hex");
 

@@ -18,7 +18,6 @@ import type { QuoteFormValues } from "@/lib/validation/quotation-schema";
 interface VendorRecord {
   id: string;
   name: string;
-  service: ServiceType;
 }
 
 type FetchState = "loading" | "success" | "error";

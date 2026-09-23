@@ -7,31 +7,107 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
-import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { Textarea } from "@/components/forms/Textarea";
 import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
 
+interface VendorService {
+  id: string;
+  service: ServiceType;
+}
+
 interface VendorData {
   id: string;
   name: string;
-  service: ServiceType;
+  mobile: string | null;
+  email: string | null;
+  pocName: string | null;
+  processingDetails: string | null;
+  availability: string | null;
+  gstNumber: string | null;
+  paymentDetails: string | null;
   active: boolean;
+  services: VendorService[];
 }
 
 type FetchState = "loading" | "success" | "error";
 
 interface FormState {
   name: string;
-  service: ServiceType | "";
+  services: ServiceType[];
+  mobile: string;
+  email: string;
+  pocName: string;
+  processingDetails: string;
+  availability: string;
+  gstNumber: string;
+  paymentDetails: string;
 }
 
-const EMPTY_FORM: FormState = { name: "", service: "" };
+const EMPTY_FORM: FormState = {
+  name: "",
+  services: [],
+  mobile: "",
+  email: "",
+  pocName: "",
+  processingDetails: "",
+  availability: "",
+  gstNumber: "",
+  paymentDetails: "",
+};
 
 function toFormState(vendor: VendorData): FormState {
-  return { name: vendor.name, service: vendor.service };
+  return {
+    name: vendor.name,
+    services: vendor.services.map((entry) => entry.service),
+    mobile: vendor.mobile ?? "",
+    email: vendor.email ?? "",
+    pocName: vendor.pocName ?? "",
+    processingDetails: vendor.processingDetails ?? "",
+    availability: vendor.availability ?? "",
+    gstNumber: vendor.gstNumber ?? "",
+    paymentDetails: vendor.paymentDetails ?? "",
+  };
+}
+
+function ServiceChecklist({
+  selected,
+  onToggle,
+  disabled,
+  error,
+}: {
+  selected: ServiceType[];
+  onToggle: (service: ServiceType) => void;
+  disabled: boolean;
+  error?: string;
+}) {
+  const selectedSet = new Set(selected);
+  return (
+    <div>
+      <span className="mb-1.5 block text-sm font-medium text-ink-primary">
+        Service Coverage <span className="text-error">*</span>
+      </span>
+      <div className="grid grid-cols-1 gap-2 rounded-lg border border-hairline p-3 sm:grid-cols-2">
+        {SERVICE_TYPE_OPTIONS.map((option) => (
+          <label key={option.value} className="flex items-start gap-2 text-sm text-ink-secondary">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={selectedSet.has(option.value)}
+              disabled={disabled}
+              onChange={() => onToggle(option.value)}
+            />
+            <span>{option.label}</span>
+          </label>
+        ))}
+      </div>
+      {error ? <p className="mt-1 text-xs text-error">{error}</p> : null}
+      <p className="mt-1 text-xs text-ink-tertiary">One vendor can support multiple services — no need to create it again per service.</p>
+    </div>
+  );
 }
 
 function VendorFields({
@@ -45,40 +121,104 @@ function VendorFields({
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
 }) {
+  const toggleService = (service: ServiceType) => {
+    const next = form.services.includes(service) ? form.services.filter((entry) => entry !== service) : [...form.services, service];
+    onChange({ ...form, services: next });
+  };
+
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <TextField
-        label="Vendor Name"
-        name="name"
-        value={form.name}
-        onChange={(event) => onChange({ ...form, name: event.target.value })}
-        error={errors.name?.[0]}
-        disabled={disabled}
-      />
-      <FormField label="Service" htmlFor="service" error={errors.service?.[0]}>
-        <select
-          id="service"
-          value={form.service}
+    <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <TextField
+          label="Vendor Name"
+          name="name"
+          value={form.name}
+          onChange={(event) => onChange({ ...form, name: event.target.value })}
+          error={errors.name?.[0]}
           disabled={disabled}
-          onChange={(event) => onChange({ ...form, service: event.target.value as ServiceType })}
-          className={cn(fieldControlClass, fieldBorderClass(!!errors.service))}
-        >
-          <option value="" disabled>
-            Select a service
-          </option>
-          {SERVICE_TYPE_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </FormField>
+        />
+        <TextField
+          label="POC Name"
+          name="pocName"
+          value={form.pocName}
+          onChange={(event) => onChange({ ...form, pocName: event.target.value })}
+          error={errors.pocName?.[0]}
+          disabled={disabled}
+          hint="Point of contact at the vendor"
+        />
+        <TextField
+          label="Mobile"
+          name="mobile"
+          value={form.mobile}
+          onChange={(event) => onChange({ ...form, mobile: event.target.value })}
+          error={errors.mobile?.[0]}
+          disabled={disabled}
+        />
+        <TextField
+          label="Email"
+          name="email"
+          type="email"
+          value={form.email}
+          onChange={(event) => onChange({ ...form, email: event.target.value })}
+          error={errors.email?.[0]}
+          disabled={disabled}
+        />
+        <TextField
+          label="GST Number"
+          name="gstNumber"
+          value={form.gstNumber}
+          onChange={(event) => onChange({ ...form, gstNumber: event.target.value })}
+          error={errors.gstNumber?.[0]}
+          disabled={disabled}
+          hint="Optional — where applicable"
+        />
+        <TextField
+          label="Availability"
+          name="availability"
+          value={form.availability}
+          onChange={(event) => onChange({ ...form, availability: event.target.value })}
+          error={errors.availability?.[0]}
+          disabled={disabled}
+          hint="e.g. Mon–Sat, 9am–8pm IST"
+        />
+      </div>
+      <ServiceChecklist selected={form.services} onToggle={toggleService} disabled={disabled} error={errors.services?.[0]} />
+      <Textarea
+        label="Processing Details"
+        name="processingDetails"
+        value={form.processingDetails}
+        onChange={(event) => onChange({ ...form, processingDetails: event.target.value })}
+        error={errors.processingDetails?.[0]}
+        disabled={disabled}
+        rows={3}
+        hint="How this vendor typically processes requests, turnaround notes, etc."
+      />
+      <Textarea
+        label="Account / Payment Details"
+        name="paymentDetails"
+        value={form.paymentDetails}
+        onChange={(event) => onChange({ ...form, paymentDetails: event.target.value })}
+        error={errors.paymentDetails?.[0]}
+        disabled={disabled}
+        rows={3}
+        hint="Bank/account details for settling this vendor — internal only"
+      />
     </div>
   );
 }
 
 function buildPayload(form: FormState) {
-  return { name: form.name.trim(), service: form.service || undefined };
+  return {
+    name: form.name.trim(),
+    services: form.services,
+    mobile: form.mobile.trim() || undefined,
+    email: form.email.trim() || undefined,
+    pocName: form.pocName.trim() || undefined,
+    processingDetails: form.processingDetails.trim() || undefined,
+    availability: form.availability.trim() || undefined,
+    gstNumber: form.gstNumber.trim() || undefined,
+    paymentDetails: form.paymentDetails.trim() || undefined,
+  };
 }
 
 function VendorCard({ vendor, onSaved }: { vendor: VendorData; onSaved: (vendor: VendorData) => void }) {
@@ -160,7 +300,7 @@ function NewVendorForm({ onCreated }: { onCreated: (vendor: VendorData) => void 
     }
   };
 
-  const canSubmit = form.name.trim() && form.service;
+  const canSubmit = form.name.trim() && form.services.length > 0;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">

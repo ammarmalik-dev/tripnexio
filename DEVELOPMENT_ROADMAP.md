@@ -402,12 +402,18 @@ Verified end-to-end: a 2-traveller (adult+child) submission against a real seede
 
 **Source:** `client-message/ADMIN_CRM_CONSOLIDATION_AUDIT.md` Tier 2. The document's own core rule: *"Do not create duplicate master data or separate configuration screens where one common control can serve multiple services."* Build roughly in this order — masters/foundations first, since several later steps (Pricing/Documents/Timeline controls, New Visa Country Configuration) depend on them.
 
-### Step 36 — Extend the Vendor model (POC, GST/payment details, multi-service)
+### Step 36 — Extend the Vendor model (POC, GST/payment details, multi-service) ✅
 **Audit ref:** Tier 2 §12
 **Problem:** `Vendor` is currently just `name/service/active` — one service per vendor, no contact/GST/payment fields, no per-service cost/performance tracking without duplicating vendor records.
 
 **Prompt to use:**
 > "Extend the `Vendor` model per the Admin FINAL handover §12: add POC name/mobile/email, GST/tax details, payment/account details, and change the service link from a single `ServiceType` to a many-relation (a vendor can support multiple services/sub-services) without creating duplicate Vendor rows per service. Update the Admin Vendors screen and `GET /api/vendors` (used by the quote builder) accordingly. Keep existing Quotation→Vendor references working. Verify a vendor can be created once and linked to 2+ services, and that vendor cost/rate stays trackable service-wise."
+
+`Vendor.service ServiceType` was replaced by a new `VendorService` join table (`vendorId` + `service`, unique per pair) — migration hand-written (not `migrate dev`, same recurring shadow-DB workaround) with a data backfill: one `VendorService` row per existing Vendor from its old single `service` value, before the column was dropped, so no vendor lost its service link. `Vendor` gained `mobile`/`email`/`pocName`/`processingDetails`/`availability`/`gstNumber`/`paymentDetails`, all optional free-text (§12 doesn't specify a structured shape for "processing details"/"payment details"). **Vendor cost/rate stays trackable service-wise without a new field** — `Quotation.vendorCost` was already scoped to its Lead's `serviceType`, and that didn't change; a second per-service cost field on Vendor itself would've been a duplicate source of truth, not a fix.
+
+Every read site updated: `GET /api/admin/vendors` (Admin CRUD, includes `services`), `GET /api/vendors?service=` (quote builder's lookup, now filters via `services: { some: { service } } }` and no longer returns a `service` field since a vendor can have several), and `createAutoCheckout`'s vendor-resolution (OTB/Return Ticket/New Visa's pay-right-after-form path) — this one was easy to miss since it doesn't live under `/admin/vendors` at all; caught it via `tsc` failing on the old `service:` field, not by inspection. `VendorsManager.tsx` rebuilt with a service-coverage checkbox list (same pattern as `RolesManager.tsx`'s permission checklist) alongside the new profile fields. Seed re-shaped: Sample Vendor A now covers **two** services (`NEW_VISA` + `VISA_EXTENSION`) specifically to demonstrate the new capability, using delete-then-recreate for the join rows so re-seeding always converges correctly (no upsert-on-a-relation ambiguity).
+
+Verified end-to-end against a real dev DB: created a vendor linked to 2 services in one call; confirmed it appears in both services' `GET /api/vendors?service=` lookups and not a third, unrelated service's; empty `services` array rejected (400); `PATCH` narrowing a vendor from 2 services down to 1 confirmed both in the response and in a follow-up lookup; `active` toggle confirmed to leave service coverage untouched; a live New Visa lead submission confirmed `createAutoCheckout`'s vendor resolution still works against the new join-table shape end-to-end (real payToken issued).
 
 ---
 

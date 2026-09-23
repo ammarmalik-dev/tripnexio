@@ -9,7 +9,10 @@ export async function GET() {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
 
-  const vendors = await db.vendor.findMany({ orderBy: [{ service: "asc" }, { name: "asc" }] });
+  const vendors = await db.vendor.findMany({
+    orderBy: { name: "asc" },
+    include: { services: { orderBy: { service: "asc" } } },
+  });
   return jsonSuccess(vendors);
 }
 
@@ -30,14 +33,22 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
+  const { services, ...vendorFields } = parsed.data;
+
   const vendor = await db.$transaction(async (tx) => {
-    const created = await tx.vendor.create({ data: parsed.data });
+    const created = await tx.vendor.create({
+      data: {
+        ...vendorFields,
+        services: { create: services.map((service) => ({ service })) },
+      },
+      include: { services: true },
+    });
     await writeAudit(tx, {
       entityType: "Vendor",
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Vendor "${created.name}" (${created.service}) created (by ${session.name})`,
+      note: `Vendor "${created.name}" (${services.join(", ")}) created (by ${session.name})`,
     });
     return created;
   });
