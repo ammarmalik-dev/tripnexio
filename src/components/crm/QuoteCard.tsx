@@ -134,6 +134,12 @@ export function QuoteCard({
         </dl>
       ) : (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+          {!hasItinerary && quotation.airline ? (
+            <div className="flex justify-between gap-2">
+              <dt className="text-ink-tertiary">Airline</dt>
+              <dd className="font-medium text-ink-primary">{quotation.airline}</dd>
+            </div>
+          ) : null}
           {hasItinerary && quotation.flightDateTime ? (
             <div className="flex justify-between gap-2">
               <dt className="text-ink-tertiary">Departure</dt>

@@ -17,6 +17,20 @@ export function supportsItinerary(serviceType: ServiceType): boolean {
   return serviceType === "VISA_CHANGE";
 }
 
+/**
+ * Which service types' quotes capture an operating airline at all (§9,
+ * Admin FINAL handover — wire the shared Airline master into every service
+ * that deals with one, not just OTB). Flight Special Fare and Visa Change
+ * already show an "Airline" field (flight quote / itinerary block); Return
+ * Ticket gets a new, optional one here — it's fundamentally an airline
+ * ticket reservation, but unlike the other two the client's own locked spec
+ * never has the customer pick an airline, so this is staff-entered on the
+ * quotation (once known), not a customer-facing form field.
+ */
+export function capturesAirline(serviceType: ServiceType): boolean {
+  return isFlightQuote(serviceType) || supportsItinerary(serviceType) || serviceType === "RETURN_TICKET";
+}
+
 interface PricingInput {
   sellingPrice?: number;
   feeAmount?: number;

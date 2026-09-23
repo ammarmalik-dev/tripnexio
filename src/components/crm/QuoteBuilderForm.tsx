@@ -14,6 +14,12 @@ interface VendorOption {
   name: string;
 }
 
+interface AirlineOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
 interface AlternativeOption {
   id: string;
   label: string;
@@ -23,7 +29,10 @@ interface QuoteBuilderFormProps {
   isFlightQuote: boolean;
   /** Visa Change: this quote is one itinerary option (flight details + ticket price on top of the visa fee). */
   hasItinerary?: boolean;
+  /** Return Ticket: no flight-quote/itinerary shape, but staff can still optionally record which airline it's for. */
+  showAirlineField?: boolean;
   vendors: VendorOption[];
+  airlines: AirlineOption[];
   alternativeOptions: AlternativeOption[];
   onSubmit: (values: QuoteFormValues) => Promise<void>;
   onCancel: () => void;
@@ -39,7 +48,9 @@ function maxValidityLocalIso(): string {
 export function QuoteBuilderForm({
   isFlightQuote,
   hasItinerary = false,
+  showAirlineField = false,
   vendors,
+  airlines,
   alternativeOptions,
   onSubmit,
   onCancel,
@@ -56,8 +67,26 @@ export function QuoteBuilderForm({
   const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "flightTicketPrice") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
 
-  const optionalField = (name: "airline" | "flightNumber" | "route" | "baggageAllowance" | "fareType" | "couponCode") =>
+  const optionalField = (name: "flightNumber" | "route" | "baggageAllowance" | "fareType" | "couponCode") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
+
+  const airlineSelect = (label: string, required: boolean) => (
+    <FormField label={label} htmlFor="airline" error={errors.airline?.message} required={required}>
+      <select
+        id="airline"
+        defaultValue=""
+        className={cn(fieldControlClass, fieldBorderClass(!!errors.airline))}
+        {...register("airline", { setValueAs: (value: string) => (value === "" ? undefined : value) })}
+      >
+        <option value="">{airlines.length === 0 ? "No active airlines configured" : required ? "Select an airline" : "Not decided yet"}</option>
+        {airlines.map((airline) => (
+          <option key={airline.id} value={airline.code}>
+            {airline.name} ({airline.code})
+          </option>
+        ))}
+      </select>
+    </FormField>
+  );
 
   return (
     <form
@@ -85,7 +114,7 @@ export function QuoteBuilderForm({
       {isFlightQuote ? (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField label="Airline" {...optionalField("airline")} error={errors.airline?.message} />
+            {airlineSelect("Airline", false)}
             <TextField label="Flight Number" {...optionalField("flightNumber")} error={errors.flightNumber?.message} />
           </div>
           <TextField label="Route" placeholder="e.g. BOM → DXB" {...optionalField("route")} error={errors.route?.message} />
@@ -174,6 +203,7 @@ export function QuoteBuilderForm({
               error={errors.flightTicketPrice?.message}
             />
           ) : null}
+          {showAirlineField ? airlineSelect("Airline", false) : null}
           <TextField
             label="Coupon Code"
             hint="Optional — validated on save (active, within date range, under usage limit)."
@@ -193,7 +223,7 @@ export function QuoteBuilderForm({
             the timing that suits them.
           </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField label="Airline" {...optionalField("airline")} error={errors.airline?.message} />
+            {airlineSelect("Airline", false)}
             <TextField label="Flight Number" {...optionalField("flightNumber")} error={errors.flightNumber?.message} />
           </div>
           <TextField label="Route" placeholder="e.g. DXB → MCT" {...optionalField("route")} error={errors.route?.message} />

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { QuoteBuilderForm } from "./QuoteBuilderForm";
 import { QuoteCard, type QuoteCardData } from "./QuoteCard";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
-import { isFlightQuote, supportsItinerary } from "@/lib/quotations/pricing";
+import { isFlightQuote, supportsItinerary, capturesAirline } from "@/lib/quotations/pricing";
 import { ProtectionPlanNote } from "./ProtectionPlanNote";
 import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus } from "../../generated/prisma/enums";
@@ -17,6 +17,12 @@ import type { QuoteFormValues } from "@/lib/validation/quotation-schema";
 
 interface VendorRecord {
   id: string;
+  name: string;
+}
+
+interface AirlineRecord {
+  id: string;
+  code: string;
   name: string;
 }
 
@@ -35,9 +41,11 @@ export function QuoteBuilder({
 }) {
   const flightQuote = isFlightQuote(serviceType);
   const hasItinerary = supportsItinerary(serviceType);
+  const airlineCapable = capturesAirline(serviceType);
   const [state, setState] = useState<FetchState>("loading");
   const [quotations, setQuotations] = useState<QuoteCardData[]>([]);
   const [vendors, setVendors] = useState<VendorRecord[]>([]);
+  const [airlines, setAirlines] = useState<AirlineRecord[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -56,13 +64,15 @@ export function QuoteBuilder({
     async function load() {
       setState("loading");
       try {
-        const [quotationList, vendorList] = await Promise.all([
+        const [quotationList, vendorList, airlineList] = await Promise.all([
           getJson<QuoteCardData[]>(`/api/quotations?leadId=${leadId}`),
           getJson<VendorRecord[]>(`/api/vendors?service=${serviceType}`),
+          airlineCapable ? getJson<AirlineRecord[]>("/api/airlines") : Promise.resolve<AirlineRecord[]>([]),
         ]);
         if (cancelled) return;
         setQuotations(quotationList);
         setVendors(vendorList);
+        setAirlines(airlineList);
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -75,7 +85,7 @@ export function QuoteBuilder({
     return () => {
       cancelled = true;
     };
-  }, [leadId, serviceType, reloadNonce]);
+  }, [leadId, serviceType, reloadNonce, airlineCapable]);
 
   const vendorName = (vendorId: string) => vendors.find((vendor) => vendor.id === vendorId)?.name ?? "Unknown vendor";
 
@@ -134,7 +144,9 @@ export function QuoteBuilder({
           <QuoteBuilderForm
             isFlightQuote={flightQuote}
             hasItinerary={hasItinerary}
+            showAirlineField={serviceType === "RETURN_TICKET"}
             vendors={vendors}
+            airlines={airlines}
             alternativeOptions={flightQuote ? alternativeOptions : []}
             onSubmit={handleCreate}
             onCancel={() => setShowForm(false)}

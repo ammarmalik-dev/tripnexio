@@ -417,12 +417,21 @@ Verified end-to-end against a real dev DB: created a vendor linked to 2 services
 
 ---
 
-### Step 37 — Wire the common Airline master into Return Ticket and Special Fare
+### Step 37 — Wire the common Airline master into Return Ticket and Special Fare ✅
 **Audit ref:** Tier 2 §9
 **Problem:** `Airline` is only actually used by OTB today — Return Ticket and Special Fare's schemas have no Airline reference, contradicting the "one common airline list for all applicable services" rule.
 
 **Prompt to use:**
 > "Per Admin FINAL handover §9, wire the existing `Airline` master into Return Ticket and Special Fare wherever an airline is currently free text (e.g. Special Fare's quote-builder `airline` field, and anywhere Return Ticket captures a carrier). Reuse the same Admin-managed Airline list OTB already uses — do not create a second airline list. Verify both services' relevant forms/quote fields now pull from the shared master."
+
+No schema/migration needed — `Quotation.airline` was already a plain string column (only Flight Special Fare used it, as free text with zero DB validation). Two real gaps closed instead:
+
+1. **A shared active-airlines lookup didn't exist.** The only two Airline routes were the full Admin CRUD (`/api/admin/airlines`) and an OTB-specific one (`/api/otb/airlines` — public, filtered to `otbRequired: true`, no `id`, keyed by `code`). Reusing the OTB one would have wrongly excluded non-OTB-required airlines from Special Fare/Return Ticket's picker. New `GET /api/airlines` (staff-gated, mirrors `GET /api/vendors`) filters only on `active` and returns `{id, code, name}` — the genuinely shared list.
+2. **Return Ticket had zero airline/carrier concept anywhere** (confirmed by re-reading its own request schema, form steps, and lead-creation route) — not a free-text field to convert, new ground. Checked `Return_Verified_Ticket.md` first: every "airline" mention there is "vendor/airline" as the backend fulfillment side (staff/vendor arranges the reservation) — the client's own locked spec never has the *customer* pick an airline for this service, matching how the customer never picks a vendor either. So the fix landed on the CRM/quotation side, not a new customer-facing form field: `QuoteBuilderForm.tsx` gained an optional Airline `<select>` in the simple-fee-quote branch, shown only for `RETURN_TICKET` (`showAirlineField` prop), writing to the same existing `Quotation.airline` column.
+
+Both existing free-text "Airline" `TextField`s (Flight Special Fare's main block, Visa Change's itinerary block — `supportsItinerary`) were swapped for the same real `<select>`, sourced from `GET /api/airlines`. Server-side validation added to both `POST /api/quotations` and `PATCH /api/quotations/[id]` — a submitted `airline` code is now looked up against `db.airline` (active only) and rejected (400) if it doesn't match, the same never-trust-the-client pattern OTB's own lead-intake route already uses for its airline code. New `capturesAirline(serviceType)` helper in `pricing.ts` (true for Flight Special Fare, Visa Change, and now Return Ticket) drives whether `QuoteBuilder.tsx` even fetches the airline list. `QuoteCard.tsx` now shows the airline on a Return Ticket quote's card when one was set.
+
+Verified end-to-end against a real dev DB: `/api/airlines` correctly includes a non-`otbRequired` sample airline (proving it isn't OTB-scoped) and 401s with no staff session; a real Return Ticket lead's quotation accepted a valid airline code, rejected an invalid one (400, field error), and succeeded fine with no airline at all (still optional); the same code-then-invalid-code pair confirmed on `PATCH`; a Flight Special Fare lead's quotation accepted a valid airline code and rejected an invalid one the same way.
 
 ---
 

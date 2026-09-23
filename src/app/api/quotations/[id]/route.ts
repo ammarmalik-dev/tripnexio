@@ -6,6 +6,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { computeSellingPrice, assertValidityWithinCap } from "@/lib/quotations/pricing";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
+import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -40,6 +41,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const vendor = await db.vendor.findUnique({ where: { id: parsed.data.vendorId } });
     if (!vendor || !vendor.active) {
       return jsonError(400, "Select a valid, active vendor.", { vendorId: ["This vendor isn't available."] });
+    }
+  }
+
+  if (parsed.data.airline) {
+    const airlineRecord = await findActiveAirlineByCode(parsed.data.airline);
+    if (!airlineRecord) {
+      return jsonError(400, "Select a valid, active airline.", { airline: ["This airline isn't available."] });
     }
   }
 

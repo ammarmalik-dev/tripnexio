@@ -15,6 +15,7 @@ import { money } from "@/lib/invoices/render-invoice";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { siteConfig } from "@/lib/site-config";
 import { ensureLeadCustomerToken } from "@/lib/quotations/select-quotation";
+import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
 import type { Quotation } from "@/generated/prisma/client";
 
 /**
@@ -180,6 +181,16 @@ export async function POST(request: NextRequest) {
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
   if (!vendor || !vendor.active) {
     return jsonError(400, "Select a valid, active vendor.", { vendorId: ["This vendor isn't available."] });
+  }
+
+  // §9 (Admin FINAL handover) — the shared Airline master, re-validated
+  // server-side exactly like OTB's own lead-intake route does with its
+  // airline code (never trust the client's string blindly).
+  if (airline) {
+    const airlineRecord = await findActiveAirlineByCode(airline);
+    if (!airlineRecord) {
+      return jsonError(400, "Select a valid, active airline.", { airline: ["This airline isn't available."] });
+    }
   }
 
   const flightQuote = isFlightQuote(lead.serviceType);
