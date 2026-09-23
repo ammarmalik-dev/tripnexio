@@ -17,11 +17,21 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const { fullName, mobile, email, passportNumber, visaExpiryDate, passportImageBase64, passportImageMimeType, additionalApplicants } =
-    parsed.data;
+  const {
+    fullName,
+    mobile,
+    email,
+    passportNumber,
+    visaExpiryDate,
+    passportImageBase64,
+    passportImageMimeType,
+    visaImageBase64,
+    visaImageMimeType,
+    additionalApplicants,
+  } = parsed.data;
 
   const applicants = [
-    { fullName, passportNumber, visaExpiryDate, passportImageBase64, passportImageMimeType },
+    { fullName, passportNumber, visaExpiryDate, passportImageBase64, passportImageMimeType, visaImageBase64, visaImageMimeType },
     ...additionalApplicants,
   ];
 
@@ -46,16 +56,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Documents were mandatory in the form; each is attached to its own
-    // applicant. Never throws (see handleOptionalPassportUpload).
+    // Both documents were mandatory in the form; each is attached to its
+    // own applicant. Neither call throws (see handleOptionalPassportUpload).
     await Promise.all(
-      applicants.map((applicant, index) =>
+      applicants.flatMap((applicant, index) => [
         handleOptionalPassportUpload({
           passengerId: result.passengerIds[index],
           imageBase64: applicant.passportImageBase64,
           mimeType: applicant.passportImageMimeType,
-        })
-      )
+          documentType: "PASSPORT",
+        }),
+        handleOptionalPassportUpload({
+          passengerId: result.passengerIds[index],
+          imageBase64: applicant.visaImageBase64,
+          mimeType: applicant.visaImageMimeType,
+          documentType: "VISA_COPY",
+        }),
+      ])
     );
 
     return jsonSuccess(result, 201);

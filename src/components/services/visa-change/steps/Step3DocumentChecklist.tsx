@@ -88,7 +88,7 @@ export function Step3DocumentChecklist() {
       )}
 
       <div className="flex flex-col gap-3">
-        <p className="text-sm font-semibold text-ink-heading">Upload passport copies</p>
+        <p className="text-sm font-semibold text-ink-heading">Upload passport and visa copies</p>
         <PassportUploadField
           base64FieldName="passportImageBase64"
           mimeFieldName="passportImageMimeType"
@@ -97,16 +97,33 @@ export function Step3DocumentChecklist() {
           required
           error={errors.passportImageBase64?.message}
         />
+        <PassportUploadField
+          base64FieldName="visaImageBase64"
+          mimeFieldName="visaImageMimeType"
+          label={`Visa copy — ${getValues("fullName") || "You"}`}
+          description="Upload a clear photo of the current visa page."
+          required
+          error={errors.visaImageBase64?.message}
+        />
         {additionalPassengers.map((passenger, index) => (
-          <PassportUploadField
-            key={index}
-            base64FieldName={`additionalPassengers.${index}.passportImageBase64`}
-            mimeFieldName={`additionalPassengers.${index}.passportImageMimeType`}
-            label={`Passport copy — ${passenger.fullName || `Passenger ${index + 2}`}`}
-            description="Upload a clear photo of this passenger's passport main page."
-            required
-            error={errors.additionalPassengers?.[index]?.passportImageBase64?.message}
-          />
+          <div key={index} className="flex flex-col gap-3">
+            <PassportUploadField
+              base64FieldName={`additionalPassengers.${index}.passportImageBase64`}
+              mimeFieldName={`additionalPassengers.${index}.passportImageMimeType`}
+              label={`Passport copy — ${passenger.fullName || `Passenger ${index + 2}`}`}
+              description="Upload a clear photo of this passenger's passport main page."
+              required
+              error={errors.additionalPassengers?.[index]?.passportImageBase64?.message}
+            />
+            <PassportUploadField
+              base64FieldName={`additionalPassengers.${index}.visaImageBase64`}
+              mimeFieldName={`additionalPassengers.${index}.visaImageMimeType`}
+              label={`Visa copy — ${passenger.fullName || `Passenger ${index + 2}`}`}
+              description="Upload a clear photo of this passenger's current visa page."
+              required
+              error={errors.additionalPassengers?.[index]?.visaImageBase64?.message}
+            />
+          </div>
         ))}
       </div>
       <p className="text-xs text-ink-tertiary">

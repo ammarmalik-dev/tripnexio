@@ -1,8 +1,7 @@
 import type { NextRequest } from "next/server";
-import { visaChangeRequestSchema } from "@/lib/validation/visa-change-schema";
+import { visaChangeRequestSchema, findMissingApplicantDocuments } from "@/lib/validation/visa-change-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
-import { findMissingPassportImages } from "@/lib/validation/visa-change-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 
 export async function POST(request: NextRequest) {
@@ -29,21 +28,27 @@ export async function POST(request: NextRequest) {
       paxType,
       passportImageBase64: parsed.data.passportImageBase64,
       passportImageMimeType: parsed.data.passportImageMimeType,
+      visaImageBase64: parsed.data.visaImageBase64,
+      visaImageMimeType: parsed.data.visaImageMimeType,
     },
     ...additionalPassengers,
   ];
 
-  // Handover doc: every applicant's passport copy is required before the
-  // Lead is created — enforced server-side, not just by the form.
-  const missingImages = findMissingPassportImages({
+  // Handover doc: every applicant's passport copy AND visa copy are
+  // required before the Lead is created — enforced server-side, not just
+  // by the form.
+  const missingImages = findMissingApplicantDocuments({
     passportImageBase64: parsed.data.passportImageBase64,
+    visaImageBase64: parsed.data.visaImageBase64,
     additionalPassengers,
   });
-  const missingMime = allPassengers.some((p) => p.passportImageBase64 && !p.passportImageMimeType);
+  const missingMime = allPassengers.some(
+    (p) => (p.passportImageBase64 && !p.passportImageMimeType) || (p.visaImageBase64 && !p.visaImageMimeType)
+  );
   if (missingImages.length > 0 || missingMime) {
     const fieldErrors: Record<string, string[]> = {};
     for (const issue of missingImages) fieldErrors[issue.path] = [issue.message];
-    return jsonError(400, "Please upload a passport copy for every applicant.", fieldErrors);
+    return jsonError(400, "Please upload a passport copy and a visa copy for every applicant.", fieldErrors);
   }
 
   try {
@@ -67,15 +72,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Never throws (see handleOptionalPassportUpload); passengerIds follow allPassengers' order.
+    // Both documents were mandatory in the form; each is attached to its
+    // own applicant. Neither call throws (see handleOptionalPassportUpload).
+    // passengerIds follow allPassengers' order.
     await Promise.all(
-      allPassengers.map((passenger, index) =>
+      allPassengers.flatMap((passenger, index) => [
         handleOptionalPassportUpload({
           passengerId: result.passengerIds[index],
           imageBase64: passenger.passportImageBase64,
           mimeType: passenger.passportImageMimeType,
-        })
-      )
+          documentType: "PASSPORT",
+        }),
+        handleOptionalPassportUpload({
+          passengerId: result.passengerIds[index],
+          imageBase64: passenger.visaImageBase64,
+          mimeType: passenger.visaImageMimeType,
+          documentType: "VISA_COPY",
+        }),
+      ])
     );
     return jsonSuccess(result, 201);
   } catch (error) {

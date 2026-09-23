@@ -59,6 +59,14 @@ export function Step1Identity() {
         required
         error={errors.passportImageBase64?.message ?? errors.passportImageMimeType?.message}
       />
+      <PassportUploadField
+        base64FieldName="visaImageBase64"
+        mimeFieldName="visaImageMimeType"
+        label="Visa copy"
+        description="Upload a clear photo of your current visa page."
+        required
+        error={errors.visaImageBase64?.message ?? errors.visaImageMimeType?.message}
+      />
     </div>
   );
 }

@@ -73,6 +73,14 @@ export function Step2Applicants() {
               required
               error={applicantErrors?.passportImageBase64?.message ?? applicantErrors?.passportImageMimeType?.message}
             />
+            <PassportUploadField
+              base64FieldName={`additionalApplicants.${index}.visaImageBase64`}
+              mimeFieldName={`additionalApplicants.${index}.visaImageMimeType`}
+              label={`Visa copy — Applicant ${index + 2}`}
+              description="Upload a clear photo of this applicant's current visa page."
+              required
+              error={applicantErrors?.visaImageBase64?.message ?? applicantErrors?.visaImageMimeType?.message}
+            />
           </fieldset>
         );
       })}
@@ -88,6 +96,8 @@ export function Step2Applicants() {
               visaExpiryDate: "",
               passportImageBase64: "",
               passportImageMimeType: undefined as unknown as "image/jpeg",
+              visaImageBase64: "",
+              visaImageMimeType: undefined as unknown as "image/jpeg",
             })
           }
         >

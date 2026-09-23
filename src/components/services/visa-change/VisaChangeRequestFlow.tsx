@@ -7,7 +7,7 @@ import { Step3DocumentChecklist } from "./steps/Step3DocumentChecklist";
 import { Step4Summary } from "./steps/Step4Summary";
 import { submitVisaChangeRequest } from "@/lib/api/visa-change";
 import {
-  findMissingPassportImages,
+  findMissingApplicantDocuments,
   visaChangeRequestSchema,
   visaChangeStepFields,
   visaChangeStepLabels,
@@ -36,7 +36,7 @@ export function VisaChangeRequestFlow() {
       stepFields={visaChangeStepFields}
       stepLabels={visaChangeStepLabels}
       steps={steps}
-      extraStepValidation={{ 2: findMissingPassportImages }}
+      extraStepValidation={{ 2: findMissingApplicantDocuments }}
       onSubmit={submitVisaChangeRequest}
       successTitle="Request received"
       successDescription="Your Visa Change request has been received. Our team will check availability and get in touch shortly."

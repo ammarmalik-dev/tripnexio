@@ -36,6 +36,12 @@ const passportImageFields = {
   passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
 };
 
+/** Client confirmed (2026-09-23): a Visa Copy is also required per applicant, alongside the passport copy — same optional-in-schema, enforced-elsewhere pattern as passportImageFields above. */
+const visaImageFields = {
+  visaImageBase64: z.string().optional(),
+  visaImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+};
+
 export const visaChangePassengerSchema = z.object({
   fullName: z.string().trim().min(2, "Enter the passenger's full name").max(80, "Name is too long"),
   passportNumber: z
@@ -51,6 +57,7 @@ export const visaChangePassengerSchema = z.object({
   nationality: z.string().trim().min(2, "Enter nationality").max(56, "Nationality is too long"),
   paxType: z.enum(["ADULT", "CHILD"], { error: "Select adult or child" }),
   ...passportImageFields,
+  ...visaImageFields,
 });
 
 export const visaChangeStep1Schema = z.object({
@@ -81,21 +88,26 @@ export const visaChangeStep2Schema = z.object({
   // `defaultValues` prop instead.
   paxType: z.enum(["ADULT", "CHILD"]),
   ...passportImageFields,
+  ...visaImageFields,
   additionalPassengers: z.array(visaChangePassengerSchema),
 });
 
 export const visaChangeRequestSchema = visaChangeStep1Schema.extend(visaChangeStep2Schema.shape);
 
-/** Applicants missing a passport copy, as `path` + message issues (primary first, then additional passengers in order). */
-export function findMissingPassportImages(values: {
+/** Applicants missing a passport copy and/or visa copy, as `path` + message issues (primary first, then additional passengers in order). */
+export function findMissingApplicantDocuments(values: {
   passportImageBase64?: string;
-  additionalPassengers: { passportImageBase64?: string }[];
+  visaImageBase64?: string;
+  additionalPassengers: { passportImageBase64?: string; visaImageBase64?: string }[];
 }): { path: string; message: string }[] {
-  const message = "Upload a copy of the passport";
+  const passportMessage = "Upload a copy of the passport";
+  const visaMessage = "Upload a copy of the visa";
   const issues: { path: string; message: string }[] = [];
-  if (!values.passportImageBase64) issues.push({ path: "passportImageBase64", message });
+  if (!values.passportImageBase64) issues.push({ path: "passportImageBase64", message: passportMessage });
+  if (!values.visaImageBase64) issues.push({ path: "visaImageBase64", message: visaMessage });
   values.additionalPassengers.forEach((passenger, index) => {
-    if (!passenger.passportImageBase64) issues.push({ path: `additionalPassengers.${index}.passportImageBase64`, message });
+    if (!passenger.passportImageBase64) issues.push({ path: `additionalPassengers.${index}.passportImageBase64`, message: passportMessage });
+    if (!passenger.visaImageBase64) issues.push({ path: `additionalPassengers.${index}.visaImageBase64`, message: visaMessage });
   });
   return issues;
 }

@@ -368,7 +368,7 @@ These are large, foundational modules described in exhaustive detail across ever
 
 **Step 33 notes:** `GUARDIAN_RELATIONSHIPS` now `["FATHER", "MOTHER"]` only. The form dropdown is generated from this array (not hardcoded), so no separate UI fix was needed. Verified server-side rejection of `"LEGAL_GUARDIAN"` (400) and acceptance of both remaining options with a real minor+guardian submission.
 
-### Step 34 — Visa Extension & Visa Change: also require Visa Copy before Lead submission
+### Step 34 — Visa Extension & Visa Change: also require Visa Copy before Lead submission ✅
 **Audit ref:** Tier 1 #3
 **Problem:** H1/H3 only collect a Passport copy per applicant before Lead submission. The client has confirmed both Passport *and* Visa Copy are required before submission for these two services.
 
@@ -376,6 +376,8 @@ These are large, foundational modules described in exhaustive detail across ever
 > "Per the client's confirmed answer (2026-09-23), both Visa Extension and Visa Change need a Visa Copy upload per applicant, in addition to the existing required Passport copy, before the Lead is created. Extend both services' schemas/forms/API routes the same way the passport-copy requirement was built (reuse `PassportUploadField`/`findMissingPassportImages`-style validation, or generalize it for a second document type). Attach each Visa Copy as its own `Document` (type `VISA_COPY`) linked to the correct Passenger, same as the passport upload. Verify server-side rejection when either document is missing, for both the primary and additional applicants."
 
 ---
+
+**Step 34 notes:** `handleOptionalPassportUpload` gained an optional `documentType` param (defaults to `"PASSPORT"`, only runs passport OCR extraction for that type) so it could be reused for `VISA_COPY` without a second upload function. Visa Extension's schema requires both images directly (matching its existing required-field pattern); Visa Change's stay optional-in-schema, enforced via `findMissingApplicantDocuments` (renamed from `findMissingPassportImages`, now checks both document types) + `extraStepValidation`, matching its existing pattern. Verified server-side rejection when either document is missing, for both primary and additional applicants, on both services, and confirmed both documents land as separate `Document` rows (`PASSPORT`/`VISA_COPY`) on the correct Passenger.
 
 ### Step 35 — New Visa: pivot to pay-right-after-the-form with a real pricing config
 **Audit ref:** Tier 1 #4 (largest item in this phase)

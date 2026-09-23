@@ -29,6 +29,7 @@ export function Step3Summary() {
         <SummaryRow label="Passport Number" value={values.passportNumber} />
         <SummaryRow label="Visa Expiry Date" value={formatDate(values.visaExpiryDate)} />
         <SummaryRow label="Passport Copy" value={values.passportImageBase64 ? "Uploaded" : "Missing"} />
+        <SummaryRow label="Visa Copy" value={values.visaImageBase64 ? "Uploaded" : "Missing"} />
       </div>
       {values.additionalApplicants.map((applicant, index) => (
         <div key={index} className="rounded-xl border border-hairline bg-surface-1 px-5">
@@ -39,6 +40,7 @@ export function Step3Summary() {
           <SummaryRow label="Passport Number" value={applicant.passportNumber} />
           <SummaryRow label="Visa Expiry Date" value={formatDate(applicant.visaExpiryDate)} />
           <SummaryRow label="Passport Copy" value={applicant.passportImageBase64 ? "Uploaded" : "Missing"} />
+          <SummaryRow label="Visa Copy" value={applicant.visaImageBase64 ? "Uploaded" : "Missing"} />
         </div>
       ))}
       <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-tertiary">

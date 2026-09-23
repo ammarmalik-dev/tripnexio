@@ -23,6 +23,12 @@ const passportImageFields = {
   passportImageMimeType: z.enum(IMAGE_MIME_TYPES, { error: "Upload a copy of the passport" }),
 };
 
+/** Client confirmed (2026-09-23): a Visa Copy is also required per applicant, alongside the passport copy. */
+const visaImageFields = {
+  visaImageBase64: z.string().min(1, "Upload a copy of your visa"),
+  visaImageMimeType: z.enum(IMAGE_MIME_TYPES, { error: "Upload a copy of your visa" }),
+};
+
 const todayAtMidnight = () => {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
@@ -66,6 +72,7 @@ export const visaExtensionStep1Schema = z.object({
   passportNumber: passportNumberField,
   visaExpiryDate: visaExpiryDateField,
   ...passportImageFields,
+  ...visaImageFields,
 });
 
 /** Same details as the primary applicant minus mobile/email (already captured from the primary), plus their own passport copy. */
@@ -74,6 +81,7 @@ export const additionalApplicantSchema = z.object({
   passportNumber: passportNumberField,
   visaExpiryDate: visaExpiryDateField,
   ...passportImageFields,
+  ...visaImageFields,
 });
 
 export const visaExtensionStep2Schema = z.object({
@@ -87,7 +95,7 @@ export type VisaExtensionStep1Values = z.infer<typeof visaExtensionStep1Schema>;
 export type VisaExtensionRequestValues = z.infer<typeof visaExtensionRequestSchema>;
 
 export const visaExtensionStepFields: Record<number, (keyof VisaExtensionRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "passportNumber", "visaExpiryDate", "passportImageBase64"],
+  0: ["fullName", "mobile", "email", "passportNumber", "visaExpiryDate", "passportImageBase64", "visaImageBase64"],
   1: ["additionalApplicants"],
   2: [],
 };

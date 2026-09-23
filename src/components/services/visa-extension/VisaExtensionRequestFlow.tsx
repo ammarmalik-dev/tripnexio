@@ -27,6 +27,7 @@ export function VisaExtensionRequestFlow() {
         passportNumber: "",
         visaExpiryDate: "",
         passportImageBase64: "",
+        visaImageBase64: "",
         additionalApplicants: [],
       }}
       stepFields={visaExtensionStepFields}
