@@ -30,11 +30,13 @@ export async function getEligibleStaffForAssignment(): Promise<EligibleStaffMemb
   // an inactive account. `today` anchored to UTC midnight to match how the
   // `@db.Date` startDate/endDate columns are stored/compared (date-only,
   // no time-of-day component) — see feedback_pg_timestamp_local_time_parsing
-  // in project memory for why this matters.
+  // in project memory for why this matters. Step 38: gated on
+  // status=APPROVED — a staff-requested leave that's still PENDING (or was
+  // REJECTED) must NOT exclude them, only a decided-and-approved one.
   const now = new Date();
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const currentLeaves = await db.staffLeave.findMany({
-    where: { startDate: { lte: today }, endDate: { gte: today } },
+    where: { status: "APPROVED", startDate: { lte: today }, endDate: { gte: today } },
     select: { userId: true },
   });
   const staffIdsOnLeave = new Set(currentLeaves.map((leave) => leave.userId));

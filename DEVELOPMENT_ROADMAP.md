@@ -435,12 +435,22 @@ Verified end-to-end against a real dev DB: `/api/airlines` correctly includes a 
 
 ---
 
-### Step 38 — Staff Leave: approval workflow
+### Step 38 — Staff Leave: approval workflow ✅
 **Audit ref:** Tier 2 §2
 **Problem:** `StaffLeave` currently has no `status`/approver/approval-date — leave requests can be recorded but never explicitly approved or rejected.
 
 **Prompt to use:**
 > "Add an approval workflow to `StaffLeave`: a `status` enum (PENDING/APPROVED/REJECTED), `approvedByUserId`, `approvedAt`, and a `type` (e.g. sick/casual/other, keep it simple unless the client specifies categories). Staff can apply for leave from the CRM; Admin can approve/reject, and can also directly create a leave entry for any staff member. Approved leave must continue to exclude that staff member from auto-assignment (already true for existing StaffLeave rows — keep that working, just gate it on APPROVED status now instead of any row's mere existence). Verify: a staff-created leave request starts PENDING and doesn't yet exclude them from assignment; approving it does."
+
+`StaffLeave` gained `status` (`LeaveStatus`: PENDING/APPROVED/REJECTED), `type` (`LeaveType`: SICK/CASUAL/OTHER — the roadmap prompt's own suggested starter set, no category list was ever given by the client), `approvedByUserId`, `approvedAt`. Migration backfills every pre-existing row to APPROVED (not the new PENDING default) specifically to preserve their already-true exclusion behavior per this prompt's own instruction — `approvedByUserId`/`approvedAt` stay NULL for those grandfathered rows since there's no real record of who approved them or when (hard rule #1: don't fabricate that).
+
+**Two creation paths, deliberately different starting states**: `POST /api/admin/staff-leave` (Admin recording a leave directly for any staff member, unchanged route, `staff.manage`-gated) now creates it straight into APPROVED with the admin as approver — an admin's own direct action IS the decision, no separate approve click needed. New `POST /api/staff-leave` (Step 38's actual new ground — **no staff-facing route or UI existed for this at all before**, confirmed by exploration) is session-gated only, any active staff member, always forces `userId` from the session (never trusts a client-sent one) and always starts PENDING.
+
+**New permission `staff.leave.approve`**, deliberately separate from `staff.manage` — mirrors this exact codebase's existing `refunds.edit`/`refunds.approve` split (raise vs. approve) rather than reusing `staff.manage` for the decision too. Excluded from the default Staff role (Admin-only by default), same precedent as `refunds.approve`. New `PATCH /api/admin/staff-leave/[id]/status` (gated by it) is the approve/reject action, going through a new `src/lib/staff-leave/transitions.ts` (PENDING → APPROVED/REJECTED, both terminal — same transition-map pattern as Lead/Booking/Refund).
+
+**New CRM surface**: `/crm/my-leave` (`MyLeavePanel.tsx`) — the first screen in CRM.md §3's previously-unbuilt "Profile" nav group. Lists the signed-in staff member's own leave requests with status, plus a request form. `eligible-for-assignment.ts`'s query gained `status: "APPROVED"` — the one and only reader of `StaffLeave` for assignment purposes (confirmed via full-codebase grep before touching it, so no other reader was missed).
+
+Verified end-to-end against a real dev DB: confirmed the Staff role genuinely lacks `staff.leave.approve` by default; a freshly-created Staff-role test user requesting their own leave got PENDING; that same staff member attempting to approve their own request got 403; a spoofed `userId` in the request body was silently ignored (always their own session id); the admin list showed the pending request; **directly queried the exact `eligible-for-assignment.ts` where-clause before and after approval** — confirmed NOT excluded while PENDING, confirmed excluded once APPROVED (the prompt's own explicit verification ask); re-deciding an already-APPROVED request was rejected (409); and an admin-direct-created leave landed as APPROVED immediately with the admin recorded as approver. **One real dev-environment bug hit and fixed during testing, unrelated to the feature's own logic**: a nested dynamic route (`[id]/status/route.ts` alongside an existing `[id]/route.ts` — an already-proven pattern elsewhere, e.g. `bookings/[id]/status`) 404'd until a full `taskkill /IM node.exe` + `.next` wipe + restart — a stale Turbopack dev-server route-registration issue, not a code defect; recorded here in case it recurs.
 
 ---
 

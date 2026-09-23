@@ -40,8 +40,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.staffLeave.update({
       where: { id },
-      data: { startDate: nextStart, endDate: nextEnd, reason: parsed.data.reason },
-      include: { user: { select: { id: true, name: true } } },
+      data: { startDate: nextStart, endDate: nextEnd, reason: parsed.data.reason, type: parsed.data.type },
+      include: { user: { select: { id: true, name: true } }, approvedBy: { select: { id: true, name: true } } },
     });
     await writeAudit(tx, {
       entityType: "StaffLeave",

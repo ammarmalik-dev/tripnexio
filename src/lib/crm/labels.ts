@@ -14,6 +14,8 @@ import type {
   TaskPriority,
   TaskStatus,
   ProtectionPlanStatus,
+  LeaveStatus,
+  LeaveType,
 } from "../../generated/prisma/enums";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -100,6 +102,22 @@ export const REFUND_STATUS_LABELS: Record<RefundStatus, string> = {
 
 export const REFUND_STATUS_OPTIONS: { value: RefundStatus; label: string }[] = (
   Object.entries(REFUND_STATUS_LABELS) as [RefundStatus, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const LEAVE_STATUS_LABELS: Record<LeaveStatus, string> = {
+  PENDING: "Pending",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+};
+
+export const LEAVE_TYPE_LABELS: Record<LeaveType, string> = {
+  SICK: "Sick",
+  CASUAL: "Casual",
+  OTHER: "Other",
+};
+
+export const LEAVE_TYPE_OPTIONS: { value: LeaveType; label: string }[] = (
+  Object.entries(LEAVE_TYPE_LABELS) as [LeaveType, string][]
 ).map(([value, label]) => ({ value, label }));
 
 export const DOCUMENT_STATUS_OPTIONS: { value: DocumentStatus; label: string }[] = (

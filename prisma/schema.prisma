@@ -1417,37 +1417,65 @@ model User {
   completedTasks              Task[]               @relation("TaskCompletedBy")
   sentWhatsAppMessages        WhatsAppMessageLog[]
   leaves                      StaffLeave[]
+  approvedLeaves              StaffLeave[]         @relation("StaffLeaveApprovals")
   recordedExpenses            Expense[]
 
   @@index([roleId])
   @@index([active])
 }
 
+/// Step 38 (Tier 2 §2): PENDING (staff-requested, not yet decided) /
+/// APPROVED / REJECTED. Admin-created leave (POST /api/admin/staff-leave)
+/// is created directly as APPROVED — an admin recording an entry for a
+/// staff member is already the authoritative decision, no separate approve
+/// click needed. Only a staff member's own self-requested leave
+/// (POST /api/staff-leave) starts PENDING.
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Step 38: "keep it simple unless the client specifies categories" — no
+/// category list was ever given, so this is the roadmap prompt's own
+/// suggested starter set, not client-sourced domain data.
+enum LeaveType {
+  SICK
+  CASUAL
+  OTHER
+}
+
 /// Step 26 Unit 3 (audit §3.11/§4.7) — ADMIN.md §13's "Staff leave" roster:
 /// "1. Staff becomes unavailable. 2. Affected open work is identified.
 /// 3. Replacement staff can be recommended." This model covers step 1 (and
 /// feeds step 2/3's UI — see src/lib/staff/eligible-for-assignment.ts,
-/// which now excludes a staff member with a current leave row from
-/// auto-assignment suggestions, and the Admin bulk-reassignment screen,
-/// Unit 4, for actually moving a leave-affected staff member's open work).
+/// which excludes a staff member from auto-assignment suggestions only
+/// while they have a current APPROVED leave row — Step 38 gated this on
+/// status; it used to fire on any overlapping row regardless of approval).
 /// A plain date-range row per leave period, not a single "on leave: yes/no"
 /// flag — a staff member can have multiple leave periods over time, and
 /// this keeps the full history rather than only ever knowing the current
 /// state.
 model StaffLeave {
-  id        String   @id @default(cuid())
-  userId    String
-  startDate DateTime @db.Date
-  endDate   DateTime @db.Date
-  reason    String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String      @id @default(cuid())
+  userId           String
+  startDate        DateTime    @db.Date
+  endDate          DateTime    @db.Date
+  reason           String?
+  status           LeaveStatus @default(PENDING)
+  type             LeaveType   @default(OTHER)
+  approvedByUserId String?
+  approvedAt       DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user       User  @relation(fields: [userId], references: [id])
+  approvedBy User? @relation("StaffLeaveApprovals", fields: [approvedByUserId], references: [id])
 
   @@index([userId])
   @@index([startDate])
   @@index([endDate])
+  @@index([status])
 }
 
 model Role {

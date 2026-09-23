@@ -36,6 +36,10 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "tasks.view", description: "View CRM tasks" },
   { name: "tasks.edit", description: "Assign tasks and change their status" },
   { name: "staff.manage", description: "Create, edit, and deactivate staff accounts" },
+  {
+    name: "staff.leave.approve",
+    description: "Approve or reject a staff member's leave request — staff can request their own leave (starts Pending) but cannot approve it",
+  },
   { name: "roles.manage", description: "Create roles and assign permissions" },
   {
     name: "masters.manage",

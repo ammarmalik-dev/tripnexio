@@ -15,12 +15,20 @@ export async function GET() {
   if (auth.error) return auth.error;
 
   const leaves = await db.staffLeave.findMany({
-    include: { user: { select: { id: true, name: true } } },
+    include: { user: { select: { id: true, name: true } }, approvedBy: { select: { id: true, name: true } } },
     orderBy: { startDate: "desc" },
   });
   return jsonSuccess(leaves);
 }
 
+/**
+ * Admin creating a leave entry directly for any staff member — this is the
+ * decision, not a request awaiting one, so it's created straight into
+ * APPROVED with the creating admin recorded as the approver. Contrast with
+ * POST /api/staff-leave (Step 38), where a staff member requests their own
+ * leave and it starts PENDING until someone with staff.leave.approve acts
+ * on it.
+ */
 export async function POST(request: NextRequest) {
   const auth = await requirePermission("staff.manage");
   if (auth.error) return auth.error;
@@ -47,18 +55,22 @@ export async function POST(request: NextRequest) {
     const created = await tx.staffLeave.create({
       data: {
         userId: parsed.data.userId,
+        type: parsed.data.type,
         startDate: new Date(parsed.data.startDate),
         endDate: new Date(parsed.data.endDate),
         reason: parsed.data.reason,
+        status: "APPROVED",
+        approvedByUserId: session.id,
+        approvedAt: new Date(),
       },
-      include: { user: { select: { id: true, name: true } } },
+      include: { user: { select: { id: true, name: true } }, approvedBy: { select: { id: true, name: true } } },
     });
     await writeAudit(tx, {
       entityType: "StaffLeave",
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Leave recorded for ${staff.name}: ${parsed.data.startDate} to ${parsed.data.endDate}${parsed.data.reason ? ` (${parsed.data.reason})` : ""} (by ${session.name})`,
+      note: `Leave recorded for ${staff.name}: ${parsed.data.startDate} to ${parsed.data.endDate}${parsed.data.reason ? ` (${parsed.data.reason})` : ""} — auto-approved (recorded directly by ${session.name})`,
     });
     return created;
   });

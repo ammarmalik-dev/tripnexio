@@ -49,9 +49,9 @@ export interface CrmNavGroup {
 /**
  * CRM.md §3's grouped nav structure (Step 12, audit §3.1) — Command Centre /
  * Sales (Leads, Customers, Quotations) / Operations (Bookings, Payments,
- * Refunds, Documents, Tasks) — every item that has a built CRM screen today
- * (Tasks added Step 17, audit §3.8). CRM.md §3 itself also lists Resources/
- * Analytics/Communication/Help/Profile groups (Vendors, Reports,
+ * Refunds, Documents, Tasks) / Profile (My Leave, added Step 38) — every
+ * item that has a built CRM screen today. CRM.md §3 itself also lists
+ * Resources/Analytics/Communication/Help groups (Vendors, Reports,
  * Notifications, Knowledge Base, etc.), none of which have a built CRM
  * screen yet, so none are added here — this reorganizes existing
  * navigation, it doesn't invent new destinations.
@@ -75,6 +75,12 @@ export const crmNavGroups: CrmNavGroup[] = [
       { label: "Documents", href: "/crm/documents", icon: FolderOpen },
       { label: "Tasks", href: "/crm/tasks", icon: ListTodo },
     ],
+  },
+  {
+    // Step 38 — CRM.md §3's Profile group, previously unbuilt (see doc
+    // comment above) — this is the first screen in it.
+    label: "Profile",
+    items: [{ label: "My Leave", href: "/crm/my-leave", icon: CalendarOff }],
   },
 ];
 

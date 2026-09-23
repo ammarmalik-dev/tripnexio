@@ -1,16 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Check, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { getJson, postJson, deleteJson, ApiError } from "@/lib/api/client";
+import { LeaveStatusBadge } from "@/components/crm/LeaveStatusBadge";
+import { LEAVE_TYPE_OPTIONS, LEAVE_TYPE_LABELS } from "@/lib/crm/labels";
+import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import type { LeaveStatus, LeaveType } from "../../generated/prisma/enums";
 
 interface StaffOption {
   id: string;
@@ -23,7 +26,10 @@ interface StaffLeaveData {
   startDate: string;
   endDate: string;
   reason: string | null;
+  status: LeaveStatus;
+  type: LeaveType;
   user: { id: string; name: string };
+  approvedBy: { id: string; name: string } | null;
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -33,6 +39,7 @@ function formatDate(iso: string): string {
 }
 
 function isCurrentlyOnLeave(leave: StaffLeaveData): boolean {
+  if (leave.status !== "APPROVED") return false;
   const now = new Date();
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   return new Date(leave.startDate) <= today && today <= new Date(leave.endDate);
@@ -40,6 +47,7 @@ function isCurrentlyOnLeave(leave: StaffLeaveData): boolean {
 
 function NewLeaveForm({ staffOptions, onCreated }: { staffOptions: StaffOption[]; onCreated: (leave: StaffLeaveData) => void }) {
   const [userId, setUserId] = useState("");
+  const [type, setType] = useState<LeaveType | "">("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState("");
@@ -52,6 +60,7 @@ function NewLeaveForm({ staffOptions, onCreated }: { staffOptions: StaffOption[]
     try {
       const created = await postJson<StaffLeaveData>("/api/admin/staff-leave", {
         userId,
+        type,
         startDate,
         endDate,
         reason: reason.trim() || undefined,
@@ -59,6 +68,7 @@ function NewLeaveForm({ staffOptions, onCreated }: { staffOptions: StaffOption[]
       toast.success(`Leave recorded for ${created.user.name}.`);
       onCreated(created);
       setUserId("");
+      setType("");
       setStartDate("");
       setEndDate("");
       setReason("");
@@ -70,11 +80,14 @@ function NewLeaveForm({ staffOptions, onCreated }: { staffOptions: StaffOption[]
     }
   };
 
-  const canSubmit = userId && startDate && endDate;
+  const canSubmit = userId && type && startDate && endDate;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Leave</h2>
+      <p className="text-xs text-ink-tertiary">
+        Recorded here directly by Admin — this is created already Approved, not a request awaiting a decision.
+      </p>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField label="Staff Member" htmlFor="staff-leave-user" error={errors.userId?.[0]}>
           <select
@@ -90,6 +103,24 @@ function NewLeaveForm({ staffOptions, onCreated }: { staffOptions: StaffOption[]
             {staffOptions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
+              </option>
+            ))}
+          </select>
+        </FormField>
+        <FormField label="Type" htmlFor="staff-leave-type" error={errors.type?.[0]}>
+          <select
+            id="staff-leave-type"
+            value={type}
+            disabled={creating}
+            onChange={(event) => setType(event.target.value as LeaveType)}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.type))}
+          >
+            <option value="" disabled>
+              Select a type
+            </option>
+            {LEAVE_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))}
           </select>
@@ -131,8 +162,19 @@ function NewLeaveForm({ staffOptions, onCreated }: { staffOptions: StaffOption[]
   );
 }
 
-function LeaveRow({ leave, onDeleted }: { leave: StaffLeaveData; onDeleted: (id: string) => void }) {
+function LeaveRow({
+  leave,
+  canApprove,
+  onDeleted,
+  onDecided,
+}: {
+  leave: StaffLeaveData;
+  canApprove: boolean;
+  onDeleted: (id: string) => void;
+  onDecided: (leave: StaffLeaveData) => void;
+}) {
   const [deleting, setDeleting] = useState(false);
+  const [deciding, setDeciding] = useState(false);
   const onLeaveNow = isCurrentlyOnLeave(leave);
 
   const handleDelete = async () => {
@@ -147,34 +189,68 @@ function LeaveRow({ leave, onDeleted }: { leave: StaffLeaveData; onDeleted: (id:
     }
   };
 
+  const handleDecide = async (status: "APPROVED" | "REJECTED") => {
+    setDeciding(true);
+    try {
+      const updated = await patchJson<StaffLeaveData>(`/api/admin/staff-leave/${leave.id}/status`, { status });
+      toast.success(status === "APPROVED" ? "Leave approved." : "Leave rejected.");
+      onDecided(updated);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't update this leave request. Please try again.");
+    } finally {
+      setDeciding(false);
+    }
+  };
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-hairline bg-surface-1 p-4">
       <div className="flex flex-col gap-0.5">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium text-ink-primary">{leave.user.name}</span>
+          <LeaveStatusBadge status={leave.status} />
+          <span className="rounded-full bg-ink-primary/[0.04] px-2 py-0.5 text-xs text-ink-tertiary">{LEAVE_TYPE_LABELS[leave.type]}</span>
           {onLeaveNow ? <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">On leave now</span> : null}
         </div>
         <span className="text-xs text-ink-tertiary">
           {formatDate(leave.startDate)} – {formatDate(leave.endDate)}
           {leave.reason ? ` · ${leave.reason}` : ""}
+          {leave.approvedBy ? ` · ${leave.status === "APPROVED" ? "Approved" : "Rejected"} by ${leave.approvedBy.name}` : ""}
         </span>
       </div>
-      <Button type="button" size="sm" variant="ghost" onClick={() => void handleDelete()} isLoading={deleting}>
-        <Trash2 className="h-4 w-4" aria-hidden="true" />
-        Remove
-      </Button>
+      <div className="flex items-center gap-2">
+        {leave.status === "PENDING" && canApprove ? (
+          <>
+            <Button type="button" size="sm" variant="ghost" onClick={() => void handleDecide("APPROVED")} isLoading={deciding}>
+              <Check className="h-4 w-4" aria-hidden="true" />
+              Approve
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => void handleDecide("REJECTED")} isLoading={deciding}>
+              <X className="h-4 w-4" aria-hidden="true" />
+              Reject
+            </Button>
+          </>
+        ) : leave.status === "PENDING" ? (
+          <span className="text-xs text-ink-tertiary">Awaiting approval</span>
+        ) : null}
+        <Button type="button" size="sm" variant="ghost" onClick={() => void handleDelete()} isLoading={deleting}>
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          Remove
+        </Button>
+      </div>
     </div>
   );
 }
 
 /**
  * Step 26 Unit 3 (audit §3.11/§4.7) — ADMIN.md §13's roster/leave screen.
- * Create + delete only (no inline edit) — a leave period is short-lived
- * reference data; correcting one is just as easy to remove and re-add, and
- * this keeps the screen simple per the "no complex weighting formula" /
- * keep-it-simple spirit of this whole locked rule.
+ * Step 38 added the approval workflow: a leave recorded directly here is
+ * created already Approved (Admin's own action is the decision); a
+ * staff-requested one (from /crm/my-leave) shows up here as Pending until
+ * someone with staff.leave.approve decides it. Dates/reason/type stay
+ * create+delete-only otherwise — no inline edit of an already-decided
+ * leave's period.
  */
-export function StaffLeaveManager() {
+export function StaffLeaveManager({ canApprove }: { canApprove: boolean }) {
   const [state, setState] = useState<FetchState>("loading");
   const [leaves, setLeaves] = useState<StaffLeaveData[]>([]);
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
@@ -238,7 +314,13 @@ export function StaffLeaveManager() {
         <EmptyState title="No leave recorded yet" description="Record the first one using the form below." />
       ) : (
         leaves.map((leave) => (
-          <LeaveRow key={leave.id} leave={leave} onDeleted={(id) => setLeaves((current) => current.filter((entry) => entry.id !== id))} />
+          <LeaveRow
+            key={leave.id}
+            leave={leave}
+            canApprove={canApprove}
+            onDeleted={(id) => setLeaves((current) => current.filter((entry) => entry.id !== id))}
+            onDecided={(updated) => setLeaves((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+          />
         ))
       )}
       <NewLeaveForm staffOptions={staffOptions} onCreated={(created) => setLeaves((current) => [created, ...current])} />

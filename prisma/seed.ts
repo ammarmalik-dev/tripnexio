@@ -98,6 +98,11 @@ const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 // keeps refunds.edit (create/calculate a refund, which always lands as
 // PENDING) but not the approval transition.
 //
+// staff.leave.approve is also excluded — Step 38, same "raise vs. approve"
+// split as refunds.approve above. Every staff member can request their own
+// leave (no permission needed — POST /api/staff-leave is session-gated
+// only) but approving/rejecting it is Admin-only by default.
+//
 // leads.reassign is also excluded — CRM.md §34/ADMIN.md §12's locked rule is
 // "normal CRM staff CANNOT assign/reassign... Admin CAN." Staff keeps
 // leads.edit (claim/assign a currently-unassigned lead) but not the
@@ -116,6 +121,7 @@ const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
   (permission) =>
     ![
       "staff.manage",
+      "staff.leave.approve",
       "roles.manage",
       "masters.manage",
       "data.export",
