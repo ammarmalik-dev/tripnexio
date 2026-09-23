@@ -47,16 +47,29 @@ export const NEW_VISA_DEFAULT_NATIONALITY = "India";
  * "Document upload," after Booking ID creation) isn't a fixed list the
  * client gave verbatim the way Return Ticket/OTB's were — it comes from the
  * same Admin-managed `DocumentRequirement` checklist Visa Change's pre-lead
- * step already reads, keyed by nationality + serviceType. Nothing here is
- * invented: an empty Admin checklist means an empty document-upload step,
- * not a fabricated fallback list.
+ * step already reads. Nothing here is invented: an empty Admin checklist
+ * means an empty document-upload step, not a fabricated fallback list.
+ *
+ * Step 41 (Admin FINAL handover §5): matched on `countryId` too now, not
+ * just nationality — a row applies when every dimension it sets matches
+ * (null on the row = applies universally on that axis), same semantics as
+ * `buildDocumentChecklistSnapshot`. `countryId` is optional since not
+ * every caller can resolve New Visa's destination country (e.g. a
+ * standalone check before a lead exists).
  */
-export async function getNewVisaCheckoutDocumentTypes(): Promise<CheckoutDocumentType[]> {
+export async function getNewVisaCheckoutDocumentTypes(countryId?: string | null): Promise<CheckoutDocumentType[]> {
   const requirements = await db.documentRequirement.findMany({
-    where: { nationality: { equals: NEW_VISA_DEFAULT_NATIONALITY, mode: "insensitive" }, serviceType: "NEW_VISA", active: true },
+    where: {
+      serviceType: "NEW_VISA",
+      active: true,
+      OR: [{ nationality: null }, { nationality: { equals: NEW_VISA_DEFAULT_NATIONALITY, mode: "insensitive" } }],
+    },
     orderBy: [{ required: "desc" }, { documentName: "asc" }],
   });
-  return requirements.map((requirement) => ({ type: requirement.documentName, label: requirement.documentName }));
+  // countryId matched in JS, not the query, since it needs its own
+  // independent null-or-exact-match semantics alongside the nationality OR above.
+  const filtered = requirements.filter((requirement) => !requirement.countryId || requirement.countryId === countryId);
+  return filtered.map((requirement) => ({ type: requirement.documentName, label: requirement.documentName }));
 }
 
 export function isCheckoutService(serviceType: ServiceType): boolean {

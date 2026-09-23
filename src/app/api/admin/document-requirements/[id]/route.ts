@@ -31,22 +31,47 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const existing = await db.documentRequirement.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Document requirement not found.");
 
-  const nextNationality = parsed.data.nationality ?? existing.nationality;
+  if (parsed.data.countryId) {
+    const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
+    if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
+  }
+
   const nextServiceType = parsed.data.serviceType ?? existing.serviceType;
+  const nextCountryId = parsed.data.countryId !== undefined ? parsed.data.countryId : existing.countryId;
+  const nextNationality = parsed.data.nationality !== undefined ? parsed.data.nationality : existing.nationality;
+  const nextPaxType = parsed.data.paxType !== undefined ? parsed.data.paxType : existing.paxType;
   const nextDocumentName = parsed.data.documentName ?? existing.documentName;
-  if (nextNationality !== existing.nationality || nextServiceType !== existing.serviceType || nextDocumentName !== existing.documentName) {
-    const clash = await db.documentRequirement.findUnique({
-      where: { nationality_serviceType_documentName: { nationality: nextNationality, serviceType: nextServiceType, documentName: nextDocumentName } },
+
+  const identityChanged =
+    nextServiceType !== existing.serviceType ||
+    nextCountryId !== existing.countryId ||
+    nextNationality !== existing.nationality ||
+    nextPaxType !== existing.paxType ||
+    nextDocumentName !== existing.documentName;
+
+  if (identityChanged) {
+    const clash = await db.documentRequirement.findFirst({
+      where: {
+        serviceType: nextServiceType,
+        countryId: nextCountryId,
+        nationality: nextNationality,
+        paxType: nextPaxType,
+        documentName: nextDocumentName,
+      },
     });
     if (clash && clash.id !== id) {
-      return jsonError(400, "This document requirement already exists for this nationality and service.", {
+      return jsonError(400, "A document requirement already exists for this exact combination.", {
         documentName: ["Already added — edit that row instead."],
       });
     }
   }
 
   const updated = await db.$transaction(async (tx) => {
-    const result = await tx.documentRequirement.update({ where: { id }, data: parsed.data });
+    const result = await tx.documentRequirement.update({
+      where: { id },
+      data: parsed.data,
+      include: { country: { select: { id: true, name: true, code: true } } },
+    });
     await writeAudit(tx, {
       entityType: "DocumentRequirement",
       entityId: id,

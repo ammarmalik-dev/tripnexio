@@ -300,40 +300,45 @@ async function main() {
   };
   await db.border.upsert({ where: { id: "sample-border-2" }, update: sampleBorder2, create: sampleBorder2 });
 
-  const sampleDocRequirement1 = {
+  // Step 41 (Admin FINAL handover §5): DocumentRequirement dropped its DB-
+  // level unique constraint (countryId/nationality/paxType are all
+  // nullable now — same nullable-column-uniqueness reasoning as
+  // PricingRule, Step 40), so upsert-by-compound-key no longer works;
+  // find-or-create by the actual semantic key instead.
+  async function upsertDocumentRequirementByKey(input: {
+    serviceType: "NEW_VISA" | "OTB";
+    countryId?: string | null;
+    nationality?: string | null;
+    paxType?: "ADULT" | "CHILD" | "INFANT" | null;
+    documentName: string;
+    required: boolean;
+  }) {
+    const key = {
+      serviceType: input.serviceType,
+      countryId: input.countryId ?? null,
+      nationality: input.nationality ?? null,
+      paxType: input.paxType ?? null,
+      documentName: input.documentName,
+    };
+    const existing = await db.documentRequirement.findFirst({ where: key });
+    if (existing) {
+      return db.documentRequirement.update({ where: { id: existing.id }, data: { required: input.required } });
+    }
+    return db.documentRequirement.create({ data: { ...key, required: input.required } });
+  }
+
+  await upsertDocumentRequirementByKey({
+    serviceType: "NEW_VISA",
     nationality: "Sample Nationality",
-    serviceType: "NEW_VISA" as const,
     documentName: "Sample Document",
     required: true,
-  };
-  await db.documentRequirement.upsert({
-    where: {
-      nationality_serviceType_documentName: {
-        nationality: sampleDocRequirement1.nationality,
-        serviceType: sampleDocRequirement1.serviceType,
-        documentName: sampleDocRequirement1.documentName,
-      },
-    },
-    update: sampleDocRequirement1,
-    create: sampleDocRequirement1,
   });
 
-  const sampleDocRequirement2 = {
+  await upsertDocumentRequirementByKey({
+    serviceType: "OTB",
     nationality: "Sample Nationality",
-    serviceType: "OTB" as const,
     documentName: "Sample Document 2",
     required: false,
-  };
-  await db.documentRequirement.upsert({
-    where: {
-      nationality_serviceType_documentName: {
-        nationality: sampleDocRequirement2.nationality,
-        serviceType: sampleDocRequirement2.serviceType,
-        documentName: sampleDocRequirement2.documentName,
-      },
-    },
-    update: sampleDocRequirement2,
-    create: sampleDocRequirement2,
   });
 
   // Step 40 (Admin FINAL handover §4): PricingRule is now the real central

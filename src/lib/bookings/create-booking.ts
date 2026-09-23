@@ -63,10 +63,27 @@ export async function createBookingFromQuotation(
     passengerIds.length > 0
       ? await db.passenger.findMany({
           where: { id: { in: passengerIds } },
-          select: { id: true, fullName: true, nationality: true },
+          select: { id: true, fullName: true, nationality: true, paxType: true },
         })
       : [];
-  const documentChecklistSnapshot = await buildDocumentChecklistSnapshot(quotation.lead.serviceType, snapshotPassengers);
+
+  // Step 41 — New Visa's lead stores its destination country as a code
+  // string in `details.destinationCountry` (see computeNewVisaPrice's own
+  // lookup); resolved here so the frozen checklist snapshot can match
+  // country-scoped DocumentRequirement rows, not just nationality/paxType
+  // ones. No other service currently has a cleanly resolvable destination
+  // country in its lead details, so this stays New-Visa-only for now.
+  const destinationCountryCode =
+    quotation.lead.serviceType === "NEW_VISA" && typeof leadDetails.destinationCountry === "string"
+      ? leadDetails.destinationCountry
+      : null;
+  const destinationCountry = destinationCountryCode ? await db.country.findUnique({ where: { code: destinationCountryCode } }) : null;
+
+  const documentChecklistSnapshot = await buildDocumentChecklistSnapshot(
+    quotation.lead.serviceType,
+    snapshotPassengers,
+    destinationCountry?.id ?? null
+  );
 
   const booking = await db.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.booking.create({

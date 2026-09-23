@@ -888,6 +888,7 @@ model Country {
   borders                 Border[]
   returnTicketDestination ReturnTicketDestination?
   pricingRules            PricingRule[]
+  documentRequirements    DocumentRequirement[]
 
   @@index([active])
 }
@@ -956,24 +957,57 @@ model Border {
   @@index([active])
 }
 
-/// Drives the customer document checklist per nationality per service —
-/// e.g. a Nepali OTB applicant may need different documents than a Nepali
-/// New Visa applicant, hence serviceType is part of the identity, not just
-/// an optional filter.
+/// Step 41 (Admin FINAL handover §5 — "one central Document Requirements/
+/// Document Control for all services... service/sub-service/country...
+/// applicant/category rules"): drives the customer document checklist,
+/// matched independently on up to three optional dimensions plus the
+/// always-required serviceType — a null dimension applies universally on
+/// that axis, a set one narrows to that specific value (same semantics as
+/// PricingRule, Step 40).
+///
+/// `countryId` (destination GCC country, ADMIN.md §14/§22's "Country") and
+/// `nationality` (the applicant's own, Visa_Change.md §11/§12) are
+/// deliberately BOTH kept, as two distinct dimensions — the client's own
+/// docs use them for different things (ADMIN.md's checklist dimensions
+/// list never mentions nationality; Visa Change's own spec is built
+/// entirely around nationality and never mentions a country filter for
+/// documents) — not a naming collision to collapse into one field.
+///
+/// `paxType` is the "applicant/category rules" dimension — modeled as the
+/// existing PaxType enum (ADULT/CHILD/INFANT), the only applicant-category
+/// concept with real precedent anywhere in this schema (Passenger.paxType,
+/// PricingRule.paxType) and consistent with New_Visa.md §16's own worked
+/// example (adult/child sharing an identical checklist). "Primary vs.
+/// additional applicant" was considered and NOT modeled — it has zero
+/// precedent anywhere in this schema (not on Passenger, BookingPassenger,
+/// or any request schema), so treating it as a document-checklist
+/// dimension would be inventing new structure rather than extending an
+/// existing one; flagged for the client to confirm if they meant that
+/// specifically instead of/in addition to pax type.
+///
+/// No DB-level uniqueness beyond the indexes below (nullable-column
+/// uniqueness semantics get messy in Postgres — multiple NULLs are always
+/// distinct — same reasoning PricingRule's own doc comment already gives);
+/// the admin routes check for an exact-match duplicate server-side.
 model DocumentRequirement {
   id           String      @id @default(cuid())
-  nationality  String
   serviceType  ServiceType
+  countryId    String?
+  nationality  String?
+  paxType      PaxType?
   documentName String
   required     Boolean     @default(true)
   active       Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
-  @@unique([nationality, serviceType, documentName])
+  country Country? @relation(fields: [countryId], references: [id])
+
   @@index([nationality])
   @@index([serviceType])
   @@index([active])
+  @@index([countryId])
+  @@index([serviceType, countryId, nationality])
 }
 
 /// Step 40 (Admin FINAL handover §4 — "Use the existing Pricing module as
