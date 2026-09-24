@@ -118,6 +118,11 @@ const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 // finance.manage is also excluded — ADMIN.md §29's explicit rule: "Internal
 // vendor cost and margin must remain Admin-only." Expenses and the P&L
 // report both surface exactly those figures.
+//
+// payments.approve is also excluded — Step 51, same "raise vs. approve"
+// split as refunds.approve/staff.leave.approve above. Staff keeps
+// payments.edit (create a payment link or bank-transfer payment, upload a
+// slip) but not the confirmation that actually converts the booking.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
   (permission) =>
     ![
@@ -131,6 +136,7 @@ const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
       "leads.reassign",
       "ai.assist",
       "finance.manage",
+      "payments.approve",
       ADMIN_FULL_PERMISSION,
     ].includes(permission.name)
 ).map((permission) => permission.name);

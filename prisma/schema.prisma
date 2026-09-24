@@ -30,6 +30,13 @@ datasource db {
 // Enums
 // ---------------------------------------------------------------------------
 
+/// Step 51 (Internal Dashboard Merged §8) — OTHER added for the Manual
+/// Lead form's "Service dropdown must include all services and an 'Other'
+/// option." An OTHER lead is never auto-priced (no pricing table has an
+/// OTHER row, nor should one be invented) — it always routes to the
+/// existing manual Quotation flow, exactly like an unconfigured fixed-rate
+/// combo already does. See `manual-lead-schema.ts`'s own doc comment for
+/// the "Other Service" free-text description field this pairs with.
 enum ServiceType {
   NEW_VISA
   VISA_EXTENSION
@@ -37,6 +44,7 @@ enum ServiceType {
   FLIGHT_SPECIAL_FARE
   RETURN_TICKET
   OTB
+  OTHER
 }
 
 /// Step 49 (Internal Dashboard Merged §6) — the client's 11-value lifecycle,
@@ -94,6 +102,15 @@ enum PaymentStatus {
   SUCCESS
   FAILED
   EXPIRED
+}
+
+/// Step 51 (Internal Dashboard Merged §8) — a Payment's collection method.
+/// BANK_TRANSFER never gets a gatewayRef/paymentLink; it's confirmed
+/// through Payment.bankSlipUrl + an explicit staff approval instead (see
+/// payments.approve).
+enum PaymentMethod {
+  GATEWAY
+  BANK_TRANSFER
 }
 
 /// Proposed default refund lifecycle — same caveat as LeadStatus.
@@ -452,6 +469,16 @@ model Payment {
   gatewayRef     String?       @unique
   paymentLink    String?
   linkExpiresAt  DateTime?
+  /// Step 51 — GATEWAY (default) for every existing/website-checkout
+  /// payment; BANK_TRANSFER for one raised via the Manual Lead flow's
+  /// "Bank Transfer" option. A BANK_TRANSFER payment never gets a
+  /// gatewayRef/paymentLink and has gatewayFee 0 (no gateway involved).
+  method         PaymentMethod @default(GATEWAY)
+  /// Staff-uploaded evidence for a BANK_TRANSFER payment (local-file-
+  /// storage path, same convention as Document.fileUrl) — set by
+  /// POST /api/payments/[id]/bank-slip, required before the approval
+  /// route (payments.approve) will confirm it.
+  bankSlipUrl    String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

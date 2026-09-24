@@ -25,6 +25,11 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "bookings.edit", description: "Create bookings and change their status" },
   { name: "payments.view", description: "View payments" },
   { name: "payments.edit", description: "Create payments and mark them successful" },
+  {
+    name: "payments.approve",
+    description:
+      "Confirm a bank-transfer payment (Manual Lead flow) once a slip is uploaded — staff cannot approve their own bank-transfer payments",
+  },
   { name: "refunds.view", description: "View refunds" },
   { name: "refunds.edit", description: "Calculate/raise refunds (status stays Pending until approved)" },
   {

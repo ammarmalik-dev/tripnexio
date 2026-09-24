@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useState, type ChangeEvent } from "react";
+import { AlertTriangle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { RefundStatusControl } from "./RefundStatusControl";
@@ -10,7 +10,10 @@ import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import type { CreateRefundValues } from "@/lib/validation/refund-schema";
 import type { RefundRuleResult } from "@/lib/refunds/rules";
-import type { PaymentStatus, RefundStatus } from "../../generated/prisma/enums";
+import type { PaymentStatus, PaymentMethod, RefundStatus } from "../../generated/prisma/enums";
+
+const ALLOWED_SLIP_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
+const MAX_SLIP_BYTES = 8 * 1024 * 1024;
 
 export interface RefundData {
   id: string;
@@ -40,6 +43,9 @@ export interface PaymentData {
   refunds: RefundData[];
   /** Step 15 (audit §7.4) — the applicable per-service refund rule; null when this payment isn't SUCCESS (a refund can't apply yet regardless). */
   refundRule: RefundRuleResult | null;
+  /** Step 51 — GATEWAY for every payment before this step; BANK_TRANSFER for one raised via the Manual Lead flow. */
+  method: PaymentMethod;
+  bankSlipUrl: string | null;
 }
 
 function money(value: string | number): string {
@@ -51,17 +57,23 @@ export function PaymentPanel({
   passengers,
   onChanged,
   canApproveRefunds,
+  canApproveBankTransfer,
 }: {
   payment: PaymentData;
   /** This booking's own passengers — passed through to the refund calculator's passenger-selection checkboxes (CRM.md §21, Step 14). */
   passengers: { id: string; fullName: string }[];
   onChanged: () => void;
   canApproveRefunds: boolean;
+  /** Step 51 — gates the "Approve Bank Transfer" button (payments.approve); uploading the slip itself only needs payments.edit, checked server-side, not here. */
+  canApproveBankTransfer: boolean;
 }) {
   const [markingSuccess, setMarkingSuccess] = useState(false);
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [creatingRefund, setCreatingRefund] = useState(false);
   const [refundStatuses, setRefundStatuses] = useState<Record<string, RefundStatus>>({});
+  const [uploadingSlip, setUploadingSlip] = useState(false);
+  const [approvingTransfer, setApprovingTransfer] = useState(false);
+  const [slipError, setSlipError] = useState<string | null>(null);
 
   const couponDiscount = Number(payment.couponDiscount ?? 0);
   const total = Number(payment.amount) - couponDiscount + Number(payment.gstAmount) + Number(payment.gatewayFee);
@@ -76,6 +88,51 @@ export function PaymentPanel({
       toast.error(error instanceof ApiError ? error.message : "Couldn't mark this payment successful. Please try again.");
     } finally {
       setMarkingSuccess(false);
+    }
+  };
+
+  const handleSlipChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setSlipError(null);
+
+    if (!ALLOWED_SLIP_TYPES.includes(file.type)) {
+      setSlipError("Please upload a JPEG, PNG, GIF, WebP, or PDF file.");
+      return;
+    }
+    if (file.size > MAX_SLIP_BYTES) {
+      setSlipError("That file is too large (8MB max).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const fileBase64 = result.split(",")[1] ?? "";
+      setUploadingSlip(true);
+      try {
+        await postJson(`/api/payments/${payment.id}/bank-slip`, { fileBase64, mimeType: file.type });
+        toast.success("Slip uploaded.");
+        onChanged();
+      } catch (error) {
+        toast.error(error instanceof ApiError ? error.message : "Couldn't upload that file. Please try again.");
+      } finally {
+        setUploadingSlip(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleApproveBankTransfer = async () => {
+    setApprovingTransfer(true);
+    try {
+      await postJson(`/api/payments/${payment.id}/approve-bank-transfer`, {});
+      toast.success("Bank transfer approved.");
+      onChanged();
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't approve this bank transfer. Please try again.");
+    } finally {
+      setApprovingTransfer(false);
     }
   };
 
@@ -139,6 +196,35 @@ export function PaymentPanel({
               (expires {new Date(payment.linkExpiresAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })})
             </span>
           ) : null}
+        </div>
+      ) : null}
+
+      {payment.method === "BANK_TRANSFER" && payment.status === "PENDING" ? (
+        <div className="flex flex-col gap-2 rounded-md bg-surface-2 px-3 py-2.5 text-xs">
+          <span className="font-medium text-ink-secondary">Bank Transfer — awaiting slip and approval</span>
+          {payment.bankSlipUrl ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <a href={payment.bankSlipUrl} target="_blank" rel="noreferrer" className="text-ink-accent hover:underline">
+                View uploaded slip
+              </a>
+              {canApproveBankTransfer ? (
+                <Button type="button" size="sm" onClick={() => void handleApproveBankTransfer()} isLoading={approvingTransfer}>
+                  Approve Bank Transfer
+                </Button>
+              ) : (
+                <span className="text-ink-tertiary">Only an approver can confirm this.</span>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <label className="inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-md border border-hairline px-3 py-1.5 font-medium text-ink-primary hover:bg-white/[0.03]">
+                <Upload className="h-3.5 w-3.5" aria-hidden="true" />
+                {uploadingSlip ? "Uploading…" : "Upload Slip"}
+                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" className="hidden" disabled={uploadingSlip} onChange={(event) => void handleSlipChange(event)} />
+              </label>
+              {slipError ? <span className="text-error">{slipError}</span> : null}
+            </div>
+          )}
         </div>
       ) : null}
 

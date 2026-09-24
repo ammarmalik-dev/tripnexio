@@ -25,7 +25,13 @@ const SERVICE_INTENTS: BotIntent[] = [
   BOT_INTENTS.OTB,
 ];
 
-export function isServiceIntent(intent: BotIntent): intent is ServiceType {
+/**
+ * Step 51 — narrowed to `Exclude<ServiceType, "OTHER">`, not the full
+ * `ServiceType`: the bot never classifies a message as the CRM-only
+ * "Other" service (it has no bot-facing flow at all), so BotIntent itself
+ * was never widened to include it.
+ */
+export function isServiceIntent(intent: BotIntent): intent is Exclude<ServiceType, "OTHER"> {
   return (SERVICE_INTENTS as string[]).includes(intent);
 }
 

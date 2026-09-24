@@ -4,6 +4,7 @@ import { writeAudit } from "../audit/log";
 import { placeholderBookingId } from "../bookings/reference";
 import { createPendingPayment } from "../payments/create-payment";
 import { getProtectionPlanDefaultPrice } from "../settings/protection-plan-config";
+import { resolveCouponForQuotation } from "../coupons/apply";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 const DIRECT_VENDOR_NAME = "Direct (auto-priced)";
@@ -31,12 +32,32 @@ export async function createAutoCheckout(input: {
   serviceType: Extract<ServiceType, "OTB" | "RETURN_TICKET" | "NEW_VISA">;
   totalPrice: number;
   vendorCost?: number;
-}): Promise<{ token: string } | null> {
-  const { leadId, serviceType, totalPrice, vendorCost = 0 } = input;
+  /** Step 51 — Manual Lead's "permitted extra charges," added on top of totalPrice (mirrors Quotation.fineOrCharges). */
+  extraCharges?: number;
+  /** Step 51 — Manual Lead's "apply eligible coupons." Resolved the same way /api/quotations does; a bad code is a thrown error, not a silently-skipped discount, so the caller's own try/catch surfaces it to staff. */
+  couponCode?: string;
+  /**
+   * Step 51 — the Manual Lead flow creates the Quotation+Booking upfront
+   * but defers the payment itself until staff picks Payment Link or Bank
+   * Transfer on the Booking detail page, unlike the website checkout
+   * (which always wants a gateway link immediately). Defaults to false so
+   * every existing caller (the 3 website intake routes) is unaffected.
+   */
+  skipAutoPayment?: boolean;
+}): Promise<{ token: string; bookingId: string } | null> {
+  const { leadId, serviceType, totalPrice, vendorCost = 0, extraCharges = 0, couponCode, skipAutoPayment = false } = input;
   if (!(totalPrice > 0)) return null;
 
   const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
   if (!lead) return null;
+
+  const grossSellingPrice = totalPrice + extraCharges;
+  let appliedCoupon: { couponId: string; couponCode: string; discountAmount: number } | null = null;
+  if (couponCode) {
+    const result = await resolveCouponForQuotation(couponCode, serviceType, grossSellingPrice);
+    if (!result.ok) throw new Error(result.error);
+    appliedCoupon = result.coupon;
+  }
   const details = (lead.details ?? {}) as Record<string, unknown>;
   const passengerIds = Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [];
 
@@ -62,9 +83,12 @@ export async function createAutoCheckout(input: {
         vendorId: vendor.id,
         vendorCost,
         feeAmount: totalPrice,
-        fineOrCharges: 0,
-        sellingPrice: totalPrice,
-        margin: totalPrice - vendorCost,
+        fineOrCharges: extraCharges,
+        sellingPrice: grossSellingPrice,
+        margin: grossSellingPrice - vendorCost,
+        couponId: appliedCoupon?.couponId,
+        couponCode: appliedCoupon?.couponCode,
+        couponDiscount: appliedCoupon?.discountAmount,
         isSelected: true,
       },
     });
@@ -104,26 +128,32 @@ export async function createAutoCheckout(input: {
       });
     }
 
+    const source = skipAutoPayment ? "Manual Lead entry" : "website checkout";
     await writeAudit(tx, {
       entityType: "Quotation",
       entityId: createdQuotation.id,
       action: "CREATE",
-      note: `Automatic quotation ₹${totalPrice} from Admin-configured pricing (website checkout)${vendorCost > 0 ? ` — vendor cost ₹${vendorCost}` : ""}`,
+      note: `Automatic quotation ₹${grossSellingPrice} from Admin-configured pricing (${source})${vendorCost > 0 ? ` — vendor cost ₹${vendorCost}` : ""}${appliedCoupon ? `, coupon ${appliedCoupon.couponCode} applied (-₹${appliedCoupon.discountAmount})` : ""}`,
     });
     await writeAudit(tx, {
       entityType: "Booking",
       entityId: createdBooking.id,
       action: "CREATE",
-      note: "Booking initiated automatically by the website checkout (pay right after the form)",
+      note:
+        skipAutoPayment
+          ? "Booking initiated from a staff-entered Manual Lead"
+          : "Booking initiated automatically by the website checkout (pay right after the form)",
     });
     return { booking: createdBooking, quotation: createdQuotation };
   });
 
-  await createPendingPayment({
-    booking: { ...booking, customer: lead.customer, lead },
-    quotation,
-    actor: { label: "automatic website checkout" },
-  });
+  if (!skipAutoPayment) {
+    await createPendingPayment({
+      booking: { ...booking, customer: lead.customer, lead },
+      quotation,
+      actor: { label: "automatic website checkout" },
+    });
+  }
 
-  return { token };
+  return { token, bookingId: booking.id };
 }

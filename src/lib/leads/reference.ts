@@ -14,6 +14,7 @@ const SERVICE_REFERENCE_PREFIX: Record<ServiceType, string> = {
   FLIGHT_SPECIAL_FARE: "FF",
   RETURN_TICKET: "RT",
   OTB: "OTB",
+  OTHER: "OS",
 };
 
 export function formatLeadReference(serviceType: ServiceType, leadId: string): string {

@@ -8,6 +8,7 @@ const BOOKING_SERVICE_CODE: Record<ServiceType, string> = {
   FLIGHT_SPECIAL_FARE: "FF",
   RETURN_TICKET: "RT",
   OTB: "OT",
+  OTHER: "OS",
 };
 
 /**

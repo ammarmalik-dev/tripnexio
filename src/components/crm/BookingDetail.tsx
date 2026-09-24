@@ -95,7 +95,15 @@ function extractionTypeForDocument(type: string): "TICKET" | "VISA" | null {
   return null;
 }
 
-export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: string; canApproveRefunds: boolean }) {
+export function BookingDetail({
+  bookingId,
+  canApproveRefunds,
+  canApproveBankTransfer,
+}: {
+  bookingId: string;
+  canApproveRefunds: boolean;
+  canApproveBankTransfer: boolean;
+}) {
   const [state, setState] = useState<FetchState>("loading");
   const [booking, setBooking] = useState<BookingDetailResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -125,11 +133,12 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
     };
   }, [bookingId, reloadNonce]);
 
-  const handleCreatePayment = async () => {
+  const handleCreatePayment = async (method: "gateway" | "bank-transfer") => {
     setCreatingPayment(true);
     try {
-      await postJson(`/api/bookings/${bookingId}/payments`, {});
-      toast.success("Payment created.");
+      const path = method === "gateway" ? `/api/bookings/${bookingId}/payments` : `/api/bookings/${bookingId}/bank-transfer-payment`;
+      await postJson(path, {});
+      toast.success(method === "gateway" ? "Payment link created." : "Bank-transfer payment created.");
       setReloadNonce((current) => current + 1);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't create a payment. Please try again.");
@@ -225,10 +234,16 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-ink-heading">Payments</h2>
               {booking.status === "PENDING" && !hasPendingPayment ? (
-                <Button type="button" size="sm" variant="ghost" onClick={() => void handleCreatePayment()} isLoading={creatingPayment}>
-                  <Plus className="h-4 w-4" aria-hidden="true" />
-                  Create Payment
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" variant="ghost" onClick={() => void handleCreatePayment("gateway")} isLoading={creatingPayment}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Payment Link
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => void handleCreatePayment("bank-transfer")} isLoading={creatingPayment}>
+                    <Plus className="h-4 w-4" aria-hidden="true" />
+                    Bank Transfer
+                  </Button>
+                </div>
               ) : null}
             </div>
             {booking.payments.length === 0 ? (
@@ -242,6 +257,7 @@ export function BookingDetail({ bookingId, canApproveRefunds }: { bookingId: str
                     passengers={booking.passengers}
                     onChanged={() => setReloadNonce((current) => current + 1)}
                     canApproveRefunds={canApproveRefunds}
+                    canApproveBankTransfer={canApproveBankTransfer}
                   />
                 ))}
               </div>

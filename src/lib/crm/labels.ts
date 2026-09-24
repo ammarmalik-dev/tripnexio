@@ -25,6 +25,7 @@ export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   FLIGHT_SPECIAL_FARE: "Flight Special Fare",
   RETURN_TICKET: "Return Ticket",
   OTB: "OTB",
+  OTHER: "Other",
 };
 
 export const SERVICE_TYPE_OPTIONS: { value: ServiceType; label: string }[] = (

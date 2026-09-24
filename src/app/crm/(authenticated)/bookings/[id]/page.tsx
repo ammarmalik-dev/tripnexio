@@ -13,5 +13,6 @@ export default async function CrmBookingDetailPage({ params }: BookingDetailPage
   const { id } = await params;
   const session = await getStaffSession();
   const canApproveRefunds = hasPermission(session, "refunds.approve");
-  return <BookingDetail bookingId={id} canApproveRefunds={canApproveRefunds} />;
+  const canApproveBankTransfer = hasPermission(session, "payments.approve");
+  return <BookingDetail bookingId={id} canApproveRefunds={canApproveRefunds} canApproveBankTransfer={canApproveBankTransfer} />;
 }
