@@ -5,8 +5,8 @@ import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
 import { writeAudit } from "@/lib/audit/log";
 import { deleteUploadedFile } from "@/lib/storage/local-file-storage";
+import { getSystemConfig } from "@/lib/settings/system-config";
 
-const RETENTION_WINDOW_MS = 90 * 24 * 60 * 60 * 1000;
 const TERMINAL_BOOKING_STATUSES = ["COMPLETED", "CANCELLED", "REFUNDED"] as const;
 
 function isRetainedType(type: string): boolean {
@@ -55,7 +55,10 @@ export async function POST(request: NextRequest) {
 
   try {
     const summary = await recordAutomationRun("document-retention", async () => {
-      const cutoff = new Date(Date.now() - RETENTION_WINDOW_MS);
+      // Step 45 (Admin FINAL handover §19, "data retention") — replaces
+      // the previously hardcoded 90-day constant.
+      const { documentRetentionDays } = await getSystemConfig();
+      const cutoff = new Date(Date.now() - documentRetentionDays * 24 * 60 * 60 * 1000);
 
       const candidates = await db.document.findMany({
         where: {

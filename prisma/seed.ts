@@ -758,6 +758,13 @@ async function main() {
     create: sampleNewVisaCountryConfig,
   });
 
+  // Step 45 (Admin FINAL handover §19) — every field left at its schema
+  // default (INR/330min-IST/90-day retention preserve exact prior hardcoded
+  // behavior; company overrides null so the static site-config.ts defaults
+  // keep applying; maintenance mode off). Deliberately `update: {}` — once
+  // an admin has configured this for real, re-seeding must never reset it.
+  await db.systemConfig.upsert({ where: { id: "singleton" }, update: {}, create: { id: "singleton" } });
+
   // New Visa pricing (Step 35, "pay right after the form"; Step 40, moved
   // onto the central PricingRule table) — the UAE/normal sample rows are
   // seeded above alongside the rest of PricingRule's sample data.

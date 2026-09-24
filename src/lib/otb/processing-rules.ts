@@ -35,18 +35,18 @@ const MAX_DAYS_TO_COUNT = 800;
  * one) — a fixed offset is correct here since India has a single,
  * unchanging UTC offset year-round.
  */
-const IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
+const DEFAULT_IST_OFFSET_MS = (5 * 60 + 30) * 60 * 1000;
 /** Assumption pending client confirmation — no business-hours window was specified anywhere in the handover docs. */
 const WORKING_DAY_START_HOUR_IST = 9;
 const WORKING_DAY_END_HOUR_IST = 18;
 
-function toIstShifted(date: Date): Date {
-  return new Date(date.getTime() + IST_OFFSET_MS);
+function toIstShifted(date: Date, istOffsetMs: number): Date {
+  return new Date(date.getTime() + istOffsetMs);
 }
 
 /** Start-of-day (00:00) of `date`'s IST calendar day, expressed as an epoch value in the same IST-shifted numbering `toIstShifted` produces — only ever compared against other values from this same function/`toIstShifted`, never a real UTC instant. */
-function istDayStart(date: Date): number {
-  const shifted = toIstShifted(date);
+function istDayStart(date: Date, istOffsetMs: number): number {
+  const shifted = toIstShifted(date, istOffsetMs);
   return Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate());
 }
 
@@ -83,8 +83,17 @@ export function workingDaysUntil(travelDate: string, from: Date = new Date()): n
  * safety margin `workingDaysUntil` already applies for days). Walks day by
  * day in IST-shifted time so both the partial first day and every full day
  * after it fall out of the same loop body without special-casing.
+ *
+ * `istOffsetMs` defaults to the fixed IST offset but is overridable — Step
+ * 45 (Admin FINAL handover §19) threads the Admin-configured
+ * SystemConfig.timezoneOffsetMinutes in from the server-side caller
+ * (src/app/api/leads/otb/route.ts); the client-side form preview
+ * (Step2ProcessingType.tsx) keeps the default, matching this file's own
+ * "shared by the form (to guide the customer) and the API (the real
+ * enforcement)" split — only the API's enforcement needs the real
+ * configured value.
  */
-export function workingHoursUntil(travelDate: string, from: Date = new Date()): number {
+export function workingHoursUntil(travelDate: string, from: Date = new Date(), istOffsetMs: number = DEFAULT_IST_OFFSET_MS): number {
   const target = new Date(travelDate);
   if (Number.isNaN(target.getTime())) return 0;
   // Both boundaries go through the identical IST-shift-then-truncate
@@ -92,10 +101,10 @@ export function workingHoursUntil(travelDate: string, from: Date = new Date()): 
   // side (or shifting one but not truncating it the same way) silently
   // miscounts the travel day itself as available hours; caught and fixed
   // via a hand-traced example before landing this (see commit message).
-  const targetIstDayStartMs = istDayStart(target);
+  const targetIstDayStartMs = istDayStart(target, istOffsetMs);
 
   const DAY = 24 * 60 * 60 * 1000;
-  let cursor = toIstShifted(from);
+  let cursor = toIstShifted(from, istOffsetMs);
   let hours = 0;
 
   for (let i = 0; i < MAX_DAYS_TO_COUNT; i++) {
@@ -120,9 +129,14 @@ export function workingHoursUntil(travelDate: string, from: Date = new Date()): 
  * neither fits, tell the customer and stop the booking. Shared by the form
  * (to guide the customer) and the API (the real enforcement).
  */
-export function evaluateOtbTravelDate(travelDate: string, rules: OtbAirlineRules, from: Date = new Date()): OtbTravelDateOutcome {
+export function evaluateOtbTravelDate(
+  travelDate: string,
+  rules: OtbAirlineRules,
+  from: Date = new Date(),
+  istOffsetMs: number = DEFAULT_IST_OFFSET_MS
+): OtbTravelDateOutcome {
   const workingDays = workingDaysUntil(travelDate, from);
-  const workingHours = workingHoursUntil(travelDate, from);
+  const workingHours = workingHoursUntil(travelDate, from, istOffsetMs);
 
   if (workingDays >= rules.standardDays) {
     return {

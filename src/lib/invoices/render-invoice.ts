@@ -1,15 +1,21 @@
 import PDFDocument from "pdfkit";
 import { db } from "../db";
 import { formatLeadReference } from "../leads/reference";
-import { siteConfig } from "../site-config";
+import { formatCurrency } from "../format-currency";
 import { getInvoiceCompanyDetails } from "./company-config";
 
+/** @deprecated Kept for any external caller expecting the old fixed-INR formatter — renderInvoicePdf itself now uses formatCurrency(value, company.currencyCode) so amounts respect the Admin-configured currency (Step 45). */
 export function money(value: number): string {
-  return `Rs. ${value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return formatCurrency(value, "INR");
 }
 
-/** Resolved InvoiceConfig, with logo/signature already read into Buffers — see company-config.ts. */
+/** Resolved InvoiceConfig + effective company identity (Step 45's SystemConfig overrides merged over site-config.ts), with logo/signature already read into Buffers — see company-config.ts. */
 export interface InvoiceCompanyDetails {
+  legalName: string;
+  address: string;
+  phone: string;
+  email: string;
+  currencyCode: string;
   gstNumber: string | null;
   sacCode: string | null;
   logoBuffer: Buffer | null;
@@ -70,7 +76,7 @@ function drawSignatory(doc: PDFKit.PDFDocument, company: InvoiceCompanyDetails) 
     return;
   }
 
-  doc.fontSize(9).fillColor("#333333").text(`For ${siteConfig.legalName}`, { align: "right" });
+  doc.fontSize(9).fillColor("#333333").text(`For ${company.legalName}`, { align: "right" });
   doc.moveDown(2.5);
   if (company.signatureBuffer) {
     try {
@@ -111,10 +117,10 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
     }
   }
 
-  doc.fontSize(20).fillColor("#000000").text(siteConfig.legalName, { continued: false });
+  doc.fontSize(20).fillColor("#000000").text(input.company.legalName, { continued: false });
   doc.fontSize(10).fillColor("#555555");
-  doc.text(siteConfig.contact.address);
-  doc.text(`${siteConfig.contact.phone} · ${siteConfig.contact.email}`);
+  doc.text(input.company.address);
+  doc.text(`${input.company.phone} · ${input.company.email}`);
   if (input.company.gstNumber) doc.text(`GSTIN: ${input.company.gstNumber}`);
   doc.x = 50;
   doc.moveDown(1.5);
@@ -155,12 +161,14 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   doc.moveTo(50, doc.y + 14).lineTo(545, doc.y + 14).strokeColor("#cccccc").stroke();
   doc.moveDown(1.2);
 
+  const fmt = (value: number) => formatCurrency(value, input.company.currencyCode);
+
   const itemY = doc.y;
   doc.fontSize(9).fillColor("#333333");
   doc.text(input.description, col1, itemY, { width: 240 });
   doc.text(input.company.sacCode ?? "—", col2, itemY);
   doc.text("1", col3, itemY);
-  doc.text(money(input.baseFare), col4, itemY, { align: "right", width: 75 });
+  doc.text(fmt(input.baseFare), col4, itemY, { align: "right", width: 75 });
   doc.moveDown(1);
 
   doc.moveTo(50, doc.y + 4).lineTo(545, doc.y + 4).strokeColor("#cccccc").stroke();
@@ -175,22 +183,22 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   };
 
   if (input.couponDiscount > 0) {
-    row(`Discount (${input.couponCode ?? "coupon"})`, `- ${money(input.couponDiscount)}`);
+    row(`Discount (${input.couponCode ?? "coupon"})`, `- ${fmt(input.couponDiscount)}`);
   }
   const taxableValue = input.baseFare - input.couponDiscount;
-  row("Taxable Value", money(taxableValue));
+  row("Taxable Value", fmt(taxableValue));
   if (input.gstAmount > 0) {
-    row(`GST @ ${input.gstRatePercent.toFixed(2)}%`, money(input.gstAmount));
+    row(`GST @ ${input.gstRatePercent.toFixed(2)}%`, fmt(input.gstAmount));
   }
   if (input.gatewayFee > 0) {
-    row("Payment Gateway Fee", money(input.gatewayFee));
+    row("Payment Gateway Fee", fmt(input.gatewayFee));
   }
 
   doc.moveTo(50, doc.y + 2).lineTo(545, doc.y + 2).strokeColor("#cccccc").stroke();
   doc.moveDown(0.6);
   const totalY = doc.y;
   doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000").text("Total", col1, totalY);
-  doc.text(money(input.total), amountCol, totalY, { align: "right", width: 75 });
+  doc.text(fmt(input.total), amountCol, totalY, { align: "right", width: 75 });
   doc.font("Helvetica");
   doc.moveDown(2);
 

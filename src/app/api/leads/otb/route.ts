@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { getOtbGlobalRules, resolveAirlineRules } from "@/lib/otb/get-otb-rules";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
+import { getSystemConfig } from "@/lib/settings/system-config";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -45,7 +46,11 @@ export async function POST(request: NextRequest) {
       return jsonError(400, "That airline isn't available for OTB.", { airline: ["Select an available airline."] });
     }
     const rules = resolveAirlineRules(airlineRecord, await getOtbGlobalRules());
-    const outcome = evaluateOtbTravelDate(travelDate, rules);
+    // Step 45 — real enforcement uses the Admin-configured timezone offset
+    // (default IST, matches the client's own locked business hours); the
+    // form's own client-side preview keeps the hardcoded default.
+    const { timezoneOffsetMinutes } = await getSystemConfig();
+    const outcome = evaluateOtbTravelDate(travelDate, rules, new Date(), timezoneOffsetMinutes * 60 * 1000);
     if (outcome.status === "BLOCKED") {
       return jsonError(400, outcome.message ?? "That travel date can't be processed.", { travelDate: [outcome.message ?? "Choose a later date."] });
     }

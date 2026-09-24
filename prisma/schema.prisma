@@ -1344,6 +1344,68 @@ model InvoiceConfig {
   updatedAt         DateTime @updatedAt
 }
 
+/// Step 45 (Admin FINAL handover §19) — singleton, same pattern as every
+/// other config here. Only non-secret operational settings live here —
+/// API keys/gateway credentials stay in env vars exactly as already
+/// established (Razorpay/Resend/WhatsApp/Anthropic — see CLAUDE.md);
+/// nothing here ever holds a credential.
+///
+/// Every field below has a real, verified effect (not just stored inertly)
+/// EXCEPT where its own comment says otherwise:
+/// - companyName/Tagline/Address/Phone/Email: null = fall back to the
+///   static src/lib/site-config.ts default. Real effect: the root layout's
+///   page metadata (title/description) AND every invoice PDF's header
+///   (via InvoiceConfig's existing company-config.ts, which now merges
+///   this in) — exactly the reuse point Step 44's own InvoiceConfig doc
+///   comment pointed at, not a duplicate.
+/// - currencyCode: display formatting only — this business only ever
+///   transacts in INR (locked India-to-GCC scope), so this is NOT a
+///   functional multi-currency switch, just the symbol/format used when
+///   rendering an amount. Real effect: invoice PDF amounts.
+/// - timezoneOffsetMinutes: a fixed UTC offset (not an IANA name) — India
+///   has one unchanging offset year-round (no DST), matching
+///   src/lib/otb/processing-rules.ts's own existing doc comment on why a
+///   fixed offset is correct here and no timezone library is needed. Real
+///   effect: OTB's Urgent-processing working-hours cutoff, previously a
+///   hardcoded constant.
+/// - documentRetentionDays: real effect — replaces the previously
+///   hardcoded 90-day constant in the existing document-retention
+///   automation job (Step 21/Phase 5E).
+/// - auditRetentionDays: captured but NOT YET enforced — §19's own
+///   "Suggested audit retention: one year, subject to final business
+///   confirmation" has no purge job to wire into (none exists for
+///   AuditTrail anywhere in this app today); flagged here and in the
+///   Admin UI rather than silently building a new purge job speculatively.
+/// - backupRetentionDays/backupScheduleNote: informational/reference only
+///   — scripts/backup-db.sh is a cron/shell artifact with its own CLI
+///   args, it does not read this app's DB at runtime. These fields
+///   document what ops actually runs, they don't control it.
+/// - maintenanceModeEnabled/maintenanceMessage: client confirmed (banner,
+///   not a full site lockout) — real effect: a dismissible banner shown
+///   on customer-facing pages only (never /crm, /admin, /api).
+/// - systemAlertEmail: real effect — when set, an AutomationRun FAILURE
+///   (any of the 5 n8n-triggered jobs) emails this address, distinct from
+///   the customer-facing NotificationTemplate/notifyCustomer() system.
+model SystemConfig {
+  id                     String   @id
+  companyName            String?
+  companyTagline         String?
+  companyAddress         String?
+  companyPhone           String?
+  companyEmail           String?
+  currencyCode           String   @default("INR")
+  timezoneOffsetMinutes  Int      @default(330)
+  documentRetentionDays  Int      @default(90)
+  auditRetentionDays     Int?
+  backupRetentionDays    Int?
+  backupScheduleNote     String?
+  maintenanceModeEnabled Boolean  @default(false)
+  maintenanceMessage     String?
+  systemAlertEmail       String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
 // ---------------------------------------------------------------------------
 // Protection Plan (Step 20, audit §7.1) — New_Visa.md §8-9, locked. A
 // per-passenger, per-booking add-on, priced by Admin-configured default
