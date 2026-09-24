@@ -1622,9 +1622,34 @@ model User {
   leaves                      StaffLeave[]
   approvedLeaves              StaffLeave[]         @relation("StaffLeaveApprovals")
   recordedExpenses            Expense[]
+  passwordResetTokens         PasswordResetToken[]
 
   @@index([roleId])
   @@index([active])
+}
+
+/// Step 48 (Internal Dashboard Merged §1) — a real forgot-password flow.
+/// Nothing else in this schema has ever needed a single-use, short-lived
+/// token, so this is genuinely new: the raw token is emailed to the user
+/// and NEVER stored — only `tokenHash` (sha256 of the raw token) is kept,
+/// so a DB read alone can't be used to reset someone's password.
+/// `usedAt` makes a token single-use (set the moment it's redeemed, in the
+/// same transaction as the read that validates it); `expiresAt` is a flat
+/// 30 minutes from creation. Old/expired/used rows are never purged here —
+/// low volume, and a future "data retention" pass (see SystemConfig,
+/// Step 45) could add that if it ever matters.
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 /// Step 38 (Tier 2 §2): PENDING (staff-requested, not yet decided) /

@@ -18,8 +18,12 @@ import { SESSION_COOKIE_NAME, verifyStaffSessionToken } from "@/lib/auth/session
  * Named `proxy` (not `middleware`) per Next.js 16's renamed convention —
  * see https://nextjs.org/docs/messages/middleware-to-proxy.
  */
+const PUBLIC_CRM_PATHS = ["/crm/login", "/crm/forgot-password", "/crm/reset-password"];
+
 export async function proxy(request: NextRequest) {
-  if (request.nextUrl.pathname.startsWith("/crm/login")) {
+  // Step 48 — forgot/reset-password must be reachable by a signed-out
+  // visitor (that's the entire point), same as /crm/login.
+  if (PUBLIC_CRM_PATHS.some((path) => request.nextUrl.pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
