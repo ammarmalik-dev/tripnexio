@@ -24,7 +24,7 @@ interface LeadListItem {
   source: string | null;
   createdAt: string;
   customer: { name: string; mobile: string; email: string | null };
-  assignedStaff: { id: string; name: string } | null;
+  assignedStaff: { id: string; name: string; active: boolean } | null;
 }
 
 interface LeadListResponse {
@@ -247,7 +247,17 @@ export function LeadsTable() {
                   <td className="px-4 py-3">
                     <LeadTemperatureBadge temperature={lead.temperature} />
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">{lead.assignedStaff?.name ?? "Unassigned"}</td>
+                  <td className="px-4 py-3 text-ink-secondary">
+                    {lead.assignedStaff === null ? (
+                      "Unassigned"
+                    ) : lead.assignedStaff.active ? (
+                      lead.assignedStaff.name
+                    ) : (
+                      <span title={`Previously assigned to ${lead.assignedStaff.name}, now inactive`}>
+                        Unassigned <span className="text-xs text-ink-tertiary">(was: {lead.assignedStaff.name})</span>
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-ink-tertiary">{formatDate(lead.createdAt)}</td>
                 </tr>
               ))}

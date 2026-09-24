@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { hasServiceAccess } from "@/lib/auth/service-scope";
+import { getStaffIdsOnApprovedLeave, isRosterEligible } from "@/lib/staff/eligible-for-assignment";
 import { formatLeadReference } from "@/lib/leads/reference";
 import type { BookingStatus } from "@/generated/prisma/enums";
 
@@ -95,8 +96,13 @@ export async function POST(request: NextRequest) {
     where: { id: parsed.data.toStaffId },
     include: { role: { include: { permissions: true } } },
   });
-  if (!toStaff || !toStaff.active) {
-    return jsonError(400, "Select a valid, active staff member.", { toStaffId: ["This staff member isn't available."] });
+  if (!toStaff || !isRosterEligible(toStaff)) {
+    return jsonError(400, "Select a valid, active staff member on the roster.", { toStaffId: ["This staff member isn't available."] });
+  }
+  // Step 50 — the destination must actually be working today, same as the roster picker excludes.
+  const staffIdsOnLeave = await getStaffIdsOnApprovedLeave();
+  if (staffIdsOnLeave.has(toStaff.id)) {
+    return jsonError(400, "This staff member is currently on approved leave.", { toStaffId: ["This staff member is currently on approved leave."] });
   }
 
   const leads = await db.lead.findMany({ where: { id: { in: parsed.data.leadIds } } });

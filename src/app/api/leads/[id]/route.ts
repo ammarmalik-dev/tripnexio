@@ -84,8 +84,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     source: lead.source,
     details: lead.details,
     createdAt: lead.createdAt,
+    // Step 50 — `active` lets the UI show "Unassigned (was: Name)" for a
+    // record whose assignee has since been deactivated, instead of quietly
+    // rendering a name that no longer means the lead has an active owner.
     assignedStaff: lead.assignedStaff
-      ? { id: lead.assignedStaff.id, name: lead.assignedStaff.name, email: lead.assignedStaff.email }
+      ? { id: lead.assignedStaff.id, name: lead.assignedStaff.name, email: lead.assignedStaff.email, active: lead.assignedStaff.active }
       : null,
     customer: {
       id: lead.customer.id,

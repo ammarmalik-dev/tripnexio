@@ -17,6 +17,7 @@ import type { ServiceType, BookingStatus } from "../../generated/prisma/enums";
 interface StaffOption {
   id: string;
   name: string;
+  active: boolean;
 }
 
 interface OpenWorkItem {
@@ -59,7 +60,10 @@ export function BulkReassignmentManager() {
     async function loadStaff() {
       setStaffLoadState("loading");
       try {
-        const staff = await getJson<StaffOption[]>("/api/staff");
+        // Step 50 — includeInactive so an employee who has since been
+        // deactivated can still be selected as the "From" (moving their
+        // remaining open work off them is exactly why this screen exists).
+        const staff = await getJson<StaffOption[]>("/api/staff?includeInactive=1");
         if (!cancelled) {
           setStaffOptions(staff);
           setStaffLoadState("success");
@@ -170,6 +174,7 @@ export function BulkReassignmentManager() {
             {staffOptions.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
+                {option.active ? "" : " (Inactive)"}
               </option>
             ))}
           </select>
@@ -187,7 +192,9 @@ export function BulkReassignmentManager() {
           >
             <option value="">Select a staff member</option>
             {staffOptions
-              .filter((option) => option.id !== fromStaffId)
+              // Step 50 — the destination must be a real, active roster
+              // member; only "From" is allowed to be an inactive employee.
+              .filter((option) => option.id !== fromStaffId && option.active)
               .map((option) => (
                 <option key={option.id} value={option.id}>
                   {option.name}

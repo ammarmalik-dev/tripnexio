@@ -27,8 +27,9 @@ interface LeadAssignmentControlProps {
   leadId: string;
   /** Step 39 — only staff scoped for this service (or unrestricted) are offered, both in the dropdown and the suggestion. */
   serviceType: ServiceType;
-  assignedStaff: { id: string; name: string } | null;
-  onChanged: (staff: { id: string; name: string } | null) => void;
+  /** Step 50 — `active` is the assignee's current status, not the lead's; a `false` here is what makes this lead "effectively unassigned". */
+  assignedStaff: { id: string; name: string; active: boolean } | null;
+  onChanged: (staff: { id: string; name: string; active: boolean } | null) => void;
   /**
    * CRM.md §34 / ADMIN.md §12: "normal CRM staff CANNOT assign/reassign...
    * Admin CAN." A staff member without leads.reassign can still claim an
@@ -60,14 +61,20 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
     };
   }, [serviceType]);
 
-  // Step 26 Unit 2 (audit §3.11/§4.7) — only meaningful for a currently-
-  // unassigned lead; there's no "suggest a reassignment" case here, only
-  // Admin's own deliberate bulk-reassignment flow (Unit 4) covers moving
-  // already-assigned work.
+  // Step 50 (Internal Dashboard Merged §2) — a lead whose assignee has
+  // gone inactive is treated as effectively unassigned: claimable by
+  // anyone with leads.edit, and eligible for the auto-assign suggestion,
+  // exactly like a lead that was never assigned at all.
+  const effectivelyUnassigned = assignedStaff === null || !assignedStaff.active;
+
+  // Step 26 Unit 2 (audit §3.11/§4.7) — only meaningful for an
+  // effectively-unassigned lead; there's no "suggest a reassignment" case
+  // here, only Admin's own deliberate bulk-reassignment flow (Unit 4)
+  // covers moving already-assigned work.
   useEffect(() => {
     let cancelled = false;
     async function loadSuggestion() {
-      if (assignedStaff !== null) {
+      if (!effectivelyUnassigned) {
         setSuggestion(null);
         return;
       }
@@ -84,7 +91,7 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
     return () => {
       cancelled = true;
     };
-  }, [assignedStaff, serviceType]);
+  }, [effectivelyUnassigned, serviceType]);
 
   const handleChange = async (staffId: string) => {
     setPending(true);
@@ -92,7 +99,8 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
       await patchJson(`/api/leads/${leadId}/assign`, { staffId: staffId || null });
       const staff = staffOptions.find((option) => option.id === staffId) ?? null;
       toast.success(staff ? `Assigned to ${staff.name}` : "Unassigned");
-      onChanged(staff ? { id: staff.id, name: staff.name } : null);
+      // The roster dropdown only ever offers active, roster-eligible staff — see GET /api/staff?service=.
+      onChanged(staff ? { id: staff.id, name: staff.name, active: true } : null);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't update the assignment. Please try again.");
     } finally {
@@ -100,7 +108,7 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
     }
   };
 
-  const canEditThisAssignment = assignedStaff === null || canReassign;
+  const canEditThisAssignment = effectivelyUnassigned || canReassign;
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -111,7 +119,7 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
         {canEditThisAssignment ? (
           <select
             id="lead-assign-select"
-            value={assignedStaff?.id ?? ""}
+            value={effectivelyUnassigned ? "" : (assignedStaff?.id ?? "")}
             disabled={pending}
             onChange={(event) => void handleChange(event.target.value)}
             className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[180px] text-sm")}
@@ -128,9 +136,14 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
             {assignedStaff!.name} <span className="text-xs text-ink-tertiary">(Admin can reassign)</span>
           </span>
         )}
+        {assignedStaff !== null && !assignedStaff.active ? (
+          <span className="text-xs text-ink-tertiary" title="This lead's assignee is no longer active — it's treated as unassigned.">
+            (was: {assignedStaff.name}, now inactive)
+          </span>
+        ) : null}
       </div>
 
-      {assignedStaff === null && suggestion ? (
+      {effectivelyUnassigned && suggestion ? (
         <div className="flex items-center gap-2 text-xs text-ink-tertiary">
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-ink-accent" aria-hidden="true" />
           <span>

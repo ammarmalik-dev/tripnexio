@@ -73,7 +73,7 @@ interface LeadDetailResponse {
   source: string | null;
   details: Record<string, unknown>;
   createdAt: string;
-  assignedStaff: { id: string; name: string; email: string } | null;
+  assignedStaff: { id: string; name: string; email: string; active: boolean } | null;
   customer: {
     id: string;
     name: string;
