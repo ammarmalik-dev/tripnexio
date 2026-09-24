@@ -4,6 +4,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { renderInvoicePdf } from "@/lib/invoices/render-invoice";
+import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -40,6 +41,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   // Derived from what was actually charged on this payment, not today's
   // config — a rate change later shouldn't rewrite a historical invoice.
   const gstRatePercent = netAmount > 0 ? (gstAmount / netAmount) * 100 : 0;
+  const company = await getInvoiceCompanyDetails();
 
   const pdf = await renderInvoicePdf({
     invoiceNumber: `INV-${payment.id.slice(-8).toUpperCase()}`,
@@ -49,6 +51,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     customerName: payment.booking.customer.name,
     customerMobile: payment.booking.customer.mobile,
     customerEmail: payment.booking.customer.email,
+    description: `${payment.booking.lead.serviceType.replaceAll("_", " ")} — Service Fee`,
     baseFare,
     couponCode: payment.couponCode,
     couponDiscount,
@@ -56,6 +59,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
     gstRatePercent,
     gatewayFee,
     total,
+    company,
   });
 
   return new Response(new Uint8Array(pdf), {

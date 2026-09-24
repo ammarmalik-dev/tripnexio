@@ -673,6 +673,19 @@ async function main() {
   const taxFeeConfig = { id: "singleton", gstRatePercent: 0, gatewayFeePercent: 2 };
   await db.taxFeeConfig.upsert({ where: { id: taxFeeConfig.id }, update: {}, create: taxFeeConfig });
 
+  // Step 44 (Admin FINAL handover §13) — every field left blank/null except
+  // a clearly-labeled SAMPLE terms line (the one NOT NULL field). GST
+  // number, bank details and signatory are real business/financial data —
+  // per hard rule #1, never invented here, only a real value the client
+  // enters at /admin/invoice-settings. Same `update: {}` protection as
+  // taxFeeConfig above — once an admin has configured this for real,
+  // re-seeding must never reset it.
+  const invoiceConfig = {
+    id: "singleton",
+    termsAndNotes: "SAMPLE TERMS — replace with the real invoice terms and notes at /admin/invoice-settings before this goes live.",
+  };
+  await db.invoiceConfig.upsert({ where: { id: invoiceConfig.id }, update: {}, create: invoiceConfig });
+
   // Return_Verified_Ticket.md §6: return/onward date = travelDate + this
   // many days, per the selected visa type — literal reading of "the
   // configured 30-day rule"/"the configured 60-day rule" (the spec doesn't

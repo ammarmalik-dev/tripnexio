@@ -33,6 +33,7 @@ import {
   TrendingUp,
   Clock,
   Stamp,
+  FileSignature,
   type LucideIcon,
 } from "lucide-react";
 
@@ -119,6 +120,7 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "FAQs", href: "/admin/faqs", icon: HelpCircle },
   { label: "Notification Templates", href: "/admin/notification-templates", icon: MessageSquareText },
   { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent },
+  { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature },
   { label: "Data Export", href: "/admin/data-export", icon: Download },
   { label: "Automation", href: "/admin/automation", icon: Activity },
   { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints },

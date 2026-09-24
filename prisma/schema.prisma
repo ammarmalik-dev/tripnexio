@@ -1309,6 +1309,41 @@ model TaxFeeConfig {
   updatedAt         DateTime @updatedAt
 }
 
+/// Step 44 (Admin FINAL handover §13) — singleton, same pattern as
+/// TaxFeeConfig/ProtectionPlanConfig/OtbRuleConfig/ReturnTicketRuleConfig.
+///
+/// Field-ownership judgment call (§13 "Invoice Builder" vs. the not-yet-built
+/// Step 45 "System Configuration", §19 "company information, branding"):
+/// name/address/phone/email already live in the static src/lib/site-config.ts
+/// and stay there unchanged (Step 45's job, if any, is to make THAT editable
+/// from Admin, not to duplicate it here). `companyGstNumber`/`companyLogoUrl`
+/// have no existing home anywhere and an invoice genuinely can't be built
+/// without them, so they're added HERE, first — when Step 45 is eventually
+/// built, it should read/edit these same two fields for its own "company
+/// info/branding" section rather than creating a second copy. Every other
+/// field below (bank/payment details, terms/notes, signatory) is
+/// invoice-only and has no other consumer in this app, ever.
+model InvoiceConfig {
+  id                String   @id
+  companyGstNumber  String?
+  companyLogoUrl    String?
+  /// Services Accounting Code (not HSN — this business sells services, not
+  /// goods). Left null by default; hard rule #1 — a real SAC code is
+  /// domain-specific tax data the client must supply, never invented here.
+  defaultSacCode    String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  bankIfscCode      String?
+  bankName          String?
+  bankBranch        String?
+  termsAndNotes     String   @db.Text
+  signatoryName     String?
+  signatoryTitle    String?
+  signatureImageUrl String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 // ---------------------------------------------------------------------------
 // Protection Plan (Step 20, audit §7.1) — New_Visa.md §8-9, locked. A
 // per-passenger, per-booking add-on, priced by Admin-configured default

@@ -199,11 +199,19 @@ export function QuoteCard({
             Vendor: {vendorName} · <span title="Internal — never shown to the customer">Cost {money(quotation.vendorCost)} · Margin {money(quotation.margin)} (internal)</span>
           </span>
         </div>
-        {quotation.isSelected ? null : (
-          <Button type="button" size="sm" variant="ghost" onClick={onSelect} isLoading={selecting} disabled={liveExpired}>
-            Select
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <a
+            href={`/api/quotations/${quotation.id}/invoice`}
+            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-hairline px-3 text-xs font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border hover:bg-white/[0.03]"
+          >
+            Download Proforma
+          </a>
+          {quotation.isSelected ? null : (
+            <Button type="button" size="sm" variant="ghost" onClick={onSelect} isLoading={selecting} disabled={liveExpired}>
+              Select
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
