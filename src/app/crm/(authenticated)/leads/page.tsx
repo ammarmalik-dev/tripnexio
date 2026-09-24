@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LeadsTable } from "@/components/crm/LeadsTable";
 
-export const metadata: Metadata = { title: "Leads | CRM" };
+export const metadata: Metadata = { title: "Leads | Internal Dashboard" };
 
 export default function CrmLeadsPage() {
   return (

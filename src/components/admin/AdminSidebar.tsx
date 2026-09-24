@@ -83,7 +83,7 @@ export function AdminSidebar() {
         className="flex items-center gap-2.5 rounded-md border border-hairline px-3 py-2 text-sm font-medium text-ink-secondary transition-colors duration-150 hover:bg-ink-primary/[0.04] hover:text-ink-primary"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-        Back to CRM
+        Back to Internal Dashboard
       </Link>
     </aside>
   );

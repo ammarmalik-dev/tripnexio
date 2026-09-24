@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PaymentsTable } from "@/components/crm/PaymentsTable";
 
-export const metadata: Metadata = { title: "Payments | CRM" };
+export const metadata: Metadata = { title: "Payments | Internal Dashboard" };
 
 export default function CrmPaymentsPage() {
   return (

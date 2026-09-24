@@ -4,7 +4,7 @@ import { StaffLoginForm } from "@/components/crm/StaffLoginForm";
 
 export const metadata: Metadata = {
   title: "Staff Login",
-  description: "Sign in to the TripNexio CRM.",
+  description: "Sign in to the TripNexio Internal Dashboard.",
 };
 
 interface StaffLoginPageProps {
@@ -15,7 +15,7 @@ export default async function StaffLoginPage({ searchParams }: StaffLoginPagePro
   const { from } = await searchParams;
 
   return (
-    <AuthShell eyebrow="TripNexio CRM" title="Staff Login" subtitle="Sign in with your staff account.">
+    <AuthShell eyebrow="TripNexio Internal Dashboard" title="Staff Login" subtitle="Sign in with your staff account.">
       <StaffLoginForm redirectTo={from} />
     </AuthShell>
   );

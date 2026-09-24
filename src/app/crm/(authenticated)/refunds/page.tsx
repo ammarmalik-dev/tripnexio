@@ -3,7 +3,7 @@ import { RefundsTable } from "@/components/crm/RefundsTable";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
 
-export const metadata: Metadata = { title: "Refunds | CRM" };
+export const metadata: Metadata = { title: "Refunds | Internal Dashboard" };
 
 export default async function CrmRefundsPage() {
   const session = await getStaffSession();

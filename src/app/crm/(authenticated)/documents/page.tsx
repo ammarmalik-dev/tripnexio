@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { DocumentReviewQueue } from "@/components/crm/DocumentReviewQueue";
 
-export const metadata: Metadata = { title: "Documents | CRM" };
+export const metadata: Metadata = { title: "Documents | Internal Dashboard" };
 
 export default function CrmDocumentsPage() {
   return (

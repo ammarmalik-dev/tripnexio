@@ -9,7 +9,7 @@ export default function AdminFaqsPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">FAQs</h1>
         <p className="text-sm text-ink-tertiary">
-          The single knowledge base used by the website, the CRM, and later the WhatsApp AI. A few clearly-labeled
+          The single knowledge base used by the website, the Internal Dashboard, and later the WhatsApp AI. A few clearly-labeled
           SAMPLE entries are seeded for development — propose the real content for review before it replaces them.
         </p>
       </div>

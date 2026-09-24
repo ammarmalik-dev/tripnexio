@@ -3,7 +3,7 @@ import { LeadDetail } from "@/components/crm/LeadDetail";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
 
-export const metadata: Metadata = { title: "Lead Detail | CRM" };
+export const metadata: Metadata = { title: "Lead Detail | Internal Dashboard" };
 
 interface LeadDetailPageProps {
   params: Promise<{ id: string }>;

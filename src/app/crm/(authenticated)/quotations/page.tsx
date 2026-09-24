@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { QuotationsTable } from "@/components/crm/QuotationsTable";
 
-export const metadata: Metadata = { title: "Quotations | CRM" };
+export const metadata: Metadata = { title: "Quotations | Internal Dashboard" };
 
 export default function CrmQuotationsPage() {
   return (

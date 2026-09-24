@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { MyLeavePanel } from "@/components/crm/MyLeavePanel";
 
-export const metadata: Metadata = { title: "My Leave | CRM" };
+export const metadata: Metadata = { title: "My Leave | Internal Dashboard" };
 
 export default function CrmMyLeavePage() {
   return (

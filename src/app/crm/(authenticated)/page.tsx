@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { CommandCentre } from "@/components/crm/CommandCentre";
 
-export const metadata: Metadata = { title: "Command Centre | CRM" };
+export const metadata: Metadata = { title: "Command Centre | Internal Dashboard" };
 
 export default async function CrmIndexPage() {
   const session = await getStaffSession();

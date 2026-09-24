@@ -14,9 +14,9 @@ export function CrmSidebar({ showAdminLink = false }: { showAdminLink?: boolean 
     <aside className="glass-2 flex w-60 shrink-0 flex-col gap-6 border-r border-hairline p-4">
       <div className="px-2 pt-1">
         <Logo />
-        <p className="mt-1 text-xs font-medium tracking-wide text-ink-tertiary uppercase">CRM</p>
+        <p className="mt-1 text-xs font-medium tracking-wide text-ink-tertiary uppercase">Internal Dashboard</p>
       </div>
-      <nav aria-label="CRM" className="flex flex-1 flex-col gap-5">
+      <nav aria-label="Internal Dashboard" className="flex flex-1 flex-col gap-5">
         {crmNavGroups.map((group, groupIndex) => (
           <div key={group.label ?? `group-${groupIndex}`} className="flex flex-col gap-1">
             {group.label ? (

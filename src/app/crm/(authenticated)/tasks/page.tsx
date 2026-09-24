@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { TasksTable } from "@/components/crm/TasksTable";
 
-export const metadata: Metadata = { title: "Tasks | CRM" };
+export const metadata: Metadata = { title: "Tasks | Internal Dashboard" };
 
 export default function CrmTasksPage() {
   return (

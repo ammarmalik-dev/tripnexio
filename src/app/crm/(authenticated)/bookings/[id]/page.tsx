@@ -3,7 +3,7 @@ import { BookingDetail } from "@/components/crm/BookingDetail";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
 
-export const metadata: Metadata = { title: "Booking Detail | CRM" };
+export const metadata: Metadata = { title: "Booking Detail | Internal Dashboard" };
 
 interface BookingDetailPageProps {
   params: Promise<{ id: string }>;

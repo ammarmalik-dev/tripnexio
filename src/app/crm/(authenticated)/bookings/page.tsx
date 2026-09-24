@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BookingsTable } from "@/components/crm/BookingsTable";
 
-export const metadata: Metadata = { title: "Bookings | CRM" };
+export const metadata: Metadata = { title: "Bookings | Internal Dashboard" };
 
 export default function CrmBookingsPage() {
   return (

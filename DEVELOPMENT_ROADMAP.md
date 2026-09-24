@@ -629,12 +629,20 @@ Verified end-to-end: a full production build succeeded with every existing Admin
 
 **Source:** `client-message/ADMIN_CRM_CONSOLIDATION_AUDIT.md` Tier 3 — the largest and riskiest phase, since Step 49 (Lead status enum) is genuinely cross-cutting. Do Step 49 early and carefully, before building features that reference the new status list (53, 54).
 
-### Step 47 — Rebrand: "CRM" → "Internal Dashboard"
+### Step 47 — Rebrand: "CRM" → "Internal Dashboard" ✅
 **Audit ref:** Tier 3 §1 (naming only)
 **Problem:** Every employee-facing label says "CRM" — the client wants "Internal Dashboard" in the employee-facing interface (Admin panel naming can stay as-is unless told otherwise).
 
 **Prompt to use:**
 > "Rename every employee-facing 'CRM' label to 'Internal Dashboard' (sidebar title, page titles, staff-facing copy) — this is a labeling change, not a route/URL restructure unless the client confirms they also want `/crm` renamed to `/dashboard` or similar (ask if unclear; renaming URLs breaks any existing bookmarks/links). Verify no user-facing 'CRM' text remains in the staff interface."
+
+**Asked before starting, per the prompt's own explicit instruction**: confirmed labels-only, `/crm` stays as the URL — no route restructure, no bookmark/link breakage, no redirect logic needed.
+
+**A genuinely thorough sweep, not a single grep pass**: found and fixed the sidebar title + `aria-label` (`CrmSidebar.tsx`), the login page's eyebrow text + metadata description, all 12 CRM-authenticated pages' `<title>` suffixes, 3 permission descriptions shown live on the Roles & Permissions screen (`permissions.ts` — dropped the "CRM" qualifier entirely rather than swapping it 1:1, since "staff cannot reassign leads on their own" reads cleaner than "Internal Dashboard staff cannot..."), and an audit-trail note string. A second, closer pass (after the first grep's quoted-string-only pattern missed anything spanning a JSX text node awkwardly) caught 5 more real visible strings a plain `grep CRM` surfaced but the first regex-based pass didn't: page subtitles on Vendors/FAQs/Staff Leave/Roles, and the "Back to CRM" sidebar link — all fixed.
+
+**Deliberately left unchanged, and why**: every comment/doc-string citing `CRM.md` (the actual locked spec filename — renaming the citation would misrepresent which file it's quoting, not rename a product label); the two Claude OCR system prompts (never shown to any human); and `HowItWorks.tsx`'s one customer-facing marketing line ("our CRM") on the public homepage — out of scope since the ask was explicitly the *employee-facing* interface, not marketing copy (flagged, not silently skipped).
+
+Verified end-to-end: a clean `tsc`/lint pass after every edit; visually confirmed in Chrome — the login page eyebrow now reads "TripNexio Internal Dashboard," the CRM sidebar shows "INTERNAL DASHBOARD" under the logo, the browser tab title reads "Leads | Internal Dashboard," and the Roles & Permissions screen's three permission descriptions plus its own page subtitle ("Every Internal Dashboard/Admin route enforces these server-side") no longer say "CRM" anywhere — no console errors. Two more rounds of the same recurring local-environment issue (the local `prisma dev` instance stopping under memory pressure, `ECONNREFUSED`/`ConnectionClosed` during static generation of an unrelated pre-existing component, `ServicesGrid.tsx`) were hit and resolved along the way — confirmed unrelated to this step's changes, which touch zero backend/database code.
 
 ---
 

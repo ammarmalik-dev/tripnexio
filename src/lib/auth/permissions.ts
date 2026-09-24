@@ -17,7 +17,7 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "leads.edit", description: "Edit lead status and claim/assign an unassigned lead" },
   {
     name: "leads.reassign",
-    description: "Reassign a lead that's already assigned to someone else, or unassign it — CRM staff cannot reassign leads on their own",
+    description: "Reassign a lead that's already assigned to someone else, or unassign it — staff cannot reassign leads on their own",
   },
   { name: "quotations.view", description: "View quotations" },
   { name: "quotations.edit", description: "Build and select quotations" },
@@ -29,11 +29,11 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "refunds.edit", description: "Calculate/raise refunds (status stays Pending until approved)" },
   {
     name: "refunds.approve",
-    description: "Approve or reject a raised refund (move it to Processing/Completed/Rejected) — CRM staff cannot approve their own refunds",
+    description: "Approve or reject a raised refund (move it to Processing/Completed/Rejected) — staff cannot approve their own refunds",
   },
   { name: "documents.view", description: "View documents" },
   { name: "documents.edit", description: "Add documents and set their status" },
-  { name: "tasks.view", description: "View CRM tasks" },
+  { name: "tasks.view", description: "View tasks" },
   { name: "tasks.edit", description: "Assign tasks and change their status" },
   { name: "staff.manage", description: "Create, edit, and deactivate staff accounts" },
   {

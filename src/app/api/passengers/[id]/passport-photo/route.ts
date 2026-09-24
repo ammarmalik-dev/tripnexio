@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         entityId: created.id,
         action: "CREATE",
         byUserId: session.id,
-        note: `Passport photo uploaded via CRM (by ${session.name})`,
+        note: `Passport photo uploaded via Internal Dashboard (by ${session.name})`,
       });
       for (const prior of priorPassportDocs) {
         await tx.document.update({ where: { id: prior.id }, data: { fileUrl: null, purgedAt: new Date() } });

@@ -166,7 +166,7 @@ export function ProtectionPlanConfigManager() {
       </div>
 
       <p className="text-xs text-ink-tertiary">
-        New_Visa.md §8 — the price and eligibility list feed the CRM Protection Plan purchase flow; changing them doesn&apos;t alter any
+        New_Visa.md §8 — the price and eligibility list feed the Internal Dashboard Protection Plan purchase flow; changing them doesn&apos;t alter any
         already-offered or purchased plan (prices are snapshotted at offer time).
       </p>
 

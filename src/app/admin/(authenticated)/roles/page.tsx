@@ -9,7 +9,7 @@ export default function AdminRolesPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Roles &amp; Permissions</h1>
         <p className="text-sm text-ink-tertiary">
-          Create roles and assign granular permissions. Every CRM/Admin route enforces these server-side.
+          Create roles and assign granular permissions. Every Internal Dashboard/Admin route enforces these server-side.
         </p>
       </div>
       <RolesManager />
