@@ -19,11 +19,14 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
 
-  const { status, search, sort, page, pageSize } = parsed.data;
+  const { status, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
 
   const where = {
     ...(status ? { status: { in: status } } : {}),
     ...(!isServiceScopeUnrestricted(auth.session) ? { lead: serviceTypeCondition(auth.session) } : {}),
+    ...(dateFrom || dateTo
+      ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
+      : {}),
     ...(search
       ? {
           OR: [

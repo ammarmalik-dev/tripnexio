@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, RotateCw, Download } from "lucide-react";
+import { Search, RotateCw } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
+import { DateRangeFilter } from "./DateRangeFilter";
+import { useDateRangeFilter } from "./useDateRangeFilter";
+import { ExportCsvButton } from "./ExportCsvButton";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { PAYMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
@@ -53,16 +56,25 @@ function formatDate(iso: string): string {
  */
 export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number }) {
   const [status, setStatus] = useState("");
+  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<ExtraPaymentListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+
+  function buildFilterParams() {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (search) params.set("search", search);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    params.set("sort", sort);
+    return params;
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -135,27 +147,6 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
           ))}
         </select>
 
-        <label htmlFor="extra-payment-date-from" className="sr-only">
-          From date
-        </label>
-        <input
-          id="extra-payment-date-from"
-          type="date"
-          value={dateFrom}
-          onChange={(event) => setDateFrom(event.target.value)}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
-        />
-        <label htmlFor="extra-payment-date-to" className="sr-only">
-          To date
-        </label>
-        <input
-          id="extra-payment-date-to"
-          type="date"
-          value={dateTo}
-          onChange={(event) => setDateTo(event.target.value)}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
-        />
-
         <label htmlFor="sort-extra-payments" className="sr-only">
           Sort by created date
         </label>
@@ -180,14 +171,18 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
           Refresh
         </Button>
 
-        <a
-          href="/api/payments/extra/export"
-          className="inline-flex h-9 items-center gap-1.5 rounded-md border border-hairline px-4 text-sm font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border hover:bg-white/[0.03]"
-        >
-          <Download className="h-4 w-4" aria-hidden="true" />
-          Export CSV
-        </a>
+        <ExportCsvButton href={`/api/payments/extra/export?${buildFilterParams().toString()}`} />
       </div>
+
+      <DateRangeFilter
+        idPrefix="extra-payment"
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onPreset={applyPreset}
+        onCustomFrom={applyCustomFrom}
+        onCustomTo={applyCustomTo}
+        onClear={clearDates}
+      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

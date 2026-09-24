@@ -9,7 +9,9 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
-import { DashboardFilterChip } from "./DashboardFilterChip";
+import { DateRangeFilter } from "./DateRangeFilter";
+import { useDateRangeFilter } from "./useDateRangeFilter";
+import { ExportCsvButton } from "./ExportCsvButton";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { PAYMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
@@ -51,8 +53,10 @@ export function PaymentsTable() {
   // Step 53 — read once on mount, so a Command Centre KPI card's link lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
-  const [dateFrom] = useState(() => searchParams.get("dateFrom") ?? "");
-  const [dateTo] = useState(() => searchParams.get("dateTo") ?? "");
+  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
+    searchParams.get("dateFrom") ?? "",
+    searchParams.get("dateTo") ?? ""
+  );
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -62,6 +66,16 @@ export function PaymentsTable() {
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [markingId, setMarkingId] = useState<string | null>(null);
+
+  function buildFilterParams() {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    if (search) params.set("search", search);
+    params.set("sort", sort);
+    return params;
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -170,9 +184,19 @@ export function PaymentsTable() {
           <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
           Refresh
         </Button>
+
+        <ExportCsvButton href={`/api/payments/export?${buildFilterParams().toString()}`} />
       </div>
 
-      <DashboardFilterChip dateFrom={dateFrom} dateTo={dateTo} clearHref="/crm/payments" />
+      <DateRangeFilter
+        idPrefix="payment"
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onPreset={applyPreset}
+        onCustomFrom={applyCustomFrom}
+        onCustomTo={applyCustomTo}
+        onClear={clearDates}
+      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

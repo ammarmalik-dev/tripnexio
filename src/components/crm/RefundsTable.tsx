@@ -9,6 +9,9 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
+import { DateRangeFilter } from "./DateRangeFilter";
+import { useDateRangeFilter } from "./useDateRangeFilter";
+import { ExportCsvButton } from "./ExportCsvButton";
 import { RefundStatusControl } from "./RefundStatusControl";
 import { REFUND_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
@@ -50,6 +53,10 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
   // Step 53 — read once on mount, so the "Refunds Raised" KPI card's link lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
+    searchParams.get("dateFrom") ?? "",
+    searchParams.get("dateTo") ?? ""
+  );
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -59,6 +66,16 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, RefundStatus>>({});
+
+  function buildFilterParams() {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    if (search) params.set("search", search);
+    params.set("sort", sort);
+    return params;
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -73,6 +90,8 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
       try {
         const params = new URLSearchParams();
         if (status) params.set("status", status);
+        if (dateFrom) params.set("dateFrom", dateFrom);
+        if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
 
@@ -93,7 +112,7 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
     return () => {
       cancelled = true;
     };
-  }, [status, search, sort, refreshNonce]);
+  }, [status, dateFrom, dateTo, search, sort, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -153,7 +172,19 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
           <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
           Refresh
         </Button>
+
+        <ExportCsvButton href={`/api/refunds/export?${buildFilterParams().toString()}`} />
       </div>
+
+      <DateRangeFilter
+        idPrefix="refund"
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onPreset={applyPreset}
+        onCustomFrom={applyCustomFrom}
+        onCustomTo={applyCustomTo}
+        onClear={clearDates}
+      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

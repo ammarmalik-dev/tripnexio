@@ -9,7 +9,9 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
-import { DashboardFilterChip } from "./DashboardFilterChip";
+import { DateRangeFilter } from "./DateRangeFilter";
+import { useDateRangeFilter } from "./useDateRangeFilter";
+import { ExportCsvButton } from "./ExportCsvButton";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { LeadTemperatureBadge } from "./LeadTemperatureBadge";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TEMPERATURE_OPTIONS } from "@/lib/crm/labels";
@@ -50,8 +52,10 @@ export function LeadsTable() {
   const [serviceType, setServiceType] = useState(() => searchParams.get("serviceType") ?? "");
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
   const [temperature, setTemperature] = useState(() => searchParams.get("temperature") ?? "");
-  const [dateFrom] = useState(() => searchParams.get("dateFrom") ?? "");
-  const [dateTo] = useState(() => searchParams.get("dateTo") ?? "");
+  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
+    searchParams.get("dateFrom") ?? "",
+    searchParams.get("dateTo") ?? ""
+  );
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -60,6 +64,18 @@ export function LeadsTable() {
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+
+  function buildFilterParams() {
+    const params = new URLSearchParams();
+    if (serviceType) params.set("serviceType", serviceType);
+    if (status) params.set("status", status);
+    if (temperature) params.set("temperature", temperature);
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    if (search) params.set("search", search);
+    params.set("sort", sort);
+    return params;
+  }
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -191,9 +207,19 @@ export function LeadsTable() {
           <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
           Refresh
         </Button>
+
+        <ExportCsvButton href={`/api/leads/export?${buildFilterParams().toString()}`} />
       </div>
 
-      <DashboardFilterChip dateFrom={dateFrom} dateTo={dateTo} clearHref="/crm/leads" />
+      <DateRangeFilter
+        idPrefix="lead"
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onPreset={applyPreset}
+        onCustomFrom={applyCustomFrom}
+        onCustomTo={applyCustomTo}
+        onClear={clearDates}
+      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">
