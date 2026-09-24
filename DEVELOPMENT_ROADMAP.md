@@ -608,12 +608,20 @@ Verified end-to-end against a real dev DB: defaults confirmed on a fresh row (IN
 
 ---
 
-### Step 46 — Admin sidebar: group into dropdown sections
+### Step 46 — Admin sidebar: group into dropdown sections ✅
 **Audit ref:** Tier 2 §20
 **Problem:** `adminNavItems` is a flat list of ~25 items — the client wants grouped sections (People & Access, Service Configuration, Master Data, Vendors, Sales & Quotations, Finance & Invoices, Reports & Exports, System Settings).
 
 **Prompt to use:**
 > "Regroup the Admin sidebar (`src/lib/crm/nav-config.ts`'s `adminNavItems` + `AdminSidebar.tsx`) into collapsible grouped sections per Admin FINAL handover §20, using the client's suggested group names as a starting point. This is UI-only — every existing route/permission stays the same, only the navigation presentation changes. Verify every existing Admin page is still reachable, just organized, and that section visibility still respects each item's underlying permission check (not just hidden-but-reachable)."
+
+**A real accordion, not just static group headers**: `crmNavGroups`/`CrmSidebar.tsx` already group the CRM's ~9 items under always-expanded headers — with ~25 Admin items across 8 named sections, showing every group open at once would defeat §20's own title, "Keep Sidebar Short." `AdminSidebar.tsx` was rewritten with a real single-open accordion (`useState<string | null>`) — opening one group collapses whichever was open, and the group containing the current page starts open so landing on a page never hides its own nav entry. "AI Command Center" stays ungrouped at the top, mirroring how `crmNavGroups` keeps "Command Centre" ungrouped.
+
+**Every href is byte-identical to the old flat list — genuinely UI-only**: `adminNavItems` (flat array) was replaced by `adminNavGroups` (using the same existing `CrmNavGroup` type `crmNavGroups` already uses), but no route changed and nothing in the permission-checking chain was touched — every screen's own API route still calls its own `requirePermission(...)` exactly as before; this nav list was never the real access gate, only navigation, and that's unchanged.
+
+**A few items don't map onto exactly one of the client's 8 categories unambiguously — placed by closest fit, documented as a judgment call in the code itself, not asserted as a hard rule from the handover doc**: New Visa Countries/Return Ticket Destinations/Service Statuses/Protection Plan → Service Configuration (alongside Pricing/Documents/Timelines, which §20 itself explicitly names as belonging there — same category of per-service business config); Coupons → Sales & Quotations rather than Finance & Invoices (a discount/sales tool, not money already collected); FAQs → Service Configuration (per-service content); Notification Templates → System Settings (cross-cutting, not scoped to one service); Automation → Reports & Exports (a read-only run-history monitor, not an editable setting).
+
+Verified end-to-end: a full production build succeeded with every existing Admin route intact (confirmed in the build's own route table); visually confirmed in Chrome — clicking "Roles & Permissions" auto-expands "People & Access" (matching the current page) with every other group collapsed to just its header+chevron; clicking a different group's header (Master Data) collapses "People & Access" and expands Master Data's 5 items; clicking through to "New Visa Countries" (inside the newly-created Service Configuration group) navigates correctly — no console errors throughout. Two unrelated local-environment build failures were hit and resolved along the way (the local `prisma dev` instance had stopped — `ECONNREFUSED`, not a flaky-connection issue like Step 45's — restarting it fixed both the build and a subsequent reseed); neither was caused by this step's changes, which touch zero backend/database code.
 
 ---
 

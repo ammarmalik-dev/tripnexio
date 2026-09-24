@@ -89,45 +89,104 @@ export const crmNavGroups: CrmNavGroup[] = [
 ];
 
 /**
- * Only shown/reachable to staff whose role grants roles.manage,
- * staff.manage, masters.manage, data.export, leads.reassign, ai.assist
- * (added Step 26/27 — see ADMIN_SECTION_PERMISSIONS's own doc comment), or
- * admin.full — see the Admin layout's server-side check. Every item is visible to anyone who
- * can enter /admin at all; each screen's own API additionally requires
- * its specific permission, so e.g. a masters-only admin lands on a "no
- * permission" error state if they click into Roles, Staff, or Data
- * Export (and vice versa) — the API 403 is the real gate, this list is
- * just navigation.
+ * Step 46 (Admin FINAL handover §20, "Keep Sidebar Short") — grouped into
+ * the client's own named sections, using `CrmNavGroup` (the same type
+ * `crmNavGroups` already uses) so `AdminSidebar.tsx` can render both with
+ * the same shape. This is UI-ONLY reorganization — every href/route below
+ * is byte-identical to the old flat `adminNavItems` array it replaces, and
+ * every screen's own API still enforces its own permission exactly as
+ * before (see each route's own `requirePermission(...)` call) — this list
+ * has never been the real access gate, only navigation, and that hasn't
+ * changed.
+ *
+ * "AI Command Center" stays ungrouped at the top (`label: null`), mirroring
+ * how `crmNavGroups` keeps "Command Centre" ungrouped — it's a standalone
+ * tool, not a member of any of the client's 8 named categories.
+ *
+ * A few items don't map onto exactly one category the client's own list
+ * defines unambiguously — placed by the closest fit, not a hard rule from
+ * the handover doc, so flagged here:
+ * - New Visa Countries / Return Ticket Destinations / Service Statuses /
+ *   Protection Plan -> Service Configuration, alongside Pricing/Documents/
+ *   Timelines (which §20 itself explicitly names as belonging there) —
+ *   all four are per-service business config, same category of thing.
+ * - Coupons -> Sales & Quotations (a sales/discount tool) rather than
+ *   Finance & Invoices (which is reserved for money already collected/
+ *   owed — Tax & Fees, Invoice Settings, Expenses).
+ * - FAQs -> Service Configuration (per-service customer-facing content),
+ *   not Reports & Exports or System Settings, neither of which fit.
+ * - Notification Templates -> System Settings (system-wide communication
+ *   config), not Service Configuration — these aren't scoped to one
+ *   service, they're cross-cutting operational settings.
+ * - Automation -> Reports & Exports — it's a read-only run-history
+ *   monitor (Phase 5E), not an editable setting, so it reads more like a
+ *   report than a "System Setting."
  */
-export const adminNavItems: CrmNavItem[] = [
-  { label: "AI Command Center", href: "/admin/command-center", icon: Sparkles },
-  { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck },
-  { label: "Staff", href: "/admin/users", icon: UserCog },
-  { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff },
-  { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat },
-  { label: "Countries", href: "/admin/countries", icon: Globe2 },
-  { label: "New Visa Countries", href: "/admin/new-visa-countries", icon: Stamp },
-  { label: "Services", href: "/admin/services", icon: LayoutGrid },
-  { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket },
-  { label: "Occupations", href: "/admin/occupations", icon: ClipboardList },
-  { label: "Timelines / SLA", href: "/admin/timelines", icon: Clock },
-  { label: "Airports", href: "/admin/airports", icon: Building2 },
-  { label: "Airlines", href: "/admin/airlines", icon: Plane },
-  { label: "Borders", href: "/admin/borders", icon: Fence },
-  { label: "Document Requirements", href: "/admin/document-requirements", icon: ClipboardList },
-  { label: "Vendors", href: "/admin/vendors", icon: Truck },
-  { label: "Pricing", href: "/admin/pricing", icon: Tags },
-  { label: "Coupons", href: "/admin/coupons", icon: Ticket },
-  { label: "FAQs", href: "/admin/faqs", icon: HelpCircle },
-  { label: "Notification Templates", href: "/admin/notification-templates", icon: MessageSquareText },
-  { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent },
-  { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature },
-  { label: "Data Export", href: "/admin/data-export", icon: Download },
-  { label: "Automation", href: "/admin/automation", icon: Activity },
-  { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints },
-  { label: "Protection Plan", href: "/admin/protection-plan", icon: ShieldCheck },
-  { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt },
-  { label: "Expenses", href: "/admin/expenses", icon: Wallet },
-  { label: "P&L Report", href: "/admin/pnl-report", icon: TrendingUp },
-  { label: "System Configuration", href: "/admin/system-config", icon: Settings },
+export const adminNavGroups: CrmNavGroup[] = [
+  { label: null, items: [{ label: "AI Command Center", href: "/admin/command-center", icon: Sparkles }] },
+  {
+    label: "People & Access",
+    items: [
+      { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck },
+      { label: "Staff", href: "/admin/users", icon: UserCog },
+      { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff },
+      { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat },
+    ],
+  },
+  {
+    label: "Service Configuration",
+    items: [
+      { label: "Services", href: "/admin/services", icon: LayoutGrid },
+      { label: "New Visa Countries", href: "/admin/new-visa-countries", icon: Stamp },
+      { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket },
+      { label: "Timelines / SLA", href: "/admin/timelines", icon: Clock },
+      { label: "Document Requirements", href: "/admin/document-requirements", icon: ClipboardList },
+      { label: "Pricing", href: "/admin/pricing", icon: Tags },
+      { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints },
+      { label: "Protection Plan", href: "/admin/protection-plan", icon: ShieldCheck },
+      { label: "FAQs", href: "/admin/faqs", icon: HelpCircle },
+    ],
+  },
+  {
+    label: "Master Data",
+    items: [
+      { label: "Countries", href: "/admin/countries", icon: Globe2 },
+      { label: "Occupations", href: "/admin/occupations", icon: ClipboardList },
+      { label: "Airports", href: "/admin/airports", icon: Building2 },
+      { label: "Airlines", href: "/admin/airlines", icon: Plane },
+      { label: "Borders", href: "/admin/borders", icon: Fence },
+    ],
+  },
+  {
+    label: "Vendors",
+    items: [{ label: "Vendors", href: "/admin/vendors", icon: Truck }],
+  },
+  {
+    label: "Sales & Quotations",
+    items: [{ label: "Coupons", href: "/admin/coupons", icon: Ticket }],
+  },
+  {
+    label: "Finance & Invoices",
+    items: [
+      { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent },
+      { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature },
+      { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt },
+      { label: "Expenses", href: "/admin/expenses", icon: Wallet },
+    ],
+  },
+  {
+    label: "Reports & Exports",
+    items: [
+      { label: "Data Export", href: "/admin/data-export", icon: Download },
+      { label: "Automation", href: "/admin/automation", icon: Activity },
+      { label: "P&L Report", href: "/admin/pnl-report", icon: TrendingUp },
+    ],
+  },
+  {
+    label: "System Settings",
+    items: [
+      { label: "Notification Templates", href: "/admin/notification-templates", icon: MessageSquareText },
+      { label: "System Configuration", href: "/admin/system-config", icon: Settings },
+    ],
+  },
 ];
