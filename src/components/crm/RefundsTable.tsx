@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, RotateCw } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -46,7 +47,9 @@ function formatDate(iso: string): string {
 }
 
 export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean }) {
-  const [status, setStatus] = useState("");
+  // Step 53 — read once on mount, so the "Refunds Raised" KPI card's link lands pre-filtered.
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");

@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, RotateCw } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
+import { DashboardFilterChip } from "./DashboardFilterChip";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -62,8 +64,12 @@ function money(value: string): string {
 }
 
 export function QuotationsTable() {
-  const [serviceType, setServiceType] = useState("");
-  const [status, setStatus] = useState("");
+  // Step 53 — read once on mount, so a Command Centre KPI card's link lands pre-filtered.
+  const searchParams = useSearchParams();
+  const [serviceType, setServiceType] = useState(() => searchParams.get("serviceType") ?? "");
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [dateFrom] = useState(() => searchParams.get("dateFrom") ?? "");
+  const [dateTo] = useState(() => searchParams.get("dateTo") ?? "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -87,6 +93,8 @@ export function QuotationsTable() {
         const params = new URLSearchParams();
         if (serviceType) params.set("serviceType", serviceType);
         if (status) params.set("status", status);
+        if (dateFrom) params.set("dateFrom", dateFrom);
+        if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
 
@@ -106,7 +114,7 @@ export function QuotationsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, status, search, sort, refreshNonce]);
+  }, [serviceType, status, dateFrom, dateTo, search, sort, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -184,6 +192,8 @@ export function QuotationsTable() {
           Refresh
         </Button>
       </div>
+
+      <DashboardFilterChip dateFrom={dateFrom} dateTo={dateTo} clearHref="/crm/quotations" />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

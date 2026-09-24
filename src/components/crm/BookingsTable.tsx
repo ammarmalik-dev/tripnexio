@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, RotateCw } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -10,7 +11,8 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { BookingStatusBadge } from "./BookingStatusBadge";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
-import { SERVICE_TYPE_LABELS, BOOKING_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { DashboardFilterChip } from "./DashboardFilterChip";
+import { SERVICE_TYPE_LABELS, BOOKING_STATUS_OPTIONS, BOOKING_STATUS_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, PaymentStatus } from "../../generated/prisma/enums";
@@ -39,7 +41,13 @@ function formatDate(iso: string): string {
 }
 
 export function BookingsTable() {
-  const [status, setStatus] = useState("");
+  // Step 53 — read once on mount, so a Command Centre KPI card's link
+  // (e.g. /crm/bookings?status=PENDING,CONFIRMED,PROCESSING for "Active
+  // Bookings") lands pre-filtered. A comma-separated combo has no matching
+  // option in the dropdown below, so it renders blank there until staff
+  // pick a single status — the combo itself still drives the fetch though.
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -142,6 +150,11 @@ export function BookingsTable() {
           Refresh
         </Button>
       </div>
+
+      <DashboardFilterChip
+        label={status.includes(",") ? status.split(",").map((s) => BOOKING_STATUS_LABELS[s as BookingStatus] ?? s).join(", ") : undefined}
+        clearHref="/crm/bookings"
+      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { DocumentReviewQueue } from "@/components/crm/DocumentReviewQueue";
 
 export const metadata: Metadata = { title: "Documents | Internal Dashboard" };
@@ -10,7 +11,9 @@ export default function CrmDocumentsPage() {
         <h1 className="text-xl font-semibold text-ink-heading">Document Verification</h1>
         <p className="text-sm text-ink-tertiary">Review uploaded documents and set their status across every booking.</p>
       </div>
-      <DocumentReviewQueue />
+      <Suspense>
+        <DocumentReviewQueue />
+      </Suspense>
     </div>
   );
 }

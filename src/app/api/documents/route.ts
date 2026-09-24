@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   // documents.view, regardless of their allowedServiceTypes); only a
   // Booking-linked document is actually filtered.
   const where = {
-    ...(status ? { status } : {}),
+    ...(status ? { status: { in: status } } : {}),
     ...(!isServiceScopeUnrestricted(auth.session)
       ? { OR: [{ bookingId: null }, { booking: { lead: serviceTypeCondition(auth.session) } }] }
       : {}),

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, RotateCw } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -9,7 +10,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { DocumentStatusControl } from "./DocumentStatusControl";
-import { DOCUMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { DashboardFilterChip } from "./DashboardFilterChip";
+import { DOCUMENT_STATUS_OPTIONS, DOCUMENT_STATUS_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { DocumentStatus } from "../../generated/prisma/enums";
@@ -38,7 +40,11 @@ function formatDate(iso: string): string {
 }
 
 export function DocumentReviewQueue() {
-  const [status, setStatus] = useState("");
+  // Step 53 — read once on mount, so a Command Centre KPI card's link
+  // (e.g. /crm/documents?status=REQUIRED,MISSING for "Documents Pending")
+  // lands pre-filtered.
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -152,6 +158,11 @@ export function DocumentReviewQueue() {
           Refresh
         </Button>
       </div>
+
+      <DashboardFilterChip
+        label={status.includes(",") ? status.split(",").map((s) => DOCUMENT_STATUS_LABELS[s as DocumentStatus] ?? s).join(", ") : undefined}
+        clearHref="/crm/documents"
+      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

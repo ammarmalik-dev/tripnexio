@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, RotateCw } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
+import { DashboardFilterChip } from "./DashboardFilterChip";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { LeadTemperatureBadge } from "./LeadTemperatureBadge";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TEMPERATURE_OPTIONS } from "@/lib/crm/labels";
@@ -42,9 +44,14 @@ function formatDate(iso: string): string {
 }
 
 export function LeadsTable() {
-  const [serviceType, setServiceType] = useState("");
-  const [status, setStatus] = useState("");
-  const [temperature, setTemperature] = useState("");
+  // Step 53 — read once on mount, so a Command Centre KPI card's link
+  // (e.g. /crm/leads?status=NEW&dateFrom=...&dateTo=...) lands pre-filtered.
+  const searchParams = useSearchParams();
+  const [serviceType, setServiceType] = useState(() => searchParams.get("serviceType") ?? "");
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [temperature, setTemperature] = useState(() => searchParams.get("temperature") ?? "");
+  const [dateFrom] = useState(() => searchParams.get("dateFrom") ?? "");
+  const [dateTo] = useState(() => searchParams.get("dateTo") ?? "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -69,6 +76,8 @@ export function LeadsTable() {
         if (serviceType) params.set("serviceType", serviceType);
         if (status) params.set("status", status);
         if (temperature) params.set("temperature", temperature);
+        if (dateFrom) params.set("dateFrom", dateFrom);
+        if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
 
@@ -88,7 +97,7 @@ export function LeadsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, status, temperature, search, sort, refreshNonce]);
+  }, [serviceType, status, temperature, dateFrom, dateTo, search, sort, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -183,6 +192,8 @@ export function LeadsTable() {
           Refresh
         </Button>
       </div>
+
+      <DashboardFilterChip dateFrom={dateFrom} dateTo={dateTo} clearHref="/crm/leads" />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

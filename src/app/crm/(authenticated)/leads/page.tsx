@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import { LeadsTable } from "@/components/crm/LeadsTable";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -18,7 +19,9 @@ export default function CrmLeadsPage() {
           Manual Lead
         </ButtonLink>
       </div>
-      <LeadsTable />
+      <Suspense>
+        <LeadsTable />
+      </Suspense>
     </div>
   );
 }

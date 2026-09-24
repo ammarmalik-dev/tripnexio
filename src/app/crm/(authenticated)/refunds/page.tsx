@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { RefundsTable } from "@/components/crm/RefundsTable";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -17,7 +18,9 @@ export default async function CrmRefundsPage() {
           Every refund calculated from a successful payment. Initiate a new one from that payment&apos;s detail panel.
         </p>
       </div>
-      <RefundsTable canApproveRefunds={canApproveRefunds} />
+      <Suspense>
+        <RefundsTable canApproveRefunds={canApproveRefunds} />
+      </Suspense>
     </div>
   );
 }

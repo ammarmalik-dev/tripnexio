@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
-  const { serviceType, status, search, sort, page, pageSize } = parsed.data;
+  const { serviceType, status, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
   const now = new Date();
 
   // "EXPIRED"/"PENDING" filter live against validityExpiresAt (not just the
@@ -89,6 +89,9 @@ export async function GET(request: NextRequest) {
     ...(status === "EXPIRED" ? { isSelected: false, ...liveExpiredCondition } : {}),
     ...(status === "PENDING"
       ? { isSelected: false, isExpired: false, OR: [{ validityExpiresAt: null }, { validityExpiresAt: { gte: now } }] }
+      : {}),
+    ...(dateFrom || dateTo
+      ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),
     ...(serviceType || search || !isServiceScopeUnrestricted(auth.session)
       ? {

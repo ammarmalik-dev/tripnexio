@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Search, RotateCw } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
+import { DashboardFilterChip } from "./DashboardFilterChip";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { PAYMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
@@ -46,7 +48,11 @@ function formatDate(iso: string): string {
 }
 
 export function PaymentsTable() {
-  const [status, setStatus] = useState("");
+  // Step 53 — read once on mount, so a Command Centre KPI card's link lands pre-filtered.
+  const searchParams = useSearchParams();
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [dateFrom] = useState(() => searchParams.get("dateFrom") ?? "");
+  const [dateTo] = useState(() => searchParams.get("dateTo") ?? "");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -70,6 +76,8 @@ export function PaymentsTable() {
       try {
         const params = new URLSearchParams();
         if (status) params.set("status", status);
+        if (dateFrom) params.set("dateFrom", dateFrom);
+        if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
 
@@ -89,7 +97,7 @@ export function PaymentsTable() {
     return () => {
       cancelled = true;
     };
-  }, [status, search, sort, refreshNonce]);
+  }, [status, dateFrom, dateTo, search, sort, refreshNonce]);
 
   const handleMarkSuccess = async (id: string) => {
     setMarkingId(id);
@@ -163,6 +171,8 @@ export function PaymentsTable() {
           Refresh
         </Button>
       </div>
+
+      <DashboardFilterChip dateFrom={dateFrom} dateTo={dateTo} clearHref="/crm/payments" />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

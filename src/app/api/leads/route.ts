@@ -16,12 +16,15 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
 
-  const { serviceType, status, temperature, search, sort, page, pageSize } = parsed.data;
+  const { serviceType, status, temperature, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
 
   const where = {
     ...serviceTypeCondition(auth.session, serviceType),
     ...(status ? { status } : {}),
     ...(temperature ? { temperature } : {}),
+    ...(dateFrom || dateTo
+      ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
+      : {}),
     ...(search
       ? {
           customer: {

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { PaymentsTable } from "@/components/crm/PaymentsTable";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 
@@ -16,7 +17,9 @@ export default function CrmPaymentsPage() {
           Extra Payments
         </ButtonLink>
       </div>
-      <PaymentsTable />
+      <Suspense>
+        <PaymentsTable />
+      </Suspense>
     </div>
   );
 }

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   const { status, search, sort, page, pageSize } = parsed.data;
 
   const where = {
-    ...(status ? { status } : {}),
+    ...(status ? { status: { in: status } } : {}),
     ...(!isServiceScopeUnrestricted(auth.session) ? { lead: serviceTypeCondition(auth.session) } : {}),
     ...(search
       ? {

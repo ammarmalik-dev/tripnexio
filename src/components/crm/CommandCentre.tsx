@@ -49,23 +49,48 @@ interface KpiCardProps {
   label: string;
   value: number | null;
   comingSoonHint?: string;
+  /**
+   * Step 53 — "every KPI card must be clickable, opening the relevant
+   * screen pre-filtered." Omitted only for a metric that genuinely has no
+   * single matching filtered list (a cross-model sum like Staff Action
+   * Required) or isn't buildable at all (Delayed) — see each card's own
+   * `notClickableHint` below for which and why.
+   */
+  href?: string;
+  notClickableHint?: string;
 }
 
-function KpiCard({ label, value, comingSoonHint }: KpiCardProps) {
+function KpiCard({ label, value, comingSoonHint, href, notClickableHint }: KpiCardProps) {
   const comingSoon = value === null;
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-1 rounded-xl border px-4 py-3.5",
-        comingSoon ? "border-dashed border-hairline bg-surface-2" : "border-hairline bg-surface-1"
-      )}
-      title={comingSoon ? comingSoonHint : undefined}
-    >
+  const clickable = !comingSoon && !!href;
+
+  const content = (
+    <>
       <p className="text-xs font-medium text-ink-tertiary">{label}</p>
       <p className={cn("text-2xl font-semibold tracking-tight", comingSoon ? "text-ink-tertiary" : "text-ink-heading")}>
         {statValue(value)}
       </p>
       {comingSoon ? <p className="text-[11px] text-ink-tertiary">Coming soon</p> : null}
+    </>
+  );
+
+  const className = cn(
+    "flex flex-col gap-1 rounded-xl border px-4 py-3.5 transition-colors duration-150",
+    comingSoon ? "border-dashed border-hairline bg-surface-2" : "border-hairline bg-surface-1",
+    clickable && "cursor-pointer hover:border-glass-border hover:bg-white/[0.03]"
+  );
+
+  if (clickable) {
+    return (
+      <Link href={href} className={className}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <div className={className} title={comingSoon ? comingSoonHint : notClickableHint}>
+      {content}
     </div>
   );
 }
@@ -149,6 +174,24 @@ export function CommandCentre({ staffName }: CommandCentreProps) {
 
   const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
+  // Step 53 — Sales Overview cards are period-scoped by createdAt, so
+  // their link must carry the same dateFrom/dateTo the KPI itself was
+  // computed over (using this component's own `data.period`, the actual
+  // range the API resolved, not the raw URL params) for the linked list's
+  // count to genuinely match the card's number.
+  function leadsHref(extra: Record<string, string>): string {
+    const params = new URLSearchParams({ ...extra, dateFrom: data!.period.startDate, dateTo: data!.period.endDate });
+    return `/crm/leads?${params.toString()}`;
+  }
+  function quotationsHref(extra: Record<string, string>): string {
+    const params = new URLSearchParams({ ...extra, dateFrom: data!.period.startDate, dateTo: data!.period.endDate });
+    return `/crm/quotations?${params.toString()}`;
+  }
+  function paymentsHref(extra: Record<string, string>): string {
+    const params = new URLSearchParams({ ...extra, dateFrom: data!.period.startDate, dateTo: data!.period.endDate });
+    return `/crm/payments?${params.toString()}`;
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -197,16 +240,21 @@ export function CommandCentre({ staffName }: CommandCentreProps) {
           <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-ink-heading">Sales Overview</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-              <KpiCard label="New Leads" value={data.sales.newLeads} />
-              <KpiCard label="Hot Leads" value={data.sales.hotLeads} />
-              <KpiCard label="Warm Leads" value={data.sales.warmLeads} />
-              <KpiCard label="Cold Leads" value={data.sales.coldLeads} />
-              <KpiCard label="Qualified Leads" value={data.sales.qualifiedLeads} />
-              <KpiCard label="Quotations" value={data.sales.quotationsCreated} />
-              <KpiCard label="Accepted Quotations" value={data.sales.acceptedQuotations} />
-              <KpiCard label="Conversion" value={data.sales.conversionRate} />
-              <KpiCard label="Payment Pending" value={data.sales.paymentPending} />
-              <KpiCard label="Payment Received" value={data.sales.paymentReceived} />
+              <KpiCard label="New Leads" value={data.sales.newLeads} href={leadsHref({ status: "NEW" })} />
+              <KpiCard label="Hot Leads" value={data.sales.hotLeads} href={leadsHref({ temperature: "HOT" })} />
+              <KpiCard label="Warm Leads" value={data.sales.warmLeads} href={leadsHref({ temperature: "WARM" })} />
+              <KpiCard label="Cold Leads" value={data.sales.coldLeads} href={leadsHref({ temperature: "COLD" })} />
+              <KpiCard label="Qualified Leads" value={data.sales.qualifiedLeads} href={leadsHref({ status: "QUALIFIED" })} />
+              <KpiCard label="Quotations" value={data.sales.quotationsCreated} href={quotationsHref({})} />
+              <KpiCard label="Accepted Quotations" value={data.sales.acceptedQuotations} href={quotationsHref({ status: "SELECTED" })} />
+              <KpiCard
+                label="Conversion"
+                value={data.sales.conversionRate}
+                href={leadsHref({ status: "CONVERTED" })}
+                notClickableHint="Opens the Converted leads that make up the numerator — the percentage itself isn't a list."
+              />
+              <KpiCard label="Payment Pending" value={data.sales.paymentPending} href={paymentsHref({ status: "PENDING" })} />
+              <KpiCard label="Payment Received" value={data.sales.paymentReceived} href={paymentsHref({ status: "SUCCESS" })} />
             </div>
           </section>
 
@@ -214,14 +262,18 @@ export function CommandCentre({ staffName }: CommandCentreProps) {
             <h2 className="text-sm font-semibold text-ink-heading">Operations Overview</h2>
             <p className="text-xs text-ink-tertiary">Current live state — not affected by the period filter above.</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-              <KpiCard label="Active Bookings" value={data.operations.activeBookings} />
-              <KpiCard label="Documents Pending" value={data.operations.documentsPending} />
-              <KpiCard label="Customer Action Required" value={data.operations.customerActionRequired} />
-              <KpiCard label="Staff Action Required" value={data.operations.staffActionRequired} />
-              <KpiCard label="External Processing" value={data.operations.externalProcessing} />
+              <KpiCard label="Active Bookings" value={data.operations.activeBookings} href="/crm/bookings?status=PENDING,CONFIRMED,PROCESSING" />
+              <KpiCard label="Documents Pending" value={data.operations.documentsPending} href="/crm/documents?status=REQUIRED,MISSING" />
+              <KpiCard label="Customer Action Required" value={data.operations.customerActionRequired} href="/crm/documents?status=MISSING" />
+              <KpiCard
+                label="Staff Action Required"
+                value={data.operations.staffActionRequired}
+                notClickableHint="Documents awaiting validation + new bookings awaiting processing — see Documents/Bookings separately, no single list shows this combined count."
+              />
+              <KpiCard label="External Processing" value={data.operations.externalProcessing} href="/crm/bookings?status=PROCESSING" />
               <KpiCard label="Delayed" value={data.operations.delayed} comingSoonHint="Requires Delay Analysis — not built yet" />
-              <KpiCard label="Refunds Raised" value={data.operations.refundsRaised} />
-              <KpiCard label="Completed" value={data.operations.completed} />
+              <KpiCard label="Refunds Raised" value={data.operations.refundsRaised} href="/crm/refunds?status=PENDING" />
+              <KpiCard label="Completed" value={data.operations.completed} href="/crm/bookings?status=COMPLETED" />
             </div>
           </section>
 

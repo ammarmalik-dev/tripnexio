@@ -59,7 +59,11 @@ export type ActionQueueItemType =
   | "DOCUMENT_RECEIVED"
   | "DOCUMENT_REJECTED"
   | "REFUND_PENDING"
-  | "LEAD_STALLED";
+  | "LEAD_STALLED"
+  // Step 53 (Internal Dashboard Merged §3) — 3 new "Most Action Required" buckets.
+  | "PAYMENT_PENDING"
+  | "APPROACHING_TRAVEL_DATE"
+  | "UNASSIGNED_INACTIVE_STAFF";
 
 export interface ActionQueueItem {
   type: ActionQueueItemType;
@@ -93,6 +97,22 @@ const LEAD_STALLED_STATUSES = [
 ] as const;
 const LEAD_STALLED_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 const ACTION_QUEUE_GROUP_LIMIT = 8;
+
+/**
+ * Step 53 — "approaching travel dates" is only meaningful for the 4
+ * services whose Lead.details actually carries a `travelDate` string
+ * (New Visa/OTB/Return Ticket/Flight Special Fare — confirmed by reading
+ * each service's own lead-intake route). Visa Extension/Visa Change have
+ * no future-travel-date concept at all (their dates are visa-expiry/
+ * entry-exit, a different meaning), so they're never included here — not
+ * an oversight, there's genuinely nothing to check. 7 days is a judgment
+ * call (no client-specified threshold), matching the same "give it a
+ * number, disclose it" precedent as LEAD_STALLED_AFTER_MS above.
+ */
+const TRAVEL_DATE_SERVICES = ["NEW_VISA", "OTB", "RETURN_TICKET", "FLIGHT_SPECIAL_FARE"] as const;
+const APPROACHING_TRAVEL_DATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+/** A Lead this far along has either converted or died — no travel date on it is still "approaching" in a way that needs action. */
+const TRAVEL_DATE_TERMINAL_STATUSES = ["CONVERTED", "LOST", "CLOSED"] as const;
 
 /**
  * This machine's local `prisma dev` Postgres has a connection_limit of 10
@@ -267,16 +287,93 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
     where: { isSelected: true, ...leadRelationScope },
     include: { lead: { include: { customer: true, bookings: true } } },
   });
+  // Step 53 — "pending payments" as its own queue item, distinct from the
+  // Sales Overview KPI count above (which is period-scoped by createdAt;
+  // this is a live snapshot, same distinction Operations Overview already draws).
+  const pendingPayments = await db.payment.findMany({
+    where: { status: "PENDING", ...bookingLeadScope },
+    orderBy: { createdAt: "asc" },
+    take: ACTION_QUEUE_GROUP_LIMIT,
+    include: { booking: { include: { customer: true } } },
+  });
+  // Step 53 — "approaching travel dates." travelDate lives in Lead.details
+  // (JSON, not a real column), so this can't be pushed into the where
+  // clause the way every other item type above is — narrowed by
+  // serviceType/status first, then travelDate parsed and range-checked in
+  // JS. Only the 4 services that actually have a travelDate concept are
+  // queried at all (see TRAVEL_DATE_SERVICES' own doc comment).
+  const travelDateCandidates = await db.lead.findMany({
+    where: { serviceType: { in: [...TRAVEL_DATE_SERVICES] }, status: { notIn: [...TRAVEL_DATE_TERMINAL_STATUSES] }, ...leadScope },
+    select: { id: true, serviceType: true, details: true, customer: { select: { name: true } } },
+  });
+  // Step 53 — "unassigned work caused by inactive employees" (Step 50's
+  // own "effectively unassigned" concept, surfaced here as an action item
+  // rather than just a display label).
+  const assignedToInactiveStaff = await db.lead.findMany({
+    where: {
+      assignedStaffId: { not: null },
+      assignedStaff: { active: false },
+      status: { notIn: [...TRAVEL_DATE_TERMINAL_STATUSES] },
+      ...leadScope,
+    },
+    orderBy: { updatedAt: "asc" },
+    take: ACTION_QUEUE_GROUP_LIMIT,
+    include: { customer: true, assignedStaff: true },
+  });
 
-  const expiringSoon: ActionQueueItem[] = expiringQuotes.map((q) => ({
-    type: "QUOTE_EXPIRING",
-    label: "Quote expiring soon",
-    detail: `${q.lead.customer.name} — ${formatLeadReference(q.lead.serviceType, q.leadId)}`,
-    href: `/crm/leads/${q.leadId}`,
-    occurredAt: (q.validityExpiresAt as Date).toISOString(),
-  }));
+  const travelDateWindowEnd = new Date(now.getTime() + APPROACHING_TRAVEL_DATE_WINDOW_MS);
+  const approachingTravelDates: ActionQueueItem[] = travelDateCandidates
+    .map((lead) => {
+      const details = (lead.details ?? {}) as Record<string, unknown>;
+      const travelDateRaw = typeof details.travelDate === "string" ? details.travelDate : null;
+      if (!travelDateRaw) return null;
+      const travelDate = new Date(travelDateRaw);
+      if (Number.isNaN(travelDate.getTime()) || travelDate < now || travelDate > travelDateWindowEnd) return null;
+      const item: ActionQueueItem = {
+        type: "APPROACHING_TRAVEL_DATE",
+        label: "Travel date approaching",
+        detail: `${lead.customer.name} — ${formatLeadReference(lead.serviceType, lead.id)}`,
+        href: `/crm/leads/${lead.id}`,
+        occurredAt: travelDate.toISOString(),
+      };
+      return item;
+    })
+    .filter((item): item is ActionQueueItem => item !== null)
+    .sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime())
+    .slice(0, ACTION_QUEUE_GROUP_LIMIT);
+
+  const expiringSoon: ActionQueueItem[] = [
+    ...expiringQuotes.map((q): ActionQueueItem => ({
+      type: "QUOTE_EXPIRING",
+      label: "Quote expiring soon",
+      detail: `${q.lead.customer.name} — ${formatLeadReference(q.lead.serviceType, q.leadId)}`,
+      href: `/crm/leads/${q.leadId}`,
+      occurredAt: (q.validityExpiresAt as Date).toISOString(),
+    })),
+    ...approachingTravelDates,
+  ].sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
 
   const needsAttention: ActionQueueItem[] = [];
+
+  for (const p of pendingPayments) {
+    if (!p.booking) continue;
+    needsAttention.push({
+      type: "PAYMENT_PENDING",
+      label: "Payment pending — follow up",
+      detail: `${p.booking.customer.name} — ${p.booking.bookingId}`,
+      href: `/crm/bookings/${p.booking.id}`,
+      occurredAt: p.createdAt.toISOString(),
+    });
+  }
+  for (const lead of assignedToInactiveStaff) {
+    needsAttention.push({
+      type: "UNASSIGNED_INACTIVE_STAFF",
+      label: "Unassigned — assignee no longer active",
+      detail: `${lead.customer.name} — ${formatLeadReference(lead.serviceType, lead.id)} (was: ${lead.assignedStaff!.name})`,
+      href: `/crm/leads/${lead.id}`,
+      occurredAt: lead.updatedAt.toISOString(),
+    });
+  }
 
   for (const d of documentsMissing) {
     if (!d.booking) continue;
@@ -350,5 +447,16 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
 
   needsAttention.sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
 
-  return { expiringSoon, needsAttention: needsAttention.slice(0, ACTION_QUEUE_GROUP_LIMIT * 2) };
+  // Step 53 — 8 backlog types now feed this one flat, globally-sorted
+  // list (was 6 before PAYMENT_PENDING/UNASSIGNED_INACTIVE_STAFF), each
+  // already capped at ACTION_QUEUE_GROUP_LIMIT of its own oldest items —
+  // but the FINAL slice below still only keeps the oldest N across all of
+  // them combined, so a type with enough older competing items could
+  // otherwise get crowded out of the display entirely even though its own
+  // query correctly found real candidates (caught directly by this step's
+  // own verification — see the roadmap notes). Widened from *2 to *3 to
+  // give every type a more realistic chance of appearing, not a full fix
+  // for cross-type fairness (a true per-type minimum would need a bigger
+  // restructure) — flagged, not silently left as a growing blind spot.
+  return { expiringSoon, needsAttention: needsAttention.slice(0, ACTION_QUEUE_GROUP_LIMIT * 3) };
 }
