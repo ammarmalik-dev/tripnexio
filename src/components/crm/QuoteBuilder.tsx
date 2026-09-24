@@ -117,7 +117,7 @@ export function QuoteBuilder({
     }
   };
 
-  const canQuote = leadStatus !== "CONVERTED" && leadStatus !== "LOST";
+  const canQuote = leadStatus !== "CONVERTED" && leadStatus !== "LOST" && leadStatus !== "CLOSED";
   const alternativeOptions = quotations
     .filter((quotation) => !quotation.alternativeOfId)
     .map((quotation) => ({

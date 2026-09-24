@@ -34,11 +34,15 @@ export const SERVICE_TYPE_OPTIONS: { value: ServiceType; label: string }[] = (
 export const LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   NEW: "New",
   CONTACTED: "Contacted",
+  FOLLOW_UP_REQUIRED: "Follow-up Required",
+  CUSTOMER_RESPONDED: "Customer Responded",
   QUALIFIED: "Qualified",
-  QUOTED: "Quoted",
+  QUOTATION_CREATED: "Quotation Created",
+  QUOTATION_ACCEPTED: "Quotation Accepted",
+  PAYMENT_PENDING: "Payment Pending",
   CONVERTED: "Converted",
-  ON_HOLD: "On Hold",
   LOST: "Lost",
+  CLOSED: "Closed",
 };
 
 export const LEAD_STATUS_OPTIONS: { value: LeadStatus; label: string }[] = (

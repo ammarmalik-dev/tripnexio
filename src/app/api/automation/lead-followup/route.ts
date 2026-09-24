@@ -28,7 +28,21 @@ export async function POST(request: NextRequest) {
     const summary = await recordAutomationRun("lead-followup", async () => {
       const cutoff = new Date(Date.now() - STALE_AFTER_MS);
       const staleLeads = await db.lead.findMany({
-        where: { status: { in: ["NEW", "CONTACTED", "QUALIFIED", "QUOTED"] }, updatedAt: { lt: cutoff } },
+        where: {
+          status: {
+            in: [
+              "NEW",
+              "CONTACTED",
+              "FOLLOW_UP_REQUIRED",
+              "CUSTOMER_RESPONDED",
+              "QUALIFIED",
+              "QUOTATION_CREATED",
+              "QUOTATION_ACCEPTED",
+              "PAYMENT_PENDING",
+            ],
+          },
+          updatedAt: { lt: cutoff },
+        },
         include: { customer: true },
       });
 

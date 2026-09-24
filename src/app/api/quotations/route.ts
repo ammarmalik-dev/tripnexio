@@ -274,6 +274,22 @@ export async function POST(request: NextRequest) {
       note: `Quotation created for lead ${leadId} — margin ${margin}${appliedCoupon ? `, coupon ${appliedCoupon.couponCode} applied (-₹${appliedCoupon.discountAmount})` : ""} (by ${session.name})`,
     });
 
+    // Step 49 — a fresh quotation moves an early-stage lead to QUOTATION_CREATED.
+    // Only from the "not yet quoted" states — never regress a lead already
+    // further along (accepted/payment-pending/converted), and never override
+    // Follow-up Required/Lost/Closed, which are deliberately staff-controlled.
+    const earlyStatuses = ["NEW", "CONTACTED", "FOLLOW_UP_REQUIRED", "CUSTOMER_RESPONDED", "QUALIFIED"];
+    if (earlyStatuses.includes(lead.status)) {
+      await tx.lead.update({ where: { id: leadId }, data: { status: "QUOTATION_CREATED" } });
+      await writeAudit(tx, {
+        entityType: "Lead",
+        entityId: leadId,
+        action: "STATUS_CHANGE",
+        byUserId: session.id,
+        note: `${lead.status} -> QUOTATION_CREATED (quotation created by ${session.name})`,
+      });
+    }
+
     return created;
   });
 

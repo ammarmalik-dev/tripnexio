@@ -39,16 +39,32 @@ enum ServiceType {
   OTB
 }
 
-/// Proposed default lead lifecycle — CLAUDE.md only specified "status enum"
-/// for Lead without exact values; review/adjust before relying on these.
+/// Step 49 (Internal Dashboard Merged §6) — the client's 11-value lifecycle,
+/// replacing the earlier 7-value proposed default. 5 of the 7 old names are
+/// unchanged (NEW/CONTACTED/QUALIFIED/CONVERTED/LOST); only QUOTED and
+/// ON_HOLD retired, split/remapped by the Step 49 data migration:
+/// QUOTED -> QUOTATION_ACCEPTED (if its Quotation.isSelected) or
+/// QUOTATION_CREATED (otherwise); ON_HOLD -> FOLLOW_UP_REQUIRED (client
+/// confirmed, see the migration's own comment). CUSTOMER_RESPONDED and
+/// CLOSED have no automatic writer today — CUSTOMER_RESPONDED has no
+/// existing signal to distinguish it from CONTACTED, and CLOSED is a
+/// manual-only alternate terminal state alongside LOST (client confirmed:
+/// nothing in existing data distinguishes "closed" from "lost", so no
+/// process auto-assigns it). PAYMENT_PENDING is also manual-only for now
+/// (client confirmed) — not wired into the payment-creation flow; see
+/// src/lib/leads/transitions.ts's own doc comment for the transition graph.
 enum LeadStatus {
   NEW
   CONTACTED
+  FOLLOW_UP_REQUIRED
+  CUSTOMER_RESPONDED
   QUALIFIED
-  QUOTED
+  QUOTATION_CREATED
+  QUOTATION_ACCEPTED
+  PAYMENT_PENDING
   CONVERTED
-  ON_HOLD
   LOST
+  CLOSED
 }
 
 /// CRM.md §5, locked: "Lead temperature: Cold, Warm, Hot." Step 12

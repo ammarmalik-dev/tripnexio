@@ -8,14 +8,24 @@ import type { BookingStatus, LeadStatus } from "../../generated/prisma/enums";
  * processing steps admin configures per service, a bigger integration than
  * this account page needs).
  */
+/**
+ * Step 49 — both LOST and CLOSED (internal-only distinction: "didn't work
+ * out" vs. "manually closed for another reason") read the same to a
+ * customer, same as the old map already collapsed LOST into "Closed"
+ * rather than a harsher word.
+ */
 export const CUSTOMER_LEAD_STATUS_LABELS: Record<LeadStatus, string> = {
   NEW: "Request received",
   CONTACTED: "Our team is reviewing this",
+  FOLLOW_UP_REQUIRED: "Our team is reviewing this",
+  CUSTOMER_RESPONDED: "Our team is reviewing this",
   QUALIFIED: "Under review",
-  QUOTED: "Quotation ready",
+  QUOTATION_CREATED: "Quotation ready",
+  QUOTATION_ACCEPTED: "Quotation accepted",
+  PAYMENT_PENDING: "Payment pending",
   CONVERTED: "Confirmed",
-  ON_HOLD: "On hold",
   LOST: "Closed",
+  CLOSED: "Closed",
 };
 
 export const CUSTOMER_BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {

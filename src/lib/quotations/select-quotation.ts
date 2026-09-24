@@ -53,14 +53,23 @@ export async function selectQuotation(quotationId: string, actor: SelectActor) {
     });
 
     const lead = await tx.lead.findUnique({ where: { id: quotation.leadId } });
-    if (lead && lead.status !== "QUOTED" && lead.status !== "CONVERTED") {
-      await tx.lead.update({ where: { id: lead.id }, data: { status: "QUOTED" } });
+    // Step 49 — QUOTED -> QUOTATION_ACCEPTED. Skip the write if the lead is
+    // already at (or past) that point in the funnel — same "don't
+    // re-write/regress" intent as the old two-status guard, just naming all
+    // three later states explicitly now that QUOTED is split into more steps.
+    if (
+      lead &&
+      lead.status !== "QUOTATION_ACCEPTED" &&
+      lead.status !== "PAYMENT_PENDING" &&
+      lead.status !== "CONVERTED"
+    ) {
+      await tx.lead.update({ where: { id: lead.id }, data: { status: "QUOTATION_ACCEPTED" } });
       await writeAudit(tx, {
         entityType: "Lead",
         entityId: lead.id,
         action: "STATUS_CHANGE",
         byUserId: actor.byUserId,
-        note: `${lead.status} -> QUOTED (quotation selected ${actor.label})`,
+        note: `${lead.status} -> QUOTATION_ACCEPTED (quotation selected ${actor.label})`,
       });
     }
 

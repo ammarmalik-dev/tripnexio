@@ -74,7 +74,23 @@ export interface ActionQueueItem {
 // automation job (src/app/api/automation/lead-followup/route.ts) — reused
 // rather than re-invented so "stalled" means the same thing everywhere in
 // the app.
-const LEAD_STALLED_STATUSES = ["NEW", "CONTACTED", "QUALIFIED", "QUOTED"] as const;
+//
+// Step 49 — every non-terminal, non-CONVERTED status (i.e. everything
+// except CONVERTED/LOST/CLOSED). Widened slightly from the old list's
+// intent (NEW/CONTACTED/QUALIFIED/QUOTED) to also include
+// QUOTATION_ACCEPTED/PAYMENT_PENDING — a lead that accepted a quote but
+// hasn't paid in 3+ days is just as good a candidate for a follow-up nudge
+// as one still waiting on a quote.
+const LEAD_STALLED_STATUSES = [
+  "NEW",
+  "CONTACTED",
+  "FOLLOW_UP_REQUIRED",
+  "CUSTOMER_RESPONDED",
+  "QUALIFIED",
+  "QUOTATION_CREATED",
+  "QUOTATION_ACCEPTED",
+  "PAYMENT_PENDING",
+] as const;
 const LEAD_STALLED_AFTER_MS = 3 * 24 * 60 * 60 * 1000;
 const ACTION_QUEUE_GROUP_LIMIT = 8;
 

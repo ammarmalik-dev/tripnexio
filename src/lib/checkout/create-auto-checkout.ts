@@ -68,7 +68,9 @@ export async function createAutoCheckout(input: {
         isSelected: true,
       },
     });
-    await tx.lead.update({ where: { id: leadId }, data: { status: "QUOTED" } });
+    // Step 49 — QUOTED -> QUOTATION_ACCEPTED; the quotation this creates is
+    // always isSelected: true, so it's always the "accepted" step directly.
+    await tx.lead.update({ where: { id: leadId }, data: { status: "QUOTATION_ACCEPTED" } });
 
     const createdBooking = await tx.booking.create({
       data: {

@@ -327,8 +327,20 @@ async function serviceFunnel(param: string | null): Promise<HandlerResult> {
   const leadsByStatus: Record<string, number> = {};
   for (const lead of leads) leadsByStatus[lead.status] = (leadsByStatus[lead.status] ?? 0) + 1;
 
-  const leadsNeverQuoted = (leadsByStatus.NEW ?? 0) + (leadsByStatus.CONTACTED ?? 0) + (leadsByStatus.QUALIFIED ?? 0);
-  const quotedNotConverted = leadsByStatus.QUOTED ?? 0;
+  // Step 49 — QUOTED split into QUOTATION_CREATED/QUOTATION_ACCEPTED; "never
+  // quoted" now also covers the two new pre-QUALIFIED waiting-on-customer
+  // states, and "quoted not converted" sums every post-quote, pre-CONVERTED
+  // status (created, accepted, or payment pending).
+  const leadsNeverQuoted =
+    (leadsByStatus.NEW ?? 0) +
+    (leadsByStatus.CONTACTED ?? 0) +
+    (leadsByStatus.FOLLOW_UP_REQUIRED ?? 0) +
+    (leadsByStatus.CUSTOMER_RESPONDED ?? 0) +
+    (leadsByStatus.QUALIFIED ?? 0);
+  const quotedNotConverted =
+    (leadsByStatus.QUOTATION_CREATED ?? 0) +
+    (leadsByStatus.QUOTATION_ACCEPTED ?? 0) +
+    (leadsByStatus.PAYMENT_PENDING ?? 0);
   const quotesExpiredUnselected = quotations.filter((quotation) => quotation.isExpired && !quotation.isSelected).length;
   const quotesSelected = quotations.filter((quotation) => quotation.isSelected).length;
 
