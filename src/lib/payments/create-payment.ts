@@ -2,10 +2,12 @@ import type { Booking, Customer, Lead, Quotation } from "../../generated/prisma/
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { getTaxFeeRates } from "../settings/tax-fee-config";
+import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { getPaymentGateway } from "./get-gateway";
 import { formatLeadReference } from "../leads/reference";
 
-const PAYMENT_LINK_VALIDITY_MS = 24 * 60 * 60 * 1000;
+/** Fallback when the service has no configured `paymentDeadlineHours` (Step 42) — the original hardcoded value, unchanged for every service until an Admin opts in. */
+const DEFAULT_PAYMENT_LINK_VALIDITY_HOURS = 24;
 
 function roundToPaise(value: number): number {
   return Math.round(value * 100) / 100;
@@ -35,7 +37,11 @@ export async function createPendingPayment(input: {
   const gstAmount = roundToPaise(netAmount * gstRate);
   const gatewayFee = roundToPaise(netAmount * gatewayFeeRate);
   const totalAmount = roundToPaise(netAmount + gstAmount + gatewayFee);
-  const linkExpiresAt = new Date(Date.now() + PAYMENT_LINK_VALIDITY_MS);
+
+  // Step 42 (Admin FINAL handover §6, "payment deadline") — per-service
+  // configurable, falling back to the original hardcoded 24h when unset.
+  const { paymentDeadlineHours } = await getServiceTimelineRules(booking.lead.serviceType);
+  const linkExpiresAt = new Date(Date.now() + (paymentDeadlineHours ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS) * 60 * 60 * 1000);
 
   const gateway = getPaymentGateway();
   // Gateway failures are audited (so the Admin integrations dashboard can show

@@ -10,6 +10,7 @@ import { db } from "../src/lib/db";
 import { PERMISSION_CATALOG, ADMIN_FULL_PERMISSION } from "../src/lib/auth/permissions";
 import { NOTIFICATION_EVENTS } from "../src/lib/notifications/events";
 import { SERVICE_STATUS_SEED } from "./seed-service-statuses";
+import { ServiceType } from "../src/generated/prisma/enums";
 
 /**
  * Step 19 Unit 1 (audit §3.9/§7.3) — seeds each service's real, locked
@@ -692,6 +693,20 @@ async function main() {
     update: {},
     create: { id: "singleton", standardProcessingDays: 24, urgentProcessingHours: 8 },
   });
+
+  // Step 42 (Admin FINAL handover §6) — one empty ServiceTimelineConfig row
+  // per service, so the Admin screen always shows all 6 cards with nothing
+  // to "create." Every SLA field starts null (hard rule #1 — no real
+  // per-service processing/verification/completion/response numbers were
+  // ever given beyond OTB's own already-seeded config above). `update: {}`
+  // so re-seeding never resets whatever an admin has since configured.
+  for (const serviceType of Object.values(ServiceType)) {
+    await db.serviceTimelineConfig.upsert({
+      where: { serviceType },
+      update: {},
+      create: { serviceType },
+    });
+  }
 
   // New Visa occupation dropdown — the starting list the client specified;
   // Admin adds/removes options at /admin/occupations. `update: {}` so a

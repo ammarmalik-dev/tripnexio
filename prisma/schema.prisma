@@ -1633,6 +1633,60 @@ model OtbRuleConfig {
   updatedAt              DateTime @updatedAt
 }
 
+/// Step 42 (Admin FINAL handover §6 — "one central Timeline Control for
+/// all services"): one row per ServiceType (pre-seeded for all 6, so the
+/// Admin screen never needs a create step — see seed.ts), every field
+/// optional/null by default (hard rule #1 — no invented SLA numbers; a
+/// client-locked-spec grep across every service doc found real figures
+/// only for OTB, already covered by `OtbRuleConfig`/`Airline` above, so
+/// nothing here is pre-filled).
+///
+/// This deliberately does NOT absorb OtbRuleConfig or
+/// ReturnTicketRuleConfig — both have genuinely different shapes (OTB's
+/// dual working-day/working-hour business-calendar math via
+/// src/lib/otb/processing-rules.ts; Return Ticket's fixed 3-tier day-offset
+/// rule) that would be a bad-fit forced merge, not a clean generalization.
+/// "One central Timeline Control" is satisfied at the Admin **screen**
+/// level instead (one `/admin/timelines` page embeds all three configs) —
+/// same judgment call Steps 40/41 already made for Pricing/Documents when
+/// a service's shape genuinely didn't fit the shared table.
+///
+/// Wiring into automation (§6: "use configured timelines for SLA tracking,
+/// reminders and escalation"), audited against every existing n8n job from
+/// Phase 5E:
+/// - `quotationResponseMinutes` → wired into assertValidityWithinCap()
+///   (src/lib/quotations/pricing.ts), generalizing the old flight-only
+///   hardcoded 30-minute cap to any service.
+/// - `paymentDeadlineHours` → wired into createPendingPayment()
+///   (src/lib/payments/create-payment.ts), replacing the old hardcoded
+///   24-hour PAYMENT_LINK_VALIDITY_MS.
+/// - `documentVerificationHours` / `expectedCompletionHours` — **no
+///   matching automation trigger exists anywhere in the 5 existing n8n
+///   jobs** (confirmed by reading all 5). Flagged here rather than
+///   silently doing nothing with them, per the roadmap prompt's own
+///   instruction — building a genuinely new automation job for either is
+///   real new scope, left for a dedicated future step rather than folded
+///   in here.
+model ServiceTimelineConfig {
+  id          String      @id @default(cuid())
+  serviceType ServiceType @unique
+
+  /// NOT YET wired into any automation job — see this model's own doc comment.
+  documentVerificationHours Int?
+  /// NOT YET wired into any automation job — see this model's own doc comment.
+  expectedCompletionHours   Int?
+  /// Wired into assertValidityWithinCap() — src/lib/quotations/pricing.ts.
+  quotationResponseMinutes  Int?
+  /// Wired into createPendingPayment() — src/lib/payments/create-payment.ts.
+  paymentDeadlineHours      Int?
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+}
+
 /// File bytes stored in the database — the fallback for hosts with no
 /// writable disk (e.g. serverless), until a real object store (S3/Cloudinary)
 /// is connected. Served by GET /api/files/[id]; the id is a random UUID.

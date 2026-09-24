@@ -7,7 +7,8 @@ import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
-import { computeSellingPrice, isFlightQuote, supportsItinerary, assertValidityWithinCap } from "@/lib/quotations/pricing";
+import { computeSellingPrice, isFlightQuote, supportsItinerary } from "@/lib/quotations/pricing";
+import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
@@ -206,7 +207,7 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", { feeAmount: ["Enter the fee amount."] });
   }
 
-  const validityError = assertValidityWithinCap(lead.serviceType, validityExpiresAt);
+  const validityError = await assertValidityWithinCap(lead.serviceType, validityExpiresAt);
   if (validityError) {
     return jsonError(400, validityError, { validityExpiresAt: [validityError] });
   }

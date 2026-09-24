@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { computeSellingPrice, assertValidityWithinCap } from "@/lib/quotations/pricing";
+import { computeSellingPrice } from "@/lib/quotations/pricing";
+import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
 
@@ -54,7 +55,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  const validityError = assertValidityWithinCap(lead.serviceType, parsed.data.validityExpiresAt);
+  const validityError = await assertValidityWithinCap(lead.serviceType, parsed.data.validityExpiresAt);
   if (validityError) {
     return jsonError(400, validityError, { validityExpiresAt: [validityError] });
   }

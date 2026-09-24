@@ -52,11 +52,3 @@ export function computeSellingPrice(serviceType: ServiceType, input: PricingInpu
   return (input.feeAmount ?? 0) + (input.fineOrCharges ?? 0) + flightTicket;
 }
 
-export function assertValidityWithinCap(serviceType: ServiceType, validityExpiresAt: string | undefined): string | null {
-  if (!isFlightQuote(serviceType) || !validityExpiresAt) return null;
-  const maxExpiry = Date.now() + FLIGHT_QUOTE_MAX_VALIDITY_MINUTES * 60 * 1000;
-  if (new Date(validityExpiresAt).getTime() > maxExpiry) {
-    return `Flight quote validity can't exceed ${FLIGHT_QUOTE_MAX_VALIDITY_MINUTES} minutes.`;
-  }
-  return null;
-}
