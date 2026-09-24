@@ -13,26 +13,33 @@ function roundToPaise(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-/**
- * Computes GST/gateway fee from the (coupon-adjusted) selected quotation,
- * asks the active payment gateway for a link, and stores a PENDING Payment.
- * Shared by the staff route (POST /api/bookings/[id]/payments) and the
- * website's pay-right-after-the-form checkout, so both price and audit
- * payments identically. Callers do their own precondition checks (booking
- * pending, no other pending payment, quote not expired).
- */
-export async function createPendingPayment(input: {
+interface CreateGatewayPaymentInput {
   booking: Booking & { customer: Customer; lead: Lead };
-  quotation: Quotation;
   actor: { byUserId?: string; label: string };
-}) {
-  const { booking, quotation, actor } = input;
+  /** Pre-discount base amount — GST/gatewayFee are computed on `baseAmount - couponDiscount`. */
+  baseAmount: number;
+  couponId?: string | null;
+  couponCode?: string | null;
+  couponDiscount?: number;
+  purpose: "PRIMARY" | "EXTRA";
+  /** EXTRA only — the staff-entered reason, stored on Payment.description and used in the gateway link's own description. */
+  description?: string;
+}
 
-  const amount = Number(quotation.sellingPrice);
+/**
+ * Step 52 — the shared "resolve tax/fee, ask the gateway for a link,
+ * store the Payment row" core, extracted so `createPendingPayment`
+ * (PRIMARY, quotation-priced) and `createExtraPayment` (EXTRA,
+ * staff-entered amount) go through the exact same gateway/GST logic
+ * instead of two parallel implementations.
+ */
+async function createGatewayPayment(input: CreateGatewayPaymentInput) {
+  const { booking, actor, baseAmount, couponId, couponCode, purpose, description } = input;
+  const couponDiscount = input.couponDiscount ?? 0;
+
   // CRM.md §10: "...− Coupon + Gateway Charge = Customer Payable." GST and the
   // gateway fee are computed on the amount AFTER the coupon discount.
-  const couponDiscount = Number(quotation.couponDiscount ?? 0);
-  const netAmount = Math.max(0, amount - couponDiscount);
+  const netAmount = Math.max(0, baseAmount - couponDiscount);
   const { gstRate, gatewayFeeRate } = await getTaxFeeRates();
   const gstAmount = roundToPaise(netAmount * gstRate);
   const gatewayFee = roundToPaise(netAmount * gatewayFeeRate);
@@ -44,6 +51,7 @@ export async function createPendingPayment(input: {
   const linkExpiresAt = new Date(Date.now() + (paymentDeadlineHours ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS) * 60 * 60 * 1000);
 
   const gateway = getPaymentGateway();
+  const reference = formatLeadReference(booking.lead.serviceType, booking.leadId);
   // Gateway failures are audited (so the Admin integrations dashboard can show
   // a "last error") and then rethrown — callers decide how to surface them.
   let gatewayRef: string;
@@ -51,11 +59,11 @@ export async function createPendingPayment(input: {
   try {
     const linkResult = await gateway.createPaymentLink({
       amountInRupees: totalAmount,
-      description: `TripNexio ${formatLeadReference(booking.lead.serviceType, booking.leadId)}`,
+      description: purpose === "EXTRA" ? `TripNexio ${reference} — ${description ?? "Extra Payment"}` : `TripNexio ${reference}`,
       customerName: booking.customer.name,
       customerMobile: booking.customer.mobile,
       customerEmail: booking.customer.email,
-      notes: { bookingId: booking.id, leadId: booking.leadId },
+      notes: { bookingId: booking.id, leadId: booking.leadId, purpose },
       expiresAt: linkExpiresAt,
     });
     gatewayRef = linkResult.gatewayRef;
@@ -74,16 +82,18 @@ export async function createPendingPayment(input: {
     const created = await tx.payment.create({
       data: {
         bookingId: booking.id,
-        amount,
+        amount: baseAmount,
         gstAmount,
         gatewayFee,
-        couponId: quotation.couponId,
-        couponCode: quotation.couponCode,
-        couponDiscount: quotation.couponId ? couponDiscount : undefined,
+        couponId,
+        couponCode,
+        couponDiscount: couponId ? couponDiscount : undefined,
         status: "PENDING",
         gatewayRef,
         paymentLink,
         linkExpiresAt,
+        purpose,
+        description: purpose === "EXTRA" ? description : undefined,
       },
     });
 
@@ -92,9 +102,56 @@ export async function createPendingPayment(input: {
       entityId: created.id,
       action: "CREATE",
       byUserId: actor.byUserId,
-      note: `Payment link created for booking ${booking.id} via ${gateway.providerName} — total ₹${totalAmount}${quotation.couponId ? ` (coupon ${quotation.couponCode} applied, -₹${couponDiscount})` : ""} (${actor.label})`,
+      note:
+        purpose === "EXTRA"
+          ? `Extra payment link created for booking ${booking.id} — total ₹${totalAmount} — reason: ${description} (${actor.label})`
+          : `Payment link created for booking ${booking.id} via ${gateway.providerName} — total ₹${totalAmount}${couponId ? ` (coupon ${couponCode} applied, -₹${couponDiscount})` : ""} (${actor.label})`,
     });
 
     return created;
   });
+}
+
+/**
+ * Computes GST/gateway fee from the (coupon-adjusted) selected quotation,
+ * asks the active payment gateway for a link, and stores a PENDING Payment.
+ * Shared by the staff route (POST /api/bookings/[id]/payments) and the
+ * website's pay-right-after-the-form checkout, so both price and audit
+ * payments identically. Callers do their own precondition checks (booking
+ * pending, no other pending payment, quote not expired).
+ */
+export async function createPendingPayment(input: {
+  booking: Booking & { customer: Customer; lead: Lead };
+  quotation: Quotation;
+  actor: { byUserId?: string; label: string };
+}) {
+  const { booking, quotation, actor } = input;
+  return createGatewayPayment({
+    booking,
+    actor,
+    baseAmount: Number(quotation.sellingPrice),
+    couponId: quotation.couponId,
+    couponCode: quotation.couponCode,
+    couponDiscount: Number(quotation.couponDiscount ?? 0),
+    purpose: "PRIMARY",
+  });
+}
+
+/**
+ * Step 52 (Internal Dashboard Merged §9) — an add-on charge against an
+ * already-existing Booking, decoupled from any Quotation (the booking is
+ * already confirmed/priced; this is a later extra fee, e.g. an additional
+ * baggage charge). No coupon support — a coupon is a pricing-time concept
+ * tied to the original Quotation, not something that applies to a
+ * standalone add-on. Reuses the exact same gateway/GST logic as the
+ * primary payment path via `createGatewayPayment`.
+ */
+export async function createExtraPayment(input: {
+  booking: Booking & { customer: Customer; lead: Lead };
+  amount: number;
+  description: string;
+  actor: { byUserId?: string; label: string };
+}) {
+  const { booking, amount, description, actor } = input;
+  return createGatewayPayment({ booking, actor, baseAmount: amount, purpose: "EXTRA", description });
 }

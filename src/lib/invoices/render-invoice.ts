@@ -267,7 +267,12 @@ export async function buildInvoicePdfForPayment(paymentId: string): Promise<Paym
     customerName: payment.booking.customer.name,
     customerMobile: payment.booking.customer.mobile,
     customerEmail: payment.booking.customer.email,
-    description: `${payment.booking.lead.serviceType.replaceAll("_", " ")} — Service Fee`,
+    // Step 52 — an EXTRA payment's invoice line is its own staff-entered
+    // reason, not the generic service-fee description a PRIMARY payment gets.
+    description:
+      payment.purpose === "EXTRA"
+        ? (payment.description ?? "Extra Payment")
+        : `${payment.booking.lead.serviceType.replaceAll("_", " ")} — Service Fee`,
     baseFare,
     couponCode: payment.couponCode,
     couponDiscount,

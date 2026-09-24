@@ -60,21 +60,32 @@ export async function completePaymentSuccess(
     });
   }
 
-  // Derived from the Lead's own id (not the Booking row's id) — see the doc
-  // comment on formatBookingId: this is the "Lead ID becomes Booking ID"
-  // rule, not a fresh, unrelated identifier.
-  const realBookingId = formatBookingId(payment.booking.lead.serviceType, payment.booking.leadId);
-  const updatedBooking = await tx.booking.update({
-    where: { id: payment.bookingId },
-    data: { bookingId: realBookingId, status: "CONFIRMED" },
-  });
-  await writeAudit(tx, {
-    entityType: "Booking",
-    entityId: payment.bookingId,
-    action: "STATUS_CHANGE",
-    byUserId: actor.byUserId,
-    note: `${payment.booking.status} -> CONFIRMED, bookingId assigned (${realBookingId}) (${actor.actorLabel})`,
-  });
+  // Step 52 — an EXTRA payment (Extra Payment Collection) can succeed
+  // against a Booking that's already CONFIRMED (its primary payment
+  // already went through earlier). Re-deriving/re-writing the same
+  // bookingId and re-"transitioning" an already-CONFIRMED booking to
+  // CONFIRMED would be a harmless no-op data-wise but a misleading audit
+  // note every time — skip this block entirely once the booking is
+  // already CONFIRMED, matching the idempotency the Payment/Lead sections
+  // above and below already have.
+  let updatedBooking: Booking = payment.booking;
+  if (payment.booking.status !== "CONFIRMED") {
+    // Derived from the Lead's own id (not the Booking row's id) — see the doc
+    // comment on formatBookingId: this is the "Lead ID becomes Booking ID"
+    // rule, not a fresh, unrelated identifier.
+    const realBookingId = formatBookingId(payment.booking.lead.serviceType, payment.booking.leadId);
+    updatedBooking = await tx.booking.update({
+      where: { id: payment.bookingId },
+      data: { bookingId: realBookingId, status: "CONFIRMED" },
+    });
+    await writeAudit(tx, {
+      entityType: "Booking",
+      entityId: payment.bookingId,
+      action: "STATUS_CHANGE",
+      byUserId: actor.byUserId,
+      note: `${payment.booking.status} -> CONFIRMED, bookingId assigned (${realBookingId}) (${actor.actorLabel})`,
+    });
+  }
 
   let updatedLead = payment.booking.lead;
   if (updatedLead.status !== "CONVERTED") {

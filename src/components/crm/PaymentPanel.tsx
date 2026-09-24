@@ -10,7 +10,7 @@ import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import type { CreateRefundValues } from "@/lib/validation/refund-schema";
 import type { RefundRuleResult } from "@/lib/refunds/rules";
-import type { PaymentStatus, PaymentMethod, RefundStatus } from "../../generated/prisma/enums";
+import type { PaymentStatus, PaymentMethod, PaymentPurpose, RefundStatus } from "../../generated/prisma/enums";
 
 const ALLOWED_SLIP_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
 const MAX_SLIP_BYTES = 8 * 1024 * 1024;
@@ -46,6 +46,9 @@ export interface PaymentData {
   /** Step 51 — GATEWAY for every payment before this step; BANK_TRANSFER for one raised via the Manual Lead flow. */
   method: PaymentMethod;
   bankSlipUrl: string | null;
+  /** Step 52 — PRIMARY for every payment before this step; EXTRA for one raised via Extra Payment Collection. */
+  purpose: PaymentPurpose;
+  description: string | null;
 }
 
 function money(value: string | number): string {
@@ -153,7 +156,14 @@ export function PaymentPanel({
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-hairline p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <PaymentStatusBadge status={payment.status} />
+        <div className="flex flex-wrap items-center gap-2">
+          <PaymentStatusBadge status={payment.status} />
+          {payment.purpose === "EXTRA" ? (
+            <span className="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+              Extra Payment{payment.description ? ` — ${payment.description}` : ""}
+            </span>
+          ) : null}
+        </div>
         <span className="text-xs text-ink-tertiary">
           {new Date(payment.createdAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
           {payment.gatewayRef ? ` · Ref: ${payment.gatewayRef}` : ""}

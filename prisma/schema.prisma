@@ -113,6 +113,16 @@ enum PaymentMethod {
   BANK_TRANSFER
 }
 
+/// Step 52 (Internal Dashboard Merged §9) — PRIMARY is every payment tied
+/// to a Booking's selected Quotation (the pre-existing, only kind before
+/// this step). EXTRA is a later, standalone add-on charge against an
+/// already-existing Booking — no Quotation involved, amount is staff-
+/// entered directly.
+enum PaymentPurpose {
+  PRIMARY
+  EXTRA
+}
+
 /// Proposed default refund lifecycle — same caveat as LeadStatus.
 enum RefundStatus {
   PENDING
@@ -479,6 +489,15 @@ model Payment {
   /// POST /api/payments/[id]/bank-slip, required before the approval
   /// route (payments.approve) will confirm it.
   bankSlipUrl    String?
+  /// Step 52 — PRIMARY (default) for every payment before this step, tied
+  /// to the booking's selected Quotation. EXTRA for a later add-on charge
+  /// raised via the Extra Payment Collection screen — no Quotation
+  /// involved, `description` (below) is its staff-entered reason.
+  purpose        PaymentPurpose @default(PRIMARY)
+  /// Staff-entered reason for an EXTRA payment (e.g. "Additional baggage
+  /// fee") — always null for a PRIMARY payment, which already has its
+  /// reason implicit in the booking's own service/quotation.
+  description    String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 

@@ -20,6 +20,8 @@ import { ReusableDocumentsPrompt } from "./ReusableDocumentsPrompt";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { cn } from "@/lib/cn";
 import type { BookingStatus, DocumentStatus, ExtensionOutcome, PaxType, ServiceType } from "../../generated/prisma/enums";
 
 interface DocumentItem {
@@ -109,6 +111,10 @@ export function BookingDetail({
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [creatingPayment, setCreatingPayment] = useState(false);
+  const [showExtraPaymentForm, setShowExtraPaymentForm] = useState(false);
+  const [extraAmount, setExtraAmount] = useState("");
+  const [extraDescription, setExtraDescription] = useState("");
+  const [creatingExtraPayment, setCreatingExtraPayment] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,6 +150,31 @@ export function BookingDetail({
       toast.error(error instanceof ApiError ? error.message : "Couldn't create a payment. Please try again.");
     } finally {
       setCreatingPayment(false);
+    }
+  };
+
+  const handleCreateExtraPayment = async () => {
+    const amount = Number(extraAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Enter a valid amount.");
+      return;
+    }
+    if (!extraDescription.trim()) {
+      toast.error("Enter a reason for this extra payment.");
+      return;
+    }
+    setCreatingExtraPayment(true);
+    try {
+      await postJson(`/api/bookings/${bookingId}/extra-payments`, { amount, description: extraDescription.trim() });
+      toast.success("Extra payment link created.");
+      setShowExtraPaymentForm(false);
+      setExtraAmount("");
+      setExtraDescription("");
+      setReloadNonce((current) => current + 1);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't create the extra payment. Please try again.");
+    } finally {
+      setCreatingExtraPayment(false);
     }
   };
 
@@ -245,7 +276,43 @@ export function BookingDetail({
                   </Button>
                 </div>
               ) : null}
+              {/* Step 52 — Extra Payment Collection: only once the booking has a real, active lifecycle (not still awaiting its primary payment, and not dead), and no other payment is already pending. */}
+              {!["PENDING", "CANCELLED", "REFUNDED"].includes(booking.status) && !hasPendingPayment && !showExtraPaymentForm ? (
+                <Button type="button" size="sm" variant="ghost" onClick={() => setShowExtraPaymentForm(true)}>
+                  <Plus className="h-4 w-4" aria-hidden="true" />
+                  Extra Payment
+                </Button>
+              ) : null}
             </div>
+            {showExtraPaymentForm ? (
+              <div className="mb-4 flex flex-col gap-2 rounded-lg border border-hairline p-3">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[140px_1fr]">
+                  <input
+                    type="number"
+                    min={1}
+                    placeholder="Amount"
+                    value={extraAmount}
+                    onChange={(event) => setExtraAmount(event.target.value)}
+                    className={cn(fieldControlClass, fieldBorderClass(false))}
+                  />
+                  <input
+                    type="text"
+                    placeholder="Reason (e.g. Additional baggage fee)"
+                    value={extraDescription}
+                    onChange={(event) => setExtraDescription(event.target.value)}
+                    className={cn(fieldControlClass, fieldBorderClass(false))}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" size="sm" onClick={() => void handleCreateExtraPayment()} isLoading={creatingExtraPayment}>
+                    Create Extra Payment
+                  </Button>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setShowExtraPaymentForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             {booking.payments.length === 0 ? (
               <EmptyState title="No payments yet" description="Create a payment once this booking is ready to be charged." />
             ) : (
