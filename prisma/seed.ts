@@ -725,6 +725,26 @@ async function main() {
     create: { countryId: "cty_uae", ratePerApplicant: 100, validityOptions: ["THIRTY_DAYS", "SIXTY_DAYS", "NINETY_DAYS"], displayOrder: 0 },
   });
 
+  // Step 43 (Admin FINAL handover §7) — one SAMPLE New Visa Country
+  // Configuration row so /admin/new-visa-countries has something to show
+  // in a fresh dev DB. The country (UAE) is real locked-scope market data
+  // (see the Country seed migration), but every descriptive field below is
+  // clearly-labeled placeholder text — propose the real copy to the client
+  // for review before this goes live, per hard rule #1.
+  const sampleNewVisaCountryConfig = {
+    countryId: "cty_uae",
+    visaCategory: "SAMPLE — Tourist / Visit Visa",
+    duration: "SAMPLE — 30 Days",
+    processingType: "SAMPLE — Normal & Express available",
+    description: "SAMPLE description — replace with the real New Visa country description before this goes live.",
+    termsAndConditions: "SAMPLE terms and conditions — replace with the real New Visa country terms before this goes live.",
+  };
+  await db.newVisaCountryConfig.upsert({
+    where: { countryId: "cty_uae" },
+    update: sampleNewVisaCountryConfig,
+    create: sampleNewVisaCountryConfig,
+  });
+
   // New Visa pricing (Step 35, "pay right after the form"; Step 40, moved
   // onto the central PricingRule table) — the UAE/normal sample rows are
   // seeded above alongside the rest of PricingRule's sample data.

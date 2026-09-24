@@ -539,12 +539,26 @@ Verified end-to-end against a real dev DB: all 6 `ServiceTimelineConfig` rows pr
 
 ---
 
-### Step 43 — New Visa Country Configuration screen
+### Step 43 — New Visa Country Configuration screen ✅
 **Audit ref:** Tier 2 §7
 **Problem:** No screen exists for Admin to manage New Visa's countries (add/edit/activate/deactivate) connected to the Pricing/Documents/Timeline controls built in Steps 40-42.
 
 **Prompt to use:**
 > "Build the New Visa Country Configuration screen per Admin FINAL handover §7: country name/code, visa category, duration, processing type, description, terms and conditions — each country setup should reference the central Pricing (Step 40), Documents (Step 41), and Timeline (Step 42) controls rather than duplicating fields locally. This is also what Step 35's New Visa pricing depends on for its country dimension — sequence accordingly if Step 35 was built first with a placeholder shape. Verify New Visa's request flow (Step 35) picks up a country's configured price/documents/timeline correctly."
+
+**No leftover placeholder shape to reconcile**: Step 40 had already fully retired the old `NewVisaPricing` model onto the central `PricingRule`, so by the time this step started, `computeNewVisaPrice` was already reading real central pricing — this step's "verify the request flow picks up a country's price/documents/timeline correctly" was genuinely a verification task, not a migration.
+
+**New `NewVisaCountryConfig` model**: one row per `Country` (1:1, same pattern as `ReturnTicketDestination`) with §7's own listed fields — `visaCategory`, `duration`, `processingType`, `description`, `termsAndConditions`, plus `active`. Deliberately does **not** duplicate anything onto the shared `Country`/`PricingRule`/`DocumentRequirement`/`ServiceTimelineConfig` models — the Admin screen "connects to" those three controls by fetching their existing admin lists and filtering client-side for `NEW_VISA` + this country (a read-only `ReferencePanel` per country card: rule/document counts + a "Manage on Pricing/Documents/Timelines →" link each), never re-storing their values here.
+
+**`visaCategory`/`duration`/`processingType` are descriptive, not a new pricing dimension** — a judgment call, flagged in the model's own schema comment: `PricingRule` has no `visaCategory` axis, so adding one here doesn't change how New Visa pricing is computed. The customer-facing request form's own `visaType` field (`new-visa-schema.ts`, still its pre-existing sample-data-driven selector) was deliberately left untouched — §7 doesn't ask to unify the two, and doing so would mean extending `PricingRule` with a new matching dimension, out of scope here.
+
+**Real "remove", not just enable/disable** — §7 explicitly lists "remove" alongside add/edit/activate/deactivate (most masters in this project only get enable/disable), so `DELETE /api/admin/new-visa-countries/[id]` does a real hard delete + audit row, safe because nothing else references this row's id (a Lead only ever stores its destination country as a plain `Country.code` string).
+
+**Confirmed the Step-42 Timeline control's known gap applies here too**: `ServiceTimelineConfig` has no `countryId` (a deliberate Step 42 "confirm rather than over-building" decision), so the Timeline reference panel shows the `NEW_VISA` service-wide row with an explicit "Timeline is configured per-service, not per-country, today" note rather than pretending a per-country value exists.
+
+**Seed data**: one SAMPLE `NewVisaCountryConfig` row for UAE (a real locked-scope market country, per the Country seed migration — only the descriptive text is placeholder, clearly labeled `SAMPLE — ...` per hard rule #1).
+
+Verified end-to-end against a real dev DB: full CRUD (create/update/enable-disable/remove) on a fresh country, duplicate-country-config rejected (400), `countryId` confirmed immutable via PATCH, unauthenticated access rejected (401); and — the concrete verification the prompt asked for — submitted a real New Visa lead for UAE and confirmed `computeNewVisaPrice` still resolved UAE's Step-40 `PricingRule` correctly (a live `payToken` was returned) and the post-payment checkout view still resolves `DocumentRequirement` via the same country-aware path Step 41 built, completely unaffected by this step's new model. Also visually confirmed in Chrome: the UAE sample card renders with all 5 fields, the live reference panel (3 pricing rules / 3 documents / "not configured" timeline, each linking out correctly), and the "Add New Visa Country" form — no console errors.
 
 ---
 

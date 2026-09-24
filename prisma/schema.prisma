@@ -889,6 +889,7 @@ model Country {
   returnTicketDestination ReturnTicketDestination?
   pricingRules            PricingRule[]
   documentRequirements    DocumentRequirement[]
+  newVisaCountryConfig    NewVisaCountryConfig?
 
   @@index([active])
 }
@@ -1426,6 +1427,49 @@ model ReturnTicketDestination {
   displayOrder     Int      @default(0)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id])
+
+  @@index([active])
+}
+
+/// Step 43 (Admin FINAL handover §7) — New Visa Country Configuration. One
+/// row per Country (1:1, same pattern as ReturnTicketDestination above),
+/// holding the New-Visa-specific descriptive attributes §7 calls for:
+/// visaCategory/duration/processingType/description/termsAndConditions.
+///
+/// Deliberately does NOT duplicate Pricing/Documents/Timeline data — those
+/// stay exactly where Steps 40-42 put them (PricingRule / DocumentRequirement
+/// / ServiceTimelineConfig, all keyed by serviceType=NEW_VISA, the first two
+/// also by this same countryId). This model only adds the country-level
+/// descriptive fields the spec asks for that don't belong on any of those
+/// three shared controls — the Admin screen "connects to" them (reads and
+/// links out) rather than re-storing their values here.
+///
+/// visaCategory/duration/processingType are free-text descriptive fields
+/// (e.g. "Tourist / Visit Visa", "30 Days", "Normal & Express available"),
+/// not a new pricing-matching dimension — PricingRule has no visaCategory
+/// axis, so this does not change how New Visa pricing is computed. The
+/// customer-facing request form's own `visaType` field (new-visa-schema.ts,
+/// still sample-data-driven) is intentionally left as-is — §7 doesn't ask to
+/// unify the two, and doing so would require extending PricingRule with a
+/// visaCategory dimension, which is out of scope here.
+///
+/// Supports a real "remove" per §7's own wording (unlike most masters here,
+/// which use enable/disable only) — safe to hard-delete since nothing else
+/// references this row's id; a Lead only ever stores its destination country
+/// as a plain Country.code string (see create-lead.ts / new-visa pricing).
+model NewVisaCountryConfig {
+  id                 String   @id @default(cuid())
+  countryId          String   @unique
+  visaCategory       String
+  duration           String
+  processingType     String
+  description        String   @db.Text
+  termsAndConditions String   @db.Text
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   country Country @relation(fields: [countryId], references: [id])
 

@@ -32,6 +32,7 @@ import {
   Wallet,
   TrendingUp,
   Clock,
+  Stamp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -103,6 +104,7 @@ export const adminNavItems: CrmNavItem[] = [
   { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff },
   { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat },
   { label: "Countries", href: "/admin/countries", icon: Globe2 },
+  { label: "New Visa Countries", href: "/admin/new-visa-countries", icon: Stamp },
   { label: "Services", href: "/admin/services", icon: LayoutGrid },
   { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket },
   { label: "Occupations", href: "/admin/occupations", icon: ClipboardList },
