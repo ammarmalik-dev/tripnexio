@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { revalidatePath } from "next/cache";
 import { updateSystemConfigSchema } from "@/lib/validation/system-config-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -52,6 +53,17 @@ export async function PATCH(request: NextRequest) {
     });
     return result;
   });
+
+  // Real bug caught in testing: the root layout's getSystemConfig() calls
+  // (maintenance banner, page metadata) don't automatically make every
+  // page dynamic — the homepage and other static customer pages cache
+  // their rendered HTML at build time, so a plain DB write here would sit
+  // invisible until the next deploy. revalidatePath("/", "layout")
+  // invalidates every route under the root layout on-demand, so the very
+  // next request after this save picks up the change immediately,
+  // without forcing the whole site into dynamic rendering (which would
+  // undo Next's static optimization for every marketing page).
+  revalidatePath("/", "layout");
 
   return jsonSuccess(updated);
 }
