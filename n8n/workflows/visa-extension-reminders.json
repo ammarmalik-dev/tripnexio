@@ -1,0 +1,55 @@
+{
+  "name": "TripNexio - Visa Extension Day-25 Re-Extension Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a1c2e3f4-1234-4a5b-8c9d-0e1f2a3b4c5d",
+      "name": "Daily at 9:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "notes": "Set this n8n instance's timezone to Asia/Kolkata so this actually fires at 9:00 AM IST."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIPNEXIO_BASE_URL }}/api/automation/visa-extension-reminder",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "b2d3f4a5-2345-4b6c-9d0e-1f2a3b4c5d6e",
+      "name": "Call Visa Extension Reminder API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "TripNexio Automation Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily at 9:00 AM": {
+      "main": [[{ "node": "Call Visa Extension Reminder API", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

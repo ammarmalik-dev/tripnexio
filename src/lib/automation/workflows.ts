@@ -38,4 +38,10 @@ export const AUTOMATION_WORKFLOWS: { key: string; label: string; intendedSchedul
     intendedSchedule: "Weekly, Sunday 3:00 AM IST",
     endpoint: "/api/automation/document-retention",
   },
+  {
+    key: "visa-extension-reminder",
+    label: "Visa Extension: Day-25 Re-Extension Reminder",
+    intendedSchedule: "Daily at 9:00 AM IST",
+    endpoint: "/api/automation/visa-extension-reminder",
+  },
 ];

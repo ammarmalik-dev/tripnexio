@@ -24,6 +24,7 @@ export const NOTIFICATION_EVENTS = {
   DOCUMENT_APPROVED: "DOCUMENT_APPROVED",
   DOCUMENT_REJECTED: "DOCUMENT_REJECTED",
   LEAD_FOLLOWUP: "LEAD_FOLLOWUP",
+  VISA_EXTENSION_REMINDER: "VISA_EXTENSION_REMINDER",
 } as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[keyof typeof NOTIFICATION_EVENTS];
@@ -111,5 +112,12 @@ export const NOTIFICATION_EVENT_CATALOG: {
     variables: ["customerName", "serviceType", "leadReference"],
     wired: true,
     sampleVariables: { customerName: "Sample Customer", serviceType: "New Visa", leadReference: "NV-SAMPLE" },
+  },
+  {
+    event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,
+    label: "Visa Extension: Day-25 re-extension reminder",
+    variables: ["customerName", "bookingId", "extensionExpiryDate"],
+    wired: true,
+    sampleVariables: { customerName: "Sample Customer", bookingId: "TNX-VE-SAMPLE", extensionExpiryDate: "30 Oct 2026" },
   },
 ];

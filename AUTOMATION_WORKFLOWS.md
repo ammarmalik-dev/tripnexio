@@ -8,7 +8,7 @@ Most of what TripNexio does happens in response to something — a customer subm
 
 Every one of these workflows is visible to the team at **Admin → Automation** — showing when each one last ran, whether it succeeded, and what it did.
 
-## The five workflows
+## The six workflows
 
 ### 1. Quote Expiry Handling
 **Runs every 15 minutes.** Calls `POST /api/automation/quote-expiry`.
@@ -39,14 +39,19 @@ This one is different from the other four — it doesn't send anything, it **del
 
 **Before this job ever runs for real:** call it once with `{"dryRun": true}` in the request body and check the `wouldPurge`/`wouldPurgeDocumentIds` numbers look right — it reports exactly what it would delete without touching anything. The imported workflow ships with a reminder about this in the HTTP node's own notes.
 
+### 6. Visa Extension: Day-25 Re-Extension Reminder
+**Runs daily at 9:00 AM.** Calls `POST /api/automation/visa-extension-reminder`.
+
+- Once a Visa Extension booking has actually been paid for and completed, the new 30-day extension is counted from the customer's original visa expiry date. Around day 25 of that window (5 days before it lapses), the customer gets a one-time reminder that they may want to extend again — the same idea as the payment/document reminders, just for the extension's own expiry instead.
+
 ## What each workflow actually sends
 
-Every message the first four workflows send uses the **same Admin-managed templates** as everything else in the CRM (Admin → Notification Templates) — `QUOTE_REMINDER`, `PAYMENT_REMINDER`, `DOCUMENTS_REQUIRED`, and `LEAD_FOLLOWUP`. Editing the copy there changes what these automatic messages say, exactly like it does for the notifications staff-triggered actions send. The same email/WhatsApp rules apply too — a WhatsApp reminder only actually sends once its template has been approved by Meta (see `docs/deployment/WHATSAPP_SETUP.md`); until then, only the email version goes out. The fifth workflow (Document Retention Purge) doesn't send a customer message at all — it only deletes files.
+Every message the first five workflows send uses the **same Admin-managed templates** as everything else in the CRM (Admin → Notification Templates) — `QUOTE_REMINDER`, `PAYMENT_REMINDER`, `DOCUMENTS_REQUIRED`, `LEAD_FOLLOWUP`, and `VISA_EXTENSION_REMINDER`. Editing the copy there changes what these automatic messages say, exactly like it does for the notifications staff-triggered actions send. The same email/WhatsApp rules apply too — a WhatsApp reminder only actually sends once its template has been approved by Meta (see `docs/deployment/WHATSAPP_SETUP.md`); until then, only the email version goes out. The sixth workflow (Document Retention Purge) doesn't send a customer message at all — it only deletes files.
 
 ## No spam, guaranteed
 
-Each of the first four jobs runs on a tight schedule (as often as every 15 minutes), but nobody gets the same reminder over and over. The app itself tracks "have I already reminded about this specific thing" and skips anything already handled — a quote only ever gets one reminder before it either converts or expires; a stalled request's periodic nudge waits a few days between each one. This is enforced by the app, not by n8n's schedule, so it stays correct even if a workflow's timing changes later. The Document Retention Purge job has its own equivalent safeguard: once a document's file is purged, it's marked as such and never considered again on a future run.
+Each of the first five jobs runs on a tight schedule (as often as every 15 minutes), but nobody gets the same reminder over and over. The app itself tracks "have I already reminded about this specific thing" and skips anything already handled — a quote only ever gets one reminder before it either converts or expires; a stalled request's periodic nudge waits a few days between each one; a Visa Extension booking only ever gets its Day-25 reminder once. This is enforced by the app, not by n8n's schedule, so it stays correct even if a workflow's timing changes later. The Document Retention Purge job has its own equivalent safeguard: once a document's file is purged, it's marked as such and never considered again on a future run.
 
 ## How to see if it's working
 
-**Admin → Automation** shows all five workflows with their last run time and whether it succeeded — this is the first place to check if reminders seem to have stopped going out. A workflow that's never appeared there hasn't been connected in n8n yet (see the setup doc). A workflow showing "Failure" with an error message means something needs attention — the error text explains what went wrong.
+**Admin → Automation** shows all six workflows with their last run time and whether it succeeded — this is the first place to check if reminders seem to have stopped going out. A workflow that's never appeared there hasn't been connected in n8n yet (see the setup doc). A workflow showing "Failure" with an error message means something needs attention — the error text explains what went wrong.

@@ -615,6 +615,12 @@ async function main() {
       subject: "Sample: Still interested in your {{serviceType}} request?",
       body: "Hi {{customerName}},\n\nJust checking in on your {{serviceType}} request ({{leadReference}}) — let us know if you have any questions or would like to proceed.\n\n— TripNexio",
     },
+    {
+      id: "notification-template-visa-extension-reminder",
+      event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,
+      subject: "Sample: Your extended UAE visa is valid until {{extensionExpiryDate}}",
+      body: "Hi {{customerName}},\n\nYour extended UAE visa (booking {{bookingId}}) is valid until {{extensionExpiryDate}}. If you need a further extension, let us know and we'll check your eligibility.\n\n— TripNexio",
+    },
   ];
   for (const template of emailTemplates) {
     const data = { id: template.id, event: template.event, channel: "EMAIL" as const, subject: template.subject, body: template.body, active: true };
@@ -681,6 +687,11 @@ async function main() {
       id: "notification-template-lead-followup-wa",
       event: NOTIFICATION_EVENTS.LEAD_FOLLOWUP,
       body: "Hi {{customerName}}, just checking in on your {{serviceType}} request ({{leadReference}}) — let us know if you'd like to proceed.",
+    },
+    {
+      id: "notification-template-visa-extension-reminder-wa",
+      event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,
+      body: "Hi {{customerName}}, your extended UAE visa (booking {{bookingId}}) is valid until {{extensionExpiryDate}}. Need a further extension? Just let us know.",
     },
   ];
   for (const template of whatsappTemplates) {
