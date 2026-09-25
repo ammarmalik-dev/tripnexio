@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Mail, MessageCircle, RotateCw } from "lucide-react";
+import { Mail, MessageCircle, RotateCw, Sparkles } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { getJson, patchJson, ApiError } from "@/lib/api/client";
+import { getJson, patchJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { DRAFT_TYPE_OPTIONS, type DraftType } from "@/lib/drafting/draft-types";
 
 type Channel = "EMAIL" | "WHATSAPP";
 type EmailStatus = "EMAIL_SENT" | "EMAIL_SKIPPED" | "EMAIL_FAILED";
@@ -62,11 +64,12 @@ function CommunicationRow({ item }: { item: CommunicationItem }) {
 }
 
 /**
- * CRM.md §25 (Step 18, audit §3.7) — a unified WhatsApp + email timeline
- * for one lead, plus a manual compose box for staff. Deliberately does NOT
- * include the AI-drafting feature (10 draft types) named in the same
- * section — the roadmap prompt explicitly scopes that to a separate
- * follow-up unit once this base module works.
+ * CRM.md §25 (Step 18, audit §3.7; AI drafting added Step 56) — a unified
+ * WhatsApp + email timeline for one lead, a manual compose box for staff,
+ * and an AI-assist action that drafts/improves/corrects the message before
+ * it's sent. AI drafting never sends anything itself — it only fills the
+ * Subject/Message fields for staff to review, edit, and then explicitly
+ * hit Send (CRM.md §25: "never auto-send without staff action").
  */
 export function CommunicationsPanel({ leadId }: { leadId: string }) {
   const [state, setState] = useState<FetchState>("loading");
@@ -79,6 +82,10 @@ export function CommunicationsPanel({ leadId }: { leadId: string }) {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
+
+  const [draftType, setDraftType] = useState<DraftType>("STATUS_UPDATE");
+  const [instructions, setInstructions] = useState("");
+  const [drafting, setDrafting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +122,25 @@ export function CommunicationsPanel({ leadId }: { leadId: string }) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't send that message. Please try again.");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleDraft = async () => {
+    setDrafting(true);
+    try {
+      const result = await postJson<{ subject: string | null; body: string; provider: string }>(`/api/leads/${leadId}/communications/draft`, {
+        channel,
+        draftType,
+        instructions: instructions.trim() || undefined,
+        existingBody: body.trim() || undefined,
+      });
+      if (channel === "EMAIL") setSubject(result.subject ?? "");
+      setBody(result.body);
+      toast.success(result.provider === "claude" ? "Draft generated." : "Drafted from a basic template — AI drafting isn't configured yet.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't generate a draft. Please try again.");
+    } finally {
+      setDrafting(false);
     }
   };
 
@@ -187,8 +213,53 @@ export function CommunicationsPanel({ leadId }: { leadId: string }) {
             </p>
           ) : null}
 
+          <div className="flex flex-col gap-2 rounded-lg border border-hairline bg-surface-2 p-3">
+            <div className="flex flex-wrap items-end gap-2">
+              <label htmlFor="commDraftType" className="sr-only">
+                Draft type
+              </label>
+              <select
+                id="commDraftType"
+                value={draftType}
+                onChange={(event) => setDraftType(event.target.value as DraftType)}
+                disabled={drafting}
+                className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[190px]")}
+              >
+                {DRAFT_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              <label htmlFor="commInstructions" className="sr-only">
+                Extra instructions for the draft (optional)
+              </label>
+              <input
+                id="commInstructions"
+                type="text"
+                placeholder="Optional: extra instructions for the draft…"
+                value={instructions}
+                onChange={(event) => setInstructions(event.target.value)}
+                disabled={drafting}
+                className={cn(fieldControlClass, fieldBorderClass(false), "h-9 min-w-[220px] flex-1")}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => void handleDraft()}
+                isLoading={drafting}
+                disabled={drafting || (channel === "EMAIL" ? !data?.customer.email : whatsappDisabled)}
+              >
+                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                {body.trim() ? "Improve with AI" : "AI Draft"}
+              </Button>
+            </div>
+            <p className="text-xs text-ink-tertiary">Drafts from this record&apos;s real data — review and edit before sending.</p>
+          </div>
+
           {channel === "EMAIL" ? (
-            <TextField label="Subject" name="commSubject" value={subject} onChange={(event) => setSubject(event.target.value)} disabled={sending || !data?.customer.email} />
+            <TextField label="Subject" name="commSubject" value={subject} onChange={(event) => setSubject(event.target.value)} disabled={sending || drafting || !data?.customer.email} />
           ) : null}
           <Textarea
             label="Message"
@@ -196,14 +267,14 @@ export function CommunicationsPanel({ leadId }: { leadId: string }) {
             rows={3}
             value={body}
             onChange={(event) => setBody(event.target.value)}
-            disabled={sending || (channel === "EMAIL" ? !data?.customer.email : whatsappDisabled)}
+            disabled={sending || drafting || (channel === "EMAIL" ? !data?.customer.email : whatsappDisabled)}
           />
 
           <Button
             type="submit"
             size="sm"
             isLoading={sending}
-            disabled={sending || !body.trim() || (channel === "EMAIL" ? !subject.trim() || !data?.customer.email : whatsappDisabled)}
+            disabled={sending || drafting || !body.trim() || (channel === "EMAIL" ? !subject.trim() || !data?.customer.email : whatsappDisabled)}
             className="self-end"
           >
             Send

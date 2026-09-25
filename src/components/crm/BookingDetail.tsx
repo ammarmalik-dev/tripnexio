@@ -17,6 +17,7 @@ import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
 import { ReusableDocumentsPrompt } from "./ReusableDocumentsPrompt";
+import { CommunicationsPanel } from "./CommunicationsPanel";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -515,6 +516,11 @@ export function BookingDetail({
               <p className="text-xs text-ink-tertiary">Margin (internal): ₹{booking.selectedQuotation.margin}</p>
             </section>
           ) : null}
+
+          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Communications</h2>
+            <CommunicationsPanel leadId={booking.leadId} />
+          </section>
         </div>
       </div>
     </div>
