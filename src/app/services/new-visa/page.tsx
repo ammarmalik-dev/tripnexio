@@ -49,25 +49,27 @@ export default function NewVisaLandingPage() {
               <FileText className="h-6 w-6" aria-hidden="true" />
             </span>
           </MotionReveal>
+          <MotionReveal delay={0.04}>
+            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">UAE Visa</span>
+          </MotionReveal>
           <MotionReveal delay={0.06}>
             <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
-              New Visa
+              UAE Visa Made Simple
             </h1>
           </MotionReveal>
           <MotionReveal delay={0.12}>
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              Apply for a new UAE or GCC visa with our simple, guided
-              process. Submit your travel details online — our team handles
-              the coordination with the embassy or partner from there.
+              UAE visa, made simple. Apply online, choose your visa option,
+              and let TripNexio guide you from application to completion.
             </p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <ButtonLink href="/services/new-visa/request" variant="primary" size="lg">
-                Start New Visa Request
+                Apply for UAE Visa
               </ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-                Track Status
+                Track Application
               </ButtonLink>
             </div>
           </MotionReveal>
