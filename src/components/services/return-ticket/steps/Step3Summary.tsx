@@ -58,7 +58,7 @@ export function Step3Summary() {
       ))}
       <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-tertiary">
         Your expected return date is a target, not a confirmed booking date — we aim to issue a return ticket close
-        to it, subject to live ticket/vendor availability. Airline schedules, immigration decisions, denied
+        to it, subject to live ticket/partner availability. Airline schedules, immigration decisions, denied
         boarding, cancellations, rescheduling and other travel decisions remain outside TripNexio&rsquo;s control.
         Customers are responsible for complying with applicable airline, visa and immigration requirements. Our
         team will confirm final pricing before payment.

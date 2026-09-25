@@ -18,7 +18,7 @@ export default function AboutPage() {
           verified tickets and OTB.
         </p>
         <p>
-          You send us a request online. Our team then works with airlines, embassies and vendors on your behalf, sends
+          You send us a request online. Our team then works with airlines, embassies and partners on your behalf, sends
           you a clear quotation, and keeps you updated until your service is complete. It&apos;s a people-led service —
           there is no automatic instant booking, so every request is checked before anything is charged.
         </p>

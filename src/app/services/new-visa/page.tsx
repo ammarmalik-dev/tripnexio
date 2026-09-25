@@ -33,7 +33,7 @@ const howItWorks = [
   },
   {
     title: "We process your application",
-    description: "Our team coordinates with the relevant embassy or vendor.",
+    description: "Our team coordinates with the relevant embassy or partner.",
     icon: ShieldCheck,
   },
   {
@@ -63,7 +63,7 @@ export default function NewVisaLandingPage() {
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
               Apply for a new UAE or GCC visa with our simple, guided
               process. Submit your travel details online — our team handles
-              the coordination with the embassy or vendor from there.
+              the coordination with the embassy or partner from there.
             </p>
           </MotionReveal>
           <MotionReveal delay={0.18}>

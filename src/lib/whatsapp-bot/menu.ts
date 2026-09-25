@@ -48,7 +48,7 @@ export async function buildWelcomeMenu(): Promise<SendInteractiveListInput> {
         title: "Other",
         rows: [
           { id: MENU_TRACK_ID, title: "Track my request", description: "Check the status of an existing request" },
-          { id: MENU_AGENT_ID, title: "Talk to our team", description: "Speak with a TripNexio staff member" },
+          { id: MENU_AGENT_ID, title: "Talk to our team", description: "Speak with a TripNexio expert" },
         ],
       },
     ],

@@ -11,7 +11,7 @@ import { utilityLinks } from "@/lib/nav-config";
 export const metadata: Metadata = {
   title: "Flight Special Fare",
   description:
-    "Offline special fare flight bookings through our airline and vendor partners for India to UAE/GCC travel. Submit your trip details online and our team confirms availability.",
+    "Offline special fare flight bookings through our airline and partner network for India to UAE/GCC travel. Submit your trip details online and our team confirms availability.",
 };
 
 const whatYoullNeed = [
@@ -29,7 +29,7 @@ const howItWorks = [
   },
   {
     title: "We check special fare availability",
-    description: "Our team checks offline special fares with airline and vendor partners — no live search.",
+    description: "Our team checks offline special fares with our airline and partner network — no live search.",
     icon: ShieldCheck,
   },
   {
@@ -57,7 +57,7 @@ export default function FlightSpecialFareLandingPage() {
           </MotionReveal>
           <MotionReveal delay={0.12}>
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              Offline special fares sourced through our airline and vendor relationships for India to UAE/GCC
+              Offline special fares sourced through our airline and partner relationships for India to UAE/GCC
               travel. Share your trip details — our team checks availability and sends you a fare quote.
             </p>
           </MotionReveal>
@@ -81,7 +81,7 @@ export default function FlightSpecialFareLandingPage() {
               <SectionHeading eyebrow="How fares work" title="Fares are checked, not searched live" />
               <p className="text-sm text-ink-secondary sm:text-base">
                 There&apos;s no live fare search or public inventory here — our team manually checks offline special
-                fare availability with airline and vendor partners, then sends you a quote valid for a limited time.
+                fare availability with our airline and partner network, then sends you a quote valid for a limited time.
                 Fares vary by passenger type, calculated automatically from each traveler&apos;s date of birth.
               </p>
             </div>

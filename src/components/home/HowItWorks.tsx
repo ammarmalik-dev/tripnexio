@@ -25,7 +25,7 @@ const steps = [
   {
     step: "04",
     title: "We Process",
-    description: "Staff, vendor and authority processing happens through our CRM.",
+    description: "Processing by our experts, our partners and the relevant authority happens through our CRM.",
     icon: Bell,
   },
   {

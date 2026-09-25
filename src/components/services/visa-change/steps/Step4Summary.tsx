@@ -40,7 +40,7 @@ export function Step4Summary() {
         ) : null}
       </div>
       <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-tertiary">
-        Our team will check availability with the relevant sponsor/vendor and confirm your options. Pricing is
+        Our team will check availability with the relevant sponsor/partner and confirm your options. Pricing is
         confirmed only after availability and package selection.
       </p>
     </div>

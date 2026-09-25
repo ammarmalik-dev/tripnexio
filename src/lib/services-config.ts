@@ -58,7 +58,7 @@ export const services: ServiceModule[] = [
   {
     key: "flight-special-fare",
     title: "Special Fare Flight",
-    description: "Official special fare flight bookings through our airline and vendor partners.",
+    description: "Official special fare flight bookings through our airline and partner network.",
     href: "/services/flight-special-fare",
     icon: Plane,
     image:

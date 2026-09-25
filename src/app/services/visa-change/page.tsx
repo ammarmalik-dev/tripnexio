@@ -31,7 +31,7 @@ const howItWorks = [
   },
   {
     title: "We confirm availability",
-    description: "Our team checks with the relevant sponsor/vendor and confirms your options.",
+    description: "Our team checks with the relevant sponsor/partner and confirms your options.",
     icon: ShieldCheck,
   },
   {

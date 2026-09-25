@@ -11,25 +11,25 @@ import { utilityLinks } from "@/lib/nav-config";
 export const metadata: Metadata = {
   title: "Return Verified Ticket",
   description:
-    "A UAE-focused return/onward ticket reservation. Just pick your visa type and travel date — we generate the required return date for you.",
+    "A UAE-focused return/onward ticket reservation. Just tell us your travel date and expected return date — we take care of the rest.",
 };
 
-const whatYoullNeed = ["Full name, mobile number, email", "Number of passengers", "UAE visa type — 30 or 60 days", "Travel date"];
+const whatYoullNeed = ["Full name, mobile number, email", "Number of passengers", "Travel date", "Expected return date"];
 
 const howItWorks = [
   {
     title: "Share your travel details",
-    description: "Visa type and travel date only — you never need to work out a return date yourself.",
+    description: "Your travel date and expected return date — no visa-validity selection needed.",
     icon: ClipboardList,
   },
   {
-    title: "We generate your return date",
-    description: "Your onward/return date is calculated automatically from your visa type and travel date.",
+    title: "We find a matching reservation",
+    description: "We aim to issue a return ticket close to your expected date, subject to live ticket/partner availability.",
     icon: CalendarClock,
   },
   {
     title: "We confirm and issue your reservation",
-    description: "Our team verifies the reservation through our vendor/airline process before delivering your PDF.",
+    description: "Our team verifies the reservation through our partner/airline process before delivering your PDF.",
     icon: ShieldCheck,
   },
 ];
@@ -53,7 +53,7 @@ export default function ReturnTicketLandingPage() {
           <MotionReveal delay={0.12}>
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
               A verified return/onward ticket reservation for UAE travel — proof of onward travel where applicable.
-              Just tell us your visa type and travel date; we take care of the rest.
+              Just tell us your travel date and expected return date; we take care of the rest.
             </p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
@@ -73,11 +73,11 @@ export default function ReturnTicketLandingPage() {
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
           <MotionReveal>
             <div className="flex flex-col gap-4">
-              <SectionHeading eyebrow="How the return date works" title="You never pick the return date" />
+              <SectionHeading eyebrow="How the return date works" title="You give a target, not an exact date" />
               <p className="text-sm text-ink-secondary sm:text-base">
-                You choose only your UAE visa type — 30 days or 60 days — and your travel date. Your return/onward
-                date is generated automatically according to your visa type and our configured reservation rules, so
-                there&apos;s nothing to calculate yourself.
+                You tell us your travel date and your expected return date. We then aim to issue a return ticket
+                close to that date, based on live ticket and partner availability — the exact issue date isn&apos;t
+                something you need to work out yourself.
               </p>
             </div>
           </MotionReveal>
