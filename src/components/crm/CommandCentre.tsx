@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Clock } from "lucide-react";
+import { AlertCircle, Clock, Ticket, HelpCircle, RotateCcw, ListTodo, Link2 } from "lucide-react";
 import { DateField } from "@/components/forms/DateField";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -12,6 +12,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ActionQueueItem, OperationsOverview, SalesOverview } from "@/lib/crm/dashboard";
+import type { LucideIcon } from "lucide-react";
 
 interface DashboardResponse {
   period: { startDate: string; endDate: string };
@@ -112,18 +113,61 @@ function ActionQueueRow({ item }: { item: ActionQueueItem }) {
   );
 }
 
-interface CommandCentreProps {
-  staffName: string;
+interface QuickAction {
+  label: string;
+  href: string;
+  icon: LucideIcon;
 }
 
 /**
- * CRM.md §4 — the CRM landing page. Header ("Welcome back" + date), a
- * period filter (URL-persisted so it survives opening/closing records per
- * §4's own requirement), Sales Overview, Operations Overview, and the
- * "Most Action Required" priority queue. Read-only/reporting only, per this
- * roadmap step's own scope — no mutation actions here.
+ * Step 57 (Internal Dashboard Merged / ADMIN_CRM_CONSOLIDATION_AUDIT.md,
+ * Tier 3 — "Coupons, FAQs, Refunds, Tasks, Payment Link Generation already
+ * exist as separate screens, the ask is mainly to surface them as
+ * dashboard shortcuts") — plain navigational links, not KPI cards, so kept
+ * visually distinct from KpiCard below (no value/number, no period-scoping).
+ * Coupons/FAQs are Admin-only screens (`masters.manage`) — shown only when
+ * the signed-in staff member can actually open them, same gating
+ * `CrmSidebar`'s own Admin Panel link already uses, so this never offers a
+ * shortcut that 403s.
  */
-export function CommandCentre({ staffName }: CommandCentreProps) {
+function QuickActionsBar({ canManageMasters }: { canManageMasters: boolean }) {
+  const actions: QuickAction[] = [
+    ...(canManageMasters ? [{ label: "Coupons", href: "/admin/coupons", icon: Ticket }] : []),
+    ...(canManageMasters ? [{ label: "FAQs", href: "/admin/faqs", icon: HelpCircle }] : []),
+    { label: "Refunds", href: "/crm/refunds", icon: RotateCcw },
+    { label: "Tasks", href: "/crm/tasks", icon: ListTodo },
+    { label: "Payment Link", href: "/crm/payments/link", icon: Link2 },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {actions.map((action) => (
+        <Link
+          key={action.href}
+          href={action.href}
+          className="inline-flex items-center gap-2 rounded-full border border-hairline bg-surface-1 px-4 py-2 text-sm font-medium text-ink-primary transition-colors duration-150 hover:border-glass-border hover:bg-white/[0.03]"
+        >
+          <action.icon className="h-4 w-4 text-ink-tertiary" aria-hidden="true" />
+          {action.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+interface CommandCentreProps {
+  staffName: string;
+  canManageMasters: boolean;
+}
+
+/**
+ * CRM.md §4 — the CRM landing page. Header ("Welcome back" + date), Quick
+ * Actions, a period filter (URL-persisted so it survives opening/closing
+ * records per §4's own requirement), Sales Overview, Operations Overview,
+ * and the "Most Action Required" priority queue. Read-only/reporting only
+ * beyond the Quick Actions links — no mutation actions here.
+ */
+export function CommandCentre({ staffName, canManageMasters }: CommandCentreProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -226,6 +270,8 @@ export function CommandCentre({ staffName }: CommandCentreProps) {
           </div>
         </div>
       </div>
+
+      <QuickActionsBar canManageMasters={canManageMasters} />
 
       {state === "loading" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

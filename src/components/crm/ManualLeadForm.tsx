@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { manualLeadSchema, type ManualLeadValues } from "@/lib/validation/manual-lead-schema";
 import { RETURN_TICKET_VISA_TYPE_LABELS, type ReturnTicketVisaType } from "@/lib/leads/compute-return-date";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { PaymentLinkAction } from "./PaymentLinkAction";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
@@ -108,10 +109,13 @@ export function ManualLeadForm() {
         {result.bookingId ? (
           <>
             <p className="text-sm text-ink-secondary">
-              A booking was created with the auto-calculated price. Go there to send a payment link or collect a bank transfer.
+              A booking was created with the auto-calculated price. Copy or generate a payment link right here, or go to the booking to collect a bank transfer instead.
             </p>
+            <PaymentLinkAction bookingId={result.bookingId} />
             <Link href={`/crm/bookings/${result.bookingId}`}>
-              <Button type="button">Go to Booking</Button>
+              <Button type="button" variant="ghost">
+                Go to Booking
+              </Button>
             </Link>
           </>
         ) : (

@@ -13,9 +13,14 @@ export default function CrmPaymentsPage() {
           <h1 className="text-xl font-semibold text-ink-heading">Payments</h1>
           <p className="text-sm text-ink-tertiary">Every payment across all bookings, with the manual mark-success stub.</p>
         </div>
-        <ButtonLink href="/crm/payments/extra" variant="ghost" size="sm">
-          Extra Payments
-        </ButtonLink>
+        <div className="flex gap-2">
+          <ButtonLink href="/crm/payments/link" variant="ghost" size="sm">
+            Payment Link
+          </ButtonLink>
+          <ButtonLink href="/crm/payments/extra" variant="ghost" size="sm">
+            Extra Payments
+          </ButtonLink>
+        </div>
       </div>
       <Suspense>
         <PaymentsTable />
