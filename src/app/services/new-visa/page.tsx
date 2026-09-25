@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FileText, ShieldCheck, Clock, ClipboardList, MessageSquareText, CheckCircle2 } from "lucide-react";
+import { FileText, Clock, ClipboardList, CheckCircle2, MapPin, Briefcase, GraduationCap, Users } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -8,6 +8,7 @@ import { GradientMesh } from "@/components/motion/GradientMesh";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
 import { NewVisaProductSelector } from "@/components/services/new-visa/NewVisaProductSelector";
+import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 
 export const metadata: Metadata = {
   title: "New Visa",
@@ -26,23 +27,16 @@ const whatYoullNeed = [
   "Processing type — Normal or Express",
 ];
 
-const howItWorks = [
-  {
-    title: "Tell us your travel plans",
-    description: "Share your destination, visa type, and travel date.",
-    icon: MessageSquareText,
-  },
-  {
-    title: "We process your application",
-    description: "Our team coordinates with the relevant embassy or partner.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Get your visa confirmation",
-    description: "Receive your new visa confirmation ahead of departure.",
-    icon: CheckCircle2,
-  },
+// Locked content — doc §9 "The Visa Process — reference-style visual".
+const visaProcessSteps = [
+  { step: "01", headline: "Apply online", supportingCopy: "Choose your UAE visa option and submit your traveller details." },
+  { step: "02", headline: "Upload documents", supportingCopy: "Complete payment and upload the required documents." },
+  { step: "03", headline: "We process your application", supportingCopy: "We coordinate the next steps and keep you updated." },
+  { step: "04", headline: "Visa delivered", supportingCopy: "Receive your issued visa digitally once approved and issued." },
 ];
+
+// Doc §5 "UAE Visa Applications From Across India" — "minimal applicant icons," not a long occupation list.
+const applicantProfileIcons = [MapPin, Briefcase, GraduationCap, Users];
 
 export default function NewVisaLandingPage() {
   return (
@@ -130,26 +124,33 @@ export default function NewVisaLandingPage() {
       </section>
 
       <section className="py-16 sm:py-20">
+        <Container className="flex flex-col items-center gap-5 text-center">
+          <MotionReveal>
+            <SectionHeading align="center" title="UAE Visa Applications From Across India" className="mx-auto" />
+          </MotionReveal>
+          <MotionReveal delay={0.06}>
+            <p className="max-w-xl text-sm text-ink-secondary sm:text-base">
+              From every Indian state to different applicant profiles, TripNexio provides a simple way to apply for your UAE visa online.
+            </p>
+          </MotionReveal>
+          <MotionReveal delay={0.12}>
+            <div className="flex items-center gap-4 pt-2">
+              {applicantProfileIcons.map((Icon, index) => (
+                <span key={index} className="flex h-11 w-11 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+              ))}
+            </div>
+          </MotionReveal>
+        </Container>
+      </section>
+
+      <section className="py-16 sm:py-20">
         <Container className="flex flex-col gap-12">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How it works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow="The visa process" title="How it works" className="mx-auto" />
           </MotionReveal>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {howItWorks.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <MotionReveal key={step.title} delay={index * 0.08}>
-                  <div className="flex flex-col items-center gap-3 text-center">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <p className="text-sm font-semibold text-ink-heading">{step.title}</p>
-                    <p className="max-w-xs text-xs text-ink-tertiary">{step.description}</p>
-                  </div>
-                </MotionReveal>
-              );
-            })}
-          </div>
+          <VisaProcessSteps steps={visaProcessSteps} sampleStatusText="Your visa application is being processed." />
         </Container>
       </section>
 
