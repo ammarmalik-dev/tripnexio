@@ -778,39 +778,77 @@ Verified end-to-end via a script hitting these routes directly against a real de
 
 ---
 
-### Step 54 — Standardize date-range filters + CSV export across major CRM sections
+### Step 54 — Standardize date-range filters + CSV export across major CRM sections ✅
 **Audit ref:** Tier 3 §4
 **Problem:** Some list screens have filters, but not the specific Last-7/30/90-days + custom-range pattern, consistently, everywhere.
 
 **Prompt to use:**
 > "Add a shared date-range filter component (quick options: Last 7/30/90 Days, plus a custom range) and CSV export to every major CRM list screen that doesn't already have both (Leads, Quotations, Bookings, Payments, Refunds, and any new screens from Steps 51-53) — build one reusable component/hook rather than repeating the pattern per screen. Verify filtering + export works consistently across at least 3 of these screens."
 
+Built the shared `DateRangeFilter.tsx` + `useDateRangeFilter.ts` (Last 7/30/90 Days presets + custom range) and a reusable `ExportCsvButton.tsx`, rolled out to Leads, Quotations, Bookings, Payments, Refunds, and Extra Payments. Bookings and Refunds gained date filtering for the first time (schema + route + UI); Leads/Quotations/Payments' previously receive-only `dateFrom`/`dateTo` became genuinely editable. Each screen got a matching `/export` route mirroring its own list route's filters exactly. **Real bug fixed along the way**: Extra Payments' CSV export took no query params at all, so it always ignored the active filters — now fixed to match every other screen's pattern. Commit: `261f7a8`.
+
 ---
 
-### Step 55 — Extend customer self-upload to all 6 services
+### Step 55 — Extend customer self-upload to all 6 services ✅
 **Audit ref:** Tier 3 §11 (partial — staff-side upload already exists)
 **Problem:** Customers can only upload their own documents post-payment for Return Ticket/OTB (H7's `/pay/<token>` page). The other 4 services have no customer-facing upload surface at all outside the pre-lead flows already built (H1/H3/H4/H34).
 
 **Prompt to use:**
 > "Extend customer document upload to the other 4 services, reusing H7's `/pay/<token>` document-upload pattern where a post-payment upload makes sense, or the customer's `/account` page (H10) for anything requested after the fact (e.g. a staff-requested additional document). Every upload must stay linked to the correct Lead/Booking and applicant, and be recorded in the activity timeline — confirm both already hold for the existing upload paths before extending. Verify a customer can upload a staff-requested additional document for a non-checkout service and staff see it immediately."
 
+Added an "anything requested after the fact" upload surface on `/account`: any Document a staff member has flagged REQUIRED/MISSING across any Lead/Booking/Passenger now shows up there with an upload control, gated by the real customer session (`getCustomerSession()`) rather than a booking token — this is what covers Visa Extension, Visa Change, and Flight Special Fare specifically (the 3 services with no `/pay/<token>` page at all). **Two real bugs fixed while confirming H7's existing path first, per the step's own "confirm before extending" instruction**: (1) the post-payment upload route validated document types against a sync helper with no New Visa entry, silently rejecting every New Visa post-payment upload — now goes through one shared `resolveCheckoutDocumentTypes()`; (2) New Visa's document-checklist country lookup was case-sensitive against `Country.code` — switched to case-insensitive, matching the nationality match beside it. Commit: `de1ce6c`.
+
 ---
 
-### Step 56 — Staff-composed email from the CRM, with AI-assisted drafting
+### Step 56 — Staff-composed email from the CRM, with AI-assisted drafting ✅
 **Audit ref:** Tier 3 §13
 **Problem:** All email today is system-triggered (`notifyCustomer()` on specific events) — there's no "staff writes a free-form email to this customer" feature, and no AI drafting assistance for email or WhatsApp messages.
 
 **Prompt to use:**
 > "Add a 'compose email' action on a Lead/Customer/Booking (CRM) that sends from the official company email via the existing Resend integration, logged to the activity timeline exactly like system-triggered emails. Add an AI-assist action (reuse the existing Claude integration pattern from the WhatsApp bot/OCR work) that drafts, improves, or corrects a message the staff member is writing — for both this email composer and CRM-side WhatsApp replies, if a CRM-side WhatsApp reply surface doesn't exist yet, flag that as a prerequisite rather than assuming it. Verify a staff-sent email is delivered (or console-logged in dev, per the existing swappable-provider pattern) and shows up in the customer's timeline."
 
+**Compose email and CRM-side WhatsApp reply already existed** (`CommunicationsPanel.tsx`, Step 18) — this step is specifically the AI-drafting follow-up that module's own doc comment had named as future work, not a rebuild. New `DraftProvider` interface (own pair, separate from the WhatsApp bot's `AiProvider` and OCR's `OcrProvider`, matching this codebase's one-interface-per-AI-job convention): `ClaudeDraftProvider` reuses `ANTHROPIC_API_KEY`; `TemplateDraftProvider` is a real, honest fallback (not a stub) when the key isn't configured. All 10 CRM.md §25 draft types built (Status Update, Document Request, Payment Reminder, Quotation Message, Follow-up, Refund Update, Cancellation Message, Visa Update, Ticket Update, Additional Information Request). `buildLeadRecordContext()` assembles a real-data-only summary — the system prompt requires anything not in that summary to be flagged as a bracketed placeholder, never invented. Drafting writes nothing to `AuditTrail` (only the existing send route logs to the timeline), so a draft can never look like it was sent. Also mounted `CommunicationsPanel` on Booking detail (covers "Lead/Booking" — a Customer-level detail page doesn't exist yet at all, flagged rather than built here). Commit: `ed84d44`.
+
 ---
 
-### Step 57 — Dashboard shortcuts / navigation polish
+### Step 57 — Dashboard shortcuts / navigation polish ✅
 **Audit ref:** Tier 3 §12
 **Problem:** Coupons, FAQs, Refunds, Tasks, and Payment Link Generation already exist as separate screens but aren't surfaced as quick shortcuts from the main dashboard.
 
 **Prompt to use:**
 > "Add dashboard shortcuts per Internal Dashboard Merged §12 for Coupons, FAQs, Refunds, Tasks, and Payment Link Generation (make the last one genuinely easy to reach for both online and offline/manual customer handling — link it from both the Command Centre and Step 51's manual-lead flow). A 'Knowledge Centre' isn't built anywhere yet — confirm with the client what this should actually contain (internal staff documentation/SOPs?) before building it, rather than guessing its scope. This is primarily navigation/UX — verify every shortcut lands on the correct existing screen."
+
+Added a Quick Actions bar to the Command Centre linking to all 5 named screens — Coupons/FAQs (Admin-only, `masters.manage`) only render for staff who can actually open them, same gating `CrmSidebar`'s Admin Panel link already uses, rather than offering a shortcut that 403s. **Payment Link Generation had no standalone screen at all** — built one (search a booking by id/reference via Step 52's existing lookup endpoint, then copy/generate its payment link inline), and wired the same component into the Manual Lead flow's success panel (Step 51), directly closing the roadmap's own named gap. **Knowledge Centre deliberately NOT built** — no route/component/spec exists anywhere for it, and CRM.md §27's own "Knowledge Base/FAQ" reference is broader/more ambiguous than the existing FAQ model; flagged for client clarification rather than guessed. Commit: `a1304af`.
+
+---
+
+## Phase 13 — Client's 2026-09-24 content/wording update
+
+**Source:** `client-message/message.txt`'s 2026-09-24 update, plus 5 new "FINAL" per-service content/FAQ `.docx` handover docs and `docs/image.png`. All 4 items below are content/copy-accuracy work, not new features — client-approved execution order.
+
+### Step 58 — Return Ticket: remove visa-type selection, add customer-entered Expected Return Date ✅
+**Problem:** The client's FINAL Return Ticket content doc no longer has the customer pick a visa-type/validity option to derive the return date — the customer now enters the Expected Return Date directly.
+
+Removed `ReturnTicketDestination.validityOptions` and the entire `ReturnTicketRuleConfig` model (+ its Admin screen, API route, and the now-dead `compute-return-date.ts`/orphaned `ReturnTicketVisaType` enum, confirmed via full-codebase grep before deleting). `returnTicketFieldsSchema` gained `expectedReturnDate` in place of `visaType`, with a `.refine()` cross-field check on the wrapped request schema (kept the fields-only sibling `.shape`-accessible for the WhatsApp bot, same documented pattern already used by `new-visa-schema.ts`). Updated the request-flow steps/summary, the manual-lead form, the WhatsApp bot's question flow, and the Admin destinations screen. Migration hand-applied (`20260925030000_remove_return_ticket_visa_type`) and deployed to Neon production. Commit: `06665de`.
+
+---
+
+### Step 59 — Seed 124 real FAQs from the client's FINAL content docs ✅
+**Problem:** The `Faq` table only had a couple of placeholder SAMPLE rows — the client's 5 FINAL per-service docs each include a real, locked FAQ section.
+
+Extracted and seeded 124 real FAQs across the 5 services (26 Flight Special Fare, 24 Return Ticket, 21 Visa Extension, 28 New Visa, 25 Visa Change) into `prisma/faq-seed-data.ts`, wired into `prisma/seed.ts` via a staff-edit-safe upsert (deterministic `id: faq-<servicetype>-<index+1>`, `update: {}` so a re-seed never overwrites an Admin's own edit). Content verified against the source docs directly, not just accepted from the extraction. Seeded to both local dev and Neon production. Commit: `c9d8647`.
+
+---
+
+### Step 60 — Customer-facing wording: "Staff" → "Our Expert(s)", "Vendor" → "Partner" ✅
+**Problem:** Client asked that customer-facing copy stop using internal-sounding "Staff"/"Vendor" language, and asked for a general clean/modern-tone pass on that same copy — without changing any business flow.
+
+Scoped, per an explicit client-approved decision, to marketing/service pages + FAQs + the WhatsApp bot menu — **legal pages (Terms/Privacy/Refund/Cookie) and internal CRM/Admin UI (Staff nav, `StaffLoginForm`, `getStaffSession`, etc.) were deliberately left untouched**, the former because a cosmetic word-swap risks shifting actual contractual meaning, the latter because "Staff"/"Vendor" are the correct words for that internal audience. Fixed 12 files (service landing pages, `HowItWorks.tsx`, Return Ticket/Visa Change summary steps, the WhatsApp menu) plus a stale content gap found mid-sweep (`services/return-ticket/page.tsx` still described the pre-Step-58 visa-type flow). **A second, DB-content sweep caught what the static-file grep couldn't**: the homepage's Services grid (`ServicesGrid.tsx`) reads `Service.shortDescription` from the DB, not from `services-config.ts` — Flight Special Fare's row still said "vendor partners" after the code fix deployed. Fixed via the authenticated `PATCH /api/admin/services/[id]` route (audited, not raw SQL) on both local and Neon production, plus 10 already-seeded FAQ rows (Step 59) that predated this wording decision, fixed the same way via `/api/admin/faqs/[id]`. Commit: `783daa2`, redeployed to production twice (once for the code, once more after the DB-content fix, since the homepage is statically prerendered at build time). Verified live: zero "vendor"/"staff" hits on `/`, `/about`, `/services/return-ticket`, `/services/flight-special-fare`, and across all 126 live FAQ rows.
+
+---
+
+### Step 61 — API/integrations list for the client
+**Not a code task.** A write-only deliverable listing every third-party integration this app is built to use but currently runs on a swappable mock/console fallback for (Razorpay, Resend, Meta WhatsApp Cloud API, Anthropic Claude, n8n), what each is needed for, and exactly what the client needs to provide to turn it on. Delivered directly in conversation; not written to a file in this repo.
 
 ---
 
@@ -836,5 +874,6 @@ Verified end-to-end via a script hitting these routes directly against a real de
 11. Steps 32-35 (Phase 10, Tier 1 fixes) — small, do these first of the new work; Step 35 (New Visa payment pivot) is the biggest.
 12. Steps 36-46 (Phase 11, Admin consolidation) — masters/foundations (36-39) before the central Pricing/Documents/Timeline controls (40-42), which Step 43 depends on; 44-46 are lower-risk additions.
 13. Steps 47-57 (Phase 12, Internal Dashboard) — do Step 49 (Lead status migration) early and carefully; Steps 53-54 depend on it being stable first.
+14. Steps 58-61 (Phase 13, 2026-09-24 content update) — done, client-approved order: Return Ticket flow change, then FAQ seeding, then wording pass, with the API/integrations list prepared alongside.
 
 At each step, follow `CLAUDE.md`'s existing hard rules: no invented domain data, work incrementally, migrations via Prisma and committed to git, commit after each working unit, and give numbered next steps at the end of every response.
