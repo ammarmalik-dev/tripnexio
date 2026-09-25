@@ -75,3 +75,35 @@ export async function getNewVisaCheckoutDocumentTypes(countryId?: string | null)
 export function isCheckoutService(serviceType: ServiceType): boolean {
   return serviceType === "NEW_VISA" || serviceType in REQUIRED_DOCUMENTS;
 }
+
+/**
+ * Step 55 — the one place that decides which document-type list applies to
+ * a given booking, New Visa's DB-backed lookup included. Both
+ * `load-checkout.ts` (what the page shows) and
+ * `/api/pay/[token]/documents` (what an upload is validated against) call
+ * this instead of each picking a branch themselves — they'd drifted apart
+ * once already: the upload route was calling the plain
+ * `getCheckoutDocumentTypes()` directly, which has no New Visa entry, so
+ * every New Visa post-payment upload was silently rejected with "That
+ * document isn't needed for this service" even though the page correctly
+ * listed New Visa's Admin-configured checklist.
+ */
+export async function resolveCheckoutDocumentTypes(booking: {
+  lead: { serviceType: ServiceType; details: unknown };
+}): Promise<CheckoutDocumentType[]> {
+  if (booking.lead.serviceType !== "NEW_VISA") {
+    return getCheckoutDocumentTypes(booking.lead.serviceType);
+  }
+  const details = (booking.lead.details ?? {}) as Record<string, unknown>;
+  const countryCode = typeof details.destinationCountry === "string" ? details.destinationCountry : null;
+  // Case-insensitive, same as the nationality match just below in
+  // getNewVisaCheckoutDocumentTypes — the live New Visa form submits the
+  // real Country.code (uppercase, from /api/countries), but findUnique on
+  // `code` is exact-match only, so an older/differently-cased lead (e.g. a
+  // pre-Admin-Country-model lead, or a manually-entered one) would
+  // otherwise silently resolve to no country and no checklist at all.
+  const country = countryCode
+    ? await db.country.findFirst({ where: { code: { equals: countryCode, mode: "insensitive" } } })
+    : null;
+  return getNewVisaCheckoutDocumentTypes(country?.id ?? null);
+}

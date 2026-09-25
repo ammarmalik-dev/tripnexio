@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { getPaymentGateway } from "../payments/get-gateway";
 import { formatLeadReference } from "../leads/reference";
-import { getCheckoutDocumentTypes, getNewVisaCheckoutDocumentTypes } from "./required-documents";
+import { resolveCheckoutDocumentTypes } from "./required-documents";
 
 /** Loads everything the guest /pay/<token> page needs, or null for an unknown token. Never exposes internal fields (vendor cost, margin, staff notes). */
 export async function loadCheckoutByToken(token: string) {
@@ -25,19 +25,7 @@ export async function loadCheckoutByToken(token: string) {
   const gatewayFee = payment ? Number(payment.gatewayFee) : 0;
   const discount = Number(payment?.couponDiscount ?? 0);
 
-  let newVisaCountryId: string | null = null;
-  if (paid && booking.lead.serviceType === "NEW_VISA") {
-    const details = (booking.lead.details ?? {}) as Record<string, unknown>;
-    const countryCode = typeof details.destinationCountry === "string" ? details.destinationCountry : null;
-    const country = countryCode ? await db.country.findUnique({ where: { code: countryCode } }) : null;
-    newVisaCountryId = country?.id ?? null;
-  }
-
-  const documentTypes = paid
-    ? booking.lead.serviceType === "NEW_VISA"
-      ? await getNewVisaCheckoutDocumentTypes(newVisaCountryId)
-      : getCheckoutDocumentTypes(booking.lead.serviceType)
-    : [];
+  const documentTypes = paid ? await resolveCheckoutDocumentTypes(booking) : [];
 
   return {
     booking,

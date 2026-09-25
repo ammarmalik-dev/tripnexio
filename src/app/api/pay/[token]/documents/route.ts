@@ -4,7 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { loadCheckoutByToken } from "@/lib/checkout/load-checkout";
-import { getCheckoutDocumentTypes } from "@/lib/checkout/required-documents";
+import { resolveCheckoutDocumentTypes } from "@/lib/checkout/required-documents";
 import { deleteUploadedFile, saveUploadedFile } from "@/lib/storage/local-file-storage";
 
 interface RouteParams {
@@ -50,7 +50,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!checkout.view.applicants.some((applicant) => applicant.id === passengerId)) {
     return jsonError(400, "That applicant isn't part of this booking.");
   }
-  if (!getCheckoutDocumentTypes(checkout.booking.lead.serviceType).some((doc) => doc.type === type)) {
+  const documentTypes = await resolveCheckoutDocumentTypes(checkout.booking);
+  if (!documentTypes.some((doc) => doc.type === type)) {
     return jsonError(400, "That document isn't needed for this service.");
   }
 

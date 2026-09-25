@@ -4,10 +4,12 @@ import { getCustomerSession } from "@/lib/auth/get-customer-session";
 import { db } from "@/lib/db";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { CUSTOMER_LEAD_STATUS_LABELS, CUSTOMER_BOOKING_STATUS_LABELS } from "@/lib/account/labels";
+import { getOutstandingDocuments } from "@/lib/account/outstanding-documents";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { InfoPage } from "@/components/layout/InfoPage";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { AccountDocumentsSection } from "@/components/account/AccountDocumentsSection";
 
 export const metadata: Metadata = {
   title: "My Account",
@@ -23,13 +25,14 @@ export default async function AccountPage() {
   const session = await getCustomerSession();
   if (!session) redirect("/login");
 
-  const [leads, bookings] = await Promise.all([
+  const [leads, bookings, outstandingDocuments] = await Promise.all([
     db.lead.findMany({ where: { customerId: session.id }, orderBy: { createdAt: "desc" } }),
     db.booking.findMany({
       where: { customerId: session.id },
       include: { lead: { select: { serviceType: true } } },
       orderBy: { createdAt: "desc" },
     }),
+    getOutstandingDocuments(session.id),
   ]);
 
   return (
@@ -41,6 +44,8 @@ export default async function AccountPage() {
       <div className="flex justify-end">
         <LogoutButton />
       </div>
+
+      <AccountDocumentsSection documents={outstandingDocuments} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-ink-heading">My Requests</h2>
