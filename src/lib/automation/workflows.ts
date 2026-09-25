@@ -44,4 +44,10 @@ export const AUTOMATION_WORKFLOWS: { key: string; label: string; intendedSchedul
     intendedSchedule: "Daily at 9:00 AM IST",
     endpoint: "/api/automation/visa-extension-reminder",
   },
+  {
+    key: "audit-retention",
+    label: "Audit Trail Retention (dry-run only until confirmed)",
+    intendedSchedule: "Weekly, Sunday 4:00 AM IST",
+    endpoint: "/api/automation/audit-retention",
+  },
 ];

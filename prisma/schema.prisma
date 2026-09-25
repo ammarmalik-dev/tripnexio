@@ -988,6 +988,12 @@ model Airline {
   /// different unit, not a smaller day count.
   standardProcessingDays Int?
   urgentProcessingHours  Int?
+  /// Item 12 (client-message/PENDING_WORK_PROMPTS.md, Admin FINAL handover
+  /// §11): auto-populated from a free/keyless logos-by-IATA-code source
+  /// when an Admin adds/edits this airline's `code` (see
+  /// src/lib/airlines/fetch-logo.ts) — never a hard failure if the lookup
+  /// finds nothing; Admin can also paste/override a URL directly.
+  logoUrl                String?
   displayOrder           Int      @default(0)
   active                 Boolean  @default(true)
   createdAt              DateTime @default(now())
@@ -1266,6 +1272,7 @@ model Faq {
 enum NotificationChannel {
   WHATSAPP
   EMAIL
+  SMS
 }
 
 /// Configurable copy for staff-triggered/system notifications — no

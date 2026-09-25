@@ -22,6 +22,7 @@ export async function GET() {
       return {
         code: airline.code,
         name: airline.name,
+        logoUrl: airline.logoUrl,
         normalPrice: airline.normalPrice === null ? null : Number(airline.normalPrice),
         urgentPrice: airline.urgentPrice === null ? null : Number(airline.urgentPrice),
         ...rules,

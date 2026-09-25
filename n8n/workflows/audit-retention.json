@@ -1,0 +1,59 @@
+{
+  "name": "TripNexio - Audit Trail Retention (DRY RUN ONLY)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 4 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "c3e4f5a6-3456-4c7d-0e1f-2a3b4c5d6e7f",
+      "name": "Weekly Sunday 4:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "notes": "Set this n8n instance's timezone to Asia/Kolkata so this actually fires at 4:00 AM IST."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIPNEXIO_BASE_URL }}/api/automation/audit-retention",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"dryRun\": true}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "d4f5a6b7-4567-4d8e-1f2a-3b4c5d6e7f8a",
+      "name": "Call Audit Retention API (dry-run)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 0],
+      "notes": "DO NOT change dryRun to false until the client has explicitly confirmed hard-delete (vs. archive) is the correct policy for AuditTrail rows — see AUTOMATION_WORKFLOWS.md. Left running in dry-run mode reports what WOULD be purged (Admin -> Automation) without deleting anything.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "TripNexio Automation Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Weekly Sunday 4:00 AM": {
+      "main": [[{ "node": "Call Audit Retention API (dry-run)", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

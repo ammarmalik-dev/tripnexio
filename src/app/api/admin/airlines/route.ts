@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { buildAirlineLogoUrl } from "@/lib/airlines/fetch-logo";
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
@@ -35,8 +36,13 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "An airline with this code already exists.", { code: ["This code is taken."] });
   }
 
+  // Item 12 — auto-populate the logo from the code when staff didn't
+  // paste their own URL (an explicit empty string means "no logo," left
+  // as-is, not overwritten).
+  const data = parsed.data.logoUrl === undefined ? { ...parsed.data, logoUrl: buildAirlineLogoUrl(parsed.data.code) } : parsed.data;
+
   const airline = await db.$transaction(async (tx) => {
-    const created = await tx.airline.create({ data: parsed.data });
+    const created = await tx.airline.create({ data });
     await writeAudit(tx, {
       entityType: "Airline",
       entityId: created.id,

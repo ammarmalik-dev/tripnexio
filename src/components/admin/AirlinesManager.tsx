@@ -21,6 +21,7 @@ interface AirlineData {
   urgentPrice: string | null;
   standardProcessingDays: number | null;
   urgentProcessingHours: number | null;
+  logoUrl: string | null;
   displayOrder: number;
   active: boolean;
 }
@@ -36,6 +37,7 @@ interface AirlineFormState {
   urgentPrice: string;
   standardProcessingDays: string;
   urgentProcessingHours: string;
+  logoUrl: string;
   displayOrder: string;
 }
 
@@ -48,6 +50,7 @@ const EMPTY_FORM: AirlineFormState = {
   urgentPrice: "",
   standardProcessingDays: "",
   urgentProcessingHours: "",
+  logoUrl: "",
   displayOrder: "0",
 };
 
@@ -61,6 +64,7 @@ function toFormState(airline: AirlineData): AirlineFormState {
     urgentPrice: airline.urgentPrice ?? "",
     standardProcessingDays: airline.standardProcessingDays === null ? "" : String(airline.standardProcessingDays),
     urgentProcessingHours: airline.urgentProcessingHours === null ? "" : String(airline.urgentProcessingHours),
+    logoUrl: airline.logoUrl ?? "",
     displayOrder: String(airline.displayOrder),
   };
 }
@@ -159,6 +163,16 @@ function AirlineFields({
         error={errors.urgentProcessingHours?.[0]}
         disabled={disabled}
       />
+      <TextField
+        label="Logo URL"
+        name="logoUrl"
+        placeholder="Auto-filled from the IATA code"
+        hint="Leave blank to auto-fill from a free logos-by-code source; paste a URL to override."
+        value={form.logoUrl}
+        onChange={(event) => onChange({ ...form, logoUrl: event.target.value })}
+        error={errors.logoUrl?.[0]}
+        disabled={disabled}
+      />
       <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input
           type="checkbox"
@@ -182,6 +196,7 @@ function buildPayload(form: AirlineFormState) {
     urgentPrice: form.urgentPrice.trim() === "" ? undefined : Number(form.urgentPrice),
     standardProcessingDays: form.standardProcessingDays.trim() === "" ? null : Number(form.standardProcessingDays),
     urgentProcessingHours: form.urgentProcessingHours.trim() === "" ? null : Number(form.urgentProcessingHours),
+    logoUrl: form.logoUrl.trim() === "" ? undefined : form.logoUrl.trim(),
     displayOrder: Number(form.displayOrder) || 0,
   };
 }
@@ -225,14 +240,27 @@ function AirlineCard({ airline, onSaved }: { airline: AirlineData; onSaved: (air
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-medium",
-            airline.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-          )}
-        >
-          {airline.active ? "Active" : "Disabled"}
-        </span>
+        <div className="flex items-center gap-2.5">
+          {airline.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable-domain logo URL; next/image would need every possible host allow-listed.
+            <img
+              src={airline.logoUrl}
+              alt={`${airline.name} logo`}
+              className="h-7 w-7 rounded object-contain"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
+          ) : null}
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-medium",
+              airline.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+            )}
+          >
+            {airline.active ? "Active" : "Disabled"}
+          </span>
+        </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
           {airline.active ? "Disable" : "Enable"}
         </Button>

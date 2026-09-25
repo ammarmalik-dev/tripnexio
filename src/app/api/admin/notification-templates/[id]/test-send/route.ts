@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { sendNotificationEmail } from "@/lib/notifications/send-notification-email";
 import { sendNotificationWhatsApp } from "@/lib/notifications/send-notification-whatsapp";
+import { sendNotificationSms } from "@/lib/notifications/send-notification-sms";
 import { NOTIFICATION_EVENT_CATALOG } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
@@ -65,10 +66,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonSuccess({ sent: true });
   }
 
-  if (!template.metaTemplateName?.trim()) {
-    return jsonError(409, "Set the Meta-approved template name before sending a test — Meta will reject an unapproved template either way.");
+  if (template.channel === "WHATSAPP") {
+    if (!template.metaTemplateName?.trim()) {
+      return jsonError(409, "Set the Meta-approved template name before sending a test — Meta will reject an unapproved template either way.");
+    }
+    await sendNotificationWhatsApp({
+      event: template.event,
+      to: toWhatsAppId(parsed.data.to),
+      variables: sampleVariables,
+      auditTarget: { entityType: "NotificationTemplate", entityId: template.id },
+    });
+    return jsonSuccess({ sent: true });
   }
-  await sendNotificationWhatsApp({
+
+  // SMS — no Meta-approval concept (that's WhatsApp-specific); sends via
+  // whichever provider getSmsSender() currently selects (ConsoleSmsSender
+  // until a real gateway is chosen and wired — see that module's own doc
+  // comment).
+  await sendNotificationSms({
     event: template.event,
     to: toWhatsAppId(parsed.data.to),
     variables: sampleVariables,

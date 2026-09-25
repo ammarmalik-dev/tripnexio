@@ -158,6 +158,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
     emailTo: result.customerEmail,
     whatsappTo: toWhatsAppId(result.customerMobile),
+    smsTo: toWhatsAppId(result.customerMobile),
     variables: {
       customerName: result.customerName,
       serviceType: SERVICE_TYPE_LABELS[serviceType],

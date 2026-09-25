@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { buildAirlineLogoUrl } from "@/lib/airlines/fetch-logo";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,8 +37,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (codeTaken) return jsonError(400, "An airline with this code already exists.", { code: ["This code is taken."] });
   }
 
+  // Item 12 — the code changing (and staff didn't also paste their own
+  // logoUrl in the same request) re-derives the logo for the new code.
+  const data =
+    parsed.data.code && parsed.data.code !== existing.code && parsed.data.logoUrl === undefined
+      ? { ...parsed.data, logoUrl: buildAirlineLogoUrl(parsed.data.code) }
+      : parsed.data;
+
   const updated = await db.$transaction(async (tx) => {
-    const result = await tx.airline.update({ where: { id }, data: parsed.data });
+    const result = await tx.airline.update({ where: { id }, data });
     await writeAudit(tx, {
       entityType: "Airline",
       entityId: id,

@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
           event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,
           emailTo: booking.customer.email,
           whatsappTo: toWhatsAppId(booking.customer.mobile),
+          smsTo: toWhatsAppId(booking.customer.mobile),
           variables: {
             customerName: booking.customer.name,
             bookingId: booking.bookingId,

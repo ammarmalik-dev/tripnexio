@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
           event: NOTIFICATION_EVENTS.LEAD_FOLLOWUP,
           emailTo: lead.customer.email,
           whatsappTo: toWhatsAppId(lead.customer.mobile),
+          smsTo: toWhatsAppId(lead.customer.mobile),
           variables: {
             customerName: lead.customer.name,
             serviceType: SERVICE_TYPE_LABELS[lead.serviceType],

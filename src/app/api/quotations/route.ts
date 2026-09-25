@@ -309,6 +309,7 @@ export async function POST(request: NextRequest) {
     event: NOTIFICATION_EVENTS.QUOTE_READY,
     emailTo: lead.customer.email,
     whatsappTo: toWhatsAppId(lead.customer.mobile),
+    smsTo: toWhatsAppId(lead.customer.mobile),
     variables: {
       customerName: lead.customer.name,
       leadReference: formatLeadReference(lead.serviceType, lead.id),

@@ -171,6 +171,7 @@ export async function POST(request: NextRequest) {
       event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
       emailTo: recipient.email,
       whatsappTo: toWhatsAppId(recipient.mobile),
+      smsTo: toWhatsAppId(recipient.mobile),
       variables: { customerName: recipient.customerName, documentName: document.type, leadReference: recipient.leadReference },
       auditTarget: { entityType: "Document", entityId: document.id },
     });

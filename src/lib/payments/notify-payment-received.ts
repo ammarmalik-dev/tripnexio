@@ -30,6 +30,7 @@ export async function notifyPaymentReceived(paymentId: string): Promise<void> {
     event: NOTIFICATION_EVENTS.PAYMENT_RECEIVED,
     emailTo: payment.booking.customer.email,
     whatsappTo: toWhatsAppId(payment.booking.customer.mobile),
+    smsTo: toWhatsAppId(payment.booking.customer.mobile),
     variables: {
       customerName: payment.booking.customer.name,
       bookingId: payment.booking.bookingId,

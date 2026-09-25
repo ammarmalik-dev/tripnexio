@@ -16,6 +16,8 @@ export const createAirlineSchema = z.object({
   /** Working-day overrides for this airline; null clears the override (falls back to Admin → OTB Timelines). */
   standardProcessingDays: z.number().int().min(1, "At least 1 working day").max(365).nullable().optional(),
   urgentProcessingHours: z.number().int().min(0).max(200).nullable().optional(),
+  /** Omit (client sends undefined for a blank field, same convention as normalPrice/urgentPrice) to auto-populate from the airline's code — see src/lib/airlines/fetch-logo.ts. */
+  logoUrl: z.string().trim().url("Enter a valid URL").max(500).optional(),
   displayOrder: z.number().int().default(0),
   active: z.boolean().default(true),
 });

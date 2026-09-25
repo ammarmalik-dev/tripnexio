@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
           event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,
           emailTo: payment.booking.customer.email,
           whatsappTo: toWhatsAppId(payment.booking.customer.mobile),
+          smsTo: toWhatsAppId(payment.booking.customer.mobile),
           variables: {
             customerName: payment.booking.customer.name,
             bookingId: payment.booking.bookingId,

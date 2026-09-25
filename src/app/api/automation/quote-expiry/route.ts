@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
           event: NOTIFICATION_EVENTS.QUOTE_REMINDER,
           emailTo: quotation.lead.customer.email,
           whatsappTo: toWhatsAppId(quotation.lead.customer.mobile),
+          smsTo: toWhatsAppId(quotation.lead.customer.mobile),
           variables: {
             customerName: quotation.lead.customer.name,
             leadReference: formatLeadReference(quotation.lead.serviceType, quotation.lead.id),

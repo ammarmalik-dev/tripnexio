@@ -108,6 +108,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         event,
         emailTo: recipient.email,
         whatsappTo: toWhatsAppId(recipient.mobile),
+        smsTo: toWhatsAppId(recipient.mobile),
         variables: { customerName: recipient.customerName, documentName: updated.type, leadReference: recipient.leadReference },
         auditTarget: { entityType: "Document", entityId: updated.id },
       });

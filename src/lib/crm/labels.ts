@@ -156,6 +156,7 @@ export const COUPON_CATEGORY_OPTIONS: { value: CouponCategory; label: string }[]
 export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = {
   WHATSAPP: "WhatsApp",
   EMAIL: "Email",
+  SMS: "SMS",
 };
 
 export const NOTIFICATION_CHANNEL_OPTIONS: { value: NotificationChannel; label: string }[] = (

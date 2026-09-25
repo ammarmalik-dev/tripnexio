@@ -21,5 +21,5 @@ export async function GET() {
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
   });
 
-  return jsonSuccess(airlines.map((airline) => ({ id: airline.id, code: airline.code, name: airline.name })));
+  return jsonSuccess(airlines.map((airline) => ({ id: airline.id, code: airline.code, name: airline.name, logoUrl: airline.logoUrl })));
 }

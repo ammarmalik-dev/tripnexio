@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
             event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
             emailTo: booking.customer.email,
             whatsappTo: toWhatsAppId(booking.customer.mobile),
+            smsTo: toWhatsAppId(booking.customer.mobile),
             variables: {
               customerName: booking.customer.name,
               documentName: doc.type,
