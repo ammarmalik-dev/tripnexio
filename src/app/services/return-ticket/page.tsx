@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { TicketCheck, ShieldCheck, Clock, ClipboardList, CalendarClock, CheckCircle2 } from "lucide-react";
+import { TicketCheck, Clock, ClipboardList, CheckCircle2 } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -7,31 +7,26 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { GradientMesh } from "@/components/motion/GradientMesh";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
+import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 
 export const metadata: Metadata = {
   title: "Return Verified Ticket",
   description:
-    "A UAE-focused return/onward ticket reservation. Just tell us your travel date and expected return date — we take care of the rest.",
+    "A verifiable return ticket reservation for international travel. Share your destination and travel date — we take care of the rest.",
 };
 
 const whatYoullNeed = ["Full name, mobile number, email", "Number of passengers", "Travel date", "Expected return date"];
 
-const howItWorks = [
-  {
-    title: "Share your travel details",
-    description: "Your travel date and expected return date — no visa-validity selection needed.",
-    icon: ClipboardList,
-  },
-  {
-    title: "We find a matching reservation",
-    description: "We aim to issue a return ticket close to your expected date, subject to live ticket/partner availability.",
-    icon: CalendarClock,
-  },
-  {
-    title: "We confirm and issue your reservation",
-    description: "Our team verifies the reservation through our partner/airline process before delivering your PDF.",
-    icon: ShieldCheck,
-  },
+// Locked content — doc §8 "How It Works — final customer copy" (5 steps).
+// "airline/vendor" in the source doc kept as "airline/partner" — the
+// client's own site-wide Sep 24 wording instruction (Vendor -> Partner)
+// takes precedence over this doc's literal wording.
+const visaProcessSteps = [
+  { step: "01", headline: "Share your travel details", supportingCopy: "Tell us your destination, number of passengers and travel date." },
+  { step: "02", headline: "We work out the return date", supportingCopy: "We arrange an approximate return date based on available ticket options and your travel schedule." },
+  { step: "03", headline: "Complete payment", supportingCopy: "Review the summary and applicable terms, then complete payment." },
+  { step: "04", headline: "We arrange your return ticket reservation", supportingCopy: "Our team processes the return ticket through the configured airline/partner process based on live availability." },
+  { step: "05", headline: "Receive your return ticket", supportingCopy: "Once issued, your return ticket is delivered to you." },
 ];
 
 export default function ReturnTicketLandingPage() {
@@ -45,15 +40,18 @@ export default function ReturnTicketLandingPage() {
               <TicketCheck className="h-6 w-6" aria-hidden="true" />
             </span>
           </MotionReveal>
+          <MotionReveal delay={0.04}>
+            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">International Return Ticket</span>
+          </MotionReveal>
           <MotionReveal delay={0.06}>
             <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
-              Return Verified Ticket
+              Return Ticket, Made Simple
             </h1>
           </MotionReveal>
           <MotionReveal delay={0.12}>
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              A verified return/onward ticket reservation for UAE travel — proof of onward travel where applicable.
-              Just tell us your travel date and expected return date; we take care of the rest.
+              Get a verifiable return ticket reservation for international travel. Share your destination and
+              travel date — we take care of the rest.
             </p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
@@ -108,22 +106,7 @@ export default function ReturnTicketLandingPage() {
           <MotionReveal>
             <SectionHeading align="center" eyebrow="Simple steps" title="How it works" className="mx-auto" />
           </MotionReveal>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {howItWorks.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <MotionReveal key={step.title} delay={index * 0.08}>
-                  <div className="flex flex-col items-center gap-3 text-center">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <p className="text-sm font-semibold text-ink-heading">{step.title}</p>
-                    <p className="max-w-xs text-xs text-ink-tertiary">{step.description}</p>
-                  </div>
-                </MotionReveal>
-              );
-            })}
-          </div>
+          <VisaProcessSteps steps={visaProcessSteps} />
         </Container>
       </section>
 

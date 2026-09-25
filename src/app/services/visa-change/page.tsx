@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowLeftRight, ShieldCheck, Clock, ClipboardList, MessageSquareText, CheckCircle2 } from "lucide-react";
+import { ArrowLeftRight, Clock, ClipboardList, CheckCircle2 } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -7,6 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { GradientMesh } from "@/components/motion/GradientMesh";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
+import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 
 export const metadata: Metadata = {
   title: "Visa Change",
@@ -23,22 +24,18 @@ const whatYoullNeed = [
   "Nationality",
 ];
 
-const howItWorks = [
-  {
-    title: "Choose your method",
-    description: "Airport-to-Airport or Border Exit — no need to pick a specific airport or border.",
-    icon: MessageSquareText,
-  },
-  {
-    title: "We confirm availability",
-    description: "Our team checks with the relevant sponsor/partner and confirms your options.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Select your package",
-    description: "Choose your confirmed date, time, and package — pricing is shown then.",
-    icon: CheckCircle2,
-  },
+// Locked content — doc §11 "How It Works — final reference-style copy" (7 steps).
+// "sponsor/vendor" in the source doc's step 02 kept as "sponsor/partner" — the
+// client's own site-wide Sep 24 wording instruction (Vendor -> Partner)
+// takes precedence over this doc's literal wording.
+const visaProcessSteps = [
+  { step: "01", headline: "Start your application", supportingCopy: "Choose A2A or Border Exit and enter your traveller details." },
+  { step: "02", headline: "We check availability", supportingCopy: "Our team checks the available sponsor/partner arrangements." },
+  { step: "03", headline: "Choose your confirmed option", supportingCopy: "Once availability is confirmed, you can select the available date, time and package." },
+  { step: "04", headline: "Complete payment", supportingCopy: "Review the package, terms and final price, then make payment." },
+  { step: "05", headline: "Complete your Visa Change", supportingCopy: "Receive the confirmed travel/exit details and follow the instructions provided." },
+  { step: "06", headline: "Exit completed", supportingCopy: "Our team records the completed exit and starts the next stage." },
+  { step: "07", headline: "New Visa Processing", supportingCopy: "The new visa application proceeds and the visa is delivered once approved." },
 ];
 
 export default function VisaChangeLandingPage() {
@@ -52,21 +49,24 @@ export default function VisaChangeLandingPage() {
               <ArrowLeftRight className="h-6 w-6" aria-hidden="true" />
             </span>
           </MotionReveal>
+          <MotionReveal delay={0.04}>
+            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">UAE Visa Change</span>
+          </MotionReveal>
           <MotionReveal delay={0.06}>
             <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
-              Visa Change
+              Visa Change, Made Simple
             </h1>
           </MotionReveal>
           <MotionReveal delay={0.12}>
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              Change or exit your visa status — Airport-to-Airport or Border Exit. Submit your details online — our
-              team confirms availability and handles the process from there.
+              Change your UAE visa from inside the UAE through a simple, guided process. Choose Airport-to-Airport
+              or Border Exit, submit your details, and let TripNexio coordinate the next steps for you.
             </p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <ButtonLink href="/services/visa-change/request" variant="primary" size="lg">
-                Start Visa Change Request
+                Start Visa Change
               </ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status
@@ -115,22 +115,7 @@ export default function VisaChangeLandingPage() {
           <MotionReveal>
             <SectionHeading align="center" eyebrow="Simple steps" title="How it works" className="mx-auto" />
           </MotionReveal>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {howItWorks.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <MotionReveal key={step.title} delay={index * 0.08}>
-                  <div className="flex flex-col items-center gap-3 text-center">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <p className="text-sm font-semibold text-ink-heading">{step.title}</p>
-                    <p className="max-w-xs text-xs text-ink-tertiary">{step.description}</p>
-                  </div>
-                </MotionReveal>
-              );
-            })}
-          </div>
+          <VisaProcessSteps steps={visaProcessSteps} />
         </Container>
       </section>
 

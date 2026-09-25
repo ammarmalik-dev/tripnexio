@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CalendarClock, ShieldCheck, Clock, ClipboardList, MessageSquareText, CheckCircle2 } from "lucide-react";
+import { CalendarClock, Clock, ClipboardList, CheckCircle2 } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -7,6 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { GradientMesh } from "@/components/motion/GradientMesh";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
+import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 
 export const metadata: Metadata = {
   title: "Visa Extension",
@@ -24,22 +25,12 @@ const whatYoullNeed = [
   "UAE entry date",
 ];
 
-const howItWorks = [
-  {
-    title: "Share your visa details",
-    description: "We check for a visa originally issued through TripNexio.",
-    icon: MessageSquareText,
-  },
-  {
-    title: "We verify your eligibility",
-    description: "Our team confirms your actual visa expiry and extension eligibility.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Get your extended visa",
-    description: "Pay once approved and receive your extended visa copy.",
-    icon: CheckCircle2,
-  },
+// Locked content — doc §5 "How It Works — reference-style 4-step journey".
+const visaProcessSteps = [
+  { step: "01", headline: "Share your visa details", supportingCopy: "Enter your name, mobile number, email address, passport number and visa expiry date." },
+  { step: "02", headline: "We check your eligibility", supportingCopy: "We review your existing TripNexio visa and extension eligibility." },
+  { step: "03", headline: "Review your extension", supportingCopy: "See the verified visa details, extension fee, applicable fine/overstay amount and payment deadline." },
+  { step: "04", headline: "Get your extended visa", supportingCopy: "Complete payment and receive your extended visa once processing is completed." },
 ];
 
 export default function VisaExtensionLandingPage() {
@@ -53,9 +44,12 @@ export default function VisaExtensionLandingPage() {
               <CalendarClock className="h-6 w-6" aria-hidden="true" />
             </span>
           </MotionReveal>
+          <MotionReveal delay={0.04}>
+            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">UAE Visa Extension</span>
+          </MotionReveal>
           <MotionReveal delay={0.06}>
             <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
-              Visa Extension
+              Extend Your UAE Visa
             </h1>
           </MotionReveal>
           <MotionReveal delay={0.12}>
@@ -64,10 +58,13 @@ export default function VisaExtensionLandingPage() {
               team verifies your visa and handles the extension process from there.
             </p>
           </MotionReveal>
+          <MotionReveal delay={0.15}>
+            <p className="text-sm font-medium text-ink-tertiary">30-Day Extension • Online Request • Guided Process</p>
+          </MotionReveal>
           <MotionReveal delay={0.18}>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">
-                Start Extension Request
+                Apply for Visa Extension
               </ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status
@@ -116,22 +113,7 @@ export default function VisaExtensionLandingPage() {
           <MotionReveal>
             <SectionHeading align="center" eyebrow="Simple steps" title="How it works" className="mx-auto" />
           </MotionReveal>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
-            {howItWorks.map((step, index) => {
-              const Icon = step.icon;
-              return (
-                <MotionReveal key={step.title} delay={index * 0.08}>
-                  <div className="flex flex-col items-center gap-3 text-center">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                      <Icon className="h-5 w-5" aria-hidden="true" />
-                    </span>
-                    <p className="text-sm font-semibold text-ink-heading">{step.title}</p>
-                    <p className="max-w-xs text-xs text-ink-tertiary">{step.description}</p>
-                  </div>
-                </MotionReveal>
-              );
-            })}
-          </div>
+          <VisaProcessSteps steps={visaProcessSteps} />
         </Container>
       </section>
 

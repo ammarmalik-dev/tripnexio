@@ -1,4 +1,5 @@
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import { cn } from "@/lib/cn";
 
 export interface VisaProcessStep {
   step: string;
@@ -19,38 +20,44 @@ interface VisaProcessStepsProps {
 /**
  * The client's locked "reference-style visual" for a service's process
  * section (Sep 2026 content docs, all 5 services): a curved/dotted route
- * connecting 4 numbered milestones, large short headlines, one supporting
+ * connecting numbered milestones, large short headlines, one supporting
  * line each, generous white space. Shared across services (New Visa,
  * Visa Extension, Visa Change, Flight Special Fare, Return Ticket) rather
- * than rebuilt per page — each just supplies its own 4 steps.
+ * than rebuilt per page — most use 4 steps, Visa Change's own doc locks
+ * a 7-step journey, so this stays generic over `steps.length` rather than
+ * hardcoding 4.
  *
- * The desktop wave path is purely decorative (aria-hidden) and drawn
- * separately from the step cards below it, rather than trying to anchor
- * curve control points to each card's exact position — much more robust
- * across viewport widths. Mobile drops the wave for a simple vertical
- * dashed connector, which reads better in a single column.
+ * The desktop wave path is purely decorative (aria-hidden), hand-tuned for
+ * exactly 4 points, and only rendered when there are exactly 4 steps —
+ * trying to force it to fit 7 (which wraps onto 2 grid rows anyway) would
+ * stop looking like a path at all. A step count other than 4 falls back to
+ * "a clean horizontal step path" (the doc's own explicitly-offered
+ * alternative for Visa Change's 7-step section) — the numbered circles +
+ * responsive grid alone, no decorative curve. Mobile always drops the wave
+ * for a simple vertical dashed connector, which reads fine at any length.
  */
 export function VisaProcessSteps({ steps, sampleStatusText }: VisaProcessStepsProps) {
   return (
     <div className="flex flex-col gap-2">
-      {/* Desktop decorative wave connecting the 4 milestones */}
-      <svg
-        viewBox="0 0 800 120"
-        preserveAspectRatio="none"
-        className="hidden h-16 w-full text-accent/35 sm:block"
-        aria-hidden="true"
-      >
-        <path
-          d="M60,50 C160,50 160,90 260,90 C360,90 360,50 460,50 C560,50 560,90 660,90 C700,90 720,80 740,60"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeDasharray="8 8"
-          strokeLinecap="round"
-        />
-      </svg>
+      {steps.length === 4 ? (
+        <svg
+          viewBox="0 0 800 120"
+          preserveAspectRatio="none"
+          className="hidden h-16 w-full text-accent/35 sm:block"
+          aria-hidden="true"
+        >
+          <path
+            d="M60,50 C160,50 160,90 260,90 C360,90 360,50 460,50 C560,50 560,90 660,90 C700,90 720,80 740,60"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeDasharray="8 8"
+            strokeLinecap="round"
+          />
+        </svg>
+      ) : null}
 
-      <div className="relative grid grid-cols-1 gap-8 sm:grid-cols-4 sm:gap-6">
+      <div className={cn("relative grid grid-cols-1 gap-8 sm:gap-6", steps.length === 4 ? "sm:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-4")}>
         {/* Mobile vertical dashed connector, behind the numbered circles column */}
         <div className="absolute top-6 bottom-6 left-[19px] w-0 border-l-2 border-dashed border-accent/35 sm:hidden" aria-hidden="true" />
 
