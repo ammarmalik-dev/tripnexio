@@ -10,6 +10,7 @@ import { db } from "../src/lib/db";
 import { PERMISSION_CATALOG, ADMIN_FULL_PERMISSION } from "../src/lib/auth/permissions";
 import { NOTIFICATION_EVENTS } from "../src/lib/notifications/events";
 import { SERVICE_STATUS_SEED } from "./seed-service-statuses";
+import { FAQ_SEED_DATA } from "./faq-seed-data";
 import { ServiceType } from "../src/generated/prisma/enums";
 
 /**
@@ -488,6 +489,37 @@ async function main() {
     published: true,
   };
   await db.faq.upsert({ where: { id: "sample-faq-2" }, update: sampleFaq2, create: sampleFaq2 });
+
+  // Real, client-supplied FAQ content (2026-09-24 "FINAL Page Content/
+  // Design/FAQ" docs, 5 services, 124 FAQs total) — see faq-seed-data.ts's
+  // own doc comment for the exact source. Deliberately `update: {}`, unlike
+  // most other seed rows in this file — once staff have edited one of
+  // these via /admin/faqs (fixing wording, publishing/unpublishing), a
+  // future `db:seed` run must never silently overwrite that edit. `id` is
+  // a stable, deterministic key derived from serviceType + position in the
+  // source list, not the question text itself (which a staff edit might
+  // change).
+  for (const [serviceType, entries] of Object.entries(
+    FAQ_SEED_DATA.reduce<Record<string, typeof FAQ_SEED_DATA>>((acc, entry) => {
+      (acc[entry.serviceType] ??= []).push(entry);
+      return acc;
+    }, {})
+  )) {
+    for (const [index, entry] of entries.entries()) {
+      const id = `faq-${serviceType.toLowerCase().replace(/_/g, "-")}-${index + 1}`;
+      const data = {
+        id,
+        question: entry.question,
+        answer: entry.answer,
+        serviceType: entry.serviceType,
+        keywords: entry.keywords,
+        displayOrder: index + 1,
+        active: true,
+        published: true,
+      };
+      await db.faq.upsert({ where: { id }, update: {}, create: data });
+    }
+  }
 
   const sampleTemplate1 = {
     id: "sample-notification-template-1",
