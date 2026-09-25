@@ -28,7 +28,7 @@ export function Step2ProcessingType() {
         },
         {
           value: "urgent",
-          label: "Urgent",
+          label: "Express",
           description: "Expedited processing for time-sensitive travel.",
         },
       ]}

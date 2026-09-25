@@ -7,6 +7,7 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { GradientMesh } from "@/components/motion/GradientMesh";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
+import { NewVisaProductSelector } from "@/components/services/new-visa/NewVisaProductSelector";
 
 export const metadata: Metadata = {
   title: "New Visa",
@@ -22,7 +23,7 @@ const whatYoullNeed = [
   "Visa type",
   "Number of travelers",
   "Travel date",
-  "Processing type — Normal or Urgent",
+  "Processing type — Normal or Express",
 ];
 
 const howItWorks = [
@@ -111,6 +112,19 @@ export default function NewVisaLandingPage() {
                 ))}
               </ul>
             </GlassCard>
+          </MotionReveal>
+        </Container>
+      </section>
+
+      <section className="py-16 sm:py-20">
+        <Container className="flex flex-col gap-6">
+          <MotionReveal>
+            <SectionHeading align="center" eyebrow="UAE visa options" title="Choose your visa and see the price instantly" className="mx-auto" />
+          </MotionReveal>
+          <MotionReveal delay={0.08}>
+            <div className="mx-auto w-full max-w-2xl">
+              <NewVisaProductSelector />
+            </div>
           </MotionReveal>
         </Container>
       </section>

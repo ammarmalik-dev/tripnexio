@@ -777,6 +777,7 @@ async function main() {
     countryId: "cty_uae",
     visaCategory: "SAMPLE — Tourist / Visit Visa",
     duration: "SAMPLE — 30 Days",
+    entryType: "SAMPLE — Single Entry / Multiple Entry",
     processingType: "SAMPLE — Normal & Express available",
     description: "SAMPLE description — replace with the real New Visa country description before this goes live.",
     termsAndConditions: "SAMPLE terms and conditions — replace with the real New Visa country terms before this goes live.",

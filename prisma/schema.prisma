@@ -1615,6 +1615,14 @@ model NewVisaCountryConfig {
   countryId          String   @unique
   visaCategory       String
   duration           String
+  /// Entry Type (e.g. "Single Entry / Multiple Entry") — descriptive display
+  /// text for the New Visa product card, same non-pricing-dimension status
+  /// as visaCategory/duration/processingType (see this model's own doc
+  /// comment on those three). Added for the product-card redesign (Sep 2026
+  /// content docs) — the card shows Stay Duration/Entry Type/Processing Time
+  /// as three separate labeled rows, and this model had no field for the
+  /// second one until now.
+  entryType          String
   processingType     String
   description        String   @db.Text
   termsAndConditions String   @db.Text

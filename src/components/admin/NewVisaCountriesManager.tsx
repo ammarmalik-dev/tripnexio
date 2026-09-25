@@ -26,6 +26,7 @@ interface ConfigData {
   country: { id: string; name: string; code: string };
   visaCategory: string;
   duration: string;
+  entryType: string;
   processingType: string;
   description: string;
   termsAndConditions: string;
@@ -65,6 +66,7 @@ type FieldErrors = Record<string, string[] | undefined>;
 interface FormState {
   visaCategory: string;
   duration: string;
+  entryType: string;
   processingType: string;
   description: string;
   termsAndConditions: string;
@@ -74,13 +76,14 @@ function toFormState(c: ConfigData): FormState {
   return {
     visaCategory: c.visaCategory,
     duration: c.duration,
+    entryType: c.entryType,
     processingType: c.processingType,
     description: c.description,
     termsAndConditions: c.termsAndConditions,
   };
 }
 
-const EMPTY_FORM: FormState = { visaCategory: "", duration: "", processingType: "", description: "", termsAndConditions: "" };
+const EMPTY_FORM: FormState = { visaCategory: "", duration: "", entryType: "", processingType: "", description: "", termsAndConditions: "" };
 
 function ConfigFields({
   form,
@@ -112,6 +115,15 @@ function ConfigFields({
           value={form.duration}
           onChange={(event) => onChange({ ...form, duration: event.target.value })}
           error={errors.duration?.[0]}
+          disabled={disabled}
+        />
+        <TextField
+          label="Entry Type"
+          name="entryType"
+          placeholder="e.g. Single Entry / Multiple Entry"
+          value={form.entryType}
+          onChange={(event) => onChange({ ...form, entryType: event.target.value })}
+          error={errors.entryType?.[0]}
           disabled={disabled}
         />
       </div>
@@ -325,7 +337,13 @@ function NewConfigForm({ availableCountries, onCreated }: { availableCountries: 
   };
 
   const canSubmit =
-    !!countryId && form.visaCategory.trim() !== "" && form.duration.trim() !== "" && form.processingType.trim() !== "" && form.description.trim() !== "" && form.termsAndConditions.trim() !== "";
+    !!countryId &&
+    form.visaCategory.trim() !== "" &&
+    form.duration.trim() !== "" &&
+    form.entryType.trim() !== "" &&
+    form.processingType.trim() !== "" &&
+    form.description.trim() !== "" &&
+    form.termsAndConditions.trim() !== "";
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
