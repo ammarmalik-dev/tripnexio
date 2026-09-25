@@ -2,7 +2,15 @@ import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
-import { getSalesOverview, getOperationsOverview, getActionQueue } from "@/lib/crm/dashboard";
+import {
+  getSalesOverview,
+  getOperationsOverview,
+  getActionQueue,
+  getLeadsTrend,
+  getLeadsByServiceBreakdown,
+  getRevenueTrend,
+  buildConversionFunnel,
+} from "@/lib/crm/dashboard";
 
 const DEFAULT_PERIOD_DAYS = 30;
 
@@ -43,11 +51,19 @@ export async function GET(request: NextRequest) {
   const sales = await getSalesOverview({ startDate, endDate }, scope);
   const operations = await getOperationsOverview(scope);
   const actionQueue = await getActionQueue(scope);
+  const leadsTrend = await getLeadsTrend({ startDate, endDate }, scope);
+  const leadsByService = await getLeadsByServiceBreakdown({ startDate, endDate }, scope);
+  const revenueTrend = await getRevenueTrend(scope);
+  const funnel = buildConversionFunnel(sales.leadsByStatus);
 
   return jsonSuccess({
     period: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
     sales,
     operations,
     actionQueue,
+    leadsTrend,
+    leadsByService,
+    revenueTrend,
+    funnel,
   });
 }

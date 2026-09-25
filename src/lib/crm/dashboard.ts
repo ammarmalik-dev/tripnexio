@@ -38,6 +38,15 @@ export interface SalesOverview {
   conversionRate: number;
   paymentPending: number;
   paymentReceived: number;
+  /** Every lead created in the period, regardless of status — the funnel/temperature-donut baseline. */
+  totalLeads: number;
+  /**
+   * Raw per-`LeadStatus` counts for leads created in the period — reused by
+   * `buildConversionFunnel()` below so the Command Centre's funnel chart
+   * needs zero extra DB round trips (this groupBy already runs for the KPI
+   * cards above).
+   */
+  leadsByStatus: Record<string, number>;
 }
 
 export interface OperationsOverview {
@@ -153,6 +162,11 @@ export async function getSalesOverview(period: DashboardPeriod, allowedServiceTy
   const paymentCount = (status: string) => paymentStatusGroups.find((g) => g.status === status)?._count._all ?? 0;
   const convertedLeadsInPeriod = leadCountByStatus("CONVERTED");
 
+  const leadsByStatus: Record<string, number> = {};
+  for (const g of leadGroups) {
+    leadsByStatus[g.status] = (leadsByStatus[g.status] ?? 0) + g._count._all;
+  }
+
   return {
     newLeads: leadCountByStatus("NEW"),
     qualifiedLeads: leadCountByStatus("QUALIFIED"),
@@ -164,7 +178,162 @@ export async function getSalesOverview(period: DashboardPeriod, allowedServiceTy
     conversionRate: totalLeadsInPeriod === 0 ? 0 : Math.round((convertedLeadsInPeriod / totalLeadsInPeriod) * 1000) / 10,
     paymentPending: paymentCount("PENDING"),
     paymentReceived: paymentCount("SUCCESS"),
+    totalLeads: totalLeadsInPeriod,
+    leadsByStatus,
   };
+}
+
+export interface DashboardTrendPoint {
+  label: string;
+  value: number;
+}
+
+export interface ServiceBreakdownItem {
+  serviceType: ServiceType;
+  count: number;
+}
+
+export interface FunnelStage {
+  key: string;
+  label: string;
+  count: number;
+  /** 0-100, relative to the first (New) stage. */
+  percentOfFirst: number;
+}
+
+/**
+ * The 7-stage "primary path" funnel (New -> Converted) the Command Centre
+ * charts. Built as a pure function over `SalesOverview.leadsByStatus`
+ * (already fetched, no new query) rather than a separate DB call.
+ *
+ * This schema has no per-stage timestamp history (only the current
+ * `status` + `updatedAt`), so — same honesty standard as
+ * LEAD_STALLED_STATUSES/TRAVEL_DATE_WINDOW above — each stage's count is a
+ * disclosed approximation: "leads currently at or past this stage",
+ * computed by summing every status whose pipeline position is >= the
+ * stage's own position. `FOLLOW_UP_REQUIRED`/`CUSTOMER_RESPONDED` fold into
+ * the "Contacted" tier (they're side-states at the same pipeline depth,
+ * not a distinct later stage). `LOST`/`CLOSED` are deliberately excluded —
+ * they exited the pipeline, so counting them "at" some earlier stage would
+ * overstate that stage's real in-flight/converted volume.
+ */
+const FUNNEL_STAGES: { key: string; label: string; statuses: string[] }[] = [
+  { key: "NEW", label: "New", statuses: ["NEW", "CONTACTED", "FOLLOW_UP_REQUIRED", "CUSTOMER_RESPONDED", "QUALIFIED", "QUOTATION_CREATED", "QUOTATION_ACCEPTED", "PAYMENT_PENDING", "CONVERTED"] },
+  { key: "CONTACTED", label: "Contacted", statuses: ["CONTACTED", "FOLLOW_UP_REQUIRED", "CUSTOMER_RESPONDED", "QUALIFIED", "QUOTATION_CREATED", "QUOTATION_ACCEPTED", "PAYMENT_PENDING", "CONVERTED"] },
+  { key: "QUALIFIED", label: "Qualified", statuses: ["QUALIFIED", "QUOTATION_CREATED", "QUOTATION_ACCEPTED", "PAYMENT_PENDING", "CONVERTED"] },
+  { key: "QUOTATION_CREATED", label: "Quotation Created", statuses: ["QUOTATION_CREATED", "QUOTATION_ACCEPTED", "PAYMENT_PENDING", "CONVERTED"] },
+  { key: "QUOTATION_ACCEPTED", label: "Quotation Accepted", statuses: ["QUOTATION_ACCEPTED", "PAYMENT_PENDING", "CONVERTED"] },
+  { key: "PAYMENT_PENDING", label: "Payment Pending", statuses: ["PAYMENT_PENDING", "CONVERTED"] },
+  { key: "CONVERTED", label: "Converted", statuses: ["CONVERTED"] },
+];
+
+export function buildConversionFunnel(leadsByStatus: Record<string, number>): FunnelStage[] {
+  const firstStageCount = FUNNEL_STAGES[0].statuses.reduce((sum, s) => sum + (leadsByStatus[s] ?? 0), 0);
+  return FUNNEL_STAGES.map((stage) => {
+    const count = stage.statuses.reduce((sum, s) => sum + (leadsByStatus[s] ?? 0), 0);
+    return {
+      key: stage.key,
+      label: stage.label,
+      count,
+      percentOfFirst: firstStageCount === 0 ? 0 : Math.round((count / firstStageCount) * 1000) / 10,
+    };
+  });
+}
+
+/** Leads created in the period, grouped by `ServiceType` — one extra indexed groupBy, feeds the "Leads by Service" chart. */
+export async function getLeadsByServiceBreakdown(period: DashboardPeriod, allowedServiceTypes?: ServiceScope): Promise<ServiceBreakdownItem[]> {
+  const leadScope = allowedServiceTypes ? { serviceType: { in: allowedServiceTypes } } : {};
+  const groups = await db.lead.groupBy({
+    by: ["serviceType"],
+    where: { createdAt: { gte: period.startDate, lte: period.endDate }, ...leadScope },
+    _count: { _all: true },
+  });
+  return groups
+    .map((g) => ({ serviceType: g.serviceType, count: g._count._all }))
+    .sort((a, b) => b.count - a.count);
+}
+
+const TREND_DAY_MS = 24 * 60 * 60 * 1000;
+/** Above this many days, `getLeadsTrend` buckets by week instead of by day, so the chart never has to plot 90+ points. */
+const TREND_DAILY_MAX_SPAN_DAYS = 31;
+
+function bucketByDay(timestamps: Date[], start: Date, end: Date): DashboardTrendPoint[] {
+  const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / TREND_DAY_MS));
+  const buckets = new Array<number>(days + 1).fill(0);
+  for (const t of timestamps) {
+    const dayIndex = Math.floor((t.getTime() - start.getTime()) / TREND_DAY_MS);
+    if (dayIndex >= 0 && dayIndex <= days) buckets[dayIndex] += 1;
+  }
+  return buckets.map((value, i) => {
+    const date = new Date(start.getTime() + i * TREND_DAY_MS);
+    return { label: date.toLocaleDateString("en-IN", { day: "numeric", month: "short" }), value };
+  });
+}
+
+function bucketByWeek(timestamps: Date[], start: Date, end: Date): DashboardTrendPoint[] {
+  const weekMs = 7 * TREND_DAY_MS;
+  const weeks = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / weekMs));
+  const buckets = new Array<number>(weeks).fill(0);
+  for (const t of timestamps) {
+    const weekIndex = Math.floor((t.getTime() - start.getTime()) / weekMs);
+    if (weekIndex >= 0 && weekIndex < weeks) buckets[weekIndex] += 1;
+  }
+  return buckets.map((value, i) => {
+    const weekStart = new Date(start.getTime() + i * weekMs);
+    return { label: weekStart.toLocaleDateString("en-IN", { day: "numeric", month: "short" }), value };
+  });
+}
+
+/**
+ * New leads per day (or per week for a long period) across the selected
+ * date range — a single-column `select` (not the whole row), bucketed in
+ * JS same as `getActionQueue`'s travel-date filtering already does, since
+ * Postgres date-truncation isn't expressible through Prisma's `groupBy`.
+ */
+export async function getLeadsTrend(period: DashboardPeriod, allowedServiceTypes?: ServiceScope): Promise<DashboardTrendPoint[]> {
+  const leadScope = allowedServiceTypes ? { serviceType: { in: allowedServiceTypes } } : {};
+  const leads = await db.lead.findMany({
+    where: { createdAt: { gte: period.startDate, lte: period.endDate }, ...leadScope },
+    select: { createdAt: true },
+  });
+  const timestamps = leads.map((l) => l.createdAt);
+  const spanDays = (period.endDate.getTime() - period.startDate.getTime()) / TREND_DAY_MS;
+  return spanDays <= TREND_DAILY_MAX_SPAN_DAYS
+    ? bucketByDay(timestamps, period.startDate, period.endDate)
+    : bucketByWeek(timestamps, period.startDate, period.endDate);
+}
+
+const REVENUE_TREND_WEEKS = 8;
+
+/**
+ * Successful-payment revenue for the last 8 weeks, always — deliberately
+ * NOT scoped to the Command Centre's period filter, same "live operational
+ * trend, not a period-created count" reasoning `getOperationsOverview`'s
+ * own doc comment already gives for staying unscoped.
+ */
+export async function getRevenueTrend(allowedServiceTypes?: ServiceScope): Promise<DashboardTrendPoint[]> {
+  const end = new Date();
+  const start = new Date(end.getTime() - REVENUE_TREND_WEEKS * 7 * TREND_DAY_MS);
+  const payments = await db.payment.findMany({
+    where: {
+      status: "SUCCESS",
+      createdAt: { gte: start, lte: end },
+      ...(allowedServiceTypes ? { booking: { lead: { serviceType: { in: allowedServiceTypes } } } } : {}),
+    },
+    select: { amount: true, createdAt: true },
+  });
+
+  const weekMs = 7 * TREND_DAY_MS;
+  const buckets = new Array<number>(REVENUE_TREND_WEEKS).fill(0);
+  for (const p of payments) {
+    const weekIndex = Math.floor((p.createdAt.getTime() - start.getTime()) / weekMs);
+    // Payment.amount is a Prisma Decimal, not a plain number — must convert before accumulating.
+    if (weekIndex >= 0 && weekIndex < REVENUE_TREND_WEEKS) buckets[weekIndex] += Number(p.amount);
+  }
+  return buckets.map((value, i) => {
+    const weekStart = new Date(start.getTime() + i * weekMs);
+    return { label: weekStart.toLocaleDateString("en-IN", { day: "numeric", month: "short" }), value };
+  });
 }
 
 /**

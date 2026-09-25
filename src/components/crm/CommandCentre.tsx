@@ -3,7 +3,29 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Clock, Ticket, HelpCircle, RotateCcw, ListTodo, Link2 } from "lucide-react";
+import {
+  AlertCircle,
+  Clock,
+  Ticket,
+  HelpCircle,
+  RotateCcw,
+  ListTodo,
+  Link2,
+  Users,
+  Flame,
+  Sun,
+  Snowflake,
+  BadgeCheck,
+  FileText,
+  CheckCircle2,
+  TrendingUp,
+  Wallet,
+  Briefcase,
+  FileWarning,
+  UserCog,
+  Users2,
+  Send,
+} from "lucide-react";
 import { DateField } from "@/components/forms/DateField";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -11,7 +33,20 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
-import type { ActionQueueItem, OperationsOverview, SalesOverview } from "@/lib/crm/dashboard";
+import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { AreaTrendChart } from "./charts/AreaTrendChart";
+import { DonutChart } from "./charts/DonutChart";
+import { ConversionFunnelChart } from "./charts/ConversionFunnelChart";
+import { ServiceBreakdownBars } from "./charts/ServiceBreakdownBars";
+import { WeeklyBarChart } from "./charts/WeeklyBarChart";
+import type {
+  ActionQueueItem,
+  OperationsOverview,
+  SalesOverview,
+  DashboardTrendPoint,
+  ServiceBreakdownItem,
+  FunnelStage,
+} from "@/lib/crm/dashboard";
 import type { LucideIcon } from "lucide-react";
 
 interface DashboardResponse {
@@ -19,7 +54,13 @@ interface DashboardResponse {
   sales: SalesOverview;
   operations: OperationsOverview;
   actionQueue: { expiringSoon: ActionQueueItem[]; needsAttention: ActionQueueItem[] };
+  leadsTrend: DashboardTrendPoint[];
+  leadsByService: ServiceBreakdownItem[];
+  revenueTrend: DashboardTrendPoint[];
+  funnel: FunnelStage[];
 }
+
+const RUPEE_FORMATTER = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
 type FetchState = "loading" | "success" | "error";
 
@@ -46,9 +87,21 @@ function statValue(value: number | null): string {
   return value === null ? "—" : String(value);
 }
 
+type KpiTint = "accent" | "success" | "warning" | "error" | "neutral";
+
+const KPI_TINT_CLASSES: Record<KpiTint, string> = {
+  accent: "bg-accent/10 text-accent-on-light",
+  success: "bg-success/10 text-success",
+  warning: "bg-warning/10 text-warning",
+  error: "bg-error/10 text-error",
+  neutral: "bg-ink-primary/[0.06] text-ink-heading",
+};
+
 interface KpiCardProps {
   label: string;
   value: number | null;
+  icon: LucideIcon;
+  tint: KpiTint;
   comingSoonHint?: string;
   /**
    * Step 53 — "every KPI card must be clickable, opening the relevant
@@ -61,24 +114,29 @@ interface KpiCardProps {
   notClickableHint?: string;
 }
 
-function KpiCard({ label, value, comingSoonHint, href, notClickableHint }: KpiCardProps) {
+function KpiCard({ label, value, icon: Icon, tint, comingSoonHint, href, notClickableHint }: KpiCardProps) {
   const comingSoon = value === null;
   const clickable = !comingSoon && !!href;
 
   const content = (
     <>
-      <p className="text-xs font-medium text-ink-tertiary">{label}</p>
-      <p className={cn("text-2xl font-semibold tracking-tight", comingSoon ? "text-ink-tertiary" : "text-ink-heading")}>
-        {statValue(value)}
-      </p>
-      {comingSoon ? <p className="text-[11px] text-ink-tertiary">Coming soon</p> : null}
+      <span className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]", comingSoon ? "bg-ink-primary/[0.05] text-ink-tertiary" : KPI_TINT_CLASSES[tint])}>
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-xs font-medium text-ink-tertiary">{label}</span>
+        <span className={cn("text-xl leading-tight font-bold tracking-tight", comingSoon ? "text-ink-tertiary" : "text-ink-heading")}>
+          {statValue(value)}
+        </span>
+        {comingSoon ? <span className="text-[10.5px] text-ink-tertiary">Coming soon</span> : null}
+      </span>
     </>
   );
 
   const className = cn(
-    "flex flex-col gap-1 rounded-xl border px-4 py-3.5 transition-colors duration-150",
+    "flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-all duration-150",
     comingSoon ? "border-dashed border-hairline bg-surface-2" : "border-hairline bg-surface-1",
-    clickable && "cursor-pointer hover:border-glass-border hover:bg-white/[0.03]"
+    clickable && "cursor-pointer hover:-translate-y-0.5 hover:border-glass-border hover:shadow-[0_8px_20px_rgb(24_42_77/0.08)]"
   );
 
   if (clickable) {
@@ -286,21 +344,23 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
           <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-ink-heading">Sales Overview</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-              <KpiCard label="New Leads" value={data.sales.newLeads} href={leadsHref({ status: "NEW" })} />
-              <KpiCard label="Hot Leads" value={data.sales.hotLeads} href={leadsHref({ temperature: "HOT" })} />
-              <KpiCard label="Warm Leads" value={data.sales.warmLeads} href={leadsHref({ temperature: "WARM" })} />
-              <KpiCard label="Cold Leads" value={data.sales.coldLeads} href={leadsHref({ temperature: "COLD" })} />
-              <KpiCard label="Qualified Leads" value={data.sales.qualifiedLeads} href={leadsHref({ status: "QUALIFIED" })} />
-              <KpiCard label="Quotations" value={data.sales.quotationsCreated} href={quotationsHref({})} />
-              <KpiCard label="Accepted Quotations" value={data.sales.acceptedQuotations} href={quotationsHref({ status: "SELECTED" })} />
+              <KpiCard label="New Leads" value={data.sales.newLeads} icon={Users} tint="accent" href={leadsHref({ status: "NEW" })} />
+              <KpiCard label="Hot Leads" value={data.sales.hotLeads} icon={Flame} tint="error" href={leadsHref({ temperature: "HOT" })} />
+              <KpiCard label="Warm Leads" value={data.sales.warmLeads} icon={Sun} tint="warning" href={leadsHref({ temperature: "WARM" })} />
+              <KpiCard label="Cold Leads" value={data.sales.coldLeads} icon={Snowflake} tint="neutral" href={leadsHref({ temperature: "COLD" })} />
+              <KpiCard label="Qualified Leads" value={data.sales.qualifiedLeads} icon={BadgeCheck} tint="success" href={leadsHref({ status: "QUALIFIED" })} />
+              <KpiCard label="Quotations" value={data.sales.quotationsCreated} icon={FileText} tint="accent" href={quotationsHref({})} />
+              <KpiCard label="Accepted Quotations" value={data.sales.acceptedQuotations} icon={CheckCircle2} tint="success" href={quotationsHref({ status: "SELECTED" })} />
               <KpiCard
                 label="Conversion"
                 value={data.sales.conversionRate}
+                icon={TrendingUp}
+                tint="success"
                 href={leadsHref({ status: "CONVERTED" })}
                 notClickableHint="Opens the Converted leads that make up the numerator — the percentage itself isn't a list."
               />
-              <KpiCard label="Payment Pending" value={data.sales.paymentPending} href={paymentsHref({ status: "PENDING" })} />
-              <KpiCard label="Payment Received" value={data.sales.paymentReceived} href={paymentsHref({ status: "SUCCESS" })} />
+              <KpiCard label="Payment Pending" value={data.sales.paymentPending} icon={Wallet} tint="warning" href={paymentsHref({ status: "PENDING" })} />
+              <KpiCard label="Payment Received" value={data.sales.paymentReceived} icon={Wallet} tint="success" href={paymentsHref({ status: "SUCCESS" })} />
             </div>
           </section>
 
@@ -308,18 +368,65 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
             <h2 className="text-sm font-semibold text-ink-heading">Operations Overview</h2>
             <p className="text-xs text-ink-tertiary">Current live state — not affected by the period filter above.</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-              <KpiCard label="Active Bookings" value={data.operations.activeBookings} href="/crm/bookings?status=PENDING,CONFIRMED,PROCESSING" />
-              <KpiCard label="Documents Pending" value={data.operations.documentsPending} href="/crm/documents?status=REQUIRED,MISSING" />
-              <KpiCard label="Customer Action Required" value={data.operations.customerActionRequired} href="/crm/documents?status=MISSING" />
+              <KpiCard label="Active Bookings" value={data.operations.activeBookings} icon={Briefcase} tint="neutral" href="/crm/bookings?status=PENDING,CONFIRMED,PROCESSING" />
+              <KpiCard label="Documents Pending" value={data.operations.documentsPending} icon={FileWarning} tint="warning" href="/crm/documents?status=REQUIRED,MISSING" />
+              <KpiCard label="Customer Action Required" value={data.operations.customerActionRequired} icon={UserCog} tint="error" href="/crm/documents?status=MISSING" />
               <KpiCard
                 label="Staff Action Required"
                 value={data.operations.staffActionRequired}
+                icon={Users2}
+                tint="neutral"
                 notClickableHint="Documents awaiting validation + new bookings awaiting processing — see Documents/Bookings separately, no single list shows this combined count."
               />
-              <KpiCard label="External Processing" value={data.operations.externalProcessing} href="/crm/bookings?status=PROCESSING" />
-              <KpiCard label="Delayed" value={data.operations.delayed} comingSoonHint="Requires Delay Analysis — not built yet" />
-              <KpiCard label="Refunds Raised" value={data.operations.refundsRaised} href="/crm/refunds?status=PENDING" />
-              <KpiCard label="Completed" value={data.operations.completed} href="/crm/bookings?status=COMPLETED" />
+              <KpiCard label="External Processing" value={data.operations.externalProcessing} icon={Send} tint="accent" href="/crm/bookings?status=PROCESSING" />
+              <KpiCard label="Delayed" value={data.operations.delayed} icon={Clock} tint="neutral" comingSoonHint="Requires Delay Analysis — not built yet" />
+              <KpiCard label="Refunds Raised" value={data.operations.refundsRaised} icon={RotateCcw} tint="warning" href="/crm/refunds?status=PENDING" />
+              <KpiCard label="Completed" value={data.operations.completed} icon={CheckCircle2} tint="success" href="/crm/bookings?status=COMPLETED" />
+            </div>
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="text-sm font-semibold text-ink-heading">Insights</h2>
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
+              <div className="rounded-2xl border border-hairline bg-surface-1 p-5">
+                <div className="mb-3.5 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-ink-heading">New Leads Over Time</p>
+                    <p className="text-[11.5px] text-ink-muted">Across all services, this period</p>
+                  </div>
+                </div>
+                <AreaTrendChart data={data.leadsTrend} gradientId="leadsTrendGradient" />
+              </div>
+              <div className="rounded-2xl border border-hairline bg-surface-1 p-5">
+                <p className="mb-3.5 text-sm font-semibold text-ink-heading">Lead Temperature</p>
+                <DonutChart
+                  centerLabel="Total"
+                  segments={[
+                    { label: "Hot", value: data.sales.hotLeads, color: "var(--error)" },
+                    { label: "Warm", value: data.sales.warmLeads, color: "var(--warning)" },
+                    { label: "Cold", value: data.sales.coldLeads, color: "#6b7a99" },
+                    { label: "Not set", value: Math.max(0, data.sales.totalLeads - data.sales.hotLeads - data.sales.warmLeads - data.sales.coldLeads), color: "var(--hairline)" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-hairline bg-surface-1 p-5">
+              <p className="text-sm font-semibold text-ink-heading">Conversion Funnel</p>
+              <p className="mb-4 text-[11.5px] text-ink-muted">New Lead → Converted, this period</p>
+              <ConversionFunnelChart stages={data.funnel} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.1fr_1fr]">
+              <div className="rounded-2xl border border-hairline bg-surface-1 p-5">
+                <p className="text-sm font-semibold text-ink-heading">Revenue — Last 8 Weeks</p>
+                <p className="mb-4 text-[11.5px] text-ink-muted">Successful payments only</p>
+                <WeeklyBarChart data={data.revenueTrend} formatValue={(v) => RUPEE_FORMATTER.format(v)} />
+              </div>
+              <div className="rounded-2xl border border-hairline bg-surface-1 p-5">
+                <p className="mb-3.5 text-sm font-semibold text-ink-heading">Leads by Service</p>
+                <ServiceBreakdownBars items={data.leadsByService.map((s) => ({ label: SERVICE_TYPE_LABELS[s.serviceType], count: s.count }))} />
+              </div>
             </div>
           </section>
 
