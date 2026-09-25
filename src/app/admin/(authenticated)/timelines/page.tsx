@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ServiceTimelinesManager } from "@/components/admin/ServiceTimelinesManager";
 import { OtbRulesManager } from "@/components/admin/OtbRulesManager";
-import { ReturnTicketRuleConfigManager } from "@/components/admin/ReturnTicketRuleConfigManager";
 
 export const metadata: Metadata = { title: "Timelines / SLA | Admin" };
 
@@ -12,9 +11,9 @@ export default function AdminTimelinesPage() {
         <h1 className="text-xl font-semibold text-ink-heading">Timelines / SLA</h1>
         <p className="text-sm text-ink-tertiary">
           The central timeline control for every service — document verification time, expected completion time,
-          quotation response time, and payment deadline. OTB (working-day/working-hour business calendar) and
-          Return Ticket (fixed day-offset rule) keep their own dedicated sections below since their shapes genuinely
-          don&apos;t fit the generic one — everything still lives on this one screen, not separate pages.
+          quotation response time, and payment deadline. OTB (working-day/working-hour business calendar) keeps its
+          own dedicated section below since its shape genuinely doesn&apos;t fit the generic one — everything still
+          lives on this one screen, not separate pages.
         </p>
       </div>
 
@@ -35,16 +34,6 @@ export default function AdminTimelinesPage() {
           </p>
         </div>
         <OtbRulesManager />
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-base font-semibold text-ink-heading">Return Ticket Return-Date Offsets</h2>
-          <p className="text-sm text-ink-tertiary">
-            How many days after the travel date the return/onward date is computed, per selected visa validity.
-          </p>
-        </div>
-        <ReturnTicketRuleConfigManager />
       </section>
     </div>
   );

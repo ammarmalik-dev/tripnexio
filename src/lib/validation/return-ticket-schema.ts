@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { RETURN_TICKET_VISA_TYPES } from "@/lib/leads/compute-return-date";
 
 const todayAtMidnight = () => {
   const now = new Date();
@@ -9,16 +8,14 @@ const todayAtMidnight = () => {
 /**
  * Return Verified Ticket request validation.
  *
- * Return_Verified_Ticket.md §5/§6, locked: "Customer selects only the
- * travel date. The customer does not select the return/onward date." The
- * previous version of this schema accepted a free-input `returnDate` field
- * and an unrelated `destinationCountry` (this service is UAE-only per §3,
- * unlike New Visa/Visa Extension which target a chosen GCC country) —
- * AUDIT_REPORT.md flagged the schema/route as not confirmed to implement
- * the locked rule. Rebuilt: `visaType` (30/60 days) replaces
- * `destinationCountry`, and `returnDate` is gone from customer input
- * entirely — see src/lib/leads/compute-return-date.ts for where it's
- * computed server-side at lead-creation time.
+ * Client update (2026-09-24): the customer no longer selects a visa
+ * type/validity — they give an Expected Return Date instead, and
+ * TripNexio aims to issue a ticket close to it, subject to live
+ * ticket/vendor availability (never a server-computed exact date, and the
+ * exact issued date is never selected by the customer). This replaces the
+ * earlier locked rule ("Customer selects only the travel date... the
+ * return/onward date is generated according to the selected visa type")
+ * and the `visaType` field + `computeReturnDate()` it drove.
  *
  * Exported as a plain object schema so callers that need one field's own
  * validator in isolation (the WhatsApp bot's conversational field-by-field
@@ -32,7 +29,6 @@ export const returnTicketFieldsSchema = z.object({
     .trim()
     .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
-  visaType: z.enum(RETURN_TICKET_VISA_TYPES, { message: "Select your visa validity" }),
   travelDate: z
     .string()
     .min(1, "Select a travel date")
@@ -40,6 +36,11 @@ export const returnTicketFieldsSchema = z.object({
       const date = new Date(value);
       return !Number.isNaN(date.getTime()) && date >= todayAtMidnight();
     }, "Travel date must be today or later"),
+  /** The customer's target return date — not a guarantee, see the module doc comment above. */
+  expectedReturnDate: z
+    .string()
+    .min(1, "Select your expected return date")
+    .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid expected return date"),
   travelers: z
     .string()
     .trim()
@@ -67,16 +68,22 @@ export const returnTicketAdditionalApplicantSchema = z.object({
  * The passenger count is derived (1 + additional applicants), so `travelers`
  * from the WhatsApp-bot field schema above is omitted here.
  */
-export const returnTicketRequestSchema = returnTicketFieldsSchema.omit({ travelers: true }).extend({
-  passportNumber: passportNumberField,
-  destinationCountryId: z.string().min(1, "Select a destination country"),
-  additionalApplicants: z.array(returnTicketAdditionalApplicantSchema).max(MAX_ADDITIONAL_RETURN_TICKET_APPLICANTS),
-});
+export const returnTicketRequestSchema = returnTicketFieldsSchema
+  .omit({ travelers: true })
+  .extend({
+    passportNumber: passportNumberField,
+    destinationCountryId: z.string().min(1, "Select a destination country"),
+    additionalApplicants: z.array(returnTicketAdditionalApplicantSchema).max(MAX_ADDITIONAL_RETURN_TICKET_APPLICANTS),
+  })
+  .refine((values) => new Date(values.expectedReturnDate) >= new Date(values.travelDate), {
+    message: "Expected return date must be on or after the travel date",
+    path: ["expectedReturnDate"],
+  });
 
 export type ReturnTicketRequestValues = z.infer<typeof returnTicketRequestSchema>;
 
 export const returnTicketStepFields: Record<number, (keyof ReturnTicketRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "passportNumber", "destinationCountryId", "visaType", "travelDate"],
+  0: ["fullName", "mobile", "email", "passportNumber", "destinationCountryId", "travelDate", "expectedReturnDate"],
   1: ["additionalApplicants"],
   2: [],
 };

@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { getJson, ApiError } from "@/lib/api/client";
-import type { ReturnTicketVisaType } from "@/lib/leads/compute-return-date";
 
 export interface ReturnTicketDestinationOption {
   countryId: string;
   countryName: string;
   ratePerApplicant: number;
-  validityOptions: ReturnTicketVisaType[];
 }
 
 type LoadState = "loading" | "success" | "error";

@@ -4,8 +4,8 @@ import { db } from "@/lib/db";
 /**
  * Public, unauthenticated — the Return Ticket form's destination list.
  * Active destinations only (and only where the country itself is still
- * active), with the Admin-configured per-applicant rate and allowed
- * visa-validity options. Rates are meant to be customer-visible.
+ * active), with the Admin-configured per-applicant rate. Rates are meant
+ * to be customer-visible.
  */
 export async function GET() {
   const destinations = await db.returnTicketDestination.findMany({
@@ -18,7 +18,6 @@ export async function GET() {
       countryId: d.countryId,
       countryName: d.country.name,
       ratePerApplicant: Number(d.ratePerApplicant),
-      validityOptions: d.validityOptions,
     }))
   );
 }

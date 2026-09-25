@@ -692,17 +692,8 @@ async function main() {
   };
   await db.invoiceConfig.upsert({ where: { id: invoiceConfig.id }, update: {}, create: invoiceConfig });
 
-  // Return_Verified_Ticket.md §6: return/onward date = travelDate + this
-  // many days, per the selected visa type — literal reading of "the
-  // configured 30-day rule"/"the configured 60-day rule" (the spec doesn't
-  // specify a buffer). Same `update: {}` rule as taxFeeConfig above — once
-  // an admin has adjusted this, re-seeding must not silently reset it.
-  const returnTicketRuleConfig = { id: "singleton", thirtyDayOffsetDays: 30, sixtyDayOffsetDays: 60, ninetyDayOffsetDays: 90 };
-  await db.returnTicketRuleConfig.upsert({
-    where: { id: returnTicketRuleConfig.id },
-    update: {},
-    create: returnTicketRuleConfig,
-  });
+  // ReturnTicketRuleConfig seed removed (client update, 2026-09-24) — the
+  // visa-type-driven day-offset rule it configured no longer exists.
 
   // OTB processing timelines — client's confirmed answers: standard = 24
   // working days (2026-09-21), urgent = 8 working hours (2026-09-23).
@@ -741,7 +732,7 @@ async function main() {
   await db.returnTicketDestination.upsert({
     where: { countryId: "cty_uae" },
     update: {},
-    create: { countryId: "cty_uae", ratePerApplicant: 100, validityOptions: ["THIRTY_DAYS", "SIXTY_DAYS", "NINETY_DAYS"], displayOrder: 0 },
+    create: { countryId: "cty_uae", ratePerApplicant: 100, displayOrder: 0 },
   });
 
   // Step 43 (Admin FINAL handover §7) — one SAMPLE New Visa Country

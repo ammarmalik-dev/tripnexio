@@ -26,8 +26,8 @@ export function ReturnTicketRequestFlow() {
         email: "",
         passportNumber: "",
         destinationCountryId: "",
-        visaType: undefined,
         travelDate: "",
+        expectedReturnDate: "",
         additionalApplicants: [],
       }}
       stepFields={returnTicketStepFields}

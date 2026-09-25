@@ -3,8 +3,6 @@ import { manualLeadSchema, isFixedRateService } from "@/lib/validation/manual-le
 import { createLeadFromSubmission, type LeadPassengerInput } from "@/lib/leads/create-lead";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
-import { computeReturnDate } from "@/lib/leads/compute-return-date";
-import { getReturnTicketRules } from "@/lib/settings/return-ticket-rule-config";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -68,11 +66,6 @@ async function resolveFixedRatePricing(
     include: { country: { select: { name: true } } },
   });
   if (!destination) return { pricing: null, note: "That destination isn't available." };
-  if (!destination.validityOptions.includes(data.returnTicketVisaType!)) {
-    return { pricing: null, note: "That visa validity isn't offered for this destination." };
-  }
-  const rules = await getReturnTicketRules();
-  const returnDate = computeReturnDate(data.travelDate, data.returnTicketVisaType!, rules);
   const ratePerApplicant = Number(destination.ratePerApplicant);
   return {
     pricing: {
@@ -80,8 +73,8 @@ async function resolveFixedRatePricing(
       extraDetails: {
         destinationCountry: destination.country.name,
         destinationCountryId: data.returnTicketDestinationCountryId,
-        visaType: data.returnTicketVisaType,
-        returnDate,
+        // Client update (2026-09-24): the customer's/staff-entered target date — the actual issued ticket date is a separate, staff/availability-determined outcome.
+        expectedReturnDate: data.returnTicketExpectedReturnDate,
       },
     },
   };

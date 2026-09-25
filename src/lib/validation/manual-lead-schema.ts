@@ -1,9 +1,7 @@
 import { z } from "zod";
 import { ServiceType, type ServiceType as ServiceTypeT } from "../../generated/prisma/enums";
-import { RETURN_TICKET_VISA_TYPES, type ReturnTicketVisaType } from "../leads/compute-return-date";
 
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeT, ...ServiceTypeT[]];
-const returnTicketVisaTypeValues = RETURN_TICKET_VISA_TYPES as unknown as [ReturnTicketVisaType, ...ReturnTicketVisaType[]];
 
 /**
  * Step 51 (Internal Dashboard Merged §8) — the Manual Lead / Offline
@@ -45,7 +43,8 @@ export const manualLeadSchema = z
     airlineCode: z.string().trim().optional(),
     // Return Ticket pricing lookup
     returnTicketDestinationCountryId: z.string().trim().optional(),
-    returnTicketVisaType: z.enum(returnTicketVisaTypeValues).optional(),
+    /** Client update (2026-09-24): the customer's target return date, replacing the old visa-type selection. */
+    returnTicketExpectedReturnDate: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.serviceType === "OTHER" && !data.otherServiceDescription) {
@@ -63,8 +62,8 @@ export const manualLeadSchema = z
       if (!data.returnTicketDestinationCountryId) {
         ctx.addIssue({ code: "custom", message: "Select a destination", path: ["returnTicketDestinationCountryId"] });
       }
-      if (!data.returnTicketVisaType) {
-        ctx.addIssue({ code: "custom", message: "Select a visa validity", path: ["returnTicketVisaType"] });
+      if (!data.returnTicketExpectedReturnDate) {
+        ctx.addIssue({ code: "custom", message: "Select an expected return date", path: ["returnTicketExpectedReturnDate"] });
       }
     }
   });

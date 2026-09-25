@@ -115,3 +115,40 @@ The CSV import format must contain only these columns:
 iata_code,airport_name,city,country
 
 Admin should also be able to search, filter, and manage airport records.
+
+
+
+
+
+
+
+new messages from client 24-sep-2026 now current messages
+
+
+Hi, I have sent you all the finalized content for the services.
+
+A few final content changes:
+
+* **Return Ticket:** Remove Visa Validity / 30, 60, 90 days. Replace it with **Expected Return Date**.
+* Wherever the content says **Staff**, please use **Our Expert / Our Experts**.
+* Wherever it says **Vendor**, please use **Partner**.
+* Please review the content as per the suggestions and make the wording more clean, modern and customer-friendly without changing the actual business flow.
+
+Please let me know if you feel anything important is still required from my side.
+
+Also, before you proceed too far, please send me the **final list of APIs/integrations required for the project**, such as:
+
+* OCR
+* Email
+* Meta / WhatsApp
+* Storage
+* Payment Gateway
+* Any other API or third-party service
+
+Please mention **what each API is required for**, so I can arrange everything in time.
+
+Also, as discussed, please advise me about the **social media project** so i can handover with you.
+
+Thanks.
+
+Need one more suggestion for whstapp flow and automation meta api is ok or meta official business api like whatchimp is better?

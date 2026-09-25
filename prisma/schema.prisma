@@ -150,15 +150,11 @@ enum PaxType {
   INFANT
 }
 
-/// Return_Verified_Ticket.md §5/§6, locked (Step 10, client-locked-spec
-/// roadmap): the customer selects only a visa type (30 or 60 days) and a
-/// travel date — the return/onward date is server-computed from this, never
-/// customer-entered. AUDIT_REPORT.md flagged the pre-Step-10 schema/route as
-/// not confirmed to implement this (it accepted returnDate as free input).
-enum ReturnTicketVisaType {
-  THIRTY_DAYS
-  SIXTY_DAYS
-}
+// ReturnTicketVisaType enum removed (client update, 2026-09-24) — it was
+// never actually referenced by any model field (the real, wired-up
+// visa-type values lived only in src/lib/leads/compute-return-date.ts's TS
+// constant, since deleted); the customer no longer selects a visa type at
+// all, so nothing needs restoring in its place.
 
 // GccCountry enum removed (Step 6.1, client-locked-spec roadmap) — Airport/
 // Border's country classification is now the admin-managed Country model
@@ -1562,26 +1558,22 @@ model ProtectionPlan {
   @@index([status])
 }
 
-/// Return_Verified_Ticket.md §6, locked: "The exact date calculation must be
-/// configurable rather than hard-coded if Admin needs to change the
-/// operational rule." A true singleton, same pattern as TaxFeeConfig — the
-/// return/onward date is never customer-entered (see ReturnTicketVisaType
-/// and computeReturnDate() in src/lib/leads/compute-return-date.ts); it's
-/// travelDate + the configured offset for the selected visa type. No
-/// dedicated Admin UI ships in this step (out of this step's scope — see
-/// the roadmap's Step 10 prompt, which asks for the customer-facing flow +
-/// server-side computation, not a new Admin screen); the row is still
-/// DB-editable without a deploy, which is what the locked rule requires.
 /// Admin-managed destinations for the Return Verified Ticket service (client
 /// update: no longer UAE-only — any Middle East country the admin enables,
-/// each with its own per-applicant rate and allowed visa-validity options).
-/// `validityOptions` holds ReturnTicketVisaType values ("THIRTY_DAYS" |
-/// "SIXTY_DAYS" | "NINETY_DAYS").
+/// each with its own per-applicant rate).
+///
+/// Client update (2026-09-24): the customer no longer selects a visa
+/// type/validity — they give an Expected Return Date instead, and
+/// TripNexio issues a ticket close to it subject to availability, never a
+/// server-computed exact date. `validityOptions` (which visa-validity
+/// options a destination offered) and the whole ReturnTicketRuleConfig
+/// singleton (the day-offset rule computeReturnDate() used to read) are
+/// removed along with the customer-facing selection they existed for —
+/// see src/lib/leads/compute-return-date.ts's deletion in the same change.
 model ReturnTicketDestination {
   id               String   @id @default(cuid())
   countryId        String   @unique
   ratePerApplicant Decimal  @db.Decimal(10, 2)
-  validityOptions  String[]
   active           Boolean  @default(true)
   displayOrder     Int      @default(0)
   createdAt        DateTime @default(now())
@@ -1635,14 +1627,9 @@ model NewVisaCountryConfig {
   @@index([active])
 }
 
-model ReturnTicketRuleConfig {
-  id                  String   @id
-  thirtyDayOffsetDays Int
-  sixtyDayOffsetDays  Int
-  ninetyDayOffsetDays Int      @default(90)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-}
+// ReturnTicketRuleConfig removed (client update, 2026-09-24) — the
+// visa-type-driven day-offset rule it configured no longer exists; see
+// ReturnTicketDestination's own doc comment above.
 
 // ---------------------------------------------------------------------------
 // Staff / RBAC

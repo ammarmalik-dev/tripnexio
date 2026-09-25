@@ -9,7 +9,6 @@ import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
 import { Button } from "@/components/ui/Button";
 import { manualLeadSchema, type ManualLeadValues } from "@/lib/validation/manual-lead-schema";
-import { RETURN_TICKET_VISA_TYPE_LABELS, type ReturnTicketVisaType } from "@/lib/leads/compute-return-date";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { PaymentLinkAction } from "./PaymentLinkAction";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
@@ -34,7 +33,6 @@ interface ReturnTicketDestinationOption {
   countryId: string;
   countryName: string;
   ratePerApplicant: number;
-  validityOptions: ReturnTicketVisaType[];
 }
 
 interface ManualLeadResult {
@@ -81,12 +79,10 @@ export function ManualLeadForm() {
   });
 
   const serviceType = watch("serviceType");
-  const returnTicketDestinationCountryId = watch("returnTicketDestinationCountryId");
-  const selectedDestination = destinations.find((d) => d.countryId === returnTicketDestinationCountryId);
 
   const numberField = (name: "adultCount" | "childCount" | "infantCount" | "extraCharges") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
-  const optionalField = (name: "email" | "otherServiceDescription" | "couponCode" | "destinationCountryCode" | "airlineCode" | "returnTicketDestinationCountryId" | "processingType" | "returnTicketVisaType") =>
+  const optionalField = (name: "email" | "otherServiceDescription" | "couponCode" | "destinationCountryCode" | "airlineCode" | "returnTicketDestinationCountryId" | "processingType") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
 
   const onSubmit = async (values: ManualLeadValues) => {
@@ -266,21 +262,13 @@ export function ManualLeadForm() {
               ))}
             </select>
           </FormField>
-          <FormField label="Visa Validity" htmlFor="returnTicketVisaType" error={errors.returnTicketVisaType?.message} required>
-            <select
-              id="returnTicketVisaType"
-              defaultValue=""
-              className={cn(fieldControlClass, fieldBorderClass(!!errors.returnTicketVisaType))}
-              {...optionalField("returnTicketVisaType")}
-            >
-              <option value="">Select a visa validity</option>
-              {(selectedDestination?.validityOptions ?? []).map((visaType) => (
-                <option key={visaType} value={visaType}>
-                  {RETURN_TICKET_VISA_TYPE_LABELS[visaType]}
-                </option>
-              ))}
-            </select>
-          </FormField>
+          <DateField
+            {...register("returnTicketExpectedReturnDate")}
+            name="returnTicketExpectedReturnDate"
+            label="Expected Return Date"
+            error={errors.returnTicketExpectedReturnDate?.message}
+            required
+          />
         </div>
       ) : null}
 

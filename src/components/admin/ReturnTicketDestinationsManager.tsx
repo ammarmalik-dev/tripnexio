@@ -11,11 +11,6 @@ import { SelectField } from "@/components/forms/SelectField";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
-import {
-  RETURN_TICKET_VISA_TYPES,
-  RETURN_TICKET_VISA_TYPE_LABELS,
-  type ReturnTicketVisaType,
-} from "@/lib/leads/compute-return-date";
 
 interface DestinationData {
   id: string;
@@ -23,7 +18,6 @@ interface DestinationData {
   countryName: string;
   countryCode: string;
   ratePerApplicant: number;
-  validityOptions: ReturnTicketVisaType[];
   active: boolean;
   displayOrder: number;
 }
@@ -39,18 +33,16 @@ type FieldErrors = Record<string, string[] | undefined>;
 
 interface FormState {
   rate: string;
-  validity: ReturnTicketVisaType[];
   displayOrder: string;
 }
 
 function toFormState(d: DestinationData): FormState {
-  return { rate: String(d.ratePerApplicant), validity: d.validityOptions, displayOrder: String(d.displayOrder) };
+  return { rate: String(d.ratePerApplicant), displayOrder: String(d.displayOrder) };
 }
 
 function toPayload(form: FormState) {
   return {
     ratePerApplicant: Number(form.rate),
-    validityOptions: form.validity,
     displayOrder: Number(form.displayOrder) || 0,
   };
 }
@@ -87,28 +79,6 @@ function RateFields({
         error={errors.displayOrder?.[0]}
         disabled={disabled}
       />
-      <fieldset className="flex flex-col gap-2 sm:col-span-2">
-        <legend className="text-sm font-medium text-ink-primary">Visa validity options offered</legend>
-        <div className="flex flex-wrap gap-4">
-          {RETURN_TICKET_VISA_TYPES.map((type) => (
-            <label key={type} className="flex items-center gap-2 text-sm text-ink-secondary">
-              <input
-                type="checkbox"
-                checked={form.validity.includes(type)}
-                disabled={disabled}
-                onChange={(event) =>
-                  onChange({
-                    ...form,
-                    validity: event.target.checked ? [...form.validity, type] : form.validity.filter((v) => v !== type),
-                  })
-                }
-              />
-              {RETURN_TICKET_VISA_TYPE_LABELS[type]}
-            </label>
-          ))}
-        </div>
-        {errors.validityOptions?.[0] ? <span className="text-xs text-error">{errors.validityOptions[0]}</span> : null}
-      </fieldset>
     </div>
   );
 }
@@ -189,7 +159,7 @@ function NewDestinationForm({
   onCreated: (d: DestinationData) => void;
 }) {
   const [countryId, setCountryId] = useState("");
-  const [form, setForm] = useState<FormState>({ rate: "", validity: [...RETURN_TICKET_VISA_TYPES], displayOrder: "0" });
+  const [form, setForm] = useState<FormState>({ rate: "", displayOrder: "0" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
 
@@ -204,7 +174,7 @@ function NewDestinationForm({
       toast.success(`${created.countryName} added.`);
       onCreated(created);
       setCountryId("");
-      setForm({ rate: "", validity: [...RETURN_TICKET_VISA_TYPES], displayOrder: "0" });
+      setForm({ rate: "", displayOrder: "0" });
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
       toast.error(error instanceof ApiError ? error.message : "Couldn't add this destination. Please try again.");

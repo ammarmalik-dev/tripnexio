@@ -7,8 +7,6 @@ import { visaExtensionBotFieldSchemas, visaExtensionRequestSchema } from "../val
 import { visaChangeRequestSchema } from "../validation/visa-change-schema";
 import { flightSpecialFareRequestSchema, flightPassengerSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
-import { computeReturnDate, type ReturnTicketVisaType } from "../leads/compute-return-date";
-import { getReturnTicketRules } from "../settings/return-ticket-rule-config";
 import { SAMPLE_VISA_TYPE_OPTIONS, SAMPLE_AIRLINE_OPTIONS } from "../sample-data";
 
 export interface ParseResult {
@@ -209,20 +207,21 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
     }
 
     case "RETURN_TICKET": {
-      // Return_Verified_Ticket.md §5/§6/§10, locked: "Customer selects only
-      // the travel date. The customer does not select the return/onward
-      // date." -- never ask for it; it's computed server-side (see
-      // buildLeadDetails()'s RETURN_TICKET case below and
-      // src/lib/leads/compute-return-date.ts). This service is UAE-only
-      // (§3), so there's no destination-country question either, unlike
-      // New Visa/Visa Extension.
-      if (!has("visaType")) {
-        return numberedChoiceStep("visaType", "What's your UAE visa type?", [
-          { value: "THIRTY_DAYS", label: "30 Days" },
-          { value: "SIXTY_DAYS", label: "60 Days" },
-        ]);
-      }
+      // Client update (2026-09-24): no visa-type selection — the customer
+      // gives an Expected Return Date instead (a target, not the actual
+      // issued date — see buildLeadDetails()'s RETURN_TICKET case below).
+      // This service has no destination-country question in the bot flow,
+      // unlike New Visa/Visa Extension (a pre-existing simplification,
+      // unrelated to this change).
       if (!has("travelDate")) return dateStep("travelDate", "What's your travel date?", returnTicketFieldsSchema.shape.travelDate);
+      if (!has("expectedReturnDate")) {
+        return dateStep(
+          "expectedReturnDate",
+          "What's your expected return date? We'll aim to issue a ticket close to it, subject to availability.",
+          returnTicketFieldsSchema.shape.expectedReturnDate,
+          (iso) => (iso < collected.travelDate ? "Your expected return date should be on or after your travel date." : null)
+        );
+      }
       if (!has("travelers")) return textStep("travelers", "How many travelers (1-9)?", returnTicketFieldsSchema.shape.travelers);
       return null;
     }
@@ -236,9 +235,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
  * Strips bot-internal keys (like VISA_CHANGE's branch discriminant already
  * being the real `changeType` field — nothing to strip there) and shapes
  * `collected` into the `details` object createLeadFromSubmission expects,
- * matching each service's own lead route exactly. Async only because
- * RETURN_TICKET needs a DB read (the admin-configurable day-offset rule) to
- * compute the return date server-side — every other branch stays pure.
+ * matching each service's own lead route exactly. Kept `async` (every
+ * branch is actually pure/sync today) so engine.ts's existing `await` call
+ * needs no change if a future branch ever needs a real DB read again.
  */
 export async function buildLeadDetails(serviceType: ServiceType, collected: Record<string, string>): Promise<Record<string, unknown>> {
   switch (serviceType) {
@@ -284,20 +283,16 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
         passengerCount: 1,
         passengerDob: collected.dob,
       };
-    case "RETURN_TICKET": {
-      // Return_Verified_Ticket.md §5/§6, locked: the return/onward date is
-      // never customer-entered (see the RETURN_TICKET question flow above,
-      // which never asks for it) — computed here the same way the
-      // website's /api/leads/return-ticket route does.
-      const rules = await getReturnTicketRules();
-      const returnDate = computeReturnDate(collected.travelDate, collected.visaType as ReturnTicketVisaType, rules);
+    case "RETURN_TICKET":
+      // Client update (2026-09-24): the customer's own target date, same
+      // shape as the website's /api/leads/return-ticket route — the actual
+      // issued ticket date is a separate, staff/availability-determined
+      // outcome, never computed here.
       return {
-        visaType: collected.visaType,
         travelDate: collected.travelDate,
-        returnDate,
+        expectedReturnDate: collected.expectedReturnDate,
         travelers: collected.travelers,
       };
-    }
     default:
       return {};
   }

@@ -4,28 +4,27 @@ import { useFormContext, useWatch } from "react-hook-form";
 import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
 import { SelectField } from "@/components/forms/SelectField";
-import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { RETURN_TICKET_VISA_TYPE_LABELS } from "@/lib/leads/compute-return-date";
 import { formatRupees, useReturnTicketDestinations } from "@/lib/return-ticket/use-return-ticket-destinations";
 import type { ReturnTicketRequestValues } from "@/lib/validation/return-ticket-schema";
 
 /**
- * Return_Verified_Ticket.md §5/§10: no customer-entered return/onward date
- * (computed server-side). Per the client's update, the destination country,
- * its rate and the visa-validity options come from Admin configuration.
+ * Client update (2026-09-24): no visa-type/validity selection — the
+ * customer gives an Expected Return Date instead, and TripNexio issues a
+ * ticket close to it subject to availability (never the exact date the
+ * customer entered). The destination country and its rate still come from
+ * Admin configuration.
  */
 export function Step1TripDetails() {
   const {
     register,
     control,
-    setValue,
     formState: { errors },
   } = useFormContext<ReturnTicketRequestValues>();
   const destinationCountryId = useWatch({ control, name: "destinationCountryId" });
-  const visaType = useWatch({ control, name: "visaType" });
+  const travelDate = useWatch({ control, name: "travelDate" });
   const { state, destinations, errorMessage } = useReturnTicketDestinations();
 
   if (state === "loading") return <Skeleton className="h-64 w-full" />;
@@ -68,31 +67,23 @@ export function Step1TripDetails() {
           placeholder="Select a country"
           options={destinations.map((d) => ({ value: d.countryId, label: d.countryName }))}
           error={errors.destinationCountryId?.message}
-          {...register("destinationCountryId", {
-            onChange: () => setValue("visaType", undefined as unknown as ReturnTicketRequestValues["visaType"]),
-          })}
+          {...register("destinationCountryId")}
         />
         <DateField label="Travel Date" required error={errors.travelDate?.message} {...register("travelDate")} />
+        <DateField
+          label="Expected Return Date"
+          hint="We'll aim to issue your return ticket close to this date, subject to availability."
+          required
+          min={travelDate || undefined}
+          error={errors.expectedReturnDate?.message}
+          {...register("expectedReturnDate")}
+        />
       </div>
 
       {selected ? (
-        <>
-          <p className="text-sm text-ink-secondary">
-            Rate for {selected.countryName}: <strong>{formatRupees(selected.ratePerApplicant)}</strong> per applicant.
-          </p>
-          <RadioCardGroup<ReturnTicketRequestValues>
-            name="visaType"
-            label="Visa Validity"
-            required
-            register={register}
-            selectedValue={visaType}
-            error={errors.visaType?.message}
-            options={selected.validityOptions.map((option) => ({
-              value: option,
-              label: RETURN_TICKET_VISA_TYPE_LABELS[option],
-            }))}
-          />
-        </>
+        <p className="text-sm text-ink-secondary">
+          Rate for {selected.countryName}: <strong>{formatRupees(selected.ratePerApplicant)}</strong> per applicant.
+        </p>
       ) : null}
     </div>
   );

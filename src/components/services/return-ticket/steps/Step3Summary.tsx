@@ -1,7 +1,6 @@
 "use client";
 
 import { useFormContext } from "react-hook-form";
-import { RETURN_TICKET_VISA_TYPE_LABELS } from "@/lib/leads/compute-return-date";
 import { formatRupees, useReturnTicketDestinations } from "@/lib/return-ticket/use-return-ticket-destinations";
 import type { ReturnTicketRequestValues } from "@/lib/validation/return-ticket-schema";
 
@@ -19,9 +18,9 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 }
 
 /**
- * Return_Verified_Ticket.md §12: service summary, passenger count, visa
- * validity, travel date, applicable price, disclaimer — and deliberately NOT
- * a return/onward date (an internal, staff-side calculation, §6/§7).
+ * Client update (2026-09-24): shows the customer's own Expected Return
+ * Date (a target, not a guaranteed issue date — see the disclaimer below)
+ * instead of a visa-validity selection.
  */
 export function Step3Summary() {
   const { getValues } = useFormContext<ReturnTicketRequestValues>();
@@ -38,8 +37,8 @@ export function Step3Summary() {
         <SummaryRow label="Email" value={values.email} />
         <SummaryRow label="Passport Number" value={values.passportNumber} />
         <SummaryRow label="Destination" value={destination?.countryName ?? ""} />
-        <SummaryRow label="Visa Validity" value={RETURN_TICKET_VISA_TYPE_LABELS[values.visaType]} />
         <SummaryRow label="Travel Date" value={formatDate(values.travelDate)} />
+        <SummaryRow label="Expected Return Date" value={formatDate(values.expectedReturnDate)} />
         <SummaryRow label="Applicants" value={String(applicantCount)} />
         {destination ? (
           <SummaryRow
@@ -58,11 +57,11 @@ export function Step3Summary() {
         </div>
       ))}
       <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-tertiary">
-        Return/onward reservations are provided according to the selected travel details and configured vendor
-        availability. Airline schedules, immigration decisions, denied boarding, cancellations, rescheduling and
-        other travel decisions remain outside TripNexio&rsquo;s control. Customers are responsible for complying
-        with applicable airline, visa and immigration requirements. Our team will confirm final pricing before
-        payment.
+        Your expected return date is a target, not a confirmed booking date — we aim to issue a return ticket close
+        to it, subject to live ticket/vendor availability. Airline schedules, immigration decisions, denied
+        boarding, cancellations, rescheduling and other travel decisions remain outside TripNexio&rsquo;s control.
+        Customers are responsible for complying with applicable airline, visa and immigration requirements. Our
+        team will confirm final pricing before payment.
       </p>
     </div>
   );
