@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
@@ -7,7 +8,19 @@ import { TextField } from "@/components/forms/TextField";
 import { Button } from "@/components/ui/Button";
 import { buildQuoteFormSchema, type QuoteFormValues } from "@/lib/validation/quotation-schema";
 import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES } from "@/lib/quotations/pricing";
+import { getJson } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
+
+// Mirrors VisaChangeFeeSuggestion in src/lib/quotations/visa-change-pricing.ts
+// — duplicated as a plain client-side type rather than imported, since that
+// module pulls in `db` (Step 42 already hit exactly this class of bug:
+// a type-looking import from a DB-backed module dragging `pg` into the
+// browser bundle).
+interface VisaChangeFeeSuggestion {
+  configured: boolean;
+  total: number;
+  lines: { passengerId: string; fullName: string; nationality: string | null; paxType: string; rate: number | null }[];
+}
 
 interface VendorOption {
   id: string;
@@ -26,6 +39,7 @@ interface AlternativeOption {
 }
 
 interface QuoteBuilderFormProps {
+  leadId: string;
   isFlightQuote: boolean;
   /** Visa Change: this quote is one itinerary option (flight details + ticket price on top of the visa fee). */
   hasItinerary?: boolean;
@@ -46,6 +60,7 @@ function maxValidityLocalIso(): string {
 }
 
 export function QuoteBuilderForm({
+  leadId,
   isFlightQuote,
   hasItinerary = false,
   showAirlineField = false,
@@ -59,10 +74,33 @@ export function QuoteBuilderForm({
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<QuoteFormValues>({
     resolver: zodResolver(buildQuoteFormSchema(isFlightQuote)),
   });
+
+  // Item 9 (client-message/PENDING_WORK_PROMPTS.md) — Visa Change's
+  // nationality/adult/child-wise fee suggestion, from the lead's own
+  // passengers against the central PricingRule table. Only fetched for
+  // Visa Change (hasItinerary is that service's own flag); staff still
+  // types/confirms the final feeAmount, this just gives them a real
+  // starting number instead of a blind guess.
+  const [feeSuggestion, setFeeSuggestion] = useState<VisaChangeFeeSuggestion | null>(null);
+  useEffect(() => {
+    if (!hasItinerary) return;
+    let cancelled = false;
+    void getJson<VisaChangeFeeSuggestion>(`/api/leads/${leadId}/visa-change-fee-suggestion`)
+      .then((result) => {
+        if (!cancelled) setFeeSuggestion(result);
+      })
+      .catch(() => {
+        if (!cancelled) setFeeSuggestion(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasItinerary, leadId]);
 
   const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "flightTicketPrice") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
@@ -177,6 +215,29 @@ export function QuoteBuilderForm({
         </>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {hasItinerary && feeSuggestion && feeSuggestion.lines.length > 0 ? (
+            <div className="col-span-full flex flex-col gap-2 rounded-lg border border-hairline bg-surface-2 p-3 text-xs">
+              <p className="font-medium text-ink-secondary">Suggested fee, from Admin-configured nationality/passenger-type rates:</p>
+              <ul className="flex flex-col gap-1">
+                {feeSuggestion.lines.map((line) => (
+                  <li key={line.passengerId} className="flex items-center justify-between text-ink-tertiary">
+                    <span>
+                      {line.fullName} ({line.paxType.toLowerCase()}{line.nationality ? `, ${line.nationality}` : ""})
+                    </span>
+                    <span>{line.rate !== null ? `₹${line.rate}` : "no rate configured"}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-ink-primary">
+                  Total: {feeSuggestion.configured ? `₹${feeSuggestion.total}` : `₹${feeSuggestion.total} (some passengers unconfigured)`}
+                </span>
+                <Button type="button" size="sm" variant="ghost" onClick={() => setValue("feeAmount", feeSuggestion.total)}>
+                  Use Suggested Total
+                </Button>
+              </div>
+            </div>
+          ) : null}
           <TextField
             label="Fee (₹)"
             type="number"

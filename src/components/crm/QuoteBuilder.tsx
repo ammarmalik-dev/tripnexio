@@ -142,6 +142,7 @@ export function QuoteBuilder({
       {showForm ? (
         <div className="mb-4">
           <QuoteBuilderForm
+            leadId={leadId}
             isFlightQuote={flightQuote}
             hasItinerary={hasItinerary}
             showAirlineField={serviceType === "RETURN_TICKET"}
