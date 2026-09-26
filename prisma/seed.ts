@@ -124,6 +124,12 @@ const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 // split as refunds.approve/staff.leave.approve above. Staff keeps
 // payments.edit (create a payment link or bank-transfer payment, upload a
 // slip) but not the confirmation that actually converts the booking.
+//
+// knowledge.edit is also excluded — same "reference content an ops lead
+// curates" reasoning as masters.manage above (Item 14, PENDING_WORK_PROMPTS
+// .md). Staff keeps knowledge.view (every staff member should be able to
+// read the SOPs/FAQ/training material this module holds) but not authoring
+// rights over it by default.
 const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
   (permission) =>
     ![
@@ -138,6 +144,7 @@ const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
       "ai.assist",
       "finance.manage",
       "payments.approve",
+      "knowledge.edit",
       ADMIN_FULL_PERMISSION,
     ].includes(permission.name)
 ).map((permission) => permission.name);

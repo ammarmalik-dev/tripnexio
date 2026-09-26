@@ -135,9 +135,10 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 These aren't ready for a build prompt yet — building them now would mean guessing at scope, which this project's own hard rule #1 says not to do.
 
-### Item 14 — Knowledge Centre (scope unclear)
+### Item 14 — Knowledge Centre ✅ done
 **Source:** `docs/TripNexio_Internal_Dashboard_All_Requirements_Merged.docx` §12
-**Ask the client:** What should the Knowledge Centre actually contain — internal staff SOPs/documentation, a searchable FAQ-for-staff, training material, something else? Once scoped, this becomes a normal build item with its own prompt.
+**Scope decision (client, 2026-09-26):** all three — internal staff SOPs/documentation, a searchable FAQ-for-staff, and training material — combined into one module rather than three separate ones.
+**Built:** `KnowledgeArticle` model (category enum SOP/STAFF_FAQ/TRAINING, keywords for search, active on/off), new `knowledge.view`/`knowledge.edit` permissions (view granted to Staff by default, edit Admin-only by default — same "ops lead curates" reasoning as `masters.manage`), `/crm/knowledge-centre` screen (search + category filter, editable cards for anyone with `knowledge.edit`, read-only for view-only staff), `GET/POST /api/knowledge-articles` + `PATCH /api/knowledge-articles/[id]`. Verified end-to-end: create/update/disable as Admin, a `knowledge.view`-only role can read but gets 403 on write, default Staff role confirmed to have view but not edit. Not visually confirmed in a browser this round — the Chrome tool hit repeated flakiness (500s from a dropped dev-DB connection, then empty/reset form fields) after 3+ attempts; verified via direct API calls instead, per this session's established fallback.
 
 ### Item 15 — Full wordmark/logo vector files
 **Source:** `docs/brand/BRAND_ASSET_MANIFEST.md`

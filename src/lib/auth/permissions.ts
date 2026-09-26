@@ -40,6 +40,8 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "documents.edit", description: "Add documents and set their status" },
   { name: "tasks.view", description: "View tasks" },
   { name: "tasks.edit", description: "Assign tasks and change their status" },
+  { name: "knowledge.view", description: "View the internal Knowledge Centre (SOPs, staff FAQ, training material)" },
+  { name: "knowledge.edit", description: "Create, edit, and enable/disable Knowledge Centre articles" },
   { name: "staff.manage", description: "Create, edit, and deactivate staff accounts" },
   {
     name: "staff.leave.approve",

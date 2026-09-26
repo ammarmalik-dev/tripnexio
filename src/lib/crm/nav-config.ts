@@ -35,6 +35,7 @@ import {
   Stamp,
   FileSignature,
   Settings,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,12 +54,12 @@ export interface CrmNavGroup {
 /**
  * CRM.md §3's grouped nav structure (Step 12, audit §3.1) — Command Centre /
  * Sales (Leads, Customers, Quotations) / Operations (Bookings, Payments,
- * Refunds, Documents, Tasks) / Profile (My Leave, added Step 38) — every
- * item that has a built CRM screen today. CRM.md §3 itself also lists
- * Resources/Analytics/Communication/Help groups (Vendors, Reports,
- * Notifications, Knowledge Base, etc.), none of which have a built CRM
- * screen yet, so none are added here — this reorganizes existing
- * navigation, it doesn't invent new destinations.
+ * Refunds, Documents, Tasks) / Profile (My Leave, added Step 38) / Resources
+ * (Knowledge Centre, added Item 14 — PENDING_WORK_PROMPTS.md) — every item
+ * that has a built CRM screen today. CRM.md §3 itself also lists
+ * Analytics/Communication/Help groups (Reports, Notifications, etc.), none
+ * of which have a built CRM screen yet, so none are added here — this
+ * reorganizes existing navigation, it doesn't invent new destinations.
  */
 export const crmNavGroups: CrmNavGroup[] = [
   { label: null, items: [{ label: "Command Centre", href: "/crm", icon: LayoutDashboard }] },
@@ -85,6 +86,14 @@ export const crmNavGroups: CrmNavGroup[] = [
     // comment above) — this is the first screen in it.
     label: "Profile",
     items: [{ label: "My Leave", href: "/crm/my-leave", icon: CalendarOff }],
+  },
+  {
+    // Item 14 (PENDING_WORK_PROMPTS.md) — CRM.md §3/§77's Resources group,
+    // previously unbuilt (see doc comment above) — this is the first screen
+    // in it. Vendors (CRM.md's other named Resources item) stays Admin-only
+    // (masters.manage), not added here.
+    label: "Resources",
+    items: [{ label: "Knowledge Centre", href: "/crm/knowledge-centre", icon: BookOpen }],
   },
 ];
 

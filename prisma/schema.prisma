@@ -1926,3 +1926,35 @@ model FileBlob {
   data      Bytes
   createdAt DateTime @default(now())
 }
+
+enum KnowledgeArticleCategory {
+  SOP
+  STAFF_FAQ
+  TRAINING
+}
+
+/// Item 14 (client-message/PENDING_WORK_PROMPTS.md): the CRM's internal
+/// Knowledge Centre — staff-facing SOPs/documentation, a searchable
+/// internal FAQ (distinct from the customer-facing Faq model above, which
+/// feeds the website/WhatsApp bot), and training material. All three
+/// combined into one module rather than three separate ones — the
+/// client's own scope decision, since docs/TripNexio_Internal_Dashboard_
+/// All_Requirements_Merged.docx §12 only named "Knowledge Centre" as a
+/// dashboard shortcut without specifying its content. `active` is a hard
+/// on/off switch, same convention as every other masters-style model —
+/// there's no separate "published" concept here since this is staff-only,
+/// with no public-facing surface to hold a draft back from.
+model KnowledgeArticle {
+  id           String                   @id @default(cuid())
+  title        String
+  category     KnowledgeArticleCategory
+  content      String
+  keywords     String[]
+  displayOrder Int                      @default(0)
+  active       Boolean                  @default(true)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@index([category])
+  @@index([active])
+}

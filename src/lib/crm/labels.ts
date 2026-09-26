@@ -16,6 +16,7 @@ import type {
   ProtectionPlanStatus,
   LeaveStatus,
   LeaveType,
+  KnowledgeArticleCategory,
 } from "../../generated/prisma/enums";
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
@@ -161,6 +162,16 @@ export const NOTIFICATION_CHANNEL_LABELS: Record<NotificationChannel, string> = 
 
 export const NOTIFICATION_CHANNEL_OPTIONS: { value: NotificationChannel; label: string }[] = (
   Object.entries(NOTIFICATION_CHANNEL_LABELS) as [NotificationChannel, string][]
+).map(([value, label]) => ({ value, label }));
+
+export const KNOWLEDGE_ARTICLE_CATEGORY_LABELS: Record<KnowledgeArticleCategory, string> = {
+  SOP: "SOP / Documentation",
+  STAFF_FAQ: "Staff FAQ",
+  TRAINING: "Training Material",
+};
+
+export const KNOWLEDGE_ARTICLE_CATEGORY_OPTIONS: { value: KnowledgeArticleCategory; label: string }[] = (
+  Object.entries(KNOWLEDGE_ARTICLE_CATEGORY_LABELS) as [KnowledgeArticleCategory, string][]
 ).map(([value, label]) => ({ value, label }));
 
 export const TASK_TYPE_LABELS: Record<TaskType, string> = {
