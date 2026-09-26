@@ -2,7 +2,9 @@
 
 **Source:** every ❌ Not-done and 🟡 Partially-done item from `client-message/DOCS_FOLDER_COMPLETION_AUDIT.md`, pulled out on its own and turned into a standalone, copy-pasteable build prompt — same format as `DEVELOPMENT_ROADMAP.md`. Work one item at a time; each is self-contained.
 
-**Status key:** ⬜ not started
+**Status key:** ⬜ not started · ✅ done
+
+**Current status (2026-09-26):** Items 1-14 are all done and deployed to production. Only Items 15-17 remain, and all three are explicitly blocked on a client decision/input, not on further dev work — see Group D below.
 
 ---
 
@@ -10,7 +12,7 @@
 
 Only the FAQ content and basic wording tone from these 5 docs were built. The actual page redesign each doc specifies — hero copy, the New Visa product selector, and the "reference-style" step visual — was never built. This is the single biggest chunk of pending work.
 
-### Item 1 — New Visa: interactive product-selection cards ⬜
+### Item 1 — New Visa: interactive product-selection cards ✅ done (commit 17d7b6f)
 **Source:** `docs/TripNexio_UAE_Visa_Final_Developer_Handover_Content_Design_FAQ.docx`
 **Problem:** The doc's centerpiece is an interactive selector — Stay Duration (30/60 days) × Entry Type (Single/Multiple) × Adult/Child +/− counters, with the displayed price updating live as the customer changes a selection. The live page (`src/app/services/new-visa/page.tsx`) is currently a static "what you'll need" bullet list — none of this exists.
 
@@ -19,7 +21,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 2 — New Visa: "UAE Visa Applications From Across India" section ⬜
+### Item 2 — New Visa: "UAE Visa Applications From Across India" section ✅ done (commit 2a7f36a)
 **Source:** `docs/TripNexio_UAE_Visa_Final_Developer_Handover_Content_Design_FAQ.docx`
 **Problem:** This named section from the doc doesn't exist anywhere on the live page.
 
@@ -28,7 +30,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 3 — New Visa: "The Visa Process" reference-style step visual ⬜
+### Item 3 — New Visa: "The Visa Process" reference-style step visual ✅ done (commit 2a7f36a)
 **Source:** `docs/TripNexio_UAE_Visa_Final_Developer_Handover_Content_Design_FAQ.docx` (+ its reference image, if one was supplied alongside the doc)
 **Problem:** The doc calls for a specific visual treatment — a curved/dotted path connecting 4 numbered milestones, matching a supplied reference image — for the "How It Works" section. The live page currently uses a plain 3-icon-in-a-row grid instead (different step count, different visual style entirely).
 
@@ -37,7 +39,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 4 — New Visa: hero copy exact match ⬜
+### Item 4 — New Visa: hero copy exact match ✅ done (commit 0ba305a)
 **Source:** `docs/TripNexio_UAE_Visa_Final_Developer_Handover_Content_Design_FAQ.docx`
 **Problem:** The current hero heading/body text on `src/app/services/new-visa/page.tsx` uses different wording than the doc's locked copy.
 
@@ -46,7 +48,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 5 — Visa Extension: step visual + hero copy ⬜
+### Item 5 — Visa Extension: step visual + hero copy ✅ done (commit 4aff3f9)
 **Source:** `docs/TripNexio_UAE_Visa_Extension_Final_Page_Content_Design_FAQ_FINAL.docx`
 **Problem:** Same two gaps as New Visa (Items 3-4), scaled to this service: the reference-style 4-milestone step visual isn't built (`src/app/services/visa-extension/page.tsx` still uses the plain icon-grid `howItWorks`), and hero/body copy hasn't been checked line-by-line against the doc's exact locked text.
 
@@ -55,7 +57,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 6 — Visa Change: step visual + hero copy ⬜
+### Item 6 — Visa Change: step visual + hero copy ✅ done (commit 4aff3f9)
 **Source:** `docs/TripNexio_Visa_Change_Final_Page_Content_Design_FAQ_FINAL_V3.docx`
 **Problem:** Same pattern as Item 5, for `src/app/services/visa-change/page.tsx`.
 
@@ -64,7 +66,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 7 — Flight Special Fare: step visual + hero copy ⬜
+### Item 7 — Flight Special Fare: step visual + hero copy ✅ done (commit 4aff3f9)
 **Source:** `docs/TripNexio_Flight_Special_Fare_Final_Page_Content_Design_FAQ_FINAL.docx`
 **Problem:** Same pattern, for `src/app/services/flight-special-fare/page.tsx`.
 
@@ -73,7 +75,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 8 — Return Ticket: step visual + hero copy ⬜
+### Item 8 — Return Ticket: step visual + hero copy ✅ done (commit 4aff3f9)
 **Source:** `docs/TripNexio_Return_Verified_Ticket_Final_Page_Content_Design_FAQ_FINAL_v3.docx`
 **Problem:** Same pattern, for `src/app/services/return-ticket/page.tsx` — note this page was already rewritten once this session for the Expected-Return-Date change, so re-check its content against the doc from scratch rather than assuming the earlier edit covered this too.
 
@@ -84,7 +86,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ## Group B — Business logic gaps
 
-### Item 9 — Visa Change: nationality/adult/child pricing breakdown ⬜
+### Item 9 — Visa Change: nationality/adult/child pricing breakdown ✅ done (commit d78fd0f)
 **Source:** `docs/TripNexio_Visa_Change_Developer_Handover.docx`
 **Problem:** The spec requires Admin pricing to support nationality-wise, adult-wise, and child-wise rates for Visa Change. Today `Quotation`'s Visa Change fields are the generic `feeAmount + fineOrCharges` shape (same as OTB/Return Ticket) — no rate breakdown exists. Staff enters one lump-sum price.
 
@@ -93,7 +95,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 10 — Visa Extension: Day-25 re-extension reminder automation ⬜
+### Item 10 — Visa Extension: Day-25 re-extension reminder automation ✅ done (commit bff3243)
 **Source:** `docs/TripNexio_Visa_Extension_Updated_Developer_Handover.docx` (FAQ §12) / `docs/TripNexio_UAE_Visa_Extension_Final_Page_Content_Design_FAQ_FINAL.docx`
 **Problem:** No automation exists that reminds a customer around day 25 of their extension to consider re-extending. The 4 existing n8n jobs (quote-expiry, payment-followup, OTB-requirement-check, lead-followup) don't cover this.
 
@@ -104,7 +106,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ## Group C — Admin: small, self-contained items
 
-### Item 11 — Admin: SMS as a notification channel ⬜
+### Item 11 — Admin: SMS as a notification channel ✅ done (commit c774651)
 **Source:** `docs/TripNexio_Admin_FINAL_Developer_Handover_All_Corrections.docx` §17
 **Problem:** `NotificationChannel` enum is `WHATSAPP`/`EMAIL` only — SMS was never added, even though the doc asks for it alongside those two.
 
@@ -113,7 +115,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 12 — Admin: automatic airline-logo fetch ⬜
+### Item 12 — Admin: automatic airline-logo fetch ✅ done (commit c774651)
 **Source:** `docs/TripNexio_Admin_FINAL_Developer_Handover_All_Corrections.docx` §11
 **Problem:** No code anywhere fetches an airline's logo automatically when it's selected in the Admin Airlines screen or the quote builder's airline picker.
 
@@ -122,7 +124,7 @@ Only the FAQ content and basic wording tone from these 5 docs were built. The ac
 
 ---
 
-### Item 13 — Admin: audit-retention purge job ⬜
+### Item 13 — Admin: audit-retention purge job ✅ done (commit c774651)
 **Source:** `docs/TripNexio_Admin_FINAL_Developer_Handover_All_Corrections.docx` §19
 **Problem:** `SystemConfig.auditRetentionDays` exists as a configurable field (Step 45) but nothing actually reads it — no job purges old `AuditTrail` rows. Already self-flagged in Step 45's own notes as a known gap, not a new discovery, but still open.
 
@@ -154,11 +156,12 @@ These aren't ready for a build prompt yet — building them now would mean guess
 
 ---
 
-## Suggested order
+## Suggested order (historical — all reordering is now moot, see status above)
 
-1. Items 1-4 (New Visa redesign) — highest-visibility, most work, do first.
-2. Items 5-8 (the other 4 services' step-visual + copy) — same pattern, faster once Item 3's component is reusable.
-3. Item 9 (Visa Change pricing) — real business-logic gap.
-4. Items 11-13 (Admin small items) — quick, self-contained.
-5. Item 10 (Visa Extension reminder automation).
-6. Items 14-17 — resolve with the client first, then convert into real build prompts.
+1. Items 1-4 (New Visa redesign) — highest-visibility, most work, do first. ✅
+2. Items 5-8 (the other 4 services' step-visual + copy) — same pattern, faster once Item 3's component is reusable. ✅
+3. Item 9 (Visa Change pricing) — real business-logic gap. ✅
+4. Items 11-13 (Admin small items) — quick, self-contained. ✅
+5. Item 10 (Visa Extension reminder automation). ✅
+6. Item 14 (Knowledge Centre) — resolved with the client, then built. ✅
+7. Items 15-17 — still waiting on the client; nothing left for a developer to pick up until then.
