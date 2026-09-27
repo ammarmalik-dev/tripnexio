@@ -26,6 +26,7 @@ export function OtbRequestFlow() {
         mobile: "",
         email: "",
         passportNumber: "",
+        destinationCountry: "",
         airline: "",
         travelDate: "",
         processingType: undefined,

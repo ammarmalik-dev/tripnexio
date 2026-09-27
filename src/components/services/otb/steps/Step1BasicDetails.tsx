@@ -7,6 +7,7 @@ import { DateField } from "@/components/forms/DateField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { useOtbAirlines } from "@/lib/otb/use-otb-airlines";
+import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 
 export function Step1BasicDetails() {
@@ -15,6 +16,7 @@ export function Step1BasicDetails() {
     formState: { errors },
   } = useFormContext<OtbRequestValues>();
   const { state, airlines } = useOtbAirlines();
+  const destinationCountryOptions = useDestinationCountryOptions();
 
   if (state === "loading") return <Skeleton className="h-64 w-full" />;
   if (airlines.length === 0) {
@@ -55,6 +57,13 @@ export function Step1BasicDetails() {
         required
         error={errors.passportNumber?.message}
         {...register("passportNumber")}
+      />
+      <SelectField
+        label="Destination Country"
+        required
+        options={destinationCountryOptions}
+        error={errors.destinationCountry?.message}
+        {...register("destinationCountry")}
       />
       <SelectField
         label="Airline"

@@ -26,15 +26,15 @@ export default function Home() {
 
           <MotionReveal delay={0.08}>
             <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-6xl">
-              Your UAE travel,{" "}
-              <span className="text-gradient-accent">simplified.</span>
+              Travel Made Simple with{" "}
+              <span className="text-gradient-accent">TripNexio</span>
             </h1>
           </MotionReveal>
 
           <MotionReveal delay={0.16}>
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              Tell us what you need — visa, flights or OTB — and we&rsquo;ll
-              guide you through a clear, guided process from request to
+              Tell us what you need &mdash; visa, flights or OTB &mdash; and
+              we&rsquo;ll guide you through a simple process from request to
               result.
             </p>
           </MotionReveal>
@@ -42,7 +42,7 @@ export default function Home() {
           <MotionReveal delay={0.24}>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg">
-                Browse Services
+                Explore Services
               </ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status

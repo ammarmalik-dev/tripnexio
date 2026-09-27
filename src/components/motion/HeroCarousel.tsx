@@ -36,7 +36,7 @@ export function HeroCarousel() {
       className="absolute inset-0 overflow-hidden bg-surface-base"
       role="region"
       aria-roledescription="carousel"
-      aria-label="TripNexio destinations across the UAE and GCC"
+      aria-label="TripNexio destinations worldwide"
       onMouseEnter={() => setIsPlaying(false)}
       onMouseLeave={() => setIsPlaying(true)}
     >

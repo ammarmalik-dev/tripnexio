@@ -50,3 +50,7 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# raw dump of every file/credential the client ever sent in chat (includes
+# rzp-test-key.csv) — reference material for gap-checking, never belongs in git
+/freelancer-chat-all-files/

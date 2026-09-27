@@ -24,6 +24,12 @@ export const otbStep1Schema = z.object({
     .trim()
     .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
+  // Locked requirement — TripNexio_OTB_Final_Page_Content_Design_FAQ_v3.docx §8/§19:
+  // "Add Passport Number and Destination Country to the customer form." The
+  // destination visa isn't UAE-only, so this reuses the same real, Admin-managed
+  // Country table as New Visa/Return Ticket (src/lib/use-destination-countries.ts),
+  // not a hardcoded list.
+  destinationCountry: z.string().min(1, "Select a destination country"),
   airline: z.string().min(1, "Select an airline"),
   travelDate: z
     .string()
@@ -92,7 +98,7 @@ export type OtbStep2Values = z.infer<typeof otbStep2Schema>;
 export type OtbRequestValues = z.infer<typeof otbRequestSchema>;
 
 export const otbStepFields: Record<number, (keyof OtbRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "passportNumber", "airline", "travelDate"],
+  0: ["fullName", "mobile", "email", "passportNumber", "destinationCountry", "airline", "travelDate"],
   1: ["additionalApplicants"],
   2: ["processingType"],
   3: ["hasReturnTicket"],

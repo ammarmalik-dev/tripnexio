@@ -7,26 +7,34 @@ export interface LegalSection {
 }
 
 /**
- * Legal pages carry a visible "draft" notice: the wording below describes how
- * the platform actually works today, but binding legal text must be reviewed
- * and approved by TripNexio (and its legal adviser) before it's relied upon.
+ * Legal pages carry a visible review notice: this is TripNexio's own locked
+ * content (TripNexio_Website_Final_Company_Support_Legal_General_FAQ_23_Sep_2026.docx),
+ * not developer-written placeholder text, but that same source document's own
+ * "Publication gate" section says it still needs qualified legal counsel
+ * review and the [TO BE ADDED] contact/entity fields filled in before this is
+ * truly binding — so the notice reflects that, not "pending developer draft."
  */
 export function LegalDocument({
   eyebrow = "Legal",
   title,
   intro,
+  effectiveDate,
   sections,
 }: {
   eyebrow?: string;
   title: string;
   intro: string;
+  effectiveDate?: string;
   sections: LegalSection[];
 }) {
   return (
     <InfoPage eyebrow={eyebrow} title={title} description={intro}>
+      {effectiveDate ? (
+        <p className="text-sm text-ink-tertiary">Effective Date: {effectiveDate}</p>
+      ) : null}
       <p className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-ink-secondary">
-        Draft for review — this page is pending final approval by {siteConfig.legalName}. Please contact us if you have
-        questions about how it applies to your request.
+        Pending final legal counsel review and confirmation of {siteConfig.legalName}&rsquo;s registered entity details
+        before publication. Please contact us if you have questions about how this applies to your request.
       </p>
       <div className="flex flex-col gap-8">
         {sections.map((section) => (

@@ -3,8 +3,8 @@
 ## What this is
 TripNexio is a travel and visa services platform. Customers request visa and flight services online. Requests become LEADS in a CRM. Staff process them MANUALLY with vendors/airlines. This is NOT a self-service live-booking engine. There is NO live flight/visa booking API. Do not add one.
 
-## Scope (locked)
-Market: India to UAE/GCC only (UAE, Saudi Arabia, Bahrain, Kuwait, Oman, Qatar). NOT worldwide.
+## Scope (locked — updated 2026-09-28, supersedes the original UAE/GCC-only scope)
+Market: **worldwide** — this was a client-directed pivot (`TripNexio_Homepage_FINAL_Locked_Developer_Handover_1of1.docx` §1: "TripNexio is positioned for worldwide visa and travel services; do not use UAE/GCC-only messaging") and `TripNexio_Developer_Business_Rules_All_Questions_Locked_v2.0.md` §6 ("India + GCC is Phase 1... Admin must be able to add future countries/markets without core redesign"). Phase 1 connectivity (airports/airlines/services) covers India, UAE, Saudi Arabia, Bahrain, Kuwait, Oman, Qatar, and Thailand — but the *positioning*, homepage copy, and imagery must never read as UAE/GCC-exclusive, and Admin must support adding further countries/markets without a redesign. Do not reintroduce UAE/GCC-only headings, destination labels, or footer claims anywhere customer-facing.
 Modules: New Visa, Visa Extension, Visa Change (Airport-to-Airport + Border Exit), Flight Special Fare, Return Verified Ticket, OTB, Track Status, Ask TripNexio AI, CRM, Admin.
 
 ## Stack
@@ -272,6 +272,6 @@ All of the above are live in `src/lib/site-config.ts` and `src/lib/nav-config.ts
 
 Brand colors: approved and locked, from the client's brand PDF (`docs/brand/`). Deep Navy `#182A4D`, Electric Blue `#3E6FDB`, Warm White `#F7F5F0`, Ink Black `#111318` — wired as the four raw `--tn-*` tokens in `src/app/globals.css`, which the rest of the design-token system derives from. Do not redesign/recolor these.
 
-Logo: partial. The source PDF only gave a machine-readable **symbol** SVG, not a full wordmark/lockup — both `public/brand/tripnexio-symbol.svg` (navy, for light backgrounds) and `-symbol-dark.svg` (white, for dark backgrounds) are in use via `Logo.tsx`'s `variant` prop, rendered as symbol + text "TripNexio". Full wordmark/lockup SVGs, a horizontal/stacked lockup, and additional monochrome variants are still TODO (client to send, or approve deriving them from the PDF). Do not fabricate these — see `docs/brand/BRAND_ASSET_MANIFEST.md` for exactly what was and wasn't reproduced from the source PDF.
+Logo: complete. `public/brand/tripnexio-symbol.svg`/`-symbol-dark.svg` (navy/white) are used live via `Logo.tsx`'s `variant` prop (symbol + real HTML text "TripNexio", not a flat image — deliberately, see that component's own comment). The source PDF only gave a machine-readable **symbol** SVG, not a full wordmark/lockup — the client explicitly approved recreating the rest (2026-09-27), and `public/brand/tripnexio-logo*.svg`/`tripnexio-wordmark.svg` (8 variants: primary, horizontal, stacked, wordmark-only, monochrome, reverse-white) now exist for other standalone uses (email signatures, PDF headers, social profiles). See `docs/brand/BRAND_ASSET_MANIFEST.md` for exactly how each was built and what remains a faithful recreation vs. the client's own original source files.
 
-Still TODO: `public/og-image.png` (referenced by `siteConfig.ogImage` in metadata but not yet created).
+`public/og-image.png` exists.

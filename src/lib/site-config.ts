@@ -1,9 +1,11 @@
 export const siteConfig = {
   name: "TripNexio",
   legalName: "TripNexio Travel Studio",
-  tagline: "Visa & flight services for India to the UAE and GCC",
+  // Worldwide positioning (client-locked, Homepage_FINAL_Locked_1of1.docx §1/§11)
+  // — do not reintroduce UAE/GCC-only wording here.
+  tagline: "Visa and travel services made simple, with guided support from start to finish.",
   description:
-    "TripNexio helps travellers from India request visa and flight services for the UAE, Saudi Arabia, Bahrain, Kuwait, Oman and Qatar. Submit a request and our team handles it with airlines and partners.",
+    "TripNexio brings visa and travel services together in one simple experience. Submit a request and our team handles it with airlines and partners, from start to finish.",
   // TODO(client): confirm production domain before launch.
   url: "https://tripnexio.com",
   ogImage: "/og-image.png",

@@ -4,6 +4,7 @@ import { useFormContext } from "react-hook-form";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { formatOtbRupees, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { PassportUploadField } from "@/components/forms/PassportUploadField";
+import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 
 const processingTypeLabel: Record<OtbRequestValues["processingType"], string> = {
@@ -31,6 +32,10 @@ export function Step3Summary() {
   const { airlines } = useOtbAirlines();
   const airline = airlines.find((a) => a.code === values.airline);
   const airlineLabel = airline?.name ?? values.airline;
+  const destinationCountryOptions = useDestinationCountryOptions();
+  const destinationCountryLabel =
+    destinationCountryOptions.find((option) => option.value === values.destinationCountry)?.label ??
+    values.destinationCountry;
   const applicantCount = 1 + values.additionalApplicants.length;
   const unitPrice = airline ? (values.processingType === "urgent" ? airline.urgentPrice : airline.normalPrice) : null;
   const hasReturnTicket = watch("hasReturnTicket");
@@ -41,6 +46,7 @@ export function Step3Summary() {
         <SummaryRow label="Full Name" value={values.fullName} />
         <SummaryRow label="Mobile Number" value={values.mobile} />
         <SummaryRow label="Email" value={values.email} />
+        <SummaryRow label="Destination Country" value={destinationCountryLabel} />
         <SummaryRow label="Airline" value={airlineLabel} />
         <SummaryRow
           label="Travel Date"

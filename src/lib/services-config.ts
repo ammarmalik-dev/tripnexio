@@ -28,7 +28,7 @@ export const services: ServiceModule[] = [
   {
     key: "new-visa",
     title: "New Visa",
-    description: "Apply for a new UAE or GCC visa with our simple, guided process.",
+    description: "Apply for a new visa with our simple, guided process.",
     href: "/services/new-visa",
     icon: FileText,
     image:
@@ -77,7 +77,7 @@ export const services: ServiceModule[] = [
   },
   {
     key: "otb",
-    title: "OTB — Ok to Board",
+    title: "OTB - OK to Board",
     description: "Airline Ok-to-Board authorization arranged for your departure.",
     href: "/services/otb",
     icon: PlaneTakeoff,

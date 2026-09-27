@@ -7,31 +7,31 @@ const steps = [
   {
     step: "01",
     title: "Tell Us",
-    description: "Choose your service and share your project details.",
+    description: "Choose your service and share your basic details.",
     icon: ClipboardList,
   },
   {
     step: "02",
-    title: "We Verify",
-    description: "TripNexio checks documents, requirements and availability.",
+    title: "We Check",
+    description: "We review your details, documents and available options.",
     icon: FileCheck2,
   },
   {
     step: "03",
-    title: "Pay",
-    description: "Review the summary and complete secure payment.",
+    title: "Confirm & Pay",
+    description: "Review your option or quotation and complete payment securely.",
     icon: Send,
   },
   {
     step: "04",
     title: "We Process",
-    description: "Processing by our experts, our partners and the relevant authority happens through our CRM.",
+    description: "Our team handles the next steps and keeps you updated.",
     icon: Bell,
   },
   {
     step: "05",
     title: "Get Your Result",
-    description: "Receive your visa, ticket, OTB or update via real-time tracking.",
+    description: "Receive your visa, ticket, OTB or service update.",
     icon: ShieldCheck,
   },
 ];
@@ -43,7 +43,7 @@ export function HowItWorks() {
         <MotionReveal>
           <SectionHeading
             align="center"
-            eyebrow="Simple steps. Powerful results."
+            eyebrow="Simple steps. Clear support."
             title="How TripNexio works"
             className="mx-auto"
           />

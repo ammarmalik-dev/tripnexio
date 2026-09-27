@@ -10,7 +10,7 @@ type StageStatus = "done" | "current" | "upcoming";
 const stages: { label: string; status: StageStatus }[] = [
   { label: "Application Received", status: "done" },
   { label: "Documents Validated", status: "done" },
-  { label: "In Progress", status: "current" },
+  { label: "Submitted for Processing", status: "current" },
   { label: "Under Review", status: "upcoming" },
   { label: "Completed", status: "upcoming" },
 ];
@@ -27,8 +27,8 @@ export function TrackJourneyPreview() {
                   Track your journey
                 </h2>
                 <p className="text-sm text-ink-on-dark-secondary">
-                  Real-time visibility on your application, documents and status
-                  updates — sample preview shown below.
+                  Track your application, documents and status updates in one
+                  place — sample preview shown below.
                 </p>
               </div>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="primary" size="md">

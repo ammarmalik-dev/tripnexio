@@ -5,9 +5,10 @@ import { SocialIcon } from "@/components/ui/SocialIcon";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { siteConfig } from "@/lib/site-config";
 
+// Locked copy — Homepage_FINAL_Locked_1of1.docx §10.
 const badges = [
   { label: "Secure Payments", icon: ShieldCheck },
-  { label: "Encrypted Data", icon: Lock },
+  { label: "Protected Information", icon: Lock },
   { label: "Safe & Reliable", icon: BadgeCheck },
 ];
 
@@ -23,7 +24,7 @@ export function SupportPayment() {
               </span>
               <h3 className="text-lg font-semibold text-ink-heading">Need Help?</h3>
               <p className="flex-1 text-sm text-ink-secondary">
-                Talk to our support team on WhatsApp — real people, real answers.
+                Get quick assistance through TripNexio WhatsApp support.
               </p>
               <a
                 href={siteConfig.contact.whatsappHref}
@@ -42,9 +43,10 @@ export function SupportPayment() {
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white">
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h3 className="text-lg font-semibold text-ink-heading">Secure Payment</h3>
+              <h3 className="text-lg font-semibold text-ink-heading">Secure Payments</h3>
               <p className="flex-1 text-sm text-ink-secondary">
-                Secure payments with confirmation at every step of your journey.
+                Complete your payment securely with clear confirmation
+                throughout the process.
               </p>
             </GlassCard>
           </MotionReveal>

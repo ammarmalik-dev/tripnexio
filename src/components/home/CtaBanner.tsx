@@ -14,7 +14,7 @@ export function CtaBanner() {
             </h2>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg">
-                Browse Services
+                Explore Services
               </ButtonLink>
               <ButtonLink
                 href={utilityLinks.trackStatus.href}

@@ -15,11 +15,11 @@ const socialLinks: { platform: SocialPlatform; href: string; label: string }[] =
   { platform: "whatsapp", href: siteConfig.contact.whatsappHref, label: "WhatsApp" },
 ];
 
+// Locked footer structure — Homepage_FINAL_Locked_1of1.docx §11: Careers removed, Blog kept.
 const companyLinks = [
   { label: "About Us", href: "/about" },
   { label: "Blog", href: "/blog" },
   { label: "Contact", href: "/#support" },
-  { label: "Careers", href: "/careers" },
 ];
 
 const supportLinks = [
@@ -35,6 +35,7 @@ const legalLinks = [
   { label: "Refund & Cancellation Policy", href: "/legal/refund-policy" },
   { label: "Cookie Policy", href: "/legal/cookie-policy" },
   { label: "Disclaimer", href: "/legal/disclaimer" },
+  { label: "Grievance Redressal", href: "/legal/grievance-redressal" },
 ];
 
 function FooterColumn({
@@ -66,7 +67,7 @@ export function Footer() {
       <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
         <div className="flex flex-col gap-4 sm:col-span-2 lg:col-span-1">
           <Logo variant="onDark" />
-          <p className="max-w-xs text-sm text-ink-on-dark-secondary">{siteConfig.tagline}.</p>
+          <p className="max-w-xs text-sm text-ink-on-dark-secondary">{siteConfig.tagline}</p>
           <div className="flex flex-wrap items-center gap-3 pt-1">
             {socialLinks.map(({ platform, href, label }) => (
               <a
@@ -97,7 +98,6 @@ export function Footer() {
           <p>
             &copy; {new Date().getFullYear()} {siteConfig.legalName}. All rights reserved.
           </p>
-          <p>India &rarr; UAE &middot; Saudi Arabia &middot; Bahrain &middot; Kuwait &middot; Oman &middot; Qatar</p>
         </Container>
       </div>
     </footer>

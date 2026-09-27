@@ -32,7 +32,7 @@ export async function ServicesGrid() {
             <SectionHeading
               eyebrow="Everything TripNexio offers"
               title="Explore our services"
-              description="UAE and GCC visa and flight services, requested online and processed by our team from start to finish."
+              description="Visa and travel services made simple, with a clear process and guided support from start to finish."
             />
             <Link
               href={headerActions.getStarted.href}

@@ -26,6 +26,7 @@ export async function POST(request: NextRequest) {
     fullName,
     mobile,
     email,
+    destinationCountry,
     airline,
     travelDate,
     processingType,
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
       contact: { fullName, mobile, email },
       passengers: applicants.map((a) => ({ fullName: a.fullName, passportNumber: a.passportNumber })),
       details: {
+        destinationCountry,
         airline,
         travelDate,
         processingType,

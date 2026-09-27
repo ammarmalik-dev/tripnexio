@@ -1,38 +1,40 @@
-import { Sparkles, Zap, Eye, Activity, SlidersHorizontal, Headset } from "lucide-react";
+import { Sparkles, Headset, Eye, CalendarCheck, ShieldCheck, Headphones } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 
+// Locked copy — Homepage_FINAL_Locked_1of1.docx §7. Do not replace these with
+// AI/automation-led benefit claims on the homepage unless separately approved.
 const reasons = [
   {
-    title: "AI-assisted",
-    description: "Smart guidance while you're picking a service.",
+    title: "Simple Process",
+    description: "Easy steps from request to completion.",
     icon: Sparkles,
   },
   {
-    title: "Automated",
-    description: "Connected systems reduce manual back-and-forth.",
-    icon: Zap,
+    title: "Guided Support",
+    description: "Get help throughout your journey.",
+    icon: Headset,
   },
   {
-    title: "Transparent",
-    description: "Clear timelines, status and pricing, every step.",
+    title: "Clear & Transparent",
+    description: "Know your service, pricing and next steps clearly.",
     icon: Eye,
   },
   {
-    title: "Real-time visibility",
-    description: "Know what's happening with your request, every day.",
-    icon: Activity,
+    title: "Easy Tracking",
+    description: "Stay updated on your application or booking.",
+    icon: CalendarCheck,
   },
   {
-    title: "Customer control",
-    description: "See status, upload documents and make edits easily.",
-    icon: SlidersHorizontal,
+    title: "Secure Payments",
+    description: "Complete payments through a secure process.",
+    icon: ShieldCheck,
   },
   {
-    title: "Human support",
-    description: "Real experts when you need us.",
-    icon: Headset,
+    title: "Human Support",
+    description: "Our team is here when you need assistance.",
+    icon: Headphones,
   },
 ];
 
@@ -41,7 +43,7 @@ export function WhyChooseUs() {
     <section className="py-20 sm:py-28">
       <Container className="flex flex-col gap-12">
         <MotionReveal>
-          <SectionHeading eyebrow="Why choose us" title="Why choose TripNexio?" />
+          <SectionHeading eyebrow="Why TripNexio" title="A simpler way to travel" />
         </MotionReveal>
 
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">

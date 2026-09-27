@@ -10,25 +10,29 @@ export interface HeroSlide {
   location: string;
 }
 
+// Worldwide positioning (client-locked, Homepage_FINAL_Locked_1of1.docx §1/§3):
+// TripNexio is not UAE/GCC-only, so the hero rotates through global
+// destinations across different continents rather than only Gulf cities —
+// deliberately no single GCC-only image in this set.
 export const heroSlides: HeroSlide[] = [
   {
-    src: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=2000&q=80",
-    alt: "Dubai skyline with Burj Khalifa at sunset",
-    location: "Dubai, UAE",
+    src: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=2000&q=80",
+    alt: "Marina Bay Sands skyline at sunset",
+    location: "Singapore",
   },
   {
-    src: "https://images.unsplash.com/photo-1512632578888-169bbbc64f33?auto=format&fit=crop&w=2000&q=80",
-    alt: "Sheikh Zayed Grand Mosque in Abu Dhabi at twilight",
-    location: "Abu Dhabi, UAE",
+    src: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=2000&q=80",
+    alt: "Eiffel Tower over the Seine at dusk",
+    location: "Paris, France",
   },
   {
-    src: "https://images.unsplash.com/photo-1429794890858-d3016a2bb73c?auto=format&fit=crop&w=2000&q=80",
-    alt: "Doha corniche skyline across the water",
-    location: "Doha, Qatar",
+    src: "https://images.unsplash.com/photo-1522083165195-3424ed129620?auto=format&fit=crop&w=2000&q=80",
+    alt: "Manhattan skyline framed by the Brooklyn Bridge",
+    location: "New York, USA",
   },
   {
-    src: "https://images.unsplash.com/photo-1609229862559-88fc0ac257ad?auto=format&fit=crop&w=2000&q=80",
-    alt: "Golden sand dunes in the Arabian desert",
-    location: "Arabian Desert",
+    src: "https://images.unsplash.com/photo-1513407030348-c983a97b98d8?auto=format&fit=crop&w=2000&q=80",
+    alt: "Tokyo Tower rising above the city skyline",
+    location: "Tokyo, Japan",
   },
 ];
