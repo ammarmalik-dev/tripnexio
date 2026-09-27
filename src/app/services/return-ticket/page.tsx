@@ -25,7 +25,7 @@ const visaProcessSteps = [
   { step: "01", headline: "Share your travel details", supportingCopy: "Tell us your destination, number of passengers and travel date." },
   { step: "02", headline: "We work out the return date", supportingCopy: "We arrange an approximate return date based on available ticket options and your travel schedule." },
   { step: "03", headline: "Complete payment", supportingCopy: "Review the summary and applicable terms, then complete payment." },
-  { step: "04", headline: "We arrange your return ticket reservation", supportingCopy: "Our team processes the return ticket through the configured airline/partner process based on live availability." },
+  { step: "04", headline: "We arrange your return ticket reservation", supportingCopy: "Our team processes the return ticket through the configured airline/partner process based on current availability." },
   { step: "05", headline: "Receive your return ticket", supportingCopy: "Once issued, your return ticket is delivered to you." },
 ];
 
@@ -74,7 +74,7 @@ export default function ReturnTicketLandingPage() {
               <SectionHeading eyebrow="How the return date works" title="You give a target, not an exact date" />
               <p className="text-sm text-ink-secondary sm:text-base">
                 You tell us your travel date and your expected return date. We then aim to issue a return ticket
-                close to that date, based on live ticket and partner availability — the exact issue date isn&apos;t
+                close to that date, based on current ticket and partner availability — the exact issue date isn&apos;t
                 something you need to work out yourself.
               </p>
             </div>
