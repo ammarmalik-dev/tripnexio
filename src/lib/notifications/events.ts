@@ -26,6 +26,7 @@ export const NOTIFICATION_EVENTS = {
   LEAD_FOLLOWUP: "LEAD_FOLLOWUP",
   VISA_EXTENSION_REMINDER: "VISA_EXTENSION_REMINDER",
   SERVICE_STATUS_UPDATE: "SERVICE_STATUS_UPDATE",
+  OUTPUT_DELIVERED: "OUTPUT_DELIVERED",
 } as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[keyof typeof NOTIFICATION_EVENTS];
@@ -130,5 +131,14 @@ export const NOTIFICATION_EVENT_CATALOG: {
     variables: ["customerName", "leadReference", "status"],
     wired: true,
     sampleVariables: { customerName: "Sample Customer", leadReference: "10626VI001", status: "Applied to Embassy" },
+  },
+  {
+    // P09 — staff delivered the service result (visa, ticket, package...).
+    // {{downloadLink}} is a secure link that only works for this booking.
+    event: NOTIFICATION_EVENTS.OUTPUT_DELIVERED,
+    label: "Document delivered to the customer",
+    variables: ["customerName", "leadReference", "documentName", "downloadLink"],
+    wired: true,
+    sampleVariables: { customerName: "Sample Customer", leadReference: "10626VI001", documentName: "Visa", downloadLink: "https://tripnexio.com/api/files/sample.pdf?token=sample" },
   },
 ];

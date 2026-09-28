@@ -11,6 +11,13 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   "DOCUMENTS_REQUESTED",
   "DOCUMENTS_RECEIVED",
   "DOCUMENTS_VALIDATED",
+  // P09 — staff delivered an output document of that type.
+  "DELIVERED_VISA_PDF",
+  "DELIVERED_EXTENDED_VISA_PDF",
+  "DELIVERED_TICKET_PDF",
+  "DELIVERED_RESERVATION_PDF",
+  "DELIVERED_PACKAGE_PDF",
+  "DELIVERED_OTB_CONFIRMATION",
 ] as const;
 
 export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[number];
@@ -25,5 +32,11 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   DOCUMENTS_REQUESTED: "Documents requested",
   DOCUMENTS_RECEIVED: "Documents received",
   DOCUMENTS_VALIDATED: "Documents validated",
+  DELIVERED_VISA_PDF: "Visa PDF delivered",
+  DELIVERED_EXTENDED_VISA_PDF: "Extended visa PDF delivered",
+  DELIVERED_TICKET_PDF: "Ticket PDF delivered",
+  DELIVERED_RESERVATION_PDF: "Reservation PDF delivered",
+  DELIVERED_PACKAGE_PDF: "Package PDF delivered",
+  DELIVERED_OTB_CONFIRMATION: "OTB confirmation delivered",
   ON_HOLD: "On Hold (marker)",
 };

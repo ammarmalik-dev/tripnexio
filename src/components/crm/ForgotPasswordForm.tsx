@@ -17,7 +17,16 @@ import { forgotPasswordSchema, type ForgotPasswordValues } from "@/lib/validatio
  * panel, never "email not found." A 429 (rate-limited) or a genuine
  * validation error is the only thing that keeps the form visible.
  */
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({
+  endpoint = "/api/crm/auth/forgot-password",
+  signInHref = "/crm/login",
+  accountLabel = "a staff account",
+}: {
+  /** P09 — the customer /forgot-password page reuses this form against its own endpoint. */
+  endpoint?: string;
+  signInHref?: string;
+  accountLabel?: string;
+} = {}) {
   const [submitted, setSubmitted] = useState(false);
   const {
     register,
@@ -30,7 +39,7 @@ export function ForgotPasswordForm() {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await postJson("/api/crm/auth/forgot-password", values);
+      await postJson(endpoint, values);
       setSubmitted(true);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't send the reset link. Please try again.");
@@ -41,10 +50,10 @@ export function ForgotPasswordForm() {
     return (
       <div className="flex flex-col gap-4 text-center">
         <p className="text-sm text-ink-secondary">
-          If that email address belongs to a staff account, a password reset link has been sent. Check your inbox —
+          If that email address belongs to {accountLabel}, a password reset link has been sent. Check your inbox —
           the link expires in 30 minutes.
         </p>
-        <Link href="/crm/login" className="text-sm font-medium text-ink-accent hover:underline">
+        <Link href={signInHref} className="text-sm font-medium text-ink-accent hover:underline">
           Back to Sign In
         </Link>
       </div>
@@ -64,7 +73,7 @@ export function ForgotPasswordForm() {
       <Button type="submit" className="w-full" isLoading={isSubmitting}>
         Send Reset Link
       </Button>
-      <Link href="/crm/login" className="text-center text-sm font-medium text-ink-accent hover:underline">
+      <Link href={signInHref} className="text-center text-sm font-medium text-ink-accent hover:underline">
         Back to Sign In
       </Link>
     </form>

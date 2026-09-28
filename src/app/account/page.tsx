@@ -4,6 +4,7 @@ import { getCustomerSession } from "@/lib/auth/get-customer-session";
 import { db } from "@/lib/db";
 import { leadReference } from "@/lib/leads/reference";
 import { customerStatusLabel } from "@/lib/service-status/customer-label";
+import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, type OutputType } from "@/lib/outputs/output-types";
 import { getOutstandingDocuments } from "@/lib/account/outstanding-documents";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { InfoPage } from "@/components/layout/InfoPage";
@@ -25,7 +26,7 @@ export default async function AccountPage() {
   const session = await getCustomerSession();
   if (!session) redirect("/login");
 
-  const [leads, bookings, outstandingDocuments] = await Promise.all([
+  const [leads, bookings, outstandingDocuments, deliveredDocuments] = await Promise.all([
     db.lead.findMany({
       where: { customerId: session.id },
       orderBy: { createdAt: "desc" },
@@ -37,6 +38,12 @@ export default async function AccountPage() {
       orderBy: { createdAt: "desc" },
     }),
     getOutstandingDocuments(session.id),
+    // P09 — the service results TripNexio delivered (visa, ticket, package...).
+    db.document.findMany({
+      where: { booking: { customerId: session.id }, type: { in: [...OUTPUT_TYPES] }, deliveredAt: { not: null }, fileUrl: { not: null } },
+      orderBy: { deliveredAt: "desc" },
+      select: { id: true, type: true, fileUrl: true, deliveredAt: true, passenger: { select: { fullName: true } }, booking: { select: { bookingId: true } } },
+    }),
   ]);
 
   return (
@@ -50,6 +57,33 @@ export default async function AccountPage() {
       </div>
 
       <AccountDocumentsSection documents={outstandingDocuments} />
+
+      {deliveredDocuments.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold text-ink-heading">Your Documents</h2>
+          {deliveredDocuments.map((document) => (
+            <div key={document.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-1 px-5 py-4">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-semibold text-ink-heading">
+                  {OUTPUT_TYPE_LABELS[document.type as OutputType]}
+                  {document.passenger ? ` — ${document.passenger.fullName}` : ""}
+                </span>
+                <span className="text-xs text-ink-tertiary">
+                  {document.booking?.bookingId} · delivered {formatDate(document.deliveredAt as Date)}
+                </span>
+              </div>
+              <a
+                href={document.fileUrl as string}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-ink-accent hover:bg-accent/20"
+              >
+                Download
+              </a>
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-semibold text-ink-heading">My Requests</h2>

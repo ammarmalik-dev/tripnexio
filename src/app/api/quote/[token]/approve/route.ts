@@ -6,12 +6,18 @@ import { selectQuotation } from "@/lib/quotations/select-quotation";
 import { createBookingFromQuotation } from "@/lib/bookings/create-booking";
 import { createPendingPayment } from "@/lib/payments/create-payment";
 import { describeError } from "@/lib/api/describe-error";
+import { clientIp } from "@/lib/auth/rate-limit";
+import { recordTermsAcceptance } from "@/lib/terms/service-terms";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
 }
 
-const approveSchema = z.object({ quotationId: z.string().min(1, "Select a quote") });
+const approveSchema = z.object({
+  quotationId: z.string().min(1, "Select a quote"),
+  /** P09 — mandatory: the service Terms & Conditions must be accepted to approve. */
+  acceptTerms: z.literal(true, { error: "Please agree to the Terms & Conditions." }),
+});
 
 /**
  * The customer approves one of their quote options: selects it (expiring the
@@ -46,9 +52,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const existingBooking = await db.booking.findFirst({
     where: { leadId: lead.id, status: { not: "CANCELLED" } },
-    select: { id: true, customerToken: true },
+    select: { id: true, customerToken: true, termsAcceptedAt: true },
   });
   if (existingBooking) {
+    await recordTermsAcceptance({ ...existingBooking, lead }, clientIp(request), "quote approval");
     return jsonSuccess({ payToken: existingBooking.customerToken });
   }
 
@@ -67,6 +74,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     include: { customer: true, lead: true },
   });
   if (!booking) return jsonError(500, "Something went wrong. Please try again.");
+  await recordTermsAcceptance(booking, clientIp(request), "quote approval");
 
   try {
     await createPendingPayment({ booking, quotation: selectResult.quotation, actor: { label: "customer approval (website)" } });

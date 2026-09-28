@@ -40,6 +40,8 @@ import {
   BarChart3,
   Undo2,
   Flag,
+  CalendarDays,
+  ScrollText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -153,6 +155,8 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "New Visa Countries", href: "/admin/new-visa-countries", icon: Stamp },
       { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket },
       { label: "Timelines / SLA", href: "/admin/timelines", icon: Clock },
+      { label: "Holidays", href: "/admin/holidays", icon: CalendarDays },
+      { label: "Service Terms", href: "/admin/service-terms", icon: ScrollText },
       { label: "Document Requirements", href: "/admin/document-requirements", icon: ClipboardList },
       { label: "Pricing", href: "/admin/pricing", icon: Tags },
       { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints },

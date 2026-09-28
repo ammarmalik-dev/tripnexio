@@ -10,7 +10,7 @@ import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
 import { getActiveVisaTypes } from "../visa-types/active-visa-types";
 import { getOtbGlobalRules, resolveAirlineRules } from "../otb/get-otb-rules";
 import { evaluateOtbTravelDate } from "../otb/processing-rules";
-import { getSystemConfig } from "../settings/system-config";
+import { getWorkingCalendar } from "../calendar/get-working-calendar";
 import type { LeadPassengerInput } from "../leads/create-lead";
 
 export interface ParseResult {
@@ -140,8 +140,8 @@ async function getOtbTravelDateEvaluator(airlineCode: string) {
   const airline = await db.airline.findFirst({ where: { code: airlineCode, active: true, otbRequired: true } });
   if (!airline) return null;
   const rules = resolveAirlineRules(airline, await getOtbGlobalRules());
-  const { timezoneOffsetMinutes } = await getSystemConfig();
-  return (travelDate: string) => evaluateOtbTravelDate(travelDate, rules, new Date(), timezoneOffsetMinutes * 60 * 1000);
+  const calendar = await getWorkingCalendar("INDIA");
+  return (travelDate: string) => evaluateOtbTravelDate(travelDate, rules, new Date(), calendar);
 }
 
 /** Return Ticket destinations with an Admin-configured rate. Stores the Country id, like the website form. */

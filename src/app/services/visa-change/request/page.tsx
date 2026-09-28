@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ApplyGate } from "@/components/apply/ApplyGate";
 import { VisaChangeRequestFlow } from "@/components/services/visa-change/VisaChangeRequestFlow";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function VisaChangeRequestPage() {
-  return <VisaChangeRequestFlow />;
+  return (
+    <ApplyGate>
+      <VisaChangeRequestFlow />
+    </ApplyGate>
+  );
 }

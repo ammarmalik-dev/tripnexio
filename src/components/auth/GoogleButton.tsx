@@ -1,15 +1,15 @@
-"use client";
-
-import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { buttonBaseClass, buttonSizeClass } from "@/components/ui/Button";
 
-/** Placeholder — Google OAuth is M2 work (see CLAUDE.md Auth section). */
-export function GoogleButton() {
+/**
+ * P09 — "Continue with Google" for customers and staff. A plain link to
+ * /api/auth/google/start (the server builds the Google redirect). Pages
+ * only render it when GOOGLE_CLIENT_ID/SECRET are configured.
+ */
+export function GoogleButton({ href }: { href: string }) {
   return (
-    <button
-      type="button"
-      onClick={() => toast("Google sign-in isn't connected yet — coming in a future update.")}
+    <a
+      href={href}
       className={cn(
         buttonBaseClass,
         buttonSizeClass.md,
@@ -35,6 +35,11 @@ export function GoogleButton() {
         />
       </svg>
       Continue with Google
-    </button>
+    </a>
   );
+}
+
+/** The Google start URL for a customer, returning to `next` (or /account) after sign-in. */
+export function customerGoogleHref(next?: string | null): string {
+  return `/api/auth/google/start?for=customer${next ? `&next=${encodeURIComponent(next)}` : ""}`;
 }

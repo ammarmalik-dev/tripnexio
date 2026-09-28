@@ -11,6 +11,7 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { formatRupees } from "@/lib/return-ticket/use-return-ticket-destinations";
 import { siteConfig } from "@/lib/site-config";
 import { utilityLinks } from "@/lib/nav-config";
+import { TermsAgreement } from "@/components/terms/TermsAgreement";
 
 interface CheckoutView {
   serviceType: string;
@@ -27,6 +28,8 @@ interface CheckoutView {
     linkExpiresAt: string | null;
   } | null;
   quotationExpired: boolean;
+  termsAccepted: boolean;
+  terms: { title: string; body: string; version: number } | null;
   demoGateway: boolean;
   applicants: { id: string; fullName: string }[];
   documentTypes: { type: string; label: string; required: boolean }[];
@@ -241,7 +244,11 @@ export function CheckoutPanel({ token }: { token: string }) {
         </div>
       ) : null}
 
-      {payment?.status === "PENDING" && !view.quotationExpired ? (
+      {payment?.status === "PENDING" && !view.quotationExpired && !view.termsAccepted ? (
+        <TermsAgreement token={token} terms={view.terms} onAccepted={refresh} />
+      ) : null}
+
+      {payment?.status === "PENDING" && !view.quotationExpired && view.termsAccepted ? (
         <div className="flex flex-col gap-3">
           {view.demoGateway ? (
             <>

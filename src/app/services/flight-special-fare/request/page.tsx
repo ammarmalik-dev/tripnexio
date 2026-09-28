@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ApplyGate } from "@/components/apply/ApplyGate";
 import { FlightSpecialFareRequestFlow } from "@/components/services/flight-special-fare/FlightSpecialFareRequestFlow";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function FlightSpecialFareRequestPage() {
-  return <FlightSpecialFareRequestFlow />;
+  return (
+    <ApplyGate>
+      <FlightSpecialFareRequestFlow />
+    </ApplyGate>
+  );
 }

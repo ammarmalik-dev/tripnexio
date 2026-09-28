@@ -21,6 +21,11 @@ export const updateSystemConfigSchema = z.object({
   maintenanceModeEnabled: z.boolean().optional(),
   maintenanceMessage: z.string().trim().max(300, "Too long").optional(),
   systemAlertEmail: z.string().trim().max(120, "Too long").optional(),
+  /** P09 working calendar — comma-separated JS weekday numbers (0 = Sunday ... 6 = Saturday). */
+  weekendDaysIndia: z.string().trim().regex(/^\s*[0-6](\s*,\s*[0-6])*\s*$|^\s*$/, "Use weekday numbers 0-6, comma separated (0 = Sunday)").optional(),
+  weekendDaysUae: z.string().trim().regex(/^\s*[0-6](\s*,\s*[0-6])*\s*$|^\s*$/, "Use weekday numbers 0-6, comma separated (0 = Sunday)").optional(),
+  workdayStartHour: z.number().int().min(0, "0-23").max(23, "0-23").optional(),
+  workdayEndHour: z.number().int().min(1, "1-24").max(24, "1-24").optional(),
 });
 
 export type UpdateSystemConfigValues = z.infer<typeof updateSystemConfigSchema>;

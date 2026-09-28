@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { leadReference } from "../leads/reference";
+import { getEffectiveTerms, resolveLeadCountryId } from "../terms/service-terms";
 import { isExpiredNow } from "./sync-expiry";
 import { isFlightQuote, supportsItinerary } from "./pricing";
 
@@ -47,11 +48,14 @@ export async function loadQuoteReviewByToken(token: string) {
         : {}),
     }));
 
+  const terms = await getEffectiveTerms(lead.serviceType, await resolveLeadCountryId(lead.details));
+
   return {
     serviceType: lead.serviceType,
     leadReference: leadReference(lead),
     leadStatus: lead.status,
     quotations,
     bookingToken: booking?.customerToken ?? null,
+    terms: terms ? { title: terms.title, body: terms.body, version: terms.version } : null,
   };
 }

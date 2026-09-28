@@ -7,6 +7,7 @@ import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
+import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
 import { formatOtbRupees, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { siteConfig } from "@/lib/site-config";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
@@ -28,9 +29,10 @@ export function Step2ProcessingType() {
   const travelDate = useWatch({ control, name: "travelDate" });
   const applicants = (useWatch({ control, name: "additionalApplicants" }) ?? []).length + 1;
   const { state, airlines } = useOtbAirlines();
+  const calendar = useWorkingCalendar("INDIA");
 
   const airline = airlines.find((a) => a.code === airlineCode);
-  const outcome = airline ? evaluateOtbTravelDate(travelDate, airline) : null;
+  const outcome = airline ? evaluateOtbTravelDate(travelDate, airline, new Date(), calendar) : null;
 
   // A previously chosen type may no longer be valid after the airline/date changed.
   const allowedKey = outcome?.allowed.join(",") ?? "";

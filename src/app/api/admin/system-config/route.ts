@@ -40,7 +40,12 @@ export async function PATCH(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  await getOrCreateConfig();
+  const current = await getOrCreateConfig();
+  const startHour = parsed.data.workdayStartHour ?? current.workdayStartHour;
+  const endHour = parsed.data.workdayEndHour ?? current.workdayEndHour;
+  if (endHour <= startHour) {
+    return jsonError(400, "The working day must end after it starts.", { workdayEndHour: ["Must be later than the start hour."] });
+  }
 
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.systemConfig.update({ where: { id: SYSTEM_CONFIG_ID }, data: parsed.data });

@@ -3,6 +3,7 @@ import { isMockGatewayActive } from "../payments/get-gateway";
 import { assertQuotationPayable } from "../payments/quotation-payable";
 import { leadReference } from "../leads/reference";
 import { resolveCheckoutDocumentTypes } from "./required-documents";
+import { getEffectiveTerms, resolveLeadCountryId } from "../terms/service-terms";
 
 /** Loads everything the guest /pay/<token> page needs, or null for an unknown token. Never exposes internal fields (vendor cost, margin, staff notes). */
 export async function loadCheckoutByToken(token: string) {
@@ -28,6 +29,10 @@ export async function loadCheckoutByToken(token: string) {
 
   const documentTypes = paid ? await resolveCheckoutDocumentTypes(booking) : [];
   const quotationExpired = payment?.status === "PENDING" ? (await assertQuotationPayable({ purpose: payment.purpose, booking })) !== null : false;
+  // P09 — the customer must agree to the service's Terms before any payment
+  // option (gateway link or demo button) is offered.
+  const termsAccepted = Boolean(booking.termsAcceptedAt);
+  const terms = termsAccepted ? null : await getEffectiveTerms(booking.lead.serviceType, await resolveLeadCountryId(booking.lead.details));
 
   return {
     booking,
@@ -44,11 +49,13 @@ export async function loadCheckoutByToken(token: string) {
             gatewayFee,
             discount,
             total: Math.max(0, amount - discount) + gst + gatewayFee,
-            paymentLink: payment.status === "PENDING" && !quotationExpired ? payment.paymentLink : null,
+            paymentLink: payment.status === "PENDING" && !quotationExpired && termsAccepted ? payment.paymentLink : null,
             linkExpiresAt: payment.linkExpiresAt,
           }
         : null,
       quotationExpired,
+      termsAccepted,
+      terms: terms ? { title: terms.title, body: terms.body, version: terms.version } : null,
       demoGateway: isMockGatewayActive(),
       applicants: booking.passengers.map((row) => ({ id: row.passenger.id, fullName: row.passenger.fullName })),
       documentTypes,

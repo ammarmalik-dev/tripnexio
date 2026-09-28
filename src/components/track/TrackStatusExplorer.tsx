@@ -167,6 +167,17 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
               ) : (
                 <StatusTimeline stages={result.stages} />
               )}
+              {result.delivered && result.delivered.length > 0 ? (
+                <div className="flex flex-col gap-1 border-t border-hairline-on-dark pt-4">
+                  <p className="text-sm font-semibold text-ink-on-dark-primary">Delivered</p>
+                  {result.delivered.map((item) => (
+                    <p key={`${item.label}-${item.deliveredDate}`} className="text-sm text-ink-on-dark-secondary">
+                      {item.label} — {item.deliveredDate}
+                    </p>
+                  ))}
+                  <p className="text-xs text-ink-on-dark-muted">Download it from the link we sent by email/WhatsApp, or from your account.</p>
+                </div>
+              ) : null}
             </div>
           ) : null}
         </motion.div>

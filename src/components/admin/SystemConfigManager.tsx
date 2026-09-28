@@ -25,6 +25,10 @@ interface ConfigData {
   maintenanceModeEnabled: boolean;
   maintenanceMessage: string | null;
   systemAlertEmail: string | null;
+  weekendDaysIndia: string;
+  weekendDaysUae: string;
+  workdayStartHour: number;
+  workdayEndHour: number;
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -38,6 +42,10 @@ interface FormState {
   companyEmail: string;
   currencyCode: string;
   timezoneOffsetMinutes: string;
+  weekendDaysIndia: string;
+  weekendDaysUae: string;
+  workdayStartHour: string;
+  workdayEndHour: string;
   documentRetentionDays: string;
   auditRetentionDays: string;
   backupRetentionDays: string;
@@ -56,6 +64,10 @@ function toFormState(c: ConfigData): FormState {
     companyEmail: c.companyEmail ?? "",
     currencyCode: c.currencyCode,
     timezoneOffsetMinutes: String(c.timezoneOffsetMinutes),
+    weekendDaysIndia: c.weekendDaysIndia,
+    weekendDaysUae: c.weekendDaysUae,
+    workdayStartHour: String(c.workdayStartHour),
+    workdayEndHour: String(c.workdayEndHour),
     documentRetentionDays: String(c.documentRetentionDays),
     auditRetentionDays: c.auditRetentionDays === null ? "" : String(c.auditRetentionDays),
     backupRetentionDays: c.backupRetentionDays === null ? "" : String(c.backupRetentionDays),
@@ -76,6 +88,10 @@ function buildPayload(form: FormState) {
     companyEmail: form.companyEmail,
     currencyCode: form.currencyCode,
     timezoneOffsetMinutes: Number(form.timezoneOffsetMinutes),
+    weekendDaysIndia: form.weekendDaysIndia.trim(),
+    weekendDaysUae: form.weekendDaysUae.trim(),
+    workdayStartHour: Number(form.workdayStartHour),
+    workdayEndHour: Number(form.workdayEndHour),
     documentRetentionDays: Number(form.documentRetentionDays),
     auditRetentionDays: toNullableInt(form.auditRetentionDays),
     backupRetentionDays: toNullableInt(form.backupRetentionDays),
@@ -199,6 +215,52 @@ export function SystemConfigManager() {
             value={form.timezoneOffsetMinutes}
             onChange={(e) => setForm({ ...form, timezoneOffsetMinutes: e.target.value })}
             error={errors.timezoneOffsetMinutes?.[0]}
+            disabled={saving}
+          />
+        </div>
+      </Section>
+
+      <Section
+        title="Working Calendar"
+        description="Used by every working-day rule (OTB timelines, New Visa minimum days, Visa Extension same-day deadline). Public holidays are managed under Holidays."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TextField
+            label="India Weekend Days"
+            name="weekendDaysIndia"
+            hint="Weekday numbers, comma separated: 0 = Sunday, 6 = Saturday. e.g. 0,6"
+            value={form.weekendDaysIndia}
+            onChange={(e) => setForm({ ...form, weekendDaysIndia: e.target.value })}
+            error={errors.weekendDaysIndia?.[0]}
+            disabled={saving}
+          />
+          <TextField
+            label="UAE Weekend Days"
+            name="weekendDaysUae"
+            hint="Weekday numbers, comma separated: 0 = Sunday, 6 = Saturday. e.g. 0,6"
+            value={form.weekendDaysUae}
+            onChange={(e) => setForm({ ...form, weekendDaysUae: e.target.value })}
+            error={errors.weekendDaysUae?.[0]}
+            disabled={saving}
+          />
+          <TextField
+            label="Working Day Starts (hour)"
+            name="workdayStartHour"
+            type="number"
+            hint="24-hour clock, local time. e.g. 9"
+            value={form.workdayStartHour}
+            onChange={(e) => setForm({ ...form, workdayStartHour: e.target.value })}
+            error={errors.workdayStartHour?.[0]}
+            disabled={saving}
+          />
+          <TextField
+            label="Working Day Ends (hour)"
+            name="workdayEndHour"
+            type="number"
+            hint="24-hour clock, local time. e.g. 18"
+            value={form.workdayEndHour}
+            onChange={(e) => setForm({ ...form, workdayEndHour: e.target.value })}
+            error={errors.workdayEndHour?.[0]}
             disabled={saving}
           />
         </div>

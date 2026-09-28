@@ -8,7 +8,7 @@ import { TextField } from "@/components/forms/TextField";
 import { PasswordField } from "@/components/forms/PasswordField";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { Button } from "@/components/ui/Button";
-import { StaffGoogleButton } from "@/components/auth/StaffGoogleButton";
+import { GoogleButton } from "@/components/auth/GoogleButton";
 import { toast } from "@/components/ui/Toaster";
 import { postJson, ApiError } from "@/lib/api/client";
 import { staffLoginFormSchema, type StaffLoginFormValues } from "@/lib/validation/staff-login-schema";
@@ -41,7 +41,7 @@ const LOGIN_TYPE_CAPTIONS: Record<StaffLoginFormValues["loginType"], string> = {
   team_member: "Welcome back! Let's make every journey seamless.",
 };
 
-export function StaffLoginForm({ redirectTo }: StaffLoginFormProps) {
+export function StaffLoginForm({ redirectTo, googleEnabled = false }: StaffLoginFormProps & { googleEnabled?: boolean }) {
   const router = useRouter();
   const {
     register,
@@ -101,12 +101,16 @@ export function StaffLoginForm({ redirectTo }: StaffLoginFormProps) {
       <Button type="submit" className="w-full" isLoading={isSubmitting}>
         Sign In
       </Button>
-      <div className="flex items-center gap-3">
-        <span className="h-px flex-1 bg-hairline" />
-        <span className="text-xs text-ink-tertiary">or</span>
-        <span className="h-px flex-1 bg-hairline" />
-      </div>
-      <StaffGoogleButton />
+      {googleEnabled ? (
+        <>
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-hairline" />
+            <span className="text-xs text-ink-tertiary">or</span>
+            <span className="h-px flex-1 bg-hairline" />
+          </div>
+          <GoogleButton href={`/api/auth/google/start?for=staff${redirectTo ? `&next=${encodeURIComponent(redirectTo)}` : ""}`} />
+        </>
+      ) : null}
     </form>
   );
 }

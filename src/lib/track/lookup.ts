@@ -3,6 +3,7 @@ import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import type { TrackResult, TrackStage, TrackStageStatus } from "./types";
 import type { BookingStatus, LeadStatus, ServiceType } from "../../generated/prisma/enums";
 import { HOLD_MARKER } from "../service-status/events";
+import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, type OutputType } from "../outputs/output-types";
 
 /**
  * The 5 locked customer-facing stages — Homepage_FINAL_Locked_1of1.docx §6:
@@ -130,6 +131,21 @@ async function buildServiceStages(serviceType: ServiceType, current: CurrentServ
   }));
 }
 
+/** P09 — what's been delivered on a booking (labels and dates only; no file links on this public page). */
+async function deliveredOutputs(bookingId: string | null | undefined) {
+  if (!bookingId) return undefined;
+  const documents = await db.document.findMany({
+    where: { bookingId, type: { in: [...OUTPUT_TYPES] }, deliveredAt: { not: null } },
+    orderBy: { deliveredAt: "asc" },
+    select: { type: true, deliveredAt: true },
+  });
+  if (documents.length === 0) return undefined;
+  return documents.map((document) => ({
+    label: OUTPUT_TYPE_LABELS[document.type as OutputType],
+    deliveredDate: formatDate(document.deliveredAt as Date),
+  }));
+}
+
 function closedMessageFor(bookingStatus: BookingStatus | null, leadStatus: LeadStatus): string {
   if (bookingStatus === "CANCELLED") return "This booking has been cancelled.";
   if (bookingStatus === "REFUNDED") return "This booking was cancelled and refunded.";
@@ -194,6 +210,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
       applicantName: maskName(lead.customer.name),
       submittedDate: formatDate(lead.createdAt),
       stages: stageIndex === "closed" ? [] : (serviceStages ?? buildStages(stageIndex)),
+      delivered: await deliveredOutputs(booking?.id),
       closedMessage: stageIndex === "closed" ? closedMessageFor(booking?.status ?? null, lead.status) : undefined,
     };
   }
@@ -216,6 +233,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
       applicantName: maskName(booking.customer.name),
       submittedDate: formatDate(booking.createdAt),
       stages: stageIndex === "closed" ? [] : (serviceStages ?? buildStages(stageIndex)),
+      delivered: await deliveredOutputs(booking.id),
       closedMessage: stageIndex === "closed" ? closedMessageFor(booking.status, booking.lead.status) : undefined,
     };
   }

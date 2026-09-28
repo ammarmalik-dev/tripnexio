@@ -9,7 +9,16 @@ import { toast } from "@/components/ui/Toaster";
 import { postJson, ApiError } from "@/lib/api/client";
 import { resetPasswordSchema, type ResetPasswordValues } from "@/lib/validation/reset-password-schema";
 
-export function ResetPasswordForm({ token }: { token: string }) {
+export function ResetPasswordForm({
+  token,
+  endpoint = "/api/crm/auth/reset-password",
+  signInHref = "/crm/login",
+}: {
+  token: string;
+  /** P09 — the customer /reset-password page reuses this form against its own endpoint. */
+  endpoint?: string;
+  signInHref?: string;
+}) {
   const router = useRouter();
   const {
     register,
@@ -22,9 +31,9 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await postJson("/api/crm/auth/reset-password", values);
+      await postJson(endpoint, values);
       toast.success("Password reset. Please sign in.");
-      router.push("/crm/login");
+      router.push(signInHref);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't reset your password. Please try again.");
     }

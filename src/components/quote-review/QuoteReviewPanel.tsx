@@ -12,6 +12,7 @@ import { toast } from "@/components/ui/Toaster";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { formatRupees } from "@/lib/return-ticket/use-return-ticket-destinations";
 import { siteConfig } from "@/lib/site-config";
+import { TermsCheckbox, type TermsView } from "@/components/terms/TermsAgreement";
 
 interface QuoteOption {
   id: string;
@@ -36,6 +37,7 @@ interface ReviewView {
   leadStatus: string;
   quotations: QuoteOption[];
   bookingToken: string | null;
+  terms: TermsView | null;
 }
 
 function formatDateTime(iso: string): string {
@@ -46,10 +48,12 @@ function QuoteCard({
   quote,
   onApprove,
   approving,
+  canApprove,
 }: {
   quote: QuoteOption;
   onApprove: () => void;
   approving: boolean;
+  canApprove: boolean;
 }) {
   const payable = quote.sellingPrice - (quote.couponDiscount ?? 0);
   return (
@@ -85,7 +89,7 @@ function QuoteCard({
         <p className="text-xs text-ink-tertiary">Valid until {formatDateTime(quote.validityExpiresAt)}</p>
       ) : null}
 
-      <Button type="button" onClick={onApprove} isLoading={approving} className="mt-1">
+      <Button type="button" onClick={onApprove} isLoading={approving} disabled={!canApprove} className="mt-1">
         Approve &amp; Continue to Payment
       </Button>
     </div>
@@ -99,6 +103,7 @@ export function QuoteReviewPanel({ token }: { token: string }) {
   const [view, setView] = useState<ReviewView | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [approvingId, setApprovingId] = useState<string | null>(null);
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
@@ -143,7 +148,7 @@ export function QuoteReviewPanel({ token }: { token: string }) {
   const handleApprove = async (quotationId: string) => {
     setApprovingId(quotationId);
     try {
-      const result = await postJson<{ payToken: string }>(`/api/quote/${token}/approve`, { quotationId });
+      const result = await postJson<{ payToken: string }>(`/api/quote/${token}/approve`, { quotationId, acceptTerms: termsAgreed });
       toast.success("Quote approved.");
       router.push(`/pay/${result.payToken}`);
     } catch (error) {
@@ -173,9 +178,16 @@ export function QuoteReviewPanel({ token }: { token: string }) {
               We&apos;ve prepared {view.quotations.length} options — choose the one that suits you.
             </p>
           ) : null}
+          <TermsCheckbox terms={view.terms} checked={termsAgreed} onChange={setTermsAgreed} id="quote-terms" />
           <div className="flex flex-col gap-4">
             {view.quotations.map((quote) => (
-              <QuoteCard key={quote.id} quote={quote} onApprove={() => void handleApprove(quote.id)} approving={approvingId === quote.id} />
+              <QuoteCard
+                key={quote.id}
+                quote={quote}
+                onApprove={() => void handleApprove(quote.id)}
+                approving={approvingId === quote.id}
+                canApprove={termsAgreed}
+              />
             ))}
           </div>
         </>

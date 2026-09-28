@@ -10,13 +10,19 @@ import { PasswordField } from "@/components/forms/PasswordField";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toaster";
 import { AuthDivider } from "./AuthDivider";
-import { GoogleButton } from "./GoogleButton";
+import { GoogleButton, customerGoogleHref } from "./GoogleButton";
 import { GuestContinueLink } from "./GuestContinueLink";
 import { AuthSuccessNotice } from "./AuthSuccessNotice";
 import { postJson, ApiError } from "@/lib/api/client";
 import { loginSchema, type LoginValues } from "@/lib/validation/auth-schema";
 
-export function LoginForm() {
+/**
+ * `next` (a same-site path) is where the customer goes after signing in —
+ * e.g. back to the request form they started (P09 Apply flow). Without it
+ * they see the signed-in notice. The Google button shows only when Google
+ * Sign-In is configured.
+ */
+export function LoginForm({ next, googleEnabled = false }: { next?: string | null; googleEnabled?: boolean } = {}) {
   const router = useRouter();
   const [signedIn, setSignedIn] = useState(false);
   const {
@@ -32,6 +38,11 @@ export function LoginForm() {
     try {
       await postJson("/api/auth/login", values);
       toast.success("Signed in.");
+      if (next) {
+        router.push(next);
+        router.refresh();
+        return;
+      }
       setSignedIn(true);
       router.refresh();
     } catch (error) {
@@ -70,15 +81,22 @@ export function LoginForm() {
         <Button type="submit" className="w-full" isLoading={isSubmitting}>
           Log In
         </Button>
+        <Link href="/forgot-password" className="text-center text-sm font-medium text-ink-accent hover:underline">
+          Forgot password?
+        </Link>
       </form>
 
-      <AuthDivider />
-      <GoogleButton />
+      {googleEnabled ? (
+        <>
+          <AuthDivider />
+          <GoogleButton href={customerGoogleHref(next)} />
+        </>
+      ) : null}
       <GuestContinueLink />
 
       <p className="text-center text-sm text-ink-secondary">
         Don&rsquo;t have an account?{" "}
-        <Link href="/register" className="font-medium text-ink-accent hover:underline">
+        <Link href={next ? `/register?next=${encodeURIComponent(next)}` : "/register"} className="font-medium text-ink-accent hover:underline">
           Register
         </Link>
       </p>

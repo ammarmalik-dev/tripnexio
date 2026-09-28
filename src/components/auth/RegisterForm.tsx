@@ -10,13 +10,23 @@ import { PasswordField } from "@/components/forms/PasswordField";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toaster";
 import { AuthDivider } from "./AuthDivider";
-import { GoogleButton } from "./GoogleButton";
+import { GoogleButton, customerGoogleHref } from "./GoogleButton";
 import { GuestContinueLink } from "./GuestContinueLink";
 import { AuthSuccessNotice } from "./AuthSuccessNotice";
 import { postJson, ApiError } from "@/lib/api/client";
 import { registerSchema, type RegisterValues } from "@/lib/validation/auth-schema";
 
-export function RegisterForm() {
+export function RegisterForm({
+  next,
+  googleEnabled = false,
+  prefill,
+}: {
+  /** Same-site path to continue to after registering (P09 Apply flow). */
+  next?: string | null;
+  googleEnabled?: boolean;
+  /** From a Google sign-in with no account yet — email/name to start from. */
+  prefill?: { email?: string; fullName?: string };
+} = {}) {
   const router = useRouter();
   const [registered, setRegistered] = useState(false);
   /** Set when an earlier guest record matched and a code was emailed to it — the form then asks for that code. */
@@ -28,7 +38,7 @@ export function RegisterForm() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", mobile: "", email: "", password: "", confirmPassword: "", otp: "" },
+    defaultValues: { fullName: prefill?.fullName ?? "", mobile: "", email: prefill?.email ?? "", password: "", confirmPassword: "", otp: "" },
   });
 
   const onSubmit = handleSubmit(async (values) => {
@@ -40,6 +50,11 @@ export function RegisterForm() {
         return;
       }
       toast.success("Account created — you're signed in.");
+      if (next) {
+        router.push(next);
+        router.refresh();
+        return;
+      }
       setRegistered(true);
       router.refresh();
     } catch (error) {
@@ -120,13 +135,17 @@ export function RegisterForm() {
         </Button>
       </form>
 
-      <AuthDivider />
-      <GoogleButton />
+      {googleEnabled ? (
+        <>
+          <AuthDivider />
+          <GoogleButton href={customerGoogleHref(next)} />
+        </>
+      ) : null}
       <GuestContinueLink />
 
       <p className="text-center text-sm text-ink-secondary">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-ink-accent hover:underline">
+        <Link href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"} className="font-medium text-ink-accent hover:underline">
           Log In
         </Link>
       </p>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ApplyGate } from "@/components/apply/ApplyGate";
 import { OtbRequestFlow } from "@/components/services/otb/OtbRequestFlow";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function OtbRequestPage() {
-  return <OtbRequestFlow />;
+  return (
+    <ApplyGate>
+      <OtbRequestFlow />
+    </ApplyGate>
+  );
 }

@@ -37,6 +37,11 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   const notPayable = await assertQuotationPayable(payment);
   if (notPayable) return jsonError(409, notPayable);
 
+  // P09 — no payment without the Terms & Conditions accepted on this booking.
+  if (!payment.booking.termsAcceptedAt) {
+    return jsonError(409, "Please agree to the Terms & Conditions before paying.");
+  }
+
   const result = await db.$transaction((tx) =>
     completePaymentSuccess(tx, payment, { actorLabel: "demo payment (payment gateway not connected yet)" }, {
       gatewayRef: payment.gatewayRef ?? undefined,

@@ -15,6 +15,7 @@ import { PaymentPanel, type PaymentData } from "./PaymentPanel";
 import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
+import { DeliverOutputSection } from "./DeliverOutputSection";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
 import { ReusableDocumentsPrompt } from "./ReusableDocumentsPrompt";
 import { CommunicationsPanel } from "./CommunicationsPanel";
@@ -33,6 +34,8 @@ interface DocumentItem {
   fileUrl: string | null;
   createdAt: string;
   passengerId: string | null;
+  /** P09 — set on documents delivered to the customer (visa, ticket, package...). */
+  deliveredAt?: string | null;
 }
 
 interface BookingPassengerItem {
@@ -331,6 +334,13 @@ export function BookingDetail({
               </div>
             )}
           </section>
+
+          <DeliverOutputSection
+            bookingId={booking.id}
+            passengers={booking.passengers}
+            documents={booking.documents}
+            onDelivered={() => setReloadNonce((current) => current + 1)}
+          />
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
             <div className="mb-3 flex items-center justify-between gap-2">

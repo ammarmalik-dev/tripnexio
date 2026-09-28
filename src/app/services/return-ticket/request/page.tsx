@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ApplyGate } from "@/components/apply/ApplyGate";
 import { ReturnTicketRequestFlow } from "@/components/services/return-ticket/ReturnTicketRequestFlow";
 
 export const metadata: Metadata = {
@@ -7,5 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function ReturnTicketRequestPage() {
-  return <ReturnTicketRequestFlow />;
+  return (
+    <ApplyGate>
+      <ReturnTicketRequestFlow />
+    </ApplyGate>
+  );
 }

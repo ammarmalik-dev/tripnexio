@@ -178,10 +178,26 @@ model Customer {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  passengers Passenger[]
-  leads      Lead[]
-  bookings   Booking[]
-  otps       CustomerOtp[]
+  passengers          Passenger[]
+  leads               Lead[]
+  bookings            Booking[]
+  otps                CustomerOtp[]
+  passwordResetTokens CustomerPasswordResetToken[]
+}
+
+/// P09 — customer "forgot password" links: only the sha256 hash is stored,
+/// 30-minute expiry, single use (same scheme as the staff PasswordResetToken).
+model CustomerPasswordResetToken {
+  id         String    @id @default(cuid())
+  customerId String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
 }
 
 /// One-time codes emailed to a customer's EXISTING email to prove ownership
@@ -367,6 +383,12 @@ model Booking {
   /// pay, then upload documents after payment. Only set for bookings created
   /// by the website's pay-right-after-the-form flow (Return Ticket, OTB).
   customerToken             String?           @unique
+  /// P09 — the Service Terms the customer agreed to before paying (null
+  /// version = the general website Terms, when no service terms exist).
+  termsId                   String?
+  termsVersion              Int?
+  termsAcceptedAt           DateTime?
+  termsAcceptedIp           String?
   leadId                    String
   customerId                String
   status                    BookingStatus     @default(PENDING)
@@ -636,6 +658,8 @@ model Document {
   /// Mandatory staff reason when status is REJECTED; cleared when the document moves on.
   rejectionReason String?
   fileUrl         String?
+  /// P09 — set when staff deliver an output document (visa, ticket, package...) to the customer.
+  deliveredAt     DateTime?
   /// Step 21 (audit §7.5) — New_Visa.md §27: set when the retention-purge
   /// automation deletes this document's file (3+ months past the
   /// booking's processing completion, Passport/Visa types exempted). The
@@ -1077,6 +1101,7 @@ model Country {
   newVisaCountryConfig    NewVisaCountryConfig?
   visaTypes               VisaType[]
   nationalities           Nationality[]
+  serviceTerms            ServiceTerms[]
 
   @@index([active])
 }
@@ -1641,6 +1666,12 @@ model SystemConfig {
   backupRetentionDays    Int?
   backupScheduleNote     String?
   maintenanceModeEnabled Boolean  @default(false)
+  /// P09 working calendar — weekend days per country as JS weekday numbers
+  /// ("0,6" = Sunday + Saturday), and the business-hours window.
+  weekendDaysIndia       String   @default("0,6")
+  weekendDaysUae         String   @default("0,6")
+  workdayStartHour       Int      @default(9)
+  workdayEndHour         Int      @default(18)
   maintenanceMessage     String?
   systemAlertEmail       String?
   createdAt              DateTime @default(now())
@@ -2166,4 +2197,43 @@ model InvoiceCounter {
   financialYear String   @id
   lastValue     Int      @default(0)
   updatedAt     DateTime @updatedAt
+}
+
+/// P09 — per-service Terms & Conditions the customer must accept before
+/// paying. Versioned: editing means adding a new version; the active
+/// highest version for the service (country-specific first) applies.
+model ServiceTerms {
+  id          String      @id @default(cuid())
+  serviceType ServiceType
+  /// null = every destination country; set = overrides for that country.
+  countryId   String?
+  version     Int
+  title       String
+  body        String
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  country Country? @relation(fields: [countryId], references: [id])
+
+  @@index([serviceType, countryId])
+}
+
+enum HolidayCountry {
+  INDIA
+  UAE
+}
+
+/// P09 — public holidays, Admin-managed; working-day rules skip them.
+model Holiday {
+  id        String         @id @default(cuid())
+  date      DateTime       @db.Date
+  country   HolidayCountry
+  name      String
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([date, country])
+  @@index([country, active])
 }
