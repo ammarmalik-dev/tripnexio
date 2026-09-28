@@ -506,6 +506,23 @@ model Payment {
   @@index([status])
 }
 
+/// Idempotency ledger for payment gateway webhooks: one row per processed
+/// gateway event. `id` is the gateway's own event id (Razorpay's
+/// x-razorpay-event-id header), or a SHA-256 of the raw body when the gateway
+/// sends none. A redelivered event hits the primary key and is acknowledged
+/// without being processed a second time.
+model PaymentWebhookEvent {
+  id         String   @id
+  provider   String
+  eventName  String
+  gatewayRef String
+  /// What this delivery did: COMPLETED, FAILED, AMOUNT_MISMATCH, QUOTE_EXPIRED, IGNORED.
+  outcome    String
+  createdAt  DateTime @default(now())
+
+  @@index([gatewayRef])
+}
+
 model Refund {
   id                 String       @id @default(cuid())
   paymentId          String

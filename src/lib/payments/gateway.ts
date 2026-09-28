@@ -36,6 +36,12 @@ export interface GatewayWebhookEvent {
   gatewayPaymentId: string | null;
   /** Raw provider event name, for logging/debugging (e.g. "payment_link.paid"). */
   rawEventName: string;
+  /** Amount the gateway reports as paid, in paise — null when the payload doesn't carry one. */
+  amountInPaise: number | null;
+  /** ISO currency code reported by the gateway (e.g. "INR") — null when absent. */
+  currency: string | null;
+  /** The gateway's own event id when it's in the payload body (Razorpay sends it as a header instead — see the webhook route). */
+  eventId: string | null;
 }
 
 export interface PaymentGateway {

@@ -14,7 +14,8 @@ import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayWebhookEve
 export class MockPaymentGateway implements PaymentGateway {
   readonly providerName = "mock";
 
-  constructor(private readonly webhookSecret: string) {}
+  /** null = no webhook secret configured, so every webhook is rejected. */
+  constructor(private readonly webhookSecret: string | null) {}
 
   async createPaymentLink(_input: CreatePaymentLinkInput): Promise<CreatePaymentLinkResult> {
     const id = `mock_plink_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
@@ -22,10 +23,10 @@ export class MockPaymentGateway implements PaymentGateway {
   }
 
   verifyAndParseWebhook(rawBody: string, signatureHeader: string | null): GatewayWebhookEvent | null {
-    if (!signatureHeader) return null;
+    if (!signatureHeader || !this.webhookSecret) return null;
     if (!verifyMockSignature(rawBody, signatureHeader, this.webhookSecret)) return null;
 
-    let payload: { event?: string; gatewayRef?: string; gatewayPaymentId?: string };
+    let payload: { event?: string; gatewayRef?: string; gatewayPaymentId?: string; amountInPaise?: number; currency?: string; eventId?: string };
     try {
       payload = JSON.parse(rawBody);
     } catch {
@@ -33,11 +34,19 @@ export class MockPaymentGateway implements PaymentGateway {
     }
     if (!payload.gatewayRef) return null;
 
+    const details = {
+      gatewayRef: payload.gatewayRef,
+      gatewayPaymentId: payload.gatewayPaymentId ?? null,
+      amountInPaise: typeof payload.amountInPaise === "number" ? payload.amountInPaise : null,
+      currency: payload.currency ?? null,
+      eventId: payload.eventId ?? null,
+    };
+
     if (payload.event === "payment.success") {
-      return { type: "PAYMENT_SUCCESS", gatewayRef: payload.gatewayRef, gatewayPaymentId: payload.gatewayPaymentId ?? null, rawEventName: payload.event };
+      return { type: "PAYMENT_SUCCESS", rawEventName: payload.event, ...details };
     }
     if (payload.event === "payment.failed") {
-      return { type: "PAYMENT_FAILED", gatewayRef: payload.gatewayRef, gatewayPaymentId: payload.gatewayPaymentId ?? null, rawEventName: payload.event };
+      return { type: "PAYMENT_FAILED", rawEventName: payload.event, ...details };
     }
     return null;
   }

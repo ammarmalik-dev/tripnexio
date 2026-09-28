@@ -11,11 +11,23 @@ export function isExpiredNow(quotation: Pick<Quotation, "validityExpiresAt" | "i
 }
 
 /**
- * Lazily marks any past-due quotations as expired — there's no cron job in
- * M2, so this runs whenever quotations are read (list/select) instead.
+ * Lazily marks any past-due quotations as expired — runs whenever quotations
+ * are read (list/select) and from the quote-expiry automation. A selected
+ * quotation, or one on a lead whose booking already has a SUCCESS payment,
+ * is never flipped: it has been accepted/paid, so expiring it would deselect
+ * the quote the booking was priced from and notify the customer wrongly.
+ * Payability of a selected quote is still time-checked by isExpiredNow().
  */
 export async function syncExpiredQuotations<T extends Quotation>(quotations: T[]): Promise<T[]> {
-  const dueToExpire = quotations.filter((quotation) => !quotation.isExpired && isExpiredNow(quotation));
+  const pastDue = quotations.filter((quotation) => !quotation.isSelected && !quotation.isExpired && isExpiredNow(quotation));
+  if (pastDue.length === 0) return quotations;
+
+  const paidLeads = await db.payment.findMany({
+    where: { status: "SUCCESS", booking: { leadId: { in: [...new Set(pastDue.map((quotation) => quotation.leadId))] } } },
+    select: { booking: { select: { leadId: true } } },
+  });
+  const paidLeadIds = new Set(paidLeads.map((payment) => payment.booking.leadId));
+  const dueToExpire = pastDue.filter((quotation) => !paidLeadIds.has(quotation.leadId));
   if (dueToExpire.length === 0) return quotations;
 
   const updatedById = await db.$transaction(async (tx) => {

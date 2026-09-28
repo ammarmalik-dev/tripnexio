@@ -10,6 +10,7 @@ import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { money } from "@/lib/invoices/render-invoice";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { paymentTotal } from "@/lib/payments/totals";
 
 const REMIND_AFTER_MS = 2 * 60 * 60 * 1000;
 const REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
         const alreadyReminded = await wasRecentlyReminded("PAYMENT_REMINDER", "Payment", payment.id, REMINDER_COOLDOWN_MS);
         if (alreadyReminded) continue;
 
-        const total = Number(payment.amount) + Number(payment.gstAmount) + Number(payment.gatewayFee);
+        const total = paymentTotal(payment);
         await notifyCustomer({
           event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,
           emailTo: payment.booking.customer.email,

@@ -1,23 +1,23 @@
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
-import { getPaymentGateway } from "@/lib/payments/get-gateway";
+import { isMockGatewayActive, isProductionRuntime } from "@/lib/payments/get-gateway";
 import { completePaymentSuccess } from "@/lib/payments/complete-payment";
 import { notifyPaymentReceived } from "@/lib/payments/notify-payment-received";
+import { assertQuotationPayable } from "@/lib/payments/quotation-payable";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
 }
 
 /**
- * Demo-only "Pay now": completes the pending payment exactly like the real
- * gateway webhook does (same completePaymentSuccess + payment-received
- * notification). Refuses outright unless the mock gateway is the active one —
- * once real Razorpay keys are configured, payments only complete through
- * Razorpay's signed webhook.
+ * Demo-only "Pay now" for local development: completes the pending payment
+ * exactly like the real gateway webhook does. Does not exist in production
+ * (404), and outside production refuses unless the mock gateway is active.
  */
 export async function POST(_request: NextRequest, { params }: RouteParams) {
-  if (getPaymentGateway().providerName !== "mock") {
+  if (isProductionRuntime()) return jsonError(404, "Not found.");
+  if (!isMockGatewayActive()) {
     return jsonError(403, "Demo payments are only available while the payment gateway isn't connected.");
   }
 
@@ -33,6 +33,9 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   if (payment.status !== "PENDING") {
     return jsonError(409, `This payment is already ${payment.status.toLowerCase()}.`);
   }
+
+  const notPayable = await assertQuotationPayable(payment);
+  if (notPayable) return jsonError(409, notPayable);
 
   const result = await db.$transaction((tx) =>
     completePaymentSuccess(tx, payment, { actorLabel: "demo payment (payment gateway not connected yet)" }, {

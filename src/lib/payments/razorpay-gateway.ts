@@ -56,15 +56,27 @@ export class RazorpayGateway implements PaymentGateway {
       return null;
     }
 
-    const linkId = payload.payload?.payment_link?.entity?.id;
-    const paymentId = payload.payload?.payment?.entity?.id ?? null;
+    const linkEntity = payload.payload?.payment_link?.entity;
+    const paymentEntity = payload.payload?.payment?.entity;
+    const linkId = linkEntity?.id;
+    const paymentId = paymentEntity?.id ?? null;
     if (!linkId) return null;
 
+    const rawAmount = paymentEntity?.amount ?? linkEntity?.amount_paid;
+    const details = {
+      gatewayRef: linkId,
+      gatewayPaymentId: paymentId,
+      rawEventName: payload.event,
+      amountInPaise: typeof rawAmount === "number" ? rawAmount : null,
+      currency: paymentEntity?.currency ?? linkEntity?.currency ?? null,
+      eventId: null,
+    };
+
     if (payload.event === "payment_link.paid") {
-      return { type: "PAYMENT_SUCCESS", gatewayRef: linkId, gatewayPaymentId: paymentId, rawEventName: payload.event };
+      return { type: "PAYMENT_SUCCESS", ...details };
     }
     if (payload.event === "payment_link.expired" || payload.event === "payment_link.cancelled" || payload.event === "payment.failed") {
-      return { type: "PAYMENT_FAILED", gatewayRef: linkId, gatewayPaymentId: paymentId, rawEventName: payload.event };
+      return { type: "PAYMENT_FAILED", ...details };
     }
     return null;
   }
@@ -73,8 +85,8 @@ export class RazorpayGateway implements PaymentGateway {
 interface RazorpayWebhookPayload {
   event: string;
   payload?: {
-    payment_link?: { entity?: { id?: string } };
-    payment?: { entity?: { id?: string } };
+    payment_link?: { entity?: { id?: string; amount_paid?: number; currency?: string } };
+    payment?: { entity?: { id?: string; amount?: number; currency?: string } };
   };
 }
 

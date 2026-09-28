@@ -49,6 +49,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (payment.status !== "PENDING") {
     return jsonError(409, `This payment is already ${payment.status.toLowerCase()}.`);
   }
+  if (payment.method === "BANK_TRANSFER") {
+    return jsonError(409, "Bank transfer payments must be confirmed with Approve Bank Transfer (needs payments.approve and an uploaded slip).");
+  }
 
   const result = await db.$transaction((tx) =>
     completePaymentSuccess(

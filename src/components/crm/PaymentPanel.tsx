@@ -239,7 +239,7 @@ export function PaymentPanel({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        {payment.status === "PENDING" ? (
+        {payment.status === "PENDING" && payment.method !== "BANK_TRANSFER" ? (
           <Button type="button" size="sm" onClick={() => void handleMarkSuccess()} isLoading={markingSuccess}>
             Mark Success Manually
           </Button>

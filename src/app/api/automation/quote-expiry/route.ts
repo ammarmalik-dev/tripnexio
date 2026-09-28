@@ -46,7 +46,13 @@ export async function POST(request: NextRequest) {
   try {
     const summary = await recordAutomationRun("quote-expiry", async () => {
       const candidates = await db.quotation.findMany({
-        where: { isExpired: false, validityExpiresAt: { not: null } },
+        // Selected or paid quotes never expire and get no reminders (see syncExpiredQuotations).
+        where: {
+          isExpired: false,
+          isSelected: false,
+          validityExpiresAt: { not: null },
+          lead: { bookings: { none: { payments: { some: { status: "SUCCESS" } } } } },
+        },
         include: { lead: { include: { customer: true } } },
       });
 

@@ -26,6 +26,7 @@ interface CheckoutView {
     paymentLink: string | null;
     linkExpiresAt: string | null;
   } | null;
+  quotationExpired: boolean;
   demoGateway: boolean;
   applicants: { id: string; fullName: string }[];
   documentTypes: { type: string; label: string }[];
@@ -226,7 +227,20 @@ export function CheckoutPanel({ token }: { token: string }) {
         </div>
       )}
 
-      {payment?.status === "PENDING" ? (
+      {payment?.status === "PENDING" && view.quotationExpired ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-error/30 bg-error/10 p-5">
+          <p className="flex items-center gap-2 text-sm font-semibold text-error">
+            <XCircle className="h-4 w-4" aria-hidden="true" />
+            This quotation has expired.
+          </p>
+          <p className="text-sm text-ink-secondary">Message us with your reference number and we&apos;ll send you an updated quotation.</p>
+          <div>
+            <ButtonLink href={siteConfig.contact.whatsappHref}>WhatsApp Support</ButtonLink>
+          </div>
+        </div>
+      ) : null}
+
+      {payment?.status === "PENDING" && !view.quotationExpired ? (
         <div className="flex flex-col gap-3">
           {view.demoGateway ? (
             <>

@@ -4,6 +4,7 @@ import { buildInvoicePdfForPayment, money } from "../invoices/render-invoice";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { paymentTotal } from "./totals";
 
 /**
  * Called by the mark-success route and the gateway webhook route right
@@ -24,7 +25,7 @@ export async function notifyPaymentReceived(paymentId: string): Promise<void> {
   if (!payment) return;
 
   const invoice = await buildInvoicePdfForPayment(paymentId);
-  const total = invoice?.total ?? Number(payment.amount) + Number(payment.gstAmount) + Number(payment.gatewayFee);
+  const total = invoice?.total ?? paymentTotal(payment);
 
   await notifyCustomer({
     event: NOTIFICATION_EVENTS.PAYMENT_RECEIVED,

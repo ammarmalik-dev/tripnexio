@@ -1,5 +1,6 @@
 import { db } from "../db";
-import { getPaymentGateway } from "../payments/get-gateway";
+import { isMockGatewayActive } from "../payments/get-gateway";
+import { assertQuotationPayable } from "../payments/quotation-payable";
 import { formatLeadReference } from "../leads/reference";
 import { resolveCheckoutDocumentTypes } from "./required-documents";
 
@@ -26,6 +27,7 @@ export async function loadCheckoutByToken(token: string) {
   const discount = Number(payment?.couponDiscount ?? 0);
 
   const documentTypes = paid ? await resolveCheckoutDocumentTypes(booking) : [];
+  const quotationExpired = payment?.status === "PENDING" ? (await assertQuotationPayable({ purpose: payment.purpose, booking })) !== null : false;
 
   return {
     booking,
@@ -42,11 +44,12 @@ export async function loadCheckoutByToken(token: string) {
             gatewayFee,
             discount,
             total: Math.max(0, amount - discount) + gst + gatewayFee,
-            paymentLink: payment.status === "PENDING" ? payment.paymentLink : null,
+            paymentLink: payment.status === "PENDING" && !quotationExpired ? payment.paymentLink : null,
             linkExpiresAt: payment.linkExpiresAt,
           }
         : null,
-      demoGateway: getPaymentGateway().providerName === "mock",
+      quotationExpired,
+      demoGateway: isMockGatewayActive(),
       applicants: booking.passengers.map((row) => ({ id: row.passenger.id, fullName: row.passenger.fullName })),
       documentTypes,
       documents: booking.documents

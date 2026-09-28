@@ -4,7 +4,9 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { createPendingPayment } from "@/lib/payments/create-payment";
-import { isExpiredNow, syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
+import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
+import { assertQuotationPayable } from "@/lib/payments/quotation-payable";
+import { PaymentGatewayConfigError } from "@/lib/payments/get-gateway";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -41,19 +43,22 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     return jsonError(409, "No selected quotation found for this booking's lead.");
   }
 
-  // Flight quotes have a tight (<=30 min) validity window (see
-  // src/lib/quotations/pricing.ts) that can lapse between booking creation
-  // and payment creation — re-check it right before generating a payment
-  // link, don't just trust that it was valid when the booking was made.
-  if (booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" && isExpiredNow(selectedQuotation)) {
-    return jsonError(409, "This flight quote has expired. Build a new quote for this lead before creating a payment.");
+  // Any service's quotation can carry a validityExpiresAt that lapses between
+  // booking creation and payment creation — re-check it right before
+  // generating a payment link.
+  if (await assertQuotationPayable({ purpose: "PRIMARY", booking })) {
+    return jsonError(409, "This quotation has expired. Build a new quote for this lead before creating a payment.");
   }
 
-  const payment = await createPendingPayment({
-    booking,
-    quotation: selectedQuotation,
-    actor: { byUserId: session.id, label: `by ${session.name}` },
-  });
-
-  return jsonSuccess(payment, 201);
+  try {
+    const payment = await createPendingPayment({
+      booking,
+      quotation: selectedQuotation,
+      actor: { byUserId: session.id, label: `by ${session.name}` },
+    });
+    return jsonSuccess(payment, 201);
+  } catch (error) {
+    if (error instanceof PaymentGatewayConfigError) return jsonError(503, error.message);
+    throw error;
+  }
 }
