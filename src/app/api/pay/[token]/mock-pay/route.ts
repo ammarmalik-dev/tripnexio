@@ -42,7 +42,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       gatewayRef: payment.gatewayRef ?? undefined,
     })
   );
-  if (result.didTransition) await notifyPaymentReceived(result.payment.id);
+  if (result.didTransition) await notifyPaymentReceived(result.payment.id, result.statusNotifications);
 
   return jsonSuccess({ status: result.payment.status });
 }

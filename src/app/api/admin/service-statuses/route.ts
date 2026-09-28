@@ -42,6 +42,12 @@ export async function GET(request: NextRequest) {
   );
 }
 
+/** One status per system event per service and scope — otherwise the engine couldn't tell which one an event means. */
+async function systemEventTaken(serviceType: ServiceType, scope: StatusScope, systemEvent: string | null | undefined) {
+  if (!systemEvent) return false;
+  return Boolean(await db.serviceStatus.findFirst({ where: { serviceType, scope, systemEvent } }));
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
@@ -64,6 +70,9 @@ export async function POST(request: NextRequest) {
   });
   if (existing) {
     return jsonError(400, "A status with this name already exists for this service.", { name: ["This name is taken."] });
+  }
+  if (await systemEventTaken(parsed.data.serviceType, parsed.data.scope, parsed.data.systemEvent)) {
+    return jsonError(400, "Another status of this service already uses that system event.", { systemEvent: ["Already used by another status."] });
   }
 
   const status = await db.$transaction(async (tx) => {

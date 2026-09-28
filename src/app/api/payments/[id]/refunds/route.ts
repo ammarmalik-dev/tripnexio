@@ -43,7 +43,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     where: { id: paymentId },
     include: {
       booking: {
-        include: { lead: true, passengers: { include: { passenger: true } }, documents: true },
+        include: {
+          lead: true,
+          passengers: { include: { passenger: true } },
+          documents: true,
+          serviceStatus: { select: { blocksRefund: true } },
+        },
       },
     },
   });
@@ -78,6 +83,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const rule = evaluateRefundRule({
     serviceType: payment.booking.lead.serviceType,
     bookingStatus: payment.booking.status,
+    blocksRefund: payment.booking.serviceStatus?.blocksRefund ?? null,
     documentsValidated: documentsValidated(payment.booking.documents),
     packageGenerated: packageGenerated(payment.booking.documents),
     extensionOutcome: payment.booking.extensionOutcome,

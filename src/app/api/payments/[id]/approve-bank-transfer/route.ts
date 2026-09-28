@@ -60,7 +60,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   );
 
   if (result.didTransition) {
-    await notifyPaymentReceived(result.payment.id);
+    await notifyPaymentReceived(result.payment.id, result.statusNotifications);
   }
 
   return jsonSuccess(result);

@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { writeAudit } from "@/lib/audit/log";
 import { loadCheckoutByToken } from "@/lib/checkout/load-checkout";
 import { resolveCheckoutDocumentTypes } from "@/lib/checkout/required-documents";
@@ -64,6 +66,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const bookingId = checkout.booking.id;
     const existing = await db.document.findFirst({ where: { bookingId, passengerId, type } });
 
+    let statusNotifications: StatusNotification[] = [];
     const document = await db.$transaction(async (tx) => {
       const saved = existing
         ? await tx.document.update({ where: { id: existing.id }, data: { fileUrl: url, status: "RECEIVED", purgedAt: null, rejectionReason: null } })
@@ -74,8 +77,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         action: existing ? "REPLACE_UPLOAD" : "CREATE",
         note: `${type} uploaded by the customer after payment (website)`,
       });
+      statusNotifications = await applyBookingDocumentEvent(tx, bookingId, { actorLabel: "customer upload (website)" });
       return saved;
     });
+    await dispatchStatusNotifications(statusNotifications);
     if (existing?.fileUrl) await deleteUploadedFile(existing.fileUrl);
 
     return jsonSuccess({ id: document.id, passengerId, type, status: document.status }, 201);

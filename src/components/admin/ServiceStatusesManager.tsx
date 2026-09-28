@@ -10,9 +10,13 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
-import { SERVICE_TYPE_OPTIONS, SERVICE_TYPE_LABELS, BOOKING_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { SERVICE_TYPE_OPTIONS, SERVICE_TYPE_LABELS, BOOKING_STATUS_OPTIONS, LEAD_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { NOTIFICATION_EVENT_CATALOG } from "@/lib/notifications/events";
+import { SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER, SYSTEM_EVENT_LABELS } from "@/lib/service-status/events";
 import { cn } from "@/lib/cn";
-import type { ServiceType, BookingStatus } from "../../generated/prisma/enums";
+import type { ServiceType, BookingStatus, LeadStatus } from "../../generated/prisma/enums";
+
+const SYSTEM_EVENT_OPTIONS = [...SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER].map((value) => ({ value, label: SYSTEM_EVENT_LABELS[value] }));
 
 type StatusScope = "LEAD" | "BOOKING";
 
@@ -26,8 +30,10 @@ interface StatusData {
   isTerminal: boolean;
   blocksRefund: boolean;
   customerLabel: string | null;
-  mapsToLeadStatus: string | null;
+  mapsToLeadStatus: LeadStatus | null;
   mapsToBookingStatus: BookingStatus | null;
+  notificationEvent: string | null;
+  systemEvent: string | null;
   active: boolean;
   transitions: { id: string; toStatusId: string }[];
 }
@@ -39,7 +45,10 @@ interface StatusFormState {
   isTerminal: boolean;
   blocksRefund: boolean;
   customerLabel: string;
-  mapsToBookingStatus: string;
+  /** mapsToLeadStatus or mapsToBookingStatus, depending on the screen's scope. */
+  mapsTo: string;
+  notificationEvent: string;
+  systemEvent: string;
 }
 
 function toFormState(status: StatusData): StatusFormState {
@@ -50,7 +59,9 @@ function toFormState(status: StatusData): StatusFormState {
     isTerminal: status.isTerminal,
     blocksRefund: status.blocksRefund,
     customerLabel: status.customerLabel ?? "",
-    mapsToBookingStatus: status.mapsToBookingStatus ?? "",
+    mapsTo: (status.scope === "LEAD" ? status.mapsToLeadStatus : status.mapsToBookingStatus) ?? "",
+    notificationEvent: status.notificationEvent ?? "",
+    systemEvent: status.systemEvent ?? "",
   };
 }
 
@@ -61,10 +72,12 @@ const EMPTY_FORM: StatusFormState = {
   isTerminal: false,
   blocksRefund: false,
   customerLabel: "",
-  mapsToBookingStatus: "",
+  mapsTo: "",
+  notificationEvent: "",
+  systemEvent: "",
 };
 
-function buildPayload(form: StatusFormState) {
+function buildPayload(form: StatusFormState, scope: StatusScope) {
   return {
     name: form.name.trim(),
     group: form.group.trim() === "" ? undefined : form.group.trim(),
@@ -72,11 +85,59 @@ function buildPayload(form: StatusFormState) {
     isTerminal: form.isTerminal,
     blocksRefund: form.blocksRefund,
     customerLabel: form.customerLabel.trim() === "" ? undefined : form.customerLabel.trim(),
-    mapsToBookingStatus: form.mapsToBookingStatus === "" ? null : form.mapsToBookingStatus,
+    ...(scope === "LEAD"
+      ? { mapsToLeadStatus: form.mapsTo === "" ? null : form.mapsTo }
+      : { mapsToBookingStatus: form.mapsTo === "" ? null : form.mapsTo }),
+    notificationEvent: form.notificationEvent === "" ? null : form.notificationEvent,
+    systemEvent: form.systemEvent === "" ? null : form.systemEvent,
   };
 }
 
-function StatusFields({ form, onChange, disabled }: { form: StatusFormState; onChange: (next: StatusFormState) => void; disabled: boolean }) {
+function OptionSelect({
+  id,
+  label,
+  value,
+  emptyLabel,
+  options,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  emptyLabel: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-ink-heading">
+        {label}
+      </label>
+      <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={cn(fieldControlClass, fieldBorderClass(false))}>
+        <option value="">{emptyLabel}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function StatusFields({
+  form,
+  onChange,
+  disabled,
+  scope,
+}: {
+  form: StatusFormState;
+  onChange: (next: StatusFormState) => void;
+  disabled: boolean;
+  scope: StatusScope;
+}) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <TextField label="Name" name="name" value={form.name} onChange={(e) => onChange({ ...form, name: e.target.value })} disabled={disabled} />
@@ -96,25 +157,33 @@ function StatusFields({ form, onChange, disabled }: { form: StatusFormState; onC
         onChange={(e) => onChange({ ...form, displayOrder: e.target.value })}
         disabled={disabled}
       />
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="mapsToBookingStatus" className="text-sm font-medium text-ink-heading">
-          Maps to Booking Status
-        </label>
-        <select
-          id="mapsToBookingStatus"
-          value={form.mapsToBookingStatus}
-          disabled={disabled}
-          onChange={(e) => onChange({ ...form, mapsToBookingStatus: e.target.value })}
-          className={cn(fieldControlClass, fieldBorderClass(false))}
-        >
-          <option value="">Not mapped</option>
-          {BOOKING_STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <OptionSelect
+        id="mapsTo"
+        label={scope === "LEAD" ? "Maps to Lead Status" : "Maps to Booking Status"}
+        value={form.mapsTo}
+        emptyLabel="Not mapped (keeps the current one)"
+        options={scope === "LEAD" ? LEAD_STATUS_OPTIONS : BOOKING_STATUS_OPTIONS}
+        onChange={(value) => onChange({ ...form, mapsTo: value })}
+        disabled={disabled}
+      />
+      <OptionSelect
+        id="systemEvent"
+        label="Moved here automatically on"
+        value={form.systemEvent}
+        emptyLabel="Staff only (no system event)"
+        options={SYSTEM_EVENT_OPTIONS}
+        onChange={(value) => onChange({ ...form, systemEvent: value })}
+        disabled={disabled}
+      />
+      <OptionSelect
+        id="notificationEvent"
+        label="Notify customer with"
+        value={form.notificationEvent}
+        emptyLabel="No message"
+        options={NOTIFICATION_EVENT_CATALOG.map((entry) => ({ value: entry.event, label: entry.label }))}
+        onChange={(value) => onChange({ ...form, notificationEvent: value })}
+        disabled={disabled}
+      />
       <TextField
         label="Customer-Safe Label (optional)"
         name="customerLabel"
@@ -158,7 +227,7 @@ function StatusCard({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const updated = await patchJson<StatusData>(`/api/admin/service-statuses/${status.id}`, buildPayload(form));
+      const updated = await patchJson<StatusData>(`/api/admin/service-statuses/${status.id}`, buildPayload(form, status.scope));
       toast.success(`Status "${updated.name}" updated.`);
       onSaved(updated);
     } catch (error) {
@@ -209,7 +278,7 @@ function StatusCard({
           {status.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <StatusFields form={form} onChange={setForm} disabled={saving} />
+      <StatusFields form={form} onChange={setForm} disabled={saving} scope={status.scope} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -284,7 +353,7 @@ function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: Service
   const handleCreate = async () => {
     setCreating(true);
     try {
-      const created = await postJson<StatusData>("/api/admin/service-statuses", { serviceType, scope, ...buildPayload(form) });
+      const created = await postJson<StatusData>("/api/admin/service-statuses", { serviceType, scope, ...buildPayload(form, scope) });
       toast.success(`Status "${created.name}" created.`);
       onCreated(created);
       setForm(EMPTY_FORM);
@@ -298,7 +367,7 @@ function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: Service
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Status</h2>
-      <StatusFields form={form} onChange={setForm} disabled={creating} />
+      <StatusFields form={form} onChange={setForm} disabled={creating} scope={scope} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!form.name.trim()}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -313,6 +382,7 @@ type FetchState = "loading" | "success" | "error";
 
 export function ServiceStatusesManager() {
   const [serviceType, setServiceType] = useState<ServiceType>("NEW_VISA");
+  const [scope, setScope] = useState<StatusScope>("BOOKING");
   const [state, setState] = useState<FetchState>("loading");
   const [statuses, setStatuses] = useState<StatusData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
@@ -323,7 +393,7 @@ export function ServiceStatusesManager() {
     async function load() {
       setState("loading");
       try {
-        const result = await getJson<StatusData[]>(`/api/admin/service-statuses?serviceType=${serviceType}&scope=BOOKING`);
+        const result = await getJson<StatusData[]>(`/api/admin/service-statuses?serviceType=${serviceType}&scope=${scope}`);
         if (cancelled) return;
         setStatuses(result);
         setState("success");
@@ -337,7 +407,7 @@ export function ServiceStatusesManager() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, reloadNonce]);
+  }, [serviceType, scope, reloadNonce]);
 
   const groups = Array.from(new Set(statuses.map((s) => s.group ?? "")));
 
@@ -358,6 +428,13 @@ export function ServiceStatusesManager() {
           </option>
         ))}
       </select>
+      <div className="flex gap-2" role="group" aria-label="Status list">
+        {(["BOOKING", "LEAD"] as const).map((option) => (
+          <Button key={option} type="button" size="sm" variant={scope === option ? "primary" : "ghost"} onClick={() => setScope(option)}>
+            {option === "BOOKING" ? "Booking statuses" : "Lead statuses"}
+          </Button>
+        ))}
+      </div>
 
       {state === "loading" ? (
         <div className="flex flex-col gap-3">
@@ -402,7 +479,9 @@ export function ServiceStatusesManager() {
           ))
         : null}
 
-      {state === "success" ? <NewStatusForm serviceType={serviceType} scope="BOOKING" onCreated={(created) => setStatuses((current) => [...current, created])} /> : null}
+      {state === "success" ? (
+        <NewStatusForm key={`${serviceType}-${scope}`} serviceType={serviceType} scope={scope} onCreated={(created) => setStatuses((current) => [...current, created])} />
+      ) : null}
     </div>
   );
 }

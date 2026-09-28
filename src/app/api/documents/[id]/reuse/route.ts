@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { reuseDocumentSchema } from "@/lib/validation/document-reuse-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
@@ -64,6 +66,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(409, "This document is no longer eligible for reuse — request a fresh upload instead.");
   }
 
+  let statusNotifications: StatusNotification[] = [];
   const created = await db.$transaction(async (tx) => {
     const document = await tx.document.create({
       data: {
@@ -81,8 +84,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       byUserId: session.id,
       note: `Reused document ${source.id} (${source.type}, ${candidate.ageInDays} days old) — confirmed by staff (by ${session.name})`,
     });
+    statusNotifications = await applyBookingDocumentEvent(tx, document.bookingId, { userId: session.id, actorLabel: `by ${session.name}` });
     return document;
   });
+  await dispatchStatusNotifications(statusNotifications);
 
   return jsonSuccess(created, 201);
 }

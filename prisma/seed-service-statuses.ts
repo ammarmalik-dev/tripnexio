@@ -32,7 +32,8 @@
  * every real-world branch — the MDs describe these as prose flow
  * diagrams, not formal state machines.
  */
-import type { ServiceType, BookingStatus } from "../src/generated/prisma/enums";
+import type { ServiceType, BookingStatus, LeadStatus } from "../src/generated/prisma/enums";
+import { HOLD_MARKER, type ServiceStatusSystemEvent } from "../src/lib/service-status/events";
 
 export interface StatusSeed {
   name: string;
@@ -41,14 +42,23 @@ export interface StatusSeed {
   blocksRefund?: boolean;
   customerLabel?: string;
   mapsToBookingStatus?: BookingStatus;
+  mapsToLeadStatus?: LeadStatus;
+  /** P08: the system event that moves a record to this status (or the On Hold marker). */
+  systemEvent?: ServiceStatusSystemEvent | typeof HOLD_MARKER;
+  /** Left out of the automatic "next in the same group" chain — its transitions are listed explicitly. */
+  noAutoChain?: boolean;
 }
 
 export interface ServiceStatusSeedDef {
   serviceType: ServiceType;
+  scope?: "LEAD" | "BOOKING";
   statuses: StatusSeed[];
   /** Extra transitions beyond the auto-generated "next in same group" chain, as [fromName, toName] pairs. */
   extraTransitions?: [string, string][];
 }
+
+/** P08: every service gets an "On Hold" status per scope, reachable from and returning to every non-terminal status. */
+export const ON_HOLD_STATUS_NAME = "On Hold";
 
 export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
   {
@@ -56,12 +66,12 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
     statuses: [
       { name: "Draft", mapsToBookingStatus: "PENDING" },
       { name: "Payment Pending", mapsToBookingStatus: "PENDING" },
-      { name: "Payment Received", customerLabel: "Application Received", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Pending", customerLabel: "Documents Upload Pending", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Received", customerLabel: "Documents Uploaded", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Payment Received", customerLabel: "Application Received", mapsToBookingStatus: "CONFIRMED", systemEvent: "PAYMENT_SUCCESS" },
+      { name: "Documents Pending", customerLabel: "Documents Upload Pending", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_REQUESTED" },
+      { name: "Documents Received", customerLabel: "Documents Uploaded", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_RECEIVED" },
       { name: "OCR / Validation", mapsToBookingStatus: "CONFIRMED" },
       { name: "Staff Verification", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Ready for Submission", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Ready for Submission", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_VALIDATED" },
       {
         name: "Submitted to Embassy",
         customerLabel: "Applied to Embassy",
@@ -95,7 +105,9 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "Vendor/Sponsor Selected", mapsToBookingStatus: "CONFIRMED" },
       { name: "Quotation Ready", mapsToBookingStatus: "CONFIRMED" },
       { name: "Payment Pending", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Payment Received", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Payment Received", mapsToBookingStatus: "CONFIRMED", systemEvent: "PAYMENT_SUCCESS" },
+      // P08 — Visa Extension handover's customer-facing "Document Validated" step.
+      { name: "Documents Validated", customerLabel: "Document Validated", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_VALIDATED" },
       { name: "Processing", customerLabel: "Applied to Embassy", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Additional Information Required", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Re-processing", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
@@ -130,16 +142,19 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "Customer Notified", mapsToBookingStatus: "PENDING" },
       { name: "Date/Time/Package Selected", mapsToBookingStatus: "PENDING" },
       { name: "Payment Pending", mapsToBookingStatus: "PENDING" },
-      { name: "Payment Received", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Payment Received", mapsToBookingStatus: "CONFIRMED", systemEvent: "PAYMENT_SUCCESS" },
       { name: "Booking ID Generated", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Pending", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Received", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Verified", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Documents Pending", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_REQUESTED" },
+      { name: "Documents Received", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_RECEIVED" },
+      { name: "Documents Verified", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_VALIDATED" },
       { name: "Package Generated", customerLabel: "Package Generated", mapsToBookingStatus: "PROCESSING" },
       { name: "Exit Pending", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Exit Completed", customerLabel: "Border Exited", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "New Visa Processing", customerLabel: "New Visa Applied to Embassy", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Additional Documents Required", customerLabel: "Additional Documents Required", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      // P08 — Visa Change Page Content V3 customer steps.
+      { name: "Additional Documents Validated", customerLabel: "Additional Documents Validated", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Additional Documents Submitted", customerLabel: "Additional Documents Submitted", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Visa Approved", customerLabel: "Visa Approved", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Visa Rejected", customerLabel: "Rejected", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
       { name: "Visa Delivered", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
@@ -153,11 +168,11 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "Return Ticket Upsell Offered", mapsToBookingStatus: "PENDING" },
       { name: "Application Started", customerLabel: "Request Received", mapsToBookingStatus: "PENDING" },
       { name: "Payment Pending", mapsToBookingStatus: "PENDING" },
-      { name: "Payment Successful", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Payment Successful", mapsToBookingStatus: "CONFIRMED", systemEvent: "PAYMENT_SUCCESS" },
       { name: "Booking Generated", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Required", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Document Validation Pending", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Validated", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Documents Required", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_REQUESTED" },
+      { name: "Document Validation Pending", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_RECEIVED" },
+      { name: "Documents Validated", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_VALIDATED" },
       {
         name: "Forwarded to Airline / Vendor",
         mapsToBookingStatus: "PROCESSING",
@@ -188,18 +203,21 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "OTB Upsell Offered", group: "Booking", mapsToBookingStatus: "PENDING" },
       { name: "OTB Application Started", customerLabel: "OTB Application Received", group: "Booking", mapsToBookingStatus: "PENDING" },
       { name: "Payment Pending", group: "Booking", mapsToBookingStatus: "PENDING" },
-      { name: "Payment Successful", group: "Booking", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Payment Successful", group: "Booking", mapsToBookingStatus: "CONFIRMED", systemEvent: "PAYMENT_SUCCESS" },
       { name: "OTB Booking Generated", group: "Booking", mapsToBookingStatus: "CONFIRMED" },
       // Verification
       { name: "Staff Verification Pending", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Required", customerLabel: "Documents Upload Pending", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Document Validation Pending", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
-      { name: "Documents Validated", customerLabel: "Documents Validated", group: "Verification", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Documents Required", customerLabel: "Documents Upload Pending", group: "Verification", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_REQUESTED" },
+      { name: "Document Validation Pending", group: "Verification", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_RECEIVED" },
+      { name: "Documents Validated", customerLabel: "Documents Validated", group: "Verification", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_VALIDATED" },
       // Airline
       { name: "Ready for Submission", group: "Airline", mapsToBookingStatus: "CONFIRMED" },
       { name: "Submitted to Airline", customerLabel: "Sent to Airlines", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Airline Processing", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Additional Documents Required", customerLabel: "Additional Documents Required", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      // P08 — OTB Page Content v3 customer steps.
+      { name: "Additional Documents Validated", customerLabel: "Additional Documents Validated", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Additional Documents Submitted", customerLabel: "Additional Documents Submitted", group: "Airline", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "OTB Approved", customerLabel: "OTB Updated", group: "Airline", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
       { name: "OTB Rejected", group: "Airline", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
       // Exceptions
@@ -231,9 +249,12 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "Expiring", mapsToBookingStatus: "PENDING" },
       { name: "Expired", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
       { name: "New Quote Requested", mapsToBookingStatus: "PENDING" },
-      { name: "Payment Pending", mapsToBookingStatus: "PENDING" },
-      { name: "Paid", customerLabel: "Payment Completed", mapsToBookingStatus: "CONFIRMED" },
+      { name: "Payment Pending", customerLabel: "Quotation Approved", mapsToBookingStatus: "PENDING" },
+      { name: "Paid", customerLabel: "Payment Completed", mapsToBookingStatus: "CONFIRMED", systemEvent: "PAYMENT_SUCCESS" },
       { name: "Final Confirmation", mapsToBookingStatus: "CONFIRMED" },
+      // P08 — Special Fare handover customer steps; wired by explicit transitions below.
+      { name: "Documents Validated", customerLabel: "Documents Validated", mapsToBookingStatus: "CONFIRMED", systemEvent: "DOCUMENTS_VALIDATED", noAutoChain: true },
+      { name: "Sent to Airlines", customerLabel: "Sent to Airlines", mapsToBookingStatus: "PROCESSING", noAutoChain: true },
       { name: "Alternative Offered", mapsToBookingStatus: "PENDING" },
       { name: "Additional Payment Pending", mapsToBookingStatus: "CONFIRMED" },
       { name: "Refund Pending", mapsToBookingStatus: "REFUNDED" },
@@ -251,6 +272,86 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       ["Paid", "Cancelled"],
       ["Cancelled", "Refund Pending"],
       ["Quote Sent", "Follow-up Due"],
+      ["Paid", "Documents Validated"],
+      ["Final Confirmation", "Documents Validated"],
+      ["Documents Validated", "Sent to Airlines"],
+      ["Sent to Airlines", "Ticket Issued"],
+      ["Sent to Airlines", "Cancelled"],
     ],
   },
 ];
+
+/**
+ * P08 — LEAD-scope statuses. No client doc breaks the sales funnel down per
+ * service, so every service gets the same list, one status per LeadStatus
+ * value (mapsToLeadStatus keeps the coarse column in sync), with the same
+ * transitions src/lib/leads/transitions.ts already allowed. Admin can
+ * rename, relabel or rewire them per service at /admin/service-statuses.
+ */
+const LEAD_STATUSES: StatusSeed[] = ([
+  { name: "New", mapsToLeadStatus: "NEW" },
+  { name: "Contacted", mapsToLeadStatus: "CONTACTED" },
+  { name: "Follow-up Required", mapsToLeadStatus: "FOLLOW_UP_REQUIRED" },
+  { name: "Customer Responded", mapsToLeadStatus: "CUSTOMER_RESPONDED" },
+  { name: "Qualified", mapsToLeadStatus: "QUALIFIED" },
+  { name: "Quotation Created", mapsToLeadStatus: "QUOTATION_CREATED", systemEvent: "QUOTATION_CREATED" },
+  { name: "Quotation Accepted", mapsToLeadStatus: "QUOTATION_ACCEPTED", systemEvent: "QUOTATION_ACCEPTED" },
+  { name: "Payment Pending", mapsToLeadStatus: "PAYMENT_PENDING" },
+  { name: "Converted", mapsToLeadStatus: "CONVERTED", isTerminal: true, systemEvent: "PAYMENT_SUCCESS" },
+  { name: "Lost", mapsToLeadStatus: "LOST", isTerminal: true },
+  { name: "Closed", mapsToLeadStatus: "CLOSED", isTerminal: true },
+] satisfies StatusSeed[]).map((status): StatusSeed => ({ ...status, noAutoChain: true }));
+
+const LEAD_TRANSITIONS: [string, string][] = [
+  ["New", "Contacted"], ["New", "Follow-up Required"], ["New", "Lost"], ["New", "Closed"],
+  ["Contacted", "Follow-up Required"], ["Contacted", "Customer Responded"], ["Contacted", "Qualified"], ["Contacted", "Lost"], ["Contacted", "Closed"],
+  ["Follow-up Required", "Contacted"], ["Follow-up Required", "Customer Responded"], ["Follow-up Required", "Qualified"], ["Follow-up Required", "Lost"], ["Follow-up Required", "Closed"],
+  ["Customer Responded", "Qualified"], ["Customer Responded", "Follow-up Required"], ["Customer Responded", "Lost"], ["Customer Responded", "Closed"],
+  ["Qualified", "Quotation Created"], ["Qualified", "Follow-up Required"], ["Qualified", "Lost"], ["Qualified", "Closed"],
+  ["Quotation Created", "Quotation Accepted"], ["Quotation Created", "Follow-up Required"], ["Quotation Created", "Lost"], ["Quotation Created", "Closed"],
+  ["Quotation Accepted", "Payment Pending"], ["Quotation Accepted", "Follow-up Required"], ["Quotation Accepted", "Lost"], ["Quotation Accepted", "Closed"],
+  ["Payment Pending", "Converted"], ["Payment Pending", "Follow-up Required"], ["Payment Pending", "Lost"], ["Payment Pending", "Closed"],
+];
+
+const SERVICES_WITH_STATUSES = [...new Set(SERVICE_STATUS_SEED.map((def) => def.serviceType))];
+
+export const LEAD_STATUS_SEED: ServiceStatusSeedDef[] = SERVICES_WITH_STATUSES.map((serviceType) => ({
+  serviceType,
+  scope: "LEAD",
+  statuses: LEAD_STATUSES,
+  extraTransitions: LEAD_TRANSITIONS,
+}));
+
+/** The On Hold row appended to every service's list for both scopes (transitions added by the seeder). */
+export const ON_HOLD_SEED: StatusSeed = { name: ON_HOLD_STATUS_NAME, systemEvent: HOLD_MARKER, noAutoChain: true };
+
+/** Every service × scope definition, with On Hold appended — what seed.ts and the P08 migration apply. */
+export const ALL_STATUS_SEED: (ServiceStatusSeedDef & { scope: "LEAD" | "BOOKING" })[] = [
+  ...SERVICE_STATUS_SEED.map((def) => ({ ...def, scope: "BOOKING" as const })),
+  ...LEAD_STATUS_SEED.map((def) => ({ ...def, scope: "LEAD" as const })),
+].map((def) => ({ ...def, statuses: [...def.statuses, ON_HOLD_SEED] }));
+
+/**
+ * Every transition for one definition: the auto chain (consecutive statuses
+ * in the same group, skipping noAutoChain rows), the explicit extras, and
+ * On Hold to/from every non-terminal status.
+ */
+export function transitionsFor(def: ServiceStatusSeedDef): [string, string][] {
+  const byGroup = new Map<string | undefined, string[]>();
+  for (const status of def.statuses) {
+    if (status.noAutoChain) continue;
+    const names = byGroup.get(status.group) ?? [];
+    names.push(status.name);
+    byGroup.set(status.group, names);
+  }
+  const pairs: [string, string][] = [];
+  for (const names of byGroup.values()) {
+    for (let i = 0; i < names.length - 1; i++) pairs.push([names[i], names[i + 1]]);
+  }
+  pairs.push(...(def.extraTransitions ?? []));
+  for (const status of def.statuses) {
+    if (status.isTerminal || status.name === ON_HOLD_STATUS_NAME) continue;
+    pairs.push([status.name, ON_HOLD_STATUS_NAME], [ON_HOLD_STATUS_NAME, status.name]);
+  }
+  return pairs;
+}

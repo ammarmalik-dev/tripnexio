@@ -8,7 +8,9 @@ import type { RefundConfigValues } from "./config";
  * only decides which of those tiers applies right now:
  *
  * - Cutoff EXTERNAL_SUBMISSION = the application was sent to the embassy /
- *   airline / vendor, i.e. BookingStatus PROCESSING or COMPLETED.
+ *   airline / vendor — read from the booking's per-service status
+ *   (ServiceStatus.blocksRefund, Admin-editable, P08); only a booking with
+ *   no per-service status falls back to BookingStatus PROCESSING/COMPLETED.
  * - Cutoff PACKAGE_GENERATED = a PACKAGE_PDF document exists on the booking
  *   (or the booking is COMPLETED).
  * - Within `fullRefundWindowHours` of payment: gateway charges only.
@@ -21,6 +23,8 @@ import type { RefundConfigValues } from "./config";
 export interface RefundRuleContext {
   serviceType: ServiceType;
   bookingStatus: BookingStatus;
+  /** The booking's per-service status blocksRefund flag; null/undefined when it has no per-service status. */
+  blocksRefund?: boolean | null;
   /** Every Document attached to this booking is VERIFIED, and at least one exists. */
   documentsValidated: boolean;
   /** A PACKAGE_PDF output document exists on the booking. */
@@ -62,7 +66,8 @@ const CUTOFF_LABEL: Record<Exclude<RefundConfigValues["noRefundAfter"], "NEVER">
 
 export function evaluateRefundRule(context: RefundRuleContext, config: RefundConfigValues): RefundRuleResult {
   const now = context.now ?? new Date();
-  const externallySubmitted = context.bookingStatus === "PROCESSING" || context.bookingStatus === "COMPLETED";
+  const externallySubmitted =
+    context.blocksRefund ?? (context.bookingStatus === "PROCESSING" || context.bookingStatus === "COMPLETED");
 
   if (config.noRefundAfter === "EXTERNAL_SUBMISSION" && externallySubmitted) {
     return blocked(CUTOFF_LABEL.EXTERNAL_SUBMISSION);

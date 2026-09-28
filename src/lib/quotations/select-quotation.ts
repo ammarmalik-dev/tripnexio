@@ -3,6 +3,7 @@ import type { Prisma } from "../../generated/prisma/client";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { isExpiredNow } from "./sync-expiry";
+import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "../service-status/engine";
 
 export interface SelectActor {
   byUserId?: string;
@@ -25,6 +26,7 @@ export async function selectQuotation(quotationId: string, actor: SelectActor) {
   }
   if (quotation.isSelected) return { ok: true as const, quotation };
 
+  const statusNotifications: (StatusNotification | null)[] = [];
   const result = await db.$transaction(async (tx) => {
     const others = await tx.quotation.findMany({
       where: { leadId: quotation.leadId, id: { not: quotationId } },
@@ -72,10 +74,16 @@ export async function selectQuotation(quotationId: string, actor: SelectActor) {
         note: `${lead.status} -> QUOTATION_ACCEPTED (quotation selected ${actor.label})`,
       });
     }
+    if (lead) {
+      statusNotifications.push(
+        await applySystemEvent(tx, { scope: "LEAD", entityId: lead.id, event: "QUOTATION_ACCEPTED", userId: actor.byUserId, actorLabel: actor.label })
+      );
+    }
 
     return selected;
   });
 
+  await dispatchStatusNotifications(statusNotifications);
   return { ok: true as const, quotation: result };
 }
 

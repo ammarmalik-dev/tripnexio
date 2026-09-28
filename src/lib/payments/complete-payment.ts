@@ -2,6 +2,7 @@ import type { Prisma, Payment, Booking, Lead } from "../../generated/prisma/clie
 import type { PaymentStatus } from "../../generated/prisma/enums";
 import { writeAudit } from "../audit/log";
 import { nextInvoiceNumber } from "../invoices/invoice-number";
+import { applySystemEvent, type StatusNotification } from "../service-status/engine";
 
 type PaymentWithBookingLead = Payment & { booking: Booking & { lead: Lead } };
 
@@ -25,9 +26,9 @@ export async function completePaymentSuccess(
   payment: PaymentWithBookingLead,
   actor: ActorInfo,
   options: { gatewayRef?: string } = {}
-): Promise<{ payment: Payment; booking: Booking; lead: Lead; didTransition: boolean }> {
+): Promise<{ payment: Payment; booking: Booking; lead: Lead; didTransition: boolean; statusNotifications: StatusNotification[] }> {
   if (payment.status === "SUCCESS") {
-    return { payment, booking: payment.booking, lead: payment.booking.lead, didTransition: false };
+    return { payment, booking: payment.booking, lead: payment.booking.lead, didTransition: false, statusNotifications: [] };
   }
 
   const updatedPayment = await tx.payment.update({
@@ -103,7 +104,18 @@ export async function completePaymentSuccess(
     });
   }
 
-  return { payment: updatedPayment, booking: updatedBooking, lead: updatedLead, didTransition: true };
+  // P08 — the per-service statuses follow (Booking "Payment Received"-style
+  // status, Lead "Converted"); forward only, so an EXTRA payment on a
+  // booking already further along changes nothing.
+  const eventActor = { userId: actor.byUserId, actorLabel: actor.actorLabel };
+  const statusNotifications = (
+    await Promise.all([
+      applySystemEvent(tx, { scope: "BOOKING", entityId: payment.bookingId, event: "PAYMENT_SUCCESS", ...eventActor }),
+      applySystemEvent(tx, { scope: "LEAD", entityId: updatedLead.id, event: "PAYMENT_SUCCESS", ...eventActor }),
+    ])
+  ).filter((notification): notification is StatusNotification => notification !== null);
+
+  return { payment: updatedPayment, booking: updatedBooking, lead: updatedLead, didTransition: true, statusNotifications };
 }
 
 /**

@@ -2,6 +2,7 @@ import type { Prisma } from "../../generated/prisma/client";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { bookingIdForLead } from "./reference";
+import { getInitialServiceStatusId } from "../service-status/engine";
 import { isExpiredNow } from "../quotations/sync-expiry";
 import { getProtectionPlanDefaultPrice } from "../settings/protection-plan-config";
 import { buildDocumentChecklistSnapshot } from "./document-checklist-snapshot";
@@ -89,6 +90,7 @@ export async function createBookingFromQuotation(
     const created = await tx.booking.create({
       data: {
         bookingId: await bookingIdForLead(tx, quotation.lead),
+        serviceStatusId: await getInitialServiceStatusId(tx, quotation.lead.serviceType, "BOOKING"),
         customerToken: generateToken(),
         leadId: quotation.leadId,
         customerId: quotation.lead.customerId,

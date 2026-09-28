@@ -5,6 +5,7 @@ import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { paymentTotal } from "./totals";
+import { dispatchStatusNotifications, type StatusNotification } from "../service-status/engine";
 
 /**
  * Called by the mark-success route and the gateway webhook route right
@@ -17,7 +18,9 @@ import { paymentTotal } from "./totals";
  * Document.fileUrl's own "no storage integration here" note); the WhatsApp
  * copy instead points the customer at their email/the CRM for the invoice.
  */
-export async function notifyPaymentReceived(paymentId: string): Promise<void> {
+export async function notifyPaymentReceived(paymentId: string, statusNotifications: StatusNotification[] = []): Promise<void> {
+  // P08 — any per-service status messages Admin configured for the statuses the payment moved the booking/lead onto.
+  await dispatchStatusNotifications(statusNotifications);
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
     include: { booking: { include: { customer: true, lead: true } } },

@@ -11,7 +11,7 @@ export interface TrackResult {
   service: string;
   applicantName: string;
   submittedDate: string;
-  /** Empty when `closedMessage` is set — a closed/cancelled/refunded request doesn't fit the 5-stage progress scale. */
+  /** The service's own customer-facing steps (P08), or the generic 5 stages when none apply. Empty when `closedMessage` is set. */
   stages: TrackStage[];
   /** Set only for a terminal-negative status (Lead LOST/CLOSED, Booking CANCELLED/REFUNDED) — shown instead of the stage timeline. */
   closedMessage?: string;

@@ -33,6 +33,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       // Step 20 (audit §7.1) — same flat-array-filtered-by-passengerId
       // convention as `documents` below, not duplicated onto each passenger.
       protectionPlans: { orderBy: { createdAt: "asc" } },
+      serviceStatus: { select: { id: true, name: true, customerLabel: true, blocksRefund: true } },
     },
   });
   if (!booking) return jsonError(404, "Booking not found.");
@@ -57,6 +58,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         ? evaluateRefundRule({
             serviceType: booking.lead.serviceType,
             bookingStatus: synced.status,
+            blocksRefund: booking.serviceStatus?.blocksRefund ?? null,
             documentsValidated: docsValidated,
             packageGenerated: packageGenerated(booking.documents),
             extensionOutcome: synced.extensionOutcome,

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getCustomerSession } from "@/lib/auth/get-customer-session";
 import { db } from "@/lib/db";
 import { leadReference } from "@/lib/leads/reference";
-import { CUSTOMER_LEAD_STATUS_LABELS, CUSTOMER_BOOKING_STATUS_LABELS } from "@/lib/account/labels";
+import { customerStatusLabel } from "@/lib/service-status/customer-label";
 import { getOutstandingDocuments } from "@/lib/account/outstanding-documents";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { InfoPage } from "@/components/layout/InfoPage";
@@ -26,10 +26,14 @@ export default async function AccountPage() {
   if (!session) redirect("/login");
 
   const [leads, bookings, outstandingDocuments] = await Promise.all([
-    db.lead.findMany({ where: { customerId: session.id }, orderBy: { createdAt: "desc" } }),
+    db.lead.findMany({
+      where: { customerId: session.id },
+      orderBy: { createdAt: "desc" },
+      include: { serviceStatus: { select: { customerLabel: true } } },
+    }),
     db.booking.findMany({
       where: { customerId: session.id },
-      include: { lead: { select: { serviceType: true } } },
+      include: { lead: { select: { serviceType: true } }, serviceStatus: { select: { customerLabel: true } } },
       orderBy: { createdAt: "desc" },
     }),
     getOutstandingDocuments(session.id),
@@ -61,7 +65,7 @@ export default async function AccountPage() {
                 </span>
               </div>
               <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-ink-accent">
-                {CUSTOMER_LEAD_STATUS_LABELS[lead.status]}
+                {customerStatusLabel("LEAD", lead.serviceStatus, lead.status)}
               </span>
             </div>
           ))
@@ -82,7 +86,7 @@ export default async function AccountPage() {
                 </span>
               </div>
               <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
-                {CUSTOMER_BOOKING_STATUS_LABELS[booking.status]}
+                {customerStatusLabel("BOOKING", booking.serviceStatus, booking.status)}
               </span>
             </div>
           ))

@@ -25,6 +25,7 @@ export const NOTIFICATION_EVENTS = {
   DOCUMENT_REJECTED: "DOCUMENT_REJECTED",
   LEAD_FOLLOWUP: "LEAD_FOLLOWUP",
   VISA_EXTENSION_REMINDER: "VISA_EXTENSION_REMINDER",
+  SERVICE_STATUS_UPDATE: "SERVICE_STATUS_UPDATE",
 } as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[keyof typeof NOTIFICATION_EVENTS];
@@ -119,5 +120,15 @@ export const NOTIFICATION_EVENT_CATALOG: {
     variables: ["customerName", "bookingId", "extensionExpiryDate"],
     wired: true,
     sampleVariables: { customerName: "Sample Customer", bookingId: "10626VE003", extensionExpiryDate: "30 Oct 2026" },
+  },
+  {
+    // P08 — sent when a Lead/Booking enters a per-service status whose
+    // "Notify customer" is set to this event (Admin → Service Statuses).
+    // {{status}} is the customer-safe label, never the internal name.
+    event: NOTIFICATION_EVENTS.SERVICE_STATUS_UPDATE,
+    label: "Service status update",
+    variables: ["customerName", "leadReference", "status"],
+    wired: true,
+    sampleVariables: { customerName: "Sample Customer", leadReference: "10626VI001", status: "Applied to Embassy" },
   },
 ];

@@ -107,7 +107,7 @@ export async function POST(request: NextRequest) {
         return completePaymentSuccess(tx, payment, actor);
       });
       if (result.didTransition) {
-        await notifyPaymentReceived(result.payment.id);
+        await notifyPaymentReceived(result.payment.id, result.statusNotifications);
       }
     } else {
       await db.$transaction(async (tx) => {

@@ -1,21 +1,34 @@
 import type { NextRequest } from "next/server";
-import { updateBookingStatusSchema } from "@/lib/validation/booking-schema";
+import { serviceStatusChangeSchema } from "@/lib/validation/service-status-change-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
-import { writeAudit } from "@/lib/audit/log";
-import { assertValidBookingTransition } from "@/lib/bookings/transitions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { dispatchStatusNotifications, getAllowedNextServiceStatuses, setServiceStatus } from "@/lib/service-status/engine";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+/** The booking's current per-service status and the statuses it may move to next (CRM.md §14). */
+export async function GET(_request: NextRequest, { params }: RouteParams) {
+  const auth = await requirePermission("bookings.view");
+  if (auth.error) return auth.error;
+  const { id } = await params;
+
+  const booking = await db.booking.findUnique({ where: { id }, select: { lead: { select: { serviceType: true } } } });
+  if (!booking) return jsonError(404, "Booking not found.");
+  const scopeError = assertServiceAccess(auth.session, booking.lead.serviceType);
+  if (scopeError) return scopeError;
+
+  return jsonSuccess(await getAllowedNextServiceStatuses("BOOKING", id));
+}
+
+/** Staff Change Status — only a transition configured for this service is accepted (P08). */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("bookings.edit");
   if (auth.error) return auth.error;
   const { session } = auth;
-
   const { id } = await params;
 
   let body: unknown;
@@ -25,30 +38,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Invalid request body.");
   }
 
-  const parsed = updateBookingStatusSchema.safeParse(body);
+  const parsed = serviceStatusChangeSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const booking = await db.booking.findUnique({ where: { id }, include: { lead: true } });
+  const booking = await db.booking.findUnique({ where: { id }, select: { lead: { select: { serviceType: true } } } });
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
 
-  const transitionError = assertValidBookingTransition(booking.status, parsed.data.status);
-  if (transitionError) return jsonError(409, transitionError);
-
-  const updated = await db.$transaction(async (tx) => {
-    const result = await tx.booking.update({ where: { id }, data: { status: parsed.data.status } });
-    await writeAudit(tx, {
-      entityType: "Booking",
+  const result = await db.$transaction((tx) =>
+    setServiceStatus(tx, {
+      scope: "BOOKING",
       entityId: id,
-      action: "STATUS_CHANGE",
-      byUserId: session.id,
-      note: `${booking.status} -> ${parsed.data.status}${parsed.data.note ? `: ${parsed.data.note}` : ""} (by ${session.name})`,
-    });
-    return result;
-  });
+      toStatusId: parsed.data.serviceStatusId,
+      note: parsed.data.note,
+      userId: session.id,
+      actorLabel: `by ${session.name}`,
+    })
+  );
+  if (!result.ok) return jsonError(result.httpStatus, result.error);
+  await dispatchStatusNotifications([result.notification]);
 
+  const updated = await db.booking.findUnique({ where: { id }, include: { serviceStatus: { select: { id: true, name: true } } } });
   return jsonSuccess(updated);
 }

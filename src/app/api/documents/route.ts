@@ -3,6 +3,8 @@ import { createDocumentSchema } from "@/lib/validation/document-schema";
 import { documentListQuerySchema } from "@/lib/validation/document-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
@@ -144,6 +146,7 @@ export async function POST(request: NextRequest) {
     if (scopeError) return scopeError;
   }
 
+  let statusNotifications: StatusNotification[] = [];
   const document = await db.$transaction(async (tx) => {
     const created = await tx.document.create({
       data: {
@@ -162,8 +165,10 @@ export async function POST(request: NextRequest) {
       note: `Document requirement "${created.type}" created (by ${session.name})`,
     });
 
+    statusNotifications = await applyBookingDocumentEvent(tx, created.bookingId, { userId: session.id, actorLabel: `by ${session.name}` });
     return created;
   });
+  await dispatchStatusNotifications(statusNotifications);
 
   const recipient = await resolveDocumentRecipient(document);
   if (recipient) {

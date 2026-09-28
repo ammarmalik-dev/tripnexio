@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import { db } from "../src/lib/db";
 import { PERMISSION_CATALOG, ADMIN_FULL_PERMISSION } from "../src/lib/auth/permissions";
 import { NOTIFICATION_EVENTS } from "../src/lib/notifications/events";
-import { SERVICE_STATUS_SEED } from "./seed-service-statuses";
+import { ALL_STATUS_SEED, transitionsFor } from "./seed-service-statuses";
 import { FAQ_SEED_DATA } from "./faq-seed-data";
 import { ServiceType } from "../src/generated/prisma/enums";
 
@@ -25,49 +25,37 @@ import { ServiceType } from "../src/generated/prisma/enums";
  * upserts above for the gotcha this avoids).
  */
 async function seedServiceStatuses() {
-  for (const def of SERVICE_STATUS_SEED) {
+  // P08 — both scopes (BOOKING from each service's MD, LEAD from the lead
+  // lifecycle) plus On Hold; transitionsFor() adds the auto chain, the
+  // explicit branches and the On Hold links.
+  for (const def of ALL_STATUS_SEED) {
     const idByName = new Map<string, string>();
 
     for (const [index, status] of def.statuses.entries()) {
       const data = {
         serviceType: def.serviceType,
-        scope: "BOOKING" as const,
+        scope: def.scope,
         name: status.name,
         group: status.group ?? null,
-        // Position within this service's own seed array — preserves the
-        // exact order each status's source MD lists it in.
-        displayOrder: index,
+        // Position within this service's own seed array, spaced by 10 so a
+        // status can be slotted in between later without renumbering.
+        displayOrder: index * 10,
         isTerminal: status.isTerminal ?? false,
         blocksRefund: status.blocksRefund ?? false,
         customerLabel: status.customerLabel ?? null,
         mapsToBookingStatus: status.mapsToBookingStatus ?? null,
+        mapsToLeadStatus: status.mapsToLeadStatus ?? null,
+        systemEvent: status.systemEvent ?? null,
       };
       const row = await db.serviceStatus.upsert({
-        where: { serviceType_scope_name: { serviceType: def.serviceType, scope: "BOOKING", name: status.name } },
+        where: { serviceType_scope_name: { serviceType: def.serviceType, scope: def.scope, name: status.name } },
         update: data,
         create: data,
       });
       idByName.set(status.name, row.id);
     }
 
-    // Auto-chain: consecutive statuses within the same group, in seed order.
-    const byGroup = new Map<string | undefined, string[]>();
-    for (const status of def.statuses) {
-      const key = status.group;
-      const names = byGroup.get(key) ?? [];
-      names.push(status.name);
-      byGroup.set(key, names);
-    }
-
-    const pairs: [string, string][] = [];
-    for (const names of byGroup.values()) {
-      for (let i = 0; i < names.length - 1; i++) {
-        pairs.push([names[i], names[i + 1]]);
-      }
-    }
-    pairs.push(...(def.extraTransitions ?? []));
-
-    for (const [fromName, toName] of pairs) {
+    for (const [fromName, toName] of transitionsFor(def)) {
       const fromId = idByName.get(fromName);
       const toId = idByName.get(toName);
       if (!fromId || !toId || fromId === toId) continue;

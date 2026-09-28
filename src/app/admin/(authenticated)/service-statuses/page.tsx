@@ -9,10 +9,11 @@ export default function AdminServiceStatusesPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Service Statuses</h1>
         <p className="text-sm text-ink-tertiary">
-          Each service&apos;s own operational status list and transition rules (CRM.md §14). Seeded from each
-          service&apos;s locked spec document — edit, reorder, or add new statuses and transitions here. This
-          configures the catalog only; the Lead/Booking detail screens don&apos;t read from it yet (a later roadmap
-          unit wires the actual staff-facing Change Status control to this list).
+          Each service&apos;s own Lead and Booking status lists and transition rules (CRM.md §14). The CRM Change
+          Status control offers only the transitions configured here. The customer-safe label is what /account,
+          Track Status and customer messages show. &ldquo;Moved here automatically on&rdquo; links a status to a
+          system event (payment, quotation, documents), and &ldquo;Notify customer with&rdquo; sends a message when a
+          record enters it. &ldquo;Blocks refund&rdquo; drives the refund rules.
         </p>
       </div>
       <ServiceStatusesManager />

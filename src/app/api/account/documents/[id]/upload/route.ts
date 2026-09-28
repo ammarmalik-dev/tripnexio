@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { accountDocumentUploadSchema } from "@/lib/validation/account-document-upload-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { writeAudit } from "@/lib/audit/log";
 import { getCustomerSession } from "@/lib/auth/get-customer-session";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
@@ -69,6 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Couldn't save that file. Please try a JPEG, PNG, GIF, WebP, or PDF.");
   }
 
+  let statusNotifications: StatusNotification[] = [];
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.document.update({
       where: { id },
@@ -80,8 +83,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       action: "UPLOAD",
       note: `File attached; status ${existing.status} -> RECEIVED (by the customer, account page)`,
     });
+    statusNotifications = await applyBookingDocumentEvent(tx, result.bookingId, { actorLabel: "customer upload (account page)" });
     return result;
   });
+  await dispatchStatusNotifications(statusNotifications);
 
   if (existing.fileUrl && existing.fileUrl !== fileUrl) {
     void deleteUploadedFile(existing.fileUrl);

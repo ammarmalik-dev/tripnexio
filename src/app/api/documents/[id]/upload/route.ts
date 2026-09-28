@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { uploadDocumentSchema } from "@/lib/validation/document-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
@@ -68,6 +70,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const nextStatus = existing.status === "REQUIRED" || existing.status === "MISSING" || existing.status === "REJECTED" ? "RECEIVED" : existing.status;
 
+  let statusNotifications: StatusNotification[] = [];
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.document.update({
       where: { id },
@@ -80,8 +83,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       byUserId: session.id,
       note: `File attached; status ${existing.status} -> ${nextStatus} (by ${session.name})`,
     });
+    statusNotifications = await applyBookingDocumentEvent(tx, result.bookingId, { userId: session.id, actorLabel: `by ${session.name}` });
     return result;
   });
+  await dispatchStatusNotifications(statusNotifications);
 
   // New_Visa.md §18: "old file is deleted, new becomes active." Only for a
   // genuine replacement (a real prior local file, different from the new

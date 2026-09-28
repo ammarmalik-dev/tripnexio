@@ -2,6 +2,8 @@ import type { NextRequest } from "next/server";
 import { updateDocumentStatusSchema } from "@/lib/validation/document-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
@@ -54,6 +56,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (scopeError) return scopeError;
   }
 
+  let statusNotifications: StatusNotification[] = [];
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.document.update({ where: { id }, data: { status: parsed.data.status, rejectionReason } });
     await writeAudit(tx, {
@@ -97,8 +100,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       await autoCompleteTasksForEntity(tx, "Document", id, `Document status moved to ${parsed.data.status} — no longer missing`);
     }
 
+    statusNotifications = await applyBookingDocumentEvent(tx, existing.bookingId, { userId: session.id, actorLabel: `by ${session.name}` });
     return result;
   });
+  await dispatchStatusNotifications(statusNotifications);
 
   const EVENT_BY_STATUS: Partial<Record<typeof updated.status, NotificationEvent>> = {
     MISSING: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,

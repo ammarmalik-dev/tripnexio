@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { bookingIdForLead } from "../bookings/reference";
+import { applySystemEvent, dispatchStatusNotifications, getInitialServiceStatusId, type StatusNotification } from "../service-status/engine";
 import { createPendingPayment } from "../payments/create-payment";
 import { getProtectionPlanDefaultPrice } from "../settings/protection-plan-config";
 import { resolveCouponForQuotation } from "../coupons/apply";
@@ -76,6 +77,7 @@ export async function createAutoCheckout(input: {
   // that function (Step 35 pivot).
   const protectionPlanPrice = serviceType === "NEW_VISA" ? await getProtectionPlanDefaultPrice() : null;
 
+  const statusNotifications: (StatusNotification | null)[] = [];
   const { booking, quotation } = await db.$transaction(async (tx) => {
     const createdQuotation = await tx.quotation.create({
       data: {
@@ -95,10 +97,14 @@ export async function createAutoCheckout(input: {
     // Step 49 — QUOTED -> QUOTATION_ACCEPTED; the quotation this creates is
     // always isSelected: true, so it's always the "accepted" step directly.
     await tx.lead.update({ where: { id: leadId }, data: { status: "QUOTATION_ACCEPTED" } });
+    statusNotifications.push(
+      await applySystemEvent(tx, { scope: "LEAD", entityId: leadId, event: "QUOTATION_ACCEPTED", actorLabel: "automatic checkout" })
+    );
 
     const createdBooking = await tx.booking.create({
       data: {
         bookingId: await bookingIdForLead(tx, lead),
+        serviceStatusId: await getInitialServiceStatusId(tx, serviceType, "BOOKING"),
         customerToken: token,
         leadId,
         customerId: lead.customerId,
@@ -155,5 +161,6 @@ export async function createAutoCheckout(input: {
     });
   }
 
+  await dispatchStatusNotifications(statusNotifications);
   return { token, bookingId: booking.id };
 }

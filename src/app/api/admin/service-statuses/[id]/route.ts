@@ -2,8 +2,16 @@ import type { NextRequest } from "next/server";
 import { updateServiceStatusSchema } from "@/lib/validation/service-status-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import type { ServiceType, StatusScope } from "@/generated/prisma/enums";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+
+/** One status per system event per service and scope — otherwise the engine couldn't tell which one an event means. */
+async function systemEventTaken(serviceType: ServiceType, scope: StatusScope, systemEvent: string | null | undefined, exceptId?: string) {
+  if (!systemEvent) return false;
+  const other = await db.serviceStatus.findFirst({ where: { serviceType, scope, systemEvent, ...(exceptId ? { id: { not: exceptId } } : {}) } });
+  return Boolean(other);
+}
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -36,6 +44,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       where: { serviceType_scope_name: { serviceType: existing.serviceType, scope: existing.scope, name: parsed.data.name } },
     });
     if (nameTaken) return jsonError(400, "A status with this name already exists for this service.", { name: ["This name is taken."] });
+  }
+
+  if (await systemEventTaken(existing.serviceType, existing.scope, parsed.data.systemEvent, id)) {
+    return jsonError(400, "Another status of this service already uses that system event.", { systemEvent: ["Already used by another status."] });
   }
 
   const updated = await db.$transaction(async (tx) => {

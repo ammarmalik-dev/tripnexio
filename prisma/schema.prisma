@@ -839,6 +839,12 @@ model ServiceStatus {
   /// matching `scope`; not enforced at the DB level, validated at the API layer.
   mapsToLeadStatus    LeadStatus?
   mapsToBookingStatus BookingStatus?
+  /// P08 — NotificationTemplate event sent to the customer when a record
+  /// enters this status (Admin-configured; null = no message).
+  notificationEvent   String?
+  /// P08 — the system event (src/lib/service-status/events.ts) that moves a
+  /// record onto this status, or "ON_HOLD" for the service's hold status.
+  systemEvent         String?
   active              Boolean        @default(true)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt

@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { Prisma, type ServiceType } from "../../generated/prisma/client";
 import { nextLeadReference } from "./reference";
+import { getInitialServiceStatusId } from "../service-status/engine";
 import { writeAudit } from "../audit/log";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
@@ -162,6 +163,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
         serviceType,
         source: source ?? "Website",
         reference,
+        serviceStatusId: await getInitialServiceStatusId(tx, serviceType, "LEAD"),
         details: { ...safeDetails, passengerIds } as Prisma.InputJsonValue,
         customerToken,
       },

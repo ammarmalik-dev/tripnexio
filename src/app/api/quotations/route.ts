@@ -18,6 +18,7 @@ import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { siteConfig } from "@/lib/site-config";
 import { ensureLeadCustomerToken } from "@/lib/quotations/select-quotation";
 import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
+import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import type { Quotation } from "@/generated/prisma/client";
 
 /**
@@ -240,6 +241,7 @@ export async function POST(request: NextRequest) {
     appliedCoupon = result.coupon;
   }
 
+  const statusNotifications: (StatusNotification | null)[] = [];
   const quotation = await db.$transaction(async (tx) => {
     const created = await tx.quotation.create({
       data: {
@@ -292,10 +294,14 @@ export async function POST(request: NextRequest) {
         note: `${lead.status} -> QUOTATION_CREATED (quotation created by ${session.name})`,
       });
     }
+    statusNotifications.push(
+      await applySystemEvent(tx, { scope: "LEAD", entityId: leadId, event: "QUOTATION_CREATED", userId: session.id, actorLabel: `by ${session.name}` })
+    );
 
     return created;
   });
 
+  await dispatchStatusNotifications(statusNotifications);
   const payableAfterCoupon = resolvedSellingPrice - (appliedCoupon?.discountAmount ?? 0);
   const reviewToken = await ensureLeadCustomerToken(lead);
 
