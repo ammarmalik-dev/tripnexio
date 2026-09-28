@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { RefundStatusBadge } from "./RefundStatusBadge";
+import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { REFUND_STATUS_LABELS } from "@/lib/crm/labels";
 import { getAllowedNextRefundStatuses } from "@/lib/refunds/transitions";
 import { patchJson, ApiError } from "@/lib/api/client";
@@ -26,15 +27,17 @@ interface RefundStatusControlProps {
 
 export function RefundStatusControl({ refundId, status, onChanged, canApprove }: RefundStatusControlProps) {
   const [pending, setPending] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<RefundStatus | null>(null);
   const nextStatuses = getAllowedNextRefundStatuses(status);
 
-  const handleChange = async (nextStatus: string) => {
-    if (!nextStatus || nextStatus === status) return;
+  const handleConfirm = async (reason: string) => {
+    if (!pendingStatus) return;
     setPending(true);
     try {
-      await patchJson(`/api/refunds/${refundId}/status`, { status: nextStatus });
-      toast.success(`Refund status updated to ${REFUND_STATUS_LABELS[nextStatus as RefundStatus]}`);
-      onChanged(nextStatus as RefundStatus);
+      await patchJson(`/api/refunds/${refundId}/status`, { status: pendingStatus, note: reason });
+      toast.success(`Refund status updated to ${REFUND_STATUS_LABELS[pendingStatus]}`);
+      onChanged(pendingStatus);
+      setPendingStatus(null);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't update the refund status. Please try again.");
     } finally {
@@ -58,7 +61,7 @@ export function RefundStatusControl({ refundId, status, onChanged, canApprove }:
             id={`refund-status-select-${refundId}`}
             value=""
             disabled={pending}
-            onChange={(event) => void handleChange(event.target.value)}
+            onChange={(event) => setPendingStatus((event.target.value || null) as RefundStatus | null)}
             className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[160px] text-sm")}
           >
             <option value="" disabled>
@@ -72,6 +75,17 @@ export function RefundStatusControl({ refundId, status, onChanged, canApprove }:
           </select>
         </>
       )}
+
+      {pendingStatus ? (
+        <ConfirmActionDialog
+          title={`Move refund to ${REFUND_STATUS_LABELS[pendingStatus]}?`}
+          description="Refund status changes are a sensitive financial action (Business Rules §14) — this is recorded in the audit trail with your reason."
+          confirmLabel="Confirm Change"
+          pending={pending}
+          onConfirm={(reason) => void handleConfirm(reason)}
+          onCancel={() => setPendingStatus(null)}
+        />
+      ) : null}
     </div>
   );
 }

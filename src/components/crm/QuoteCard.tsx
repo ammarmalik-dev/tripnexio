@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { TextField } from "@/components/forms/TextField";
+import { Textarea } from "@/components/forms/Textarea";
 import { QuoteCountdown } from "./QuoteCountdown";
 
 export interface QuoteCardData {
@@ -45,6 +48,8 @@ export function QuoteCard({
   now,
   onSelect,
   selecting,
+  onRevalidate,
+  revalidating,
 }: {
   quotation: QuoteCardData;
   isFlightQuote: boolean;
@@ -54,9 +59,29 @@ export function QuoteCard({
   now: number;
   onSelect: () => void;
   selecting: boolean;
+  /** Business Rules §9 "Staff revalidation" — re-enables an expired quote's same payment link with a new validity window. Optional so other QuoteCard call sites (e.g. the customer-facing review page, if it ever reuses this) aren't forced to wire it up. */
+  onRevalidate?: (validityExpiresAt: string, reason: string) => void;
+  revalidating?: boolean;
 }) {
   const liveExpired = quotation.isExpired || Boolean(quotation.validityExpiresAt && new Date(quotation.validityExpiresAt).getTime() <= now);
   const isAlternative = Boolean(quotation.alternativeOfId);
+  const [showRevalidate, setShowRevalidate] = useState(false);
+  const [newValidity, setNewValidity] = useState("");
+  const [reason, setReason] = useState("");
+  const [formError, setFormError] = useState("");
+
+  const submitRevalidate = () => {
+    if (!newValidity) {
+      setFormError("Set the new validity date/time.");
+      return;
+    }
+    if (reason.trim().length < 5) {
+      setFormError("Enter a reason (at least 5 characters) — required for this sensitive action.");
+      return;
+    }
+    setFormError("");
+    onRevalidate?.(new Date(newValidity).toISOString(), reason.trim());
+  };
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-hairline p-4">
@@ -211,8 +236,49 @@ export function QuoteCard({
               Select
             </Button>
           )}
+          {liveExpired && onRevalidate ? (
+            <Button type="button" size="sm" variant="ghost" onClick={() => setShowRevalidate((current) => !current)}>
+              Revalidate
+            </Button>
+          ) : null}
         </div>
       </div>
+
+      {showRevalidate && onRevalidate ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-hairline bg-white/[0.02] p-3">
+          <p className="text-xs text-ink-tertiary">
+            If the same fare/terms are still valid, revalidating sets a new validity window and re-enables the same
+            payment link — no new quote needed. A reason is required and is recorded in the audit trail (Business
+            Rules §9/§14).
+          </p>
+          <TextField
+            name="revalidate-validity"
+            label="New validity expires at"
+            type="datetime-local"
+            value={newValidity}
+            onChange={(e) => setNewValidity(e.target.value)}
+            required
+          />
+          <Textarea
+            name="revalidate-reason"
+            label="Reason"
+            placeholder="e.g. Confirmed with vendor — same fare still available"
+            rows={2}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            required
+          />
+          {formError ? <p className="text-xs text-error">{formError}</p> : null}
+          <div className="flex items-center gap-2">
+            <Button type="button" size="sm" onClick={submitRevalidate} isLoading={revalidating}>
+              Confirm Revalidation
+            </Button>
+            <Button type="button" size="sm" variant="ghost" onClick={() => setShowRevalidate(false)}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

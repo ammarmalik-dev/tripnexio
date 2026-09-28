@@ -50,6 +50,7 @@ export function QuoteBuilder({
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectingId, setSelectingId] = useState<string | null>(null);
+  const [revalidatingId, setRevalidatingId] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [now, setNow] = useState(() => Date.now());
 
@@ -114,6 +115,19 @@ export function QuoteBuilder({
       toast.error(error instanceof ApiError ? error.message : "Couldn't select this quote. Please try again.");
     } finally {
       setSelectingId(null);
+    }
+  };
+
+  const handleRevalidate = async (id: string, validityExpiresAt: string, reason: string) => {
+    setRevalidatingId(id);
+    try {
+      await patchJson(`/api/quotations/${id}/revalidate`, { validityExpiresAt, reason });
+      toast.success("Quote revalidated — the same payment link is active again.");
+      setReloadNonce((current) => current + 1);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't revalidate this quote. Please try again.");
+    } finally {
+      setRevalidatingId(null);
     }
   };
 
@@ -192,6 +206,8 @@ export function QuoteBuilder({
               now={now}
               onSelect={() => void handleSelect(quotation.id)}
               selecting={selectingId === quotation.id}
+              onRevalidate={(validityExpiresAt, reason) => void handleRevalidate(quotation.id, validityExpiresAt, reason)}
+              revalidating={revalidatingId === quotation.id}
             />
           ))}
         </div>

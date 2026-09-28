@@ -14,7 +14,8 @@ const refundStatusValues = Object.values(RefundStatus) as [RefundStatusType, ...
 
 export const updateRefundStatusSchema = z.object({
   status: z.enum(refundStatusValues, { error: "Select a valid refund status" }),
-  note: z.string().trim().min(1).optional(),
+  /** Business Rules §14 "Sensitive Admin Actions" — refund status changes are the approval action itself (see the route's own comment), so a reason is required, not optional, as the "Extra Confirmation" step. */
+  note: z.string().trim().min(5, "Enter a reason (at least 5 characters)."),
 });
 
 export type CreateRefundValues = z.infer<typeof createRefundSchema>;

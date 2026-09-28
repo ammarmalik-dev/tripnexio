@@ -55,6 +55,12 @@ export function buildQuoteFormSchema(isFlightQuote: boolean) {
   });
 }
 
+/** Business Rules §9 "Staff revalidation" + §14 "Sensitive Admin Actions" — reason is the required extra-confirmation text, folded into the audit note. */
+export const revalidateQuotationSchema = z.object({
+  validityExpiresAt: isoDate("Enter a valid validity expiry date/time"),
+  reason: z.string().trim().min(5, "Enter a reason (at least 5 characters)."),
+});
+
 export type CreateQuotationValues = z.infer<typeof createQuotationSchema>;
 export type UpdateQuotationValues = z.infer<typeof updateQuotationSchema>;
 export type QuoteFormValues = z.infer<typeof quoteFormSchema>;
