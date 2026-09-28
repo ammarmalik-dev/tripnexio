@@ -11,10 +11,11 @@ Every one of these workflows is visible to the team at **Admin → Automation** 
 ## The seven workflows
 
 ### 1. Quote Expiry Handling
-**Runs every 15 minutes.** Calls `POST /api/automation/quote-expiry`.
+**Runs every 5 minutes.** Calls `POST /api/automation/quote-expiry`.
 
 - Any quote whose validity window has actually passed gets marked expired, and the customer gets an automatic "your quote has expired" message (email + WhatsApp, same as if staff had done it) — this used to only happen if someone opened the CRM and looked at that specific lead; now it happens on its own.
-- Any quote that's about to expire (within 15 minutes) gets a one-time reminder nudge first, so the customer has a chance to respond before it lapses.
+- Flight Special Fare quotes (max 30-minute validity, per that service's own locked spec) get a reminder nudge every 10 minutes while still valid — not just once — since their quote window is short enough that one reminder isn't enough of a nudge.
+- Every other service's quote gets a one-time reminder nudge when it's about to expire (within 15 minutes), so the customer has a chance to respond before it lapses.
 
 ### 2. Payment Follow-up Reminders
 **Runs every hour.** Calls `POST /api/automation/payment-followup`.
