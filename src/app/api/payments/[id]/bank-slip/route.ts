@@ -6,6 +6,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { saveUploadedFile } from "@/lib/storage/local-file-storage";
+import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -54,9 +55,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const uploadError = rejectInvalidUploads([parsed.data.fileBase64]);
+  if (uploadError) return uploadError;
 
   try {
-    const { url } = await saveUploadedFile(parsed.data.fileBase64, parsed.data.mimeType, "bank-slips");
+    const { url } = await saveUploadedFile(parsed.data.fileBase64);
 
     const updated = await db.$transaction(async (tx) => {
       const result = await tx.payment.update({ where: { id }, data: { bankSlipUrl: url } });

@@ -1,4 +1,8 @@
 import type { NextRequest } from "next/server";
+import { rateLimitByIp } from "@/lib/auth/rate-limit";
+import { isHoneypotFilled } from "@/lib/validation/honeypot";
+import { LEAD_INTAKE_RATE_LIMIT } from "@/lib/leads/intake-limits";
+import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
 import { newVisaRequestSchema } from "@/lib/validation/new-visa-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -7,8 +11,12 @@ import { findNewVisaTravellerIssues } from "@/lib/validation/new-visa-schema";
 import { computePaxType } from "@/lib/leads/pax-type";
 import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
+import { describeError } from "@/lib/api/describe-error";
 
 export async function POST(request: NextRequest) {
+  const limited = await rateLimitByIp(request, "leads-new-visa", LEAD_INTAKE_RATE_LIMIT, "Too many requests. Please try again later.");
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -20,6 +28,13 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+
+  if (isHoneypotFilled(parsed.data.website)) {
+    return jsonError(400, "Invalid submission.");
+  }
+
+  const uploadError = rejectInvalidUploads([parsed.data.passportImageBase64, ...parsed.data.additionalTravellers.map((traveller) => traveller.passportImageBase64)], IMAGE_OR_PDF);
+  if (uploadError) return uploadError;
 
   const {
     fullName,
@@ -162,12 +177,12 @@ export async function POST(request: NextRequest) {
         console.warn(`[api/leads/new-visa] no PricingRule configured for country=${destinationCountry} processingType=${processingType}`);
       }
     } catch (checkoutError) {
-      console.error("[api/leads/new-visa] auto checkout failed", checkoutError);
+      console.error("[api/leads/new-visa] auto checkout failed", describeError(checkoutError));
     }
 
     return jsonSuccess({ ...result, payToken }, 201);
   } catch (error) {
-    console.error("[api/leads/new-visa]", error);
+    console.error("[api/leads/new-visa]", describeError(error));
     return jsonError(500, "Something went wrong while submitting your request. Please try again.");
   }
 }

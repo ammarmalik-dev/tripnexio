@@ -9,7 +9,7 @@ import { writeAudit } from "@/lib/audit/log";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(`reset-password:${ip}`)) {
+  if (await isRateLimited(`reset-password:${ip}`)) {
     return jsonError(429, "Too many attempts. Please try again later.");
   }
 

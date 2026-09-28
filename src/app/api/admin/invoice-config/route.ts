@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
+import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
 const INVOICE_CONFIG_ID = "singleton";
 
@@ -39,13 +41,15 @@ export async function PATCH(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const uploadError = rejectInvalidUploads([parsed.data.logoImageBase64, parsed.data.signatureImageBase64], IMAGE_TYPES);
+  if (uploadError) return uploadError;
   const { logoImageBase64, logoImageMimeType, removeLogo, signatureImageBase64, signatureImageMimeType, removeSignature, ...fields } = parsed.data;
 
   const existing = await getOrCreateConfig();
 
   let companyLogoUrl = existing.companyLogoUrl;
   if (logoImageBase64 && logoImageMimeType) {
-    const saved = await saveUploadedFile(logoImageBase64, logoImageMimeType, "invoice-config");
+    const saved = await saveUploadedFile(logoImageBase64);
     if (existing.companyLogoUrl) await deleteUploadedFile(existing.companyLogoUrl);
     companyLogoUrl = saved.url;
   } else if (removeLogo && existing.companyLogoUrl) {
@@ -55,7 +59,7 @@ export async function PATCH(request: NextRequest) {
 
   let signatureImageUrl = existing.signatureImageUrl;
   if (signatureImageBase64 && signatureImageMimeType) {
-    const saved = await saveUploadedFile(signatureImageBase64, signatureImageMimeType, "invoice-config");
+    const saved = await saveUploadedFile(signatureImageBase64);
     if (existing.signatureImageUrl) await deleteUploadedFile(existing.signatureImageUrl);
     signatureImageUrl = saved.url;
   } else if (removeSignature && existing.signatureImageUrl) {

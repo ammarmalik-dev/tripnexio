@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { honeypotShape } from "./honeypot";
 
 /**
  * A bare `travelDate` field value (e.g. "2026-10-23") is parsed by `new
@@ -48,6 +49,7 @@ export const flightPassengerSchema = z.object({
  * use it (AUDIT_REPORT.md §2.4, CONFLICTING).
  */
 export const flightSpecialFareStep1Schema = z.object({
+  ...honeypotShape,
   fullName: z.string().trim().min(2, "Enter your full name").max(80, "Full name is too long"),
   mobile: z
     .string()

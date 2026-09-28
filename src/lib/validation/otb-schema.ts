@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { honeypotShape } from "./honeypot";
 
 /**
  * OTB (Ok to Board) request validation. No nationality field per business
@@ -14,6 +15,7 @@ const todayAtMidnight = () => {
 };
 
 export const otbStep1Schema = z.object({
+  ...honeypotShape,
   fullName: z
     .string()
     .trim()

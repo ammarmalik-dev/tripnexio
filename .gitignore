@@ -43,6 +43,7 @@ yarn-error.log*
 # local dev file storage (src/lib/storage/local-file-storage.ts) — a
 # placeholder for real object storage; uploaded files never belong in git
 /public/uploads/
+/storage/
 
 # typescript
 *.tsbuildinfo

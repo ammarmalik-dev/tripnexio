@@ -7,7 +7,7 @@ import { isRateLimited } from "@/lib/auth/rate-limit";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(`customer-register:${ip}`)) {
+  if (await isRateLimited(`customer-register:${ip}`)) {
     return jsonError(429, "Too many attempts. Please try again later.");
   }
 

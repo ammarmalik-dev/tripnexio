@@ -6,6 +6,8 @@ import { writeAudit } from "@/lib/audit/log";
 import { loadCheckoutByToken } from "@/lib/checkout/load-checkout";
 import { resolveCheckoutDocumentTypes } from "@/lib/checkout/required-documents";
 import { deleteUploadedFile, saveUploadedFile } from "@/lib/storage/local-file-storage";
+import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+import { describeError } from "@/lib/api/describe-error";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -45,7 +47,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the file and try again.", parsed.error.flatten().fieldErrors);
   }
-  const { passengerId, type, fileBase64, mimeType } = parsed.data;
+  const uploadError = rejectInvalidUploads([parsed.data.fileBase64]);
+  if (uploadError) return uploadError;
+  const { passengerId, type, fileBase64 } = parsed.data;
 
   if (!checkout.view.applicants.some((applicant) => applicant.id === passengerId)) {
     return jsonError(400, "That applicant isn't part of this booking.");
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   try {
-    const { url } = await saveUploadedFile(fileBase64, mimeType, "documents");
+    const { url } = await saveUploadedFile(fileBase64);
     const bookingId = checkout.booking.id;
     const existing = await db.document.findFirst({ where: { bookingId, passengerId, type } });
 
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return jsonSuccess({ id: document.id, passengerId, type, status: document.status }, 201);
   } catch (error) {
-    console.error("[api/pay/documents]", error);
+    console.error("[api/pay/documents]", describeError(error));
     return jsonError(500, "We couldn't save that file. Please try again.");
   }
 }

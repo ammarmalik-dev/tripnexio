@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type { EmailSender, SendEmailInput, SendEmailResult } from "./sender";
+import { maskRecipient } from "../logging/mask";
 
 /**
  * Selected automatically by getEmailSender() when RESEND_API_KEY is
@@ -16,11 +17,8 @@ export class ConsoleEmailSender implements EmailSender {
 
   async send(input: SendEmailInput): Promise<SendEmailResult> {
     const id = `console_${crypto.randomUUID()}`;
-    console.log(
-      `[email:console] would send to ${input.to}\nSubject: ${input.subject}\n` +
-        (input.attachments?.length ? `Attachments: ${input.attachments.map((a) => a.filename).join(", ")}\n` : "") +
-        `---\n${input.html}\n---`
-    );
+    // Never log the body, subject or full address — they carry customer data and, for password resets, a live token.
+    console.log(`[email:console] not delivered (no provider configured) to ${maskRecipient(input.to)}; attachments: ${input.attachments?.length ?? 0}`);
     return { id };
   }
 }

@@ -216,6 +216,12 @@ model Lead {
   serviceType     ServiceType
   source          String?
   status          LeadStatus       @default(NEW)
+  /// Customer-facing lead reference (e.g. "OTB-JYOQHX"), stored so public
+  /// lookups (Track Status) match it exactly instead of by id suffix. Set at
+  /// creation; existing rows backfilled by migration with the same formula
+  /// as formatLeadReference(). Not unique: legacy suffix-derived references
+  /// could in theory repeat.
+  reference       String?
   /// Unguessable token for the guest customer review page (/quote/<token>):
   /// see staff-prepared quotation(s), approve one, then pay — same pattern as
   /// Booking.customerToken for the pay-right-after-the-form services. Set at
@@ -256,6 +262,7 @@ model Lead {
   @@index([temperature])
   @@index([assignedStaffId])
   @@index([serviceStatusId])
+  @@index([reference])
 }
 
 model Quotation {
@@ -1970,6 +1977,18 @@ model ServiceTimelineConfig {
 /// File bytes stored in the database — the fallback for hosts with no
 /// writable disk (e.g. serverless), until a real object store (S3/Cloudinary)
 /// is connected. Served by GET /api/files/[id]; the id is a random UUID.
+/// Fixed-window request counters for rate-limited public endpoints — shared
+/// across serverless instances, unlike an in-process Map. `key` is
+/// "<route>:<client>:<window start ms>"; expired rows are purged
+/// opportunistically by src/lib/auth/rate-limit.ts.
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+
+  @@index([expiresAt])
+}
+
 model FileBlob {
   id        String   @id
   mimeType  String

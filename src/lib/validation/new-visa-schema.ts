@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { honeypotShape } from "./honeypot";
 import { isMinor } from "@/lib/leads/age";
 
 /**
@@ -14,6 +15,7 @@ const todayAtMidnight = () => {
 };
 
 export const newVisaStep1Schema = z.object({
+  ...honeypotShape,
   fullName: z
     .string()
     .trim()

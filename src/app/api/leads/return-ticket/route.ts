@@ -1,11 +1,18 @@
 import type { NextRequest } from "next/server";
+import { rateLimitByIp } from "@/lib/auth/rate-limit";
+import { isHoneypotFilled } from "@/lib/validation/honeypot";
+import { LEAD_INTAKE_RATE_LIMIT } from "@/lib/leads/intake-limits";
 import { returnTicketRequestSchema } from "@/lib/validation/return-ticket-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { db } from "@/lib/db";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { describeError } from "@/lib/api/describe-error";
 
 export async function POST(request: NextRequest) {
+  const limited = await rateLimitByIp(request, "leads-return-ticket", LEAD_INTAKE_RATE_LIMIT, "Too many requests. Please try again later.");
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -16,6 +23,10 @@ export async function POST(request: NextRequest) {
   const parsed = returnTicketRequestSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
+  }
+
+  if (isHoneypotFilled(parsed.data.website)) {
+    return jsonError(400, "Invalid submission.");
   }
 
   const { fullName, mobile, email, passportNumber, destinationCountryId, travelDate, expectedReturnDate, additionalApplicants } =
@@ -68,12 +79,12 @@ export async function POST(request: NextRequest) {
       });
       payToken = checkout?.token;
     } catch (checkoutError) {
-      console.error("[api/leads/return-ticket] auto checkout failed", checkoutError);
+      console.error("[api/leads/return-ticket] auto checkout failed", describeError(checkoutError));
     }
 
     return jsonSuccess({ ...result, payToken }, 201);
   } catch (error) {
-    console.error("[api/leads/return-ticket]", error);
+    console.error("[api/leads/return-ticket]", describeError(error));
     return jsonError(500, "Something went wrong while submitting your request. Please try again.");
   }
 }

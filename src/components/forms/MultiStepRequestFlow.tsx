@@ -13,6 +13,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Stepper } from "./Stepper";
 import { useMultiStepForm } from "./useMultiStepForm";
 import { RequestSuccessPanel } from "./RequestSuccessPanel";
+import { HONEYPOT_FIELD } from "@/lib/validation/honeypot";
 import { RequestInfoPanel } from "./RequestInfoPanel";
 import { toast } from "@/components/ui/Toaster";
 import { ApiError, RequestIneligibleOutcome } from "@/lib/api/client";
@@ -162,6 +163,13 @@ export function MultiStepRequestFlow<T extends FieldValues>({
             clicked.
           */}
           <form onSubmit={submitHandler} className="flex flex-col gap-8">
+            {/* Anti-bot honeypot: off-screen, not focusable, ignored by assistive tech. Real visitors leave it empty; the intake routes reject it when filled. */}
+            <div aria-hidden="true" style={{ position: "absolute", left: "-10000px", width: 1, height: 1, overflow: "hidden" }}>
+              <label>
+                Website
+                <input type="text" tabIndex={-1} autoComplete="off" {...methods.register(HONEYPOT_FIELD as Path<T>)} />
+              </label>
+            </div>
             <div className="relative overflow-hidden">
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div

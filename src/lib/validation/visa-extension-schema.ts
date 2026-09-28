@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { honeypotShape } from "./honeypot";
 
 /**
  * Visa Extension website request validation, per the client's updated
@@ -63,6 +64,7 @@ export const visaExtensionBotFieldSchemas = {
 };
 
 export const visaExtensionStep1Schema = z.object({
+  ...honeypotShape,
   fullName: fullNameField,
   mobile: z
     .string()

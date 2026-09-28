@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { honeypotShape } from "./honeypot";
 
 const todayAtMidnight = () => {
   const now = new Date();
@@ -23,6 +24,7 @@ const todayAtMidnight = () => {
  * `returnTicketFieldsSchema.shape.travelDate`.
  */
 export const returnTicketFieldsSchema = z.object({
+  ...honeypotShape,
   fullName: z.string().trim().min(2, "Enter your full name").max(80, "Full name is too long"),
   mobile: z
     .string()

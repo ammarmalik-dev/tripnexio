@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
 import { handleInboundMessage } from "@/lib/whatsapp-bot/engine";
+import { describeError } from "@/lib/api/describe-error";
 
 interface CloudApiWebhookPayload {
   entry?: {
@@ -113,7 +114,7 @@ export async function POST(request: NextRequest) {
     // The reply failed to actually deliver, but the conversation state is
     // already saved — log and move on rather than throwing, since Meta
     // would otherwise retry-redeliver the ORIGINAL inbound message.
-    console.error("[whatsapp-webhook] failed to send reply", error);
+    console.error("[whatsapp-webhook] failed to send reply", describeError(error));
   }
 
   return new Response("OK", { status: 200 });

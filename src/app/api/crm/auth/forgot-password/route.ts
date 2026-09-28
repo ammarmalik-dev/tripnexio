@@ -7,6 +7,7 @@ import { createPasswordResetToken } from "@/lib/auth/password-reset";
 import { sendPasswordResetEmail } from "@/lib/auth/send-password-reset-email";
 import { writeAudit } from "@/lib/audit/log";
 import { siteConfig } from "@/lib/site-config";
+import { describeError } from "@/lib/api/describe-error";
 
 const GENERIC_MESSAGE = "If that email address belongs to a staff account, a password reset link has been sent.";
 
@@ -20,7 +21,7 @@ const GENERIC_MESSAGE = "If that email address belongs to a staff account, a pas
  */
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(`forgot-password-ip:${ip}`)) {
+  if (await isRateLimited(`forgot-password-ip:${ip}`)) {
     return jsonError(429, "Too many requests. Please try again later.");
   }
 
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
   }
 
   const email = parsed.data.email.toLowerCase();
-  if (isRateLimited(`forgot-password-email:${email}`)) {
+  if (await isRateLimited(`forgot-password-email:${email}`)) {
     return jsonSuccess({ message: GENERIC_MESSAGE });
   }
 
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
         note: `Password reset link emailed to ${user.email}`,
       });
     } catch (error) {
-      console.error("[api/crm/auth/forgot-password] failed to send reset email", error);
+      console.error("[api/crm/auth/forgot-password] failed to send reset email", describeError(error));
     }
   }
 

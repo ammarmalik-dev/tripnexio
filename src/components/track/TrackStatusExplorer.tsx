@@ -13,7 +13,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusTimeline } from "./StatusTimeline";
 import type { TrackResult } from "@/lib/track/types";
-import { getJson, ApiError } from "@/lib/api/client";
+import { postJson, ApiError } from "@/lib/api/client";
 import { trackSchema, type TrackValues } from "@/lib/validation/track-schema";
 import { siteConfig } from "@/lib/site-config";
 import { toast } from "@/components/ui/Toaster";
@@ -32,7 +32,7 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
     formState: { errors },
   } = useForm<TrackValues>({
     resolver: zodResolver(trackSchema),
-    defaultValues: { referenceId: initialReferenceId ?? "" },
+    defaultValues: { referenceId: initialReferenceId ?? "", verifier: "" },
   });
   const [state, setState] = useState<SearchState>("idle");
   const [result, setResult] = useState<TrackResult | null>(null);
@@ -41,7 +41,7 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
   const runSearch = handleSubmit(async (values) => {
     setState("loading");
     try {
-      const found = await getJson<TrackResult>(`/api/track?referenceId=${encodeURIComponent(values.referenceId)}`);
+      const found = await postJson<TrackResult>("/api/track", values);
       setResult(found);
       setState("found");
     } catch (error) {
@@ -67,6 +67,16 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
               required
               error={errors.referenceId?.message}
               {...register("referenceId")}
+            />
+          </div>
+          <div className="flex-1">
+            <TextField
+              label="Last 4 digits of mobile, or email"
+              placeholder="e.g. 4005"
+              required
+              autoComplete="off"
+              error={errors.verifier?.message}
+              {...register("verifier")}
             />
           </div>
           <Button type="submit" size="lg" isLoading={state === "loading"} className="sm:mb-0">
@@ -112,7 +122,7 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
             <EmptyState
               icon={<SearchX className="h-5 w-5" aria-hidden="true" />}
               title="We couldn't find that request"
-              description="Double-check the reference ID, or reach out and our team will look into it."
+              description="Double-check the reference ID and the mobile digits or email you used on the request, or reach out and our team will look into it."
               action={
                 <a
                   href={siteConfig.contact.whatsappHref}

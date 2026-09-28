@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { selectQuotation } from "@/lib/quotations/select-quotation";
 import { createBookingFromQuotation } from "@/lib/bookings/create-booking";
 import { createPendingPayment } from "@/lib/payments/create-payment";
+import { describeError } from "@/lib/api/describe-error";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -70,7 +71,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     await createPendingPayment({ booking, quotation: selectResult.quotation, actor: { label: "customer approval (website)" } });
   } catch (error) {
-    console.error("[api/quote/approve] payment creation failed", error);
+    console.error("[api/quote/approve] payment creation failed", describeError(error));
     // The Booking still exists — staff can send a payment link from the CRM. Tell the customer to check back.
     return jsonError(500, "Your quote was approved, but we couldn't set up payment automatically. Our team will send you a payment link shortly.");
   }

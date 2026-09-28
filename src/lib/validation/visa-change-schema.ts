@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { honeypotShape } from "./honeypot";
 
 /**
  * Visa Change request validation — rewritten against the real locked spec
@@ -61,6 +62,7 @@ export const visaChangePassengerSchema = z.object({
 });
 
 export const visaChangeStep1Schema = z.object({
+  ...honeypotShape,
   changeType: z.enum(["AIRPORT_TO_AIRPORT", "BORDER_EXIT"], { error: "Select a visa change method" }),
 });
 

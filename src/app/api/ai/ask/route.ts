@@ -30,7 +30,7 @@ const bodySchema = z.object({ question: z.string().trim().min(1, "Enter a questi
  */
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(`ask-ai:${ip}`)) {
+  if (await isRateLimited(`ask-ai:${ip}`)) {
     return jsonError(429, "Too many questions. Please try again in a few minutes.");
   }
 

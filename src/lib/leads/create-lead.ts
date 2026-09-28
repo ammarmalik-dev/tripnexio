@@ -125,7 +125,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     // Booking.customerToken via the automatic checkout instead.
     const customerToken = QUOTE_REVIEW_SERVICES.has(serviceType) ? generateToken() : undefined;
 
-    const lead = await tx.lead.create({
+    const created = await tx.lead.create({
       data: {
         customerId: customer.id,
         serviceType,
@@ -133,6 +133,11 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
         details: { ...safeDetails, passengerIds } as Prisma.InputJsonValue,
         customerToken,
       },
+    });
+    // The reference is derived from the generated id, so it's stored right after insert.
+    const lead = await tx.lead.update({
+      where: { id: created.id },
+      data: { reference: formatLeadReference(serviceType, created.id) },
     });
 
     await writeAudit(tx, {

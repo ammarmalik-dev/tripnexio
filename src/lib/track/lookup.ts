@@ -1,5 +1,4 @@
 import { db } from "../db";
-import { parseLeadReference, formatLeadReference } from "../leads/reference";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import type { TrackResult, TrackStage, TrackStageStatus } from "./types";
 import type { BookingStatus, LeadStatus } from "../../generated/prisma/enums";
@@ -86,51 +85,67 @@ function formatDate(date: Date): string {
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 }
 
-/**
- * Public, unauthenticated lookup by reference ID — Website_Final_Company_
- * Support_Legal_General_FAQ doc §5: "request only the minimum reference
- * information needed... should not publicly expose full passport numbers,
- * payment credentials, or other unnecessary sensitive information." Tries
- * a Lead reference first (e.g. "OTB-058517"), then a Booking.bookingId
- * (e.g. "TNX-OT-058517") — a converted lead's booking is the more specific,
- * more up-to-date record when both would match the same underlying request.
- */
-export async function trackByReferenceId(rawReferenceId: string): Promise<TrackResult | null> {
-  const referenceId = rawReferenceId.trim();
+/** "Rahul Sharma" -> "Rahul S." — the only form of the name a public lookup returns. */
+export function maskName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "";
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
+}
 
-  const parsed = parseLeadReference(referenceId);
-  if (parsed) {
-    const lead = await db.lead.findFirst({
-      where: { serviceType: parsed.serviceType, id: { endsWith: parsed.suffix } },
-      include: {
-        customer: { select: { name: true } },
-        bookings: { where: { status: { notIn: ["CANCELLED", "REFUNDED"] } }, orderBy: { createdAt: "desc" }, take: 1 },
-      },
-    });
-    if (lead) {
-      const booking = lead.bookings[0] ?? null;
-      const stageIndex = resolveStage(lead.status, booking?.status ?? null);
-      return {
-        referenceId: formatLeadReference(lead.serviceType, lead.id),
-        service: SERVICE_TYPE_LABELS[lead.serviceType],
-        applicantName: lead.customer.name,
-        submittedDate: formatDate(lead.createdAt),
-        stages: stageIndex === "closed" ? [] : buildStages(stageIndex),
-        closedMessage: stageIndex === "closed" ? closedMessageFor(booking?.status ?? null, lead.status) : undefined,
-      };
-    }
+/** True when `verifier` is the last 4 digits of the customer's mobile, or their email (case-insensitive). */
+function matchesVerifier(customer: { mobile: string; email: string | null }, verifier: string): boolean {
+  const value = verifier.trim();
+  if (/^\d{4}$/.test(value)) return customer.mobile.replace(/\D/g, "").endsWith(value);
+  return Boolean(customer.email && customer.email.trim().toLowerCase() === value.toLowerCase());
+}
+
+/**
+ * Public, unauthenticated lookup — Website_Final_Company_Support_Legal_General_FAQ
+ * doc §5: "request only the minimum reference information needed... should not
+ * publicly expose full passport numbers, payment credentials, or other
+ * unnecessary sensitive information." Matches a stored Lead reference (e.g.
+ * "OTB-JYOQHX") or a Booking.bookingId (e.g. "TNX-OT-JYOQHX") exactly, and only
+ * returns data when `verifier` matches the customer on file (last 4 mobile
+ * digits or email). The name is returned masked. Any mismatch returns null,
+ * indistinguishable from "not found".
+ */
+export async function trackByReferenceId(rawReferenceId: string, verifier: string): Promise<TrackResult | null> {
+  const referenceId = rawReferenceId.trim().toUpperCase();
+
+  const lead = await db.lead.findFirst({
+    where: { reference: referenceId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      customer: { select: { name: true, mobile: true, email: true } },
+      bookings: { where: { status: { notIn: ["CANCELLED", "REFUNDED"] } }, orderBy: { createdAt: "desc" }, take: 1 },
+    },
+  });
+  if (lead) {
+    if (!matchesVerifier(lead.customer, verifier)) return null;
+    const booking = lead.bookings[0] ?? null;
+    const stageIndex = resolveStage(lead.status, booking?.status ?? null);
+    return {
+      referenceId: lead.reference ?? referenceId,
+      service: SERVICE_TYPE_LABELS[lead.serviceType],
+      applicantName: maskName(lead.customer.name),
+      submittedDate: formatDate(lead.createdAt),
+      stages: stageIndex === "closed" ? [] : buildStages(stageIndex),
+      closedMessage: stageIndex === "closed" ? closedMessageFor(booking?.status ?? null, lead.status) : undefined,
+    };
   }
 
   const booking = await db.booking.findUnique({
-    where: { bookingId: referenceId.toUpperCase() },
-    include: { customer: { select: { name: true } }, lead: { select: { serviceType: true, status: true } } },
+    where: { bookingId: referenceId },
+    include: { customer: { select: { name: true, mobile: true, email: true } }, lead: { select: { serviceType: true, status: true } } },
   });
   if (booking) {
+    if (!matchesVerifier(booking.customer, verifier)) return null;
     const stageIndex = resolveStage(booking.lead.status, booking.status);
     return {
       referenceId: booking.bookingId,
       service: SERVICE_TYPE_LABELS[booking.lead.serviceType],
-      applicantName: booking.customer.name,
+      applicantName: maskName(booking.customer.name),
       submittedDate: formatDate(booking.createdAt),
       stages: stageIndex === "closed" ? [] : buildStages(stageIndex),
       closedMessage: stageIndex === "closed" ? closedMessageFor(booking.status, booking.lead.status) : undefined,

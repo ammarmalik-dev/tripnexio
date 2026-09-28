@@ -27,7 +27,7 @@ export async function handleOptionalPassportUpload(input: {
   const documentType = input.documentType ?? "PASSPORT";
 
   try {
-    const { url } = await saveUploadedFile(input.imageBase64, input.mimeType, documentType === "PASSPORT" ? "passports" : "documents");
+    const { url } = await saveUploadedFile(input.imageBase64);
     const document = await db.document.create({
       data: { passengerId: input.passengerId, type: documentType, status: "RECEIVED", fileUrl: url },
     });

@@ -1,10 +1,18 @@
 import type { NextRequest } from "next/server";
+import { rateLimitByIp } from "@/lib/auth/rate-limit";
+import { isHoneypotFilled } from "@/lib/validation/honeypot";
+import { LEAD_INTAKE_RATE_LIMIT } from "@/lib/leads/intake-limits";
+import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
 import { visaChangeRequestSchema, findMissingApplicantDocuments } from "@/lib/validation/visa-change-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { describeError } from "@/lib/api/describe-error";
 
 export async function POST(request: NextRequest) {
+  const limited = await rateLimitByIp(request, "leads-visa-change", LEAD_INTAKE_RATE_LIMIT, "Too many requests. Please try again later.");
+  if (limited) return limited;
+
   let body: unknown;
   try {
     body = await request.json();
@@ -16,6 +24,13 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+
+  if (isHoneypotFilled(parsed.data.website)) {
+    return jsonError(400, "Invalid submission.");
+  }
+
+  const uploadError = rejectInvalidUploads([parsed.data.passportImageBase64, parsed.data.visaImageBase64, ...parsed.data.additionalPassengers.flatMap((passenger) => [passenger.passportImageBase64, passenger.visaImageBase64])], IMAGE_OR_PDF);
+  if (uploadError) return uploadError;
 
   const { fullName, passportNumber, visaLastDate, mobile, email, nationality, paxType, additionalPassengers, changeType } = parsed.data;
 
@@ -93,7 +108,7 @@ export async function POST(request: NextRequest) {
     );
     return jsonSuccess(result, 201);
   } catch (error) {
-    console.error("[api/leads/visa-change]", error);
+    console.error("[api/leads/visa-change]", describeError(error));
     return jsonError(500, "Something went wrong while submitting your request. Please try again.");
   }
 }

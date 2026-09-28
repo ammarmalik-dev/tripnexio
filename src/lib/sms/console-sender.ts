@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import type { SmsSender, SendSmsInput, SendSmsResult } from "./sender";
+import { maskRecipient } from "../logging/mask";
 
 /**
  * The only SmsSender implementation that exists today — there's no real
@@ -17,7 +18,7 @@ export class ConsoleSmsSender implements SmsSender {
 
   async send(input: SendSmsInput): Promise<SendSmsResult> {
     const id = `console_${crypto.randomUUID()}`;
-    console.log(`[sms:console] would send to ${input.to}\n---\n${input.body}\n---`);
+    console.log(`[sms:console] not delivered (no SMS gateway configured) to ${maskRecipient(input.to)}`);
     return { id };
   }
 }

@@ -2,108 +2,146 @@ import { promises as fs } from "fs";
 import path from "path";
 import crypto from "crypto";
 import { db } from "../db";
+import { checkBase64Upload } from "../uploads/validate-upload";
 
-const UPLOADS_ROOT = path.join(process.cwd(), "public", "uploads");
-const DB_FILE_PREFIX = "/api/files/";
+/** Private upload directory — deliberately OUTSIDE public/, so nothing here is ever served statically. */
+const PRIVATE_UPLOADS_ROOT = path.join(process.cwd(), "storage", "uploads");
+/** Files written before private storage existed; still readable/deletable, never written to again. */
+const LEGACY_PUBLIC_ROOT = path.join(process.cwd(), "public");
+export const FILE_URL_PREFIX = "/api/files/";
 
 const EXTENSION_BY_MIME: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/gif": "gif",
   "image/webp": "webp",
-  // Step 16 (audit §3.6): Ticket/Visa OCR needs PDF support — visa
-  // documents especially are commonly issued as PDFs, per CRM.md §18's own
-  // "Visa PDF" wording. Passport photos stay image-only (unchanged).
+  // Step 16 (audit §3.6): Ticket/Visa OCR needs PDF support.
   "application/pdf": "pdf",
 };
 
-/**
- * DEV-ONLY placeholder for real object storage — writes straight to
- * `public/uploads/<subdir>/`, which Next.js already serves as static files.
- * There is still no real cloud storage integration in this app (see
- * Document.fileUrl's own long-standing "no storage integration here" note)
- * — this exists specifically so document OCR has real bytes to work with
- * end-to-end. Before production: local disk doesn't survive a redeploy and
- * isn't shared across instances — swap this for S3/Cloudinary/similar,
- * keeping the same `saveUploadedFile` signature so callers don't change.
- */
-export async function saveUploadedFile(base64Data: string, mimeType: string, subdir: string): Promise<{ url: string; absolutePath: string }> {
-  const extension = EXTENSION_BY_MIME[mimeType];
-  if (!extension) {
-    throw new Error(`Unsupported file type "${mimeType}" — use JPEG, PNG, GIF, WebP, or PDF.`);
+/** A private-disk file id: `<uuid>.<ext>`. A bare `<uuid>` is a FileBlob row. */
+const DISK_FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|gif|webp|pdf)$/;
+
+export class UploadValidationError extends Error {
+  constructor(
+    message: string,
+    readonly status: 413 | 415
+  ) {
+    super(message);
+    this.name = "UploadValidationError";
   }
+}
 
-  const buffer = Buffer.from(base64Data, "base64");
+export function mimeTypeForExtension(extension: string): string | undefined {
+  return Object.entries(EXTENSION_BY_MIME).find(([, ext]) => ext === extension)?.[0];
+}
 
-  // Local disk first (a VPS). On a host with no writable disk (serverless),
-  // or when FILE_STORAGE=db, fall back to keeping the bytes in the database
-  // (FileBlob), served by GET /api/files/[id].
+/**
+ * Stores an uploaded file and returns the URL it is served from — always a
+ * `/api/files/<id>` URL, which enforces access control. The declared MIME
+ * type is ignored: the real type is detected from the bytes, and size/type
+ * are validated server-side (UploadValidationError on failure).
+ *
+ * Private local disk first (a VPS). On a host with no writable disk
+ * (serverless), or when FILE_STORAGE=db, the bytes go into the database
+ * (FileBlob) instead. Private
+ * disk files are stored flat by random id.
+ */
+export async function saveUploadedFile(base64Data: string): Promise<{ url: string; absolutePath: string }> {
+  const check = checkBase64Upload(base64Data);
+  if (!check.ok) throw new UploadValidationError(check.message, check.status);
+  const { buffer, mimeType } = check;
+  const extension = EXTENSION_BY_MIME[mimeType];
+
   if (process.env.FILE_STORAGE !== "db") {
     try {
-      const dir = path.join(UPLOADS_ROOT, subdir);
-      await fs.mkdir(dir, { recursive: true });
-      const filename = `${crypto.randomUUID()}.${extension}`;
-      const absolutePath = path.join(dir, filename);
+      await fs.mkdir(PRIVATE_UPLOADS_ROOT, { recursive: true });
+      const fileId = `${crypto.randomUUID()}.${extension}`;
+      const absolutePath = path.join(PRIVATE_UPLOADS_ROOT, fileId);
       await fs.writeFile(absolutePath, buffer);
-      return { url: `/uploads/${subdir}/${filename}`, absolutePath };
+      return { url: `${FILE_URL_PREFIX}${fileId}`, absolutePath };
     } catch (error) {
       console.warn("[file-storage] local disk isn't writable, storing in the database instead:", (error as Error).message);
     }
   }
 
   const id = crypto.randomUUID();
-  await db.fileBlob.create({ data: { id, mimeType, data: buffer } });
-  return { url: `/api/files/${id}`, absolutePath: "" };
+  await db.fileBlob.create({ data: { id, mimeType, data: new Uint8Array(buffer) } });
+  return { url: `${FILE_URL_PREFIX}${id}`, absolutePath: "" };
+}
+
+/** Reads a stored file by its `/api/files/<id>` id — a private-disk file or a FileBlob row. Returns null when it doesn't exist. */
+export async function readStoredFile(fileId: string): Promise<{ data: Buffer; mimeType: string } | null> {
+  if (DISK_FILE_ID.test(fileId)) {
+    try {
+      const data = await fs.readFile(path.join(PRIVATE_UPLOADS_ROOT, fileId));
+      const mimeType = mimeTypeForExtension(path.extname(fileId).slice(1));
+      return mimeType ? { data, mimeType } : null;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  }
+  const blob = await db.fileBlob.findUnique({ where: { id: fileId } });
+  return blob ? { data: Buffer.from(blob.data), mimeType: blob.mimeType } : null;
+}
+
+/** Absolute path of a legacy `/uploads/...` file, or null when the URL would escape public/uploads. */
+function legacyPublicPath(fileUrl: string): string | null {
+  const uploadsRoot = path.join(LEGACY_PUBLIC_ROOT, "uploads");
+  const absolutePath = path.resolve(LEGACY_PUBLIC_ROOT, fileUrl.replace(/^\//, ""));
+  return absolutePath.startsWith(uploadsRoot + path.sep) ? absolutePath : null;
 }
 
 /**
- * Best-effort delete of a file this app itself wrote (a local `/uploads/...`
- * path from saveUploadedFile) — used by the document-retention purge job
- * (Step 21, audit §7.5) and by the upload routes when a new file replaces
- * an old one (New_Visa.md §18: "old file is deleted"). Silently no-ops for
- * an external http(s) URL (the CRM's "paste an already-hosted URL" flow) —
- * this app doesn't own that file and has no business deleting it. Swallows
- * "file already gone" (ENOENT) since the caller's goal ("this file no
- * longer exists on disk") is already satisfied either way; other errors
- * are logged, not thrown, since a failed cleanup shouldn't block whatever
- * DB update the caller is also making.
+ * Best-effort delete of a file this app itself wrote — used by the
+ * document-retention purge job and by upload routes when a new file replaces
+ * an old one. Silently no-ops for an external http(s) URL. Swallows "file
+ * already gone"; other errors are logged, not thrown, since a failed cleanup
+ * shouldn't block the caller's DB update.
  */
 export async function deleteUploadedFile(fileUrl: string): Promise<void> {
   if (!fileUrl.startsWith("/")) return;
-  if (fileUrl.startsWith(DB_FILE_PREFIX)) {
-    await db.fileBlob.deleteMany({ where: { id: fileUrl.slice(DB_FILE_PREFIX.length) } });
-    return;
-  }
 
-  const absolutePath = path.join(process.cwd(), "public", fileUrl.replace(/^\//, ""));
+  let absolutePath: string | null = null;
+  if (fileUrl.startsWith(FILE_URL_PREFIX)) {
+    const fileId = fileUrl.slice(FILE_URL_PREFIX.length);
+    if (!DISK_FILE_ID.test(fileId)) {
+      await db.fileBlob.deleteMany({ where: { id: fileId } });
+      return;
+    }
+    absolutePath = path.join(PRIVATE_UPLOADS_ROOT, fileId);
+  } else {
+    absolutePath = legacyPublicPath(fileUrl);
+  }
+  if (!absolutePath) return;
+
   try {
     await fs.unlink(absolutePath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-    console.error(`[local-file-storage] couldn't delete "${fileUrl}"`, error);
+    console.error(`[local-file-storage] couldn't delete a stored file (${(error as NodeJS.ErrnoException).code ?? "unknown error"})`);
   }
 }
 
 /**
- * Reads file bytes back given a `Document.fileUrl` — handles both a
- * relative path this app itself wrote (via saveUploadedFile, read straight
- * off disk) and a real external http(s) URL (fetched over the network,
- * e.g. one a staff member pasted in via the CRM's existing "attach an
- * already-hosted URL" upload flow).
+ * Reads file bytes back given a `Document.fileUrl` — a stored `/api/files/<id>`
+ * file, a legacy `/uploads/...` path, or a real external http(s) URL (the
+ * CRM's "attach an already-hosted URL" flow).
  */
 export async function readFileBytes(fileUrl: string): Promise<{ base64: string; mimeType: string }> {
-  if (fileUrl.startsWith(DB_FILE_PREFIX)) {
-    const blob = await db.fileBlob.findUnique({ where: { id: fileUrl.slice(DB_FILE_PREFIX.length) } });
-    if (!blob) throw new Error(`Stored file "${fileUrl}" no longer exists.`);
-    return { base64: Buffer.from(blob.data).toString("base64"), mimeType: blob.mimeType };
+  if (fileUrl.startsWith(FILE_URL_PREFIX)) {
+    const stored = await readStoredFile(fileUrl.slice(FILE_URL_PREFIX.length));
+    if (!stored) throw new Error("Stored file no longer exists.");
+    return { base64: stored.data.toString("base64"), mimeType: stored.mimeType };
   }
 
   if (fileUrl.startsWith("/")) {
-    const absolutePath = path.join(process.cwd(), "public", fileUrl.replace(/^\//, ""));
+    const absolutePath = legacyPublicPath(fileUrl);
+    if (!absolutePath) throw new Error("Invalid stored file path.");
     const buffer = await fs.readFile(absolutePath);
-    const extension = path.extname(absolutePath).slice(1).toLowerCase();
-    const mimeType = Object.entries(EXTENSION_BY_MIME).find(([, ext]) => ext === extension)?.[0];
-    if (!mimeType) throw new Error(`Can't tell the file type from "${fileUrl}" — expected .jpg/.png/.gif/.webp/.pdf.`);
+    const mimeType = mimeTypeForExtension(path.extname(absolutePath).slice(1).toLowerCase());
+    if (!mimeType) throw new Error("Can't tell the stored file's type — expected .jpg/.png/.gif/.webp/.pdf.");
     return { base64: buffer.toString("base64"), mimeType };
   }
 
