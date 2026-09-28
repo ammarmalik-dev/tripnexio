@@ -2,11 +2,14 @@ import type { ApiErrorBody, ApiSuccessBody } from "./respond";
 
 export class ApiError extends Error {
   fieldErrors?: Record<string, string[]>;
+  /** The response's real HTTP status — lets a caller distinguish e.g. a 404 "not found" from a 500 failure without string-matching the message. */
+  status: number;
 
-  constructor(message: string, fieldErrors?: Record<string, string[]>) {
+  constructor(message: string, fieldErrors?: Record<string, string[]>, status?: number) {
     super(message);
     this.name = "ApiError";
     this.fieldErrors = fieldErrors;
+    this.status = status ?? 0;
   }
 }
 
@@ -38,7 +41,8 @@ async function unwrapResponse<T>(response: Response): Promise<T> {
     const errorBody = payload as ApiErrorBody | null;
     throw new ApiError(
       errorBody?.error?.message ?? "Something went wrong. Please try again.",
-      errorBody?.error?.fieldErrors
+      errorBody?.error?.fieldErrors,
+      response.status
     );
   }
 

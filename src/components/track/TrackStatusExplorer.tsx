@@ -12,7 +12,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { StatusTimeline } from "./StatusTimeline";
-import { trackRequest, SAMPLE_TRACKING_IDS, type TrackResult } from "@/lib/mock-api/track";
+import type { TrackResult } from "@/lib/track/types";
+import { getJson, ApiError } from "@/lib/api/client";
 import { trackSchema, type TrackValues } from "@/lib/validation/track-schema";
 import { siteConfig } from "@/lib/site-config";
 import { toast } from "@/components/ui/Toaster";
@@ -28,7 +29,6 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors },
   } = useForm<TrackValues>({
     resolver: zodResolver(trackSchema),
@@ -41,27 +41,20 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
   const runSearch = handleSubmit(async (values) => {
     setState("loading");
     try {
-      const found = await trackRequest(values.referenceId);
-      if (found) {
-        setResult(found);
-        setState("found");
-      } else {
+      const found = await getJson<TrackResult>(`/api/track?referenceId=${encodeURIComponent(values.referenceId)}`);
+      setResult(found);
+      setState("found");
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 404) {
         setResult(null);
         setState("not-found");
+        return;
       }
-    } catch {
-      // Not reachable from this deterministic mock today — kept so the UI
-      // has a real error branch ready once a real lookup API exists (M2).
       setResult(null);
       setState("error");
       toast.error("Couldn't check that request right now. Please try again.");
     }
   });
-
-  const fillSample = (id: string) => {
-    setValue("referenceId", id);
-    void runSearch();
-  };
 
   return (
     <div className="flex flex-col gap-8">
@@ -81,19 +74,9 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
             Track
           </Button>
         </form>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-ink-tertiary">
-          <span>Try a sample ID:</span>
-          {SAMPLE_TRACKING_IDS.map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => fillSample(id)}
-              className="rounded-pill border border-hairline px-2.5 py-1 font-medium text-ink-secondary transition-colors duration-200 hover:border-accent hover:text-ink-accent"
-            >
-              {id}
-            </button>
-          ))}
-        </div>
+        <p className="text-xs text-ink-tertiary">
+          You&rsquo;ll find this in the confirmation we sent when you submitted a request.
+        </p>
       </GlassCard>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -169,7 +152,11 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
                   <p className="text-sm text-ink-on-dark-secondary">Submitted {result.submittedDate}</p>
                 </div>
               </div>
-              <StatusTimeline stages={result.stages} />
+              {result.closedMessage ? (
+                <p className="text-sm text-ink-on-dark-secondary">{result.closedMessage}</p>
+              ) : (
+                <StatusTimeline stages={result.stages} />
+              )}
             </div>
           ) : null}
         </motion.div>

@@ -3,7 +3,7 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/cn";
-import type { TrackStage } from "@/lib/mock-api/track";
+import type { TrackStage } from "@/lib/track/types";
 
 interface StatusTimelineProps {
   stages: TrackStage[];
