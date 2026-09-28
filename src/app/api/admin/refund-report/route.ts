@@ -3,7 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { SERVICE_TYPE_LABELS, REFUND_STATUS_LABELS } from "@/lib/crm/labels";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import type { RefundStatus, ServiceType } from "@/generated/prisma/enums";
 
 function toNumber(value: { toString(): string } | null | undefined): number {
@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     rows: refunds.map((refund) => ({
       id: refund.id,
       bookingId: refund.payment.booking.bookingId,
-      leadReference: formatLeadReference(refund.payment.booking.lead.serviceType, refund.payment.booking.leadId),
+      leadReference: leadReference(refund.payment.booking.lead),
       customerName: refund.payment.booking.customer.name,
       serviceType: SERVICE_TYPE_LABELS[refund.payment.booking.lead.serviceType],
       status: REFUND_STATUS_LABELS[refund.status],

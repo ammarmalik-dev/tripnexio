@@ -22,6 +22,7 @@ interface ServiceData {
   name: string;
   shortDescription: string;
   ctaLabel: string;
+  referenceCode: string;
   iconName: string;
   displayOrder: number;
   active: boolean;
@@ -34,6 +35,7 @@ interface ServiceFormState {
   name: string;
   shortDescription: string;
   ctaLabel: string;
+  referenceCode: string;
   iconName: string;
   displayOrder: string;
 }
@@ -43,6 +45,7 @@ const EMPTY_FORM: ServiceFormState = {
   name: "",
   shortDescription: "",
   ctaLabel: "",
+  referenceCode: "",
   iconName: SERVICE_ICON_OPTIONS[0],
   displayOrder: "0",
 };
@@ -53,6 +56,7 @@ function toFormState(service: ServiceData): ServiceFormState {
     name: service.name,
     shortDescription: service.shortDescription,
     ctaLabel: service.ctaLabel,
+    referenceCode: service.referenceCode,
     iconName: service.iconName,
     displayOrder: String(service.displayOrder),
   };
@@ -124,6 +128,16 @@ function ServiceFields({
         error={errors.ctaLabel?.[0]}
         disabled={disabled}
       />
+      <TextField
+        label="Reference Code"
+        name="referenceCode"
+        maxLength={2}
+        value={form.referenceCode}
+        onChange={(event) => onChange({ ...form, referenceCode: event.target.value.toUpperCase() })}
+        error={errors.referenceCode?.[0]}
+        disabled={disabled}
+        hint="Two letters inside every reference, e.g. VI in 10626VI001. VI, FL and RT are the client's confirmed codes; VE, VC and OT are pending client confirmation. A change applies to new references only."
+      />
       <FormField label="Icon" htmlFor="iconName" error={errors.iconName?.[0]}>
         <div className="flex items-center gap-2">
           <select
@@ -161,6 +175,7 @@ function buildPayload(form: ServiceFormState) {
     name: form.name.trim(),
     shortDescription: form.shortDescription.trim(),
     ctaLabel: form.ctaLabel.trim(),
+    referenceCode: form.referenceCode.trim().toUpperCase(),
     iconName: form.iconName,
     displayOrder: Number(form.displayOrder) || 0,
   };
@@ -250,7 +265,7 @@ function NewServiceForm({ onCreated }: { onCreated: (service: ServiceData) => vo
     }
   };
 
-  const canSubmit = form.code && form.name.trim() && form.shortDescription.trim();
+  const canSubmit = form.code && form.name.trim() && form.shortDescription.trim() && form.referenceCode.trim().length === 2;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">

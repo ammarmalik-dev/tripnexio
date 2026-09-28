@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { toCsv } from "@/lib/csv/to-csv";
 import { SERVICE_TYPE_LABELS, REFUND_STATUS_LABELS } from "@/lib/crm/labels";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 
 /** Business Rules §15 "Finance Reports + MIS" item 8 — CSV export of the Refund Report, same permission convention as every other bulk export (data.export, distinct from finance.manage's view-only aggregate). */
 export async function GET(request: NextRequest) {
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const csv = toCsv(refunds, [
     { key: "bookingId", header: "Booking ID", value: (row) => row.payment.booking.bookingId },
-    { key: "leadReference", header: "Lead Reference", value: (row) => formatLeadReference(row.payment.booking.lead.serviceType, row.payment.booking.leadId) },
+    { key: "leadReference", header: "Lead Reference", value: (row) => leadReference(row.payment.booking.lead) },
     { key: "customerName", header: "Customer Name", value: (row) => row.payment.booking.customer.name },
     { key: "serviceType", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.payment.booking.lead.serviceType] },
     { key: "status", header: "Status", value: (row) => REFUND_STATUS_LABELS[row.status] },

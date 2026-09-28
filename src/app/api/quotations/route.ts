@@ -12,7 +12,7 @@ import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { money } from "@/lib/invoices/render-invoice";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { siteConfig } from "@/lib/site-config";
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
   const items = quotations.map((quotation) => ({
     id: quotation.id,
     leadId: quotation.leadId,
-    leadReferenceId: formatLeadReference(quotation.lead.serviceType, quotation.leadId),
+    leadReferenceId: leadReference(quotation.lead),
     serviceType: quotation.lead.serviceType,
     status: quotationStatus(quotation, now),
     sellingPrice: quotation.sellingPrice,
@@ -312,7 +312,7 @@ export async function POST(request: NextRequest) {
     smsTo: toWhatsAppId(lead.customer.mobile),
     variables: {
       customerName: lead.customer.name,
-      leadReference: formatLeadReference(lead.serviceType, lead.id),
+      leadReference: leadReference(lead),
       sellingPrice: money(payableAfterCoupon),
       quoteValidUntil: validityExpiresAt
         ? new Date(validityExpiresAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })

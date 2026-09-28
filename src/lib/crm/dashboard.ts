@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 /**
@@ -473,7 +473,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
   // queried at all (see TRAVEL_DATE_SERVICES' own doc comment).
   const travelDateCandidates = await db.lead.findMany({
     where: { serviceType: { in: [...TRAVEL_DATE_SERVICES] }, status: { notIn: [...TRAVEL_DATE_TERMINAL_STATUSES] }, ...leadScope },
-    select: { id: true, serviceType: true, details: true, customer: { select: { name: true } } },
+    select: { id: true, reference: true, serviceType: true, details: true, customer: { select: { name: true } } },
   });
   // Step 53 — "unassigned work caused by inactive employees" (Step 50's
   // own "effectively unassigned" concept, surfaced here as an action item
@@ -501,7 +501,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       const item: ActionQueueItem = {
         type: "APPROACHING_TRAVEL_DATE",
         label: "Travel date approaching",
-        detail: `${lead.customer.name} — ${formatLeadReference(lead.serviceType, lead.id)}`,
+        detail: `${lead.customer.name} — ${leadReference(lead)}`,
         href: `/crm/leads/${lead.id}`,
         occurredAt: travelDate.toISOString(),
       };
@@ -515,7 +515,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
     ...expiringQuotes.map((q): ActionQueueItem => ({
       type: "QUOTE_EXPIRING",
       label: "Quote expiring soon",
-      detail: `${q.lead.customer.name} — ${formatLeadReference(q.lead.serviceType, q.leadId)}`,
+      detail: `${q.lead.customer.name} — ${leadReference(q.lead)}`,
       href: `/crm/leads/${q.leadId}`,
       occurredAt: (q.validityExpiresAt as Date).toISOString(),
     })),
@@ -538,7 +538,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
     needsAttention.push({
       type: "UNASSIGNED_INACTIVE_STAFF",
       label: "Unassigned — assignee no longer active",
-      detail: `${lead.customer.name} — ${formatLeadReference(lead.serviceType, lead.id)} (was: ${lead.assignedStaff!.name})`,
+      detail: `${lead.customer.name} — ${leadReference(lead)} (was: ${lead.assignedStaff!.name})`,
       href: `/crm/leads/${lead.id}`,
       occurredAt: lead.updatedAt.toISOString(),
     });
@@ -597,7 +597,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
     needsAttention.push({
       type: "LEAD_STALLED",
       label: "Follow-up due — no recent activity",
-      detail: `${lead.customer.name} — ${formatLeadReference(lead.serviceType, lead.id)}`,
+      detail: `${lead.customer.name} — ${leadReference(lead)}`,
       href: `/crm/leads/${lead.id}`,
       occurredAt: lead.updatedAt.toISOString(),
     });
@@ -608,7 +608,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
     needsAttention.push({
       type: "QUOTATION_ACCEPTED_NEEDS_BOOKING",
       label: "Client accepted quotation — create booking",
-      detail: `${q.lead.customer.name} — ${formatLeadReference(q.lead.serviceType, q.leadId)}`,
+      detail: `${q.lead.customer.name} — ${leadReference(q.lead)}`,
       href: `/crm/leads/${q.leadId}`,
       occurredAt: q.updatedAt.toISOString(),
     });

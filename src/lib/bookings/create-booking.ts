@@ -1,7 +1,7 @@
 import type { Prisma } from "../../generated/prisma/client";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
-import { placeholderBookingId } from "./reference";
+import { bookingIdForLead } from "./reference";
 import { isExpiredNow } from "../quotations/sync-expiry";
 import { getProtectionPlanDefaultPrice } from "../settings/protection-plan-config";
 import { buildDocumentChecklistSnapshot } from "./document-checklist-snapshot";
@@ -88,7 +88,7 @@ export async function createBookingFromQuotation(
   const booking = await db.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.booking.create({
       data: {
-        bookingId: placeholderBookingId(),
+        bookingId: await bookingIdForLead(tx, quotation.lead),
         customerToken: generateToken(),
         leadId: quotation.leadId,
         customerId: quotation.lead.customerId,

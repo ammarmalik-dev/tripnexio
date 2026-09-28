@@ -3,7 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { formatLeadReference, parseLeadReference } from "@/lib/leads/reference";
+import { leadReference, parseLeadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 
 /**
@@ -26,16 +26,23 @@ export async function GET(request: NextRequest) {
     include: { customer: true, lead: true },
   });
 
+  // Then the lead's stored reference (new or old format), then an old
+  // id-suffix reference for leads that predate stored references.
   let booking = bookingByExactId;
   if (!booking) {
     const parsedReference = parseLeadReference(query);
-    if (parsedReference) {
-      booking = await db.booking.findFirst({
-        where: { lead: { serviceType: parsedReference.serviceType, id: { endsWith: parsedReference.suffix } } },
-        include: { customer: true, lead: true },
-        orderBy: { createdAt: "desc" },
-      });
-    }
+    booking = await db.booking.findFirst({
+      where: {
+        lead: {
+          OR: [
+            { reference: { equals: query, mode: "insensitive" } },
+            ...(parsedReference ? [{ serviceType: parsedReference.serviceType, id: { endsWith: parsedReference.suffix } }] : []),
+          ],
+        },
+      },
+      include: { customer: true, lead: true },
+      orderBy: { createdAt: "desc" },
+    });
   }
 
   if (!booking) {
@@ -52,7 +59,7 @@ export async function GET(request: NextRequest) {
     serviceType: booking.lead.serviceType,
     serviceTypeLabel: SERVICE_TYPE_LABELS[booking.lead.serviceType],
     leadId: booking.leadId,
-    leadReferenceId: formatLeadReference(booking.lead.serviceType, booking.leadId),
+    leadReferenceId: leadReference(booking.lead),
     customer: { name: booking.customer.name, mobile: booking.customer.mobile, email: booking.customer.email },
   });
 }

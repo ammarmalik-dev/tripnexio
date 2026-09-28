@@ -60,7 +60,7 @@ export function PaymentLinkLookupForm() {
             onKeyDown={(event) => {
               if (event.key === "Enter") void handleSearch();
             }}
-            placeholder="Booking ID (e.g. TNX-OT-058517) or Lead reference (e.g. OTB-058517)"
+            placeholder="Reference or Booking ID (e.g. 10626VI001)"
             className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
           />
         </div>

@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { findCustomerByMobile } from "../customers/find-by-mobile";
+import { leadReference } from "./reference";
 
 export interface VisaExtensionEligibilityInput {
   passportNumber?: string;
@@ -70,8 +71,10 @@ export function getIneligibleRedirect(insideUAE: "yes" | "no"): { service: "VISA
 
 export interface PriorTripNexioVisa {
   leadId: string;
+  /** The earlier New Visa lead's reference. */
+  referenceId: string;
   createdAt: Date;
-  /** Real Booking id (TNX-XX-XXXXXX) of the earlier visa, when one exists. */
+  /** Booking ID of the earlier visa, when one exists. */
   bookingId: string | null;
   /** Captured on the earlier New Visa request — shown to staff as-is, never guessed. */
   destinationCountry: string | null;
@@ -109,6 +112,7 @@ export async function findPriorTripNexioVisaByPassport(passportNumber: string): 
   const text = (value: unknown) => (typeof value === "string" && value ? value : null);
   return {
     leadId: lead.id,
+    referenceId: leadReference(lead),
     createdAt: lead.createdAt,
     bookingId: lead.bookings[0]?.bookingId ?? null,
     destinationCountry: text(details.destinationCountry),

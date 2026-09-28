@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { toCsv } from "@/lib/csv/to-csv";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import type { Prisma } from "@/generated/prisma/client";
 
 /**
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   const csv = toCsv(payments, [
     { key: "bookingId", header: "Booking ID", value: (row) => row.booking.bookingId },
-    { key: "leadReference", header: "Lead Reference", value: (row) => formatLeadReference(row.booking.lead.serviceType, row.booking.leadId) },
+    { key: "leadReference", header: "Lead Reference", value: (row) => leadReference(row.booking.lead) },
     { key: "customerName", header: "Customer Name", value: (row) => row.booking.customer.name },
     { key: "customerMobile", header: "Customer Mobile", value: (row) => row.booking.customer.mobile },
     { key: "amount", header: "Amount", value: (row) => Number(row.amount) },

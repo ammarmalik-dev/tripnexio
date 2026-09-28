@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { Prisma, type ServiceType } from "../../generated/prisma/client";
-import { formatLeadReference } from "./reference";
+import { nextLeadReference } from "./reference";
 import { writeAudit } from "../audit/log";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
@@ -153,19 +153,18 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     // Booking.customerToken via the automatic checkout instead.
     const customerToken = QUOTE_REVIEW_SERVICES.has(serviceType) ? generateToken() : undefined;
 
-    const created = await tx.lead.create({
+    // Locked reference (1 + MM + YY + ServiceCode + monthly sequence), taken
+    // from the shared counter in this same transaction.
+    const reference = await nextLeadReference(tx, serviceType);
+    const lead = await tx.lead.create({
       data: {
         customerId: customer.id,
         serviceType,
         source: source ?? "Website",
+        reference,
         details: { ...safeDetails, passengerIds } as Prisma.InputJsonValue,
         customerToken,
       },
-    });
-    // The reference is derived from the generated id, so it's stored right after insert.
-    const lead = await tx.lead.update({
-      where: { id: created.id },
-      data: { reference: formatLeadReference(serviceType, created.id) },
     });
 
     await writeAudit(tx, {
@@ -177,7 +176,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
 
     return {
       leadId: lead.id,
-      referenceId: formatLeadReference(serviceType, lead.id),
+      referenceId: reference,
       customerId: customer.id,
       status: lead.status,
       customerName: customer.name,

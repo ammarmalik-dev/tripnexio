@@ -105,7 +105,8 @@ function matchesVerifier(customer: { mobile: string; email: string | null }, ver
  * doc §5: "request only the minimum reference information needed... should not
  * publicly expose full passport numbers, payment credentials, or other
  * unnecessary sensitive information." Matches a stored Lead reference (e.g.
- * "OTB-JYOQHX") or a Booking.bookingId (e.g. "TNX-OT-JYOQHX") exactly, and only
+ * "10626VI001", or an older "OTB-JYOQHX") or a Booking.bookingId (the same
+ * reference, or an older "TNX-OT-JYOQHX") exactly, and only
  * returns data when `verifier` matches the customer on file (last 4 mobile
  * digits or email). The name is returned masked. Any mismatch returns null,
  * indistinguishable from "not found".

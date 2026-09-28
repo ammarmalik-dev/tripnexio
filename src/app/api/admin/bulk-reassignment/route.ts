@@ -6,7 +6,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { hasServiceAccess } from "@/lib/auth/service-scope";
 import { getStaffIdsOnApprovedLeave, isRosterEligible } from "@/lib/staff/eligible-for-assignment";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import type { BookingStatus } from "@/generated/prisma/enums";
 
 /** Matches the same terminal-status set Unit 1's workload helper uses. */
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       leadId: booking.leadId,
       bookingId: booking.id,
       bookingIdFormatted: booking.bookingId,
-      leadReferenceId: formatLeadReference(booking.lead.serviceType, booking.leadId),
+      leadReferenceId: leadReference(booking.lead),
       serviceType: booking.lead.serviceType,
       status: booking.status,
       paxCount: booking._count.passengers,

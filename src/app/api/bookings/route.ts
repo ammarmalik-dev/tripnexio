@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("bookings.view");
@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     createdAt: booking.createdAt,
     serviceType: booking.lead.serviceType,
     leadId: booking.leadId,
-    leadReferenceId: formatLeadReference(booking.lead.serviceType, booking.leadId),
+    leadReferenceId: leadReference(booking.lead),
     customer: { name: booking.customer.name, mobile: booking.customer.mobile },
     latestPayment: booking.payments[0] ? { id: booking.payments[0].id, status: booking.payments[0].status } : null,
   }));

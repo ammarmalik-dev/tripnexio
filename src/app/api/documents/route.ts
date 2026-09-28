@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
         ? {
             id: document.booking.id,
             bookingId: document.booking.bookingId,
-            leadReferenceId: formatLeadReference(document.booking.lead.serviceType, document.booking.leadId),
+            leadReferenceId: leadReference(document.booking.lead),
           }
         : null,
       customer: customer ? { name: customer.name, mobile: customer.mobile } : null,

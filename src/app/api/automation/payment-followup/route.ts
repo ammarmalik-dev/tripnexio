@@ -7,7 +7,7 @@ import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log"
 import { failPayment } from "@/lib/payments/complete-payment";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { money } from "@/lib/invoices/render-invoice";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { paymentTotal } from "@/lib/payments/totals";
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
           variables: {
             customerName: payment.booking.customer.name,
             bookingId: payment.booking.bookingId,
-            leadReference: formatLeadReference(payment.booking.lead.serviceType, payment.booking.leadId),
+            leadReference: leadReference(payment.booking.lead),
             amount: money(total),
           },
           auditTarget: { entityType: "Payment", entityId: payment.id },

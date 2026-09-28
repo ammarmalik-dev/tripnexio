@@ -13,6 +13,12 @@ export const createServiceSchema = z.object({
   name: z.string().trim().min(2, "Enter a service name").max(80, "Name is too long"),
   shortDescription: z.string().trim().min(2, "Enter a short description").max(300, "Description is too long"),
   ctaLabel: z.string().trim().max(40, "Button text is too long").default(""),
+  /** The two letters inside every reference, e.g. "VI" in 10626VI001 (Locked Business Rules v2.0 §4). */
+  referenceCode: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z]{2}$/, "Use exactly two letters, e.g. VI")
+    .transform((value) => value.toUpperCase()),
   iconName: z.string().min(1, "Select an icon"),
   displayOrder: z.number().int().default(0),
   active: z.boolean().default(true),

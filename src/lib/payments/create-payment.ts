@@ -4,7 +4,7 @@ import { writeAudit } from "../audit/log";
 import { getTaxFeeRates } from "../settings/tax-fee-config";
 import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { getPaymentGateway } from "./get-gateway";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 
 /** Fallback when the service has no configured `paymentDeadlineHours` (Step 42) — the original hardcoded value, unchanged for every service until an Admin opts in. */
 const DEFAULT_PAYMENT_LINK_VALIDITY_HOURS = 24;
@@ -51,7 +51,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   const linkExpiresAt = new Date(Date.now() + (paymentDeadlineHours ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS) * 60 * 60 * 1000);
 
   const gateway = getPaymentGateway();
-  const reference = formatLeadReference(booking.lead.serviceType, booking.leadId);
+  const reference = leadReference(booking.lead);
   // Gateway failures are audited (so the Admin integrations dashboard can show
   // a "last error") and then rethrown — callers decide how to surface them.
   let gatewayRef: string;

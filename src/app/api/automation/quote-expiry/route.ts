@@ -7,7 +7,7 @@ import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log"
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { createTask } from "@/lib/tasks/create-task";
 import { isFlightQuote } from "@/lib/quotations/pricing";
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
             smsTo: toWhatsAppId(quotation.lead.customer.mobile),
             variables: {
               customerName: quotation.lead.customer.name,
-              leadReference: formatLeadReference(quotation.lead.serviceType, quotation.lead.id),
+              leadReference: leadReference(quotation.lead),
             },
             auditTarget: { entityType: "Quotation", entityId: quotation.id },
           });
@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
           await createTask(db, {
             type: "QUOTE_FOLLOW_UP",
             priority: "HIGH",
-            title: `Follow up — quote expiring soon (${formatLeadReference(quotation.lead.serviceType, quotation.lead.id)})`,
+            title: `Follow up — quote expiring soon (${leadReference(quotation.lead)})`,
             reason: `Quotation validity expires within ${Math.round(REMINDER_WINDOW_MS / 60000)} minutes`,
             entityType: "Quotation",
             entityId: quotation.id,

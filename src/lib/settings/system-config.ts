@@ -81,6 +81,17 @@ export const getSystemConfig = cache(async (): Promise<SystemConfigValues> => {
   };
 });
 
+/**
+ * The Admin-configured timezone offset read through the caller's own client —
+ * for code already inside a transaction (reference and invoice numbering),
+ * which must not wait on a second pooled connection. Same IST default as
+ * getSystemConfig().
+ */
+export async function getTimezoneOffsetMinutes(client: Pick<typeof db, "systemConfig">): Promise<number> {
+  const row = await client.systemConfig.findUnique({ where: { id: SYSTEM_CONFIG_ID }, select: { timezoneOffsetMinutes: true } });
+  return row?.timezoneOffsetMinutes ?? DEFAULTS.timezoneOffsetMinutes;
+}
+
 export interface EffectiveSiteConfig {
   /** Short brand name — used in page metadata/titles. */
   name: string;

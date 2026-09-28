@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { isMockGatewayActive } from "../payments/get-gateway";
 import { assertQuotationPayable } from "../payments/quotation-payable";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 import { resolveCheckoutDocumentTypes } from "./required-documents";
 
 /** Loads everything the guest /pay/<token> page needs, or null for an unknown token. Never exposes internal fields (vendor cost, margin, staff notes). */
@@ -33,8 +33,8 @@ export async function loadCheckoutByToken(token: string) {
     booking,
     view: {
       serviceType: booking.lead.serviceType,
-      leadReference: formatLeadReference(booking.lead.serviceType, booking.leadId),
-      /** The real TNX-XX-XXXXXX id only exists once payment succeeded. */
+      leadReference: leadReference(booking.lead),
+      /** Shown as the Booking ID once payment succeeded (the same value as the lead reference). */
       bookingId: paid ? booking.bookingId : null,
       payment: payment
         ? {

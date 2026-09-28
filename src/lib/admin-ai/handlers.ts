@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { getStaffWorkloads } from "@/lib/staff/workload";
 import { getIntegrationsHealth } from "@/lib/admin/integrations-health";
-import { parseLeadReference, formatLeadReference } from "@/lib/leads/reference";
+import { parseLeadReference, leadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS, LEAD_STATUS_LABELS } from "@/lib/crm/labels";
 import type { ServiceType, BookingStatus } from "@/generated/prisma/enums";
 import type { CommandTypeKey } from "./command-types";
@@ -128,10 +128,16 @@ async function bookingDiagnosis(param: string | null): Promise<HandlerResult> {
   });
 
   if (!booking) {
+    // Stored reference first (new or old format), then an old id-suffix reference.
     const parsedRef = parseLeadReference(param);
-    if (parsedRef) {
+    if (param.trim()) {
       const lead = await db.lead.findFirst({
-        where: { serviceType: parsedRef.serviceType, id: { endsWith: parsedRef.suffix } },
+        where: {
+          OR: [
+            { reference: { equals: param.trim(), mode: "insensitive" } },
+            ...(parsedRef ? [{ serviceType: parsedRef.serviceType, id: { endsWith: parsedRef.suffix } }] : []),
+          ],
+        },
         include: { customer: true },
       });
       if (lead) {
@@ -147,9 +153,9 @@ async function bookingDiagnosis(param: string | null): Promise<HandlerResult> {
             take: 3,
           });
           return {
-            summary: `${formatLeadReference(lead.serviceType, lead.id)} (${lead.customer.name}) is still a Lead — status ${LEAD_STATUS_LABELS[lead.status]}, no booking created yet.`,
+            summary: `${leadReference(lead)} (${lead.customer.name}) is still a Lead — status ${LEAD_STATUS_LABELS[lead.status]}, no booking created yet.`,
             facts: {
-              leadReference: formatLeadReference(lead.serviceType, lead.id),
+              leadReference: leadReference(lead),
               leadStatus: lead.status,
               customer: lead.customer.name,
               recentActivity: recentAudit.map((entry) => ({ action: entry.action, at: entry.timestamp.toISOString(), note: entry.note })),
@@ -171,7 +177,7 @@ async function summarizeBooking(booking: {
   status: BookingStatus;
   createdAt: Date;
   leadId: string;
-  lead: { serviceType: ServiceType };
+  lead: { id: string; reference: string | null; serviceType: ServiceType };
   customer: { name: string };
   payments: { status: string }[];
   documents: { status: string }[];
@@ -196,7 +202,7 @@ async function summarizeBooking(booking: {
     summary: `${booking.bookingId} (${booking.customer.name}, ${SERVICE_TYPE_LABELS[booking.lead.serviceType]}) — status ${booking.status}, created ${ageDays} day(s) ago. ${diagnosisPoints.join(" ")}`,
     facts: {
       bookingId: booking.bookingId,
-      leadReference: formatLeadReference(booking.lead.serviceType, booking.leadId),
+      leadReference: leadReference(booking.lead),
       customer: booking.customer.name,
       status: booking.status,
       ageDays,

@@ -1,7 +1,7 @@
 import type { Prisma, Payment, Booking, Lead } from "../../generated/prisma/client";
 import type { PaymentStatus } from "../../generated/prisma/enums";
 import { writeAudit } from "../audit/log";
-import { formatBookingId } from "../bookings/reference";
+import { nextInvoiceNumber } from "../invoices/invoice-number";
 
 type PaymentWithBookingLead = Payment & { booking: Booking & { lead: Lead } };
 
@@ -14,9 +14,10 @@ interface ActorInfo {
 
 /**
  * Shared by the manual staff "mark success" route and the gateway webhook
- * handler — both need the exact same transition: Payment -> SUCCESS,
- * Booking gets its real TNX-XX-XXXXXX id and moves to CONFIRMED, Lead moves
- * to CONVERTED. Idempotent: a payment that's already SUCCESS is returned
+ * handler — both need the exact same transition: Payment -> SUCCESS (with
+ * its persisted invoice number), Booking moves to CONFIRMED (its bookingId
+ * is already the lead's reference, set at creation), Lead moves to
+ * CONVERTED. Idempotent: a payment that's already SUCCESS is returned
  * as-is with no further writes, since gateway webhooks can be redelivered.
  */
 export async function completePaymentSuccess(
@@ -31,7 +32,11 @@ export async function completePaymentSuccess(
 
   const updatedPayment = await tx.payment.update({
     where: { id: payment.id },
-    data: { status: "SUCCESS", gatewayRef: options.gatewayRef ?? payment.gatewayRef ?? undefined },
+    data: {
+      status: "SUCCESS",
+      gatewayRef: options.gatewayRef ?? payment.gatewayRef ?? undefined,
+      invoiceNumber: payment.invoiceNumber ?? (await nextInvoiceNumber(tx)),
+    },
   });
   await writeAudit(tx, {
     entityType: "Payment",
@@ -70,20 +75,18 @@ export async function completePaymentSuccess(
   // above and below already have.
   let updatedBooking: Booking = payment.booking;
   if (payment.booking.status !== "CONFIRMED") {
-    // Derived from the Lead's own id (not the Booking row's id) — see the doc
-    // comment on formatBookingId: this is the "Lead ID becomes Booking ID"
-    // rule, not a fresh, unrelated identifier.
-    const realBookingId = formatBookingId(payment.booking.lead.serviceType, payment.booking.leadId);
+    // bookingId already carries the lead's reference ("Lead ID becomes
+    // Booking ID", set at booking creation) — nothing new to assign here.
     updatedBooking = await tx.booking.update({
       where: { id: payment.bookingId },
-      data: { bookingId: realBookingId, status: "CONFIRMED" },
+      data: { status: "CONFIRMED" },
     });
     await writeAudit(tx, {
       entityType: "Booking",
       entityId: payment.bookingId,
       action: "STATUS_CHANGE",
       byUserId: actor.byUserId,
-      note: `${payment.booking.status} -> CONFIRMED, bookingId assigned (${realBookingId}) (${actor.actorLabel})`,
+      note: `${payment.booking.status} -> CONFIRMED, Booking ID ${updatedBooking.bookingId} (${actor.actorLabel})`,
     });
   }
 

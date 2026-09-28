@@ -6,7 +6,7 @@ import { recordAutomationRun } from "@/lib/automation/record-run";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { getServiceTimelineRules } from "@/lib/settings/service-timeline-config";
@@ -41,7 +41,7 @@ async function sendFollowUp(lead: Lead & { customer: Customer }) {
     variables: {
       customerName: lead.customer.name,
       serviceType: SERVICE_TYPE_LABELS[lead.serviceType],
-      leadReference: lead.reference ?? formatLeadReference(lead.serviceType, lead.id),
+      leadReference: leadReference(lead),
       unsubscribeLink: `${siteConfig.url}/follow-ups/stop/${token}`,
     },
     auditTarget: { entityType: "Lead", entityId: lead.id },

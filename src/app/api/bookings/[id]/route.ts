@@ -3,7 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
 import { getRefundConfig } from "@/lib/refunds/config";
@@ -76,7 +76,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     reservationExpiresAt: synced.reservationExpiresAt,
     reservationExpired: synced.reservationExpired,
     leadId: booking.leadId,
-    leadReferenceId: formatLeadReference(booking.lead.serviceType, booking.leadId),
+    leadReferenceId: leadReference(booking.lead),
     serviceType: booking.lead.serviceType,
     selectedQuotation: booking.lead.quotations[0] ?? null,
     customer: {

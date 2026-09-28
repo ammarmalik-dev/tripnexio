@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 import { buildInvoicePdfForPayment, money } from "../invoices/render-invoice";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
@@ -35,7 +35,7 @@ export async function notifyPaymentReceived(paymentId: string): Promise<void> {
     variables: {
       customerName: payment.booking.customer.name,
       bookingId: payment.booking.bookingId,
-      leadReference: formatLeadReference(payment.booking.lead.serviceType, payment.booking.leadId),
+      leadReference: leadReference(payment.booking.lead),
       amount: money(total),
     },
     auditTarget: { entityType: "Payment", entityId: payment.id },

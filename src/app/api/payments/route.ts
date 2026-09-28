@@ -4,7 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("payments.view");
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     createdAt: payment.createdAt,
     bookingId: payment.bookingId,
     bookingDisplayId: payment.booking.bookingId,
-    leadReferenceId: formatLeadReference(payment.booking.lead.serviceType, payment.booking.leadId),
+    leadReferenceId: leadReference(payment.booking.lead),
     customer: { name: payment.booking.customer.name, mobile: payment.booking.customer.mobile },
   }));
 

@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 import {
   SERVICE_TYPE_LABELS,
   LEAD_STATUS_LABELS,
@@ -39,7 +39,7 @@ export async function buildLeadRecordContext(leadId: string): Promise<string | n
   const lines: string[] = [];
   lines.push(`Customer name: ${lead.customer.name}`);
   lines.push(`Service: ${SERVICE_TYPE_LABELS[lead.serviceType]}`);
-  lines.push(`Lead reference: ${formatLeadReference(lead.serviceType, lead.id)}`);
+  lines.push(`Lead reference: ${leadReference(lead)}`);
   lines.push(`Lead status: ${LEAD_STATUS_LABELS[lead.status]}`);
 
   const details = (lead.details ?? {}) as Record<string, unknown>;

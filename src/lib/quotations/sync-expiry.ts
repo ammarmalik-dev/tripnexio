@@ -2,7 +2,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import type { Quotation } from "../../generated/prisma/client";
 
@@ -60,7 +60,7 @@ export async function syncExpiredQuotations<T extends Quotation>(quotations: T[]
       emailTo: lead.customer.email,
       whatsappTo: toWhatsAppId(lead.customer.mobile),
       smsTo: toWhatsAppId(lead.customer.mobile),
-      variables: { customerName: lead.customer.name, leadReference: formatLeadReference(lead.serviceType, lead.id) },
+      variables: { customerName: lead.customer.name, leadReference: leadReference(lead) },
       auditTarget: { entityType: "Quotation", entityId: quotation.id },
     });
   }

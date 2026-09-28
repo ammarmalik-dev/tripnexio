@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 
 export interface DocumentRecipient {
   email: string | null;
@@ -29,7 +29,7 @@ export async function resolveDocumentRecipient(document: {
       email: booking.customer.email,
       mobile: booking.customer.mobile,
       customerName: booking.customer.name,
-      leadReference: formatLeadReference(booking.lead.serviceType, booking.leadId),
+      leadReference: leadReference(booking.lead),
     };
   }
 

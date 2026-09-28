@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { toCsv } from "@/lib/csv/to-csv";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS, BOOKING_STATUS_LABELS } from "@/lib/crm/labels";
 
 export async function GET() {
@@ -12,7 +12,7 @@ export async function GET() {
 
   const csv = toCsv(bookings, [
     { key: "bookingId", header: "Booking ID", value: (row) => row.bookingId },
-    { key: "leadReference", header: "Lead Reference", value: (row) => formatLeadReference(row.lead.serviceType, row.leadId) },
+    { key: "leadReference", header: "Lead Reference", value: (row) => leadReference(row.lead) },
     { key: "service", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.lead.serviceType] },
     { key: "status", header: "Status", value: (row) => BOOKING_STATUS_LABELS[row.status] },
     { key: "customerName", header: "Customer Name", value: (row) => row.customer.name },

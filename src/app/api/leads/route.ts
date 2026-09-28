@@ -4,7 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("leads.view");
@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
 
   const items = leads.map((lead) => ({
     id: lead.id,
-    referenceId: formatLeadReference(lead.serviceType, lead.id),
+    referenceId: leadReference(lead),
     serviceType: lead.serviceType,
     status: lead.status,
     temperature: lead.temperature,

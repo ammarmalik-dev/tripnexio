@@ -35,6 +35,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const codeTaken = await db.service.findUnique({ where: { code: parsed.data.code } });
     if (codeTaken) return jsonError(400, "A service with this code already exists.", { code: ["This service already has a metadata row."] });
   }
+  if (parsed.data.referenceCode && parsed.data.referenceCode !== existing.referenceCode) {
+    const referenceTaken = await db.service.findUnique({ where: { referenceCode: parsed.data.referenceCode } });
+    if (referenceTaken) {
+      return jsonError(400, "Another service already uses this reference code.", { referenceCode: ["Already used by another service."] });
+    }
+  }
 
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.service.update({ where: { id }, data: parsed.data });
@@ -43,7 +49,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Service "${result.name}" updated (by ${session.name})`,
+      note: `Service "${result.name}" updated${
+        parsed.data.referenceCode && parsed.data.referenceCode !== existing.referenceCode
+          ? ` — reference code ${existing.referenceCode} -> ${result.referenceCode} (new references only)`
+          : ""
+      } (by ${session.name})`,
     });
     return result;
   });

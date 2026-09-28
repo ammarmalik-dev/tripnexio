@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 export interface OutstandingDocument {
@@ -38,7 +38,7 @@ export async function getOutstandingDocuments(customerId: string): Promise<Outst
   return documents.map((document) => ({
     id: document.id,
     type: document.type,
-    leadReference: document.booking ? formatLeadReference(document.booking.lead.serviceType, document.booking.leadId) : null,
+    leadReference: document.booking ? leadReference(document.booking.lead) : null,
     serviceType: document.booking?.lead.serviceType ?? null,
     passengerName: document.passenger?.fullName ?? null,
     bookingDisplayId: document.booking?.bookingId ?? null,

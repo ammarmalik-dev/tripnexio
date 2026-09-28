@@ -3,7 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
 import { findPriorTripNexioVisaByPassport } from "@/lib/leads/visa-extension-eligibility";
@@ -56,9 +56,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
                 passengerId: passenger.id,
                 fullName: passenger.fullName,
                 passportNumber: passenger.passportNumber as string,
-                match: match
-                  ? { ...match, referenceId: formatLeadReference("NEW_VISA", match.leadId) }
-                  : null,
+                match,
               };
             })
         )
@@ -77,7 +75,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
   return jsonSuccess({
     id: lead.id,
-    referenceId: formatLeadReference(lead.serviceType, lead.id),
+    referenceId: leadReference(lead),
     serviceType: lead.serviceType,
     status: lead.status,
     temperature: lead.temperature,
@@ -107,7 +105,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         .filter((otherLead) => otherLead.id !== lead.id)
         .map((otherLead) => ({
           id: otherLead.id,
-          referenceId: formatLeadReference(otherLead.serviceType, otherLead.id),
+          referenceId: leadReference(otherLead),
           serviceType: otherLead.serviceType,
           status: otherLead.status,
           createdAt: otherLead.createdAt,

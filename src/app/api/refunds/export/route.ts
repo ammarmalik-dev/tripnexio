@@ -4,7 +4,7 @@ import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { toCsv } from "@/lib/csv/to-csv";
 import { REFUND_STATUS_LABELS } from "@/lib/crm/labels";
 
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   const csv = toCsv(refunds, [
     { key: "bookingId", header: "Booking ID", value: (row) => row.payment.booking.bookingId },
-    { key: "leadReferenceId", header: "Lead Reference", value: (row) => formatLeadReference(row.payment.booking.lead.serviceType, row.payment.booking.leadId) },
+    { key: "leadReferenceId", header: "Lead Reference", value: (row) => leadReference(row.payment.booking.lead) },
     { key: "customerName", header: "Customer Name", value: (row) => row.payment.booking.customer.name },
     { key: "customerMobile", header: "Customer Mobile", value: (row) => row.payment.booking.customer.mobile },
     { key: "paidAmount", header: "Paid", value: (row) => Number(row.paidAmount) },

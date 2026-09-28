@@ -4,7 +4,7 @@ import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { toCsv } from "@/lib/csv/to-csv";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import type { Quotation } from "@/generated/prisma/client";
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
   });
 
   const csv = toCsv(quotations, [
-    { key: "leadReferenceId", header: "Lead Reference", value: (row) => formatLeadReference(row.lead.serviceType, row.leadId) },
+    { key: "leadReferenceId", header: "Lead Reference", value: (row) => leadReference(row.lead) },
     { key: "service", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.lead.serviceType] },
     { key: "status", header: "Status", value: (row) => quotationStatus(row, now) },
     { key: "customerName", header: "Customer Name", value: (row) => row.lead.customer.name },

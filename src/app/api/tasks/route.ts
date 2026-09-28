@@ -4,7 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 
 /** Staff-facing task inbox (Step 17, audit §3.8) — every Task, auto-created from an existing trigger point (see src/lib/tasks/create-task.ts's callers), optionally filtered. */
 export async function GET(request: NextRequest) {
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     dueDate: task.dueDate,
     createdAt: task.createdAt,
     completedAt: task.completedAt,
-    leadReferenceId: task.lead ? formatLeadReference(task.lead.serviceType, task.lead.id) : null,
+    leadReferenceId: task.lead ? leadReference(task.lead) : null,
     booking: task.booking ? { id: task.booking.id, bookingId: task.booking.bookingId } : null,
     passenger: task.passenger ? { id: task.passenger.id, fullName: task.passenger.fullName } : null,
     assignedTo: task.assignedTo,

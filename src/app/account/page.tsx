@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCustomerSession } from "@/lib/auth/get-customer-session";
 import { db } from "@/lib/db";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { CUSTOMER_LEAD_STATUS_LABELS, CUSTOMER_BOOKING_STATUS_LABELS } from "@/lib/account/labels";
 import { getOutstandingDocuments } from "@/lib/account/outstanding-documents";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
@@ -57,7 +57,7 @@ export default async function AccountPage() {
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[lead.serviceType]}</span>
                 <span className="text-xs text-ink-tertiary">
-                  {formatLeadReference(lead.serviceType, lead.id)} · {formatDate(lead.createdAt)}
+                  {leadReference(lead)} · {formatDate(lead.createdAt)}
                 </span>
               </div>
               <span className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-ink-accent">

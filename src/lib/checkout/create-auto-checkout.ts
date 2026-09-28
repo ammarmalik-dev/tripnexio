@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
-import { placeholderBookingId } from "../bookings/reference";
+import { bookingIdForLead } from "../bookings/reference";
 import { createPendingPayment } from "../payments/create-payment";
 import { getProtectionPlanDefaultPrice } from "../settings/protection-plan-config";
 import { resolveCouponForQuotation } from "../coupons/apply";
@@ -98,7 +98,7 @@ export async function createAutoCheckout(input: {
 
     const createdBooking = await tx.booking.create({
       data: {
-        bookingId: placeholderBookingId(),
+        bookingId: await bookingIdForLead(tx, lead),
         customerToken: token,
         leadId,
         customerId: lead.customerId,

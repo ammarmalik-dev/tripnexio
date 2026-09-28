@@ -1,8 +1,9 @@
 import PDFDocument from "pdfkit";
 import { db } from "../db";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 import { formatCurrency } from "../format-currency";
 import { getInvoiceCompanyDetails } from "./company-config";
+import { ensureInvoiceNumber } from "./invoice-number";
 
 /** @deprecated Kept for any external caller expecting the old fixed-INR formatter — renderInvoicePdf itself now uses formatCurrency(value, company.currencyCode) so amounts respect the Admin-configured currency (Step 45). */
 export function money(value: number): string {
@@ -255,7 +256,7 @@ export async function buildInvoicePdfForPayment(paymentId: string): Promise<Paym
   const total = netAmount + gstAmount + gatewayFee;
   // GST rate is reconstructed against netAmount (what it was actually computed on), not baseFare — otherwise a coupon would make the displayed rate look lower than it really was.
   const gstRatePercent = netAmount > 0 ? (gstAmount / netAmount) * 100 : 0;
-  const invoiceNumber = `INV-${payment.id.slice(-8).toUpperCase()}`;
+  const invoiceNumber = await ensureInvoiceNumber(payment);
 
   const company = await getInvoiceCompanyDetails();
 
@@ -263,7 +264,7 @@ export async function buildInvoicePdfForPayment(paymentId: string): Promise<Paym
     invoiceNumber,
     issuedAt: payment.updatedAt,
     bookingId: payment.booking.bookingId,
-    leadReference: formatLeadReference(payment.booking.lead.serviceType, payment.booking.leadId),
+    leadReference: leadReference(payment.booking.lead),
     customerName: payment.booking.customer.name,
     customerMobile: payment.booking.customer.mobile,
     customerEmail: payment.booking.customer.email,
@@ -322,7 +323,7 @@ export async function buildInvoicePdfForQuotation(quotationId: string): Promise<
     invoiceNumber,
     issuedAt: quotation.createdAt,
     bookingId: null,
-    leadReference: formatLeadReference(quotation.lead.serviceType, quotation.leadId),
+    leadReference: leadReference(quotation.lead),
     customerName: quotation.lead.customer.name,
     customerMobile: quotation.lead.customer.mobile,
     customerEmail: quotation.lead.customer.email,

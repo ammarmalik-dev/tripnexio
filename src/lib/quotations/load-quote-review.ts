@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { formatLeadReference } from "../leads/reference";
+import { leadReference } from "../leads/reference";
 import { isExpiredNow } from "./sync-expiry";
 import { isFlightQuote, supportsItinerary } from "./pricing";
 
@@ -49,7 +49,7 @@ export async function loadQuoteReviewByToken(token: string) {
 
   return {
     serviceType: lead.serviceType,
-    leadReference: formatLeadReference(lead.serviceType, lead.id),
+    leadReference: leadReference(lead),
     leadStatus: lead.status,
     quotations,
     bookingToken: booking?.customerToken ?? null,

@@ -6,7 +6,7 @@ import { recordAutomationRun } from "@/lib/automation/record-run";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
 const LOOKAHEAD_DAYS = 7;
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
             variables: {
               customerName: booking.customer.name,
               documentName: doc.type,
-              leadReference: formatLeadReference(booking.lead.serviceType, booking.leadId),
+              leadReference: leadReference(booking.lead),
             },
             auditTarget: { entityType: "Document", entityId: doc.id },
           });

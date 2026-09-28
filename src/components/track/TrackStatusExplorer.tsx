@@ -63,7 +63,7 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
           <div className="flex-1">
             <TextField
               label="Booking / Reference ID"
-              placeholder="e.g. NV-100234"
+              placeholder="e.g. 10626VI001"
               required
               error={errors.referenceId?.message}
               {...register("referenceId")}

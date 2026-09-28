@@ -2,9 +2,10 @@ import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { formatLeadReference } from "@/lib/leads/reference";
+import { leadReference } from "@/lib/leads/reference";
 import { renderInvoicePdf } from "@/lib/invoices/render-invoice";
 import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
+import { ensureInvoiceNumber } from "@/lib/invoices/invoice-number";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -44,10 +45,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
   const company = await getInvoiceCompanyDetails();
 
   const pdf = await renderInvoicePdf({
-    invoiceNumber: `INV-${payment.id.slice(-8).toUpperCase()}`,
+    invoiceNumber: await ensureInvoiceNumber(payment),
     issuedAt: payment.updatedAt,
     bookingId: payment.booking.bookingId,
-    leadReference: formatLeadReference(payment.booking.lead.serviceType, payment.booking.leadId),
+    leadReference: leadReference(payment.booking.lead),
     customerName: payment.booking.customer.name,
     customerMobile: payment.booking.customer.mobile,
     customerEmail: payment.booking.customer.email,

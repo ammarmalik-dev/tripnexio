@@ -42,12 +42,9 @@ export class KeywordCommandProvider implements AdminCommandProvider {
       return { commandType: "STAFF_WORKLOAD", param: null, confidence: 0.7 };
     }
 
-    // "pending-" is included — an unpaid Booking's bookingId is still the
-    // PENDING-<random> placeholder (see Booking.bookingId's own schema
-    // doc comment; the real TNX-XX-XXXXXX id is only assigned at payment
-    // success) — exactly the kind of booking a "why is this stuck"
-    // question is most likely to be about.
-    const bookingMatch = /\b((?:tnx|nv|ve|vc|ff|rt|otb|pending)-[a-z0-9-]+)/i.exec(text);
+    // The locked reference ("10626VI001", also the Booking ID) or an older
+    // "TNX-OT-..."/"OTB-..." one.
+    const bookingMatch = /\b(1\d{4}[a-z]{2}\d{3,}(?:-\d+)?|(?:tnx|nv|ve|vc|ff|rt|otb)-[a-z0-9-]+)/i.exec(text);
     if (bookingMatch && /\b(stuck|delayed|why|status)\b/.test(text)) {
       return { commandType: "BOOKING_DIAGNOSIS", param: bookingMatch[1], confidence: 0.6 };
     }

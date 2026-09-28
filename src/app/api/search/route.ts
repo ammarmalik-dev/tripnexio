@@ -3,7 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { formatLeadReference, parseLeadReference } from "@/lib/leads/reference";
+import { leadReference, parseLeadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 
 interface SearchResultItem {
@@ -54,14 +54,19 @@ export async function GET(request: NextRequest) {
   const leadResults = new Map<string, SearchResultItem>();
   const bookingResults = new Map<string, SearchResultItem>();
 
-  // --- Lead reference, e.g. "NV-058517" — the exact format shown
-  // everywhere a lead reference is displayed (LeadsTable, BookingDetail's
-  // "leadReferenceId" link, etc.), not a stored column — reverse-derived
-  // the same way formatLeadReference() forward-derives it. ---
+  // --- Lead reference: the stored Lead.reference, new format
+  // ("10626VI001") or older ("NV-058517"), substring match. A legacy
+  // "PREFIX-SUFFIX" query also matches by id suffix, for any lead that
+  // predates stored references. ---
   const parsedReference = parseLeadReference(query);
-  if (canViewLeads && parsedReference) {
+  if (canViewLeads) {
     const leads = await db.lead.findMany({
-      where: { serviceType: parsedReference.serviceType, id: { endsWith: parsedReference.suffix } },
+      where: {
+        OR: [
+          { reference: { contains: query, mode: "insensitive" } },
+          ...(parsedReference ? [{ serviceType: parsedReference.serviceType, id: { endsWith: parsedReference.suffix } }] : []),
+        ],
+      },
       include: { customer: true },
       take: RESULT_LIMIT_PER_QUERY_DIMENSION,
     });
@@ -69,16 +74,15 @@ export async function GET(request: NextRequest) {
       leadResults.set(lead.id, {
         type: "lead",
         id: lead.id,
-        title: formatLeadReference(lead.serviceType, lead.id),
+        title: leadReference(lead),
         subtitle: `${lead.customer.name} · ${SERVICE_TYPE_LABELS[lead.serviceType]}`,
         href: `/crm/leads/${lead.id}`,
       });
     }
   }
 
-  // --- Booking ID, e.g. "TNX-OT-058517" (or a still-pending "PENDING-..."
-  // placeholder — see Booking.bookingId's own doc comment) — a real stored
-  // column, plain substring match. ---
+  // --- Booking ID — the lead's reference (e.g. "10626VI001") or an older
+  // "TNX-OT-058517" — a stored column, plain substring match. ---
   if (canViewBookings) {
     const bookings = await db.booking.findMany({
       where: { bookingId: { contains: query, mode: "insensitive" } },
@@ -119,7 +123,7 @@ export async function GET(request: NextRequest) {
         leadResults.set(lead.id, {
           type: "lead",
           id: lead.id,
-          title: formatLeadReference(lead.serviceType, lead.id),
+          title: leadReference(lead),
           subtitle: `${lead.customer.name} · ${lead.customer.mobile}`,
           href: `/crm/leads/${lead.id}`,
         });

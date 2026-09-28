@@ -35,6 +35,11 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "A service with this code already exists.", { code: ["This service already has a metadata row."] });
   }
 
+  const codeTaken = await db.service.findUnique({ where: { referenceCode: parsed.data.referenceCode } });
+  if (codeTaken) {
+    return jsonError(400, "Another service already uses this reference code.", { referenceCode: ["Already used by another service."] });
+  }
+
   const service = await db.$transaction(async (tx) => {
     const created = await tx.service.create({ data: parsed.data });
     await writeAudit(tx, {
