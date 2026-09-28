@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
     email: staff.email,
     name: staff.name,
     role: staff.role,
+    sessionVersion: staff.sessionVersion,
   });
 
   const response = jsonSuccess({ id: staff.id, name: staff.name, email: staff.email, role: staff.role });

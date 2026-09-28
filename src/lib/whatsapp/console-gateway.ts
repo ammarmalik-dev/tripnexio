@@ -13,7 +13,8 @@ import { maskRecipient } from "../logging/mask";
 export class ConsoleWhatsAppGateway implements WhatsAppGateway {
   readonly providerName = "console (no WHATSAPP_ACCESS_TOKEN configured)";
 
-  constructor(private readonly webhookSecret: string) {}
+  /** null = no WHATSAPP_APP_SECRET configured, so every webhook signature is rejected. */
+  constructor(private readonly webhookSecret: string | null) {}
 
   // Logs only the message kind and a masked recipient — never bodies or template parameters (customer data).
   async sendSessionText(to: string): Promise<SendMessageResult> {
@@ -32,7 +33,7 @@ export class ConsoleWhatsAppGateway implements WhatsAppGateway {
   }
 
   verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
-    if (!signatureHeader) return false;
+    if (!signatureHeader || !this.webhookSecret) return false;
     return verifyMetaSignature(rawBody, signatureHeader, this.webhookSecret);
   }
 }

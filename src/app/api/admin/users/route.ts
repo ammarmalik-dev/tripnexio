@@ -5,6 +5,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 
 export async function GET() {
   const auth = await requirePermission("staff.manage");
@@ -47,9 +48,12 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "A staff account with this email already exists.", { email: ["This email is taken."] });
   }
 
-  const role = await db.role.findUnique({ where: { id: parsed.data.roleId } });
+  const role = await db.role.findUnique({ where: { id: parsed.data.roleId }, include: { permissions: { select: { name: true } } } });
   if (!role) {
     return jsonError(400, "Select a valid role.", { roleId: ["This role doesn't exist."] });
+  }
+  if (role.permissions.some((permission) => permission.name === ADMIN_FULL_PERMISSION) && !session.permissions.includes(ADMIN_FULL_PERMISSION)) {
+    return jsonError(403, "Only a full admin can create an account with full admin access.");
   }
 
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);

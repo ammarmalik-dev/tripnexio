@@ -126,8 +126,8 @@ export async function deleteUploadedFile(fileUrl: string): Promise<void> {
 
 /**
  * Reads file bytes back given a `Document.fileUrl` — a stored `/api/files/<id>`
- * file, a legacy `/uploads/...` path, or a real external http(s) URL (the
- * CRM's "attach an already-hosted URL" flow).
+ * file or a legacy `/uploads/...` path. An external http(s) URL (the CRM's
+ * "attach an already-hosted URL" flow) is never fetched.
  */
 export async function readFileBytes(fileUrl: string): Promise<{ base64: string; mimeType: string }> {
   if (fileUrl.startsWith(FILE_URL_PREFIX)) {
@@ -145,12 +145,6 @@ export async function readFileBytes(fileUrl: string): Promise<{ base64: string; 
     return { base64: buffer.toString("base64"), mimeType };
   }
 
-  const response = await fetch(fileUrl);
-  if (!response.ok) throw new Error(`Couldn't fetch "${fileUrl}" (${response.status}).`);
-  const mimeType = response.headers.get("content-type")?.split(";")[0].trim() ?? "";
-  if (!Object.keys(EXTENSION_BY_MIME).includes(mimeType)) {
-    throw new Error(`"${fileUrl}" isn't a supported file type (got "${mimeType}") — expected JPEG, PNG, GIF, WebP, or PDF.`);
-  }
-  const buffer = Buffer.from(await response.arrayBuffer());
-  return { base64: buffer.toString("base64"), mimeType };
+  // No arbitrary network fetches (SSRF): only files this app stored itself can be read back.
+  throw new Error("Only files uploaded to TripNexio can be read; external links aren't fetched.");
 }

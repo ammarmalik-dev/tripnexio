@@ -1,4 +1,5 @@
 import { getEmailSender } from "../email/get-sender";
+import { escapeHtml } from "../html/escape";
 
 /**
  * Step 48 — a raw, non-template email (mirrors src/lib/automation/system-alert.ts's
@@ -14,9 +15,9 @@ export async function sendPasswordResetEmail(to: string, name: string, resetUrl:
   await getEmailSender().send({
     to,
     subject: "Reset your TripNexio Internal Dashboard password",
-    html: `<p>Hi ${name},</p>
+    html: `<p>Hi ${escapeHtml(name)},</p>
 <p>We received a request to reset your TripNexio staff password. Click the link below to choose a new one — this link expires in 30 minutes and can only be used once.</p>
-<p><a href="${resetUrl}">${resetUrl}</a></p>
+<p><a href="${escapeHtml(resetUrl)}">${escapeHtml(resetUrl)}</a></p>
 <p>If you didn't request this, you can safely ignore this email — your password will not be changed.</p>`,
   });
 }

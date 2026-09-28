@@ -3,20 +3,15 @@ import { WhatsAppCloudApiGateway } from "./cloud-api-gateway";
 import { ConsoleWhatsAppGateway } from "./console-gateway";
 import { isPlaceholder } from "@/lib/env-placeholder";
 
-/**
- * A dev-only fallback secret for the console gateway when WHATSAPP_APP_SECRET
- * itself is also a placeholder — mirrors get-gateway.ts's (Razorpay) pattern.
- */
-const MOCK_APP_SECRET_FALLBACK = "whatsapp-dev-only-app-secret";
-
 let cached: WhatsAppGateway | null = null;
 
 /**
  * Selects the real WhatsApp Cloud API integration once
- * WHATSAPP_ACCESS_TOKEN/PHONE_NUMBER_ID are filled in, falling back to
- * ConsoleWhatsAppGateway until then — the ONLY place that decides which
- * provider is active, per the swappable-service-layer pattern used
- * throughout (see get-gateway.ts for Razorpay, get-sender.ts for Resend).
+ * WHATSAPP_ACCESS_TOKEN/PHONE_NUMBER_ID/APP_SECRET are filled in, falling back
+ * to ConsoleWhatsAppGateway until then — the ONLY place that decides which
+ * provider is active. There is no committed fallback secret: without
+ * WHATSAPP_APP_SECRET the console gateway rejects every webhook signature
+ * (and in production the webhook route refuses outright).
  */
 export function getWhatsAppGateway(): WhatsAppGateway {
   if (cached) return cached;
@@ -28,7 +23,7 @@ export function getWhatsAppGateway(): WhatsAppGateway {
   if (!isPlaceholder(accessToken) && !isPlaceholder(phoneNumberId) && !isPlaceholder(appSecret)) {
     cached = new WhatsAppCloudApiGateway(accessToken!, phoneNumberId!, appSecret!);
   } else {
-    cached = new ConsoleWhatsAppGateway(isPlaceholder(appSecret) ? MOCK_APP_SECRET_FALLBACK : appSecret!);
+    cached = new ConsoleWhatsAppGateway(isPlaceholder(appSecret) ? null : appSecret!);
   }
 
   return cached;

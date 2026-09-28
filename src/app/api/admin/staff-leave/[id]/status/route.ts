@@ -37,6 +37,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const existing = await db.staffLeave.findUnique({ where: { id }, include: { user: { select: { name: true } } } });
   if (!existing) return jsonError(404, "Leave record not found.");
+  if (existing.userId === session.id) {
+    return jsonError(403, "You can't approve or reject your own leave. Ask another admin.");
+  }
 
   const transitionError = assertValidLeaveTransition(existing.status, parsed.data.status);
   if (transitionError) {

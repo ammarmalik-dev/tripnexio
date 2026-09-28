@@ -19,6 +19,8 @@ import { registerSchema, type RegisterValues } from "@/lib/validation/auth-schem
 export function RegisterForm() {
   const router = useRouter();
   const [registered, setRegistered] = useState(false);
+  /** Set when an earlier guest record matched and a code was emailed to it — the form then asks for that code. */
+  const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
@@ -26,12 +28,17 @@ export function RegisterForm() {
     formState: { errors, isSubmitting },
   } = useForm<RegisterValues>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { fullName: "", mobile: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { fullName: "", mobile: "", email: "", password: "", confirmPassword: "", otp: "" },
   });
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await postJson("/api/auth/register", values);
+      const result = await postJson<{ otpRequired?: boolean; maskedEmail?: string }>("/api/auth/register", values);
+      if (result?.otpRequired) {
+        setOtpSentTo(result.maskedEmail ?? "your email");
+        toast.success(`We emailed a 6-digit code to ${result.maskedEmail ?? "your email"}.`);
+        return;
+      }
       toast.success("Account created — you're signed in.");
       setRegistered(true);
       router.refresh();
@@ -97,8 +104,19 @@ export function RegisterForm() {
           error={errors.confirmPassword?.message}
           {...register("confirmPassword")}
         />
+        {otpSentTo ? (
+          <TextField
+            label="Verification Code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            hint={!errors.otp ? `We found an earlier request with these details. Enter the code sent to ${otpSentTo}.` : undefined}
+            required
+            error={errors.otp?.message}
+            {...register("otp")}
+          />
+        ) : null}
         <Button type="submit" className="w-full" isLoading={isSubmitting}>
-          Create Account
+          {otpSentTo ? "Verify & Create Account" : "Create Account"}
         </Button>
       </form>
 

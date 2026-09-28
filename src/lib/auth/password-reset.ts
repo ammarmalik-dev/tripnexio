@@ -10,16 +10,17 @@ function hashToken(token: string): string {
 
 /**
  * Generates the raw token that gets emailed to the user (never stored) and
- * persists only its sha256 hash, with a 30-minute expiry. Any of the
- * user's older unused tokens are left alone — each is independently
- * single-use and short-lived, so a stale one simply expires on its own;
- * no need to invalidate them here.
+ * persists only its sha256 hash, with a 30-minute expiry. Any older unused
+ * token for the same user is invalidated, so only the newest link works.
  */
 export async function createPasswordResetToken(userId: string): Promise<string> {
   const token = crypto.randomBytes(32).toString("hex");
-  await db.passwordResetToken.create({
-    data: { userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + TOKEN_TTL_MS) },
-  });
+  await db.$transaction([
+    db.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } }),
+    db.passwordResetToken.create({
+      data: { userId, tokenHash: hashToken(token), expiresAt: new Date(Date.now() + TOKEN_TTL_MS) },
+    }),
+  ]);
   return token;
 }
 

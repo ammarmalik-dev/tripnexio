@@ -6,13 +6,19 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { computeRefundAmount } from "@/lib/refunds/pricing";
+import { paymentTotal } from "@/lib/payments/totals";
 import { evaluateRefundRule, documentsValidated } from "@/lib/refunds/rules";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-/** The refund calculator: staff enters paidAmount/cancellationCharge/gatewayCharge, refundAmount is always computed server-side. */
+/**
+ * The refund calculator: staff enter cancellation/gateway charges; the paid
+ * amount comes from the Payment itself (amount − coupon + GST + gateway fee)
+ * and refundAmount is always computed server-side. The total of non-rejected
+ * refunds on one payment can never exceed what was paid.
+ */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("refunds.edit");
   if (auth.error) return auth.error;
@@ -47,7 +53,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(409, "Only a successful payment can be refunded.");
   }
 
-  const { paidAmount, cancellationCharge, gatewayCharge, reason, passengerIds } = parsed.data;
+  const { cancellationCharge, gatewayCharge, reason, passengerIds } = parsed.data;
+  const paidAmount = paymentTotal(payment);
 
   // CRM.md §21 (Step 14): "Passenger selection where partial passenger
   // refund applies" — validated against this booking's own passengers, not
@@ -88,6 +95,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const passengerNote = passengerNames.length > 0 ? ` — passengers: ${passengerNames.join(", ")}` : "";
 
   const refund = await db.$transaction(async (tx) => {
+    // Lock the payment row so two concurrent refunds can't both pass the cap check.
+    await tx.$queryRaw`SELECT id FROM "Payment" WHERE id = ${paymentId} FOR UPDATE`;
+    const existing = await tx.refund.aggregate({
+      where: { paymentId, status: { not: "REJECTED" } },
+      _sum: { refundAmount: true },
+    });
+    const alreadyRefunded = Number(existing._sum.refundAmount ?? 0);
+    if (alreadyRefunded + refundAmount > paidAmount + 0.001) {
+      return null;
+    }
+
     const created = await tx.refund.create({
       data: {
         paymentId,
@@ -98,6 +116,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         reason,
         status: "PENDING",
         passengerIds: passengerIds ?? [],
+        raisedByUserId: session.id,
       },
     });
 
@@ -111,6 +130,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     return created;
   });
+
+  if (!refund) {
+    return jsonError(409, `Refunds on this payment can't exceed the ₹${paidAmount} paid.`);
+  }
 
   return jsonSuccess({ ...refund, appliedRule: rule }, 201);
 }

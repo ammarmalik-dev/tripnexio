@@ -1,5 +1,6 @@
 import { getSystemConfig } from "../settings/system-config";
 import { getEmailSender } from "../email/get-sender";
+import { escapeHtml } from "../html/escape";
 
 /**
  * Step 45 (Admin FINAL handover §19, "system notifications") — staff/ops
@@ -19,7 +20,7 @@ export async function sendSystemAlert(subject: string, body: string): Promise<vo
     await getEmailSender().send({
       to: systemAlertEmail,
       subject: `[TripNexio System Alert] ${subject}`,
-      html: `<p>${body}</p>`,
+      html: `<p>${escapeHtml(body)}</p>`,
     });
   } catch (error) {
     console.error("[automation/system-alert] couldn't send system alert", error);

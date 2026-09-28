@@ -47,7 +47,7 @@ export async function sendNotificationSms(input: SendNotificationSmsInput): Prom
       return;
     }
 
-    const body = renderTemplate(template.body, variables);
+    const body = renderTemplate(template.body, variables, { escape: false });
 
     const sender = getSmsSender();
     const result = await sender.send({ to, body });

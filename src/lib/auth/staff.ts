@@ -6,6 +6,7 @@ export interface StaffAuthResult {
   name: string;
   email: string;
   role: string;
+  sessionVersion: number;
 }
 
 /** Validates staff credentials against the User/Role tables. Returns null on any failure — never distinguishes "no such user" from "wrong password" to the caller. */
@@ -16,5 +17,5 @@ export async function authenticateStaff(email: string, password: string): Promis
   const passwordMatches = await bcrypt.compare(password, user.passwordHash);
   if (!passwordMatches) return null;
 
-  return { id: user.id, name: user.name, email: user.email, role: user.role.name };
+  return { id: user.id, name: user.name, email: user.email, role: user.role.name, sessionVersion: user.sessionVersion };
 }

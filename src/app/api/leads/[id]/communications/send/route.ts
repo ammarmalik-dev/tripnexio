@@ -8,6 +8,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { getEmailSender } from "@/lib/email/get-sender";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { sanitizeBasicHtml } from "@/lib/html/escape";
 
 const WHATSAPP_SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -59,7 +60,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const result = await sender.send({
         to: lead.customer.email,
         subject: parsed.data.subject,
-        html: parsed.data.body.replace(/\n/g, "<br>"),
+        // Staff-composed text: only basic formatting tags survive.
+        html: sanitizeBasicHtml(parsed.data.body).replace(/\n/g, "<br>"),
       });
       await writeAudit(db, {
         entityType: "Lead",

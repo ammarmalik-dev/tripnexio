@@ -45,6 +45,16 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     return jsonError(409, `This payment is already ${payment.status.toLowerCase()}.`);
   }
 
+  // Maker-checker: whoever created the bank-transfer payment can't approve it.
+  const creation = await db.auditTrail.findFirst({
+    where: { entityType: "Payment", entityId: payment.id, action: "CREATE" },
+    orderBy: { timestamp: "asc" },
+    select: { byUserId: true },
+  });
+  if (creation?.byUserId && creation.byUserId === session.id) {
+    return jsonError(403, "You created this bank-transfer payment, so someone else must approve it.");
+  }
+
   const result = await db.$transaction((tx) =>
     completePaymentSuccess(tx, payment, { byUserId: session.id, actorLabel: `bank-transfer approved by ${session.name}` })
   );

@@ -8,6 +8,7 @@ export interface StaffSession {
   name: string;
   email: string;
   role: string;
+  roleId: string;
   /** Every permission name granted by this user's role — see src/lib/auth/permissions.ts. */
   permissions: string[];
   /** Step 39 — empty = unrestricted. See src/lib/auth/service-scope.ts. */
@@ -36,12 +37,15 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     include: { role: { include: { permissions: true } } },
   });
   if (!user || !user.active) return null;
+  // A password reset (or any other bump of sessionVersion) revokes every session issued before it.
+  if (payload.sessionVersion !== user.sessionVersion) return null;
 
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     role: user.role.name,
+    roleId: user.roleId,
     permissions: user.role.permissions.map((permission) => permission.name),
     allowedServiceTypes: user.allowedServiceTypes,
   };

@@ -37,12 +37,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const willDeactivate = parsed.data.active === false;
   let willLoseAdmin = willDeactivate && currentlyAdmin;
 
+  // Nobody can change their own role or service scope (privilege self-escalation guard).
+  const changesRole = Boolean(parsed.data.roleId && parsed.data.roleId !== existing.roleId);
+  if (id === session.id && (changesRole || parsed.data.allowedServiceTypes !== undefined)) {
+    return jsonError(403, "You can't change your own role or service access. Ask another admin.");
+  }
+
   let newRole = existing.role;
   if (parsed.data.roleId && parsed.data.roleId !== existing.roleId) {
     const role = await db.role.findUnique({ where: { id: parsed.data.roleId }, include: { permissions: true } });
     if (!role) return jsonError(400, "Select a valid role.", { roleId: ["This role doesn't exist."] });
     newRole = role;
     const willBeAdmin = role.permissions.some((permission) => permission.name === ADMIN_FULL_PERMISSION);
+    if (willBeAdmin && !session.permissions.includes(ADMIN_FULL_PERMISSION)) {
+      return jsonError(403, "Only a full admin can assign a role with full admin access.");
+    }
     if (currentlyAdmin && !willBeAdmin && !willDeactivate) willLoseAdmin = true;
   }
 

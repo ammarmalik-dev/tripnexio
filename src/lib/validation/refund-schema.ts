@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { RefundStatus, type RefundStatus as RefundStatusType } from "../../generated/prisma/enums";
 
+/** The paid amount is never taken from the client — the server computes it from the Payment row. */
 export const createRefundSchema = z.object({
-  paidAmount: z.number({ error: "Enter the amount the customer paid" }).nonnegative("Paid amount can't be negative"),
   cancellationCharge: z.number({ error: "Enter the cancellation charge" }).nonnegative("Cancellation charge can't be negative"),
   gatewayCharge: z.number({ error: "Enter the gateway charge" }).nonnegative("Gateway charge can't be negative"),
   reason: z.string().trim().min(1).optional(),

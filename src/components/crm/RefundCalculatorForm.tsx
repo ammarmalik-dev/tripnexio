@@ -38,7 +38,7 @@ export function RefundCalculatorForm({
     formState: { errors },
   } = useForm<CreateRefundValues>({
     resolver: zodResolver(createRefundSchema),
-    defaultValues: { paidAmount: defaultPaidAmount, cancellationCharge: 0, gatewayCharge: 0 },
+    defaultValues: { cancellationCharge: 0, gatewayCharge: 0 },
   });
 
   const togglePassenger = (id: string) => {
@@ -47,11 +47,12 @@ export function RefundCalculatorForm({
 
   const submitWithPassengers = (values: CreateRefundValues) => onSubmit({ ...values, passengerIds: selectedPassengerIds });
 
-  const numberField = (name: "paidAmount" | "cancellationCharge" | "gatewayCharge") =>
+  const numberField = (name: "cancellationCharge" | "gatewayCharge") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
 
   const watched = watch();
-  const paidAmount = Number(watched.paidAmount) || 0;
+  // Computed by the server from the payment itself; shown read-only here.
+  const paidAmount = defaultPaidAmount;
   const cancellationCharge = Number(watched.cancellationCharge) || 0;
   const gatewayCharge = Number(watched.gatewayCharge) || 0;
   const previewAmount = computeRefundAmount({
@@ -101,14 +102,11 @@ export function RefundCalculatorForm({
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <TextField
-          label="Paid Amount (₹)"
-          type="number"
-          step="0.01"
-          required
-          {...numberField("paidAmount")}
-          error={errors.paidAmount?.message}
-        />
+        <FormField label="Paid Amount (₹)" htmlFor="refund-paid-amount">
+          <div id="refund-paid-amount" className="rounded-md border border-hairline bg-surface-2 px-3.5 py-2.5 text-sm font-medium text-ink-primary">
+            ₹{paidAmount.toLocaleString("en-IN")}
+          </div>
+        </FormField>
         <TextField
           label="Cancellation Charge (₹)"
           type="number"

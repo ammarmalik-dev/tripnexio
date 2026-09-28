@@ -20,6 +20,13 @@ export const registerSchema = z
       .min(8, "Password must be at least 8 characters")
       .regex(/[0-9]/, "Password must include at least one number"),
     confirmPassword: z.string().min(1, "Confirm your password"),
+    /** Only sent on the second step, when an earlier guest record must be verified by emailed code. */
+    otp: z
+      .string()
+      .trim()
+      .regex(/^\d{6}$/, "Enter the 6-digit code")
+      .optional()
+      .or(z.literal("").transform(() => undefined)),
   })
   .refine((values) => values.password === values.confirmPassword, {
     message: "Passwords don't match",

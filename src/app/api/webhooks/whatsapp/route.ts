@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
 import { handleInboundMessage } from "@/lib/whatsapp-bot/engine";
 import { describeError } from "@/lib/api/describe-error";
+import { isPlaceholder } from "@/lib/env-placeholder";
+import { isProductionRuntime } from "@/lib/payments/get-gateway";
 
 interface CloudApiWebhookPayload {
   entry?: {
@@ -10,6 +12,8 @@ interface CloudApiWebhookPayload {
       field?: string;
       value?: {
         messages?: {
+          /** WhatsApp's own message id ("wamid...") — used to ignore redeliveries of the same message. */
+          id?: string;
           from: string;
           type: string;
           text?: { body: string };
@@ -50,6 +54,10 @@ export async function GET(request: NextRequest) {
  * that's already been processed shouldn't be reprocessed on redelivery.
  */
 export async function POST(request: NextRequest) {
+  if (isProductionRuntime() && isPlaceholder(process.env.WHATSAPP_APP_SECRET)) {
+    return new Response("WhatsApp webhook is not configured", { status: 503 });
+  }
+
   const rawBody = await request.text();
   const signature = request.headers.get("x-hub-signature-256");
 
@@ -87,7 +95,13 @@ export async function POST(request: NextRequest) {
   const waId = message.from;
   const profileName = payload.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name ?? null;
 
-  await db.whatsAppMessageLog.create({ data: { waId, direction: "INBOUND", body: loggedText } });
+  try {
+    await db.whatsAppMessageLog.create({ data: { waId, direction: "INBOUND", body: loggedText, waMessageId: message.id ?? null } });
+  } catch (error) {
+    // Meta redelivered a message this route already processed — acknowledge without running the bot again.
+    if ((error as { code?: unknown }).code === "P2002") return new Response("OK", { status: 200 });
+    throw error;
+  }
 
   const conversation = await db.whatsAppConversation.upsert({
     where: { waId },

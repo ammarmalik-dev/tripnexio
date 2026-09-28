@@ -21,6 +21,8 @@ export interface StaffSessionPayload {
   email: string;
   name: string;
   role: string;
+  /** Must equal User.sessionVersion — bumping that column invalidates every older session. */
+  sessionVersion: number;
 }
 
 function getSecretKey() {
@@ -32,7 +34,7 @@ function getSecretKey() {
 }
 
 export async function createStaffSessionToken(payload: StaffSessionPayload): Promise<string> {
-  return new SignJWT({ email: payload.email, name: payload.name, role: payload.role })
+  return new SignJWT({ email: payload.email, name: payload.name, role: payload.role, sv: payload.sessionVersion })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
     .setIssuedAt()
@@ -51,7 +53,9 @@ export async function verifyStaffSessionToken(token: string): Promise<StaffSessi
     ) {
       return null;
     }
-    return { sub: payload.sub, email: payload.email, name: payload.name, role: payload.role };
+    // Tokens issued before sessionVersion existed carry no sv claim; they count as version 0.
+    const sessionVersion = typeof payload.sv === "number" ? payload.sv : 0;
+    return { sub: payload.sub, email: payload.email, name: payload.name, role: payload.role, sessionVersion };
   } catch {
     return null;
   }

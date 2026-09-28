@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 
 export async function GET() {
   const auth = await requirePermission("roles.manage");
@@ -39,6 +40,10 @@ export async function POST(request: NextRequest) {
   const parsed = createRoleSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
+  }
+
+  if (parsed.data.permissionNames.includes(ADMIN_FULL_PERMISSION) && !session.permissions.includes(ADMIN_FULL_PERMISSION)) {
+    return jsonError(403, "Only a full admin can grant full admin access.");
   }
 
   const existing = await db.role.findUnique({ where: { name: parsed.data.name } });

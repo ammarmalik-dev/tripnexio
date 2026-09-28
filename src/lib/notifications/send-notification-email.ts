@@ -63,7 +63,7 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
       return;
     }
 
-    const subject = renderTemplate(template.subject ?? event, variables);
+    const subject = renderTemplate(template.subject ?? event, variables, { escape: false });
     const html = renderTemplate(template.body, variables).replace(/\n/g, "<br>");
 
     const sender = getEmailSender();

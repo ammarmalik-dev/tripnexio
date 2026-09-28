@@ -32,12 +32,14 @@ export async function POST(request: NextRequest) {
 
   const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
   await db.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: userId }, data: { passwordHash } });
+    // Bumping sessionVersion signs the user out everywhere; any other outstanding reset link is voided.
+    await tx.user.update({ where: { id: userId }, data: { passwordHash, sessionVersion: { increment: 1 } } });
+    await tx.passwordResetToken.updateMany({ where: { userId, usedAt: null }, data: { usedAt: new Date() } });
     await writeAudit(tx, {
       entityType: "User",
       entityId: userId,
       action: "PASSWORD_RESET_COMPLETED",
-      note: "Password reset via emailed link",
+      note: "Password reset via emailed link; all existing sessions and reset links revoked",
     });
   });
 

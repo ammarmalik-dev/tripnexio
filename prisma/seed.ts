@@ -81,7 +81,6 @@ async function seedServiceStatuses() {
 }
 
 const SAMPLE_STAFF_EMAIL = "admin@tripnexio.com";
-const SAMPLE_STAFF_PASSWORD = "ChangeMe123!";
 
 // Every day-to-day operational permission — everything except staff.manage,
 // roles.manage, masters.manage, data.export, and automation.view, which stay
@@ -150,6 +149,12 @@ const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
 ).map((permission) => permission.name);
 
 async function main() {
+  // The seeded admin password comes only from the environment — never from source, never printed.
+  const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD;
+  if (!seedAdminPassword || seedAdminPassword.trim().length < 12) {
+    throw new Error("Set SEED_ADMIN_PASSWORD (at least 12 characters) before running the seed.");
+  }
+
   // The full canonical permission catalog (src/lib/auth/permissions.ts) is
   // seeded up front so the Admin Roles screen always has every permission
   // to assign, even to a brand-new role with nothing checked yet.
@@ -181,10 +186,9 @@ async function main() {
 
   console.log(`Roles ready: ${adminRole.name}, ${staffRole.name}`);
 
-  // SAMPLE dev-only staff account so the CRM has someone to log in as —
-  // change this password before any real deployment. Never seed real staff
-  // credentials this way.
-  const staffPasswordHash = await bcrypt.hash(SAMPLE_STAFF_PASSWORD, 10);
+  // Initial staff account so the CRM has someone to log in as. Its password is
+  // SEED_ADMIN_PASSWORD; an existing account is left untouched (update: {}).
+  const staffPasswordHash = await bcrypt.hash(seedAdminPassword, 10);
   const staffUser = await db.user.upsert({
     where: { email: SAMPLE_STAFF_EMAIL },
     update: {},
@@ -196,7 +200,7 @@ async function main() {
       active: true,
     },
   });
-  console.log(`Sample staff login ready: ${staffUser.email} / ${SAMPLE_STAFF_PASSWORD} (dev only — change before deploying)`);
+  console.log(`Staff login ready: ${staffUser.email} (password from SEED_ADMIN_PASSWORD)`);
 
   // Step 36 (Admin FINAL handover §12): Vendor.service was replaced by a
   // VendorService join table so one vendor can cover multiple services.

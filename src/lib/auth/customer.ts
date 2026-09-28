@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { db } from "../db";
+import { issueCustomerOtp, maskEmailForDisplay, verifyCustomerOtp } from "./customer-otp";
 
 export interface CustomerAuthResult {
   id: string;
@@ -21,22 +22,23 @@ export async function authenticateCustomer(email: string, password: string): Pro
 
 export type RegisterCustomerResult =
   | { ok: true; customer: CustomerAuthResult }
-  | { ok: false; error: string; field?: "email" | "mobile" };
+  | { ok: false; otpRequired: true; maskedEmail: string; error: string }
+  | { ok: false; otpRequired?: false; error: string; field?: "email" | "mobile" | "otp" };
 
 /**
- * Registration reuses the exact same "match by mobile, else by email"
- * customer-matching convention every lead-intake route already follows
- * (see findOrCreateCustomer in src/lib/leads/create-lead.ts) — a guest who
- * submitted a request before ever creating an account gets their existing
- * history (leads/bookings) attached automatically the moment they register
- * with the same mobile or email, instead of ending up with two disconnected
- * Customer rows.
+ * Registration reuses the "match by mobile, else by email" customer-matching
+ * convention every lead-intake route follows (findOrCreateCustomer in
+ * src/lib/leads/create-lead.ts), so a guest's earlier requests attach to
+ * their new account. Claiming such a password-less guest row requires
+ * proof of ownership first: a one-time code is emailed to the email ALREADY
+ * on that row, and the row is only updated after that code is verified.
  */
 export async function registerCustomer(input: {
   fullName: string;
   mobile: string;
   email: string;
   password: string;
+  otp?: string;
 }): Promise<RegisterCustomerResult> {
   const existingByMobile = await db.customer.findUnique({ where: { mobile: input.mobile } });
   const existingByEmail = await db.customer.findUnique({ where: { email: input.email } });
@@ -52,6 +54,34 @@ export async function registerCustomer(input: {
   const target = existingByMobile ?? existingByEmail;
   if (target?.passwordHash) {
     return { ok: false, error: "An account with this mobile number or email already exists. Try logging in instead.", field: "email" };
+  }
+
+  if (target) {
+    if (!target.email) {
+      return {
+        ok: false,
+        error: "We found an earlier request with these details but no email on file to verify it. Please contact us and we'll link your account.",
+        field: "mobile",
+      };
+    }
+    if (!input.otp) {
+      await issueCustomerOtp(target.id, target.email, target.name);
+      return {
+        ok: false,
+        otpRequired: true,
+        maskedEmail: maskEmailForDisplay(target.email),
+        error: "We found an earlier request with these details. Enter the 6-digit code we just emailed to confirm it's you.",
+      };
+    }
+    const verification = await verifyCustomerOtp(target.id, input.otp);
+    if (verification !== "OK") {
+      const messages = {
+        INVALID: "That code isn't right. Check the email and try again.",
+        EXPIRED: "That code has expired. Submit the form again to get a new one.",
+        TOO_MANY_ATTEMPTS: "Too many incorrect codes. Submit the form again to get a new one.",
+      } as const;
+      return { ok: false, error: messages[verification], field: "otp" };
+    }
   }
 
   const passwordHash = await bcrypt.hash(input.password, 10);

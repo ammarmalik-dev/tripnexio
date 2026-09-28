@@ -42,9 +42,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // Guard: never let an edit strip admin.full from the only role keeping at least one active admin user.
   const currentlyGrantsAdminFull = existing.permissions.some((permission) => permission.name === ADMIN_FULL_PERMISSION);
   const willGrantAdminFull = parsed.data.permissionNames?.includes(ADMIN_FULL_PERMISSION) ?? currentlyGrantsAdminFull;
+  const sessionIsFullAdmin = session.permissions.includes(ADMIN_FULL_PERMISSION);
+
+  // Privilege escalation guards: only a full admin can grant admin.full, and
+  // nobody without admin.full can change the permissions of their own role.
+  if (willGrantAdminFull && !currentlyGrantsAdminFull && !sessionIsFullAdmin) {
+    return jsonError(403, "Only a full admin can grant full admin access.");
+  }
+  if (parsed.data.permissionNames && existing.id === session.roleId && !sessionIsFullAdmin) {
+    return jsonError(403, "You can't change the permissions of your own role. Ask another admin.");
+  }
+
+  // Guard: never let an edit strip admin.full from the only role keeping at least one active admin user.
   if (currentlyGrantsAdminFull && !willGrantAdminFull && existing.users.length > 0) {
     const otherActiveAdmins = await db.user.count({
       where: { active: true, roleId: { not: id }, role: { permissions: { some: { name: ADMIN_FULL_PERMISSION } } } },

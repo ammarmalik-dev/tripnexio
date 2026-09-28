@@ -181,6 +181,25 @@ model Customer {
   passengers Passenger[]
   leads      Lead[]
   bookings   Booking[]
+  otps       CustomerOtp[]
+}
+
+/// One-time codes emailed to a customer's EXISTING email to prove ownership
+/// before a password-less guest Customer row is claimed at registration.
+/// Only the bcrypt hash of the code is stored; 10-minute expiry, max 5 attempts.
+model CustomerOtp {
+  id         String    @id @default(cuid())
+  customerId String
+  purpose    String
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int       @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([customerId])
 }
 
 model Passenger {
@@ -557,6 +576,9 @@ model Refund {
   /// caution applies here. Passenger selection is real and stored; the
   /// amount stays staff-entered until real per-passenger pricing exists.
   passengerIds       String[]     @default([])
+  /// Staff user who raised the refund — the approver must be someone else.
+  /// Backfilled from each refund's AuditTrail CREATE row where one exists.
+  raisedByUserId     String?
   status             RefundStatus @default(PENDING)
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
@@ -1409,6 +1431,9 @@ model WhatsAppMessageLog {
   /// send from the CRM Communications screen, so the timeline can show
   /// "sent by {name}" vs. the automated conversation.
   sentByUserId String?
+  /// WhatsApp's own message id for an inbound message — unique, so a
+  /// redelivered webhook for the same message is ignored.
+  waMessageId  String?                  @unique
   createdAt    DateTime                 @default(now())
 
   sentByUser User? @relation(fields: [sentByUserId], references: [id])
@@ -1730,6 +1755,9 @@ model User {
   /// users are scoped to service X" in reverse, so a join table's extra
   /// model/migration/relation would buy nothing here.
   allowedServiceTypes ServiceType[] @default([])
+  /// Embedded in every staff session JWT; incrementing it (e.g. on password
+  /// reset) invalidates every session issued before.
+  sessionVersion      Int           @default(0)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 

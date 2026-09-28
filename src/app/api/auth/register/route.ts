@@ -28,8 +28,12 @@ export async function POST(request: NextRequest) {
     mobile: parsed.data.mobile,
     email: parsed.data.email,
     password: parsed.data.password,
+    otp: parsed.data.otp,
   });
   if (!result.ok) {
+    if (result.otpRequired) {
+      return jsonSuccess({ otpRequired: true, maskedEmail: result.maskedEmail, message: result.error }, 202);
+    }
     return jsonError(400, result.error, result.field ? { [result.field]: [result.error] } : undefined);
   }
 
