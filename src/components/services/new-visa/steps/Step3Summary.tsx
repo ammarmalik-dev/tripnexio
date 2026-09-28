@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
-import { SAMPLE_VISA_TYPE_OPTIONS } from "@/lib/sample-data";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
+import { useVisaTypes } from "@/lib/use-visa-types";
 import { getJson } from "@/lib/api/client";
 import { GUARDIAN_RELATIONSHIP_LABELS, type NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
@@ -105,8 +105,8 @@ export function Step3Summary() {
   const destinationLabel =
     destinationCountryOptions.find((option) => option.value === values.destinationCountry)?.label ??
     values.destinationCountry;
-  const visaTypeLabel =
-    SAMPLE_VISA_TYPE_OPTIONS.find((option) => option.value === values.visaType)?.label ?? values.visaType;
+  const { options: visaTypes } = useVisaTypes(values.destinationCountry);
+  const visaTypeLabel = visaTypes.find((visaType) => visaType.id === values.visaType)?.name ?? "";
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,7 +115,7 @@ export function Step3Summary() {
         <SummaryRow label="Mobile Number" value={values.mobile} />
         <SummaryRow label="Email" value={values.email} />
         <SummaryRow label="Destination Country" value={destinationLabel} />
-        <SummaryRow label="Visa Type" value={visaTypeLabel} />
+        {values.visaType ? <SummaryRow label="Visa Type" value={visaTypeLabel} /> : null}
         <SummaryRow label="Number of Travelers" value={String(1 + values.additionalTravellers.length)} />
         <SummaryRow
           label="Travel Date"

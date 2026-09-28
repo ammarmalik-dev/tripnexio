@@ -43,6 +43,9 @@ const visaImageFields = {
   visaImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
 };
 
+/** Same cap as New Visa's additional travellers. */
+export const MAX_ADDITIONAL_PASSENGERS = 8;
+
 export const visaChangePassengerSchema = z.object({
   fullName: z.string().trim().min(2, "Enter the passenger's full name").max(80, "Name is too long"),
   passportNumber: z
@@ -55,7 +58,8 @@ export const visaChangePassengerSchema = z.object({
     .string()
     .min(1, "Select the visa last date")
     .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid date"),
-  nationality: z.string().trim().min(2, "Enter nationality").max(56, "Nationality is too long"),
+  /** Nationality master id (P06) — the API resolves and stores its name. */
+  nationalityId: z.string().min(1, "Select a nationality").max(40),
   paxType: z.enum(["ADULT", "CHILD"], { error: "Select adult or child" }),
   ...passportImageFields,
   ...visaImageFields,
@@ -83,7 +87,7 @@ export const visaChangeStep2Schema = z.object({
     .trim()
     .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
-  nationality: z.string().trim().min(2, "Enter your nationality").max(56, "Nationality is too long"),
+  nationalityId: z.string().min(1, "Select your nationality").max(40),
   // No `.default()` here — MultiStepRequestFlow's generic typing requires
   // the schema's Input type to equal its Output type (see the New Visa/OTB
   // schemas' own note on this); the actual default lives in this flow's
@@ -91,7 +95,7 @@ export const visaChangeStep2Schema = z.object({
   paxType: z.enum(["ADULT", "CHILD"]),
   ...passportImageFields,
   ...visaImageFields,
-  additionalPassengers: z.array(visaChangePassengerSchema),
+  additionalPassengers: z.array(visaChangePassengerSchema).max(MAX_ADDITIONAL_PASSENGERS, `Up to ${MAX_ADDITIONAL_PASSENGERS} additional passengers`),
 });
 
 export const visaChangeRequestSchema = visaChangeStep1Schema.extend(visaChangeStep2Schema.shape);
@@ -119,7 +123,7 @@ export type VisaChangeRequestValues = z.infer<typeof visaChangeRequestSchema>;
 
 export const visaChangeStepFields: Record<number, (keyof VisaChangeRequestValues)[]> = {
   0: ["changeType"],
-  1: ["fullName", "passportNumber", "visaLastDate", "mobile", "email", "nationality", "additionalPassengers"],
+  1: ["fullName", "passportNumber", "visaLastDate", "mobile", "email", "nationalityId", "paxType", "additionalPassengers"],
   2: [],
   3: [],
 };

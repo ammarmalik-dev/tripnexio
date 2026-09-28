@@ -1,5 +1,6 @@
 import { db } from "../db";
 import type { PaxType } from "../../generated/prisma/enums";
+import { isUniversalNationalityRule, matchesNationality } from "../nationalities/match";
 
 export interface VisaChangeFeeLine {
   passengerId: string;
@@ -21,6 +22,7 @@ interface PassengerInput {
   id: string;
   fullName: string;
   nationality: string | null;
+  nationalityId?: string | null;
   paxType: PaxType;
 }
 
@@ -44,8 +46,8 @@ export async function computeVisaChangeFeeSuggestion(passengers: PassengerInput[
   if (passengers.length === 0) return { configured: false, total: 0, lines: [] };
 
   const paxTypes = [...new Set(passengers.map((p) => p.paxType))];
-  const nationalities = [...new Set(passengers.map((p) => p.nationality).filter((n): n is string => !!n))];
 
+  // Nationality matched in JS (id first, name fallback for older rows).
   const rules = await db.pricingRule.findMany({
     where: {
       serviceType: "VISA_CHANGE",
@@ -53,16 +55,15 @@ export async function computeVisaChangeFeeSuggestion(passengers: PassengerInput[
       processingType: null,
       paxType: { in: paxTypes },
       active: true,
-      OR: [{ nationality: null }, { nationality: { in: nationalities } }],
     },
   });
 
-  const ruleFor = (nationality: string | null, paxType: PaxType) =>
-    (nationality ? rules.find((r) => r.nationality === nationality && r.paxType === paxType) : undefined) ??
-    rules.find((r) => r.nationality === null && r.paxType === paxType);
+  const ruleFor = (passenger: PassengerInput) =>
+    rules.find((r) => r.paxType === passenger.paxType && matchesNationality(r, passenger)) ??
+    rules.find((r) => r.paxType === passenger.paxType && isUniversalNationalityRule(r));
 
   const lines: VisaChangeFeeLine[] = passengers.map((p) => {
-    const rule = ruleFor(p.nationality, p.paxType);
+    const rule = ruleFor(p);
     const rate = rule ? Number(rule.sellingPrice) + Number(rule.additionalCharges) : null;
     return { passengerId: p.id, fullName: p.fullName, nationality: p.nationality, paxType: p.paxType, rate };
   });

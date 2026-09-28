@@ -77,6 +77,9 @@ export function NewVisaProductSelector() {
   const [processingType, setProcessingType] = useState<ProcessingType>("normal");
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
+  // Infants are priced separately at checkout (age on the travel date), so
+  // the preview counts them too — otherwise it undercuts the charged total.
+  const [infants, setInfants] = useState(0);
   const [price, setPrice] = useState<{ loading: boolean; configured: boolean; total: number | null }>({
     loading: false,
     configured: false,
@@ -116,6 +119,7 @@ export function NewVisaProductSelector() {
           processingType,
           adults: String(adults),
           children: String(children),
+          infants: String(infants),
         });
         const res = await fetch(`/api/new-visa-price?${params.toString()}`);
         if (!res.ok || cancelled) return;
@@ -131,7 +135,7 @@ export function NewVisaProductSelector() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [countryCode, processingType, adults, children]);
+  }, [countryCode, processingType, adults, children, infants]);
 
   const selectedConfig = useMemo(() => countries?.find((c) => c.countryCode === countryCode) ?? null, [countries, countryCode]);
 
@@ -142,7 +146,7 @@ export function NewVisaProductSelector() {
     return null;
   }
 
-  const applyHref = `/services/new-visa/request?country=${encodeURIComponent(countryCode)}&processingType=${processingType}&travelers=${adults + children}`;
+  const applyHref = `/services/new-visa/request?country=${encodeURIComponent(countryCode)}&processingType=${processingType}&travelers=${adults + children + infants}`;
 
   return (
     <GlassCard tier={2} className="flex flex-col gap-6 p-6 sm:p-8">
@@ -158,9 +162,10 @@ export function NewVisaProductSelector() {
         <p className="text-sm font-semibold text-ink-heading">{selectedConfig.countryName}</p>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Counter label="Adults" value={adults} onChange={setAdults} min={1} />
         <Counter label="Children" value={children} onChange={setChildren} min={0} />
+        <Counter label="Infants (under 2)" value={infants} onChange={setInfants} min={0} />
       </div>
 
       <div className="flex flex-col gap-2">

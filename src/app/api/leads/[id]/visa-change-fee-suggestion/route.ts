@@ -37,7 +37,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   const leadPassengers = lead.customer.passengers.filter((p) => passengerIds.includes(p.id));
 
   const suggestion = await computeVisaChangeFeeSuggestion(
-    leadPassengers.map((p) => ({ id: p.id, fullName: p.fullName, nationality: p.nationality, paxType: p.paxType }))
+    leadPassengers.map((p) => ({ id: p.id, fullName: p.fullName, nationality: p.nationality, nationalityId: p.nationalityId, paxType: p.paxType }))
   );
 
   return jsonSuccess(suggestion);

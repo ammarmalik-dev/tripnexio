@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { updateDocumentRequirementSchema } from "@/lib/validation/document-requirement-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { resolveNationalityInput } from "@/lib/nationalities/resolve";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 
@@ -36,9 +37,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
   }
 
+  const nationalityInput = await resolveNationalityInput(parsed.data);
+  if (nationalityInput.error) return nationalityInput.error;
+  const patchData = { ...parsed.data, ...nationalityInput.data };
+
   const nextServiceType = parsed.data.serviceType ?? existing.serviceType;
   const nextCountryId = parsed.data.countryId !== undefined ? parsed.data.countryId : existing.countryId;
-  const nextNationality = parsed.data.nationality !== undefined ? parsed.data.nationality : existing.nationality;
+  const nextNationality = patchData.nationality !== undefined ? patchData.nationality : existing.nationality;
   const nextPaxType = parsed.data.paxType !== undefined ? parsed.data.paxType : existing.paxType;
   const nextDocumentName = parsed.data.documentName ?? existing.documentName;
 
@@ -69,7 +74,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.documentRequirement.update({
       where: { id },
-      data: parsed.data,
+      data: patchData,
       include: { country: { select: { id: true, name: true, code: true } } },
     });
     await writeAudit(tx, {

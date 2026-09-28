@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { rateLimitByIp } from "@/lib/auth/rate-limit";
 import { isHoneypotFilled } from "@/lib/validation/honeypot";
 import { LEAD_INTAKE_RATE_LIMIT } from "@/lib/leads/intake-limits";
+import { getActiveVisaTypes } from "@/lib/visa-types/active-visa-types";
 import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
 import { newVisaRequestSchema } from "@/lib/validation/new-visa-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
@@ -75,6 +76,7 @@ export async function POST(request: NextRequest) {
   // Handover doc: every traveller needs a passport copy, and anyone under 18
   // needs guardian details — enforced server-side, not just by the form.
   const travellerIssues = findNewVisaTravellerIssues({
+    travelDate,
     dob,
     guardianFullName,
     guardianPassportNumber,
@@ -99,6 +101,14 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  // Visa type comes from the Admin master for this destination (P06): never
+  // trust the client's own `visaTypeRequired` flag — re-derive it here.
+  const visaTypeOptions = await getActiveVisaTypes(destinationCountry);
+  const pickedVisaType = visaType ? visaTypeOptions.find((option) => option.id === visaType) : undefined;
+  if (visaType ? !pickedVisaType : visaTypeOptions.length > 0) {
+    return jsonError(400, "Select a visa type.", { visaType: ["Select a visa type"] });
+  }
+
   const paxTypes = travellers.map((t) => computePaxType(t.dob, travelDate));
 
   try {
@@ -113,7 +123,7 @@ export async function POST(request: NextRequest) {
       })),
       details: {
         destinationCountry,
-        visaType,
+        ...(pickedVisaType ? { visaType: pickedVisaType.name, visaTypeId: pickedVisaType.id } : {}),
         travelers: String(travellers.length),
         travelDate,
         // Applicant-wise record, in the same order as details.passengerIds.

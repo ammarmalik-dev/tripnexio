@@ -163,6 +163,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
 
   const INTERNAL_DETAIL_KEYS = new Set([
     "passengerIds",
+    "visaTypeId",
     "verifiedExpiryDate",
     "eligibilityOutcome",
     "verifiedByStaffId",

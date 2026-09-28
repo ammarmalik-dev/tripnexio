@@ -29,7 +29,7 @@ export function VisaChangeRequestFlow() {
         visaLastDate: "",
         mobile: "",
         email: "",
-        nationality: "",
+        nationalityId: "",
         paxType: "ADULT",
         additionalPassengers: [],
       }}

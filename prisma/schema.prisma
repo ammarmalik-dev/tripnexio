@@ -209,6 +209,8 @@ model Passenger {
   passportNumber   String?
   dob              DateTime?
   nationality      String?
+  /// Set when picked from the Nationality master (P06); `nationality` keeps the display name.
+  nationalityId    String?
   paxType          PaxType
   passportFrontUrl String?
   passportBackUrl  String?
@@ -216,6 +218,7 @@ model Passenger {
   updatedAt        DateTime  @updatedAt
 
   customer        Customer             @relation(fields: [customerId], references: [id])
+  nationalityRef  Nationality?         @relation(fields: [nationalityId], references: [id])
   documents       Document[]
   extractions     DocumentExtraction[]
   bookingLinks    BookingPassenger[]
@@ -223,6 +226,7 @@ model Passenger {
   protectionPlans ProtectionPlan[]
 
   @@index([customerId])
+  @@index([nationalityId])
 }
 
 // ---------------------------------------------------------------------------
@@ -477,15 +481,15 @@ model BookingPassenger {
 }
 
 model Payment {
-  id             String        @id @default(cuid())
+  id             String         @id @default(cuid())
   bookingId      String
   /// The pre-discount base fare — GST/gatewayFee below are computed on
   /// `amount - couponDiscount`, not on `amount` itself (Step 22, audit
   /// §7.8), so the original figure stays visible on the invoice as its own
   /// line even after a coupon is applied.
-  amount         Decimal       @db.Decimal(10, 2)
-  gstAmount      Decimal       @db.Decimal(10, 2)
-  gatewayFee     Decimal       @db.Decimal(10, 2)
+  amount         Decimal        @db.Decimal(10, 2)
+  gstAmount      Decimal        @db.Decimal(10, 2)
+  gatewayFee     Decimal        @db.Decimal(10, 2)
   /// Snapshotted from the selected Quotation at payment-creation time — see
   /// Quotation.couponDiscount's own doc comment for the config-snapshot
   /// rationale. `couponId` is what src/lib/payments/complete-payment.ts
@@ -494,20 +498,20 @@ model Payment {
   /// expire unused).
   couponId       String?
   couponCode     String?
-  couponDiscount Decimal?      @db.Decimal(10, 2)
-  status         PaymentStatus @default(PENDING)
+  couponDiscount Decimal?       @db.Decimal(10, 2)
+  status         PaymentStatus  @default(PENDING)
   /// The gateway's own id for this payment link/order — how an incoming
   /// webhook is matched back to this row. Unique (Postgres allows multiple
   /// NULLs under a unique constraint, so this is safe before a payment
   /// link has been generated).
-  gatewayRef     String?       @unique
+  gatewayRef     String?        @unique
   paymentLink    String?
   linkExpiresAt  DateTime?
   /// Step 51 — GATEWAY (default) for every existing/website-checkout
   /// payment; BANK_TRANSFER for one raised via the Manual Lead flow's
   /// "Bank Transfer" option. A BANK_TRANSFER payment never gets a
   /// gatewayRef/paymentLink and has gatewayFee 0 (no gateway involved).
-  method         PaymentMethod @default(GATEWAY)
+  method         PaymentMethod  @default(GATEWAY)
   /// Staff-uploaded evidence for a BANK_TRANSFER payment (local-file-
   /// storage path, same convention as Document.fileUrl) — set by
   /// POST /api/payments/[id]/bank-slip, required before the approval
@@ -522,8 +526,8 @@ model Payment {
   /// fee") — always null for a PRIMARY payment, which already has its
   /// reason implicit in the booking's own service/quotation.
   description    String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   booking Booking  @relation(fields: [bookingId], references: [id])
   coupon  Coupon?  @relation(fields: [couponId], references: [id])
@@ -617,17 +621,17 @@ model Refund {
 }
 
 model Document {
-  id          String         @id @default(cuid())
-  passengerId String?
-  bookingId   String?
+  id              String         @id @default(cuid())
+  passengerId     String?
+  bookingId       String?
   /// e.g. "PASSPORT", "VISA_COPY", "TICKET" — free text since the set of
   /// document types varies per service; see DocumentRequirement for the
   /// per-nationality master list this is checked against.
-  type        String
-  status      DocumentStatus @default(REQUIRED)
+  type            String
+  status          DocumentStatus @default(REQUIRED)
   /// Mandatory staff reason when status is REJECTED; cleared when the document moves on.
   rejectionReason String?
-  fileUrl     String?
+  fileUrl         String?
   /// Step 21 (audit §7.5) — New_Visa.md §27: set when the retention-purge
   /// automation deletes this document's file (3+ months past the
   /// booking's processing completion, Passport/Visa types exempted). The
@@ -637,9 +641,9 @@ model Document {
   /// deleted") — see PATCH /api/documents/[id]/upload and
   /// POST /api/passengers/[id]/passport-photo, though those clear this on
   /// the *superseded* row, not the new one.
-  purgedAt    DateTime?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  purgedAt        DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   passenger Passenger? @relation(fields: [passengerId], references: [id])
   booking   Booking?   @relation(fields: [bookingId], references: [id])
@@ -945,16 +949,16 @@ model Task {
 /// Vendor cost/rate stays trackable service-wise through each Quotation's own
 /// vendorCost (a Quotation is always scoped to its Lead's serviceType), not a field here.
 model Vendor {
-  id                String   @id @default(cuid())
-  name              String
-  mobile            String?
-  email             String?
-  pocName           String?
-  processingDetails String?
-  availability      String?
-  gstNumber         String?
-  paymentDetails    String?
-  active            Boolean  @default(true)
+  id                      String   @id @default(cuid())
+  name                    String
+  mobile                  String?
+  email                   String?
+  pocName                 String?
+  processingDetails       String?
+  availability            String?
+  gstNumber               String?
+  paymentDetails          String?
+  active                  Boolean  @default(true)
   /// --- Business Rules §8 "Vendor Selection" — admin-scored soft factors
   /// (1-5, 5=best), combined via VendorScoringConfig's admin-configurable
   /// weights into an overall recommendation score. This is a sort/display
@@ -1058,8 +1062,46 @@ model Country {
   pricingRules            PricingRule[]
   documentRequirements    DocumentRequirement[]
   newVisaCountryConfig    NewVisaCountryConfig?
+  visaTypes               VisaType[]
+  nationalities           Nationality[]
 
   @@index([active])
+}
+
+/// Admin-managed New Visa "Visa Type" options (P06). `countryId` null = offered
+/// for every destination country; set = only for that destination.
+model VisaType {
+  id           String   @id @default(cuid())
+  name         String
+  countryId    String?
+  active       Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  country Country? @relation(fields: [countryId], references: [id])
+
+  @@index([active])
+  @@index([countryId])
+}
+
+/// Admin-managed nationality list (P06), seeded from the Country list. Pricing
+/// rules and document requirements match a passenger on this id.
+model Nationality {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  countryId String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country              Country               @relation(fields: [countryId], references: [id])
+  passengers           Passenger[]
+  pricingRules         PricingRule[]
+  documentRequirements DocumentRequirement[]
+
+  @@index([active])
+  @@index([countryId])
 }
 
 model Airport {
@@ -1165,20 +1207,24 @@ model Border {
 /// distinct — same reasoning PricingRule's own doc comment already gives);
 /// the admin routes check for an exact-match duplicate server-side.
 model DocumentRequirement {
-  id           String      @id @default(cuid())
-  serviceType  ServiceType
-  countryId    String?
-  nationality  String?
-  paxType      PaxType?
-  documentName String
-  required     Boolean     @default(true)
-  active       Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  serviceType   ServiceType
+  countryId     String?
+  /// Legacy free-text match, kept for rows created before `nationalityId`.
+  nationality   String?
+  nationalityId String?
+  paxType       PaxType?
+  documentName  String
+  required      Boolean     @default(true)
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
-  country Country? @relation(fields: [countryId], references: [id])
+  country        Country?     @relation(fields: [countryId], references: [id])
+  nationalityRef Nationality? @relation(fields: [nationalityId], references: [id])
 
   @@index([nationality])
+  @@index([nationalityId])
   @@index([serviceType])
   @@index([active])
   @@index([countryId])
@@ -1228,7 +1274,9 @@ model PricingRule {
   processingType    String?
   paxType           PaxType
   /// null = applies to all nationalities; a specific value overrides it.
+  /// Legacy free-text match, kept for rows created before `nationalityId`.
   nationality       String?
+  nationalityId     String?
   /// Internal — never shown to the customer. Same never-trust-the-client
   /// pattern as Quotation.vendorCost/margin: staff/Admin-entered, used to
   /// compute the auto-priced Quotation's own margin at checkout time.
@@ -1241,11 +1289,13 @@ model PricingRule {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  country Country? @relation(fields: [countryId], references: [id])
+  country        Country?     @relation(fields: [countryId], references: [id])
+  nationalityRef Nationality? @relation(fields: [nationalityId], references: [id])
 
   @@index([serviceType])
   @@index([active])
   @@index([countryId])
+  @@index([nationalityId])
   @@index([serviceType, countryId, processingType])
 }
 

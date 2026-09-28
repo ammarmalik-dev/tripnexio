@@ -14,6 +14,7 @@ import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
+import { NationalitySelect, nationalityFormValue, nationalityPayload } from "./NationalitySelect";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
 
@@ -29,6 +30,7 @@ interface DocumentRequirementData {
   countryId: string | null;
   country: { id: string; name: string; code: string } | null;
   nationality: string | null;
+  nationalityId: string | null;
   paxType: PaxType | null;
   documentName: string;
   required: boolean;
@@ -52,7 +54,7 @@ function toFormState(item: DocumentRequirementData): FormState {
   return {
     serviceType: item.serviceType,
     countryId: item.countryId ?? "",
-    nationality: item.nationality ?? "",
+    nationality: nationalityFormValue(item),
     paxType: item.paxType ?? "",
     documentName: item.documentName,
     required: item.required,
@@ -65,12 +67,14 @@ function RequirementFields({
   errors,
   disabled,
   countries,
+  currentNationalityName,
 }: {
   form: FormState;
   onChange: (next: FormState) => void;
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
   countries: CountryData[];
+  currentNationalityName?: string | null;
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -103,13 +107,12 @@ function RequirementFields({
         disabled={disabled}
         hint="Optional — the destination GCC country, distinct from nationality below."
       />
-      <TextField
-        label="Nationality"
-        name="nationality"
-        placeholder="Leave blank to apply to all nationalities"
+      <NationalitySelect
+        id="nationality"
         value={form.nationality}
-        onChange={(event) => onChange({ ...form, nationality: event.target.value })}
-        error={errors.nationality?.[0]}
+        onChange={(value) => onChange({ ...form, nationality: value })}
+        currentName={currentNationalityName}
+        error={errors.nationalityId?.[0] ?? errors.nationality?.[0]}
         disabled={disabled}
         hint="Optional — the applicant's own nationality."
       />
@@ -155,7 +158,7 @@ function buildPayload(form: FormState) {
   return {
     serviceType: form.serviceType || undefined,
     countryId: form.countryId === "" ? undefined : form.countryId,
-    nationality: form.nationality.trim() === "" ? undefined : form.nationality.trim(),
+    nationalityId: nationalityPayload(form.nationality),
     paxType: form.paxType === "" ? undefined : form.paxType,
     documentName: form.documentName.trim(),
     required: form.required,
@@ -218,7 +221,14 @@ function RequirementCard({
           {item.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <RequirementFields form={form} onChange={setForm} errors={errors} disabled={saving} countries={countries} />
+      <RequirementFields
+        form={form}
+        onChange={setForm}
+        errors={errors}
+        disabled={saving}
+        countries={countries}
+        currentNationalityName={item.nationality}
+      />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes

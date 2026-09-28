@@ -803,6 +803,15 @@ async function main() {
     await db.occupation.upsert({ where: { name }, update: {}, create: { name, displayOrder: index } });
   }
 
+  // New Visa "Visa Type" options are Admin-managed (P06). Two obviously
+  // SAMPLE rows (offered for every destination) so the form's field shows in
+  // a fresh dev DB — the real list is set at /admin/visa-types (hard rule #1).
+  // Fixed ids + `update: {}` so a re-seed never undoes an admin edit.
+  for (const [index, name] of ["Sample Visa Type 1", "Sample Visa Type 2"].entries()) {
+    const id = `vt_sample_${index + 1}`;
+    await db.visaType.upsert({ where: { id }, update: {}, create: { id, name, displayOrder: index } });
+  }
+
   // Return Ticket destinations are Admin-managed (client update). One
   // SAMPLE row so the website form has something to show in a fresh dev DB —
   // the ₹100 rate is a placeholder, not a real price; the client sets real

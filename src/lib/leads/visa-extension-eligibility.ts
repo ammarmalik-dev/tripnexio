@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { findCustomerByMobile } from "../customers/find-by-mobile";
 
 export interface VisaExtensionEligibilityInput {
   passportNumber?: string;
@@ -35,7 +36,7 @@ export async function checkVisaExtensionEligibility(
   const customerIds = new Set<string>();
 
   if (input.mobile) {
-    const customer = await db.customer.findUnique({ where: { mobile: input.mobile } });
+    const customer = await findCustomerByMobile(db, input.mobile);
     if (customer) customerIds.add(customer.id);
   }
 

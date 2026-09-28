@@ -7,7 +7,7 @@ import { DateField } from "@/components/forms/DateField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import { Button } from "@/components/ui/Button";
-import { isMinor } from "@/lib/leads/age";
+import { ageBasisDate, isMinor } from "@/lib/leads/age";
 import { useOccupations } from "@/lib/use-occupations";
 import { cn } from "@/lib/cn";
 import {
@@ -37,7 +37,8 @@ function TravellerFields({ prefix, label, nameField }: { prefix: string; label: 
   } = useFormContext();
   const { options: occupations, loading } = useOccupations();
   const dob = useWatch({ control, name: `${prefix}dob` }) as string | undefined;
-  const minor = isMinor(dob);
+  const travelDate = useWatch({ control, name: "travelDate" }) as string | undefined;
+  const minor = isMinor(dob, ageBasisDate(travelDate));
   const err = (field: string) => (get(errors, `${prefix}${field}`)?.message as string | undefined) ?? undefined;
   const occupationId = `${prefix}occupation`.replace(/[^a-zA-Z0-9]/g, "-");
 
@@ -77,7 +78,7 @@ function TravellerFields({ prefix, label, nameField }: { prefix: string; label: 
       {minor ? (
         <div className="flex flex-col gap-4 rounded-lg border border-warning/30 bg-warning/10 p-4">
           <p className="text-sm font-semibold text-ink-heading">Apply with Parent/Guardian.</p>
-          <p className="text-xs text-ink-secondary">This traveller is under 18, so a parent or guardian&apos;s details are needed.</p>
+          <p className="text-xs text-ink-secondary">This traveller will be under 18 on the travel date, so a parent or guardian&apos;s details are needed.</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextField label="Guardian Full Name" required error={err("guardianFullName")} {...register(`${prefix}guardianFullName`)} />
             <TextField

@@ -11,6 +11,8 @@ export const createDocumentRequirementSchema = z.object({
   countryId: z.string().min(1).optional(),
   /** The applicant's own nationality — omit to apply to every nationality. */
   nationality: z.string().trim().min(2).optional(),
+  /** Nationality master id (P06); null = every nationality. Takes precedence over `nationality`. */
+  nationalityId: z.string().min(1).nullable().optional(),
   /** Applicant category — omit to apply to every passenger type. */
   paxType: z.enum(paxTypeValues).optional(),
   documentName: z.string().trim().min(2, "Enter a document name"),

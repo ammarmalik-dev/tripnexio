@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { honeypotShape } from "./honeypot";
-import { isMinor } from "@/lib/leads/age";
+import { ageBasisDate, isMinor } from "@/lib/leads/age";
 
 /**
  * New Visa request validation. Split into per-step schemas so the stepper
@@ -27,7 +27,13 @@ export const newVisaStep1Schema = z.object({
     .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
   destinationCountry: z.string().min(1, "Select a destination country"),
-  visaType: z.string().min(1, "Select a visa type"),
+  /**
+   * A VisaType id from the Admin master (P06). Empty only when no visa type
+   * is configured for the destination — `visaTypeRequired` (set by step 1
+   * from the loaded options) and the API route both enforce that.
+   */
+  visaType: z.string().max(40),
+  visaTypeRequired: z.boolean(),
   travelers: z
     .string()
     .trim()
@@ -142,11 +148,15 @@ interface TravellerForCheck {
  * as `path` + message issues (primary first, then additional travellers in
  * order) — used by the form's extraStepValidation and by the API route.
  */
-export function findNewVisaTravellerIssues(values: TravellerForCheck & { additionalTravellers: TravellerForCheck[] }) {
+export function findNewVisaTravellerIssues(
+  values: TravellerForCheck & { travelDate?: string; additionalTravellers: TravellerForCheck[] }
+) {
   const issues: { path: string; message: string }[] = [];
+  // Age on the travel date — the same basis computePaxType uses.
+  const ageOn = ageBasisDate(values.travelDate);
   const check = (traveller: TravellerForCheck, prefix: string) => {
     if (!traveller.passportImageBase64) issues.push({ path: `${prefix}passportImageBase64`, message: "Upload a copy of the passport" });
-    if (isMinor(traveller.dob)) {
+    if (isMinor(traveller.dob, ageOn)) {
       if (!traveller.guardianFullName || traveller.guardianFullName.trim().length < 2) {
         issues.push({ path: `${prefix}guardianFullName`, message: "Enter the guardian's full name" });
       }
@@ -161,6 +171,11 @@ export function findNewVisaTravellerIssues(values: TravellerForCheck & { additio
   check(values, "");
   values.additionalTravellers.forEach((traveller, index) => check(traveller, `additionalTravellers.${index}.`));
   return issues;
+}
+
+/** Step 1's cross-field rule: a visa type must be picked whenever the destination offers any. */
+export function findNewVisaStep1Issues(values: { visaType: string; visaTypeRequired: boolean }) {
+  return values.visaTypeRequired && !values.visaType ? [{ path: "visaType", message: "Select a visa type" }] : [];
 }
 
 export type NewVisaStep1Values = z.infer<typeof newVisaStep1Schema>;

@@ -120,6 +120,7 @@ export async function POST(request: NextRequest) {
           serviceType: targetService,
           countryId: row.countryId,
           nationality: row.nationality,
+          nationalityId: row.nationalityId,
           paxType: row.paxType,
           documentName: row.documentName,
           required: row.required,

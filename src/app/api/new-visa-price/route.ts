@@ -21,24 +21,27 @@ export async function GET(request: NextRequest) {
   const processingTypeParam = searchParams.get("processingType");
   const adults = Number(searchParams.get("adults") ?? "0");
   const children = Number(searchParams.get("children") ?? "0");
+  const infants = Number(searchParams.get("infants") ?? "0");
 
   if (!countryCode) return jsonError(400, "countryCode is required.");
   if (processingTypeParam !== "normal" && processingTypeParam !== "urgent") {
     return jsonError(400, "processingType must be 'normal' or 'urgent'.");
   }
-  if (!Number.isInteger(adults) || !Number.isInteger(children) || adults < 0 || children < 0) {
-    return jsonError(400, "adults/children must be non-negative whole numbers.");
+  if ([adults, children, infants].some((count) => !Number.isInteger(count) || count < 0)) {
+    return jsonError(400, "adults/children/infants must be non-negative whole numbers.");
   }
-  if (adults + children === 0) {
+  const totalTravellers = adults + children + infants;
+  if (totalTravellers === 0) {
     return jsonSuccess({ configured: false });
   }
-  if (adults + children > MAX_TRAVELLERS) {
+  if (totalTravellers > MAX_TRAVELLERS) {
     return jsonError(400, `Total travellers can't exceed ${MAX_TRAVELLERS}.`);
   }
 
   const travellerPaxTypes: PaxType[] = [
     ...Array<PaxType>(adults).fill("ADULT"),
     ...Array<PaxType>(children).fill("CHILD"),
+    ...Array<PaxType>(infants).fill("INFANT"),
   ];
 
   const breakdown = await computeNewVisaPrice({ countryCode, processingType: processingTypeParam, travellerPaxTypes });

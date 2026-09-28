@@ -7,6 +7,7 @@ import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { generateToken } from "../quotations/select-quotation";
+import { findCustomerByMobile } from "../customers/find-by-mobile";
 
 /**
  * The services that go through a staff-prepared quotation the customer
@@ -26,6 +27,8 @@ export interface LeadPassengerInput {
   fullName: string;
   paxType?: "ADULT" | "CHILD" | "INFANT";
   nationality?: string;
+  /** Nationality master id, when the form picked one (P06). */
+  nationalityId?: string;
   passportNumber?: string;
   /** ISO date string (YYYY-MM-DD). */
   dob?: string;
@@ -50,9 +53,9 @@ export interface CreateLeadResult {
   passengerIds: string[];
 }
 
-/** Reuses an existing Customer by mobile (primary) or email so returning customers keep their history. */
+/** Reuses an existing Customer by normalised mobile (primary) or email so returning customers keep their history. */
 async function findOrCreateCustomer(tx: Prisma.TransactionClient, contact: LeadContact) {
-  let customer = await tx.customer.findUnique({ where: { mobile: contact.mobile } });
+  let customer = await findCustomerByMobile(tx, contact.mobile);
   if (!customer && contact.email) {
     customer = await tx.customer.findUnique({ where: { email: contact.email } });
   }
@@ -64,7 +67,11 @@ async function findOrCreateCustomer(tx: Prisma.TransactionClient, contact: LeadC
   return customer;
 }
 
-/** Reuses an existing Passenger (matched by name, case-insensitive) under the customer instead of duplicating it. */
+/**
+ * Reuses an existing Passenger under the customer instead of duplicating it:
+ * matched by passport number first (case-insensitive), then by name. A
+ * reused passenger picks up a nationality it didn't have yet.
+ */
 async function findOrCreatePassengers(
   tx: Prisma.TransactionClient,
   customerId: string,
@@ -72,21 +79,41 @@ async function findOrCreatePassengers(
 ) {
   const ids: string[] = [];
   for (const passenger of passengers) {
-    const existing = await tx.passenger.findFirst({
-      where: { customerId, fullName: { equals: passenger.fullName, mode: "insensitive" } },
-    });
-    const record =
-      existing ??
-      (await tx.passenger.create({
-        data: {
-          customerId,
-          fullName: passenger.fullName,
-          paxType: passenger.paxType ?? "ADULT",
-          nationality: passenger.nationality,
-          passportNumber: passenger.passportNumber,
-          dob: passenger.dob ? new Date(passenger.dob) : undefined,
-        },
+    const passportNumber = passenger.passportNumber?.trim();
+    const existing =
+      (passportNumber
+        ? await tx.passenger.findFirst({
+            where: { customerId, passportNumber: { equals: passportNumber, mode: "insensitive" } },
+            orderBy: { createdAt: "asc" },
+          })
+        : null) ??
+      (await tx.passenger.findFirst({
+        where: { customerId, fullName: { equals: passenger.fullName, mode: "insensitive" } },
+        orderBy: { createdAt: "asc" },
       }));
+
+    if (existing) {
+      if (passenger.nationalityId && !existing.nationalityId) {
+        await tx.passenger.update({
+          where: { id: existing.id },
+          data: { nationalityId: passenger.nationalityId, nationality: passenger.nationality ?? existing.nationality },
+        });
+      }
+      ids.push(existing.id);
+      continue;
+    }
+
+    const record = await tx.passenger.create({
+      data: {
+        customerId,
+        fullName: passenger.fullName,
+        paxType: passenger.paxType ?? "ADULT",
+        nationality: passenger.nationality,
+        nationalityId: passenger.nationalityId,
+        passportNumber: passenger.passportNumber,
+        dob: passenger.dob ? new Date(passenger.dob) : undefined,
+      },
+    });
     ids.push(record.id);
   }
   return ids;
@@ -112,6 +139,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     delete (safeDetails as Record<string, unknown>).nationality;
     for (const passenger of safePassengers) {
       delete passenger.nationality;
+      delete passenger.nationalityId;
     }
   }
 

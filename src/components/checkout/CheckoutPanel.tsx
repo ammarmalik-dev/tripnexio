@@ -29,7 +29,7 @@ interface CheckoutView {
   quotationExpired: boolean;
   demoGateway: boolean;
   applicants: { id: string; fullName: string }[];
-  documentTypes: { type: string; label: string }[];
+  documentTypes: { type: string; label: string; required: boolean }[];
   documents: { passengerId: string; type: string; status: string }[];
 }
 
@@ -196,9 +196,10 @@ export function CheckoutPanel({ token }: { token: string }) {
 
   const hasDocument = (passengerId: string, type: string) =>
     view.documents.some((document) => document.passengerId === passengerId && document.type === type);
-  const requiredCount = view.applicants.length * view.documentTypes.length;
+  const requiredTypes = view.documentTypes.filter((doc) => doc.required);
+  const requiredCount = view.applicants.length * requiredTypes.length;
   const uploadedCount = view.applicants.reduce(
-    (total, applicant) => total + view.documentTypes.filter((doc) => hasDocument(applicant.id, doc.type)).length,
+    (total, applicant) => total + requiredTypes.filter((doc) => hasDocument(applicant.id, doc.type)).length,
     0
   );
 
@@ -307,7 +308,7 @@ export function CheckoutPanel({ token }: { token: string }) {
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-lg font-semibold text-ink-heading">Upload your documents</h2>
                 <span className="text-xs text-ink-tertiary">
-                  {uploadedCount} of {requiredCount} uploaded
+                  {uploadedCount} of {requiredCount} required uploaded
                 </span>
               </div>
               {view.applicants.map((applicant) => (
@@ -316,7 +317,7 @@ export function CheckoutPanel({ token }: { token: string }) {
                   {view.documentTypes.map((doc) => (
                     <DocumentSlot
                       key={doc.type}
-                      label={doc.label}
+                      label={doc.required ? doc.label : `${doc.label} (where applicable)`}
                       uploaded={hasDocument(applicant.id, doc.type)}
                       uploading={uploadingKey === `${applicant.id}:${doc.type}`}
                       onFile={(file) => void handleUpload(applicant.id, doc.type, file)}

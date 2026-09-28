@@ -3,6 +3,7 @@
 import { useFormContext } from "react-hook-form";
 import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
+import { SearchableSelectField } from "@/components/forms/SearchableSelectField";
 import { DateField } from "@/components/forms/DateField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -65,12 +66,13 @@ export function Step1BasicDetails() {
         error={errors.destinationCountry?.message}
         {...register("destinationCountry")}
       />
-      <SelectField
+      <SearchableSelectField
+        name="airline"
         label="Airline"
         required
-        options={airlines.map((airline) => ({ value: airline.code, label: airline.name }))}
+        hint="Start typing an airline name or code."
+        options={airlines.map((airline) => ({ value: airline.code, label: airline.name, detail: airline.code }))}
         error={errors.airline?.message}
-        {...register("airline")}
       />
       <div className="sm:col-span-2">
         <DateField

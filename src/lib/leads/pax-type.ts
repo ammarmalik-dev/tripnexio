@@ -1,4 +1,5 @@
 import type { PaxType } from "../../generated/prisma/enums";
+import { ageBasisDate, ageInYears } from "./age";
 
 /**
  * Flight_Special_Fare.md §7, locked: "DOB -> Age on Travel Date -> Passenger
@@ -8,14 +9,7 @@ import type { PaxType } from "../../generated/prisma/enums";
  * elsewhere in this codebase.
  */
 export function computePaxType(dob: string, travelDate: string): PaxType {
-  const dobDate = new Date(dob);
-  const travel = new Date(travelDate);
-
-  let age = travel.getFullYear() - dobDate.getFullYear();
-  const monthDiff = travel.getMonth() - dobDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && travel.getDate() < dobDate.getDate())) {
-    age--;
-  }
+  const age = ageInYears(dob, ageBasisDate(travelDate)) ?? Number.NaN;
 
   if (age < 2) return "INFANT";
   if (age < 12) return "CHILD";

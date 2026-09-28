@@ -6,6 +6,7 @@ import { FileText, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import type { VisaChangeRequestValues } from "@/lib/validation/visa-change-schema";
+import { useNationalities } from "@/lib/use-nationalities";
 
 interface DocumentRequirementItem {
   id: string;
@@ -27,7 +28,9 @@ export function Step3DocumentChecklist() {
     control,
     formState: { errors },
   } = useFormContext<VisaChangeRequestValues>();
-  const nationality = getValues("nationality");
+  const nationalityId = getValues("nationalityId");
+  const { options: nationalities } = useNationalities();
+  const nationality = nationalities.find((option) => option.id === nationalityId)?.name ?? "";
   const additionalPassengers = useWatch({ control, name: "additionalPassengers" }) ?? [];
   const [items, setItems] = useState<DocumentRequirementItem[] | null>(null);
 
@@ -36,7 +39,7 @@ export function Step3DocumentChecklist() {
     async function load() {
       try {
         const res = await fetch(
-          `/api/document-requirements?nationality=${encodeURIComponent(nationality)}&serviceType=VISA_CHANGE`
+          `/api/document-requirements?nationalityId=${encodeURIComponent(nationalityId)}&serviceType=VISA_CHANGE`
         );
         if (!res.ok) {
           if (!cancelled) setItems([]);
@@ -52,7 +55,7 @@ export function Step3DocumentChecklist() {
     return () => {
       cancelled = true;
     };
-  }, [nationality]);
+  }, [nationalityId]);
 
   return (
     <div className="flex flex-col gap-4">

@@ -63,7 +63,7 @@ export async function createBookingFromQuotation(
     passengerIds.length > 0
       ? await db.passenger.findMany({
           where: { id: { in: passengerIds } },
-          select: { id: true, fullName: true, nationality: true, paxType: true },
+          select: { id: true, fullName: true, nationality: true, nationalityId: true, paxType: true },
         })
       : [];
 

@@ -2,6 +2,7 @@
 
 import { useFormContext } from "react-hook-form";
 import type { VisaChangeRequestValues } from "@/lib/validation/visa-change-schema";
+import { useNationalities } from "@/lib/use-nationalities";
 
 const CHANGE_TYPE_LABEL: Record<VisaChangeRequestValues["changeType"], string> = {
   AIRPORT_TO_AIRPORT: "Airport to Airport",
@@ -24,6 +25,8 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 export function Step4Summary() {
   const { getValues } = useFormContext<VisaChangeRequestValues>();
   const values = getValues();
+  const { options: nationalities } = useNationalities();
+  const nationality = nationalities.find((option) => option.id === values.nationalityId)?.name ?? "";
 
   return (
     <div className="flex flex-col gap-4">
@@ -34,7 +37,7 @@ export function Step4Summary() {
         <SummaryRow label="Visa Last Date" value={formatDate(values.visaLastDate)} />
         <SummaryRow label="Mobile Number" value={values.mobile} />
         <SummaryRow label="Email" value={values.email} />
-        <SummaryRow label="Nationality" value={values.nationality} />
+        <SummaryRow label="Nationality" value={nationality} />
         {values.additionalPassengers.length > 0 ? (
           <SummaryRow label="Additional Passengers" value={String(values.additionalPassengers.length)} />
         ) : null}

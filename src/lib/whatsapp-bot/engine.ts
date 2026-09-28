@@ -5,7 +5,9 @@ import { getAiProvider } from "./get-ai-provider";
 import { answerFaqQuestion } from "@/lib/faq/answer-faq";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
 import { buildWelcomeMenu, serviceTypeFromMenuId, MENU_TRACK_ID, MENU_AGENT_ID } from "./menu";
-import { getNextField, buildLeadDetails } from "./flows";
+import { getNextField, buildLeadDetails, buildLeadPassengers, newVisaRequestLink } from "./flows";
+import { createAutoCheckout } from "../checkout/create-auto-checkout";
+import { siteConfig } from "../site-config";
 import * as messages from "./messages";
 import type { ServiceType } from "../../generated/prisma/enums";
 
@@ -186,6 +188,17 @@ async function continueCollecting(
     }
   }
 
+  // New Visa needs per-traveller passport details and copies the chat can't
+  // collect — hand over to the website form, prefilled (P06).
+  if (serviceType === "NEW_VISA") {
+    return {
+      replyText: messages.newVisaContinueOnWebsite(newVisaRequestLink(siteConfig.url, nextCollected)),
+      nextState: "COMPLETED",
+      nextServiceType: serviceType,
+      nextCollectedFields: nextCollected,
+    };
+  }
+
   // Every field collected — create the Lead exactly like the website does.
   try {
     const details = await buildLeadDetails(serviceType, nextCollected);
@@ -193,10 +206,29 @@ async function continueCollecting(
       serviceType,
       source: "WhatsApp Bot",
       contact: { fullName: nextCollected.fullName, mobile: waId, email: nextCollected.email },
+      passengers: await buildLeadPassengers(serviceType, nextCollected),
       details,
     });
+
+    // OTB/Return Ticket pay right after the request, the same auto-checkout
+    // the website uses. A failure never loses the Lead — staff can still send a link.
+    let payUrl: string | null = null;
+    if (serviceType === "OTB" || serviceType === "RETURN_TICKET") {
+      try {
+        const total = Number(details.indicativeTotal);
+        const checkout = Number.isFinite(total) && total > 0
+          ? await createAutoCheckout({ leadId: result.leadId, serviceType, totalPrice: total })
+          : null;
+        if (checkout) payUrl = `${siteConfig.url}/pay/${checkout.token}`;
+      } catch (checkoutError) {
+        console.error("[whatsapp-bot] auto checkout failed", checkoutError);
+      }
+    }
+
     return {
-      replyText: messages.leadCreated(result.referenceId, SERVICE_TYPE_LABELS[serviceType]),
+      replyText: payUrl
+        ? messages.leadCreatedWithPayLink(result.referenceId, SERVICE_TYPE_LABELS[serviceType], payUrl)
+        : messages.leadCreated(result.referenceId, SERVICE_TYPE_LABELS[serviceType]),
       nextState: "COMPLETED",
       nextServiceType: serviceType,
       nextCollectedFields: nextCollected,

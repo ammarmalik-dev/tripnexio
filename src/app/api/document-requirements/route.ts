@@ -6,10 +6,15 @@ import { db } from "@/lib/db";
 
 const serviceTypeValues = Object.values(ServiceType) as [string, ...string[]];
 
-const querySchema = z.object({
-  nationality: z.string().trim().min(2),
-  serviceType: z.enum(serviceTypeValues),
-});
+const querySchema = z
+  .object({
+    /** Nationality master id (P06). */
+    nationalityId: z.string().min(1).max(40).optional(),
+    /** Legacy: a nationality name, for callers that only have text. */
+    nationality: z.string().trim().min(2).optional(),
+    serviceType: z.enum(serviceTypeValues),
+  })
+  .refine((query) => query.nationalityId || query.nationality, { message: "Provide a nationality." });
 
 /**
  * Public, unauthenticated — feeds a customer-facing document-checklist
@@ -25,9 +30,20 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Provide a valid nationality and serviceType.", parsed.error.flatten().fieldErrors);
   }
 
+  // Matched on the nationality id; older rows that only carry the name are
+  // still matched case-insensitively on it.
+  const nationalityName = parsed.data.nationalityId
+    ? (await db.nationality.findUnique({ where: { id: parsed.data.nationalityId }, select: { name: true } }))?.name
+    : parsed.data.nationality;
+  const nationalityMatch = [
+    ...(parsed.data.nationalityId ? [{ nationalityId: parsed.data.nationalityId }] : []),
+    ...(nationalityName ? [{ nationalityId: null, nationality: { equals: nationalityName, mode: "insensitive" as const } }] : []),
+  ];
+  if (nationalityMatch.length === 0) return jsonSuccess([]);
+
   const requirements = await db.documentRequirement.findMany({
     where: {
-      nationality: { equals: parsed.data.nationality, mode: "insensitive" },
+      OR: nationalityMatch,
       // zod's z.enum(serviceTypeValues) widens back to `string` since
       // serviceTypeValues is typed as a plain string tuple — safe to cast,
       // the enum() check already guarantees this is a real ServiceType value.

@@ -7,6 +7,7 @@ import { visaChangeRequestSchema, findMissingApplicantDocuments } from "@/lib/va
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { db } from "@/lib/db";
 import { describeError } from "@/lib/api/describe-error";
 
 export async function POST(request: NextRequest) {
@@ -32,14 +33,14 @@ export async function POST(request: NextRequest) {
   const uploadError = rejectInvalidUploads([parsed.data.passportImageBase64, parsed.data.visaImageBase64, ...parsed.data.additionalPassengers.flatMap((passenger) => [passenger.passportImageBase64, passenger.visaImageBase64])], IMAGE_OR_PDF);
   if (uploadError) return uploadError;
 
-  const { fullName, passportNumber, visaLastDate, mobile, email, nationality, paxType, additionalPassengers, changeType } = parsed.data;
+  const { fullName, passportNumber, visaLastDate, mobile, email, nationalityId, paxType, additionalPassengers, changeType } = parsed.data;
 
   const allPassengers = [
     {
       fullName,
       passportNumber,
       visaLastDate,
-      nationality,
+      nationalityId,
       paxType,
       passportImageBase64: parsed.data.passportImageBase64,
       passportImageMimeType: parsed.data.passportImageMimeType,
@@ -66,6 +67,20 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please upload a passport copy and a visa copy for every applicant.", fieldErrors);
   }
 
+  // Every nationality must be an active row of the Admin master (P06).
+  const nationalityIds = [...new Set(allPassengers.map((p) => p.nationalityId))];
+  const nationalityRows = await db.nationality.findMany({ where: { id: { in: nationalityIds }, active: true }, select: { id: true, name: true } });
+  const nationalityName = new Map(nationalityRows.map((row) => [row.id, row.name]));
+  const badNationality: Record<string, string[]> = {};
+  allPassengers.forEach((p, index) => {
+    if (!nationalityName.has(p.nationalityId)) {
+      badNationality[index === 0 ? "nationalityId" : `additionalPassengers.${index - 1}.nationalityId`] = ["Select a nationality from the list"];
+    }
+  });
+  if (Object.keys(badNationality).length > 0) {
+    return jsonError(400, "Please select a nationality from the list for every applicant.", badNationality);
+  }
+
   try {
     const result = await createLeadFromSubmission({
       serviceType: "VISA_CHANGE",
@@ -73,7 +88,8 @@ export async function POST(request: NextRequest) {
       passengers: allPassengers.map((p) => ({
         fullName: p.fullName,
         passportNumber: p.passportNumber,
-        nationality: p.nationality,
+        nationality: nationalityName.get(p.nationalityId),
+        nationalityId: p.nationalityId,
         paxType: p.paxType,
       })),
       details: {

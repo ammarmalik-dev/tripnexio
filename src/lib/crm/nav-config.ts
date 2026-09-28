@@ -39,6 +39,7 @@ import {
   Gauge,
   BarChart3,
   Undo2,
+  Flag,
   type LucideIcon,
 } from "lucide-react";
 
@@ -163,6 +164,8 @@ export const adminNavGroups: CrmNavGroup[] = [
     label: "Master Data",
     items: [
       { label: "Countries", href: "/admin/countries", icon: Globe2 },
+      { label: "Nationalities", href: "/admin/nationalities", icon: Flag },
+      { label: "Visa Types", href: "/admin/visa-types", icon: Stamp },
       { label: "Occupations", href: "/admin/occupations", icon: ClipboardList },
       { label: "Airports", href: "/admin/airports", icon: Building2 },
       { label: "Airlines", href: "/admin/airlines", icon: Plane },

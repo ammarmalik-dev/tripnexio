@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { createPricingRuleSchema } from "@/lib/validation/pricing-rule-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { resolveNationalityInput } from "@/lib/nationalities/resolve";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 
@@ -37,6 +38,9 @@ export async function POST(request: NextRequest) {
     const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
     if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
   }
+  const nationalityInput = await resolveNationalityInput(parsed.data);
+  if (nationalityInput.error) return nationalityInput.error;
+  const ruleData = { ...parsed.data, ...nationalityInput.data };
 
   // No DB-level uniqueness on this combination (see the model's own doc
   // comment — nullable-column uniqueness semantics get messy in Postgres),
@@ -47,7 +51,8 @@ export async function POST(request: NextRequest) {
       countryId: parsed.data.countryId ?? null,
       processingType: parsed.data.processingType ?? null,
       paxType: parsed.data.paxType,
-      nationality: parsed.data.nationality ?? null,
+      nationalityId: ruleData.nationalityId ?? null,
+      nationality: ruleData.nationality ?? null,
     },
   });
   if (existing) {
@@ -57,7 +62,7 @@ export async function POST(request: NextRequest) {
   const rule = await db.$transaction(async (tx) => {
     const created = await tx.pricingRule.create({
       data: {
-        ...parsed.data,
+        ...ruleData,
         validityFrom: parsed.data.validityFrom ? new Date(parsed.data.validityFrom) : undefined,
         validityUntil: parsed.data.validityUntil ? new Date(parsed.data.validityUntil) : undefined,
       },

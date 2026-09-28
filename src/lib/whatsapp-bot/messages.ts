@@ -33,6 +33,22 @@ export function leadCreated(referenceId: string, serviceLabel: string): string {
   );
 }
 
+export function leadCreatedWithPayLink(referenceId: string, serviceLabel: string, payUrl: string): string {
+  return (
+    `All set! Your ${serviceLabel} request is submitted — reference *${referenceId}*.\n\n` +
+    `Complete your payment securely here:\n${payUrl}\n\n` +
+    `After payment you can upload your documents on the same page. Type "menu" if you'd like to start another request.`
+  );
+}
+
+export function newVisaContinueOnWebsite(requestUrl: string): string {
+  return (
+    `Thanks! New Visa applications need each traveller's passport details and a passport copy, ` +
+    `so please finish on our website — your answers so far are already filled in:\n${requestUrl}\n\n` +
+    `Type "menu" to start over, or "agent" to talk to our team.`
+  );
+}
+
 export function handoff(reason: string): string {
   return (
     `${reason} Let me connect you with our support team — ` +

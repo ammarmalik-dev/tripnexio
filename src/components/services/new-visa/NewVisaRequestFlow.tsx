@@ -8,6 +8,7 @@ import { Step2ProcessingType } from "./steps/Step2ProcessingType";
 import { Step3Summary } from "./steps/Step3Summary";
 import { submitNewVisaRequest } from "@/lib/api/new-visa";
 import {
+  findNewVisaStep1Issues,
   findNewVisaTravellerIssues,
   newVisaRequestSchema,
   newVisaStepFields,
@@ -24,15 +25,17 @@ const steps = [Step1TravelDetails, StepTravellers, Step2ProcessingType, Step3Sum
  * (name, DOB, passport, etc.) still needs the customer's real input here.
  * A direct visit with no query params behaves exactly as before.
  */
-function useNewVisaPrefill(): { country: string; processingType: "normal" | "urgent" | undefined; travelers: string } {
+function useNewVisaPrefill(): { country: string; visaType: string; processingType: "normal" | "urgent" | undefined; travelers: string } {
   const searchParams = useSearchParams();
   const country = searchParams.get("country") ?? "";
+  // From the WhatsApp bot's hand-over link; step 1 clears it if it isn't offered for the country.
+  const visaType = searchParams.get("visaType") ?? "";
   const processingTypeParam = searchParams.get("processingType");
   const travelersParam = searchParams.get("travelers");
   const processingType = processingTypeParam === "normal" || processingTypeParam === "urgent" ? processingTypeParam : undefined;
   const travelersCount = Number(travelersParam);
   const travelers = travelersParam && Number.isInteger(travelersCount) && travelersCount >= 1 && travelersCount <= 9 ? travelersParam : "1";
-  return { country, processingType, travelers };
+  return { country, visaType, processingType, travelers };
 }
 
 export function NewVisaRequestFlow() {
@@ -48,7 +51,8 @@ export function NewVisaRequestFlow() {
         mobile: "",
         email: "",
         destinationCountry: prefill.country,
-        visaType: "",
+        visaType: prefill.visaType,
+        visaTypeRequired: false,
         travelers: prefill.travelers,
         travelDate: "",
         passportNumber: "",
@@ -63,7 +67,7 @@ export function NewVisaRequestFlow() {
       stepFields={newVisaStepFields}
       stepLabels={newVisaStepLabels}
       steps={steps}
-      extraStepValidation={{ 1: findNewVisaTravellerIssues }}
+      extraStepValidation={{ 0: findNewVisaStep1Issues, 1: findNewVisaTravellerIssues }}
       onSubmit={submitNewVisaRequest}
       successTitle="Request submitted"
       successDescription="Your New Visa request has been received. Our team will review the details and get in touch shortly."

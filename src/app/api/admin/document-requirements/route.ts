@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { createDocumentRequirementSchema } from "@/lib/validation/document-requirement-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { resolveNationalityInput } from "@/lib/nationalities/resolve";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 
@@ -37,6 +38,9 @@ export async function POST(request: NextRequest) {
     const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
     if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
   }
+  const nationalityInput = await resolveNationalityInput(parsed.data);
+  if (nationalityInput.error) return nationalityInput.error;
+  const requirementData = { ...parsed.data, ...nationalityInput.data };
 
   // No DB-level uniqueness on this combination (see the model's own doc
   // comment — nullable-column uniqueness semantics get messy in Postgres),
@@ -46,7 +50,8 @@ export async function POST(request: NextRequest) {
     where: {
       serviceType: parsed.data.serviceType,
       countryId: parsed.data.countryId ?? null,
-      nationality: parsed.data.nationality ?? null,
+      nationalityId: requirementData.nationalityId ?? null,
+      nationality: requirementData.nationality ?? null,
       paxType: parsed.data.paxType ?? null,
       documentName: parsed.data.documentName,
     },
@@ -59,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   const requirement = await db.$transaction(async (tx) => {
     const created = await tx.documentRequirement.create({
-      data: parsed.data,
+      data: requirementData,
       include: { country: { select: { id: true, name: true, code: true } } },
     });
     await writeAudit(tx, {

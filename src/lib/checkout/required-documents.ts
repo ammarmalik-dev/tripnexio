@@ -5,31 +5,44 @@ export interface CheckoutDocumentType {
   /** Stored as Document.type. */
   type: string;
   label: string;
+  /** false = "where applicable": shown, but not counted as outstanding. */
+  required: boolean;
 }
 
+/** Services whose customer uploads documents on the checkout page after payment. */
+const CHECKOUT_SERVICES: ReadonlySet<ServiceType> = new Set<ServiceType>(["NEW_VISA", "RETURN_TICKET", "OTB"]);
+
 /**
- * Documents asked for AFTER payment on Return Ticket/OTB — exactly the
- * lists in the client's Developer Handover documents (Return Ticket:
- * Passport Copy, Visa Copy, Onward Ticket; OTB: those plus Return Ticket).
- * Each is collected per applicant. New Visa's post-payment checklist isn't
- * a fixed list like these — see `getNewVisaCheckoutDocumentTypes` below.
+ * Return Ticket/OTB documents were a hard-coded list before P06, stored with
+ * these Document.type codes. Their Admin-managed rows keep mapping to the
+ * same codes so documents uploaded before the move still line up; any other
+ * row uses its own name as the type, the same as New Visa.
  */
-const REQUIRED_DOCUMENTS: Partial<Record<ServiceType, CheckoutDocumentType[]>> = {
-  RETURN_TICKET: [
-    { type: "PASSPORT", label: "Passport copy" },
-    { type: "VISA_COPY", label: "Visa copy" },
-    { type: "ONWARD_TICKET", label: "Onward ticket" },
-  ],
-  OTB: [
-    { type: "PASSPORT", label: "Passport copy" },
-    { type: "VISA_COPY", label: "Visa copy" },
-    { type: "ONWARD_TICKET", label: "Onward ticket" },
-    { type: "RETURN_TICKET", label: "Return ticket" },
-  ],
+const LEGACY_TYPE_CODES: Record<string, string> = {
+  "passport copy": "PASSPORT",
+  "visa copy": "VISA_COPY",
+  "onward ticket": "ONWARD_TICKET",
+  "return ticket": "RETURN_TICKET",
 };
 
-export function getCheckoutDocumentTypes(serviceType: ServiceType): CheckoutDocumentType[] {
-  return REQUIRED_DOCUMENTS[serviceType] ?? [];
+/**
+ * Return Ticket/OTB post-payment checklist, from Admin-managed
+ * DocumentRequirement rows (seeded per RVT Page Content v3 §7 and OTB's
+ * previous fixed list). Neither service collects nationality, so only rows
+ * without a nationality apply; `countryId` narrows by destination country.
+ */
+async function getRequirementDocumentTypes(serviceType: ServiceType, countryId: string | null): Promise<CheckoutDocumentType[]> {
+  const requirements = await db.documentRequirement.findMany({
+    where: { serviceType, active: true, nationality: null, nationalityId: null },
+    orderBy: [{ required: "desc" }, { documentName: "asc" }],
+  });
+  return requirements
+    .filter((requirement) => !requirement.countryId || requirement.countryId === countryId)
+    .map((requirement) => ({
+      type: LEGACY_TYPE_CODES[requirement.documentName.trim().toLowerCase()] ?? requirement.documentName,
+      label: requirement.documentName,
+      required: requirement.required,
+    }));
 }
 
 /**
@@ -62,18 +75,22 @@ export async function getNewVisaCheckoutDocumentTypes(countryId?: string | null)
     where: {
       serviceType: "NEW_VISA",
       active: true,
-      OR: [{ nationality: null }, { nationality: { equals: NEW_VISA_DEFAULT_NATIONALITY, mode: "insensitive" } }],
+      OR: [
+        { nationality: null, nationalityId: null },
+        { nationalityRef: { name: { equals: NEW_VISA_DEFAULT_NATIONALITY, mode: "insensitive" } } },
+        { nationalityId: null, nationality: { equals: NEW_VISA_DEFAULT_NATIONALITY, mode: "insensitive" } },
+      ],
     },
     orderBy: [{ required: "desc" }, { documentName: "asc" }],
   });
   // countryId matched in JS, not the query, since it needs its own
   // independent null-or-exact-match semantics alongside the nationality OR above.
   const filtered = requirements.filter((requirement) => !requirement.countryId || requirement.countryId === countryId);
-  return filtered.map((requirement) => ({ type: requirement.documentName, label: requirement.documentName }));
+  return filtered.map((requirement) => ({ type: requirement.documentName, label: requirement.documentName, required: requirement.required }));
 }
 
 export function isCheckoutService(serviceType: ServiceType): boolean {
-  return serviceType === "NEW_VISA" || serviceType in REQUIRED_DOCUMENTS;
+  return CHECKOUT_SERVICES.has(serviceType);
 }
 
 /**
@@ -91,9 +108,8 @@ export function isCheckoutService(serviceType: ServiceType): boolean {
 export async function resolveCheckoutDocumentTypes(booking: {
   lead: { serviceType: ServiceType; details: unknown };
 }): Promise<CheckoutDocumentType[]> {
-  if (booking.lead.serviceType !== "NEW_VISA") {
-    return getCheckoutDocumentTypes(booking.lead.serviceType);
-  }
+  const { serviceType } = booking.lead;
+  if (!CHECKOUT_SERVICES.has(serviceType)) return [];
   const details = (booking.lead.details ?? {}) as Record<string, unknown>;
   const countryCode = typeof details.destinationCountry === "string" ? details.destinationCountry : null;
   // Case-insensitive, same as the nationality match just below in
@@ -105,5 +121,6 @@ export async function resolveCheckoutDocumentTypes(booking: {
   const country = countryCode
     ? await db.country.findFirst({ where: { code: { equals: countryCode, mode: "insensitive" } } })
     : null;
-  return getNewVisaCheckoutDocumentTypes(country?.id ?? null);
+  if (serviceType === "NEW_VISA") return getNewVisaCheckoutDocumentTypes(country?.id ?? null);
+  return getRequirementDocumentTypes(serviceType, country?.id ?? null);
 }

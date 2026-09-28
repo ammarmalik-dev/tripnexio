@@ -1,17 +1,30 @@
 "use client";
 
-import { useFormContext, useFieldArray } from "react-hook-form";
+import { useFormContext, useFieldArray, type UseFormRegisterReturn } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { SearchableSelectField } from "@/components/forms/SearchableSelectField";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import type { VisaChangeRequestValues } from "@/lib/validation/visa-change-schema";
+import { useNationalities } from "@/lib/use-nationalities";
+import { MAX_ADDITIONAL_PASSENGERS, type VisaChangeRequestValues } from "@/lib/validation/visa-change-schema";
 
 // Visa last date can legitimately be in the past (already expired) or
 // future (still valid) — override DateField's default min=today.
 const MIN_VISA_LAST_DATE = "1900-01-01";
+
+function PaxTypeSelect({ id, error, registration }: { id: string; error?: string; registration: UseFormRegisterReturn }) {
+  return (
+    <FormField label="Adult / Child" htmlFor={id} error={error} required>
+      <select id={id} className={cn(fieldControlClass, fieldBorderClass(!!error))} {...registration}>
+        <option value="ADULT">Adult</option>
+        <option value="CHILD">Child</option>
+      </select>
+    </FormField>
+  );
+}
 
 /** Visa_Change.md §3: buyer details, then "+ Add Another Passenger" for each additional passenger. */
 export function Step2Details() {
@@ -21,6 +34,9 @@ export function Step2Details() {
     formState: { errors },
   } = useFormContext<VisaChangeRequestValues>();
   const { fields, append, remove } = useFieldArray({ control, name: "additionalPassengers" });
+  const { options: nationalities } = useNationalities();
+  const nationalityOptions = nationalities.map((nationality) => ({ value: nationality.id, label: nationality.name }));
+  const atLimit = fields.length >= MAX_ADDITIONAL_PASSENGERS;
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,7 +72,14 @@ export function Step2Details() {
           error={errors.email?.message}
           {...register("email")}
         />
-        <TextField label="Nationality" required error={errors.nationality?.message} {...register("nationality")} />
+        <SearchableSelectField
+          name="nationalityId"
+          label="Nationality"
+          required
+          options={nationalityOptions}
+          error={errors.nationalityId?.message}
+        />
+        <PaxTypeSelect id="paxType" error={errors.paxType?.message} registration={register("paxType")} />
       </div>
 
       <div className="flex flex-col gap-4">
@@ -66,13 +89,19 @@ export function Step2Details() {
             type="button"
             size="sm"
             variant="ghost"
-            onClick={() => append({ fullName: "", passportNumber: "", visaLastDate: "", nationality: "", paxType: "ADULT" })}
+            disabled={atLimit}
+            onClick={() => append({ fullName: "", passportNumber: "", visaLastDate: "", nationalityId: "", paxType: "ADULT" })}
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
             Add Another Passenger
           </Button>
         </div>
 
+        {atLimit ? (
+          <p className="text-xs text-ink-tertiary">
+            You can add up to {MAX_ADDITIONAL_PASSENGERS} more passengers. Contact us on WhatsApp for larger groups.
+          </p>
+        ) : null}
         {fields.length === 0 ? (
           <p className="text-xs text-ink-tertiary">Add anyone else whose visa needs to be changed along with yours.</p>
         ) : (
@@ -105,26 +134,18 @@ export function Step2Details() {
                   error={errors.additionalPassengers?.[index]?.visaLastDate?.message}
                   {...register(`additionalPassengers.${index}.visaLastDate` as const)}
                 />
-                <TextField
+                <SearchableSelectField
+                  name={`additionalPassengers.${index}.nationalityId`}
                   label="Nationality"
                   required
-                  error={errors.additionalPassengers?.[index]?.nationality?.message}
-                  {...register(`additionalPassengers.${index}.nationality` as const)}
+                  options={nationalityOptions}
+                  error={errors.additionalPassengers?.[index]?.nationalityId?.message}
                 />
-                <FormField
-                  label="Adult / Child"
-                  htmlFor={`additionalPassengers.${index}.paxType`}
+                <PaxTypeSelect
+                  id={`additionalPassengers.${index}.paxType`}
                   error={errors.additionalPassengers?.[index]?.paxType?.message}
-                >
-                  <select
-                    id={`additionalPassengers.${index}.paxType`}
-                    className={cn(fieldControlClass, fieldBorderClass(!!errors.additionalPassengers?.[index]?.paxType))}
-                    {...register(`additionalPassengers.${index}.paxType` as const)}
-                  >
-                    <option value="ADULT">Adult</option>
-                    <option value="CHILD">Child</option>
-                  </select>
-                </FormField>
+                  registration={register(`additionalPassengers.${index}.paxType` as const)}
+                />
               </div>
             </div>
           ))

@@ -13,6 +13,7 @@ import { SERVICE_TYPE_OPTIONS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { NationalitySelect, nationalityFormValue, nationalityPayload } from "./NationalitySelect";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
@@ -35,6 +36,7 @@ interface PricingRuleData {
   processingType: string | null;
   paxType: PaxType;
   nationality: string | null;
+  nationalityId: string | null;
   vendorCost: string;
   sellingPrice: string;
   additionalCharges: string;
@@ -77,7 +79,7 @@ function toFormState(rule: PricingRuleData): FormState {
     countryId: rule.countryId ?? "",
     processingType: (rule.processingType as "normal" | "urgent" | null) ?? "",
     paxType: rule.paxType,
-    nationality: rule.nationality ?? "",
+    nationality: nationalityFormValue(rule),
     vendorCost: rule.vendorCost,
     sellingPrice: rule.sellingPrice,
     additionalCharges: rule.additionalCharges,
@@ -92,12 +94,14 @@ function PricingFields({
   errors,
   disabled,
   countries,
+  currentNationalityName,
 }: {
   form: FormState;
   onChange: (next: FormState) => void;
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
   countries: CountryData[];
+  currentNationalityName?: string | null;
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -164,15 +168,13 @@ function PricingFields({
           ))}
         </select>
       </FormField>
-      <TextField
-        label="Nationality"
-        name="nationality"
-        placeholder="Leave blank to apply to all nationalities"
+      <NationalitySelect
+        id="nationality"
         value={form.nationality}
-        onChange={(event) => onChange({ ...form, nationality: event.target.value })}
-        error={errors.nationality?.[0]}
+        onChange={(value) => onChange({ ...form, nationality: value })}
+        currentName={currentNationalityName}
+        error={errors.nationalityId?.[0] ?? errors.nationality?.[0]}
         disabled={disabled}
-        hint="Optional — leave blank for a rule that applies to every nationality."
       />
       <TextField
         label="Vendor Cost (₹)"
@@ -236,7 +238,7 @@ function buildPayload(form: FormState) {
     countryId: form.countryId === "" ? undefined : form.countryId,
     processingType: form.processingType === "" ? undefined : form.processingType,
     paxType: form.paxType || undefined,
-    nationality: form.nationality.trim() === "" ? undefined : form.nationality.trim(),
+    nationalityId: nationalityPayload(form.nationality),
     vendorCost: form.vendorCost === "" ? 0 : Number(form.vendorCost),
     sellingPrice: form.sellingPrice === "" ? undefined : Number(form.sellingPrice),
     additionalCharges: form.additionalCharges === "" ? 0 : Number(form.additionalCharges),
@@ -301,7 +303,14 @@ function PricingCard({
           {rule.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <PricingFields form={form} onChange={setForm} errors={errors} disabled={saving} countries={countries} />
+      <PricingFields
+        form={form}
+        onChange={setForm}
+        errors={errors}
+        disabled={saving}
+        countries={countries}
+        currentNationalityName={rule.nationality}
+      />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes

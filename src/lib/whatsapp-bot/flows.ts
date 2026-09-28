@@ -7,7 +7,11 @@ import { visaExtensionBotFieldSchemas, visaExtensionRequestSchema } from "../val
 import { visaChangeRequestSchema } from "../validation/visa-change-schema";
 import { flightSpecialFareRequestSchema, flightPassengerSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
-import { SAMPLE_VISA_TYPE_OPTIONS, SAMPLE_AIRLINE_OPTIONS } from "../sample-data";
+import { getActiveVisaTypes } from "../visa-types/active-visa-types";
+import { getOtbGlobalRules, resolveAirlineRules } from "../otb/get-otb-rules";
+import { evaluateOtbTravelDate } from "../otb/processing-rules";
+import { getSystemConfig } from "../settings/system-config";
+import type { LeadPassengerInput } from "../leads/create-lead";
 
 export interface ParseResult {
   ok: boolean;
@@ -118,6 +122,60 @@ async function getDestinationCountryOptions() {
   return countries.map((country) => ({ value: country.code, label: country.name }));
 }
 
+/** OTB airlines from the Airline master — the same active + OTB-required set the website offers. Stores the code. */
+async function getOtbAirlineOptions() {
+  const airlines = await db.airline.findMany({
+    where: { active: true, otbRequired: true },
+    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+  });
+  return airlines.map((airline) => ({ value: airline.code, label: airline.name }));
+}
+
+/**
+ * The OTB timeline check the website's lead route enforces, for a collected
+ * airline code: returns an evaluator for a travel date, or null when that
+ * airline is no longer available for OTB.
+ */
+async function getOtbTravelDateEvaluator(airlineCode: string) {
+  const airline = await db.airline.findFirst({ where: { code: airlineCode, active: true, otbRequired: true } });
+  if (!airline) return null;
+  const rules = resolveAirlineRules(airline, await getOtbGlobalRules());
+  const { timezoneOffsetMinutes } = await getSystemConfig();
+  return (travelDate: string) => evaluateOtbTravelDate(travelDate, rules, new Date(), timezoneOffsetMinutes * 60 * 1000);
+}
+
+/** Return Ticket destinations with an Admin-configured rate. Stores the Country id, like the website form. */
+async function getReturnTicketDestinationOptions() {
+  const destinations = await db.returnTicketDestination.findMany({
+    where: { active: true, country: { active: true } },
+    include: { country: { select: { name: true } } },
+    orderBy: { country: { name: "asc" } },
+  });
+  return destinations.map((destination) => ({ value: destination.countryId, label: destination.country.name }));
+}
+
+/** Free-text nationality matched against the Nationality master (exact name, else a single name starting with it). */
+function nationalityStep(): NextField {
+  return {
+    fieldKey: "nationalityId",
+    prompt: "What's your nationality? (e.g. Indian)",
+    parse: async (raw) => {
+      const text = raw.trim();
+      if (text.length < 2) return { ok: false, error: "Please type your nationality." };
+      const exact = await db.nationality.findFirst({ where: { active: true, name: { equals: text, mode: "insensitive" } } });
+      if (exact) return { ok: true, value: exact.id };
+      const partial = await db.nationality.findMany({
+        where: { active: true, name: { startsWith: text, mode: "insensitive" } },
+        take: 5,
+        orderBy: { name: "asc" },
+      });
+      if (partial.length === 1) return { ok: true, value: partial[0].id };
+      if (partial.length > 1) return { ok: false, error: `Did you mean one of these? ${partial.map((n) => n.name).join(", ")}` };
+      return { ok: false, error: "I couldn't find that nationality. Please check the spelling, or type \"agent\" for help." };
+    },
+  };
+}
+
 /**
  * The one function the bot engine calls each turn: given a service and
  * whatever's been collected so far, returns the NEXT field to ask about —
@@ -135,15 +193,22 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
 
   switch (serviceType) {
     case "OTB": {
-      if (!has("airline")) {
-        return numberedChoiceStep(
-          "airline",
-          "Which airline is this for?",
-          SAMPLE_AIRLINE_OPTIONS.map((option) => ({ value: option.label, label: option.label }))
-        );
+      if (!has("airline")) return numberedChoiceStep("airline", "Which airline is this for?", await getOtbAirlineOptions());
+      // Same airline timeline rules the website's OTB route enforces.
+      const evaluate = await getOtbTravelDateEvaluator(collected.airline);
+      if (!evaluate) return numberedChoiceStep("airline", "That airline isn't available for OTB right now.", []);
+      if (!has("travelDate")) {
+        return dateStep("travelDate", "What's your travel date?", otbRequestSchema.shape.travelDate, (iso) => {
+          const outcome = evaluate(iso);
+          return outcome.status === "BLOCKED" ? outcome.message : null;
+        });
       }
-      if (!has("travelDate")) return dateStep("travelDate", "What's your travel date?", otbRequestSchema.shape.travelDate);
-      if (!has("processingType")) return numberedChoiceStep("processingType", "Normal or urgent processing?", PROCESSING_TYPE_OPTIONS);
+      if (!has("processingType")) {
+        const outcome = evaluate(collected.travelDate);
+        const options = PROCESSING_TYPE_OPTIONS.filter((option) => (outcome.allowed as string[]).includes(option.value));
+        const header = outcome.message ? `${outcome.message}\nWhich processing type?` : "Normal or urgent processing?";
+        return numberedChoiceStep("processingType", header, options);
+      }
       return null;
     }
 
@@ -151,10 +216,21 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       if (!has("destinationCountry")) {
         return numberedChoiceStep("destinationCountry", "Which country is this visa for?", await getDestinationCountryOptions());
       }
-      if (!has("visaType")) return numberedChoiceStep("visaType", "What type of visa do you need?", SAMPLE_VISA_TYPE_OPTIONS);
+      if (!has("visaType")) {
+        // Admin-managed per destination; skipped when none is configured (the website hides it too).
+        const visaTypes = await getActiveVisaTypes(collected.destinationCountry);
+        if (visaTypes.length > 0) {
+          return numberedChoiceStep(
+            "visaType",
+            "What type of visa do you need?",
+            visaTypes.map((visaType) => ({ value: visaType.id, label: visaType.name }))
+          );
+        }
+      }
       if (!has("travelers")) return textStep("travelers", "How many travelers (1-9)?", newVisaRequestSchema.shape.travelers);
-      if (!has("travelDate")) return dateStep("travelDate", "What's your planned travel date?", newVisaRequestSchema.shape.travelDate);
       if (!has("processingType")) return numberedChoiceStep("processingType", "Normal or Express processing?", NEW_VISA_PROCESSING_TYPE_OPTIONS);
+      // No per-traveller passport/DOB/occupation over chat: the engine sends
+      // the prefilled website request link instead (see newVisaRequestLink).
       return null;
     }
 
@@ -185,7 +261,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       }
       if (!has("passportNumber")) return textStep("passportNumber", "What's your passport number?", visaChangeRequestSchema.shape.passportNumber);
       if (!has("visaLastDate")) return dateStep("visaLastDate", "What's your current visa's last date?", visaChangeRequestSchema.shape.visaLastDate);
-      if (!has("nationality")) return textStep("nationality", "What's your nationality?", visaChangeRequestSchema.shape.nationality);
+      if (!has("nationalityId")) return nationalityStep();
       return null;
     }
 
@@ -217,9 +293,11 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       // Client update (2026-09-24): no visa-type selection — the customer
       // gives an Expected Return Date instead (a target, not the actual
       // issued date — see buildLeadDetails()'s RETURN_TICKET case below).
-      // This service has no destination-country question in the bot flow,
-      // unlike New Visa/Visa Extension (a pre-existing simplification,
-      // unrelated to this change).
+      // The destination is asked first: its Admin-configured rate prices
+      // the pay link, the same as the website form (P06).
+      if (!has("destinationCountryId")) {
+        return numberedChoiceStep("destinationCountryId", "Which country are you travelling to?", await getReturnTicketDestinationOptions());
+      }
       if (!has("travelDate")) return dateStep("travelDate", "What's your travel date?", returnTicketFieldsSchema.shape.travelDate);
       if (!has("expectedReturnDate")) {
         return dateStep(
@@ -248,16 +326,20 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
  */
 export async function buildLeadDetails(serviceType: ServiceType, collected: Record<string, string>): Promise<Record<string, unknown>> {
   switch (serviceType) {
-    case "OTB":
-      return { airline: collected.airline, travelDate: collected.travelDate, processingType: collected.processingType };
-    case "NEW_VISA":
+    case "OTB": {
+      // Same shape and price basis as the website's OTB route (one applicant over chat).
+      const airline = await db.airline.findFirst({ where: { code: collected.airline, active: true, otbRequired: true } });
+      const evaluate = await getOtbTravelDateEvaluator(collected.airline);
+      const unitPrice = airline ? Number(collected.processingType === "urgent" ? airline.urgentPrice : airline.normalPrice) : Number.NaN;
       return {
-        destinationCountry: collected.destinationCountry,
-        visaType: collected.visaType,
-        travelers: collected.travelers,
+        airline: collected.airline,
         travelDate: collected.travelDate,
         processingType: collected.processingType,
+        travelers: "1",
+        ...(evaluate ? { workingDaysToTravel: evaluate(collected.travelDate).workingDays } : {}),
+        ...(Number.isFinite(unitPrice) && unitPrice > 0 ? { ratePerApplicant: unitPrice, indicativeTotal: unitPrice } : {}),
       };
+    }
     case "VISA_EXTENSION":
       return {
         passportNumber: collected.passportNumber,
@@ -273,7 +355,6 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
       return {
         changeType: collected.changeType,
         passengers: [{ passportNumber: collected.passportNumber, visaLastDate: collected.visaLastDate }],
-        nationality: collected.nationality,
       };
     case "FLIGHT_SPECIAL_FARE":
       // Bot captures only the primary passenger's DOB (no dynamic
@@ -290,17 +371,59 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
         passengerCount: 1,
         passengerDob: collected.dob,
       };
-    case "RETURN_TICKET":
-      // Client update (2026-09-24): the customer's own target date, same
-      // shape as the website's /api/leads/return-ticket route — the actual
-      // issued ticket date is a separate, staff/availability-determined
-      // outcome, never computed here.
+    case "RETURN_TICKET": {
+      // Same shape and price basis as the website's /api/leads/return-ticket
+      // route. Client update (2026-09-24): expectedReturnDate is the
+      // customer's own target — the issued ticket date is a separate,
+      // staff/availability-determined outcome, never computed here.
+      const destination = await db.returnTicketDestination.findFirst({
+        where: { countryId: collected.destinationCountryId, active: true },
+        include: { country: { select: { name: true } } },
+      });
+      const travelers = Number(collected.travelers) || 1;
+      const rate = destination ? Number(destination.ratePerApplicant) : Number.NaN;
       return {
+        ...(destination ? { destinationCountry: destination.country.name } : {}),
+        destinationCountryId: collected.destinationCountryId,
         travelDate: collected.travelDate,
         expectedReturnDate: collected.expectedReturnDate,
         travelers: collected.travelers,
+        ...(Number.isFinite(rate) && rate > 0 ? { ratePerApplicant: rate, indicativeTotal: rate * travelers } : {}),
       };
+    }
     default:
       return {};
   }
+}
+
+/**
+ * The bot's Passenger rows, when it knows more than the contact name.
+ * Visa Change links the picked nationality so pricing and document rules
+ * match it; every other service uses the default single passenger.
+ */
+export async function buildLeadPassengers(
+  serviceType: ServiceType,
+  collected: Record<string, string>
+): Promise<LeadPassengerInput[] | undefined> {
+  if (serviceType !== "VISA_CHANGE" || !collected.nationalityId) return undefined;
+  const nationality = await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } });
+  return [
+    {
+      fullName: collected.fullName,
+      passportNumber: collected.passportNumber,
+      nationality: nationality?.name,
+      nationalityId: nationality?.id,
+      paxType: "ADULT",
+    },
+  ];
+}
+
+/** New Visa over chat ends with the website form, prefilled with what the customer already told the bot. */
+export function newVisaRequestLink(siteUrl: string, collected: Record<string, string>): string {
+  const params = new URLSearchParams();
+  if (collected.destinationCountry) params.set("country", collected.destinationCountry);
+  if (collected.visaType) params.set("visaType", collected.visaType);
+  if (collected.processingType) params.set("processingType", collected.processingType);
+  if (collected.travelers) params.set("travelers", collected.travelers);
+  return `${siteUrl}/services/new-visa/request?${params.toString()}`;
 }

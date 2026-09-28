@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { ServiceType, PaxType } from "@/generated/prisma/enums";
+import { isUniversalNationalityRule, matchesNationality } from "@/lib/nationalities/match";
 
 export interface DocumentChecklistSnapshotItem {
   documentName: string;
@@ -35,13 +36,13 @@ export interface DocumentChecklistSnapshot {
  */
 export async function buildDocumentChecklistSnapshot(
   serviceType: ServiceType,
-  passengers: { id: string; fullName: string; nationality: string | null; paxType?: PaxType | null }[],
+  passengers: { id: string; fullName: string; nationality: string | null; nationalityId?: string | null; paxType?: PaxType | null }[],
   countryId?: string | null
 ): Promise<DocumentChecklistSnapshot> {
   const activeRequirements = await db.documentRequirement.findMany({
     where: { serviceType, active: true },
     orderBy: [{ required: "desc" }, { documentName: "asc" }],
-    select: { countryId: true, nationality: true, paxType: true, documentName: true, required: true },
+    select: { countryId: true, nationality: true, nationalityId: true, paxType: true, documentName: true, required: true },
   });
 
   return {
@@ -49,10 +50,9 @@ export async function buildDocumentChecklistSnapshot(
     serviceType,
     countryId: countryId ?? null,
     passengers: passengers.map((passenger) => {
-      const normalizedNationality = passenger.nationality?.trim().toLowerCase() || null;
       const requirements = activeRequirements.filter((requirement) => {
         if (requirement.countryId && requirement.countryId !== countryId) return false;
-        if (requirement.nationality && requirement.nationality.trim().toLowerCase() !== normalizedNationality) return false;
+        if (!isUniversalNationalityRule(requirement) && !matchesNationality(requirement, passenger)) return false;
         if (requirement.paxType && requirement.paxType !== passenger.paxType) return false;
         return true;
       });

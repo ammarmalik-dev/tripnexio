@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { db } from "../db";
 import { issueCustomerOtp, maskEmailForDisplay, verifyCustomerOtp } from "./customer-otp";
+import { findCustomerByMobile } from "../customers/find-by-mobile";
 
 export interface CustomerAuthResult {
   id: string;
@@ -40,7 +41,7 @@ export async function registerCustomer(input: {
   password: string;
   otp?: string;
 }): Promise<RegisterCustomerResult> {
-  const existingByMobile = await db.customer.findUnique({ where: { mobile: input.mobile } });
+  const existingByMobile = await findCustomerByMobile(db, input.mobile);
   const existingByEmail = await db.customer.findUnique({ where: { email: input.email } });
 
   if (existingByMobile && existingByEmail && existingByMobile.id !== existingByEmail.id) {

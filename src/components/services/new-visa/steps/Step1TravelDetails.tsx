@@ -1,22 +1,34 @@
 "use client";
 
-import { useFormContext } from "react-hook-form";
+import { useEffect } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
 import { DateField } from "@/components/forms/DateField";
-import {
-  SAMPLE_VISA_TYPE_OPTIONS,
-  SAMPLE_VISA_TYPE_CAPTION,
-} from "@/lib/sample-data";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
+import { useVisaTypes } from "@/lib/use-visa-types";
 import type { NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
 export function Step1TravelDetails() {
   const {
     register,
+    setValue,
+    getValues,
+    control,
     formState: { errors },
   } = useFormContext<NewVisaRequestValues>();
   const destinationCountryOptions = useDestinationCountryOptions();
+  const destinationCountry = useWatch({ control, name: "destinationCountry" });
+  const { options: visaTypes, loading: visaTypesLoading } = useVisaTypes(destinationCountry);
+
+  // Admin-managed per destination: required only when this destination has
+  // options, and a pick from another destination's list is cleared.
+  useEffect(() => {
+    if (visaTypesLoading) return;
+    setValue("visaTypeRequired", visaTypes.length > 0);
+    const current = getValues("visaType");
+    if (current && !visaTypes.some((visaType) => visaType.id === current)) setValue("visaType", "");
+  }, [visaTypes, visaTypesLoading, setValue, getValues]);
 
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -49,14 +61,15 @@ export function Step1TravelDetails() {
         error={errors.destinationCountry?.message}
         {...register("destinationCountry")}
       />
-      <SelectField
-        label="Visa Type"
-        required
-        options={SAMPLE_VISA_TYPE_OPTIONS}
-        hint={SAMPLE_VISA_TYPE_CAPTION}
-        error={errors.visaType?.message}
-        {...register("visaType")}
-      />
+      {visaTypes.length > 0 ? (
+        <SelectField
+          label="Visa Type"
+          required
+          options={visaTypes.map((visaType) => ({ value: visaType.id, label: visaType.name }))}
+          error={errors.visaType?.message}
+          {...register("visaType")}
+        />
+      ) : null}
       <div className="sm:col-span-2">
         <DateField
           label="Travel Date"
