@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { getStaffSession } from "@/lib/auth/staff-session";
+import { computeVendorScore, getVendorScoringWeights } from "@/lib/vendors/scoring";
 import type { ServiceType } from "@/generated/prisma/enums";
 
 const SERVICE_TYPES: ServiceType[] = [
@@ -31,5 +32,13 @@ export async function GET(request: NextRequest) {
     orderBy: { name: "asc" },
   });
 
-  return jsonSuccess(vendors.map((vendor) => ({ id: vendor.id, name: vendor.name })));
+  // Business Rules §8 "Vendor Selection" — sorted by overall recommendation
+  // score (highest first) as a display/sort aid only; staff still pick
+  // whichever vendor they want from the full list, this never auto-selects.
+  const weights = await getVendorScoringWeights();
+  const scored = vendors
+    .map((vendor) => ({ id: vendor.id, name: vendor.name, score: computeVendorScore(vendor, weights) }))
+    .sort((a, b) => b.score - a.score);
+
+  return jsonSuccess(scored);
 }

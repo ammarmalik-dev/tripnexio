@@ -211,6 +211,8 @@ async function main() {
     pocName: string;
     mobile: string;
     email: string;
+    /** Business Rules §8 "Vendor Selection" — 1-5, 5=best. Distinct per sample vendor so the quote builder's sort-by-score is visibly demonstrated, not both tied at the 3/3/3/3 default. */
+    scores: { serviceSuitabilityScore: number; processingTimeScore: number; performanceScore: number; reliabilityScore: number };
   }) {
     const fields = {
       name: input.name,
@@ -220,6 +222,7 @@ async function main() {
       processingDetails: "Sample processing notes — replace with the real vendor's workflow.",
       availability: "Mon–Sat, 9am–8pm IST",
       active: true,
+      ...input.scores,
     };
     const vendor = await db.vendor.upsert({
       where: { id: input.id },
@@ -238,6 +241,7 @@ async function main() {
     pocName: "Sample POC",
     mobile: "+91 90000 00001",
     email: "vendor-a@example.com",
+    scores: { serviceSuitabilityScore: 4, processingTimeScore: 3, performanceScore: 4, reliabilityScore: 5 },
   });
   const sampleFlightVendor = await upsertSampleVendor({
     id: "sample-vendor-2",
@@ -246,8 +250,13 @@ async function main() {
     pocName: "Sample Flight POC",
     mobile: "+91 90000 00002",
     email: "vendor-b@example.com",
+    scores: { serviceSuitabilityScore: 3, processingTimeScore: 5, performanceScore: 3, reliabilityScore: 3 },
   });
   console.log(`Sample vendors ready: ${sampleVendor.name} (2 services), ${sampleFlightVendor.name} (1 service)`);
+
+  const vendorScoringConfig = { id: "singleton", serviceSuitabilityWeight: 25, processingTimeWeight: 25, performanceWeight: 25, reliabilityWeight: 25 };
+  await db.vendorScoringConfig.upsert({ where: { id: vendorScoringConfig.id }, update: {}, create: vendorScoringConfig });
+  console.log("Vendor scoring weights ready: equal 25/25/25/25 default (Business Rules §8)");
 
   // Every masters upsert below repeats its fields in both `update` and
   // `create` — an empty `update: {}` was tried first, but that's a no-op

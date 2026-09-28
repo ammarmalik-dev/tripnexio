@@ -877,13 +877,43 @@ model Vendor {
   gstNumber         String?
   paymentDetails    String?
   active            Boolean  @default(true)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  /// --- Business Rules §8 "Vendor Selection" — admin-scored soft factors
+  /// (1-5, 5=best), combined via VendorScoringConfig's admin-configurable
+  /// weights into an overall recommendation score. This is a sort/display
+  /// aid for staff in the quote builder, never an auto-selection — "do not
+  /// select simply the cheapest vendor" and the exact scoring/weighting
+  /// stays Admin-configurable, per the locked answer. "Service eligibility"
+  /// and "country/sub-service eligibility" factors are NOT scored here:
+  /// service eligibility is already the VendorService join table below, and
+  /// country/sub-service eligibility isn't modeled anywhere in this schema
+  /// yet (no country field on Vendor/VendorService) — flagged, not
+  /// implemented. "Price/cost" is per-quotation (Quotation.vendorCost), not
+  /// a vendor-level field, so it's also excluded from this score.
+  serviceSuitabilityScore Int      @default(3)
+  processingTimeScore     Int      @default(3)
+  performanceScore        Int      @default(3)
+  reliabilityScore        Int      @default(3)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   services   VendorService[]
   quotations Quotation[]
 
   @@index([active])
+}
+
+/// Business Rules §8 — the admin-configurable weights (0-100, needn't sum to
+/// exactly 100; src/lib/vendors/scoring.ts normalizes) applied to each of
+/// Vendor's 4 scored soft factors to produce one overall recommendation
+/// score. Singleton, same pattern as TaxFeeConfig.
+model VendorScoringConfig {
+  id                       String   @id
+  serviceSuitabilityWeight Int      @default(25)
+  processingTimeWeight     Int      @default(25)
+  performanceWeight        Int      @default(25)
+  reliabilityWeight        Int      @default(25)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
 }
 
 /// Join table: which services/sub-services a Vendor is linked to (§12 "service coverage").

@@ -25,6 +25,8 @@ interface VisaChangeFeeSuggestion {
 interface VendorOption {
   id: string;
   name: string;
+  /** Business Rules §8 — overall recommendation score (1-5), a sort/display aid only. Optional so other VendorOption producers (if any ever appear) aren't forced to supply it. */
+  score?: number;
 }
 
 interface AirlineOption {
@@ -144,6 +146,7 @@ export function QuoteBuilderForm({
           {vendors.map((vendor) => (
             <option key={vendor.id} value={vendor.id}>
               {vendor.name}
+              {vendor.score != null ? ` (score ${vendor.score}/5)` : ""}
             </option>
           ))}
         </select>

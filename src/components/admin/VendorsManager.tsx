@@ -12,6 +12,7 @@ import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { computeVendorScore, type VendorScoringWeights } from "@/lib/vendors/score-formula";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 interface VendorService {
@@ -31,6 +32,10 @@ interface VendorData {
   paymentDetails: string | null;
   active: boolean;
   services: VendorService[];
+  serviceSuitabilityScore: number;
+  processingTimeScore: number;
+  performanceScore: number;
+  reliabilityScore: number;
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -45,6 +50,10 @@ interface FormState {
   availability: string;
   gstNumber: string;
   paymentDetails: string;
+  serviceSuitabilityScore: number;
+  processingTimeScore: number;
+  performanceScore: number;
+  reliabilityScore: number;
 }
 
 const EMPTY_FORM: FormState = {
@@ -57,6 +66,10 @@ const EMPTY_FORM: FormState = {
   availability: "",
   gstNumber: "",
   paymentDetails: "",
+  serviceSuitabilityScore: 3,
+  processingTimeScore: 3,
+  performanceScore: 3,
+  reliabilityScore: 3,
 };
 
 function toFormState(vendor: VendorData): FormState {
@@ -70,6 +83,10 @@ function toFormState(vendor: VendorData): FormState {
     availability: vendor.availability ?? "",
     gstNumber: vendor.gstNumber ?? "",
     paymentDetails: vendor.paymentDetails ?? "",
+    serviceSuitabilityScore: vendor.serviceSuitabilityScore,
+    processingTimeScore: vendor.processingTimeScore,
+    performanceScore: vendor.performanceScore,
+    reliabilityScore: vendor.reliabilityScore,
   };
 }
 
@@ -183,6 +200,59 @@ function VendorFields({
         />
       </div>
       <ServiceChecklist selected={form.services} onToggle={toggleService} disabled={disabled} error={errors.services?.[0]} />
+      <div>
+        <span className="mb-1.5 block text-sm font-medium text-ink-primary">Vendor Selection Scores (1-5, Business Rules §8)</span>
+        <div className="grid grid-cols-1 gap-4 rounded-lg border border-hairline p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <TextField
+            label="Service Suitability"
+            name="serviceSuitabilityScore"
+            type="number"
+            min={1}
+            max={5}
+            value={form.serviceSuitabilityScore}
+            onChange={(event) => onChange({ ...form, serviceSuitabilityScore: Number(event.target.value) })}
+            error={errors.serviceSuitabilityScore?.[0]}
+            disabled={disabled}
+          />
+          <TextField
+            label="Processing Time"
+            name="processingTimeScore"
+            type="number"
+            min={1}
+            max={5}
+            value={form.processingTimeScore}
+            onChange={(event) => onChange({ ...form, processingTimeScore: Number(event.target.value) })}
+            error={errors.processingTimeScore?.[0]}
+            disabled={disabled}
+          />
+          <TextField
+            label="Performance"
+            name="performanceScore"
+            type="number"
+            min={1}
+            max={5}
+            value={form.performanceScore}
+            onChange={(event) => onChange({ ...form, performanceScore: Number(event.target.value) })}
+            error={errors.performanceScore?.[0]}
+            disabled={disabled}
+          />
+          <TextField
+            label="Reliability"
+            name="reliabilityScore"
+            type="number"
+            min={1}
+            max={5}
+            value={form.reliabilityScore}
+            onChange={(event) => onChange({ ...form, reliabilityScore: Number(event.target.value) })}
+            error={errors.reliabilityScore?.[0]}
+            disabled={disabled}
+          />
+        </div>
+        <p className="mt-1 text-xs text-ink-tertiary">
+          Combined into an overall recommendation score shown in the quote builder — never an auto-selection, staff
+          always make the final call. Weighting is configured under Admin → Vendor Scoring.
+        </p>
+      </div>
       <Textarea
         label="Processing Details"
         name="processingDetails"
@@ -218,10 +288,14 @@ function buildPayload(form: FormState) {
     availability: form.availability.trim() || undefined,
     gstNumber: form.gstNumber.trim() || undefined,
     paymentDetails: form.paymentDetails.trim() || undefined,
+    serviceSuitabilityScore: form.serviceSuitabilityScore,
+    processingTimeScore: form.processingTimeScore,
+    performanceScore: form.performanceScore,
+    reliabilityScore: form.reliabilityScore,
   };
 }
 
-function VendorCard({ vendor, onSaved }: { vendor: VendorData; onSaved: (vendor: VendorData) => void }) {
+function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights: VendorScoringWeights | null; onSaved: (vendor: VendorData) => void }) {
   const [form, setForm] = useState<FormState>(toFormState(vendor));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -269,6 +343,12 @@ function VendorCard({ vendor, onSaved }: { vendor: VendorData; onSaved: (vendor:
           {vendor.active ? "Disable" : "Enable"}
         </Button>
       </div>
+      {weights ? (
+        <p className="text-xs text-ink-tertiary">
+          Overall recommendation score: <span className="font-medium text-ink-primary">{computeVendorScore(vendor, weights)}/5</span> (Business
+          Rules §8 — sort/display aid, weighting under Admin → Vendor Scoring)
+        </p>
+      ) : null}
       <VendorFields form={form} onChange={setForm} errors={errors} disabled={saving} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
@@ -319,6 +399,7 @@ function NewVendorForm({ onCreated }: { onCreated: (vendor: VendorData) => void 
 export function VendorsManager() {
   const [state, setState] = useState<FetchState>("loading");
   const [vendors, setVendors] = useState<VendorData[]>([]);
+  const [weights, setWeights] = useState<VendorScoringWeights | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
 
@@ -328,9 +409,13 @@ export function VendorsManager() {
     async function load() {
       setState("loading");
       try {
-        const result = await getJson<VendorData[]>("/api/admin/vendors");
+        const [result, weightsResult] = await Promise.all([
+          getJson<VendorData[]>("/api/admin/vendors"),
+          getJson<VendorScoringWeights>("/api/admin/vendor-scoring-config").catch(() => null),
+        ]);
         if (cancelled) return;
         setVendors(result);
+        setWeights(weightsResult);
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -378,6 +463,7 @@ export function VendorsManager() {
           <VendorCard
             key={vendor.id}
             vendor={vendor}
+            weights={weights}
             onSaved={(updated) => setVendors((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
           />
         ))

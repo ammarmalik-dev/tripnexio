@@ -18,6 +18,8 @@ import type { QuoteFormValues } from "@/lib/validation/quotation-schema";
 interface VendorRecord {
   id: string;
   name: string;
+  /** Business Rules §8 — overall recommendation score (1-5), a sort/display aid only. */
+  score?: number;
 }
 
 interface AirlineRecord {

@@ -36,6 +36,7 @@ import {
   FileSignature,
   Settings,
   BookOpen,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 
@@ -168,7 +169,10 @@ export const adminNavGroups: CrmNavGroup[] = [
   },
   {
     label: "Vendors",
-    items: [{ label: "Vendors", href: "/admin/vendors", icon: Truck }],
+    items: [
+      { label: "Vendors", href: "/admin/vendors", icon: Truck },
+      { label: "Vendor Scoring", href: "/admin/vendor-scoring", icon: Gauge },
+    ],
   },
   {
     label: "Sales & Quotations",
