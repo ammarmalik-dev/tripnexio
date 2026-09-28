@@ -44,7 +44,7 @@ export function HowItWorks() {
           <SectionHeading
             align="center"
             eyebrow="Simple steps. Clear support."
-            title="How TripNexio works"
+            title="How TripNexio Works"
             className="mx-auto"
           />
         </MotionReveal>

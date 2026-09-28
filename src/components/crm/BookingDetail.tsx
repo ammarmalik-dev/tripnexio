@@ -256,8 +256,7 @@ export function BookingDetail({
 
       {missingDocuments.length > 0 ? (
         <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-          {missingDocuments.length} document{missingDocuments.length === 1 ? "" : "s"} flagged missing — queued for
-          customer notification (Phase 5).
+          {missingDocuments.length} document{missingDocuments.length === 1 ? "" : "s"} flagged missing.
         </div>
       ) : null}
 

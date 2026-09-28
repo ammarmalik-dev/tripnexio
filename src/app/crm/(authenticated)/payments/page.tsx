@@ -11,7 +11,7 @@ export default function CrmPaymentsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-ink-heading">Payments</h1>
-          <p className="text-sm text-ink-tertiary">Every payment across all bookings, with the manual mark-success stub.</p>
+          <p className="text-sm text-ink-tertiary">Every payment across all bookings.</p>
         </div>
         <div className="flex gap-2">
           <ButtonLink href="/crm/payments/link" variant="ghost" size="sm">

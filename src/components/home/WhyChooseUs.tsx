@@ -43,7 +43,7 @@ export function WhyChooseUs() {
     <section className="py-20 sm:py-28">
       <Container className="flex flex-col gap-12">
         <MotionReveal>
-          <SectionHeading eyebrow="Why TripNexio" title="A simpler way to travel" />
+          <SectionHeading eyebrow="Why TripNexio" title="A Simpler Way to Travel" />
         </MotionReveal>
 
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">

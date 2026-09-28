@@ -4,7 +4,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { ServiceCard } from "./ServiceCard";
-import { db } from "@/lib/db";
+import { getActiveServices } from "@/lib/services/active-services";
 import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
 import { SERVICE_ICON_MAP } from "@/lib/service-icons";
 import { headerActions } from "@/lib/nav-config";
@@ -19,10 +19,7 @@ import { headerActions } from "@/lib/nav-config";
  * row must never crash the homepage).
  */
 export async function ServicesGrid() {
-  const services = await db.service.findMany({
-    where: { active: true },
-    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-  });
+  const services = await getActiveServices();
 
   return (
     <section className="py-20 sm:py-28">
@@ -31,14 +28,14 @@ export async function ServicesGrid() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
               eyebrow="Everything TripNexio offers"
-              title="Explore our services"
+              title="Explore Our Services"
               description="Visa and travel services made simple, with a clear process and guided support from start to finish."
             />
             <Link
               href={headerActions.getStarted.href}
               className="flex items-center gap-1.5 text-sm font-medium text-ink-accent transition-colors duration-200 hover:text-ink-primary"
             >
-              View all services
+              View All Services
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
@@ -54,6 +51,7 @@ export async function ServicesGrid() {
                 <ServiceCard
                   title={service.name}
                   description={service.shortDescription}
+                  ctaLabel={service.ctaLabel || service.name}
                   href={routeInfo.href}
                   image={routeInfo.image}
                   imageAlt={routeInfo.imageAlt}

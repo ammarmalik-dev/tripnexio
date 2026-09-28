@@ -27,8 +27,7 @@ export function TrackJourneyPreview() {
                   Track your journey
                 </h2>
                 <p className="text-sm text-ink-on-dark-secondary">
-                  Track your application, documents and status updates in one
-                  place — sample preview shown below.
+                  Track your application, documents and status updates in one place.
                 </p>
               </div>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="primary" size="md">

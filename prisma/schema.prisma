@@ -1026,6 +1026,8 @@ model Service {
   code             String   @unique
   name             String
   shortDescription String
+  /// Homepage card button text (Homepage_FINAL_Locked_1of1.docx §4) — Admin-editable.
+  ctaLabel         String   @default("")
   iconName         String
   active           Boolean  @default(true)
   displayOrder     Int      @default(0)

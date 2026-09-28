@@ -86,7 +86,7 @@ function ProtectionPlanOptIn() {
 
 const processingTypeLabel: Record<NewVisaRequestValues["processingType"], string> = {
   normal: "Normal",
-  urgent: "Urgent",
+  urgent: "Express",
 };
 
 function SummaryRow({ label, value }: { label: string; value: string }) {

@@ -19,7 +19,7 @@ import { LeadTimeline } from "./LeadTimeline";
 import { CommunicationsPanel } from "./CommunicationsPanel";
 import { QuoteBuilder } from "./QuoteBuilder";
 import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
-import { humanizeKey } from "@/lib/crm/humanize";
+import { humanizeKey, formatDetailValue } from "@/lib/crm/humanize";
 import { VisaExtensionPriorVisaPanel, type PriorVisaMatchItem } from "./VisaExtensionPriorVisaPanel";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -248,7 +248,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
                 {detailEntries.map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between gap-4 border-b border-hairline py-2 sm:justify-start">
                     <dt className="text-xs text-ink-tertiary">{humanizeKey(key)}</dt>
-                    <dd className="text-sm font-medium text-ink-primary">{String(value)}</dd>
+                    <dd className="text-sm font-medium text-ink-primary">{formatDetailValue(lead.serviceType, key, value)}</dd>
                   </div>
                 ))}
               </dl>

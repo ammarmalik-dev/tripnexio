@@ -13,7 +13,7 @@ import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 export const metadata: Metadata = {
   title: "New Visa",
   description:
-    "Apply for a new UAE or GCC visa online — submit your travel details in a few guided steps and our team takes it from there.",
+    "UAE visa, made simple. Apply online, choose your visa option, and let TripNexio guide you from application to completion.",
 };
 
 const whatYoullNeed = [
@@ -80,13 +80,15 @@ export default function NewVisaLandingPage() {
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
           <MotionReveal>
             <div className="flex flex-col gap-4">
-              <SectionHeading eyebrow="What is a New Visa request?" title="Your visa application, guided end to end" />
+              {/* Locked copy — UAE Visa Page Content FINAL §2. */}
+              <SectionHeading eyebrow="What is a New Visa Request?" title="Your UAE visa application, guided end to end" />
               <p className="text-sm text-ink-secondary sm:text-base">
-                Applying for a UAE or GCC visa involves choosing the right
-                visa type, submitting accurate travel details, and tracking
-                progress with the issuing authority. TripNexio submits and
-                tracks your request on your behalf, so you get a clear,
-                guided process instead of navigating it yourself.
+                Applying for a UAE visa involves choosing the right visa
+                option, sharing accurate traveller details and completing the
+                required documents. TripNexio keeps the process simple,
+                coordinates the next steps with the relevant processing partner
+                or authority, and helps you track your application along the
+                way.
               </p>
             </div>
           </MotionReveal>
@@ -163,12 +165,26 @@ export default function NewVisaLandingPage() {
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-ink-on-dark-primary">
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </span>
+              {/* Locked copy — UAE Visa Page Content FINAL §13. */}
               <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
-                Ready to apply for your visa?
+                Ready to apply for your UAE visa?
               </h2>
-              <ButtonLink href="/services/new-visa/request" variant="primary" size="lg">
-                Start New Visa Request
-              </ButtonLink>
+              <p className="max-w-xl text-sm text-ink-on-dark-secondary sm:text-base">
+                Choose your visa option, enter your traveller details and complete your application online.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <ButtonLink href="/services/new-visa/request" variant="primary" size="lg">
+                  Apply for UAE Visa
+                </ButtonLink>
+                <ButtonLink
+                  href={utilityLinks.trackStatus.href}
+                  variant="ghost"
+                  size="lg"
+                  className="border-white/40 text-white hover:border-white/70 hover:bg-white/5"
+                >
+                  Track Application
+                </ButtonLink>
+              </div>
             </div>
           </MotionReveal>
         </Container>

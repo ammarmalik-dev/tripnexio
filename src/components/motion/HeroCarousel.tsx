@@ -45,7 +45,7 @@ export function HeroCarousel() {
           key={slide.src}
           role="group"
           aria-roledescription="slide"
-          aria-label={`${index + 1} of ${heroSlides.length}: ${slide.location}`}
+          aria-label={`${index + 1} of ${heroSlides.length}`}
           initial={shouldReduceMotion ? undefined : { opacity: 0, scale: 1.06 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={shouldReduceMotion ? undefined : { opacity: 0 }}
@@ -80,7 +80,7 @@ export function HeroCarousel() {
       />
 
       <div className="sr-only" aria-live="polite">
-        Showing slide {index + 1} of {heroSlides.length}: {slide.location}
+        Showing slide {index + 1} of {heroSlides.length}
       </div>
 
       {/* Prev / next — desktop only, mobile relies on autoplay + dots. */}
@@ -101,11 +101,8 @@ export function HeroCarousel() {
         <ChevronRight className="h-5 w-5" aria-hidden="true" />
       </button>
 
-      {/* Location + dots + play/pause */}
+      {/* Dots + play/pause */}
       <div className="absolute inset-x-0 bottom-6 z-10 flex flex-col items-center gap-3 sm:bottom-8">
-        <span className="text-xs font-medium tracking-wide text-ink-secondary">
-          {slide.location}
-        </span>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             {heroSlides.map((s, i) => (
@@ -113,7 +110,7 @@ export function HeroCarousel() {
                 key={s.src}
                 type="button"
                 onClick={() => goTo(i)}
-                aria-label={`Go to slide ${i + 1}: ${s.location}`}
+                aria-label={`Go to slide ${i + 1}`}
                 aria-current={i === index}
                 className="p-1"
               >

@@ -13,9 +13,10 @@ interface ServiceCardProps {
   image: string;
   imageAlt: string;
   icon: ReactNode;
+  ctaLabel: string;
 }
 
-export function ServiceCard({ title, description, href, image, imageAlt, icon }: ServiceCardProps) {
+export function ServiceCard({ title, description, href, image, imageAlt, icon, ctaLabel }: ServiceCardProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (
@@ -49,7 +50,7 @@ export function ServiceCard({ title, description, href, image, imageAlt, icon }:
         <h3 className="text-base font-semibold tracking-tight text-ink-heading">{title}</h3>
         <p className="flex-1 text-sm text-ink-secondary">{description}</p>
         <ButtonLink href={href} variant="ghost" size="sm" className="mt-2 w-fit gap-1.5">
-          Start {title.split(" — ")[0]}
+          {ctaLabel}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </ButtonLink>
       </div>

@@ -12,6 +12,7 @@ export const createServiceSchema = z.object({
   code: z.enum(serviceTypeValues, { error: "Select a service type" }),
   name: z.string().trim().min(2, "Enter a service name").max(80, "Name is too long"),
   shortDescription: z.string().trim().min(2, "Enter a short description").max(300, "Description is too long"),
+  ctaLabel: z.string().trim().max(40, "Button text is too long").default(""),
   iconName: z.string().min(1, "Select an icon"),
   displayOrder: z.number().int().default(0),
   active: z.boolean().default(true),

@@ -202,7 +202,7 @@ export function ManualLeadForm() {
             >
               <option value="">Select processing type</option>
               <option value="normal">Normal</option>
-              <option value="urgent">Urgent</option>
+              <option value="urgent">Express</option>
             </select>
           </FormField>
         </div>

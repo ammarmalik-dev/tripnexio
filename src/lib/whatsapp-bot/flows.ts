@@ -100,6 +100,13 @@ const PROCESSING_TYPE_OPTIONS = [
   { value: "urgent", label: "Urgent" },
 ];
 
+// New Visa's customer-facing wording is Normal / Express (UAE Visa Page
+// Content FINAL §14); the stored value stays "urgent". OTB keeps "Urgent".
+const NEW_VISA_PROCESSING_TYPE_OPTIONS = [
+  { value: "normal", label: "Normal" },
+  { value: "urgent", label: "Express" },
+];
+
 // getActiveAirportOptions/getActiveBorderOptions removed (Step 8,
 // client-locked-spec roadmap) -- the customer never picks a specific
 // airport/border, only the A2A-vs-Border method (see the VISA_CHANGE case
@@ -147,7 +154,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       if (!has("visaType")) return numberedChoiceStep("visaType", "What type of visa do you need?", SAMPLE_VISA_TYPE_OPTIONS);
       if (!has("travelers")) return textStep("travelers", "How many travelers (1-9)?", newVisaRequestSchema.shape.travelers);
       if (!has("travelDate")) return dateStep("travelDate", "What's your planned travel date?", newVisaRequestSchema.shape.travelDate);
-      if (!has("processingType")) return numberedChoiceStep("processingType", "Normal or urgent processing?", PROCESSING_TYPE_OPTIONS);
+      if (!has("processingType")) return numberedChoiceStep("processingType", "Normal or Express processing?", NEW_VISA_PROCESSING_TYPE_OPTIONS);
       return null;
     }
 

@@ -15,13 +15,13 @@ const PUBLIC_PATHS = [
   "/about",
   "/faq",
   "/blog",
-  "/careers",
   "/payment-support",
   "/legal/terms",
   "/legal/privacy",
   "/legal/refund-policy",
   "/legal/cookie-policy",
   "/legal/disclaimer",
+  "/legal/grievance-redressal",
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {

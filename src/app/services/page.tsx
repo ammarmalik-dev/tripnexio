@@ -4,7 +4,7 @@ import { ServicesGrid } from "@/components/home/ServicesGrid";
 export const metadata: Metadata = {
   title: "Services",
   description:
-    "Visa and flight services for travellers from India to the UAE and Middle East — new visa, extension, visa change, special fare, return verified ticket and OTB.",
+    "Visa and travel services made simple — new visa, visa extension, visa change, special fare flight, return verified ticket and OTB.",
 };
 
 // The service list is Admin-managed; never serve a build-time snapshot.

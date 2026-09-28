@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function BlogPage() {
   return (
-    <InfoPage eyebrow="Blog" title="Travel & visa updates" description="Guides and news for travellers heading to the UAE and Middle East.">
+    <InfoPage eyebrow="Blog" title="Travel & visa updates" description="Guides and news for travellers around the world.">
       <EmptyState
         title="No articles yet"
         description="We haven't published any posts yet. Check back soon, or browse our services."

@@ -9,7 +9,7 @@ export default function CrmTasksPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Tasks</h1>
         <p className="text-sm text-ink-tertiary">
-          Auto-created from a missing document, a pending OCR extraction, or a quote about to expire — see CRM.md §12.
+          Auto-created from a missing document, a pending OCR extraction, or a quote about to expire.
         </p>
       </div>
       <TasksTable />

@@ -30,7 +30,7 @@ export async function resolveCouponForQuotation(
   sellingPrice: number
 ): Promise<{ ok: true; coupon: AppliedCoupon } | { ok: false; error: string }> {
   if (isFlightQuote(serviceType)) {
-    return { ok: false, error: "Coupons don't apply to Flight Special Fare quotes — CRM.md §10 prices these separately." };
+    return { ok: false, error: "Coupons don't apply to Flight Special Fare quotes." };
   }
 
   const normalizedCode = code.trim().toUpperCase();

@@ -4,7 +4,9 @@ import { Container } from "@/components/ui/Container";
 import { SocialIcon, type SocialPlatform } from "@/components/ui/SocialIcon";
 import { siteConfig } from "@/lib/site-config";
 import { utilityLinks } from "@/lib/nav-config";
-import { services } from "@/lib/services-config";
+import { getActiveServices } from "@/lib/services/active-services";
+import { getSystemConfig } from "@/lib/settings/system-config";
+import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
 
 const socialLinks: { platform: SocialPlatform; href: string; label: string }[] = [
   { platform: "instagram", href: siteConfig.socials.instagram, label: "Instagram" },
@@ -61,7 +63,32 @@ function FooterColumn({
   );
 }
 
-export function Footer() {
+/**
+ * Same active Service rows as the homepage grid, so an Admin rename/reorder/
+ * disable shows up in both. A DB hiccup renders an empty column rather than
+ * failing every page (the root layout renders this on every route).
+ */
+async function loadServiceLinks(): Promise<{ label: string; href: string }[]> {
+  try {
+    const rows = await getActiveServices();
+    return rows.flatMap((row) => {
+      const routeInfo = SERVICE_ROUTE_INFO[row.code];
+      return routeInfo ? [{ label: row.name, href: routeInfo.href }] : [];
+    });
+  } catch (error) {
+    console.error("[Footer] couldn't load services", error);
+    return [];
+  }
+}
+
+export async function Footer() {
+  // Sequential on purpose — the root layout renders this on every page.
+  const config = await getSystemConfig();
+  const serviceLinks = await loadServiceLinks();
+  const companyName = config.companyName?.trim();
+  const companyPhone = config.companyPhone?.trim();
+  const companyEmail = config.companyEmail?.trim();
+
   return (
     <footer className="surface-dark-block">
       <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
@@ -85,19 +112,32 @@ export function Footer() {
         </div>
 
         <FooterColumn title="Company" links={companyLinks} />
-        <FooterColumn
-          title="Services"
-          links={services.map((service) => ({ label: service.title, href: service.href }))}
-        />
+        <FooterColumn title="Services" links={serviceLinks} />
         <FooterColumn title="Support" links={supportLinks} />
         <FooterColumn title="Legal" links={legalLinks} />
       </Container>
 
       <div className="border-t border-hairline-on-dark">
         <Container className="flex flex-col items-center justify-between gap-2 py-6 text-xs text-ink-on-dark-muted sm:flex-row">
-          <p>
-            &copy; {new Date().getFullYear()} {siteConfig.legalName}. All rights reserved.
-          </p>
+          {companyName ? (
+            <p>
+              &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
+            </p>
+          ) : null}
+          {companyPhone || companyEmail ? (
+            <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {companyPhone ? (
+                <a href={`tel:${companyPhone.replace(/\s+/g, "")}`} className="hover:text-ink-on-dark-primary">
+                  {companyPhone}
+                </a>
+              ) : null}
+              {companyEmail ? (
+                <a href={`mailto:${companyEmail}`} className="hover:text-ink-on-dark-primary">
+                  {companyEmail}
+                </a>
+              ) : null}
+            </p>
+          ) : null}
         </Container>
       </div>
     </footer>

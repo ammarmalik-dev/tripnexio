@@ -2,7 +2,6 @@ import { HeroCarousel } from "@/components/motion/HeroCarousel";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { AiAskBar } from "@/components/home/AiAskBar";
 import { ServicesGrid } from "@/components/home/ServicesGrid";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { TrackJourneyPreview } from "@/components/home/TrackJourneyPreview";
@@ -51,12 +50,6 @@ export default function Home() {
           </MotionReveal>
         </Container>
       </section>
-
-      <Container className="relative z-10 -mt-8 sm:-mt-10">
-        <MotionReveal delay={0.32} className="mx-auto w-full max-w-2xl">
-          <AiAskBar />
-        </MotionReveal>
-      </Container>
 
       <ServicesGrid />
       <HowItWorks />

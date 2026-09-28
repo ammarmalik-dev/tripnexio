@@ -15,15 +15,8 @@ export const metadata: Metadata = {
     "Extend an existing UAE visa originally issued through TripNexio — submit your details online and our team verifies and processes your extension.",
 };
 
-const whatYoullNeed = [
-  "Full name",
-  "Mobile number",
-  "Email address",
-  "Passport number",
-  "Date of birth",
-  "Whether you're currently inside the UAE",
-  "UAE entry date",
-];
+// Locked — P05: exactly these five, nothing else.
+const whatYoullNeed = ["Name", "Mobile Number", "Email Address", "Passport Number", "Visa Expiry Date"];
 
 // Locked content — doc §5 "How It Works — reference-style 4-step journey".
 const visaProcessSteps = [
@@ -125,11 +118,24 @@ export default function VisaExtensionLandingPage() {
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </span>
               <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
-                Ready to extend your visa?
+                Need more time in the UAE?
               </h2>
-              <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">
-                Start Extension Request
-              </ButtonLink>
+              <p className="max-w-xl text-sm text-ink-on-dark-secondary sm:text-base">
+                Check your extension eligibility and submit your request online.
+              </p>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">
+                  Check Extension Eligibility
+                </ButtonLink>
+                <ButtonLink
+                  href={utilityLinks.trackStatus.href}
+                  variant="ghost"
+                  size="lg"
+                  className="border-white/40 text-white hover:border-white/70 hover:bg-white/5"
+                >
+                  Track Status
+                </ButtonLink>
+              </div>
             </div>
           </MotionReveal>
         </Container>

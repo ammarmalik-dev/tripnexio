@@ -4,7 +4,7 @@ import { NewVisaRequestFlow } from "@/components/services/new-visa/NewVisaReques
 
 export const metadata: Metadata = {
   title: "Request New Visa",
-  description: "Apply for a new UAE or GCC visa in a few guided steps.",
+  description: "Apply for your UAE visa online in a few guided steps.",
 };
 
 export default function NewVisaRequestPage() {

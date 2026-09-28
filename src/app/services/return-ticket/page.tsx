@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     "A verifiable return ticket reservation for international travel. Share your destination and travel date — we take care of the rest.",
 };
 
-const whatYoullNeed = ["Full name, mobile number, email", "Number of passengers", "Travel date", "Expected return date"];
+const whatYoullNeed = ["Full name", "Mobile number", "Email address", "Destination country", "Number of passengers", "Travel date"];
 
 // Locked content — doc §8 "How It Works — final customer copy" (5 steps).
 // "airline/vendor" in the source doc kept as "airline/partner" — the

@@ -141,7 +141,7 @@ function PricingFields({
           <option value="">Any / not applicable</option>
           {PROCESSING_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+              {form.serviceType === "NEW_VISA" && option.value === "urgent" ? "Express" : option.label}
             </option>
           ))}
         </select>

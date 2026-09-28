@@ -21,6 +21,7 @@ interface ServiceData {
   code: ServiceType;
   name: string;
   shortDescription: string;
+  ctaLabel: string;
   iconName: string;
   displayOrder: number;
   active: boolean;
@@ -32,6 +33,7 @@ interface ServiceFormState {
   code: ServiceType | "";
   name: string;
   shortDescription: string;
+  ctaLabel: string;
   iconName: string;
   displayOrder: string;
 }
@@ -40,6 +42,7 @@ const EMPTY_FORM: ServiceFormState = {
   code: "",
   name: "",
   shortDescription: "",
+  ctaLabel: "",
   iconName: SERVICE_ICON_OPTIONS[0],
   displayOrder: "0",
 };
@@ -49,6 +52,7 @@ function toFormState(service: ServiceData): ServiceFormState {
     code: service.code,
     name: service.name,
     shortDescription: service.shortDescription,
+    ctaLabel: service.ctaLabel,
     iconName: service.iconName,
     displayOrder: String(service.displayOrder),
   };
@@ -112,6 +116,14 @@ function ServiceFields({
           rows={2}
         />
       </div>
+      <TextField
+        label="Button Text"
+        name="ctaLabel"
+        value={form.ctaLabel}
+        onChange={(event) => onChange({ ...form, ctaLabel: event.target.value })}
+        error={errors.ctaLabel?.[0]}
+        disabled={disabled}
+      />
       <FormField label="Icon" htmlFor="iconName" error={errors.iconName?.[0]}>
         <div className="flex items-center gap-2">
           <select
@@ -148,6 +160,7 @@ function buildPayload(form: ServiceFormState) {
     code: form.code || undefined,
     name: form.name.trim(),
     shortDescription: form.shortDescription.trim(),
+    ctaLabel: form.ctaLabel.trim(),
     iconName: form.iconName,
     displayOrder: Number(form.displayOrder) || 0,
   };
