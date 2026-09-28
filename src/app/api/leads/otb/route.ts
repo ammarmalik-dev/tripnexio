@@ -8,6 +8,7 @@ import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { getOtbGlobalRules, resolveAirlineRules } from "@/lib/otb/get-otb-rules";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
 import { getSystemConfig } from "@/lib/settings/system-config";
+import { createTask } from "@/lib/tasks/create-task";
 
 export async function POST(request: NextRequest) {
   let body: unknown;
@@ -92,6 +93,23 @@ export async function POST(request: NextRequest) {
       imageBase64: passportImageBase64,
       mimeType: passportImageMimeType,
     });
+
+    // OTB -> Return Ticket cross-sell automation: a real, staff-visible Task
+    // instead of only the returnTicketNeeded flag buried in Lead.details JSON.
+    if (hasReturnTicket === "no") {
+      await db.$transaction((tx) =>
+        createTask(tx, {
+          type: "CROSS_SELL_FOLLOW_UP",
+          priority: "NORMAL",
+          title: `Offer Return Ticket to ${fullName}`,
+          reason: "OTB customer has no existing return ticket yet.",
+          entityType: "Lead",
+          entityId: result.leadId,
+          leadId: result.leadId,
+          serviceType: "OTB",
+        })
+      );
+    }
 
 
     // Pay right after the form when the airline has a configured price for

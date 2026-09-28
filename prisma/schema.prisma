@@ -798,6 +798,9 @@ enum TaskType {
   DOCUMENT_COLLECTION
   MANUAL_VERIFICATION
   QUOTE_FOLLOW_UP
+  /// OTB → Return Ticket cross-sell automation: auto-created when an OTB
+  /// lead reports no existing return ticket (Lead.details.returnTicketNeeded).
+  CROSS_SELL_FOLLOW_UP
 }
 
 enum TaskPriority {

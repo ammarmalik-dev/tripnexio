@@ -178,6 +178,7 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   DOCUMENT_COLLECTION: "Document Collection",
   MANUAL_VERIFICATION: "Manual Verification",
   QUOTE_FOLLOW_UP: "Quote Follow-up",
+  CROSS_SELL_FOLLOW_UP: "Cross-sell Follow-up",
 };
 
 export const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = (
