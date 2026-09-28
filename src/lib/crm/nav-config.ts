@@ -37,6 +37,8 @@ import {
   Settings,
   BookOpen,
   Gauge,
+  BarChart3,
+  Undo2,
   type LucideIcon,
 } from "lucide-react";
 
@@ -193,6 +195,8 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Data Export", href: "/admin/data-export", icon: Download },
       { label: "Automation", href: "/admin/automation", icon: Activity },
       { label: "P&L Report", href: "/admin/pnl-report", icon: TrendingUp },
+      { label: "Revenue Report", href: "/admin/revenue-report", icon: BarChart3 },
+      { label: "Refund Report", href: "/admin/refund-report", icon: Undo2 },
     ],
   },
   {
