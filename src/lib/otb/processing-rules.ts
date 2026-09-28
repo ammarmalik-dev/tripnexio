@@ -1,5 +1,5 @@
-/** Client answer (2026-09-21): the standard OTB processing timeline is 24 working days (Admin can change it). */
-export const DEFAULT_STANDARD_PROCESSING_WORKING_DAYS = 24;
+/** Locked rule (OTB.md §7): Normal OTB = T+2 working days (Admin can change it per airline or globally via OtbRuleConfig). */
+export const DEFAULT_STANDARD_PROCESSING_WORKING_DAYS = 2;
 /** Client answer (2026-09-23): Urgent OTB processing is 8 working *hours* (Admin can change it, per airline). */
 export const DEFAULT_URGENT_PROCESSING_WORKING_HOURS = 8;
 

@@ -9,6 +9,8 @@ export interface OutstandingDocument {
   serviceType: ServiceType | null;
   passengerName: string | null;
   bookingDisplayId: string | null;
+  /** Set when staff rejected the previous upload — shown so the customer knows what to fix. */
+  rejectionReason: string | null;
 }
 
 /**
@@ -23,7 +25,7 @@ export interface OutstandingDocument {
 export async function getOutstandingDocuments(customerId: string): Promise<OutstandingDocument[]> {
   const documents = await db.document.findMany({
     where: {
-      status: { in: ["REQUIRED", "MISSING"] },
+      status: { in: ["REQUIRED", "MISSING", "REJECTED"] },
       OR: [{ booking: { customerId } }, { passenger: { customerId } }],
     },
     include: {
@@ -40,5 +42,6 @@ export async function getOutstandingDocuments(customerId: string): Promise<Outst
     serviceType: document.booking?.lead.serviceType ?? null,
     passengerName: document.passenger?.fullName ?? null,
     bookingDisplayId: document.booking?.bookingId ?? null,
+    rejectionReason: document.status === "REJECTED" ? document.rejectionReason : null,
   }));
 }

@@ -29,6 +29,7 @@ interface DocumentItem {
   id: string;
   type: string;
   status: DocumentStatus;
+  rejectionReason?: string | null;
   fileUrl: string | null;
   createdAt: string;
   passengerId: string | null;
@@ -419,12 +420,13 @@ export function BookingDetail({
                                   <DocumentStatusControl
                                     documentId={document.id}
                                     status={document.status}
-                                    onChanged={(status) =>
+                                    rejectionReason={document.rejectionReason}
+                                    onChanged={(status, rejectionReason) =>
                                       setBooking((current) =>
                                         current
                                           ? {
                                               ...current,
-                                              documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
+                                              documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status, rejectionReason } : doc)),
                                             }
                                           : current
                                       )
@@ -468,12 +470,13 @@ export function BookingDetail({
                           <DocumentStatusControl
                             documentId={document.id}
                             status={document.status}
-                            onChanged={(status) =>
+                            rejectionReason={document.rejectionReason}
+                            onChanged={(status, rejectionReason) =>
                               setBooking((current) =>
                                 current
                                   ? {
                                       ...current,
-                                      documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status } : doc)),
+                                      documents: current.documents.map((doc) => (doc.id === document.id ? { ...doc, status, rejectionReason } : doc)),
                                     }
                                   : current
                               )

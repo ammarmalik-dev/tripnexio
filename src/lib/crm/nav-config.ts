@@ -181,9 +181,10 @@ export const adminNavGroups: CrmNavGroup[] = [
     items: [{ label: "Coupons", href: "/admin/coupons", icon: Ticket }],
   },
   {
-    label: "Finance & Invoices",
+    label: "Payments & Finance",
     items: [
       { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent },
+      { label: "Refund Configuration", href: "/admin/refund-config", icon: RotateCcw },
       { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature },
       { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt },
       { label: "Expenses", href: "/admin/expenses", icon: Wallet },

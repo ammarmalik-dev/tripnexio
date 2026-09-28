@@ -66,12 +66,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  const nextStatus = existing.status === "REQUIRED" || existing.status === "MISSING" ? "RECEIVED" : existing.status;
+  const nextStatus = existing.status === "REQUIRED" || existing.status === "MISSING" || existing.status === "REJECTED" ? "RECEIVED" : existing.status;
 
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.document.update({
       where: { id },
-      data: { fileUrl, status: nextStatus },
+      data: { fileUrl, status: nextStatus, rejectionReason: nextStatus === "RECEIVED" ? null : undefined },
     });
     await writeAudit(tx, {
       entityType: "Document",

@@ -102,16 +102,16 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.DOCUMENT_REJECTED,
     label: "Document rejected",
-    variables: ["customerName", "documentName", "leadReference"],
+    variables: ["customerName", "documentName", "leadReference", "rejectionReason"],
     wired: true,
-    sampleVariables: { customerName: "Sample Customer", documentName: "PASSPORT", leadReference: "NV-SAMPLE" },
+    sampleVariables: { customerName: "Sample Customer", documentName: "PASSPORT", leadReference: "NV-SAMPLE", rejectionReason: "The photo is blurred" },
   },
   {
     event: NOTIFICATION_EVENTS.LEAD_FOLLOWUP,
     label: "Lead follow-up (periodic nudge)",
-    variables: ["customerName", "serviceType", "leadReference"],
+    variables: ["customerName", "serviceType", "leadReference", "unsubscribeLink"],
     wired: true,
-    sampleVariables: { customerName: "Sample Customer", serviceType: "New Visa", leadReference: "NV-SAMPLE" },
+    sampleVariables: { customerName: "Sample Customer", serviceType: "New Visa", leadReference: "NV-SAMPLE", unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample" },
   },
   {
     event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,

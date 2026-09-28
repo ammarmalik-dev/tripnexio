@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { getSmsSender } from "../sms/get-sender";
-import { renderTemplate } from "./render-template";
+import { renderTemplate, withRequiredLines } from "./render-template";
 import type { NotificationAuditTarget } from "./send-notification-email";
 
 export interface SendNotificationSmsInput {
@@ -47,7 +47,7 @@ export async function sendNotificationSms(input: SendNotificationSmsInput): Prom
       return;
     }
 
-    const body = renderTemplate(template.body, variables, { escape: false });
+    const body = renderTemplate(withRequiredLines(template.body, variables), variables, { escape: false });
 
     const sender = getSmsSender();
     const result = await sender.send({ to, body });

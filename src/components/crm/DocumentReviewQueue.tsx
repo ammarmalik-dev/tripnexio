@@ -20,6 +20,7 @@ interface DocumentListItem {
   id: string;
   type: string;
   status: DocumentStatus;
+  rejectionReason?: string | null;
   fileUrl: string | null;
   createdAt: string;
   passenger: { id: string; fullName: string } | null;
@@ -54,6 +55,7 @@ export function DocumentReviewQueue() {
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [statusOverrides, setStatusOverrides] = useState<Record<string, DocumentStatus>>({});
+  const [reasonOverrides, setReasonOverrides] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
@@ -231,7 +233,11 @@ export function DocumentReviewQueue() {
                     <DocumentStatusControl
                       documentId={document.id}
                       status={statusOverrides[document.id] ?? document.status}
-                      onChanged={(next) => setStatusOverrides((current) => ({ ...current, [document.id]: next }))}
+                      rejectionReason={reasonOverrides[document.id] ?? document.rejectionReason}
+                      onChanged={(next, reason) => {
+                        setStatusOverrides((current) => ({ ...current, [document.id]: next }));
+                        setReasonOverrides((current) => ({ ...current, [document.id]: reason ?? null }));
+                      }}
                     />
                   </td>
                   <td className="px-4 py-3 text-ink-tertiary">{formatDate(document.createdAt)}</td>

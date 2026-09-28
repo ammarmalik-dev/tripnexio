@@ -64,6 +64,9 @@ function DocumentRow({ document, onUploaded }: { document: OutstandingDocument; 
           <input type="file" accept={ALLOWED_TYPES.join(",")} className="sr-only" onChange={handleChange} disabled={uploading} />
         </label>
       </div>
+      {document.rejectionReason ? (
+        <span className="text-xs text-error">Your last upload was rejected: {document.rejectionReason}. Please upload a new copy.</span>
+      ) : null}
       {error ? <span className="text-xs text-error">{error}</span> : null}
     </div>
   );

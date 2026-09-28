@@ -66,7 +66,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const document = await db.$transaction(async (tx) => {
       const saved = existing
-        ? await tx.document.update({ where: { id: existing.id }, data: { fileUrl: url, status: "RECEIVED", purgedAt: null } })
+        ? await tx.document.update({ where: { id: existing.id }, data: { fileUrl: url, status: "RECEIVED", purgedAt: null, rejectionReason: null } })
         : await tx.document.create({ data: { bookingId, passengerId, type, status: "RECEIVED", fileUrl: url } });
       await writeAudit(tx, {
         entityType: "Document",

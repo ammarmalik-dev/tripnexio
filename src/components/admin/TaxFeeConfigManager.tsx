@@ -93,6 +93,11 @@ export function TaxFeeConfigManager() {
 
   return (
     <div className="flex max-w-xl flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
+      {Number(config?.gstRatePercent ?? 0) > 0 ? (
+        <p role="alert" className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2.5 text-sm font-medium text-ink-primary">
+          Locked client rule: GST stays OFF until the client enables it.
+        </p>
+      ) : null}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField
           label="GST / Tax Rate (%)"

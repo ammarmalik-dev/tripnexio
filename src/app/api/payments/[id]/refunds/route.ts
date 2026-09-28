@@ -7,7 +7,8 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { computeRefundAmount } from "@/lib/refunds/pricing";
 import { paymentTotal } from "@/lib/payments/totals";
-import { evaluateRefundRule, documentsValidated } from "@/lib/refunds/rules";
+import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
+import { getRefundConfig } from "@/lib/refunds/config";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -78,9 +79,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     serviceType: payment.booking.lead.serviceType,
     bookingStatus: payment.booking.status,
     documentsValidated: documentsValidated(payment.booking.documents),
+    packageGenerated: packageGenerated(payment.booking.documents),
     extensionOutcome: payment.booking.extensionOutcome,
     paymentSucceededAt: payment.updatedAt,
-  });
+  }, await getRefundConfig(payment.booking.lead.serviceType));
   if (!rule.allowed) {
     return jsonError(409, rule.label);
   }

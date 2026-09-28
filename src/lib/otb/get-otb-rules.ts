@@ -13,7 +13,7 @@ export interface OtbGlobalRules {
   urgentProcessingHours: number | null;
 }
 
-/** Global timelines; falls back to the client's confirmed 24 working days / 8 working hours if the seeded singleton row is somehow missing. */
+/** Global timelines; falls back to the locked T+2 working days / 8 working hours if the seeded singleton row is somehow missing. */
 export async function getOtbGlobalRules(): Promise<OtbGlobalRules> {
   const config = await db.otbRuleConfig.findUnique({ where: { id: OTB_RULE_CONFIG_ID } });
   return {

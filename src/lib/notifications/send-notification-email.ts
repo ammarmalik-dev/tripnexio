@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { getEmailSender } from "../email/get-sender";
-import { renderTemplate } from "./render-template";
+import { renderTemplate, withRequiredLines } from "./render-template";
 import type { EmailAttachment } from "../email/sender";
 
 export interface NotificationAuditTarget {
@@ -64,7 +64,7 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
     }
 
     const subject = renderTemplate(template.subject ?? event, variables, { escape: false });
-    const html = renderTemplate(template.body, variables).replace(/\n/g, "<br>");
+    const html = renderTemplate(withRequiredLines(template.body, variables), variables).replace(/\n/g, "<br>");
 
     const sender = getEmailSender();
     const result = await sender.send({ to, subject, html, attachments });

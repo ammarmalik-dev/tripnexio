@@ -43,7 +43,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     existing.booking?.customerId === session.id || existing.passenger?.customerId === session.id;
   if (!belongsToCustomer) return jsonError(404, "Document not found.");
 
-  if (existing.status !== "REQUIRED" && existing.status !== "MISSING") {
+  if (existing.status !== "REQUIRED" && existing.status !== "MISSING" && existing.status !== "REJECTED") {
     return jsonError(409, "This document has already been received.");
   }
 
@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.document.update({
       where: { id },
-      data: { fileUrl, status: "RECEIVED" },
+      data: { fileUrl, status: "RECEIVED", rejectionReason: null },
     });
     await writeAudit(tx, {
       entityType: "Document",

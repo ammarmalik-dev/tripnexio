@@ -15,9 +15,16 @@ export const createDocumentSchema = z
     path: ["passengerId"],
   });
 
-export const updateDocumentStatusSchema = z.object({
-  status: z.enum(documentStatusValues, { error: "Select a valid document status" }),
-});
+export const updateDocumentStatusSchema = z
+  .object({
+    status: z.enum(documentStatusValues, { error: "Select a valid document status" }),
+    /** Mandatory when rejecting — shown to the customer. */
+    rejectionReason: z.string().trim().max(500, "Keep the reason under 500 characters").optional(),
+  })
+  .refine((values) => values.status !== "REJECTED" || (values.rejectionReason?.length ?? 0) >= 5, {
+    message: "Enter a rejection reason (at least 5 characters).",
+    path: ["rejectionReason"],
+  });
 
 /**
  * Two input modes (Step 16, audit §3.6): the original "paste an

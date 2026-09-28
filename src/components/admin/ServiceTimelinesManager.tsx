@@ -18,6 +18,7 @@ interface TimelineData {
   expectedCompletionHours: number | null;
   quotationResponseMinutes: number | null;
   paymentDeadlineHours: number | null;
+  followUpIntervalDays: number | null;
   active: boolean;
 }
 
@@ -28,6 +29,7 @@ interface FormState {
   expectedCompletionHours: string;
   quotationResponseMinutes: string;
   paymentDeadlineHours: string;
+  followUpIntervalDays: string;
 }
 
 function toFormState(item: TimelineData): FormState {
@@ -36,6 +38,7 @@ function toFormState(item: TimelineData): FormState {
     expectedCompletionHours: item.expectedCompletionHours === null ? "" : String(item.expectedCompletionHours),
     quotationResponseMinutes: item.quotationResponseMinutes === null ? "" : String(item.quotationResponseMinutes),
     paymentDeadlineHours: item.paymentDeadlineHours === null ? "" : String(item.paymentDeadlineHours),
+    followUpIntervalDays: item.followUpIntervalDays === null ? "" : String(item.followUpIntervalDays),
   };
 }
 
@@ -46,6 +49,7 @@ function buildPayload(form: FormState) {
     expectedCompletionHours: toNullableInt(form.expectedCompletionHours),
     quotationResponseMinutes: toNullableInt(form.quotationResponseMinutes),
     paymentDeadlineHours: toNullableInt(form.paymentDeadlineHours),
+    followUpIntervalDays: toNullableInt(form.followUpIntervalDays),
   };
 }
 
@@ -147,6 +151,18 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
           value={form.paymentDeadlineHours}
           onChange={(event) => setForm({ ...form, paymentDeadlineHours: event.target.value })}
           error={errors.paymentDeadlineHours?.[0]}
+          disabled={saving}
+        />
+        <TextField
+          label="Follow-up Interval (days)"
+          name={`followup-${item.id}`}
+          type="number"
+          min={1}
+          placeholder="Not set"
+          hint="Days between reminders for a lead with no booking yet. Flight Special Fare uses 7 when not set."
+          value={form.followUpIntervalDays}
+          onChange={(event) => setForm({ ...form, followUpIntervalDays: event.target.value })}
+          error={errors.followUpIntervalDays?.[0]}
           disabled={saving}
         />
       </div>

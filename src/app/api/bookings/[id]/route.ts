@@ -5,7 +5,8 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { formatLeadReference } from "@/lib/leads/reference";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
-import { evaluateRefundRule, documentsValidated } from "@/lib/refunds/rules";
+import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
+import { getRefundConfig } from "@/lib/refunds/config";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -48,6 +49,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   // "which rule applied and why" *before* staff even opens the form, not
   // just as an error after they submit.
   const docsValidated = documentsValidated(booking.documents);
+  const refundConfig = await getRefundConfig(booking.lead.serviceType);
   const paymentsWithRule = booking.payments.map((payment) => ({
     ...payment,
     refundRule:
@@ -56,9 +58,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             serviceType: booking.lead.serviceType,
             bookingStatus: synced.status,
             documentsValidated: docsValidated,
+            packageGenerated: packageGenerated(booking.documents),
             extensionOutcome: synced.extensionOutcome,
             paymentSucceededAt: payment.updatedAt,
-          })
+          }, refundConfig)
         : null,
   }));
 

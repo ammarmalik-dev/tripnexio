@@ -241,6 +241,8 @@ model Lead {
   /// as formatLeadReference(). Not unique: legacy suffix-derived references
   /// could in theory repeat.
   reference       String?
+  /// Customer opted out of periodic follow-up reminders (unsubscribe link in the message).
+  followUpOptOut  Boolean          @default(false)
   /// Unguessable token for the guest customer review page (/quote/<token>):
   /// see staff-prepared quotation(s), approve one, then pay — same pattern as
   /// Booking.customerToken for the pay-right-after-the-form services. Set at
@@ -549,6 +551,31 @@ model PaymentWebhookEvent {
   @@index([gatewayRef])
 }
 
+/// When a refund stops being possible at all for a service.
+enum RefundCutoff {
+  /// No hard cutoff.
+  NEVER
+  /// Once the application is sent to the embassy / airline / vendor (Booking PROCESSING or COMPLETED).
+  EXTERNAL_SUBMISSION
+  /// Once the service package (PACKAGE_PDF) has been generated for the booking.
+  PACKAGE_GENERATED
+}
+
+/// Admin-managed refund rule per service, read by src/lib/refunds/rules.ts.
+/// Deductions are on top of the staff-entered cancellation and gateway charges.
+model RefundConfig {
+  serviceType             ServiceType  @id
+  /// Within this many hours of payment only gateway charges are deducted; null = no such window.
+  fullRefundWindowHours   Int?
+  /// Fixed deduction after the window while documents are not yet validated.
+  preValidationDeduction  Decimal      @default(0) @db.Decimal(10, 2)
+  /// Fixed deduction once every booking document is VERIFIED.
+  postValidationDeduction Decimal      @default(0) @db.Decimal(10, 2)
+  noRefundAfter           RefundCutoff @default(NEVER)
+  updatedAt               DateTime     @updatedAt
+  createdAt               DateTime     @default(now())
+}
+
 model Refund {
   id                 String       @id @default(cuid())
   paymentId          String
@@ -598,6 +625,8 @@ model Document {
   /// per-nationality master list this is checked against.
   type        String
   status      DocumentStatus @default(REQUIRED)
+  /// Mandatory staff reason when status is REJECTED; cleared when the document moves on.
+  rejectionReason String?
   fileUrl     String?
   /// Step 21 (audit §7.5) — New_Visa.md §27: set when the retention-purge
   /// automation deletes this document's file (3+ months past the
@@ -1994,6 +2023,8 @@ model ServiceTimelineConfig {
   quotationResponseMinutes  Int?
   /// Wired into createPendingPayment() — src/lib/payments/create-payment.ts.
   paymentDeadlineHours      Int?
+  /// Days between periodic follow-up reminders for a lead of this service that has no booking yet (Flight Special Fare defaults to 7 when unset).
+  followUpIntervalDays      Int?
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())

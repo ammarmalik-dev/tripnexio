@@ -758,14 +758,29 @@ async function main() {
   // ReturnTicketRuleConfig seed removed (client update, 2026-09-24) — the
   // visa-type-driven day-offset rule it configured no longer exists.
 
-  // OTB processing timelines — client's confirmed answers: standard = 24
-  // working days (2026-09-21), urgent = 8 working hours (2026-09-23).
+  // OTB processing timelines — locked rule: standard (Normal) = T+2 working
+  // days (OTB.md §7), urgent = 8 working hours (Developer Answers §4).
   // `update: {}` so a re-seed never resets what an admin has since configured.
   await db.otbRuleConfig.upsert({
     where: { id: "singleton" },
     update: {},
-    create: { id: "singleton", standardProcessingDays: 24, urgentProcessingHours: 8 },
+    create: { id: "singleton", standardProcessingDays: 2, urgentProcessingHours: 8 },
   });
+
+  // Locked client refund policy per service (Admin → Refund Configuration).
+  // `update: {}` so a re-seed never resets what an admin has configured.
+  const refundDefaults = [
+    { serviceType: "NEW_VISA", fullRefundWindowHours: 4, preValidationDeduction: 250, postValidationDeduction: 250, noRefundAfter: "EXTERNAL_SUBMISSION" },
+    { serviceType: "OTB", fullRefundWindowHours: null, preValidationDeduction: 0, postValidationDeduction: 250, noRefundAfter: "EXTERNAL_SUBMISSION" },
+    { serviceType: "VISA_CHANGE", fullRefundWindowHours: null, preValidationDeduction: 250, postValidationDeduction: 250, noRefundAfter: "PACKAGE_GENERATED" },
+    { serviceType: "RETURN_TICKET", fullRefundWindowHours: null, preValidationDeduction: 0, postValidationDeduction: 0, noRefundAfter: "EXTERNAL_SUBMISSION" },
+    { serviceType: "VISA_EXTENSION", fullRefundWindowHours: null, preValidationDeduction: 0, postValidationDeduction: 0, noRefundAfter: "NEVER" },
+    { serviceType: "FLIGHT_SPECIAL_FARE", fullRefundWindowHours: null, preValidationDeduction: 0, postValidationDeduction: 0, noRefundAfter: "NEVER" },
+    { serviceType: "OTHER", fullRefundWindowHours: null, preValidationDeduction: 0, postValidationDeduction: 0, noRefundAfter: "NEVER" },
+  ] as const;
+  for (const row of refundDefaults) {
+    await db.refundConfig.upsert({ where: { serviceType: row.serviceType }, update: {}, create: row });
+  }
 
   // Step 42 (Admin FINAL handover §6) — one empty ServiceTimelineConfig row
   // per service, so the Admin screen always shows all 6 cards with nothing

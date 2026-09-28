@@ -38,7 +38,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Timeline/SLA config for ${result.serviceType} updated: doc verification ${result.documentVerificationHours ?? "not set"}h, expected completion ${result.expectedCompletionHours ?? "not set"}h, quotation response ${result.quotationResponseMinutes ?? "not set"}min, payment deadline ${result.paymentDeadlineHours ?? "not set"}h (by ${session.name})`,
+      note: `Timeline/SLA config for ${result.serviceType} updated: doc verification ${result.documentVerificationHours ?? "not set"}h, expected completion ${result.expectedCompletionHours ?? "not set"}h, quotation response ${result.quotationResponseMinutes ?? "not set"}min, payment deadline ${result.paymentDeadlineHours ?? "not set"}h, follow-up every ${result.followUpIntervalDays ?? "not set"} days (by ${session.name})`,
     });
     return result;
   });

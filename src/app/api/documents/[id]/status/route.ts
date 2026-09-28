@@ -11,6 +11,7 @@ import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import type { NotificationEvent } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { createTask, autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
+import { assertValidDocumentTransition } from "@/lib/documents/transitions";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,6 +39,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const existing = await db.document.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Document not found.");
 
+  const transitionError = assertValidDocumentTransition(existing.status, parsed.data.status);
+  if (transitionError) return jsonError(409, transitionError);
+  const rejectionReason = parsed.data.status === "REJECTED" ? parsed.data.rejectionReason! : null;
+
   // Resolved once up front (not inside the transaction) since it's only
   // needed to populate the new Task's display fields, same booking->lead
   // join resolveDocumentRecipient already does for the email trigger below.
@@ -50,13 +55,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const updated = await db.$transaction(async (tx) => {
-    const result = await tx.document.update({ where: { id }, data: { status: parsed.data.status } });
+    const result = await tx.document.update({ where: { id }, data: { status: parsed.data.status, rejectionReason } });
     await writeAudit(tx, {
       entityType: "Document",
       entityId: id,
       action: "STATUS_CHANGE",
       byUserId: session.id,
-      note: `${existing.status} -> ${parsed.data.status} (by ${session.name})`,
+      note: `${existing.status} -> ${parsed.data.status}${rejectionReason ? `: ${rejectionReason}` : ""} (by ${session.name})`,
     });
 
     // A document flagged MISSING notifies the customer (see the email
@@ -109,7 +114,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         emailTo: recipient.email,
         whatsappTo: toWhatsAppId(recipient.mobile),
         smsTo: toWhatsAppId(recipient.mobile),
-        variables: { customerName: recipient.customerName, documentName: updated.type, leadReference: recipient.leadReference },
+        variables: {
+          customerName: recipient.customerName,
+          documentName: updated.type,
+          leadReference: recipient.leadReference,
+          rejectionReason: updated.rejectionReason ?? "",
+        },
         auditTarget: { entityType: "Document", entityId: updated.id },
       });
     }

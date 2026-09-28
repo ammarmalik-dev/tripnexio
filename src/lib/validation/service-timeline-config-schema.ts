@@ -14,6 +14,7 @@ export const updateServiceTimelineConfigSchema = z.object({
   expectedCompletionHours: optionalHours("hours"),
   quotationResponseMinutes: z.number().int("Enter whole minutes").min(0, "Can't be negative").max(525600, "That's too long").nullable().optional(),
   paymentDeadlineHours: optionalHours("hours"),
+  followUpIntervalDays: z.number().int("Enter whole days").min(1, "At least 1 day").max(90, "At most 90 days").nullable().optional(),
   active: z.boolean().optional(),
 });
 

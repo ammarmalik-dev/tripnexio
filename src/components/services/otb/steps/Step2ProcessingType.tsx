@@ -13,7 +13,7 @@ import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 
 /**
  * Client rule: a travel date inside the airline's standard processing time
- * (default 24 working days, Admin-configurable) offers/forces Urgent when
+ * (default 2 working days, Admin-configurable) offers/forces Urgent when
  * the airline has it, and otherwise stops the request with an explanation.
  */
 export function Step2ProcessingType() {
