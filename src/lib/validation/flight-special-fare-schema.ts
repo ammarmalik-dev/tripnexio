@@ -36,6 +36,14 @@ export const flightPassengerSchema = z.object({
     .string()
     .min(1, "Select date of birth")
     .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid date of birth"),
+  /**
+   * P15 — Flight_Special_Fare.md §6: a signed-in customer may pick one of
+   * their saved passengers ("Existing Passenger") and answer "Reuse passport
+   * details?" (yes / no). Empty for a new passenger. Ownership is re-checked
+   * server-side against the customer session.
+   */
+  savedPassengerId: z.string().max(40).optional(),
+  reusePassport: z.enum(["", "yes", "no"]).optional(),
 });
 
 /**

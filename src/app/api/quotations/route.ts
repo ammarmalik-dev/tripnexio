@@ -5,6 +5,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import type { Prisma } from "@/generated/prisma/client";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
 import { leadOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
+import { resolveNewQuoteRequest } from "@/lib/quotations/new-quote-request";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
@@ -183,6 +184,19 @@ export async function POST(request: NextRequest) {
     vendorCost,
     sellingPrice,
     validityExpiresAt,
+    terminal,
+    reportingTime,
+    fareRules,
+    restrictions,
+    vendorReference,
+    bookingDeadline,
+    cancellationAllowed,
+    cancellationCharge,
+    chargeBasis,
+    timeCondition,
+    noShowCharge,
+    estimatedRefund,
+    customerCancellationPolicy,
     alternativeOfId,
     couponCode,
   } = parsed.data;
@@ -273,6 +287,24 @@ export async function POST(request: NextRequest) {
         fineOrCharges,
         otherCharges,
         operationalBlock: operationalBlock ? (operationalBlock as unknown as Prisma.InputJsonValue) : undefined,
+        // P15 — flight quote details / cancellation terms (flight quotes only).
+        ...(flightQuote
+          ? {
+              terminal,
+              reportingTime,
+              fareRules,
+              restrictions,
+              vendorReference,
+              bookingDeadline: bookingDeadline ? new Date(bookingDeadline) : undefined,
+              cancellationAllowed,
+              cancellationCharge,
+              chargeBasis,
+              timeCondition,
+              noShowCharge,
+              estimatedRefund,
+              customerCancellationPolicy,
+            }
+          : {}),
         flightTicketPrice: supportsItinerary(lead.serviceType) ? flightTicketPrice : undefined,
         vendorCost,
         sellingPrice: resolvedSellingPrice,
@@ -311,6 +343,8 @@ export async function POST(request: NextRequest) {
     statusNotifications.push(
       await applySystemEvent(tx, { scope: "LEAD", entityId: leadId, event: "QUOTATION_CREATED", userId: session.id, actorLabel: `by ${session.name}` })
     );
+    // P15 — a new quote answers a customer's "Request New Quote".
+    await resolveNewQuoteRequest(tx, leadId, `New quotation created (by ${session.name})`);
 
     return created;
   });

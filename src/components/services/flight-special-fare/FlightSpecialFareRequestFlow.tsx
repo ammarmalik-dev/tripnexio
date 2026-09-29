@@ -28,7 +28,7 @@ export function FlightSpecialFareRequestFlow() {
         destination: "",
         travelDate: "",
         returnDate: "",
-        passengers: [{ fullName: "", dob: "" }],
+        passengers: [{ fullName: "", dob: "", savedPassengerId: "", reusePassport: "" }],
       }}
       stepFields={flightSpecialFareStepFields}
       stepLabels={flightSpecialFareStepLabels}

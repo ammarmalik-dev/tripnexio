@@ -7,6 +7,9 @@ import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { DEFAULT_PAYMENT_LINK_VALIDITY_HOURS } from "../payments/create-payment";
 import { EXTENSION_DURATION_DAYS, urgentDeadlineFromDetails } from "../visa-extension/rules";
 import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "../visa-change/operational";
+import { alternativeRouteLabel, requestedRouteFromDetails } from "./flight-quote";
+
+const money = (value: unknown) => (value === null || value === undefined ? null : Number(value));
 
 /**
  * Loads a customer's quote-review page by their Lead's `customerToken`.
@@ -29,10 +32,20 @@ export async function loadQuoteReviewByToken(token: string) {
     select: { customerToken: true },
   });
 
-  const quotations = lead.quotations
-    .filter((quotation) => quotation.isSelected || !isExpiredNow(quotation))
+  const flight = isFlightQuote(lead.serviceType);
+  const requestedRoute = flight ? requestedRouteFromDetails(lead.details) : null;
+  const visible = lead.quotations.filter((quotation) => quotation.isSelected || !isExpiredNow(quotation));
+  // P15 — a Special Fare customer whose every quote lapsed still sees the
+  // most recent one, marked expired, with "Request New Quote".
+  const shown = flight && visible.length === 0 && lead.quotations.length > 0 ? [lead.quotations[0]] : visible;
+
+  // The requested-route options first; alternatives after them.
+  const ordered = [...shown].sort((a, b) => Number(Boolean(a.alternativeOfId)) - Number(Boolean(b.alternativeOfId)));
+
+  const quotations = ordered
     .map((quotation) => ({
       id: quotation.id,
+      expired: !quotation.isSelected && isExpiredNow(quotation),
       isSelected: quotation.isSelected,
       alternativeOfId: quotation.alternativeOfId,
       validityExpiresAt: quotation.validityExpiresAt,
@@ -48,6 +61,31 @@ export async function loadQuoteReviewByToken(token: string) {
             arrivalDateTime: quotation.arrivalDateTime,
             baggageAllowance: quotation.baggageAllowance,
             fareType: quotation.fareType,
+          }
+        : {}),
+      // P15 — Special Fare: fares per passenger type, the customer-facing
+      // details and cancellation terms (never vendor cost, margin or vendor
+      // reference), and the alternative-route wording.
+      ...(flight
+        ? {
+            adultFare: money(quotation.adultFare),
+            childFare: money(quotation.childFare),
+            infantFare: money(quotation.infantFare),
+            terminal: quotation.terminal,
+            reportingTime: quotation.reportingTime,
+            fareRules: quotation.fareRules,
+            restrictions: quotation.restrictions,
+            bookingDeadline: quotation.bookingDeadline,
+            cancellation: {
+              allowed: quotation.cancellationAllowed,
+              charge: money(quotation.cancellationCharge),
+              chargeBasis: quotation.chargeBasis,
+              timeCondition: quotation.timeCondition,
+              noShowCharge: money(quotation.noShowCharge),
+              estimatedRefund: money(quotation.estimatedRefund),
+              policy: quotation.customerCancellationPolicy,
+            },
+            alternativeLabel: quotation.alternativeOfId ? alternativeRouteLabel(requestedRoute, quotation.route) : null,
           }
         : {}),
       // P14 — Visa Change: the option's A2A or Border block (customer-safe rows only — never vendor/cost).
@@ -82,6 +120,21 @@ export async function loadQuoteReviewByToken(token: string) {
         }
       : null;
 
+  // P15 — Special Fare: passenger count by Adult / Child / Infant (from the lead's passengers).
+  let passengerCounts: { adult: number; child: number; infant: number } | null = null;
+  if (flight) {
+    const ids = Array.isArray((lead.details as Record<string, unknown> | null)?.passengerIds)
+      ? ((lead.details as Record<string, unknown>).passengerIds as string[])
+      : [];
+    const passengers = ids.length > 0 ? await db.passenger.findMany({ where: { id: { in: ids } }, select: { paxType: true } }) : [];
+    passengerCounts = {
+      adult: passengers.filter((p) => p.paxType === "ADULT").length,
+      child: passengers.filter((p) => p.paxType === "CHILD").length,
+      infant: passengers.filter((p) => p.paxType === "INFANT").length,
+    };
+  }
+  const details = (lead.details ?? {}) as Record<string, unknown>;
+
   const terms = await getEffectiveTerms(lead.serviceType, await resolveLeadCountryId(lead.details));
 
   return {
@@ -92,5 +145,8 @@ export async function loadQuoteReviewByToken(token: string) {
     bookingToken: booking?.customerToken ?? null,
     terms: terms ? { title: terms.title, body: terms.body, version: terms.version } : null,
     extension,
+    specialFare: flight
+      ? { requestedRoute, passengerCounts, newQuoteRequested: typeof details.newQuoteRequestedAt === "string" }
+      : null,
   };
 }

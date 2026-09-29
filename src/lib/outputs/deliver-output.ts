@@ -8,6 +8,7 @@ import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { leadReference } from "../leads/reference";
 import { toWhatsAppId } from "../whatsapp/phone";
 import { siteConfig } from "../site-config";
+import { offerPostTicketCrossSell } from "../cross-sell/post-ticket";
 
 /**
  * P09 — records an already-stored output file as delivered: a VERIFIED
@@ -60,6 +61,11 @@ export async function deliverOutput(input: {
     variables: { customerName: booking.customer.name, leadReference: leadReference(booking.lead), documentName: label, downloadLink },
     auditTarget: { entityType: "Document", entityId: document.id },
   });
+
+  // P15 — a delivered Special Fare ticket triggers the Return Ticket / OTB offer (once per journey).
+  if (outputType === "TICKET_PDF") {
+    await offerPostTicketCrossSell({ bookingId: booking.id, leadId: booking.leadId, serviceType: booking.lead.serviceType });
+  }
 
   return document;
 }

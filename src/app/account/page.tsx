@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { leadReference } from "@/lib/leads/reference";
 import { customerStatusLabel } from "@/lib/service-status/customer-label";
 import { customerPassengerStatuses } from "@/lib/protection-plan/customer-passenger-statuses";
+import { showPostTicketOffer } from "@/lib/cross-sell/post-ticket";
+import { PostTicketOfferCard } from "@/components/cross-sell/PostTicketOfferCard";
 import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, type OutputType } from "@/lib/outputs/output-types";
 import { getOutstandingDocuments } from "@/lib/account/outstanding-documents";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
@@ -35,7 +37,11 @@ export default async function AccountPage() {
     }),
     db.booking.findMany({
       where: { customerId: session.id },
-      include: { lead: { select: { serviceType: true } }, serviceStatus: { select: { customerLabel: true } } },
+      include: {
+        lead: { select: { serviceType: true, crossSellOptOut: true } },
+        serviceStatus: { select: { customerLabel: true } },
+        documents: { where: { type: "TICKET_PDF", deliveredAt: { not: null } }, select: { type: true } },
+      },
       orderBy: { createdAt: "desc" },
     }),
     getOutstandingDocuments(session.id),
@@ -140,6 +146,16 @@ export default async function AccountPage() {
                     </li>
                   ))}
                 </ul>
+              ) : null}
+              {booking.customerToken &&
+              showPostTicketOffer({
+                serviceType: booking.lead.serviceType,
+                crossSellOptOut: booking.lead.crossSellOptOut,
+                documentTypes: booking.documents.map((document) => document.type),
+              }) ? (
+                <div className="w-full">
+                  <PostTicketOfferCard bookingToken={booking.customerToken} />
+                </div>
               ) : null}
             </div>
           ))

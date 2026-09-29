@@ -263,6 +263,9 @@ model Lead {
   reference       String?          @unique
   /// Customer opted out of periodic follow-up reminders (unsubscribe link in the message).
   followUpOptOut  Boolean          @default(false)
+  /// P15 — the customer said "No thanks" to the post-ticket Return Ticket / OTB
+  /// offer: never repeated for this lead's journey.
+  crossSellOptOut Boolean          @default(false)
   /// Unguessable token for the guest customer review page (/quote/<token>):
   /// see staff-prepared quotation(s), approve one, then pay — same pattern as
   /// Booking.customerToken for the pay-right-after-the-form services. Set at
@@ -307,42 +310,59 @@ model Lead {
 }
 
 model Quotation {
-  id                String    @id @default(cuid())
-  leadId            String
+  id                         String    @id @default(cuid())
+  leadId                     String
   /// --- Flight Special Fare fields (structured quote) ---
-  airline           String?
-  flightNumber      String?
-  route             String?
+  airline                    String?
+  flightNumber               String?
+  route                      String?
   /// Departure date/time for a flight quote.
-  flightDateTime    DateTime?
-  arrivalDateTime   DateTime?
-  baggageAllowance  String?
-  fareType          String?
-  adultFare         Decimal?  @db.Decimal(10, 2)
-  childFare         Decimal?  @db.Decimal(10, 2)
-  infantFare        Decimal?  @db.Decimal(10, 2)
+  flightDateTime             DateTime?
+  arrivalDateTime            DateTime?
+  baggageAllowance           String?
+  fareType                   String?
+  adultFare                  Decimal?  @db.Decimal(10, 2)
+  childFare                  Decimal?  @db.Decimal(10, 2)
+  infantFare                 Decimal?  @db.Decimal(10, 2)
   /// Visa Change itinerary options: the flight-ticket component of one itinerary, added on top of feeAmount + fineOrCharges.
-  flightTicketPrice Decimal?  @db.Decimal(10, 2)
+  flightTicketPrice          Decimal?  @db.Decimal(10, 2)
   /// --- Visa services / OTB fields (simple fee-based quote) ---
-  feeAmount         Decimal?  @db.Decimal(10, 2)
-  fineOrCharges     Decimal?  @db.Decimal(10, 2)
+  feeAmount                  Decimal?  @db.Decimal(10, 2)
+  fineOrCharges              Decimal?  @db.Decimal(10, 2)
   /// P13 — Visa Extension quote breakdown: any other charges, added to the total like fineOrCharges.
-  otherCharges      Decimal?  @db.Decimal(10, 2)
+  otherCharges               Decimal?  @db.Decimal(10, 2)
   /// P14 — Visa Change: snapshot of the operational block this option is for
   /// (A2A flight or Border exit), copied from the lead's staff panel when the
   /// quotation is created. Vendor/cost inside it stay internal — the customer
   /// view strips them (src/lib/visa-change/operational.ts).
-  operationalBlock  Json?
+  operationalBlock           Json?
+  /// P15 — Flight Special Fare quote details (Special Fare Handover §3, Locked v2.0 Q17).
+  /// Customer-facing except vendorReference (internal, like vendorCost/margin).
+  terminal                   String?
+  reportingTime              String?
+  fareRules                  String?
+  restrictions               String?
+  vendorReference            String?
+  bookingDeadline            DateTime?
+  cancellationAllowed        Boolean?
+  cancellationCharge         Decimal?  @db.Decimal(10, 2)
+  /// e.g. "Per passenger" / "Per booking" — staff wording, shown to the customer.
+  chargeBasis                String?
+  /// e.g. "More than 24 hours before departure".
+  timeCondition              String?
+  noShowCharge               Decimal?  @db.Decimal(10, 2)
+  estimatedRefund            Decimal?  @db.Decimal(10, 2)
+  customerCancellationPolicy String?
   /// --- Commercial fields shared by every service type ---
-  vendorId          String
-  vendorCost        Decimal   @db.Decimal(10, 2)
+  vendorId                   String
+  vendorCost                 Decimal   @db.Decimal(10, 2)
   /// The customer-facing total. For Flight Special Fare this is staff-entered
   /// directly; for every other service type the API computes it server-side
   /// as feeAmount + fineOrCharges. Never shown to the customer alongside
   /// vendorCost/margin — those two stay staff-only.
-  sellingPrice      Decimal   @db.Decimal(10, 2)
+  sellingPrice               Decimal   @db.Decimal(10, 2)
   /// Computed by the API layer as sellingPrice - vendorCost on write.
-  margin            Decimal   @db.Decimal(10, 2)
+  margin                     Decimal   @db.Decimal(10, 2)
   /// --- Step 22 (audit §3.2/§4.2/§7.8) — CRM.md §10's pricing formula ---
   /// Never set for a Flight Special Fare quote — §10 gives flight its own
   /// formula ("Selling Amount + Configured Gateway Charge = Customer
@@ -351,19 +371,19 @@ model Quotation {
   /// not recalculated later — same config-snapshot precedent as `margin`
   /// and `sellingPrice` itself, so an Admin editing the coupon afterward
   /// doesn't retroactively change an already-quoted discount.
-  couponId          String?
-  couponCode        String?
-  couponDiscount    Decimal?  @db.Decimal(10, 2)
-  validityExpiresAt DateTime?
-  isSelected        Boolean   @default(false)
-  isExpired         Boolean   @default(false)
+  couponId                   String?
+  couponCode                 String?
+  couponDiscount             Decimal?  @db.Decimal(10, 2)
+  validityExpiresAt          DateTime?
+  isSelected                 Boolean   @default(false)
+  isExpired                  Boolean   @default(false)
   /// Set when this quote represents an alternative route/option offered
   /// instead of what the customer originally requested — points at the
   /// sibling quotation (on the same lead) it stands in for. The UI must
   /// always render this quotation's own `route`, never the requested one.
-  alternativeOfId   String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  alternativeOfId            String?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
 
   lead          Lead        @relation(fields: [leadId], references: [id])
   vendor        Vendor      @relation(fields: [vendorId], references: [id])

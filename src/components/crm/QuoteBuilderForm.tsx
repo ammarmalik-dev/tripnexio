@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { TextField } from "@/components/forms/TextField";
+import { Textarea } from "@/components/forms/Textarea";
 import { Button } from "@/components/ui/Button";
 import { buildQuoteFormSchema, type QuoteFormValues } from "@/lib/validation/quotation-schema";
 import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES } from "@/lib/quotations/pricing";
@@ -107,10 +108,26 @@ export function QuoteBuilderForm({
     };
   }, [hasItinerary, leadId]);
 
-  const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "otherCharges" | "flightTicketPrice") =>
+  const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "otherCharges" | "flightTicketPrice" | "cancellationCharge" | "noShowCharge" | "estimatedRefund") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
 
-  const optionalField = (name: "flightNumber" | "route" | "baggageAllowance" | "fareType" | "couponCode") =>
+  const optionalField = (
+    name:
+      | "flightNumber"
+      | "route"
+      | "baggageAllowance"
+      | "fareType"
+      | "couponCode"
+      | "terminal"
+      | "reportingTime"
+      | "fareRules"
+      | "restrictions"
+      | "vendorReference"
+      | "chargeBasis"
+      | "timeCondition"
+      | "customerCancellationPolicy"
+      | "bookingDeadline"
+  ) =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
 
   const airlineSelect = (label: string, required: boolean) => (
@@ -196,6 +213,55 @@ export function QuoteBuilderForm({
               error={errors.infantFare?.message}
             />
           </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField label="Terminal" placeholder="e.g. T2" {...optionalField("terminal")} error={errors.terminal?.message} />
+            <TextField
+              label="Reporting Time"
+              placeholder="e.g. 3 hours before departure"
+              {...optionalField("reportingTime")}
+              error={errors.reportingTime?.message}
+            />
+          </div>
+          <Textarea label="Fare Rules" rows={2} {...optionalField("fareRules")} error={errors.fareRules?.message} />
+          <Textarea label="Restrictions" rows={2} {...optionalField("restrictions")} error={errors.restrictions?.message} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <TextField
+              label="Vendor Reference (internal)"
+              {...optionalField("vendorReference")}
+              error={errors.vendorReference?.message}
+              hint="Never shown to the customer."
+            />
+            <TextField label="Booking Deadline" type="datetime-local" {...optionalField("bookingDeadline")} error={errors.bookingDeadline?.message} />
+          </div>
+
+          <fieldset className="flex flex-col gap-4 rounded-lg border border-hairline p-4">
+            <legend className="px-1 text-sm font-medium text-ink-heading">Cancellation &amp; refund terms (shown to the customer)</legend>
+            <label className="flex items-center gap-2 text-sm text-ink-secondary">
+              <input type="checkbox" {...register("cancellationAllowed")} />
+              Cancellation allowed
+            </label>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <TextField label="Cancellation Charge (₹)" type="number" step="0.01" {...numberField("cancellationCharge")} error={errors.cancellationCharge?.message} />
+              <TextField label="No-show Charge (₹)" type="number" step="0.01" {...numberField("noShowCharge")} error={errors.noShowCharge?.message} />
+              <TextField label="Estimated Refund (₹)" type="number" step="0.01" {...numberField("estimatedRefund")} error={errors.estimatedRefund?.message} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <TextField label="Charge Basis" placeholder="e.g. Per passenger" {...optionalField("chargeBasis")} error={errors.chargeBasis?.message} />
+              <TextField
+                label="Time Condition"
+                placeholder="e.g. More than 24 hours before departure"
+                {...optionalField("timeCondition")}
+                error={errors.timeCondition?.message}
+              />
+            </div>
+            <Textarea
+              label="Customer Cancellation Policy"
+              rows={3}
+              {...optionalField("customerCancellationPolicy")}
+              error={errors.customerCancellationPolicy?.message}
+              hint="Exactly what the customer reads before paying."
+            />
+          </fieldset>
 
           {alternativeOptions.length > 0 ? (
             <FormField

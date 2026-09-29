@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -34,6 +34,32 @@ interface QuoteOption {
   breakdown?: { extensionFee: number; fine: number; otherCharges: number };
   /** P14 — Visa Change only: this option's Airport-to-Airport or Border Exit details. */
   operational?: { title: string; rows: { label: string; value: string }[] };
+  /** P15 — Special Fare only. */
+  expired?: boolean;
+  adultFare?: number | null;
+  childFare?: number | null;
+  infantFare?: number | null;
+  terminal?: string | null;
+  reportingTime?: string | null;
+  fareRules?: string | null;
+  restrictions?: string | null;
+  bookingDeadline?: string | null;
+  cancellation?: {
+    allowed: boolean | null;
+    charge: number | null;
+    chargeBasis: string | null;
+    timeCondition: string | null;
+    noShowCharge: number | null;
+    estimatedRefund: number | null;
+    policy: string | null;
+  };
+  alternativeLabel?: string | null;
+}
+
+interface SpecialFareView {
+  requestedRoute: string | null;
+  passengerCounts: { adult: number; child: number; infant: number } | null;
+  newQuoteRequested: boolean;
 }
 
 interface ExtensionView {
@@ -50,6 +76,16 @@ interface ReviewView {
   bookingToken: string | null;
   terms: TermsView | null;
   extension: ExtensionView | null;
+  specialFare: SpecialFareView | null;
+}
+
+function plural(count: number, word: string): string {
+  return `${count} ${word}${count === 1 ? "" : word === "Child" ? "ren" : "s"}`;
+}
+
+function formatCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
 }
 
 function BreakdownRow({ label, value }: { label: string; value: string }) {
@@ -68,19 +104,37 @@ function formatDateTime(iso: string): string {
 function QuoteCard({
   quote,
   extension,
+  specialFare,
+  now,
   onApprove,
   approving,
   canApprove,
+  onRequestNewQuote,
+  requestingNewQuote,
+  newQuoteRequested,
 }: {
   quote: QuoteOption;
   extension: ExtensionView | null;
+  specialFare: SpecialFareView | null;
+  now: number;
   onApprove: () => void;
   approving: boolean;
   canApprove: boolean;
+  onRequestNewQuote: () => void;
+  requestingNewQuote: boolean;
+  newQuoteRequested: boolean;
 }) {
   const payable = quote.sellingPrice - (quote.couponDiscount ?? 0);
+  // P15 — Special Fare: live countdown; at zero the card turns into the expired state.
+  const remainingMs = specialFare && quote.validityExpiresAt && !quote.isSelected ? new Date(quote.validityExpiresAt).getTime() - now : null;
+  const expired = Boolean(specialFare) && (Boolean(quote.expired) || (remainingMs !== null && remainingMs <= 0));
+  const cancellation = quote.cancellation;
+  const counts = specialFare?.passengerCounts;
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
+      {quote.alternativeLabel ? (
+        <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning">{quote.alternativeLabel}</p>
+      ) : null}
       {quote.airline || quote.route ? (
         <div className="flex flex-col gap-1">
           <span className="text-sm font-semibold text-ink-heading">
@@ -96,6 +150,53 @@ function QuoteCard({
           ) : null}
           {quote.baggageAllowance ? <span className="text-xs text-ink-tertiary">Baggage: {quote.baggageAllowance}</span> : null}
           {quote.fareType ? <span className="text-xs text-ink-tertiary">Fare: {quote.fareType}</span> : null}
+          {quote.terminal ? <span className="text-xs text-ink-tertiary">Terminal: {quote.terminal}</span> : null}
+          {quote.reportingTime ? <span className="text-xs text-ink-tertiary">Reporting time: {quote.reportingTime}</span> : null}
+          {quote.bookingDeadline ? <span className="text-xs text-ink-tertiary">Booking deadline: {formatDateTime(quote.bookingDeadline)}</span> : null}
+        </div>
+      ) : null}
+
+      {specialFare && counts ? (
+        <div className="flex flex-col gap-2">
+          <BreakdownRow
+            label="Passengers"
+            value={[plural(counts.adult, "Adult"), plural(counts.child, "Child"), plural(counts.infant, "Infant")].join(" · ")}
+          />
+          {counts.adult > 0 && quote.adultFare != null ? <BreakdownRow label="Adult fare" value={formatRupees(quote.adultFare)} /> : null}
+          {counts.child > 0 && quote.childFare != null ? <BreakdownRow label="Child fare" value={formatRupees(quote.childFare)} /> : null}
+          {counts.infant > 0 && quote.infantFare != null ? <BreakdownRow label="Infant fare" value={formatRupees(quote.infantFare)} /> : null}
+        </div>
+      ) : null}
+
+      {quote.fareRules || quote.restrictions ? (
+        <div className="flex flex-col gap-1 text-xs text-ink-secondary">
+          {quote.fareRules ? (
+            <p className="whitespace-pre-line">
+              <span className="font-semibold text-ink-heading">Fare rules: </span>
+              {quote.fareRules}
+            </p>
+          ) : null}
+          {quote.restrictions ? (
+            <p className="whitespace-pre-line">
+              <span className="font-semibold text-ink-heading">Restrictions: </span>
+              {quote.restrictions}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {cancellation &&
+      (cancellation.allowed !== null || cancellation.policy || cancellation.charge !== null || cancellation.noShowCharge !== null || cancellation.estimatedRefund !== null) ? (
+        <div className="flex flex-col gap-2 rounded-lg bg-surface-2 p-3">
+          <span className="text-sm font-semibold text-ink-heading">Cancellation &amp; refund</span>
+          {cancellation.allowed !== null ? <BreakdownRow label="Cancellation" value={cancellation.allowed ? "Allowed" : "Not allowed"} /> : null}
+          {cancellation.charge !== null ? (
+            <BreakdownRow label="Cancellation charge" value={`${formatRupees(cancellation.charge)}${cancellation.chargeBasis ? ` (${cancellation.chargeBasis})` : ""}`} />
+          ) : null}
+          {cancellation.timeCondition ? <BreakdownRow label="Applies" value={cancellation.timeCondition} /> : null}
+          {cancellation.noShowCharge !== null ? <BreakdownRow label="No-show charge" value={formatRupees(cancellation.noShowCharge)} /> : null}
+          {cancellation.estimatedRefund !== null ? <BreakdownRow label="Estimated refund" value={formatRupees(cancellation.estimatedRefund)} /> : null}
+          {cancellation.policy ? <p className="whitespace-pre-line text-xs text-ink-secondary">{cancellation.policy}</p> : null}
         </div>
       ) : null}
 
@@ -126,7 +227,16 @@ function QuoteCard({
           {formatRupees(quote.sellingPrice)} − {formatRupees(quote.couponDiscount)} coupon ({quote.couponCode})
         </p>
       ) : null}
-      {quote.validityExpiresAt ? (
+      {remainingMs !== null && !expired ? (
+        <p
+          className={`flex items-center gap-1.5 text-sm font-medium ${remainingMs < 5 * 60 * 1000 ? "text-error" : "text-ink-secondary"}`}
+          role="timer"
+          aria-live="off"
+        >
+          <Clock className="h-4 w-4" aria-hidden="true" />
+          This fare is held for {formatCountdown(remainingMs)}
+        </p>
+      ) : quote.validityExpiresAt && !specialFare ? (
         <p className="text-xs text-ink-tertiary">Valid until {formatDateTime(quote.validityExpiresAt)}</p>
       ) : null}
       {extension ? (
@@ -139,9 +249,25 @@ function QuoteCard({
         </div>
       ) : null}
 
-      <Button type="button" onClick={onApprove} isLoading={approving} disabled={!canApprove} className="mt-1">
-        Approve &amp; Continue to Payment
-      </Button>
+      {expired ? (
+        <div role="alert" className="flex flex-col gap-3 rounded-lg border border-error/30 bg-error/10 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-error">
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+            This Special Fare quotation has expired.
+          </p>
+          {newQuoteRequested ? (
+            <p className="text-sm text-ink-secondary">We&apos;ve received your request — our team is reconfirming availability and will send you a new quote.</p>
+          ) : (
+            <Button type="button" onClick={onRequestNewQuote} isLoading={requestingNewQuote} className="self-start">
+              Request New Quote
+            </Button>
+          )}
+        </div>
+      ) : (
+        <Button type="button" onClick={onApprove} isLoading={approving} disabled={!canApprove} className="mt-1">
+          Approve &amp; Continue to Payment
+        </Button>
+      )}
     </div>
   );
 }
@@ -155,6 +281,17 @@ export function QuoteReviewPanel({ token }: { token: string }) {
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
+  const [requestingNewQuote, setRequestingNewQuote] = useState(false);
+  const [newQuoteRequested, setNewQuoteRequested] = useState(false);
+  const isSpecialFare = Boolean(view?.specialFare);
+
+  // P15 — one 1-second ticker for every Special Fare countdown on the page.
+  useEffect(() => {
+    if (!isSpecialFare) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [isSpecialFare]);
 
   useEffect(() => {
     let cancelled = false;
@@ -194,6 +331,19 @@ export function QuoteReviewPanel({ token }: { token: string }) {
       />
     );
   }
+
+  const handleRequestNewQuote = async () => {
+    setRequestingNewQuote(true);
+    try {
+      await postJson(`/api/quote/${token}/request-new-quote`, {});
+      setNewQuoteRequested(true);
+      toast.success("Request sent — our team will send you a new quote.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't send your request. Please try again.");
+    } finally {
+      setRequestingNewQuote(false);
+    }
+  };
 
   const handleApprove = async (quotationId: string) => {
     setApprovingId(quotationId);
@@ -254,6 +404,11 @@ export function QuoteReviewPanel({ token }: { token: string }) {
                 key={quote.id}
                 quote={quote}
                 extension={view.extension}
+                specialFare={view.specialFare}
+                now={now}
+                onRequestNewQuote={() => void handleRequestNewQuote()}
+                requestingNewQuote={requestingNewQuote}
+                newQuoteRequested={newQuoteRequested || Boolean(view.specialFare?.newQuoteRequested)}
                 onApprove={() => void handleApprove(quote.id)}
                 approving={approvingId === quote.id}
                 canApprove={termsAgreed}

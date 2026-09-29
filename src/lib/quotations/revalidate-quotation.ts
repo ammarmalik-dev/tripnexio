@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
+import { resolveNewQuoteRequest } from "./new-quote-request";
 import { isExpiredNow } from "./sync-expiry";
 import { assertValidityWithinCap } from "./validity-cap";
 
@@ -58,6 +59,8 @@ export async function revalidateQuotation(
       byUserId: actor.byUserId,
       note: `Revalidated for lead ${quotation.leadId} (${actor.label}) — validity ${oldValidity} -> ${newValidity.toISOString()}. Reason: ${input.reason}`,
     });
+    // P15 — answers a customer's "Request New Quote".
+    await resolveNewQuoteRequest(tx, quotation.leadId, `Quote revalidated (${actor.label})`);
     return result;
   });
 

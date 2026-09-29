@@ -102,6 +102,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         flightDateTime: parsed.data.flightDateTime ? new Date(parsed.data.flightDateTime) : undefined,
         arrivalDateTime: parsed.data.arrivalDateTime ? new Date(parsed.data.arrivalDateTime) : undefined,
         validityExpiresAt: parsed.data.validityExpiresAt ? new Date(parsed.data.validityExpiresAt) : undefined,
+        bookingDeadline: parsed.data.bookingDeadline ? new Date(parsed.data.bookingDeadline) : undefined,
       },
     });
 

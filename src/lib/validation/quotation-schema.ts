@@ -22,6 +22,23 @@ export const createQuotationSchema = z.object({
   infantFare: z.number().nonnegative("Infant fare can't be negative").optional(),
   sellingPrice: z.number().nonnegative("Selling price can't be negative").optional(),
 
+  // P15 — Flight Special Fare quote details and cancellation terms (Locked
+  // v2.0 Q17: no universal cancellation charge — staff enter them per quote).
+  terminal: z.string().trim().max(60).optional(),
+  reportingTime: z.string().trim().max(60).optional(),
+  fareRules: z.string().trim().max(2000).optional(),
+  restrictions: z.string().trim().max(2000).optional(),
+  /** Internal only — never shown to the customer. */
+  vendorReference: z.string().trim().max(120).optional(),
+  bookingDeadline: isoDate("Enter a valid booking deadline").optional(),
+  cancellationAllowed: z.boolean().optional(),
+  cancellationCharge: z.number().nonnegative("Cancellation charge can't be negative").optional(),
+  chargeBasis: z.string().trim().max(120).optional(),
+  timeCondition: z.string().trim().max(200).optional(),
+  noShowCharge: z.number().nonnegative("No-show charge can't be negative").optional(),
+  estimatedRefund: z.number().nonnegative("Estimated refund can't be negative").optional(),
+  customerCancellationPolicy: z.string().trim().max(3000).optional(),
+
   // Visa services / OTB fields (simple fee-based quote)
   feeAmount: z.number().nonnegative("Fee can't be negative").optional(),
   fineOrCharges: z.number().nonnegative("Fine/charges can't be negative").optional(),

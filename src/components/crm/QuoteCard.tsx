@@ -22,6 +22,20 @@ export interface QuoteCardData {
   otherCharges?: string | null;
   /** P14 — Visa Change: the A2A / Border block snapshot this option carries. */
   operationalBlock?: unknown;
+  /** P15 — Flight Special Fare quote details / cancellation terms. */
+  terminal?: string | null;
+  reportingTime?: string | null;
+  fareRules?: string | null;
+  restrictions?: string | null;
+  vendorReference?: string | null;
+  bookingDeadline?: string | null;
+  cancellationAllowed?: boolean | null;
+  cancellationCharge?: string | null;
+  chargeBasis?: string | null;
+  timeCondition?: string | null;
+  noShowCharge?: string | null;
+  estimatedRefund?: string | null;
+  customerCancellationPolicy?: string | null;
   flightTicketPrice: string | null;
   vendorId: string;
   vendorCost: string;
@@ -160,6 +174,41 @@ export function QuoteCard({
               <dd className="font-medium text-ink-primary">{money(quotation.infantFare)}</dd>
             </div>
           ) : null}
+          {(
+            [
+              ["Terminal", quotation.terminal],
+              ["Reporting Time", quotation.reportingTime],
+              ["Booking Deadline", quotation.bookingDeadline ? formatDateTime(quotation.bookingDeadline) : null],
+              ["Vendor Ref (internal)", quotation.vendorReference],
+              ["Cancellation", quotation.cancellationAllowed == null ? null : quotation.cancellationAllowed ? "Allowed" : "Not allowed"],
+              ["Cancellation Charge", money(quotation.cancellationCharge ?? null)],
+              ["Charge Basis", quotation.chargeBasis],
+              ["Time Condition", quotation.timeCondition],
+              ["No-show Charge", money(quotation.noShowCharge ?? null)],
+              ["Estimated Refund", money(quotation.estimatedRefund ?? null)],
+            ] as [string, string | null | undefined][]
+          )
+            .filter(([, value]) => value)
+            .map(([label, value]) => (
+              <div key={label} className="flex justify-between gap-2">
+                <dt className="text-ink-tertiary">{label}</dt>
+                <dd className="font-medium text-ink-primary">{value}</dd>
+              </div>
+            ))}
+          {(
+            [
+              ["Fare Rules", quotation.fareRules],
+              ["Restrictions", quotation.restrictions],
+              ["Customer Cancellation Policy", quotation.customerCancellationPolicy],
+            ] as [string, string | null | undefined][]
+          )
+            .filter(([, value]) => value)
+            .map(([label, value]) => (
+              <div key={label} className="col-span-full flex flex-col gap-0.5">
+                <dt className="text-ink-tertiary">{label}</dt>
+                <dd className="whitespace-pre-line text-ink-primary">{value}</dd>
+              </div>
+            ))}
         </dl>
       ) : (
         <>

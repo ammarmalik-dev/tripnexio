@@ -178,6 +178,8 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
     "urgentDeadline",
     "noPriorVisa",
     "noPriorVisaApplicants",
+    "passengerReuse",
+    "newQuoteRequestedAt",
     "borderOperationalDetails",
     "a2aOperationalDetails",
     "passengers",
@@ -266,6 +268,28 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               </dl>
             )}
           </section>
+
+          {lead.serviceType === "FLIGHT_SPECIAL_FARE" && typeof lead.details.newQuoteRequestedAt === "string" ? (
+            <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+              <span className="font-semibold">New quote requested</span> by the customer on{" "}
+              {new Date(lead.details.newQuoteRequestedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{" "}
+              after the Special Fare quotation expired. Reconfirm availability, then revalidate the quote or build a new one.
+            </div>
+          ) : null}
+
+          {Array.isArray(lead.details.passengerReuse) && lead.details.passengerReuse.length > 0 ? (
+            <div className="rounded-lg border border-hairline bg-surface-1 px-4 py-3 text-sm">
+              <p className="mb-1 font-semibold text-ink-heading">Returning passengers</p>
+              <ul className="flex flex-col gap-0.5 text-ink-secondary">
+                {(lead.details.passengerReuse as { fullName?: string; reusePassport?: string | null }[]).map((row, index) => (
+                  <li key={index}>
+                    {row.fullName ?? "Passenger"} — reuse passport details:{" "}
+                    {row.reusePassport === "yes" ? "Yes" : row.reusePassport === "no" ? "No (updated passport needed)" : "—"}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           {lead.serviceType === "VISA_EXTENSION" && lead.details.noPriorVisa === true ? (
             <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">

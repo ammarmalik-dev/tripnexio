@@ -1,12 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useFormContext, useFieldArray, useWatch } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { getJson } from "@/lib/api/client";
+import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import type { FlightSpecialFareRequestValues } from "@/lib/validation/flight-special-fare-schema";
+
+interface SavedPassenger {
+  id: string;
+  fullName: string;
+  dob: string | null;
+  paxType: string;
+  hasPassportOnFile: boolean;
+}
 
 const MIN_DOB = "1900-01-01";
 
@@ -47,8 +58,36 @@ export function Step2Passengers() {
   const {
     register,
     control,
+    setValue,
     formState: { errors },
   } = useFormContext<FlightSpecialFareRequestValues>();
+  // P15 — Flight_Special_Fare.md §6: a signed-in customer can pick a saved
+  // passenger ("Existing Passenger") and choose whether to reuse the passport
+  // details on file. Guests just get empty passenger rows (401 -> no list).
+  const [saved, setSaved] = useState<SavedPassenger[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    getJson<SavedPassenger[]>("/api/account/passengers")
+      .then((list) => {
+        if (!cancelled) setSaved(list);
+      })
+      .catch(() => {
+        // Not signed in (or no saved passengers) — the form works as for a new passenger.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const pickSaved = (index: number, id: string) => {
+    const passenger = saved.find((p) => p.id === id);
+    setValue(`passengers.${index}.savedPassengerId`, passenger?.id ?? "");
+    setValue(`passengers.${index}.reusePassport`, passenger && !passenger.hasPassportOnFile ? "no" : "");
+    if (passenger) {
+      setValue(`passengers.${index}.fullName`, passenger.fullName, { shouldValidate: true });
+      setValue(`passengers.${index}.dob`, passenger.dob ?? "", { shouldValidate: true });
+    }
+  };
   const { fields, append, remove } = useFieldArray({ control, name: "passengers" });
   const travelDate = useWatch({ control, name: "travelDate" });
   const watchedPassengers = useWatch({ control, name: "passengers" });
@@ -57,7 +96,7 @@ export function Step2Passengers() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-ink-heading">Passengers</h3>
-        <Button type="button" size="sm" variant="ghost" onClick={() => append({ fullName: "", dob: "" })} disabled={fields.length >= 9}>
+        <Button type="button" size="sm" variant="ghost" onClick={() => append({ fullName: "", dob: "", savedPassengerId: "", reusePassport: "" })} disabled={fields.length >= 9}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           Add Passenger
         </Button>
@@ -69,6 +108,9 @@ export function Step2Passengers() {
 
       {fields.map((field, index) => {
         const badge = previewPaxType(watchedPassengers?.[index]?.dob ?? "", travelDate ?? "");
+        const savedId = watchedPassengers?.[index]?.savedPassengerId ?? "";
+        const savedPassenger = saved.find((p) => p.id === savedId);
+        const reuse = watchedPassengers?.[index]?.reusePassport ?? "";
         return (
           <div key={field.id} className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-4">
             <div className="flex items-center justify-between">
@@ -94,16 +136,58 @@ export function Step2Passengers() {
                 ) : null}
               </div>
             </div>
+            {saved.length > 0 ? (
+              <FormField label="Existing or new passenger" htmlFor={`saved-passenger-${index}`}>
+                <select
+                  id={`saved-passenger-${index}`}
+                  value={savedId}
+                  onChange={(event) => pickSaved(index, event.target.value)}
+                  className={cn(fieldControlClass, fieldBorderClass(false))}
+                >
+                  <option value="">New passenger</option>
+                  {saved.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.fullName}
+                    </option>
+                  ))}
+                </select>
+              </FormField>
+            ) : null}
+            {savedPassenger ? (
+              savedPassenger.hasPassportOnFile ? (
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-1 text-sm font-medium text-ink-heading">Reuse passport details?</legend>
+                  <div className="flex gap-4">
+                    {(["yes", "no"] as const).map((option) => (
+                      <label key={option} className="flex items-center gap-2 text-sm text-ink-secondary">
+                        <input
+                          type="radio"
+                          value={option}
+                          checked={reuse === option}
+                          onChange={() => setValue(`passengers.${index}.reusePassport`, option)}
+                        />
+                        {option === "yes" ? "Yes, reuse them" : "No, I'll provide an updated passport"}
+                      </label>
+                    ))}
+                  </div>
+                  {!reuse ? <p className="text-xs text-error">Choose Yes or No.</p> : null}
+                </fieldset>
+              ) : (
+                <p className="text-xs text-ink-tertiary">No passport on file for this passenger — we&apos;ll ask for it after booking.</p>
+              )
+            ) : null}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <TextField
                 label="Full Name"
                 required
+                readOnly={Boolean(savedPassenger)}
                 error={errors.passengers?.[index]?.fullName?.message}
                 {...register(`passengers.${index}.fullName` as const)}
               />
               <DateField
                 label="Date of Birth"
                 required
+                readOnly={Boolean(savedPassenger?.dob)}
                 min={MIN_DOB}
                 max={todayIso()}
                 error={errors.passengers?.[index]?.dob?.message}

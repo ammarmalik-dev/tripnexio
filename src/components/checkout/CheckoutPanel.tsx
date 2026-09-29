@@ -12,6 +12,7 @@ import { formatRupees } from "@/lib/return-ticket/use-return-ticket-destinations
 import { siteConfig } from "@/lib/site-config";
 import { utilityLinks } from "@/lib/nav-config";
 import { TermsAgreement } from "@/components/terms/TermsAgreement";
+import { PostTicketOfferCard } from "@/components/cross-sell/PostTicketOfferCard";
 
 interface CheckoutView {
   serviceType: string;
@@ -40,6 +41,8 @@ interface CheckoutView {
   /** P10 — earlier uploads the customer may choose to reuse ("Use existing"). */
   reusable: { passengerId: string; type: string; sourceDocumentId: string; uploadedAt: string }[];
   documents: { passengerId: string; type: string; status: string }[];
+  /** P15 — show the post-ticket Return Ticket / OTB offer. */
+  postTicketOffer: boolean;
 }
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
@@ -396,6 +399,8 @@ export function CheckoutPanel({ token }: { token: string }) {
               </p>
             </section>
           ) : null}
+
+          {view.postTicketOffer ? <PostTicketOfferCard bookingToken={token} /> : null}
 
           <div className="flex flex-wrap gap-3">
             <ButtonLink href={utilityLinks.trackStatus.href}>Track Status</ButtonLink>
