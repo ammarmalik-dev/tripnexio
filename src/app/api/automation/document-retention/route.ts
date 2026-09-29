@@ -94,8 +94,11 @@ export async function POST(request: NextRequest) {
           action: "PURGE",
           note: `File purged by 3-month retention policy (type "${document.type}", booking ${document.booking!.bookingId}, originally uploaded ${document.createdAt.toISOString()})`,
         });
-        await deleteUploadedFile(document.fileUrl!);
+        // Detach first, then delete: deleteUploadedFile keeps a file another
+        // record still references (a reused document), so it must no longer
+        // count this one.
         await db.document.update({ where: { id: document.id }, data: { fileUrl: null, purgedAt: new Date() } });
+        await deleteUploadedFile(document.fileUrl!);
         purged++;
       }
 

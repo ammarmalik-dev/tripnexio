@@ -816,20 +816,23 @@ async function main() {
   // (see the Country seed migration), but every descriptive field below is
   // clearly-labeled placeholder text — propose the real copy to the client
   // for review before this goes live, per hard rule #1.
-  const sampleNewVisaCountryConfig = {
+  // P10 — one row per product (country + stay days + entry type); two SAMPLE products.
+  const sampleNewVisaBase = {
     countryId: "cty_uae",
     visaCategory: "SAMPLE — Tourist / Visit Visa",
-    duration: "SAMPLE — 30 Days",
-    entryType: "SAMPLE — Single Entry / Multiple Entry",
     processingType: "SAMPLE — Normal & Express available",
     description: "SAMPLE description — replace with the real New Visa country description before this goes live.",
     termsAndConditions: "SAMPLE terms and conditions — replace with the real New Visa country terms before this goes live.",
   };
-  await db.newVisaCountryConfig.upsert({
-    where: { countryId: "cty_uae" },
-    update: sampleNewVisaCountryConfig,
-    create: sampleNewVisaCountryConfig,
-  });
+  const sample30Single = { ...sampleNewVisaBase, stayDays: 30, entryKind: "SINGLE" as const, duration: "SAMPLE — 30 Days", entryType: "SAMPLE — Single Entry", displayOrder: 0 };
+  const firstUaeConfig = await db.newVisaCountryConfig.findFirst({ where: { countryId: "cty_uae" }, orderBy: { createdAt: "asc" } });
+  if (firstUaeConfig) {
+    await db.newVisaCountryConfig.update({ where: { id: firstUaeConfig.id }, data: sample30Single });
+  } else {
+    await db.newVisaCountryConfig.create({ data: sample30Single });
+  }
+  const sample60Multiple = { ...sampleNewVisaBase, stayDays: 60, entryKind: "MULTIPLE" as const, duration: "SAMPLE — 60 Days", entryType: "SAMPLE — Multiple Entry", displayOrder: 1 };
+  await db.newVisaCountryConfig.upsert({ where: { id: "nvc_sample_uae_60_multiple" }, update: sample60Multiple, create: { id: "nvc_sample_uae_60_multiple", ...sample60Multiple } });
 
   // Step 45 (Admin FINAL handover §19) — every field left at its schema
   // default (INR/330min-IST/90-day retention preserve exact prior hardcoded

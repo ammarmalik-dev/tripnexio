@@ -8,13 +8,16 @@ import { SelectField } from "@/components/forms/SelectField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/cn";
 
-interface CountryConfig {
+/** One New Visa product (P10): a country + stay duration + entry type, with its from-price. */
+interface Product {
+  id: string;
   countryCode: string;
   countryName: string;
-  visaCategory: string;
+  stayDays: number | null;
+  entryKind: "SINGLE" | "MULTIPLE" | null;
   duration: string;
   entryType: string;
-  processingType: string;
+  fromPrice: number | null;
 }
 
 type ProcessingType = "normal" | "urgent";
@@ -55,25 +58,20 @@ function Counter({ label, value, onChange, min = 0 }: { label: string; value: nu
 }
 
 /**
- * New Visa landing page's interactive product-selection card — the
- * client's own locked "UAE Visa Options" section (Sep 2026 content doc).
- * Stay Duration/Entry Type are informational display text (from the
- * Admin-managed `NewVisaCountryConfig`, per its own doc comment — not a
- * separate pricing dimension); Processing Time (Normal/Express) and
- * traveller counts are what actually drive the live price, via the exact
- * same `computeNewVisaPrice()` the real request flow uses (through
- * `GET /api/new-visa-price`) — never a hardcoded number. "Apply Now"
- * hands the chosen country/processing-type/traveller-count to the real
- * multi-step request flow as pre-filled defaults via query params.
- *
- * Only active, Admin-configured countries are ever shown (client's own
- * locked rule) — an empty/failed fetch silently hides the whole section
- * rather than showing a broken card, same precedent as
- * `useDestinationCountryOptions`.
+ * New Visa landing page's product-selection card (UAE Visa Page Content
+ * FINAL §4). P10 — the customer picks a country, then Stay Duration (30 /
+ * 60 days) and Entry Type (Single / Multiple) from the Admin-configured
+ * products, each option showing its "from" price; Processing Time and
+ * traveller counts then drive the live price through the same
+ * `computeNewVisaPrice()` the real request uses (`GET /api/new-visa-price`).
+ * "Apply Now" hands the chosen product and options to the request form.
+ * Only active, Admin-configured products are shown; an empty/failed fetch
+ * hides the section rather than showing a broken card.
  */
 export function NewVisaProductSelector() {
-  const [countries, setCountries] = useState<CountryConfig[] | null>(null);
+  const [products, setProducts] = useState<Product[] | null>(null);
   const [countryCode, setCountryCode] = useState("");
+  const [productId, setProductId] = useState("");
   const [processingType, setProcessingType] = useState<ProcessingType>("normal");
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
@@ -92,12 +90,15 @@ export function NewVisaProductSelector() {
       try {
         const res = await fetch("/api/new-visa-countries");
         if (!res.ok) return;
-        const json = (await res.json()) as { data: CountryConfig[] };
+        const json = (await res.json()) as { data: Product[] };
         if (cancelled) return;
-        setCountries(json.data);
-        if (json.data.length > 0) setCountryCode(json.data[0].countryCode);
+        setProducts(json.data);
+        if (json.data.length > 0) {
+          setCountryCode(json.data[0].countryCode);
+          setProductId(json.data[0].id);
+        }
       } catch {
-        if (!cancelled) setCountries([]);
+        if (!cancelled) setProducts([]);
       }
     }
     void load();
@@ -106,8 +107,25 @@ export function NewVisaProductSelector() {
     };
   }, []);
 
+  const countryProducts = useMemo(() => (products ?? []).filter((p) => p.countryCode === countryCode), [products, countryCode]);
+  const selected = countryProducts.find((p) => p.id === productId) ?? countryProducts[0] ?? null;
+  const selectedId = selected?.id ?? "";
+  const countries = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const product of products ?? []) if (!seen.has(product.countryCode)) seen.set(product.countryCode, product.countryName);
+    return [...seen.entries()].map(([code, name]) => ({ code, name }));
+  }, [products]);
+  const stayOptions = [...new Set(countryProducts.map((p) => p.duration))];
+  const entryOptions = countryProducts.filter((p) => selected && p.duration === selected.duration);
+
+  const pickStay = (duration: string) => {
+    const match =
+      countryProducts.find((p) => p.duration === duration && p.entryType === selected?.entryType) ?? countryProducts.find((p) => p.duration === duration);
+    if (match) setProductId(match.id);
+  };
+
   useEffect(() => {
-    if (!countryCode) return;
+    if (!countryCode || !selectedId) return;
     let cancelled = false;
 
     const timer = setTimeout(async () => {
@@ -116,6 +134,7 @@ export function NewVisaProductSelector() {
       try {
         const params = new URLSearchParams({
           countryCode,
+          configId: selectedId,
           processingType,
           adults: String(adults),
           children: String(children),
@@ -135,18 +154,22 @@ export function NewVisaProductSelector() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [countryCode, processingType, adults, children, infants]);
+  }, [countryCode, selectedId, processingType, adults, children, infants]);
 
-  const selectedConfig = useMemo(() => countries?.find((c) => c.countryCode === countryCode) ?? null, [countries, countryCode]);
-
-  if (countries === null) {
+  if (products === null) {
     return <Skeleton className="h-96 w-full" />;
   }
-  if (countries.length === 0 || !selectedConfig) {
+  if (products.length === 0 || !selected) {
     return null;
   }
 
-  const applyHref = `/services/new-visa/request?country=${encodeURIComponent(countryCode)}&processingType=${processingType}&travelers=${adults + children + infants}`;
+  const applyHref = `/services/new-visa/request?country=${encodeURIComponent(countryCode)}&config=${encodeURIComponent(selected.id)}&processingType=${processingType}&travelers=${adults + children + infants}`;
+  const optionClass = (active: boolean) =>
+    cn(
+      "flex flex-1 flex-col items-center rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors duration-150",
+      active ? "border-accent bg-accent/10 text-accent-on-light" : "border-hairline text-ink-secondary hover:border-glass-border-strong"
+    );
+  const fromLabel = (value: number | null | undefined) => (value ? `from ${RUPEE_FORMATTER.format(value)}` : "");
 
   return (
     <GlassCard tier={2} className="flex flex-col gap-6 p-6 sm:p-8">
@@ -154,13 +177,56 @@ export function NewVisaProductSelector() {
         <SelectField
           label="Destination"
           name="productSelectorCountry"
-          options={countries.map((c) => ({ value: c.countryCode, label: c.countryName }))}
+          options={countries.map((c) => ({ value: c.code, label: c.name }))}
           value={countryCode}
-          onChange={(event) => setCountryCode(event.target.value)}
+          onChange={(event) => {
+            setCountryCode(event.target.value);
+            const first = products.find((p) => p.countryCode === event.target.value);
+            if (first) setProductId(first.id);
+          }}
         />
       ) : (
-        <p className="text-sm font-semibold text-ink-heading">{selectedConfig.countryName}</p>
+        <p className="text-sm font-semibold text-ink-heading">{selected.countryName}</p>
       )}
+
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-ink-heading">Stay Duration</span>
+        <div className="flex gap-2">
+          {stayOptions.map((duration) => {
+            const prices = countryProducts.filter((p) => p.duration === duration && p.fromPrice).map((p) => p.fromPrice as number);
+            return (
+              <button
+                key={duration}
+                type="button"
+                onClick={() => pickStay(duration)}
+                className={optionClass(selected.duration === duration)}
+                aria-pressed={selected.duration === duration}
+              >
+                {duration}
+                <span className="text-xs font-normal text-ink-tertiary">{prices.length > 0 ? fromLabel(Math.min(...prices)) : ""}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <span className="text-sm font-medium text-ink-heading">Entry Type</span>
+        <div className="flex gap-2">
+          {entryOptions.map((product) => (
+            <button
+              key={product.id}
+              type="button"
+              onClick={() => setProductId(product.id)}
+              className={optionClass(selected.id === product.id)}
+              aria-pressed={selected.id === product.id}
+            >
+              {product.entryType}
+              <span className="text-xs font-normal text-ink-tertiary">{fromLabel(product.fromPrice)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Counter label="Adults" value={adults} onChange={setAdults} min={1} />
@@ -172,15 +238,7 @@ export function NewVisaProductSelector() {
         <span className="text-sm font-medium text-ink-heading">Processing Time</span>
         <div className="flex gap-2">
           {(["normal", "urgent"] as const).map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setProcessingType(type)}
-              className={cn(
-                "flex-1 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors duration-150",
-                processingType === type ? "border-accent bg-accent/10 text-accent-on-light" : "border-hairline text-ink-secondary hover:border-glass-border-strong"
-              )}
-            >
+            <button key={type} type="button" onClick={() => setProcessingType(type)} className={optionClass(processingType === type)} aria-pressed={processingType === type}>
               {type === "normal" ? "Normal" : "Express"}
             </button>
           ))}
@@ -190,7 +248,7 @@ export function NewVisaProductSelector() {
       <dl className="grid grid-cols-2 gap-4 border-t border-hairline pt-5 sm:grid-cols-4">
         <div>
           <dt className="text-xs text-ink-tertiary">Stay Duration</dt>
-          <dd className="text-sm font-medium text-ink-primary">{selectedConfig.duration}</dd>
+          <dd className="text-sm font-medium text-ink-primary">{selected.duration}</dd>
         </div>
         <div>
           <dt className="text-xs text-ink-tertiary">Visa Validity</dt>
@@ -198,7 +256,7 @@ export function NewVisaProductSelector() {
         </div>
         <div>
           <dt className="text-xs text-ink-tertiary">Entry Type</dt>
-          <dd className="text-sm font-medium text-ink-primary">{selectedConfig.entryType}</dd>
+          <dd className="text-sm font-medium text-ink-primary">{selected.entryType}</dd>
         </div>
         <div>
           <dt className="text-xs text-ink-tertiary">Processing Time</dt>

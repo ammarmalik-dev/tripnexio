@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { SelectField } from "@/components/forms/SelectField";
+import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
@@ -27,6 +28,9 @@ interface ConfigData {
   visaCategory: string;
   duration: string;
   entryType: string;
+  stayDays: number | null;
+  entryKind: "SINGLE" | "MULTIPLE" | null;
+  displayOrder: number;
   processingType: string;
   description: string;
   termsAndConditions: string;
@@ -65,6 +69,10 @@ type FieldErrors = Record<string, string[] | undefined>;
 
 interface FormState {
   visaCategory: string;
+  /** P10 — the product: "30" / "60" and "SINGLE" / "MULTIPLE" ("" = not set, pre-P10 row). */
+  stayDays: string;
+  entryKind: string;
+  displayOrder: string;
   duration: string;
   entryType: string;
   processingType: string;
@@ -75,6 +83,9 @@ interface FormState {
 function toFormState(c: ConfigData): FormState {
   return {
     visaCategory: c.visaCategory,
+    stayDays: c.stayDays ? String(c.stayDays) : "",
+    entryKind: c.entryKind ?? "",
+    displayOrder: String(c.displayOrder),
     duration: c.duration,
     entryType: c.entryType,
     processingType: c.processingType,
@@ -83,7 +94,32 @@ function toFormState(c: ConfigData): FormState {
   };
 }
 
-const EMPTY_FORM: FormState = { visaCategory: "", duration: "", entryType: "", processingType: "", description: "", termsAndConditions: "" };
+const EMPTY_FORM: FormState = {
+  visaCategory: "",
+  stayDays: "30",
+  entryKind: "SINGLE",
+  displayOrder: "0",
+  duration: "",
+  entryType: "",
+  processingType: "",
+  description: "",
+  termsAndConditions: "",
+};
+
+/** API body for a form: the product dimensions as numbers/enums, empty display text left for the server to derive. */
+function toPayload(form: FormState) {
+  return {
+    visaCategory: form.visaCategory,
+    ...(form.stayDays ? { stayDays: Number(form.stayDays) } : {}),
+    ...(form.entryKind ? { entryKind: form.entryKind } : {}),
+    displayOrder: Number(form.displayOrder) || 0,
+    duration: form.duration.trim(),
+    entryType: form.entryType.trim(),
+    processingType: form.processingType,
+    description: form.description,
+    termsAndConditions: form.termsAndConditions,
+  };
+}
 
 function ConfigFields({
   form,
@@ -98,6 +134,46 @@ function ConfigFields({
 }) {
   return (
     <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <FormField label="Stay Duration" htmlFor="stayDays" error={errors.stayDays?.[0]} required>
+          <select
+            id="stayDays"
+            value={form.stayDays}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...form, stayDays: event.target.value })}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.stayDays))}
+          >
+            <option value="" disabled>
+              Select
+            </option>
+            <option value="30">30 Days</option>
+            <option value="60">60 Days</option>
+          </select>
+        </FormField>
+        <FormField label="Entry Type" htmlFor="entryKind" error={errors.entryKind?.[0]} required>
+          <select
+            id="entryKind"
+            value={form.entryKind}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...form, entryKind: event.target.value })}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.entryKind))}
+          >
+            <option value="" disabled>
+              Select
+            </option>
+            <option value="SINGLE">Single Entry</option>
+            <option value="MULTIPLE">Multiple Entry</option>
+          </select>
+        </FormField>
+        <TextField
+          label="Display Order"
+          name="displayOrder"
+          type="number"
+          value={form.displayOrder}
+          onChange={(event) => onChange({ ...form, displayOrder: event.target.value })}
+          disabled={disabled}
+        />
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField
           label="Visa Category"
@@ -109,18 +185,18 @@ function ConfigFields({
           disabled={disabled}
         />
         <TextField
-          label="Duration"
+          label="Duration text (optional)"
           name="duration"
-          placeholder="e.g. 30 Days"
+          placeholder="Defaults to e.g. 30 Days"
           value={form.duration}
           onChange={(event) => onChange({ ...form, duration: event.target.value })}
           error={errors.duration?.[0]}
           disabled={disabled}
         />
         <TextField
-          label="Entry Type"
+          label="Entry type text (optional)"
           name="entryType"
-          placeholder="e.g. Single Entry / Multiple Entry"
+          placeholder="Defaults to e.g. Single Entry"
           value={form.entryType}
           onChange={(event) => onChange({ ...form, entryType: event.target.value })}
           error={errors.entryType?.[0]}
@@ -232,7 +308,7 @@ function ConfigCard({
     setSaving(true);
     setErrors({});
     try {
-      const updated = await patchJson<ConfigData>(`/api/admin/new-visa-countries/${config.id}`, form);
+      const updated = await patchJson<ConfigData>(`/api/admin/new-visa-countries/${config.id}`, toPayload(form));
       toast.success(`${updated.country.name} updated.`);
       onSaved(updated);
     } catch (error) {
@@ -275,7 +351,8 @@ function ConfigCard({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-ink-heading">
-            {config.country.name} ({config.country.code})
+            {config.country.name} ({config.country.code}) · {config.stayDays ? `${config.stayDays} Days` : config.duration} ·{" "}
+            {config.entryKind ? (config.entryKind === "SINGLE" ? "Single Entry" : "Multiple Entry") : config.entryType}
           </span>
           <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", config.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
             {config.active ? "Active" : "Disabled"}
@@ -323,7 +400,7 @@ function NewConfigForm({ availableCountries, onCreated }: { availableCountries: 
     setCreating(true);
     setErrors({});
     try {
-      const created = await postJson<ConfigData>("/api/admin/new-visa-countries", { countryId, ...form });
+      const created = await postJson<ConfigData>("/api/admin/new-visa-countries", { countryId, ...toPayload(form) });
       toast.success(`${created.country.name} added.`);
       onCreated(created);
       setCountryId("");
@@ -339,19 +416,19 @@ function NewConfigForm({ availableCountries, onCreated }: { availableCountries: 
   const canSubmit =
     !!countryId &&
     form.visaCategory.trim() !== "" &&
-    form.duration.trim() !== "" &&
-    form.entryType.trim() !== "" &&
+    form.stayDays !== "" &&
+    form.entryKind !== "" &&
     form.processingType.trim() !== "" &&
     form.description.trim() !== "" &&
     form.termsAndConditions.trim() !== "";
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">Add New Visa Country</h2>
+      <h2 className="text-sm font-semibold text-ink-heading">Add New Visa Product</h2>
       <SelectField
         label="Country"
         name="countryId"
-        placeholder={availableCountries.length ? "Select a country" : "All countries already added"}
+        placeholder={availableCountries.length ? "Select a country" : "No active countries"}
         options={availableCountries.map((c) => ({ value: c.id, label: `${c.name} (${c.code})` }))}
         value={countryId}
         onChange={(event) => setCountryId(event.target.value)}
@@ -445,8 +522,8 @@ export function NewVisaCountriesManager() {
     );
   }
 
-  const usedCountryIds = new Set(configs.map((c) => c.countryId));
-  const availableCountries = countries.filter((c) => c.active && !usedCountryIds.has(c.id));
+  // P10 — a country can have several products (stay duration x entry type).
+  const availableCountries = countries.filter((c) => c.active);
 
   return (
     <div className="flex flex-col gap-4">

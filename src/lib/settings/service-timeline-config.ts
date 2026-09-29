@@ -7,6 +7,8 @@ export interface ServiceTimelineRules {
   quotationResponseMinutes: number | null;
   paymentDeadlineHours: number | null;
   followUpIntervalDays: number | null;
+  minTravelDaysNormal: number | null;
+  minTravelDaysExpress: number | null;
 }
 
 const EMPTY_RULES: ServiceTimelineRules = {
@@ -15,6 +17,8 @@ const EMPTY_RULES: ServiceTimelineRules = {
   quotationResponseMinutes: null,
   paymentDeadlineHours: null,
   followUpIntervalDays: null,
+  minTravelDaysNormal: null,
+  minTravelDaysExpress: null,
 };
 
 /**
@@ -32,5 +36,7 @@ export async function getServiceTimelineRules(serviceType: ServiceType): Promise
     quotationResponseMinutes: config.quotationResponseMinutes,
     paymentDeadlineHours: config.paymentDeadlineHours,
     followUpIntervalDays: config.followUpIntervalDays,
+    minTravelDaysNormal: config.minTravelDaysNormal,
+    minTravelDaysExpress: config.minTravelDaysExpress,
   };
 }

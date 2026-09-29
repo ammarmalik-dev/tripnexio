@@ -4,13 +4,14 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { ENTRY_KIND_LABELS } from "@/lib/new-visa/products";
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
 
   const configs = await db.newVisaCountryConfig.findMany({
-    orderBy: [{ country: { displayOrder: "asc" } }, { country: { name: "asc" } }],
+    orderBy: [{ country: { displayOrder: "asc" } }, { country: { name: "asc" } }, { displayOrder: "asc" }, { stayDays: "asc" }],
     include: { country: { select: { id: true, name: true, code: true } } },
   });
   return jsonSuccess(configs);
@@ -36,14 +37,22 @@ export async function POST(request: NextRequest) {
   const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
   if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
 
-  const existing = await db.newVisaCountryConfig.findUnique({ where: { countryId: country.id } });
+  // P10 — one product per country + stay duration + entry type.
+  const existing = await db.newVisaCountryConfig.findFirst({
+    where: { countryId: country.id, stayDays: parsed.data.stayDays, entryKind: parsed.data.entryKind },
+  });
   if (existing) {
-    return jsonError(400, "This country is already set up for New Visa.", { countryId: ["Already added."] });
+    return jsonError(400, "This country already has that stay duration and entry type.", { stayDays: ["Already added."] });
   }
+  const data = {
+    ...parsed.data,
+    duration: parsed.data.duration || `${parsed.data.stayDays} Days`,
+    entryType: parsed.data.entryType || ENTRY_KIND_LABELS[parsed.data.entryKind],
+  };
 
   const created = await db.$transaction(async (tx) => {
     const row = await tx.newVisaCountryConfig.create({
-      data: parsed.data,
+      data,
       include: { country: { select: { id: true, name: true, code: true } } },
     });
     await writeAudit(tx, {
@@ -51,7 +60,7 @@ export async function POST(request: NextRequest) {
       entityId: row.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `New Visa country config for "${row.country.name}" added (by ${session.name})`,
+      note: `New Visa product for "${row.country.name}" added — ${row.stayDays} days, ${row.entryKind} entry (by ${session.name})`,
     });
     return row;
   });

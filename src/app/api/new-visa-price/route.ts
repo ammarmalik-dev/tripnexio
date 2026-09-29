@@ -18,6 +18,7 @@ const MAX_TRAVELLERS = 9;
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const countryCode = searchParams.get("countryCode");
+  const configId = searchParams.get("configId");
   const processingTypeParam = searchParams.get("processingType");
   const adults = Number(searchParams.get("adults") ?? "0");
   const children = Number(searchParams.get("children") ?? "0");
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
     ...Array<PaxType>(infants).fill("INFANT"),
   ];
 
-  const breakdown = await computeNewVisaPrice({ countryCode, processingType: processingTypeParam, travellerPaxTypes });
+  const breakdown = await computeNewVisaPrice({ countryCode, newVisaConfigId: configId, processingType: processingTypeParam, travellerPaxTypes });
   if (!breakdown) return jsonSuccess({ configured: false });
 
   return jsonSuccess({ configured: true, total: breakdown.total, ratePerType: breakdown.ratePerType });

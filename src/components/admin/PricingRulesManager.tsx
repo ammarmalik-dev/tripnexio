@@ -37,6 +37,7 @@ interface PricingRuleData {
   paxType: PaxType;
   nationality: string | null;
   nationalityId: string | null;
+  newVisaConfigId: string | null;
   vendorCost: string;
   sellingPrice: string;
   additionalCharges: string;
@@ -47,12 +48,29 @@ interface PricingRuleData {
 
 type FetchState = "loading" | "success" | "error";
 
+/** P10 — a New Visa product (country + stay + entry) a price can target. */
+interface NewVisaProductOption {
+  id: string;
+  countryId: string;
+  label: string;
+}
+
+interface NewVisaProductRow {
+  id: string;
+  countryId: string;
+  stayDays: number | null;
+  entryKind: "SINGLE" | "MULTIPLE" | null;
+  duration: string;
+  entryType: string;
+}
+
 interface FormState {
   serviceType: ServiceType | "";
   countryId: string;
   processingType: "" | "normal" | "urgent";
   paxType: PaxType | "";
   nationality: string;
+  newVisaConfigId: string;
   vendorCost: string;
   sellingPrice: string;
   additionalCharges: string;
@@ -66,6 +84,7 @@ const EMPTY_FORM: FormState = {
   processingType: "",
   paxType: "",
   nationality: "",
+  newVisaConfigId: "",
   vendorCost: "0",
   sellingPrice: "",
   additionalCharges: "0",
@@ -80,6 +99,7 @@ function toFormState(rule: PricingRuleData): FormState {
     processingType: (rule.processingType as "normal" | "urgent" | null) ?? "",
     paxType: rule.paxType,
     nationality: nationalityFormValue(rule),
+    newVisaConfigId: rule.newVisaConfigId ?? "",
     vendorCost: rule.vendorCost,
     sellingPrice: rule.sellingPrice,
     additionalCharges: rule.additionalCharges,
@@ -94,6 +114,7 @@ function PricingFields({
   errors,
   disabled,
   countries,
+  products,
   currentNationalityName,
 }: {
   form: FormState;
@@ -101,6 +122,7 @@ function PricingFields({
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
   countries: CountryData[];
+  products: NewVisaProductOption[];
   currentNationalityName?: string | null;
 }) {
   return (
@@ -129,11 +151,31 @@ function PricingFields({
         placeholder="All countries (not country-specific)"
         options={countries.map((c) => ({ value: c.id, label: c.name }))}
         value={form.countryId}
-        onChange={(event) => onChange({ ...form, countryId: event.target.value })}
+        onChange={(event) => onChange({ ...form, countryId: event.target.value, newVisaConfigId: "" })}
         error={errors.countryId?.[0]}
         disabled={disabled}
         hint="Optional — leave unset for a rule not tied to a destination country."
       />
+      {form.serviceType === "NEW_VISA" && form.countryId ? (
+        <FormField label="New Visa product" htmlFor="newVisaConfigId" error={errors.newVisaConfigId?.[0]}>
+          <select
+            id="newVisaConfigId"
+            value={form.newVisaConfigId}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...form, newVisaConfigId: event.target.value })}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.newVisaConfigId))}
+          >
+            <option value="">Every product of this country</option>
+            {products
+              .filter((product) => product.countryId === form.countryId)
+              .map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.label}
+                </option>
+              ))}
+          </select>
+        </FormField>
+      ) : null}
       <FormField label="Processing Type" htmlFor="processingType" error={errors.processingType?.[0]}>
         <select
           id="processingType"
@@ -239,6 +281,7 @@ function buildPayload(form: FormState) {
     processingType: form.processingType === "" ? undefined : form.processingType,
     paxType: form.paxType || undefined,
     nationalityId: nationalityPayload(form.nationality),
+    newVisaConfigId: form.serviceType === "NEW_VISA" && form.newVisaConfigId ? form.newVisaConfigId : null,
     vendorCost: form.vendorCost === "" ? 0 : Number(form.vendorCost),
     sellingPrice: form.sellingPrice === "" ? undefined : Number(form.sellingPrice),
     additionalCharges: form.additionalCharges === "" ? 0 : Number(form.additionalCharges),
@@ -250,10 +293,12 @@ function buildPayload(form: FormState) {
 function PricingCard({
   rule,
   countries,
+  products,
   onSaved,
 }: {
   rule: PricingRuleData;
   countries: CountryData[];
+  products: NewVisaProductOption[];
   onSaved: (rule: PricingRuleData) => void;
 }) {
   const [form, setForm] = useState<FormState>(toFormState(rule));
@@ -309,6 +354,7 @@ function PricingCard({
         errors={errors}
         disabled={saving}
         countries={countries}
+        products={products}
         currentNationalityName={rule.nationality}
       />
       <div className="flex justify-end">
@@ -320,7 +366,15 @@ function PricingCard({
   );
 }
 
-function NewPricingRuleForm({ countries, onCreated }: { countries: CountryData[]; onCreated: (rule: PricingRuleData) => void }) {
+function NewPricingRuleForm({
+  countries,
+  products,
+  onCreated,
+}: {
+  countries: CountryData[];
+  products: NewVisaProductOption[];
+  onCreated: (rule: PricingRuleData) => void;
+}) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
@@ -346,7 +400,7 @@ function NewPricingRuleForm({ countries, onCreated }: { countries: CountryData[]
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Pricing Rule</h2>
-      <PricingFields form={form} onChange={setForm} errors={errors} disabled={creating} countries={countries} />
+      <PricingFields form={form} onChange={setForm} errors={errors} disabled={creating} countries={countries} products={products} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -371,6 +425,7 @@ export function PricingRulesManager() {
   const [state, setState] = useState<FetchState>("loading");
   const [rules, setRules] = useState<PricingRuleData[]>([]);
   const [countries, setCountries] = useState<CountryData[]>([]);
+  const [products, setProducts] = useState<NewVisaProductOption[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
 
@@ -380,13 +435,21 @@ export function PricingRulesManager() {
     async function load() {
       setState("loading");
       try {
-        const [ruleList, countryList] = await Promise.all([
+        const [ruleList, countryList, productList] = await Promise.all([
           getJson<PricingRuleData[]>("/api/admin/pricing-rules"),
           getJson<CountryData[]>("/api/admin/countries"),
+          getJson<NewVisaProductRow[]>("/api/admin/new-visa-countries"),
         ]);
         if (cancelled) return;
         setRules(ruleList);
         setCountries(countryList.filter((c) => c.active));
+        setProducts(
+          productList.map((row) => ({
+            id: row.id,
+            countryId: row.countryId,
+            label: `${row.stayDays ? `${row.stayDays} Days` : row.duration} · ${row.entryKind ? (row.entryKind === "SINGLE" ? "Single Entry" : "Multiple Entry") : row.entryType}`,
+          }))
+        );
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -435,11 +498,12 @@ export function PricingRulesManager() {
             key={rule.id}
             rule={rule}
             countries={countries}
+            products={products}
             onSaved={(updated) => setRules((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
           />
         ))
       )}
-      <NewPricingRuleForm countries={countries} onCreated={(created) => setRules((current) => [...current, created])} />
+      <NewPricingRuleForm countries={countries} products={products} onCreated={(created) => setRules((current) => [...current, created])} />
     </div>
   );
 }

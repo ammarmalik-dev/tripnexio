@@ -3,6 +3,12 @@ import { rateLimitByIp } from "@/lib/auth/rate-limit";
 import { isHoneypotFilled } from "@/lib/validation/honeypot";
 import { LEAD_INTAKE_RATE_LIMIT } from "@/lib/leads/intake-limits";
 import { getActiveVisaTypes } from "@/lib/visa-types/active-visa-types";
+import { db } from "@/lib/db";
+import { allowedProcessingTypes, productLabel } from "@/lib/new-visa/products";
+import { getNewVisaTravelRules } from "@/lib/new-visa/travel-rules";
+import { getWorkingCalendar } from "@/lib/calendar/get-working-calendar";
+import { workingDaysBetween } from "@/lib/calendar/working-calendar";
+import { flagShortPassportValidity } from "@/lib/new-visa/flag-passport-validity";
 import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
 import { newVisaRequestSchema } from "@/lib/validation/new-visa-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
@@ -43,6 +49,7 @@ export async function POST(request: NextRequest) {
     email,
     destinationCountry,
     visaType,
+    newVisaConfigId,
     travelDate,
     processingType,
     passportImageBase64,
@@ -62,6 +69,7 @@ export async function POST(request: NextRequest) {
     {
       fullName,
       passportNumber,
+      passportExpiry: parsed.data.passportExpiry,
       dob,
       occupation,
       guardianFullName,
@@ -109,6 +117,27 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Select a visa type.", { visaType: ["Select a visa type"] });
   }
 
+  // P10 — the product (stay duration + entry type) must be an active one of
+  // this destination, required whenever the destination has any.
+  const products = await db.newVisaCountryConfig.findMany({
+    where: { active: true, country: { active: true, code: { equals: destinationCountry, mode: "insensitive" } } },
+    select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true },
+  });
+  const product = newVisaConfigId ? products.find((option) => option.id === newVisaConfigId) : undefined;
+  if (newVisaConfigId ? !product : products.length > 0) {
+    return jsonError(400, "Select a visa option.", { newVisaConfigId: ["Select a visa option"] });
+  }
+
+  // P10 — minimum UAE working days before travel for the chosen processing type.
+  const travelRules = await getNewVisaTravelRules();
+  const workingDays = workingDaysBetween(travelDate, new Date(), await getWorkingCalendar("UAE"));
+  if (!allowedProcessingTypes(workingDays, travelRules).includes(processingType)) {
+    const needed = processingType === "urgent" ? travelRules.minTravelDaysExpress : travelRules.minTravelDaysNormal;
+    return jsonError(400, `${processingType === "urgent" ? "Express" : "Normal"} processing needs your travel date at least ${needed} working days away.`, {
+      processingType: ["This processing type can't meet your travel date."],
+    });
+  }
+
   const paxTypes = travellers.map((t) => computePaxType(t.dob, travelDate));
 
   try {
@@ -124,12 +153,14 @@ export async function POST(request: NextRequest) {
       details: {
         destinationCountry,
         ...(pickedVisaType ? { visaType: pickedVisaType.name, visaTypeId: pickedVisaType.id } : {}),
+        ...(product ? { newVisaConfigId: product.id, visaOption: productLabel(product) } : {}),
         travelers: String(travellers.length),
         travelDate,
         // Applicant-wise record, in the same order as details.passengerIds.
         applicants: travellers.map((t) => ({
           fullName: t.fullName,
           passportNumber: t.passportNumber,
+          ...(t.passportExpiry ? { passportExpiry: t.passportExpiry } : {}),
           occupation: t.occupation,
           ...(t.guardianFullName
             ? {
@@ -167,6 +198,18 @@ export async function POST(request: NextRequest) {
       )
     );
 
+    // P10 — passport expiring within 6 months of travel (entered or read by
+    // OCR just above): a staff task, never a block. Never throws.
+    await flagShortPassportValidity({
+      leadId: result.leadId,
+      travelDate,
+      travellers: travellers.map((traveller, index) => ({
+        passengerId: result.passengerIds[index],
+        fullName: traveller.fullName,
+        enteredExpiry: traveller.passportExpiry,
+      })),
+    });
+
     // Pay right after the form (client answer, 2026-09-23) — the price is
     // Admin-configured (country + Normal/Express, per-traveller Adult/
     // Child/Infant), computed here rather than trusted from the client. A
@@ -174,7 +217,12 @@ export async function POST(request: NextRequest) {
     // staff can still build a manual quotation and send a payment link.
     let payToken: string | undefined;
     try {
-      const price = await computeNewVisaPrice({ countryCode: destinationCountry, processingType, travellerPaxTypes: paxTypes });
+      const price = await computeNewVisaPrice({
+        countryCode: destinationCountry,
+        newVisaConfigId: product?.id ?? null,
+        processingType,
+        travellerPaxTypes: paxTypes,
+      });
       if (price) {
         const checkout = await createAutoCheckout({
           leadId: result.leadId,

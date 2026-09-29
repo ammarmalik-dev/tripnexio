@@ -3,6 +3,7 @@ import { createPricingRuleSchema } from "@/lib/validation/pricing-rule-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { resolveNationalityInput } from "@/lib/nationalities/resolve";
+import { validatePricingRuleProduct } from "@/lib/new-visa/validate-product-rule";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest) {
     const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
     if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
   }
+  const productError = await validatePricingRuleProduct(parsed.data);
+  if (productError) return productError;
   const nationalityInput = await resolveNationalityInput(parsed.data);
   if (nationalityInput.error) return nationalityInput.error;
   const ruleData = { ...parsed.data, ...nationalityInput.data };
@@ -53,6 +56,7 @@ export async function POST(request: NextRequest) {
       paxType: parsed.data.paxType,
       nationalityId: ruleData.nationalityId ?? null,
       nationality: ruleData.nationality ?? null,
+      newVisaConfigId: parsed.data.newVisaConfigId ?? null,
     },
   });
   if (existing) {

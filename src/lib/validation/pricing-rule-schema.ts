@@ -18,6 +18,8 @@ export const createPricingRuleSchema = z.object({
   nationality: z.string().trim().min(2).optional(),
   /** Nationality master id (P06); null = every nationality. Takes precedence over `nationality`. */
   nationalityId: z.string().min(1).nullable().optional(),
+  /** P10 — New Visa only: the product this price is for; null = every product of the country. */
+  newVisaConfigId: z.string().min(1).nullable().optional(),
   vendorCost: z.number().nonnegative("Vendor cost can't be negative").default(0),
   sellingPrice: z.number({ error: "Enter the selling price" }).nonnegative("Selling price can't be negative"),
   additionalCharges: z.number().nonnegative("Additional charges can't be negative").default(0),

@@ -102,6 +102,13 @@ function legacyPublicPath(fileUrl: string): string | null {
  */
 export async function deleteUploadedFile(fileUrl: string): Promise<void> {
   if (!fileUrl.startsWith("/")) return;
+  // A reused document (staff reuse, or the customer's "Use existing") shares
+  // its file with another record — never delete a file something still uses.
+  const [documentRefs, slipRefs] = await Promise.all([
+    db.document.count({ where: { fileUrl, purgedAt: null } }),
+    db.payment.count({ where: { bankSlipUrl: fileUrl } }),
+  ]);
+  if (documentRefs > 0 || slipRefs > 0) return;
 
   let absolutePath: string | null = null;
   if (fileUrl.startsWith(FILE_URL_PREFIX)) {

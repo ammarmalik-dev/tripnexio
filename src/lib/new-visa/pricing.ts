@@ -20,6 +20,8 @@ export interface NewVisaPriceBreakdown {
  */
 export async function computeNewVisaPrice(input: {
   countryCode: string;
+  /** P10 — the chosen product (NewVisaCountryConfig); its own rules win over the country-wide ones. */
+  newVisaConfigId?: string | null;
   processingType: "normal" | "urgent";
   travellerPaxTypes: PaxType[];
 }): Promise<NewVisaPriceBreakdown | null> {
@@ -34,12 +36,17 @@ export async function computeNewVisaPrice(input: {
       processingType: input.processingType,
       paxType: { in: uniquePaxTypes },
       nationality: null,
+      nationalityId: null,
       active: true,
       country: { active: true },
+      OR: [{ newVisaConfigId: null }, ...(input.newVisaConfigId ? [{ newVisaConfigId: input.newVisaConfigId }] : [])],
     },
   });
 
-  const ruleFor = (paxType: PaxType) => rules.find((rule) => rule.paxType === paxType);
+  // A rule for the chosen product beats the country-wide one for the same passenger type.
+  const ruleFor = (paxType: PaxType) =>
+    (input.newVisaConfigId ? rules.find((rule) => rule.paxType === paxType && rule.newVisaConfigId === input.newVisaConfigId) : undefined) ??
+    rules.find((rule) => rule.paxType === paxType && rule.newVisaConfigId === null);
   if (uniquePaxTypes.some((paxType) => !ruleFor(paxType))) return null;
 
   const rateFor = (paxType: PaxType) => {

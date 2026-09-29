@@ -34,6 +34,13 @@ export const newVisaStep1Schema = z.object({
    */
   visaType: z.string().max(40),
   visaTypeRequired: z.boolean(),
+  /**
+   * P10 — the chosen product (NewVisaCountryConfig id: stay duration + entry
+   * type). Required whenever the destination has products — `visaOptionRequired`
+   * (set by step 1) and the API route both enforce that.
+   */
+  newVisaConfigId: z.string().max(40),
+  visaOptionRequired: z.boolean(),
   travelers: z
     .string()
     .trim()
@@ -111,6 +118,8 @@ const travellerDetailFields = {
     .min(1, "Select the date of birth")
     .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid date of birth"),
   occupation: z.string().trim().min(1, "Select an occupation"),
+  /** P10 — optional; within 6 months of the travel date shows a warning and a staff task, never a block. */
+  passportExpiry: z.string().max(20).optional(),
   guardianFullName: z.string().trim().optional(),
   guardianPassportNumber: z.string().trim().optional(),
   guardianRelationship: z.enum(GUARDIAN_RELATIONSHIPS).optional(),
@@ -174,8 +183,11 @@ export function findNewVisaTravellerIssues(
 }
 
 /** Step 1's cross-field rule: a visa type must be picked whenever the destination offers any. */
-export function findNewVisaStep1Issues(values: { visaType: string; visaTypeRequired: boolean }) {
-  return values.visaTypeRequired && !values.visaType ? [{ path: "visaType", message: "Select a visa type" }] : [];
+export function findNewVisaStep1Issues(values: { visaType: string; visaTypeRequired: boolean; newVisaConfigId: string; visaOptionRequired: boolean }) {
+  const issues: { path: string; message: string }[] = [];
+  if (values.visaOptionRequired && !values.newVisaConfigId) issues.push({ path: "newVisaConfigId", message: "Select a visa option" });
+  if (values.visaTypeRequired && !values.visaType) issues.push({ path: "visaType", message: "Select a visa type" });
+  return issues;
 }
 
 export type NewVisaStep1Values = z.infer<typeof newVisaStep1Schema>;
@@ -183,7 +195,7 @@ export type NewVisaStep2Values = z.infer<typeof newVisaStep2Schema>;
 export type NewVisaRequestValues = z.infer<typeof newVisaRequestSchema>;
 
 export const newVisaStepFields: Record<number, (keyof NewVisaRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "destinationCountry", "visaType", "travelDate"],
+  0: ["fullName", "mobile", "email", "destinationCountry", "newVisaConfigId", "visaType", "travelDate"],
   1: ["passportNumber", "dob", "occupation", "additionalTravellers"],
   2: ["processingType"],
   3: [],

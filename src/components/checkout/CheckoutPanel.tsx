@@ -33,6 +33,8 @@ interface CheckoutView {
   demoGateway: boolean;
   applicants: { id: string; fullName: string }[];
   documentTypes: { type: string; label: string; required: boolean }[];
+  /** P10 — earlier uploads the customer may choose to reuse ("Use existing"). */
+  reusable: { passengerId: string; type: string; sourceDocumentId: string; uploadedAt: string }[];
   documents: { passengerId: string; type: string; status: string }[];
 }
 
@@ -54,11 +56,14 @@ function DocumentSlot({
   uploaded,
   uploading,
   onFile,
+  reuse,
 }: {
   label: string;
   uploaded: boolean;
   uploading: boolean;
   onFile: (file: File) => void;
+  /** P10 — when set, offer "Use existing" next to "Upload new"; nothing is reused without this click. */
+  reuse?: { uploadedAt: string; onUse: () => void };
 }) {
   const [error, setError] = useState<string | null>(null);
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -83,11 +88,28 @@ function DocumentSlot({
           {label}
           {uploaded ? <span className="text-xs text-success">Uploaded</span> : null}
         </span>
-        <label className="cursor-pointer rounded-md bg-surface-1 px-3 py-1.5 text-xs font-medium text-ink-accent ring-1 ring-hairline hover:bg-surface-3">
-          {uploading ? "Uploading..." : uploaded ? "Replace" : "Choose file"}
-          <input type="file" accept={ALLOWED_TYPES.join(",")} className="sr-only" onChange={handleChange} disabled={uploading} />
-        </label>
+        <span className="flex items-center gap-2">
+          {reuse && !uploaded ? (
+            <button
+              type="button"
+              onClick={reuse.onUse}
+              disabled={uploading}
+              className="rounded-md bg-accent/10 px-3 py-1.5 text-xs font-medium text-ink-accent ring-1 ring-accent/30 hover:bg-accent/20"
+            >
+              Use existing
+            </button>
+          ) : null}
+          <label className="cursor-pointer rounded-md bg-surface-1 px-3 py-1.5 text-xs font-medium text-ink-accent ring-1 ring-hairline hover:bg-surface-3">
+            {uploading ? "Uploading..." : uploaded ? "Replace" : reuse ? "Upload new" : "Choose file"}
+            <input type="file" accept={ALLOWED_TYPES.join(",")} className="sr-only" onChange={handleChange} disabled={uploading} />
+          </label>
+        </span>
       </div>
+      {reuse && !uploaded ? (
+        <span className="text-xs text-ink-tertiary">
+          We have the copy you uploaded on {new Date(reuse.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
+        </span>
+      ) : null}
       {error ? <span className="text-xs text-error">{error}</span> : null}
     </div>
   );
@@ -192,6 +214,19 @@ export function CheckoutPanel({ token }: { token: string }) {
       refresh();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't upload that file. Please try again.");
+    } finally {
+      setUploadingKey(null);
+    }
+  };
+
+  const handleReuse = async (passengerId: string, type: string, sourceDocumentId: string) => {
+    setUploadingKey(`${passengerId}:${type}`);
+    try {
+      await postJson(`/api/pay/${token}/documents/reuse`, { passengerId, type, sourceDocumentId });
+      toast.success("Document added.");
+      refresh();
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't use that document. Please upload a new one.");
     } finally {
       setUploadingKey(null);
     }
@@ -328,6 +363,12 @@ export function CheckoutPanel({ token }: { token: string }) {
                       uploaded={hasDocument(applicant.id, doc.type)}
                       uploading={uploadingKey === `${applicant.id}:${doc.type}`}
                       onFile={(file) => void handleUpload(applicant.id, doc.type, file)}
+                      reuse={(() => {
+                        const offer = view.reusable.find((item) => item.passengerId === applicant.id && item.type === doc.type);
+                        return offer
+                          ? { uploadedAt: offer.uploadedAt, onUse: () => void handleReuse(applicant.id, doc.type, offer.sourceDocumentId) }
+                          : undefined;
+                      })()}
                     />
                   ))}
                 </div>

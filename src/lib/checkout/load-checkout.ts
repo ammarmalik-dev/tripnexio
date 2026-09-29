@@ -4,6 +4,7 @@ import { assertQuotationPayable } from "../payments/quotation-payable";
 import { leadReference } from "../leads/reference";
 import { resolveCheckoutDocumentTypes } from "./required-documents";
 import { getEffectiveTerms, resolveLeadCountryId } from "../terms/service-terms";
+import { findReusableDocuments } from "./reusable-documents";
 
 /** Loads everything the guest /pay/<token> page needs, or null for an unknown token. Never exposes internal fields (vendor cost, margin, staff notes). */
 export async function loadCheckoutByToken(token: string) {
@@ -28,6 +29,16 @@ export async function loadCheckoutByToken(token: string) {
   const discount = Number(payment?.couponDiscount ?? 0);
 
   const documentTypes = paid ? await resolveCheckoutDocumentTypes(booking) : [];
+  // P10 — New Visa returning passengers: earlier uploads that could fill a slot (offered, never auto-used).
+  const reusable =
+    paid && booking.lead.serviceType === "NEW_VISA"
+      ? await findReusableDocuments({
+          bookingId: booking.id,
+          passengerIds: booking.passengers.map((row) => row.passenger.id),
+          documentTypes,
+          uploaded: booking.documents.filter((doc) => doc.passengerId).map((doc) => ({ passengerId: doc.passengerId as string, type: doc.type })),
+        })
+      : [];
   const quotationExpired = payment?.status === "PENDING" ? (await assertQuotationPayable({ purpose: payment.purpose, booking })) !== null : false;
   // P09 — the customer must agree to the service's Terms before any payment
   // option (gateway link or demo button) is offered.
@@ -59,6 +70,7 @@ export async function loadCheckoutByToken(token: string) {
       demoGateway: isMockGatewayActive(),
       applicants: booking.passengers.map((row) => ({ id: row.passenger.id, fullName: row.passenger.fullName })),
       documentTypes,
+      reusable,
       documents: booking.documents
         .filter((document) => document.passengerId)
         .map((document) => ({ passengerId: document.passengerId as string, type: document.type, status: document.status })),

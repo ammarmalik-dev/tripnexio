@@ -19,6 +19,8 @@ interface TimelineData {
   quotationResponseMinutes: number | null;
   paymentDeadlineHours: number | null;
   followUpIntervalDays: number | null;
+  minTravelDaysNormal: number | null;
+  minTravelDaysExpress: number | null;
   active: boolean;
 }
 
@@ -30,6 +32,8 @@ interface FormState {
   quotationResponseMinutes: string;
   paymentDeadlineHours: string;
   followUpIntervalDays: string;
+  minTravelDaysNormal: string;
+  minTravelDaysExpress: string;
 }
 
 function toFormState(item: TimelineData): FormState {
@@ -39,6 +43,8 @@ function toFormState(item: TimelineData): FormState {
     quotationResponseMinutes: item.quotationResponseMinutes === null ? "" : String(item.quotationResponseMinutes),
     paymentDeadlineHours: item.paymentDeadlineHours === null ? "" : String(item.paymentDeadlineHours),
     followUpIntervalDays: item.followUpIntervalDays === null ? "" : String(item.followUpIntervalDays),
+    minTravelDaysNormal: item.minTravelDaysNormal === null ? "" : String(item.minTravelDaysNormal),
+    minTravelDaysExpress: item.minTravelDaysExpress === null ? "" : String(item.minTravelDaysExpress),
   };
 }
 
@@ -50,6 +56,8 @@ function buildPayload(form: FormState) {
     quotationResponseMinutes: toNullableInt(form.quotationResponseMinutes),
     paymentDeadlineHours: toNullableInt(form.paymentDeadlineHours),
     followUpIntervalDays: toNullableInt(form.followUpIntervalDays),
+    minTravelDaysNormal: toNullableInt(form.minTravelDaysNormal),
+    minTravelDaysExpress: toNullableInt(form.minTravelDaysExpress),
   };
 }
 
@@ -165,6 +173,34 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
           error={errors.followUpIntervalDays?.[0]}
           disabled={saving}
         />
+        {item.serviceType === "NEW_VISA" ? (
+          <>
+            <TextField
+              label="Normal: minimum working days before travel"
+              name={`min-normal-${item.id}`}
+              type="number"
+              min={0}
+              placeholder="7 (default)"
+              hint="UAE working days (weekends and holidays skipped). Uses 7 when not set."
+              value={form.minTravelDaysNormal}
+              onChange={(event) => setForm({ ...form, minTravelDaysNormal: event.target.value })}
+              error={errors.minTravelDaysNormal?.[0]}
+              disabled={saving}
+            />
+            <TextField
+              label="Express: minimum working days before travel"
+              name={`min-express-${item.id}`}
+              type="number"
+              min={0}
+              placeholder="3 (default)"
+              hint="UAE working days. Uses 3 when not set."
+              value={form.minTravelDaysExpress}
+              onChange={(event) => setForm({ ...form, minTravelDaysExpress: event.target.value })}
+              error={errors.minTravelDaysExpress?.[0]}
+              disabled={saving}
+            />
+          </>
+        ) : null}
       </div>
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>

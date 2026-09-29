@@ -3,9 +3,14 @@ import { partialUpdateSchema } from "./partial-update";
 
 export const createNewVisaCountryConfigSchema = z.object({
   countryId: z.string().min(1, "Select a country"),
+  /** P10 — the product: stay duration + entry type (one row per country + combination). */
+  stayDays: z.union([z.literal(30), z.literal(60)], { error: "Select 30 or 60 days" }),
+  entryKind: z.enum(["SINGLE", "MULTIPLE"], { error: "Select Single or Multiple entry" }),
+  displayOrder: z.number().int().default(0),
   visaCategory: z.string().trim().min(1, "Enter the visa category").max(120, "Visa category is too long"),
-  duration: z.string().trim().min(1, "Enter the visa duration").max(60, "Duration is too long"),
-  entryType: z.string().trim().min(1, "Enter the entry type").max(60, "Entry type is too long"),
+  /** Display text; derived from stayDays / entryKind when left empty. */
+  duration: z.string().trim().max(60, "Duration is too long").optional(),
+  entryType: z.string().trim().max(60, "Entry type is too long").optional(),
   processingType: z.string().trim().min(1, "Enter the processing type").max(120, "Processing type is too long"),
   description: z.string().trim().min(1, "Enter a description").max(2000, "Description is too long"),
   termsAndConditions: z.string().trim().min(1, "Enter terms and conditions").max(4000, "Terms and conditions is too long"),

@@ -5,6 +5,8 @@ export interface RadioCardOption {
   value: string;
   label: string;
   description?: string;
+  /** Shown but not selectable (e.g. a processing type that can't meet the travel date). */
+  disabled?: boolean;
 }
 
 interface RadioCardGroupProps<T extends FieldValues> {
@@ -46,11 +48,12 @@ export function RadioCardGroup<T extends FieldValues>({
             <label
               key={option.value}
               className={cn(
-                "cursor-pointer rounded-xl border bg-surface-1 p-4 transition-colors duration-200",
+                "rounded-xl border bg-surface-1 p-4 transition-colors duration-200",
+                option.disabled ? "cursor-not-allowed opacity-50" : "cursor-pointer",
                 checked ? "border-accent shadow-[0_0_0_3px_rgb(62_111_219_/_12%)]" : "border-hairline hover:border-glass-border-strong"
               )}
             >
-              <input type="radio" value={option.value} className="sr-only" {...field} />
+              <input type="radio" value={option.value} className="sr-only" disabled={option.disabled} {...field} />
               <span className="flex items-center justify-between gap-3">
                 <span className="text-sm font-semibold text-ink-primary">{option.label}</span>
                 <span

@@ -8,6 +8,7 @@ import { FormField, fieldControlClass, fieldBorderClass } from "@/components/for
 import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import { Button } from "@/components/ui/Button";
 import { ageBasisDate, isMinor } from "@/lib/leads/age";
+import { passportValidityTooShort } from "@/lib/new-visa/passport-validity";
 import { useOccupations } from "@/lib/use-occupations";
 import { cn } from "@/lib/cn";
 import {
@@ -38,7 +39,9 @@ function TravellerFields({ prefix, label, nameField }: { prefix: string; label: 
   const { options: occupations, loading } = useOccupations();
   const dob = useWatch({ control, name: `${prefix}dob` }) as string | undefined;
   const travelDate = useWatch({ control, name: "travelDate" }) as string | undefined;
+  const passportExpiry = useWatch({ control, name: `${prefix}passportExpiry` }) as string | undefined;
   const minor = isMinor(dob, ageBasisDate(travelDate));
+  const shortValidity = passportValidityTooShort(passportExpiry, travelDate);
   const err = (field: string) => (get(errors, `${prefix}${field}`)?.message as string | undefined) ?? undefined;
   const occupationId = `${prefix}occupation`.replace(/[^a-zA-Z0-9]/g, "-");
 
@@ -48,6 +51,20 @@ function TravellerFields({ prefix, label, nameField }: { prefix: string; label: 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {nameField ? <TextField label="Full Name" required error={err("fullName")} {...register(nameField)} /> : null}
         <TextField label="Passport Number" required error={err("passportNumber")} {...register(`${prefix}passportNumber`)} />
+        <div className="flex flex-col gap-1">
+          <DateField
+            label="Passport Expiry Date (optional)"
+            min={todayIso()}
+            error={err("passportExpiry")}
+            {...register(`${prefix}passportExpiry`)}
+          />
+          {shortValidity ? (
+            <p role="status" className="rounded-md bg-warning/10 px-3 py-2 text-xs text-ink-secondary">
+              This passport expires less than 6 months after your travel date. You can still continue — our team will
+              check it with you, but some destinations refuse entry on a passport this close to expiry.
+            </p>
+          ) : null}
+        </div>
         <DateField
           label="Date of Birth"
           required
@@ -154,6 +171,7 @@ export function StepTravellers() {
             append({
               fullName: "",
               passportNumber: "",
+              passportExpiry: "",
               dob: "",
               occupation: "",
               passportImageBase64: "",

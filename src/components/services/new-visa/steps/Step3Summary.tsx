@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import { useVisaTypes } from "@/lib/use-visa-types";
+import { useNewVisaProducts } from "@/lib/new-visa/use-new-visa-products";
+import { NewVisaPricePreview } from "../NewVisaPricePreview";
 import { getJson } from "@/lib/api/client";
 import { GUARDIAN_RELATIONSHIP_LABELS, type NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
@@ -107,6 +109,8 @@ export function Step3Summary() {
     values.destinationCountry;
   const { options: visaTypes } = useVisaTypes(values.destinationCountry);
   const visaTypeLabel = visaTypes.find((visaType) => visaType.id === values.visaType)?.name ?? "";
+  const { products } = useNewVisaProducts();
+  const productLabel = products.find((product) => product.id === values.newVisaConfigId)?.label ?? "";
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,6 +119,7 @@ export function Step3Summary() {
         <SummaryRow label="Mobile Number" value={values.mobile} />
         <SummaryRow label="Email" value={values.email} />
         <SummaryRow label="Destination Country" value={destinationLabel} />
+        {values.newVisaConfigId ? <SummaryRow label="Visa Option" value={productLabel} /> : null}
         {values.visaType ? <SummaryRow label="Visa Type" value={visaTypeLabel} /> : null}
         <SummaryRow label="Number of Travelers" value={String(1 + values.additionalTravellers.length)} />
         <SummaryRow
@@ -148,6 +153,13 @@ export function Step3Summary() {
           <SummaryRow label="Passport Copy" value={traveller.passportImageBase64 ? "Uploaded" : "Missing"} />
         </div>
       ))}
+      <NewVisaPricePreview
+        countryCode={values.destinationCountry}
+        newVisaConfigId={values.newVisaConfigId}
+        processingType={values.processingType}
+        travelDate={values.travelDate}
+        travellers={[{ fullName: values.fullName, dob: values.dob }, ...values.additionalTravellers.map((t) => ({ fullName: t.fullName, dob: t.dob }))]}
+      />
       <ProtectionPlanOptIn />
     </div>
   );

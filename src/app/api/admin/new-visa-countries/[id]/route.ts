@@ -33,6 +33,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const existing = await db.newVisaCountryConfig.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "New Visa country config not found.");
 
+  const nextStay = data.stayDays ?? existing.stayDays;
+  const nextEntry = data.entryKind ?? existing.entryKind;
+  if ((data.stayDays !== undefined || data.entryKind !== undefined) && nextStay && nextEntry) {
+    const clash = await db.newVisaCountryConfig.findFirst({ where: { countryId: existing.countryId, stayDays: nextStay, entryKind: nextEntry, id: { not: id } } });
+    if (clash) return jsonError(400, "This country already has that stay duration and entry type.", { stayDays: ["Already added."] });
+  }
+
   const updated = await db.$transaction(async (tx) => {
     const row = await tx.newVisaCountryConfig.update({
       where: { id },

@@ -1098,7 +1098,7 @@ model Country {
   returnTicketDestination ReturnTicketDestination?
   pricingRules            PricingRule[]
   documentRequirements    DocumentRequirement[]
-  newVisaCountryConfig    NewVisaCountryConfig?
+  newVisaCountryConfigs   NewVisaCountryConfig[]
   visaTypes               VisaType[]
   nationalities           Nationality[]
   serviceTerms            ServiceTerms[]
@@ -1315,6 +1315,9 @@ model PricingRule {
   /// Legacy free-text match, kept for rows created before `nationalityId`.
   nationality       String?
   nationalityId     String?
+  /// P10 — New Visa only: the product (country + stay + entry) this price is
+  /// for; null = applies to every product of the country.
+  newVisaConfigId   String?
   /// Internal — never shown to the customer. Same never-trust-the-client
   /// pattern as Quotation.vendorCost/margin: staff/Admin-entered, used to
   /// compute the auto-priced Quotation's own margin at checkout time.
@@ -1327,13 +1330,15 @@ model PricingRule {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  country        Country?     @relation(fields: [countryId], references: [id])
-  nationalityRef Nationality? @relation(fields: [nationalityId], references: [id])
+  country        Country?              @relation(fields: [countryId], references: [id])
+  nationalityRef Nationality?          @relation(fields: [nationalityId], references: [id])
+  newVisaConfig  NewVisaCountryConfig? @relation(fields: [newVisaConfigId], references: [id])
 
   @@index([serviceType])
   @@index([active])
   @@index([countryId])
   @@index([nationalityId])
+  @@index([newVisaConfigId])
   @@index([serviceType, countryId, processingType])
 }
 
@@ -1825,8 +1830,14 @@ model ReturnTicketDestination {
 /// references this row's id; a Lead only ever stores its destination country
 /// as a plain Country.code string (see create-lead.ts / new-visa pricing).
 model NewVisaCountryConfig {
-  id                 String   @id @default(cuid())
-  countryId          String   @unique
+  id                 String            @id @default(cuid())
+  /// P10 — no longer unique: one row per country + stay duration + entry type.
+  countryId          String
+  /// P10 — the product's stay duration in days (30 / 60); null on a pre-P10 row.
+  stayDays           Int?
+  /// P10 — Single or Multiple entry; null on a pre-P10 row.
+  entryKind          NewVisaEntryKind?
+  displayOrder       Int               @default(0)
   visaCategory       String
   duration           String
   /// Entry Type (e.g. "Single Entry / Multiple Entry") — descriptive display
@@ -1838,15 +1849,22 @@ model NewVisaCountryConfig {
   /// second one until now.
   entryType          String
   processingType     String
-  description        String   @db.Text
-  termsAndConditions String   @db.Text
-  active             Boolean  @default(true)
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  description        String            @db.Text
+  termsAndConditions String            @db.Text
+  active             Boolean           @default(true)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
-  country Country @relation(fields: [countryId], references: [id])
+  country      Country       @relation(fields: [countryId], references: [id])
+  pricingRules PricingRule[]
 
   @@index([active])
+  @@index([countryId])
+}
+
+enum NewVisaEntryKind {
+  SINGLE
+  MULTIPLE
 }
 
 // ReturnTicketRuleConfig removed (client update, 2026-09-24) — the
@@ -2121,6 +2139,9 @@ model ServiceTimelineConfig {
   paymentDeadlineHours      Int?
   /// Days between periodic follow-up reminders for a lead of this service that has no booking yet (Flight Special Fare defaults to 7 when unset).
   followUpIntervalDays      Int?
+  /// P10 — New Visa: minimum working days before travel for Normal / Express (defaults 7 / 3 when unset).
+  minTravelDaysNormal       Int?
+  minTravelDaysExpress      Int?
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())
