@@ -25,6 +25,13 @@ interface ConfigData {
   maintenanceModeEnabled: boolean;
   maintenanceMessage: string | null;
   systemAlertEmail: string | null;
+  legalEntityName: string | null;
+  gstin: string | null;
+  jurisdiction: string | null;
+  grievanceOfficerName: string | null;
+  grievanceEmail: string | null;
+  grievancePhone: string | null;
+  grievanceAddress: string | null;
   weekendDaysIndia: string;
   weekendDaysUae: string;
   workdayStartHour: number;
@@ -53,6 +60,13 @@ interface FormState {
   maintenanceModeEnabled: boolean;
   maintenanceMessage: string;
   systemAlertEmail: string;
+  legalEntityName: string;
+  gstin: string;
+  jurisdiction: string;
+  grievanceOfficerName: string;
+  grievanceEmail: string;
+  grievancePhone: string;
+  grievanceAddress: string;
 }
 
 function toFormState(c: ConfigData): FormState {
@@ -75,6 +89,13 @@ function toFormState(c: ConfigData): FormState {
     maintenanceModeEnabled: c.maintenanceModeEnabled,
     maintenanceMessage: c.maintenanceMessage ?? "",
     systemAlertEmail: c.systemAlertEmail ?? "",
+    legalEntityName: c.legalEntityName ?? "",
+    gstin: c.gstin ?? "",
+    jurisdiction: c.jurisdiction ?? "",
+    grievanceOfficerName: c.grievanceOfficerName ?? "",
+    grievanceEmail: c.grievanceEmail ?? "",
+    grievancePhone: c.grievancePhone ?? "",
+    grievanceAddress: c.grievanceAddress ?? "",
   };
 }
 
@@ -99,6 +120,13 @@ function buildPayload(form: FormState) {
     maintenanceModeEnabled: form.maintenanceModeEnabled,
     maintenanceMessage: form.maintenanceMessage,
     systemAlertEmail: form.systemAlertEmail,
+    legalEntityName: form.legalEntityName,
+    gstin: form.gstin,
+    jurisdiction: form.jurisdiction,
+    grievanceOfficerName: form.grievanceOfficerName,
+    grievanceEmail: form.grievanceEmail,
+    grievancePhone: form.grievancePhone,
+    grievanceAddress: form.grievanceAddress,
   };
 }
 
@@ -340,6 +368,77 @@ export function SystemConfigManager() {
           value={form.systemAlertEmail}
           onChange={(e) => setForm({ ...form, systemAlertEmail: e.target.value })}
           error={errors.systemAlertEmail?.[0]}
+          disabled={saving}
+        />
+      </Section>
+
+      <Section
+        title="Legal & Grievance Details"
+        description="Shown on Contact, Terms and Grievance Redressal only once filled in — leave blank until the final details are confirmed. Support email, phone/WhatsApp and address are the Company fields above."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TextField
+            label="Business / Legal Entity Name"
+            name="legalEntityName"
+            placeholder="Not set"
+            value={form.legalEntityName}
+            onChange={(e) => setForm({ ...form, legalEntityName: e.target.value })}
+            error={errors.legalEntityName?.[0]}
+            disabled={saving}
+          />
+          <TextField
+            label="GSTIN"
+            name="gstin"
+            placeholder="Not set"
+            value={form.gstin}
+            onChange={(e) => setForm({ ...form, gstin: e.target.value })}
+            error={errors.gstin?.[0]}
+            disabled={saving}
+          />
+          <TextField
+            label="Jurisdiction (courts/authorities)"
+            name="jurisdiction"
+            placeholder="Not set"
+            value={form.jurisdiction}
+            onChange={(e) => setForm({ ...form, jurisdiction: e.target.value })}
+            error={errors.jurisdiction?.[0]}
+            disabled={saving}
+          />
+          <TextField
+            label="Grievance Officer Name"
+            name="grievanceOfficerName"
+            placeholder="Not set"
+            value={form.grievanceOfficerName}
+            onChange={(e) => setForm({ ...form, grievanceOfficerName: e.target.value })}
+            error={errors.grievanceOfficerName?.[0]}
+            disabled={saving}
+          />
+          <TextField
+            label="Grievance Email"
+            name="grievanceEmail"
+            placeholder="Not set"
+            value={form.grievanceEmail}
+            onChange={(e) => setForm({ ...form, grievanceEmail: e.target.value })}
+            error={errors.grievanceEmail?.[0]}
+            disabled={saving}
+          />
+          <TextField
+            label="Grievance Phone / WhatsApp"
+            name="grievancePhone"
+            placeholder="Not set"
+            value={form.grievancePhone}
+            onChange={(e) => setForm({ ...form, grievancePhone: e.target.value })}
+            error={errors.grievancePhone?.[0]}
+            disabled={saving}
+          />
+        </div>
+        <Textarea
+          label="Grievance Postal Address"
+          name="grievanceAddress"
+          placeholder="Not set"
+          value={form.grievanceAddress}
+          onChange={(e) => setForm({ ...form, grievanceAddress: e.target.value })}
+          error={errors.grievanceAddress?.[0]}
           disabled={saving}
         />
       </Section>

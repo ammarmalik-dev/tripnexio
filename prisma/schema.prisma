@@ -1763,6 +1763,16 @@ model SystemConfig {
   workdayEndHour         Int      @default(18)
   maintenanceMessage     String?
   systemAlertEmail       String?
+  /// P20 — Company/Support/Legal doc §3 + §9.16 + §14: legal details kept as
+  /// configuration until the client supplies them (never hard-coded). The
+  /// legal pages render only what's filled in.
+  legalEntityName        String?
+  gstin                  String?
+  jurisdiction           String?
+  grievanceOfficerName   String?
+  grievanceEmail         String?
+  grievancePhone         String?
+  grievanceAddress       String?
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 }

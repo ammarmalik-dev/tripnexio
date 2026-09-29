@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { LegalDocument } from "@/components/layout/LegalDocument";
-import { siteConfig } from "@/lib/site-config";
+import { getEffectiveSiteConfig, getSystemConfig } from "@/lib/settings/system-config";
+
+// P20 — Grievance Officer details come from Admin → System Configuration.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Grievance Redressal",
@@ -12,13 +15,23 @@ export const metadata: Metadata = {
  * TripNexio_Website_Final_Company_Support_Legal_General_FAQ_23_Sep_2026.docx §14.
  * Effective Date: 23 September 2026.
  *
- * The doc's own Grievance Officer Name/Email/Phone/Postal Address fields are all
- * "[TO BE ADDED]" — per that doc's own Contact section developer note, these must
- * stay as configuration values until the client supplies them, never invented. Until
- * a named officer is confirmed, this page points to TripNexio's existing real support
- * channels (already live in site-config.ts) rather than fabricating an officer identity.
+ * The doc's Grievance Officer Name/Email/Phone/Postal Address are "[TO BE ADDED]"
+ * — P20: they're Admin → System Configuration fields, and only the ones filled in
+ * are published. Until a named officer with a contact is set, the page points to
+ * TripNexio's real support channels rather than a placeholder or invented identity.
  */
-export default function GrievanceRedressalPage() {
+export default async function GrievanceRedressalPage() {
+  const [config, site] = await Promise.all([getSystemConfig(), getEffectiveSiteConfig()]);
+  // Only the details Admin has filled in are published — never a placeholder.
+  const officer = [
+    config.grievanceOfficerName ? `Name: ${config.grievanceOfficerName}` : null,
+    "Designation: Grievance Officer",
+    config.grievanceEmail ? `Email: ${config.grievanceEmail}` : null,
+    config.grievancePhone ? `Phone / WhatsApp: ${config.grievancePhone}` : null,
+    config.grievanceAddress ? `Postal address: ${config.grievanceAddress}` : null,
+    "Complaint ticket / reference: issued by TripNexio after registration, where supported.",
+  ].filter((line): line is string => line !== null);
+  const officerConfirmed = Boolean(config.grievanceOfficerName && (config.grievanceEmail || config.grievancePhone));
   return (
     <LegalDocument
       title="Grievance Redressal"
@@ -28,14 +41,14 @@ export default function GrievanceRedressalPage() {
         {
           heading: "Raising a formal grievance",
           paragraphs: [
-            "For a formal grievance, use the grievance contact details below. The live website must prominently publish the name and contact details of the designated Grievance Officer and the complaint mechanism once these details are finalized — a named Grievance Officer has not yet been confirmed, so grievances should be raised through TripNexio's published support channels in the meantime.",
+            officerConfirmed
+              ? "For a formal grievance, use the grievance contact details below."
+              : `For a formal grievance, use the grievance contact details below. Until the Grievance Officer's direct contact details are published here, raise your grievance through TripNexio's support channels: ${site.email} or ${site.phone}.`,
           ],
         },
         {
           heading: "Grievance Officer",
-          paragraphs: [
-            `Designation: Grievance Officer. Name, dedicated grievance email/phone and postal address will be published here once confirmed. Until then, contact ${siteConfig.contact.email} or ${siteConfig.contact.phone}.`,
-          ],
+          paragraphs: officer,
         },
         {
           heading: "Acknowledgement and resolution timeframes",

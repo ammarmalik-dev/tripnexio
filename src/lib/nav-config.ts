@@ -7,7 +7,7 @@ export const mainNav: NavLinkItem[] = [
   { label: "Services", href: "/services" },
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Track Status", href: "/track" },
-  { label: "Contact", href: "/#support" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export const utilityLinks = {

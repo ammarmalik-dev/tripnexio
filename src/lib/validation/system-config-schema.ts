@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+/** P20 — an optional legal/contact detail; blank clears it (stored as null, so the site hides it). */
+const optionalDetail = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, "Too long")
+    .transform((value) => (value === "" ? null : value))
+    .optional();
+
 /** Always partial (PATCH-only, singleton pre-created by seed — no create schema, same pattern as tax-fee-config-schema.ts / invoice-config-schema.ts). */
 export const updateSystemConfigSchema = z.object({
   companyName: z.string().trim().max(120, "Too long").optional(),
@@ -21,6 +30,13 @@ export const updateSystemConfigSchema = z.object({
   maintenanceModeEnabled: z.boolean().optional(),
   maintenanceMessage: z.string().trim().max(300, "Too long").optional(),
   systemAlertEmail: z.string().trim().max(120, "Too long").optional(),
+  legalEntityName: optionalDetail(160),
+  gstin: optionalDetail(20),
+  jurisdiction: optionalDetail(160),
+  grievanceOfficerName: optionalDetail(120),
+  grievanceEmail: optionalDetail(120),
+  grievancePhone: optionalDetail(30),
+  grievanceAddress: optionalDetail(300),
   /** P09 working calendar — comma-separated JS weekday numbers (0 = Sunday ... 6 = Saturday). */
   weekendDaysIndia: z.string().trim().regex(/^\s*[0-6](\s*,\s*[0-6])*\s*$|^\s*$/, "Use weekday numbers 0-6, comma separated (0 = Sunday)").optional(),
   weekendDaysUae: z.string().trim().regex(/^\s*[0-6](\s*,\s*[0-6])*\s*$|^\s*$/, "Use weekday numbers 0-6, comma separated (0 = Sunday)").optional(),

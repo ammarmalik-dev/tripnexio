@@ -4,9 +4,8 @@ import { Container } from "@/components/ui/Container";
 import { SocialIcon, type SocialPlatform } from "@/components/ui/SocialIcon";
 import { siteConfig } from "@/lib/site-config";
 import { utilityLinks } from "@/lib/nav-config";
-import { getActiveServices } from "@/lib/services/active-services";
 import { getSystemConfig } from "@/lib/settings/system-config";
-import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
+import { CookieSettingsLink } from "@/components/cookies/CookieConsent";
 
 const socialLinks: { platform: SocialPlatform; href: string; label: string }[] = [
   { platform: "instagram", href: siteConfig.socials.instagram, label: "Instagram" },
@@ -21,12 +20,12 @@ const socialLinks: { platform: SocialPlatform; href: string; label: string }[] =
 const companyLinks = [
   { label: "About Us", href: "/about" },
   { label: "Blog", href: "/blog" },
-  { label: "Contact", href: "/#support" },
+  { label: "Contact", href: "/contact" },
 ];
 
 const supportLinks = [
   { label: "Track Status", href: utilityLinks.trackStatus.href },
-  { label: "WhatsApp Support", href: siteConfig.contact.whatsappHref },
+  { label: "WhatsApp Support", href: "/whatsapp-support" },
   { label: "FAQ", href: "/faq" },
   { label: "Payment Support", href: "/payment-support" },
 ];
@@ -63,35 +62,16 @@ function FooterColumn({
   );
 }
 
-/**
- * Same active Service rows as the homepage grid, so an Admin rename/reorder/
- * disable shows up in both. A DB hiccup renders an empty column rather than
- * failing every page (the root layout renders this on every route).
- */
-async function loadServiceLinks(): Promise<{ label: string; href: string }[]> {
-  try {
-    const rows = await getActiveServices();
-    return rows.flatMap((row) => {
-      const routeInfo = SERVICE_ROUTE_INFO[row.code];
-      return routeInfo ? [{ label: row.name, href: routeInfo.href }] : [];
-    });
-  } catch (error) {
-    console.error("[Footer] couldn't load services", error);
-    return [];
-  }
-}
-
 export async function Footer() {
-  // Sequential on purpose — the root layout renders this on every page.
+  // P20 — Company/Support/Legal doc §15: Company / Support / Legal only ("Do not add a separate Services footer column").
   const config = await getSystemConfig();
-  const serviceLinks = await loadServiceLinks();
   const companyName = config.companyName?.trim();
   const companyPhone = config.companyPhone?.trim();
   const companyEmail = config.companyEmail?.trim();
 
   return (
     <footer className="surface-dark-block">
-      <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
+      <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
         <div className="flex flex-col gap-4 sm:col-span-2 lg:col-span-1">
           <Logo variant="onDark" />
           <p className="max-w-xs text-sm text-ink-on-dark-secondary">{siteConfig.tagline}</p>
@@ -112,7 +92,6 @@ export async function Footer() {
         </div>
 
         <FooterColumn title="Company" links={companyLinks} />
-        <FooterColumn title="Services" links={serviceLinks} />
         <FooterColumn title="Support" links={supportLinks} />
         <FooterColumn title="Legal" links={legalLinks} />
       </Container>
@@ -124,6 +103,7 @@ export async function Footer() {
               &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
             </p>
           ) : null}
+          <CookieSettingsLink className="hover:text-ink-on-dark-primary focus-visible:outline-none focus-visible:underline" />
           {companyPhone || companyEmail ? (
             <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
               {companyPhone ? (

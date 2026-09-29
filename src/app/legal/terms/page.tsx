@@ -1,5 +1,9 @@
 import type { Metadata } from "next";
 import { LegalDocument } from "@/components/layout/LegalDocument";
+import { getSystemConfig } from "@/lib/settings/system-config";
+
+// P20 — the jurisdiction comes from Admin → System Configuration.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Terms & Conditions",
@@ -9,7 +13,8 @@ export const metadata: Metadata = {
 // Locked content — TripNexio_Website_Final_Company_Support_Legal_General_FAQ_23_Sep_2026.docx §9.
 // Effective Date: 23 September 2026. Do not paraphrase — this is client-locked legal text,
 // pending final legal counsel review before publication (see that doc's "Publication gate").
-export default function TermsPage() {
+export default async function TermsPage() {
+  const { jurisdiction } = await getSystemConfig();
   return (
     <LegalDocument
       title="Terms & Conditions"
@@ -112,7 +117,10 @@ export default function TermsPage() {
           heading: "16. Limitation and applicable law",
           paragraphs: [
             "To the extent permitted by applicable law, TripNexio will be responsible only for losses directly attributable to its own proven failure to perform the service as agreed. Nothing in these Terms excludes or limits liability that cannot lawfully be excluded.",
-            "These Terms are intended to be governed by the laws of India. The competent courts/authorities at [jurisdiction to be confirmed] will have jurisdiction, subject to applicable consumer and other mandatory legal remedies.",
+            // P20 — no placeholder on the live site: the courts/authorities sentence appears once Admin sets the jurisdiction.
+            jurisdiction
+              ? `These Terms are intended to be governed by the laws of India. The competent courts/authorities at ${jurisdiction} will have jurisdiction, subject to applicable consumer and other mandatory legal remedies.`
+              : "These Terms are intended to be governed by the laws of India, subject to applicable consumer and other mandatory legal remedies.",
           ],
         },
         {

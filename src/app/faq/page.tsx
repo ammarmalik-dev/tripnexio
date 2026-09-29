@@ -14,10 +14,17 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function FaqPage() {
-  const faqs = await db.faq.findMany({
-    where: { active: true, published: true },
-    orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
-  });
+  // P20 — a DB hiccup shows the friendly empty state rather than an error page.
+  const faqs = await db.faq
+    .findMany({
+      // General (platform) FAQ only — service FAQs live on each service page (Company/Support/Legal doc §8).
+      where: { active: true, published: true, serviceType: null },
+      orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+    })
+    .catch((error: unknown) => {
+      console.error("[faq] couldn't load FAQs", error);
+      return [];
+    });
 
   const groups = new Map<string, typeof faqs>();
   for (const faq of faqs) {

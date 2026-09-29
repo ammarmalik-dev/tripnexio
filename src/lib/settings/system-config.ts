@@ -19,6 +19,14 @@ export interface SystemConfigValues {
   maintenanceModeEnabled: boolean;
   maintenanceMessage: string | null;
   systemAlertEmail: string | null;
+  /** P20 — legal details (Admin → System Configuration); null = not supplied yet, never shown. */
+  legalEntityName: string | null;
+  gstin: string | null;
+  jurisdiction: string | null;
+  grievanceOfficerName: string | null;
+  grievanceEmail: string | null;
+  grievancePhone: string | null;
+  grievanceAddress: string | null;
 }
 
 const DEFAULTS: SystemConfigValues = {
@@ -36,6 +44,13 @@ const DEFAULTS: SystemConfigValues = {
   maintenanceModeEnabled: false,
   maintenanceMessage: null,
   systemAlertEmail: null,
+  legalEntityName: null,
+  gstin: null,
+  jurisdiction: null,
+  grievanceOfficerName: null,
+  grievanceEmail: null,
+  grievancePhone: null,
+  grievanceAddress: null,
 };
 
 /**
@@ -78,6 +93,13 @@ export const getSystemConfig = cache(async (): Promise<SystemConfigValues> => {
     maintenanceModeEnabled: config.maintenanceModeEnabled,
     maintenanceMessage: config.maintenanceMessage,
     systemAlertEmail: config.systemAlertEmail,
+    legalEntityName: config.legalEntityName,
+    gstin: config.gstin,
+    jurisdiction: config.jurisdiction,
+    grievanceOfficerName: config.grievanceOfficerName,
+    grievanceEmail: config.grievanceEmail,
+    grievancePhone: config.grievancePhone,
+    grievanceAddress: config.grievanceAddress,
   };
 });
 
@@ -115,13 +137,15 @@ export interface EffectiveSiteConfig {
  */
 export async function getEffectiveSiteConfig(): Promise<EffectiveSiteConfig> {
   const config = await getSystemConfig();
+  // A blank Admin field (saved as "") means "not set" too, not "show nothing".
+  const pick = (value: string | null, fallback: string) => (value?.trim() ? value.trim() : fallback);
   return {
-    name: config.companyName ?? siteConfig.name,
-    legalName: config.companyName ?? siteConfig.legalName,
-    tagline: config.companyTagline ?? siteConfig.tagline,
+    name: pick(config.companyName, siteConfig.name),
+    legalName: pick(config.companyName, siteConfig.legalName),
+    tagline: pick(config.companyTagline, siteConfig.tagline),
     description: siteConfig.description,
-    address: config.companyAddress ?? siteConfig.contact.address,
-    phone: config.companyPhone ?? siteConfig.contact.phone,
-    email: config.companyEmail ?? siteConfig.contact.email,
+    address: pick(config.companyAddress, siteConfig.contact.address),
+    phone: pick(config.companyPhone, siteConfig.contact.phone),
+    email: pick(config.companyEmail, siteConfig.contact.email),
   };
 }

@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/Footer";
 import { HideOnCrm } from "@/components/layout/HideOnCrm";
 import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
 import { Toaster } from "@/components/ui/Toaster";
+import { CookieConsent } from "@/components/cookies/CookieConsent";
 import { siteConfig } from "@/lib/site-config";
 import { getEffectiveSiteConfig, getSystemConfig } from "@/lib/settings/system-config";
 import "./globals.css";
@@ -69,6 +70,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <main className="flex-1">{children}</main>
         <HideOnCrm>
           <Footer />
+          <CookieConsent />
         </HideOnCrm>
         <Toaster />
       </body>

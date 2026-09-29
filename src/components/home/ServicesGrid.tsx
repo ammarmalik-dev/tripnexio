@@ -9,6 +9,38 @@ import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
 import { SERVICE_ICON_MAP } from "@/lib/service-icons";
 import { headerActions } from "@/lib/nav-config";
 import { lowestOtbStartingPrice } from "@/lib/otb/pricing";
+import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+
+const FALLBACK_ICONS: Record<string, string> = {
+  NEW_VISA: "FileText",
+  VISA_EXTENSION: "CalendarClock",
+  VISA_CHANGE: "ArrowLeftRight",
+  FLIGHT_SPECIAL_FARE: "Plane",
+  RETURN_TICKET: "TicketCheck",
+  OTB: "PlaneTakeoff",
+};
+
+/**
+ * P20 — never let a dropped DB connection fail the homepage/services page
+ * (or the build's static generation): fall back to the six locked services
+ * from static route info, without Admin names/descriptions.
+ */
+async function loadServicesSafely() {
+  try {
+    return await getActiveServices();
+  } catch (error) {
+    console.error("[ServicesGrid] couldn't load services, using the static list", error);
+    return Object.keys(SERVICE_ROUTE_INFO).map((code, index) => ({
+      id: code,
+      code,
+      name: SERVICE_TYPE_LABELS[code as keyof typeof SERVICE_TYPE_LABELS] ?? code,
+      shortDescription: "",
+      ctaLabel: "Learn more",
+      iconName: FALLBACK_ICONS[code] ?? "PlaneTakeoff",
+      displayOrder: index,
+    }));
+  }
+}
 
 /** P18 — the OTB card's "Starting from" (lowest active Admin price); never blocks the grid if it can't be read. */
 async function otbStartingFrom(): Promise<string | undefined> {
@@ -30,7 +62,7 @@ async function otbStartingFrom(): Promise<string | undefined> {
  * row must never crash the homepage).
  */
 export async function ServicesGrid() {
-  const [services, otbFrom] = await Promise.all([getActiveServices(), otbStartingFrom()]);
+  const [services, otbFrom] = await Promise.all([loadServicesSafely(), otbStartingFrom()]);
 
   return (
     <section className="py-20 sm:py-28">
