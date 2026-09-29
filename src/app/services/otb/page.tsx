@@ -68,6 +68,13 @@ export default function OtbLandingPage() {
           <MotionReveal delay={0.04}>
             <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">OK to Board</span>
           </MotionReveal>
+          <MotionReveal delay={0.05}>
+            {/* P18 — OTB Page Content v3 hero badge. */}
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent-on-light">
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
+              Official OTB Partner
+            </span>
+          </MotionReveal>
           <MotionReveal delay={0.06}>
             <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
               OK to Board, Made Simple

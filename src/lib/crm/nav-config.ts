@@ -159,6 +159,7 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Services", href: "/admin/services", icon: LayoutGrid },
       { label: "New Visa Countries", href: "/admin/new-visa-countries", icon: Stamp },
       { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket },
+      { label: "OTB Prices", href: "/admin/otb-prices", icon: Tags },
       { label: "Timelines / SLA", href: "/admin/timelines", icon: Clock },
       { label: "Holidays", href: "/admin/holidays", icon: CalendarDays },
       { label: "Service Terms", href: "/admin/service-terms", icon: ScrollText },

@@ -22,6 +22,7 @@ import { VisaChangeActionsPanel, type VisaChangeBookingView } from "./VisaChange
 import { SpecialFareActionsPanel, type SpecialFareBookingView } from "./SpecialFareActionsPanel";
 import { ReturnTicketActionsPanel, type ReturnTicketBookingView } from "./ReturnTicketActionsPanel";
 import { LinkedBookingPanel, type LinkedBookingView } from "./LinkedBookingPanel";
+import { OtbActionsPanel, type OtbBookingView } from "./OtbActionsPanel";
 import { DEFAULT_OUTPUT_BY_SERVICE } from "@/lib/outputs/output-types";
 import { RequestDocumentForm } from "./RequestDocumentForm";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
@@ -110,6 +111,8 @@ interface BookingDetailResponse {
   specialFare: SpecialFareBookingView | null;
   /** P17 — Return Ticket only. */
   returnTicket: ReturnTicketBookingView | null;
+  /** P18 — OTB only. */
+  otb: OtbBookingView | null;
   /** P17 — OTB <-> Return Ticket pair (CRM.md §15). */
   linkedBooking: LinkedBookingView | null;
   reservationIssuedAt: string | null;
@@ -444,6 +447,15 @@ export function BookingDetail({
               reservationIssuedAt={booking.reservationIssuedAt}
               reservationExpiresAt={booking.reservationExpiresAt}
               reservationExpired={booking.reservationExpired}
+              onChanged={() => setReloadNonce((current) => current + 1)}
+            />
+          ) : null}
+
+          {booking.serviceType === "OTB" && booking.otb ? (
+            <OtbActionsPanel
+              bookingId={booking.id}
+              view={booking.otb}
+              currentStatus={booking.serviceStatusName}
               onChanged={() => setReloadNonce((current) => current + 1)}
             />
           ) : null}

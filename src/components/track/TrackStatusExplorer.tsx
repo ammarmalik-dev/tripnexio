@@ -183,6 +183,12 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
                   </ul>
                 </div>
               ) : null}
+              {result.otbReference ? (
+                <div className="flex flex-col gap-1 border-t border-hairline-on-dark pt-4">
+                  <p className="text-sm font-semibold text-ink-on-dark-primary">Your OTB PNR has been approved by the airline</p>
+                  <p className="text-sm text-ink-on-dark-secondary">OTB PNR / reference: {result.otbReference}</p>
+                </div>
+              ) : null}
               {result.delivered && result.delivered.length > 0 ? (
                 <div className="flex flex-col gap-1 border-t border-hairline-on-dark pt-4">
                   <p className="text-sm font-semibold text-ink-on-dark-primary">Delivered</p>

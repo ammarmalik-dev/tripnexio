@@ -106,6 +106,9 @@ export function isCheckoutService(serviceType: ServiceType): boolean {
  * listed New Visa's Admin-configured checklist.
  */
 export async function resolveCheckoutDocumentTypes(booking: {
+  id?: string;
+  customerId?: string;
+  linkedBookingId?: string | null;
   lead: { serviceType: ServiceType; details: unknown };
 }): Promise<CheckoutDocumentType[]> {
   const { serviceType } = booking.lead;
@@ -122,5 +125,41 @@ export async function resolveCheckoutDocumentTypes(booking: {
     ? await db.country.findFirst({ where: { code: { equals: countryCode, mode: "insensitive" } } })
     : null;
   if (serviceType === "NEW_VISA") return getNewVisaCheckoutDocumentTypes(country?.id ?? null);
-  return getRequirementDocumentTypes(serviceType, country?.id ?? null);
+  const types = await getRequirementDocumentTypes(serviceType, country?.id ?? null);
+  return serviceType === "OTB" ? markTicketsTripNexioProvides(types, booking) : types;
+}
+
+/**
+ * P18 — OTB for a recognised customer: when their flight ticket was bought
+ * from TripNexio (a Special Fare booking whose ticket was delivered) the
+ * flight-ticket upload is skipped, and when the return ticket comes from
+ * TripNexio (a linked Return Verified Ticket booking) so is the return
+ * ticket. Skipped = shown as not required (TripNexio already has it), so an
+ * upload is still accepted if the customer sends one anyway.
+ */
+async function markTicketsTripNexioProvides(
+  types: CheckoutDocumentType[],
+  booking: { id?: string; customerId?: string; linkedBookingId?: string | null }
+): Promise<CheckoutDocumentType[]> {
+  if (!booking.customerId) return types;
+  const [flightFromTripNexio, linked] = await Promise.all([
+    db.booking.findFirst({
+      where: {
+        customerId: booking.customerId,
+        lead: { serviceType: "FLIGHT_SPECIAL_FARE" },
+        status: { notIn: ["CANCELLED", "REFUNDED"] },
+        documents: { some: { type: "TICKET_PDF", deliveredAt: { not: null } } },
+      },
+      select: { id: true },
+    }),
+    booking.linkedBookingId
+      ? db.booking.findUnique({ where: { id: booking.linkedBookingId }, select: { lead: { select: { serviceType: true } } } })
+      : null,
+  ]);
+  const returnFromTripNexio = linked?.lead.serviceType === "RETURN_TICKET";
+  return types.map((type) => {
+    if (flightFromTripNexio && type.type === "ONWARD_TICKET") return { ...type, required: false, label: `${type.label} (booked with TripNexio — not needed)` };
+    if (returnFromTripNexio && type.type === "RETURN_TICKET") return { ...type, required: false, label: `${type.label} (issued by TripNexio — not needed)` };
+    return type;
+  });
 }

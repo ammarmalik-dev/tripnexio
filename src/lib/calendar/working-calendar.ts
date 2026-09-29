@@ -94,3 +94,39 @@ export function nextWorkingDay(date: string, calendar: WorkingCalendar): string 
   for (let i = 0; i < 60 && !isWorkingDay(ms, calendar); i++) ms += DAY_MS;
   return isoOfUtcDay(ms);
 }
+
+/**
+ * P18 — the local date ("YYYY-MM-DD") `days` working days after `from`'s
+ * local day (today never counts) — the inverse of workingDaysBetween.
+ */
+export function addWorkingDays(from: Date, days: number, calendar: WorkingCalendar): string {
+  let ms = Date.parse(`${localDate(from, calendar)}T00:00:00Z`);
+  let remaining = Math.max(0, Math.floor(days));
+  for (let i = 0; remaining > 0 && i < 800; i++) {
+    ms += DAY_MS;
+    if (isWorkingDay(ms, calendar)) remaining--;
+  }
+  return isoOfUtcDay(ms);
+}
+
+/**
+ * P18 — the instant `hours` business hours after `from` (working days and
+ * business hours only, holidays skipped) — the inverse of workingHoursBetween.
+ */
+export function addWorkingHours(from: Date, hours: number, calendar: WorkingCalendar): Date {
+  const shifted = new Date(from.getTime() + calendar.offsetMs);
+  let dayStart = Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate());
+  let hourOfDay = shifted.getUTCHours() + shifted.getUTCMinutes() / 60;
+  let remaining = Math.max(0, hours);
+  for (let i = 0; i < 800; i++) {
+    if (isWorkingDay(dayStart, calendar)) {
+      const start = Math.max(hourOfDay, calendar.startHour);
+      const available = Math.max(0, calendar.endHour - start);
+      if (remaining <= available) return new Date(dayStart + (start + remaining) * 60 * 60 * 1000 - calendar.offsetMs);
+      remaining -= available;
+    }
+    dayStart += DAY_MS;
+    hourOfDay = 0;
+  }
+  return new Date(dayStart - calendar.offsetMs);
+}

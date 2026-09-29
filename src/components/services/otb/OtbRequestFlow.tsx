@@ -26,12 +26,16 @@ export function OtbRequestFlow() {
         mobile: "",
         email: "",
         passportNumber: "",
+        paxType: "ADULT",
         destinationCountry: "",
         airline: "",
         travelDate: "",
         processingType: undefined,
         additionalApplicants: [],
         hasReturnTicket: undefined,
+        addReturnTicket: undefined,
+        returnDestinationCountryId: "",
+        expectedReturnDate: "",
       }}
       stepFields={otbStepFields}
       stepLabels={otbStepLabels}

@@ -49,6 +49,8 @@ interface CheckoutView {
   specialFareAlternative: SpecialFareAlternativeView | null;
   /** P17 — Return Ticket cancellation terms shown before payment. */
   returnTicketCancellation: { fee: number | null } | null;
+  /** P18 — the other half of an OTB + Return Verified Ticket order. */
+  linkedOrder: { service: "OTB" | "RETURN_TICKET"; token: string; paymentStatus: string | null; total: number | null } | null;
 }
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
@@ -282,6 +284,38 @@ export function CheckoutPanel({ token }: { token: string }) {
           <Row label="Total to pay" value={formatRupees(payment.total)} strong />
         </div>
       )}
+
+      {view.linkedOrder ? (
+        <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-5">
+          {view.linkedOrder.service === "RETURN_TICKET" ? (
+            <>
+              <p className="text-sm font-semibold text-ink-heading">Return Verified Ticket in this order</p>
+              <p className="text-sm text-ink-secondary">
+                Your return ticket is a separate booking with its own payment. It&apos;s issued only after your OTB is approved.
+              </p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="text-sm font-medium text-ink-primary">
+                  {view.linkedOrder.total !== null ? formatRupees(view.linkedOrder.total) : "Price to be confirmed"}
+                  {view.linkedOrder.paymentStatus === "SUCCESS" ? " · Paid" : ""}
+                </span>
+                <ButtonLink href={`/pay/${view.linkedOrder.token}`} size="sm" variant={view.linkedOrder.paymentStatus === "SUCCESS" ? "glass" : "primary"}>
+                  {view.linkedOrder.paymentStatus === "SUCCESS" ? "View return ticket" : "Pay for return ticket"}
+                </ButtonLink>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold text-ink-heading">Linked to your OTB request</p>
+              <p className="text-sm text-ink-secondary">This return ticket is issued after your OTB has been approved by the airline.</p>
+              <div>
+                <ButtonLink href={`/pay/${view.linkedOrder.token}`} size="sm" variant="glass">
+                  View OTB request
+                </ButtonLink>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
 
       {view.returnTicketCancellation && payment?.status === "PENDING" ? (
         <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-secondary">

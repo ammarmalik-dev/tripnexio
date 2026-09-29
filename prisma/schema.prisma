@@ -492,6 +492,10 @@ model Booking {
   pnrRecordedAt             DateTime?
   ticketIssuedAt            DateTime?
   ticketBaggage             String?
+  /// P18 — OTB airline timeline: submitted to the airline, decided (approved / rejected / unable), and the airline response or staff reason.
+  otbSubmittedAt            DateTime?
+  otbDecidedAt              DateTime?
+  otbOutcomeNote            String?
   /// P13 — a Visa Extension booking's original New Visa booking (the prior
   /// TripNexio visa matched by passport). Null for every other service, or
   /// when no prior TripNexio visa was found.
@@ -1172,6 +1176,7 @@ model Country {
   airports                Airport[]
   borders                 Border[]
   returnTicketDestination ReturnTicketDestination?
+  otbPrices               OtbPrice[]
   pricingRules            PricingRule[]
   documentRequirements    DocumentRequirement[]
   newVisaCountryConfigs   NewVisaCountryConfig[]
@@ -1265,6 +1270,8 @@ model Airline {
   active                 Boolean  @default(true)
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
+
+  otbPrices OtbPrice[]
 
   @@index([otbRequired])
   @@index([active])
@@ -2366,4 +2373,27 @@ model Holiday {
 
   @@unique([date, country])
   @@index([country, active])
+}
+
+/// P18 — OTB price per airline + destination country + passenger type
+/// (Developer Answers §4). Admin-managed; when no active row matches, the
+/// airline's own normal/urgent price applies. urgentPrice null = Urgent
+/// isn't offered at this row's price (the airline price is used instead).
+model OtbPrice {
+  id           String   @id @default(cuid())
+  airlineId    String
+  countryId    String
+  paxType      PaxType
+  normalPrice  Decimal  @db.Decimal(10, 2)
+  urgentPrice  Decimal? @db.Decimal(10, 2)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  airline Airline @relation(fields: [airlineId], references: [id])
+  country Country @relation(fields: [countryId], references: [id])
+
+  @@unique([airlineId, countryId, paxType])
+  @@index([active])
+  @@index([countryId])
 }

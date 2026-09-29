@@ -5,8 +5,8 @@ import type { Prisma } from "../../generated/prisma/client";
 
 type Tx = Prisma.TransactionClient;
 
-/** OTB's "OTB Approved" status carries this system event (seed + Admin tag). */
-const OTB_APPROVED_EVENT = "DELIVERED_OTB_CONFIRMATION";
+/** OTB's "OTB Approved" status carries this system event (seed + Admin tag, P18). */
+const OTB_APPROVED_EVENT = "OTB_APPROVED";
 
 /** P17 — the destination's Admin-set cancellation fee for a Return Ticket lead, or null when none is set. */
 export async function returnTicketCancellationFee(details: unknown): Promise<number | null> {

@@ -629,6 +629,13 @@ async function main() {
       subject: "Sample: Your extended UAE visa is valid until {{extensionExpiryDate}}",
       body: "Hi {{customerName}},\n\nYour extended UAE visa (booking {{bookingId}}) is valid until {{extensionExpiryDate}}. If you need a further extension, let us know and we'll check your eligibility.\n\n— TripNexio",
     },
+    {
+      // P18 — OTB.md §13 client-locked wording.
+      id: "notification-template-otb-approved",
+      event: NOTIFICATION_EVENTS.OTB_APPROVED,
+      subject: "Your OTB PNR has been approved by the airline — {{leadReference}}",
+      body: "Hi {{customerName}},\n\nYour OTB PNR has been approved by the airline.\n\nOTB PNR / reference: {{otbReference}}\nBooking: {{leadReference}}\n\nYou can see this in your TripNexio account and on Track Status.\n{{returnTicketOffer}}\n\n— TripNexio",
+    },
   ];
   for (const template of emailTemplates) {
     const data = { id: template.id, event: template.event, channel: "EMAIL" as const, subject: template.subject, body: template.body, active: true };
@@ -700,6 +707,11 @@ async function main() {
       id: "notification-template-visa-extension-reminder-wa",
       event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,
       body: "Hi {{customerName}}, your extended UAE visa (booking {{bookingId}}) is valid until {{extensionExpiryDate}}. Need a further extension? Just let us know.",
+    },
+    {
+      id: "notification-template-otb-approved-wa",
+      event: NOTIFICATION_EVENTS.OTB_APPROVED,
+      body: "Hi {{customerName}}, your OTB PNR has been approved by the airline. OTB PNR / reference: {{otbReference}} (booking {{leadReference}}). {{returnTicketOffer}}",
     },
   ];
   for (const template of whatsappTemplates) {

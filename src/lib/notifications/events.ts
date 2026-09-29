@@ -27,6 +27,7 @@ export const NOTIFICATION_EVENTS = {
   VISA_EXTENSION_REMINDER: "VISA_EXTENSION_REMINDER",
   SERVICE_STATUS_UPDATE: "SERVICE_STATUS_UPDATE",
   OUTPUT_DELIVERED: "OUTPUT_DELIVERED",
+  OTB_APPROVED: "OTB_APPROVED",
 } as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[keyof typeof NOTIFICATION_EVENTS];
@@ -152,5 +153,19 @@ export const NOTIFICATION_EVENT_CATALOG: {
     variables: ["customerName", "leadReference", "documentName", "downloadLink"],
     wired: true,
     sampleVariables: { customerName: "Sample Customer", leadReference: "10626VI001", documentName: "Visa", downloadLink: "https://tripnexio.com/api/files/sample.pdf?token=sample" },
+  },
+  {
+    // P18 — OTB.md §13: staff recorded the airline's OTB PNR/reference.
+    // {{returnTicketOffer}} is a Return Verified Ticket offer line, empty when one already exists.
+    event: NOTIFICATION_EVENTS.OTB_APPROVED,
+    label: "OTB approved by the airline",
+    variables: ["customerName", "leadReference", "otbReference", "returnTicketOffer"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      leadReference: "10626OT001",
+      otbReference: "ABC123",
+      returnTicketOffer: "Need a return ticket? Get a Return Verified Ticket: https://tripnexio.com/services/return-ticket",
+    },
   },
 ];

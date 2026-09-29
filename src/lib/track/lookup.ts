@@ -192,6 +192,11 @@ function matchesVerifier(customer: { mobile: string; email: string | null }, ver
  * digits or email). The name is returned masked. Any mismatch returns null,
  * indistinguishable from "not found".
  */
+/** P18 — OTB.md §13: once approved, the customer sees the OTB PNR/reference. */
+function approvedOtbReference(serviceType: string, booking: { pnr: string | null; serviceStatus: { systemEvent: string | null } | null }): string | undefined {
+  return serviceType === "OTB" && booking.serviceStatus?.systemEvent === "OTB_APPROVED" && booking.pnr ? booking.pnr : undefined;
+}
+
 export async function trackByReferenceId(rawReferenceId: string, verifier: string): Promise<TrackResult | null> {
   const referenceId = rawReferenceId.trim().toUpperCase();
 
@@ -222,6 +227,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
       stages: stageIndex === "closed" ? [] : (serviceStages ?? buildStages(stageIndex)),
       delivered: await deliveredOutputs(booking?.id),
       passengers: booking ? await passengerRows(booking.id) : undefined,
+      otbReference: booking ? approvedOtbReference(lead.serviceType, booking) : undefined,
       closedMessage: stageIndex === "closed" ? closedMessageFor(booking?.status ?? null, lead.status, booking?.visaRejectionReason) : undefined,
     };
   }
@@ -246,6 +252,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
       stages: stageIndex === "closed" ? [] : (serviceStages ?? buildStages(stageIndex)),
       delivered: await deliveredOutputs(booking.id),
       passengers: await passengerRows(booking.id),
+      otbReference: approvedOtbReference(booking.lead.serviceType, booking),
       closedMessage: stageIndex === "closed" ? closedMessageFor(booking.status, booking.lead.status, booking.visaRejectionReason) : undefined,
     };
   }

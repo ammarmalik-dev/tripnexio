@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCustomerSession } from "@/lib/auth/get-customer-session";
 import { db } from "@/lib/db";
@@ -39,7 +40,8 @@ export default async function AccountPage() {
       where: { customerId: session.id },
       include: {
         lead: { select: { serviceType: true, crossSellOptOut: true } },
-        serviceStatus: { select: { customerLabel: true } },
+        serviceStatus: { select: { customerLabel: true, systemEvent: true } },
+        linkedBooking: { select: { lead: { select: { serviceType: true } } } },
         documents: { where: { type: "TICKET_PDF", deliveredAt: { not: null } }, select: { type: true } },
       },
       orderBy: { createdAt: "desc" },
@@ -133,6 +135,21 @@ export default async function AccountPage() {
               </span>
               {booking.visaRejectionReason ? (
                 <p className="w-full text-xs text-error">Reason: {booking.visaRejectionReason}</p>
+              ) : null}
+              {booking.lead.serviceType === "OTB" && booking.serviceStatus?.systemEvent === "OTB_APPROVED" && booking.pnr ? (
+                <div className="w-full text-xs text-ink-secondary">
+                  <p>
+                    <span className="font-medium text-ink-primary">OTB PNR / reference:</span> {booking.pnr}
+                  </p>
+                  {booking.linkedBooking?.lead.serviceType !== "RETURN_TICKET" ? (
+                    <p>
+                      Need a return ticket?{" "}
+                      <Link href="/services/return-ticket" className="text-ink-accent underline">
+                        Get a Return Verified Ticket
+                      </Link>
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
               {passengerStatusesByBooking[bookingIndex].length > 0 ? (
                 <ul className="w-full border-t border-hairline pt-2">

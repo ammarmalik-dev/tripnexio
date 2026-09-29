@@ -8,7 +8,7 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
 import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
-import { formatOtbRupees, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
+import { formatOtbRupees, otbApplicantPrice, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { siteConfig } from "@/lib/site-config";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 
@@ -27,6 +27,8 @@ export function Step2ProcessingType() {
   const processingType = useWatch({ control, name: "processingType" });
   const airlineCode = useWatch({ control, name: "airline" });
   const travelDate = useWatch({ control, name: "travelDate" });
+  const destinationCountry = useWatch({ control, name: "destinationCountry" });
+  const paxType = useWatch({ control, name: "paxType" });
   const applicants = (useWatch({ control, name: "additionalApplicants" }) ?? []).length + 1;
   const { state, airlines } = useOtbAirlines();
   const calendar = useWorkingCalendar("INDIA");
@@ -50,12 +52,12 @@ export function Step2ProcessingType() {
     {
       value: "normal",
       label: "Normal",
-      description: `Standard processing (${airline.standardDays} working days).${priceNote(airline.normalPrice)}`,
+      description: `Standard processing (${airline.standardDays} working days).${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", paxType, "normal"))}`,
     },
     {
       value: "urgent",
       label: "Urgent",
-      description: `Expedited processing for time-sensitive travel.${priceNote(airline.urgentPrice)}`,
+      description: `Expedited processing for time-sensitive travel.${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", paxType, "urgent"))}`,
     },
   ].filter((option) => outcome.allowed.includes(option.value as "normal" | "urgent"));
 

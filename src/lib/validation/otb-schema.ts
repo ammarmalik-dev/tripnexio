@@ -67,14 +67,24 @@ const passportNumberField = z
   .max(20, "Passport number is too long")
   .transform((value) => value.toUpperCase());
 
+/** P18 — OTB is priced per passenger type (Admin → OTB Prices); omitted = Adult (e.g. the WhatsApp bot). */
+export const OTB_PAX_TYPE_OPTIONS = [
+  { value: "ADULT", label: "Adult" },
+  { value: "CHILD", label: "Child" },
+  { value: "INFANT", label: "Infant" },
+] as const;
+const paxTypeField = z.enum(["ADULT", "CHILD", "INFANT"], { error: "Select a passenger type" }).optional();
+
 /** Client handover: the primary applicant also gives a passport number; additional applicants give only name + passport number. */
 export const otbApplicantsSchema = z.object({
   passportNumber: passportNumberField,
+  paxType: paxTypeField,
   additionalApplicants: z
     .array(
       z.object({
         fullName: z.string().trim().min(2, "Enter the full name").max(80, "Full name is too long"),
         passportNumber: passportNumberField,
+        paxType: paxTypeField,
       })
     )
     .max(MAX_ADDITIONAL_OTB_APPLICANTS),
@@ -87,13 +97,29 @@ export const otbApplicantsSchema = z.object({
  */
 export const otbReturnTicketSchema = z.object({
   hasReturnTicket: z.enum(["yes", "no"], { error: "Tell us whether you have a return ticket" }),
+  /** P18 — "No return ticket": add a Return Verified Ticket to the same order (destination rate × applicants). */
+  addReturnTicket: z.enum(["yes", "no"]).optional(),
+  returnDestinationCountryId: z.string().optional(),
+  expectedReturnDate: z.string().optional(),
 });
 
 export const otbRequestSchema = otbStep1Schema
   .extend(otbStep2Schema.shape)
   .extend(otbStep3Schema.shape)
   .extend(otbApplicantsSchema.shape)
-  .extend(otbReturnTicketSchema.shape);
+  .extend(otbReturnTicketSchema.shape)
+  .superRefine((values, ctx) => {
+    if (values.hasReturnTicket !== "no" || values.addReturnTicket !== "yes") return;
+    if (!values.returnDestinationCountryId) {
+      ctx.addIssue({ code: "custom", path: ["returnDestinationCountryId"], message: "Select the return ticket destination" });
+    }
+    const expected = values.expectedReturnDate ? new Date(values.expectedReturnDate) : null;
+    if (!expected || Number.isNaN(expected.getTime())) {
+      ctx.addIssue({ code: "custom", path: ["expectedReturnDate"], message: "Select your expected return date" });
+    } else if (values.travelDate && expected < new Date(values.travelDate)) {
+      ctx.addIssue({ code: "custom", path: ["expectedReturnDate"], message: "The return date can't be before the travel date" });
+    }
+  });
 
 export type OtbStep1Values = z.infer<typeof otbStep1Schema>;
 export type OtbStep2Values = z.infer<typeof otbStep2Schema>;
@@ -101,9 +127,9 @@ export type OtbRequestValues = z.infer<typeof otbRequestSchema>;
 
 export const otbStepFields: Record<number, (keyof OtbRequestValues)[]> = {
   0: ["fullName", "mobile", "email", "passportNumber", "destinationCountry", "airline", "travelDate"],
-  1: ["additionalApplicants"],
+  1: ["paxType", "additionalApplicants"],
   2: ["processingType"],
-  3: ["hasReturnTicket"],
+  3: ["hasReturnTicket", "addReturnTicket", "returnDestinationCountryId", "expectedReturnDate"],
 };
 
 export const otbStepLabels = ["Basic Details", "Other Applicants", "Processing Type", "Summary"];

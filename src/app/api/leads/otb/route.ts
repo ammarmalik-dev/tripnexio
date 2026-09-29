@@ -9,6 +9,9 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { db } from "@/lib/db";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
+import { resolveOtbApplicantPrices } from "@/lib/otb/pricing";
+import { createReturnTicketRequest } from "@/lib/return-ticket/create-request";
+import { linkServiceBookings } from "@/lib/return-ticket/operations";
 import { getOtbGlobalRules, resolveAirlineRules } from "@/lib/otb/get-otb-rules";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
 import { getWorkingCalendar } from "@/lib/calendar/get-working-calendar";
@@ -49,9 +52,15 @@ export async function POST(request: NextRequest) {
     passportImageBase64,
     passportImageMimeType,
     passportNumber,
+    paxType,
     additionalApplicants,
     hasReturnTicket,
+    addReturnTicket,
+    returnDestinationCountryId,
+    expectedReturnDate,
   } = parsed.data;
+  // P18 — a Return Verified Ticket added to this order (only when the customer has none).
+  const wantsReturnTicket = hasReturnTicket === "no" && addReturnTicket === "yes" && !!returnDestinationCountryId && !!expectedReturnDate;
 
   try {
     // The airline, its prices and the timeline rules all come from Admin
@@ -75,8 +84,32 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const applicants = [{ fullName, passportNumber }, ...additionalApplicants];
-    const unitPrice = Number(processingType === "urgent" ? airlineRecord.urgentPrice : airlineRecord.normalPrice);
+    if (wantsReturnTicket) {
+      const destination = await db.returnTicketDestination.findFirst({
+        where: { countryId: returnDestinationCountryId, active: true, country: { active: true } },
+        select: { id: true },
+      });
+      if (!destination) {
+        return jsonError(400, "That return ticket destination isn't available right now.", {
+          returnDestinationCountryId: ["Select an available destination."],
+        });
+      }
+    }
+
+    const applicants = [
+      { fullName, passportNumber, paxType: paxType ?? "ADULT" },
+      ...additionalApplicants.map((a) => ({ fullName: a.fullName, passportNumber: a.passportNumber, paxType: a.paxType ?? "ADULT" })),
+    ];
+    // P18 — priced per applicant: Admin OTB price for airline + destination +
+    // passenger type, falling back to the airline's own normal/urgent price.
+    const applicantPrices = await resolveOtbApplicantPrices({
+      airline: airlineRecord,
+      countryCode: destinationCountry,
+      processingType,
+      paxTypes: applicants.map((a) => a.paxType),
+    });
+    const priced = applicantPrices.every((price): price is number => price !== null && Number.isFinite(price) && price > 0);
+    const totalPrice = priced ? applicantPrices.reduce<number>((sum, price) => sum + (price ?? 0), 0) : 0;
 
     // No nationality field anywhere above — OTB never asks for it (business
     // rule); createLeadFromSubmission also strips one defensively if present.
@@ -94,9 +127,8 @@ export async function POST(request: NextRequest) {
         // Return-ticket cross-sell: staff follow up when the customer has none.
         hasReturnTicket: hasReturnTicket === "yes",
         ...(hasReturnTicket === "no" ? { returnTicketNeeded: true } : {}),
-        ...(Number.isFinite(unitPrice) && unitPrice > 0
-          ? { ratePerApplicant: unitPrice, indicativeTotal: unitPrice * applicants.length }
-          : {}),
+        ...(priced ? { applicantPrices, indicativeTotal: totalPrice } : {}),
+        ...(wantsReturnTicket ? { returnTicketAddedToOrder: true } : {}),
         applicants,
       },
     });
@@ -109,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     // OTB -> Return Ticket cross-sell automation: a real, staff-visible Task
     // instead of only the returnTicketNeeded flag buried in Lead.details JSON.
-    if (hasReturnTicket === "no") {
+    if (hasReturnTicket === "no" && !wantsReturnTicket) {
       await db.$transaction((tx) =>
         createTask(tx, {
           type: "CROSS_SELL_FOLLOW_UP",
@@ -128,18 +160,51 @@ export async function POST(request: NextRequest) {
     // Pay right after the form when the airline has a configured price for
     // this processing type (see the return-ticket route for the failure rule).
     let payToken: string | undefined;
+    let otbBookingId: string | undefined;
     try {
       const checkout = await createAutoCheckout({
         leadId: result.leadId,
         serviceType: "OTB",
-        totalPrice: Number.isFinite(unitPrice) ? unitPrice * applicants.length : 0,
+        totalPrice,
       });
       payToken = checkout?.token;
+      otbBookingId = checkout?.bookingId;
     } catch (checkoutError) {
       console.error("[api/leads/otb] auto checkout failed", describeError(checkoutError));
     }
 
-    return jsonSuccess({ ...result, payToken }, 201);
+    // P18 — the Return Verified Ticket added in the same order: its own
+    // lead/booking/payment (a separate service record, CRM.md §15), linked
+    // both ways to this OTB booking. Its issuance stays blocked until this
+    // OTB is approved (P17). A failure here never loses the OTB request.
+    let returnTicketPayToken: string | undefined;
+    if (wantsReturnTicket) {
+      try {
+        const rt = await createReturnTicketRequest({
+          contact: { fullName, mobile, email },
+          applicants: applicants.map((a) => ({ fullName: a.fullName, passportNumber: a.passportNumber })),
+          destinationCountryId: returnDestinationCountryId as string,
+          travelDate,
+          expectedReturnDate: expectedReturnDate as string,
+          source: "OTB order",
+          extraDetails: { otbLeadId: result.leadId },
+        });
+        if (rt.ok) {
+          returnTicketPayToken = rt.payToken;
+          if (otbBookingId && rt.bookingId) {
+            const rtBookingId = rt.bookingId;
+            const bookingId = otbBookingId;
+            await db.$transaction((tx) =>
+              linkServiceBookings(tx, { bookingId, otherBookingId: rtBookingId, actorLabel: "added together in the OTB order" })
+            );
+          }
+        }
+      } catch (returnTicketError) {
+        console.error("[api/leads/otb] return ticket add-on failed", describeError(returnTicketError));
+      }
+    }
+
+    return jsonSuccess({ ...result, payToken, returnTicketPayToken }, 201);
   } catch (error) {
     console.error("[api/leads/otb]", describeError(error));
     return jsonError(500, "Something went wrong while submitting your request. Please try again.");

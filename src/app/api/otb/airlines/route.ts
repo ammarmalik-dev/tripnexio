@@ -12,6 +12,12 @@ export async function GET() {
     db.airline.findMany({
       where: { active: true, otbRequired: true },
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      include: {
+        otbPrices: {
+          where: { active: true, country: { active: true } },
+          select: { paxType: true, normalPrice: true, urgentPrice: true, country: { select: { code: true } } },
+        },
+      },
     }),
     getOtbGlobalRules(),
   ]);
@@ -25,6 +31,13 @@ export async function GET() {
         logoUrl: airline.logoUrl,
         normalPrice: airline.normalPrice === null ? null : Number(airline.normalPrice),
         urgentPrice: airline.urgentPrice === null ? null : Number(airline.urgentPrice),
+        // P18 — customer-visible prices per destination country + passenger type.
+        prices: airline.otbPrices.map((price) => ({
+          countryCode: price.country.code,
+          paxType: price.paxType,
+          normalPrice: Number(price.normalPrice),
+          urgentPrice: price.urgentPrice === null ? null : Number(price.urgentPrice),
+        })),
         ...rules,
       };
     })

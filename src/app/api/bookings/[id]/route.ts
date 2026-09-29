@@ -8,6 +8,7 @@ import { buildApplicantRows } from "@/lib/new-visa/applicants";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
 import { linkedOtbState, returnTicketCancellationFee } from "@/lib/return-ticket/operations";
+import { expectedOtbCompletion } from "@/lib/otb/staff-actions";
 import { canIssueReservation } from "@/lib/bookings/reservation";
 import { getRefundConfig } from "@/lib/refunds/config";
 import { passengerVisaStatus } from "@/lib/protection-plan/passenger-status";
@@ -113,6 +114,20 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             ticketIssuedAt: booking.ticketIssuedAt,
             ticketBaggage: booking.ticketBaggage,
             tickets: booking.passengers.map((row) => ({ passengerId: row.passenger.id, fullName: row.passenger.fullName, ticketNumber: row.ticketNumber })),
+          }
+        : null,
+    // P18 — OTB airline timeline for the staff actions panel.
+    otb:
+      booking.lead.serviceType === "OTB"
+        ? {
+            otbReference: booking.pnr,
+            submittedAt: booking.otbSubmittedAt,
+            decidedAt: booking.otbDecidedAt,
+            outcomeNote: booking.otbOutcomeNote,
+            expectedBy: await expectedOtbCompletion({
+              details: booking.lead.details,
+              paidAt: booking.payments.filter((p) => p.status === "SUCCESS").reduce<Date | null>((min, p) => (!min || p.updatedAt < min ? p.updatedAt : min), null),
+            }),
           }
         : null,
     // P17 — OTB <-> Return Ticket link, visible from both bookings.

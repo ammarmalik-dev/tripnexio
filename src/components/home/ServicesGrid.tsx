@@ -8,6 +8,17 @@ import { getActiveServices } from "@/lib/services/active-services";
 import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
 import { SERVICE_ICON_MAP } from "@/lib/service-icons";
 import { headerActions } from "@/lib/nav-config";
+import { lowestOtbStartingPrice } from "@/lib/otb/pricing";
+
+/** P18 — the OTB card's "Starting from" (lowest active Admin price); never blocks the grid if it can't be read. */
+async function otbStartingFrom(): Promise<string | undefined> {
+  try {
+    const price = await lowestOtbStartingPrice();
+    return price === null ? undefined : `Starting from ₹${price.toLocaleString("en-IN")}`;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Server Component querying the Service table directly (not via the public
@@ -19,7 +30,7 @@ import { headerActions } from "@/lib/nav-config";
  * row must never crash the homepage).
  */
 export async function ServicesGrid() {
-  const services = await getActiveServices();
+  const [services, otbFrom] = await Promise.all([getActiveServices(), otbStartingFrom()]);
 
   return (
     <section className="py-20 sm:py-28">
@@ -56,6 +67,7 @@ export async function ServicesGrid() {
                   image={routeInfo.image}
                   imageAlt={routeInfo.imageAlt}
                   icon={<Icon className="h-5 w-5" aria-hidden="true" />}
+                  startingFrom={service.code === "OTB" ? otbFrom : undefined}
                 />
               </MotionReveal>
             );
