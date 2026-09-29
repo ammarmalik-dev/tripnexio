@@ -125,9 +125,14 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,
     label: "Visa Extension: Day-25 re-extension reminder",
-    variables: ["customerName", "bookingId", "extensionExpiryDate"],
+    variables: ["customerName", "bookingId", "extensionExpiryDate", "unsubscribeLink"],
     wired: true,
-    sampleVariables: { customerName: "Sample Customer", bookingId: "10626VE003", extensionExpiryDate: "30 Oct 2026" },
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "10626VE003",
+      extensionExpiryDate: "30 Oct 2026",
+      unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample-token",
+    },
   },
   {
     // P08 — sent when a Lead/Booking enters a per-service status whose

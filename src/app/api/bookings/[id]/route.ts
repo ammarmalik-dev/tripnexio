@@ -36,6 +36,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       // convention as `documents` below, not duplicated onto each passenger.
       protectionPlans: { orderBy: { createdAt: "asc" } },
       serviceStatus: { select: { id: true, name: true, customerLabel: true, blocksRefund: true } },
+      // P13 — Visa Extension <-> the New Visa booking it extends, visible from both sides.
+      originalBooking: { select: { id: true, bookingId: true, status: true } },
+      extensions: { select: { id: true, bookingId: true, status: true, createdAt: true }, orderBy: { createdAt: "asc" } },
     },
   });
   if (!booking) return jsonError(404, "Booking not found.");
@@ -84,6 +87,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     visaRejectionReason: booking.visaRejectionReason,
     travelDate: typeof (booking.lead.details as Record<string, unknown> | null)?.travelDate === "string" ? ((booking.lead.details as Record<string, unknown>).travelDate as string) : null,
     serviceStatusName: booking.serviceStatus?.name ?? null,
+    originalBooking: booking.originalBooking,
+    extensions: booking.extensions,
     applicants: buildApplicantRows(booking.lead.details, booking.passengers.map((row) => row.passenger)),
     leadId: booking.leadId,
     leadReferenceId: leadReference(booking.lead),

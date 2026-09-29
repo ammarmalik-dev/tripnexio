@@ -47,6 +47,8 @@ interface QuoteBuilderFormProps {
   hasItinerary?: boolean;
   /** Return Ticket: no flight-quote/itinerary shape, but staff can still optionally record which airline it's for. */
   showAirlineField?: boolean;
+  /** P13 — Visa Extension: extension fee / fine / other charges breakdown. */
+  isExtension?: boolean;
   vendors: VendorOption[];
   airlines: AirlineOption[];
   alternativeOptions: AlternativeOption[];
@@ -66,6 +68,7 @@ export function QuoteBuilderForm({
   isFlightQuote,
   hasItinerary = false,
   showAirlineField = false,
+  isExtension = false,
   vendors,
   airlines,
   alternativeOptions,
@@ -104,7 +107,7 @@ export function QuoteBuilderForm({
     };
   }, [hasItinerary, leadId]);
 
-  const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "flightTicketPrice") =>
+  const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "otherCharges" | "flightTicketPrice") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
 
   const optionalField = (name: "flightNumber" | "route" | "baggageAllowance" | "fareType" | "couponCode") =>
@@ -242,7 +245,7 @@ export function QuoteBuilderForm({
             </div>
           ) : null}
           <TextField
-            label="Fee (₹)"
+            label={isExtension ? "Extension Fee (₹)" : "Fee (₹)"}
             type="number"
             step="0.01"
             required
@@ -250,13 +253,23 @@ export function QuoteBuilderForm({
             error={errors.feeAmount?.message}
           />
           <TextField
-            label="Fine / Charges (₹)"
+            label={isExtension ? "Fine (₹)" : "Fine / Charges (₹)"}
             type="number"
             step="0.01"
             hint="Optional — added on top of the fee."
             {...numberField("fineOrCharges")}
             error={errors.fineOrCharges?.message}
           />
+          {isExtension ? (
+            <TextField
+              label="Other Charges (₹)"
+              type="number"
+              step="0.01"
+              hint="Optional — shown to the customer as its own line."
+              {...numberField("otherCharges")}
+              error={errors.otherCharges?.message}
+            />
+          ) : null}
           {hasItinerary ? (
             <TextField
               label="Flight Ticket (₹)"

@@ -8,6 +8,7 @@ import { createPendingPayment } from "@/lib/payments/create-payment";
 import { describeError } from "@/lib/api/describe-error";
 import { clientIp } from "@/lib/auth/rate-limit";
 import { recordTermsAcceptance } from "@/lib/terms/service-terms";
+import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -43,6 +44,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const parsed = approveSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
+  }
+
+  // P13 — same gate as quoting: an extension no longer verified quotable can't be approved.
+  if (extensionQuoteBlockReason(lead.serviceType, lead.details)) {
+    return jsonError(409, "This request needs our team to review it again. Please contact support.");
   }
 
   const quotation = await db.quotation.findUnique({ where: { id: parsed.data.quotationId } });

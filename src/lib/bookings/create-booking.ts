@@ -7,6 +7,7 @@ import { isExpiredNow } from "../quotations/sync-expiry";
 import { getProtectionPlanOffer, leadDestinationCountryCode, protectionPlanRowsForBooking } from "../protection-plan/country-offer";
 import { buildDocumentChecklistSnapshot } from "./document-checklist-snapshot";
 import { generateToken } from "../quotations/select-quotation";
+import { findOriginalBookingForExtension } from "../leads/visa-extension-eligibility";
 
 export interface CreateBookingActor {
   byUserId?: string;
@@ -87,6 +88,9 @@ export async function createBookingFromQuotation(
     destinationCountry?.id ?? null
   );
 
+  // P13 — a Visa Extension booking links to the New Visa booking it extends (matched by applicant passport).
+  const originalBookingId = quotation.lead.serviceType === "VISA_EXTENSION" ? await findOriginalBookingForExtension(quotation.lead.details) : null;
+
   const booking = await db.$transaction(async (tx: Prisma.TransactionClient) => {
     const created = await tx.booking.create({
       data: {
@@ -97,6 +101,7 @@ export async function createBookingFromQuotation(
         customerId: quotation.lead.customerId,
         status: "PENDING",
         documentChecklistSnapshot: documentChecklistSnapshot as unknown as Prisma.InputJsonValue,
+        originalBookingId,
       },
     });
 
@@ -124,7 +129,7 @@ export async function createBookingFromQuotation(
       entityId: created.id,
       action: "CREATE",
       byUserId: actor.byUserId,
-      note: `Booking initiated from quotation ${quotation.id} (${actor.label})`,
+      note: `Booking initiated from quotation ${quotation.id}${originalBookingId ? ` — extends original booking ${originalBookingId}` : ""} (${actor.label})`,
     });
 
     return created;

@@ -24,6 +24,10 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   "EMBASSY_RESUBMITTED",
   "EMBASSY_APPROVED",
   "EMBASSY_REJECTED",
+  // P13 — Visa Extension outcomes staff record on a booking.
+  "EXTENSION_EXTENDED",
+  "EXTENSION_NOT_ACCEPTED",
+  "EXTENSION_REJECTED",
 ] as const;
 
 export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[number];
@@ -49,5 +53,8 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   EMBASSY_RESUBMITTED: "Embassy: re-submitted",
   EMBASSY_APPROVED: "Embassy: visa approved",
   EMBASSY_REJECTED: "Embassy: rejected",
+  EXTENSION_EXTENDED: "Extension: extended",
+  EXTENSION_NOT_ACCEPTED: "Extension: not accepted",
+  EXTENSION_REJECTED: "Extension: rejected",
   ON_HOLD: "On Hold (marker)",
 };

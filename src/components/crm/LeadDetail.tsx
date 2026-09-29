@@ -26,6 +26,7 @@ import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus, LeadTemperature, BookingStatus, PaymentStatus, PaxType, DocumentStatus } from "../../generated/prisma/enums";
 import { ApplicantsTable } from "./ApplicantsTable";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
+import { urgentDeadlineFromDetails } from "@/lib/visa-extension/rules";
 
 interface QuotationSummary {
   id: string;
@@ -173,6 +174,9 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
     "eligibilityOutcome",
     "verifiedByStaffId",
     "verifiedAt",
+    "urgentDeadline",
+    "noPriorVisa",
+    "noPriorVisaApplicants",
     "borderOperationalDetails",
     "passengers",
     "applicants",
@@ -261,6 +265,16 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
             )}
           </section>
 
+          {lead.serviceType === "VISA_EXTENSION" && lead.details.noPriorVisa === true ? (
+            <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+              <span className="font-semibold">No prior TripNexio visa</span>
+              {Array.isArray(lead.details.noPriorVisaApplicants) && lead.details.noPriorVisaApplicants.length > 0
+                ? ` for ${(lead.details.noPriorVisaApplicants as unknown[]).filter((name): name is string => typeof name === "string").join(", ")}`
+                : ""}
+              . The customer was shown the Visa Change (inside the UAE) / New Visa (outside the UAE) options.
+            </div>
+          ) : null}
+
           {lead.serviceType === "VISA_EXTENSION" ? (
             <VisaExtensionPriorVisaPanel
               items={lead.priorVisaMatches}
@@ -283,10 +297,19 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
                   ? lead.details.eligibilityOutcome
                   : undefined
               }
+              urgentDeadline={urgentDeadlineFromDetails(lead.details)}
               onVerified={(result) =>
                 setLead((current) =>
                   current
-                    ? { ...current, details: { ...current.details, verifiedExpiryDate: result.verifiedExpiryDate, eligibilityOutcome: result.outcome } }
+                    ? {
+                        ...current,
+                        details: {
+                          ...current.details,
+                          verifiedExpiryDate: result.verifiedExpiryDate,
+                          eligibilityOutcome: result.outcome,
+                          urgentDeadline: result.urgentDeadline ?? undefined,
+                        },
+                      }
                     : current
                 )
               }

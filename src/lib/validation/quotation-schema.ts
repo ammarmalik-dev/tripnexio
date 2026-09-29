@@ -25,6 +25,8 @@ export const createQuotationSchema = z.object({
   // Visa services / OTB fields (simple fee-based quote)
   feeAmount: z.number().nonnegative("Fee can't be negative").optional(),
   fineOrCharges: z.number().nonnegative("Fine/charges can't be negative").optional(),
+  /** P13 — Visa Extension quote breakdown: other charges, added to the total. */
+  otherCharges: z.number().nonnegative("Other charges can't be negative").optional(),
   /** Visa Change itinerary options only — ignored for every other service type. */
   flightTicketPrice: z.number().nonnegative("Flight ticket price can't be negative").optional(),
 

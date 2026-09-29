@@ -25,12 +25,15 @@ export class ApiError extends Error {
 export class RequestIneligibleOutcome extends Error {
   description: string;
   cta?: { label: string; href: string };
+  /** P13 — an optional second choice shown next to `cta`. */
+  secondaryCta?: { label: string; href: string };
 
-  constructor(message: string, description: string, cta?: { label: string; href: string }) {
+  constructor(message: string, description: string, cta?: { label: string; href: string }, secondaryCta?: { label: string; href: string }) {
     super(message);
     this.name = "RequestIneligibleOutcome";
     this.description = description;
     this.cta = cta;
+    this.secondaryCta = secondaryCta;
   }
 }
 

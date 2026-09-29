@@ -130,7 +130,12 @@ export function MultiStepRequestFlow<T extends FieldValues>({
     return (
       <Container className="py-16 sm:py-24">
         <div className="mx-auto max-w-xl">
-          <RequestInfoPanel title={ineligibleOutcome.message} description={ineligibleOutcome.description} cta={ineligibleOutcome.cta} />
+          <RequestInfoPanel
+            title={ineligibleOutcome.message}
+            description={ineligibleOutcome.description}
+            cta={ineligibleOutcome.cta}
+            secondaryCta={ineligibleOutcome.secondaryCta}
+          />
         </div>
       </Container>
     );

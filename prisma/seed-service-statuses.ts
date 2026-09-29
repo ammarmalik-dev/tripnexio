@@ -120,15 +120,15 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       { name: "Processing", customerLabel: "Applied to Embassy", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Additional Information Required", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
       { name: "Re-processing", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Extended", customerLabel: "Approved", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
+      { name: "Extended", customerLabel: "Approved", mapsToBookingStatus: "PROCESSING", blocksRefund: true, systemEvent: "EXTENSION_EXTENDED" },
       { name: "Visa Delivered", mapsToBookingStatus: "PROCESSING", blocksRefund: true, systemEvent: "DELIVERED_EXTENDED_VISA_PDF" },
       { name: "Completed", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
       // Alternative outcomes (Visa_Extension.md §19) — Not Accepted vs.
       // Rejected are the two-different-refund-treatment split already
       // built as Booking.extensionOutcome in Step 15.
       { name: "Not Eligible", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
-      { name: "Not Accepted", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
-      { name: "Rejected", customerLabel: "Rejected", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true },
+      { name: "Not Accepted", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED", systemEvent: "EXTENSION_NOT_ACCEPTED" },
+      { name: "Rejected", customerLabel: "Rejected", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED", blocksRefund: true, systemEvent: "EXTENSION_REJECTED" },
       { name: "Cancelled", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
       { name: "Refund Processing", group: "Alternative Outcomes", mapsToBookingStatus: "REFUNDED" },
       { name: "Refund Completed", group: "Alternative Outcomes", isTerminal: true, mapsToBookingStatus: "REFUNDED" },
@@ -137,6 +137,12 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
       ["Processing", "Not Eligible"],
       ["Processing", "Not Accepted"],
       ["Processing", "Rejected"],
+      // P13 — outcomes from any in-process step.
+      ["Processing", "Extended"],
+      ["Additional Information Required", "Not Accepted"],
+      ["Additional Information Required", "Rejected"],
+      ["Re-processing", "Not Accepted"],
+      ["Re-processing", "Rejected"],
       ["Not Accepted", "Refund Processing"],
       ["Rejected", "Refund Processing"],
       ["Cancelled", "Refund Processing"],

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -13,6 +13,7 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { formatRupees } from "@/lib/return-ticket/use-return-ticket-destinations";
 import { siteConfig } from "@/lib/site-config";
 import { TermsCheckbox, type TermsView } from "@/components/terms/TermsAgreement";
+import { formatDeadlineDay, type UrgentDeadline } from "@/lib/visa-extension/rules";
 
 interface QuoteOption {
   id: string;
@@ -29,6 +30,14 @@ interface QuoteOption {
   arrivalDateTime?: string | null;
   baggageAllowance?: string | null;
   fareType?: string | null;
+  /** P13 — Visa Extension only. */
+  breakdown?: { extensionFee: number; fine: number; otherCharges: number };
+}
+
+interface ExtensionView {
+  durationDays: number;
+  paymentDeadlineHours: number;
+  urgentDeadline: UrgentDeadline | null;
 }
 
 interface ReviewView {
@@ -38,6 +47,16 @@ interface ReviewView {
   quotations: QuoteOption[];
   bookingToken: string | null;
   terms: TermsView | null;
+  extension: ExtensionView | null;
+}
+
+function BreakdownRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <span className="text-ink-tertiary">{label}</span>
+      <span className="font-medium text-ink-primary">{value}</span>
+    </div>
+  );
 }
 
 function formatDateTime(iso: string): string {
@@ -46,11 +65,13 @@ function formatDateTime(iso: string): string {
 
 function QuoteCard({
   quote,
+  extension,
   onApprove,
   approving,
   canApprove,
 }: {
   quote: QuoteOption;
+  extension: ExtensionView | null;
   onApprove: () => void;
   approving: boolean;
   canApprove: boolean;
@@ -76,6 +97,15 @@ function QuoteCard({
         </div>
       ) : null}
 
+      {quote.breakdown && extension ? (
+        <div className="flex flex-col gap-2">
+          <BreakdownRow label="Extension duration" value={`${extension.durationDays} days`} />
+          <BreakdownRow label="Extension fee" value={formatRupees(quote.breakdown.extensionFee)} />
+          <BreakdownRow label="Fine" value={formatRupees(quote.breakdown.fine)} />
+          <BreakdownRow label="Other charges" value={formatRupees(quote.breakdown.otherCharges)} />
+        </div>
+      ) : null}
+
       <div className="flex items-baseline justify-between gap-3 border-t border-hairline pt-3">
         <span className="text-sm text-ink-tertiary">Total</span>
         <span className="text-lg font-semibold text-ink-heading">{formatRupees(payable)}</span>
@@ -87,6 +117,15 @@ function QuoteCard({
       ) : null}
       {quote.validityExpiresAt ? (
         <p className="text-xs text-ink-tertiary">Valid until {formatDateTime(quote.validityExpiresAt)}</p>
+      ) : null}
+      {extension ? (
+        <div className="flex flex-col gap-1 text-xs text-ink-tertiary">
+          <p>
+            Payment deadline: pay within {extension.paymentDeadlineHours} hours — the payment link is valid for {extension.paymentDeadlineHours}{" "}
+            hours after you approve.
+          </p>
+          <p>The new validity is counted from the original visa expiry date.</p>
+        </div>
       ) : null}
 
       <Button type="button" onClick={onApprove} isLoading={approving} disabled={!canApprove} className="mt-1">
@@ -178,12 +217,32 @@ export function QuoteReviewPanel({ token }: { token: string }) {
               We&apos;ve prepared {view.quotations.length} options — choose the one that suits you.
             </p>
           ) : null}
+          {view.extension?.urgentDeadline ? (
+            <div role="alert" className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/10 p-4 text-warning">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+              <div className="flex flex-col gap-1 text-sm">
+                <p className="font-semibold">Urgent: your visa expires today.</p>
+                <p>
+                  Please complete payment by 6:00 PM on {formatDeadlineDay(view.extension.urgentDeadline.day)}. TripNexio is not responsible for fines
+                  caused by a late payment.
+                </p>
+                {view.extension.urgentDeadline.nextDayHolidays.length > 0 ? (
+                  <p className="font-semibold">
+                    The next day is a public holiday (
+                    {view.extension.urgentDeadline.nextDayHolidays.map((h) => `${h.country === "UAE" ? "UAE" : "India"}: ${h.name}`).join("; ")}), so
+                    nothing can be processed then — this deadline cannot be extended.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <TermsCheckbox terms={view.terms} checked={termsAgreed} onChange={setTermsAgreed} id="quote-terms" />
           <div className="flex flex-col gap-4">
             {view.quotations.map((quote) => (
               <QuoteCard
                 key={quote.id}
                 quote={quote}
+                extension={view.extension}
                 onApprove={() => void handleApprove(quote.id)}
                 approving={approvingId === quote.id}
                 canApprove={termsAgreed}

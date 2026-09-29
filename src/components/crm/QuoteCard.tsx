@@ -18,6 +18,7 @@ export interface QuoteCardData {
   infantFare: string | null;
   feeAmount: string | null;
   fineOrCharges: string | null;
+  otherCharges?: string | null;
   flightTicketPrice: string | null;
   vendorId: string;
   vendorCost: string;
@@ -199,6 +200,12 @@ export function QuoteCard({
             <div className="flex justify-between gap-2">
               <dt className="text-ink-tertiary">Fine / Charges</dt>
               <dd className="font-medium text-ink-primary">{money(quotation.fineOrCharges)}</dd>
+            </div>
+          ) : null}
+          {money(quotation.otherCharges ?? null) ? (
+            <div className="flex justify-between gap-2">
+              <dt className="text-ink-tertiary">Other Charges</dt>
+              <dd className="font-medium text-ink-primary">{money(quotation.otherCharges ?? null)}</dd>
             </div>
           ) : null}
           {quotation.couponCode ? (

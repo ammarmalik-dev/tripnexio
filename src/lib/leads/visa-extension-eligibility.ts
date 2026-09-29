@@ -76,6 +76,8 @@ export interface PriorTripNexioVisa {
   createdAt: Date;
   /** Booking ID of the earlier visa, when one exists. */
   bookingId: string | null;
+  /** P13 — that booking's row id (for Booking.originalBookingId). */
+  bookingRecordId: string | null;
   /** Captured on the earlier New Visa request — shown to staff as-is, never guessed. */
   destinationCountry: string | null;
   visaType: string | null;
@@ -104,19 +106,50 @@ export async function findPriorTripNexioVisaByPassport(passportNumber: string): 
       status: "CONVERTED",
     },
     orderBy: { createdAt: "desc" },
-    include: { bookings: { orderBy: { createdAt: "desc" }, take: 1 } },
+    // Prefer a live booking over a cancelled/refunded one.
+    include: { bookings: { orderBy: [{ createdAt: "desc" }], select: { id: true, bookingId: true, status: true } } },
   });
   if (!lead) return null;
 
+  const preferred = lead.bookings.find((booking) => booking.status !== "CANCELLED" && booking.status !== "REFUNDED") ?? lead.bookings[0] ?? null;
   const details = (lead.details ?? {}) as Record<string, unknown>;
   const text = (value: unknown) => (typeof value === "string" && value ? value : null);
   return {
     leadId: lead.id,
     referenceId: leadReference(lead),
     createdAt: lead.createdAt,
-    bookingId: lead.bookings[0]?.bookingId ?? null,
+    bookingId: preferred?.bookingId ?? null,
+    bookingRecordId: preferred?.id ?? null,
     destinationCountry: text(details.destinationCountry),
     visaType: text(details.visaType),
     travelDate: text(details.travelDate),
   };
+}
+
+/** P13 — every applicant passport on a Visa Extension lead (primary first), de-duplicated. */
+export function extensionApplicantPassports(details: unknown): { fullName: string; passportNumber: string }[] {
+  const data = (details ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(data.applicants) ? (data.applicants as Record<string, unknown>[]) : [];
+  const list = rows
+    .map((row) => ({ fullName: typeof row.fullName === "string" ? row.fullName : "", passportNumber: typeof row.passportNumber === "string" ? row.passportNumber.trim() : "" }))
+    .filter((row) => row.passportNumber);
+  if (list.length === 0 && typeof data.passportNumber === "string" && data.passportNumber.trim()) {
+    list.push({ fullName: "", passportNumber: data.passportNumber.trim() });
+  }
+  const seen = new Set<string>();
+  return list.filter((row) => {
+    const key = row.passportNumber.toUpperCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** P13 — the original New Visa booking a Visa Extension lead extends: the first applicant (primary first) with a matched prior TripNexio visa booking. */
+export async function findOriginalBookingForExtension(details: unknown): Promise<string | null> {
+  for (const applicant of extensionApplicantPassports(details)) {
+    const match = await findPriorTripNexioVisaByPassport(applicant.passportNumber);
+    if (match?.bookingRecordId) return match.bookingRecordId;
+  }
+  return null;
 }

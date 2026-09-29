@@ -35,12 +35,13 @@ interface PricingInput {
   sellingPrice?: number;
   feeAmount?: number;
   fineOrCharges?: number;
+  otherCharges?: number;
   flightTicketPrice?: number;
 }
 
 /**
  * Selling price (the customer-facing total) is staff-entered directly for
- * flight quotes, and computed as feeAmount + fineOrCharges (+ the flight
+ * flight quotes, and computed as feeAmount + fineOrCharges + otherCharges (+ the flight
  * ticket price on a Visa Change itinerary) for every other service type — mirrors how margin is always computed, never trusted from
  * the client.
  */
@@ -49,6 +50,6 @@ export function computeSellingPrice(serviceType: ServiceType, input: PricingInpu
     return input.sellingPrice ?? 0;
   }
   const flightTicket = supportsItinerary(serviceType) ? (input.flightTicketPrice ?? 0) : 0;
-  return (input.feeAmount ?? 0) + (input.fineOrCharges ?? 0) + flightTicket;
+  return (input.feeAmount ?? 0) + (input.fineOrCharges ?? 0) + (input.otherCharges ?? 0) + flightTicket;
 }
 

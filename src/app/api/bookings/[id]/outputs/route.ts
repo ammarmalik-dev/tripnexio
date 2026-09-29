@@ -62,6 +62,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (booking.lead.serviceType === "NEW_VISA" && parsed.data.outputType === "VISA_PDF" && !(await hasReachedStatusEvent(booking.id, "EMBASSY_APPROVED"))) {
     return jsonError(409, "Mark the visa as Approved before delivering the visa PDF.");
   }
+  // P13 — the extended visa PDF follows a recorded "Extended" outcome.
+  if (booking.lead.serviceType === "VISA_EXTENSION" && parsed.data.outputType === "EXTENDED_VISA_PDF" && booking.extensionOutcome !== "EXTENDED") {
+    return jsonError(409, "Record the extension outcome as Extended before delivering the extended visa PDF.");
+  }
 
   const passengerId = parsed.data.passengerId ?? null;
   if (passengerId && !booking.passengers.some((row) => row.passengerId === passengerId)) {

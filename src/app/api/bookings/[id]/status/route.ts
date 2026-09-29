@@ -48,12 +48,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
 
-  // P11 — a New Visa booking completes only after its visa PDF was delivered.
-  if (booking.lead.serviceType === "NEW_VISA") {
+  // P11/P13 — a New Visa (or Visa Extension) booking completes only after its visa PDF was delivered.
+  const requiredOutput = booking.lead.serviceType === "NEW_VISA" ? "VISA_PDF" : booking.lead.serviceType === "VISA_EXTENSION" ? "EXTENDED_VISA_PDF" : null;
+  if (requiredOutput) {
     const target = await db.serviceStatus.findUnique({ where: { id: parsed.data.serviceStatusId }, select: { mapsToBookingStatus: true } });
     if (target?.mapsToBookingStatus === "COMPLETED") {
-      const delivered = await db.document.count({ where: { bookingId: id, type: "VISA_PDF", deliveredAt: { not: null } } });
-      if (delivered === 0) return jsonError(409, "Deliver the visa PDF to the customer before completing this booking.");
+      const delivered = await db.document.count({ where: { bookingId: id, type: requiredOutput, deliveredAt: { not: null } } });
+      if (delivered === 0) {
+        return jsonError(409, `Deliver the ${requiredOutput === "VISA_PDF" ? "visa" : "extended visa"} PDF to the customer before completing this booking.`);
+      }
     }
   }
 

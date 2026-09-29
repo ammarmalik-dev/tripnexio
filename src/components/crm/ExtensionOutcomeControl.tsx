@@ -8,11 +8,13 @@ import { cn } from "@/lib/cn";
 import type { ExtensionOutcome } from "../../generated/prisma/enums";
 
 const OUTCOME_LABELS: Record<ExtensionOutcome, string> = {
+  EXTENDED: "Extended",
   NOT_ACCEPTED: "Not Accepted",
   REJECTED: "Rejected",
 };
 
 const OUTCOME_STYLES: Record<ExtensionOutcome, string> = {
+  EXTENDED: "bg-success/10 text-success",
   NOT_ACCEPTED: "bg-warning/10 text-warning",
   REJECTED: "bg-error/10 text-error",
 };
@@ -24,12 +26,10 @@ interface ExtensionOutcomeControlProps {
 }
 
 /**
- * Visa_Extension.md §17-18 (Step 15) — "Not Accepted" (refund minus gateway)
- * vs "Rejected" (no refund) are separate terminal outcomes the refund rule
- * engine reads (src/lib/refunds/rules.ts). Once set, this booking moves to
- * CANCELLED and the outcome can't be changed again (matches the
- * one-way-terminal framing in the spec — staff can still see which outcome
- * was recorded).
+ * Visa_Extension.md §17-19 — the immigration outcome, applied through the
+ * service status engine (P13). "Extended" continues to the extended visa
+ * PDF delivery; "Not Accepted" (refund minus gateway) and "Rejected" (no
+ * refund) are terminal and move the booking to CANCELLED. Recorded once.
  */
 export function ExtensionOutcomeControl({ bookingId, outcome, onChanged }: ExtensionOutcomeControlProps) {
   const [pending, setPending] = useState(false);
@@ -71,6 +71,7 @@ export function ExtensionOutcomeControl({ bookingId, outcome, onChanged }: Exten
         <option value="" disabled>
           Record extension outcome…
         </option>
+        <option value="EXTENDED">Extended (then deliver the extended visa PDF)</option>
         <option value="NOT_ACCEPTED">Not Accepted (refund minus gateway)</option>
         <option value="REJECTED">Rejected (no refund)</option>
       </select>

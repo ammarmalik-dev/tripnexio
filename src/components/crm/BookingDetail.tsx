@@ -97,6 +97,9 @@ interface BookingDetailResponse {
   travelDate: string | null;
   serviceStatusName: string | null;
   applicants: ApplicantRow[];
+  /** P13 — Visa Extension: the New Visa booking it extends; a New Visa booking: its extensions. */
+  originalBooking: { id: string; bookingId: string; status: BookingStatus } | null;
+  extensions: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   /** P12 — New Visa only: per passenger, Visa status and Protection Plan status side by side. */
   passengerStatuses: { passengerId: string; fullName: string; visaStatus: string; protectionPlanStatus: ProtectionPlanStatus | null }[];
 }
@@ -248,6 +251,29 @@ export function BookingDetail({
           <p className="text-xs text-ink-tertiary">
             {booking.customer.name} · {booking.customer.mobile} · Created {formatDate(booking.createdAt)}
           </p>
+          {booking.originalBooking ? (
+            <p className="text-xs text-ink-secondary">
+              Extends original New Visa booking{" "}
+              <Link href={`/crm/bookings/${booking.originalBooking.id}`} className="font-medium text-ink-accent hover:underline">
+                {booking.originalBooking.bookingId}
+              </Link>
+            </p>
+          ) : booking.serviceType === "VISA_EXTENSION" ? (
+            <p className="text-xs text-warning">No original TripNexio New Visa booking matched this extension&apos;s passports.</p>
+          ) : null}
+          {booking.extensions.length > 0 ? (
+            <p className="text-xs text-ink-secondary">
+              Extensions:{" "}
+              {booking.extensions.map((extension, index) => (
+                <span key={extension.id}>
+                  {index > 0 ? ", " : ""}
+                  <Link href={`/crm/bookings/${extension.id}`} className="font-medium text-ink-accent hover:underline">
+                    {extension.bookingId}
+                  </Link>
+                </span>
+              ))}
+            </p>
+          ) : null}
           <CopyPaymentLinkButton customerToken={booking.customerToken} />
         </div>
         <div className="flex flex-col items-end gap-2">

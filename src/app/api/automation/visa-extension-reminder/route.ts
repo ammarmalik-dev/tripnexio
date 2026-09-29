@@ -7,6 +7,7 @@ import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log"
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { siteConfig } from "@/lib/site-config";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,11 +30,15 @@ const REMINDER_DAY = 25;
 // itself lapses (day 25-30) — outside that, either too early to matter or
 // already past the point of being useful.
 const RELEVANT_WINDOW_END_DAY = 30;
-// One-shot: long enough that this job (running daily) can never send a
-// second reminder for the same booking within the whole relevant window.
-const REMINDER_COOLDOWN_MS = 45 * DAY_MS;
+// P13 — one reminder per booking, ever: a 10-year lookback on the reminder log.
+const REMINDER_COOLDOWN_MS = 3650 * DAY_MS;
 
 /**
+ * P13: measured from the staff-verified expiry (fallback: the customer's
+ * date), sent at most once per booking, and skipped when the customer opted
+ * out of follow-ups (Lead.followUpOptOut, via the unsubscribe link) or has
+ * since completed another extension or started a visa change.
+ *
  * Called by n8n's "Visa Extension: Day-25 Re-Extension Reminder" workflow
  * — Item 10, client-message/PENDING_WORK_PROMPTS.md. Finds successfully
  * completed (payment received) Visa Extension bookings whose original
@@ -47,7 +52,12 @@ export async function POST(request: NextRequest) {
   try {
     const summary = await recordAutomationRun("visa-extension-reminder", async () => {
       const bookings = await db.booking.findMany({
-        where: { status: { in: ["CONFIRMED", "PROCESSING", "COMPLETED"] }, lead: { serviceType: "VISA_EXTENSION" } },
+        where: {
+          status: { in: ["CONFIRMED", "PROCESSING", "COMPLETED"] },
+          lead: { serviceType: "VISA_EXTENSION", followUpOptOut: false },
+          // A Not Accepted / Rejected extension never gets a re-extension nudge.
+          OR: [{ extensionOutcome: null }, { extensionOutcome: "EXTENDED" }],
+        },
         include: { lead: true, customer: true },
       });
 
@@ -56,7 +66,9 @@ export async function POST(request: NextRequest) {
       let remindersSent = 0;
 
       for (const booking of bookings) {
-        const visaExpiryRaw = (booking.lead.details as Record<string, unknown> | null)?.visaExpiryDate;
+        // P13 — anchored on the staff-verified expiry, falling back to the customer's own date.
+        const details = (booking.lead.details as Record<string, unknown> | null) ?? {};
+        const visaExpiryRaw = typeof details.verifiedExpiryDate === "string" && details.verifiedExpiryDate ? details.verifiedExpiryDate : details.visaExpiryDate;
         if (typeof visaExpiryRaw !== "string") continue;
         const visaExpiryDate = new Date(visaExpiryRaw);
         if (Number.isNaN(visaExpiryDate.getTime())) continue;
@@ -69,6 +81,22 @@ export async function POST(request: NextRequest) {
         const alreadyReminded = await wasRecentlyReminded("VISA_EXTENSION_REMINDER", "Booking", booking.id, REMINDER_COOLDOWN_MS);
         if (alreadyReminded) continue;
 
+        // P13 — stop once the customer has moved on: a later completed
+        // extension, or a later visa change (not cancelled/refunded).
+        const movedOn = await db.booking.findFirst({
+          where: {
+            customerId: booking.customerId,
+            id: { not: booking.id },
+            createdAt: { gt: booking.createdAt },
+            OR: [
+              { lead: { serviceType: "VISA_EXTENSION" }, status: "COMPLETED" },
+              { lead: { serviceType: "VISA_CHANGE" }, status: { notIn: ["CANCELLED", "REFUNDED"] } },
+            ],
+          },
+          select: { id: true },
+        });
+        if (movedOn) continue;
+
         const extensionExpiry = new Date(visaExpiryDate.getTime() + RELEVANT_WINDOW_END_DAY * DAY_MS);
 
         await notifyCustomer({
@@ -80,6 +108,7 @@ export async function POST(request: NextRequest) {
             customerName: booking.customer.name,
             bookingId: booking.bookingId,
             extensionExpiryDate: extensionExpiry.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+            unsubscribeLink: booking.lead.customerToken ? `${siteConfig.url}/follow-ups/stop/${booking.lead.customerToken}` : "",
           },
           auditTarget: { entityType: "Booking", entityId: booking.id },
         });

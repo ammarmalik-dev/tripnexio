@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { createQuotationSchema } from "@/lib/validation/quotation-schema";
 import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
@@ -175,6 +176,7 @@ export async function POST(request: NextRequest) {
     infantFare,
     feeAmount,
     fineOrCharges,
+    otherCharges,
     flightTicketPrice,
     vendorCost,
     sellingPrice,
@@ -187,6 +189,9 @@ export async function POST(request: NextRequest) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  // P13 — a Visa Extension is quoted only after staff verified it ELIGIBLE or URGENT_TODAY.
+  const extensionBlock = extensionQuoteBlockReason(lead.serviceType, lead.details);
+  if (extensionBlock) return jsonError(409, extensionBlock);
 
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
   if (!vendor || !vendor.active) {
@@ -226,7 +231,7 @@ export async function POST(request: NextRequest) {
   }
 
   // Selling price and margin are always computed/resolved server-side — never trust a client-sent value.
-  const resolvedSellingPrice = computeSellingPrice(lead.serviceType, { sellingPrice, feeAmount, fineOrCharges, flightTicketPrice });
+  const resolvedSellingPrice = computeSellingPrice(lead.serviceType, { sellingPrice, feeAmount, fineOrCharges, otherCharges, flightTicketPrice });
   const margin = resolvedSellingPrice - vendorCost;
 
   // Step 22 (audit §3.2/§4.2/§7.8) — resolved and validated here, not
@@ -259,6 +264,7 @@ export async function POST(request: NextRequest) {
         infantFare,
         feeAmount,
         fineOrCharges,
+        otherCharges,
         flightTicketPrice: supportsItinerary(lead.serviceType) ? flightTicketPrice : undefined,
         vendorCost,
         sellingPrice: resolvedSellingPrice,

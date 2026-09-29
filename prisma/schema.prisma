@@ -326,6 +326,8 @@ model Quotation {
   /// --- Visa services / OTB fields (simple fee-based quote) ---
   feeAmount         Decimal?  @db.Decimal(10, 2)
   fineOrCharges     Decimal?  @db.Decimal(10, 2)
+  /// P13 — Visa Extension quote breakdown: any other charges, added to the total like fineOrCharges.
+  otherCharges      Decimal?  @db.Decimal(10, 2)
   /// --- Commercial fields shared by every service type ---
   vendorId          String
   vendorCost        Decimal   @db.Decimal(10, 2)
@@ -448,9 +450,15 @@ model Booking {
   /// after the fact) and for any passenger with no nationality on file. See
   /// src/lib/bookings/document-checklist-snapshot.ts for the shape.
   documentChecklistSnapshot Json?
+  /// P13 — a Visa Extension booking's original New Visa booking (the prior
+  /// TripNexio visa matched by passport). Null for every other service, or
+  /// when no prior TripNexio visa was found.
+  originalBookingId         String?
   createdAt                 DateTime          @default(now())
   updatedAt                 DateTime          @updatedAt
 
+  originalBooking Booking?             @relation("BookingExtensions", fields: [originalBookingId], references: [id])
+  extensions      Booking[]            @relation("BookingExtensions")
   lead            Lead                 @relation(fields: [leadId], references: [id])
   customer        Customer             @relation(fields: [customerId], references: [id])
   serviceStatus   ServiceStatus?       @relation(fields: [serviceStatusId], references: [id])
@@ -465,11 +473,14 @@ model Booking {
   @@index([customerId])
   @@index([serviceStatusId])
   @@index([status])
+  @@index([originalBookingId])
 }
 
 enum ExtensionOutcome {
   NOT_ACCEPTED
   REJECTED
+  /// P13 — immigration granted the extension; followed by delivering the extended visa PDF.
+  EXTENDED
 }
 
 /// CRM.md §12, locked (Step 14, audit §3.3): "Each PAX must be

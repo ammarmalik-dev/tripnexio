@@ -162,6 +162,7 @@ export function QuoteBuilder({
             isFlightQuote={flightQuote}
             hasItinerary={hasItinerary}
             showAirlineField={serviceType === "RETURN_TICKET"}
+            isExtension={serviceType === "VISA_EXTENSION"}
             vendors={vendors}
             airlines={airlines}
             alternativeOptions={flightQuote ? alternativeOptions : []}

@@ -6,6 +6,8 @@ interface RequestInfoPanelProps {
   title: string;
   description: string;
   cta?: { label: string; href: string };
+  /** A second, equally weighted choice (e.g. inside vs. outside the UAE). */
+  secondaryCta?: { label: string; href: string };
 }
 
 /**
@@ -15,7 +17,7 @@ interface RequestInfoPanelProps {
  * service's onSubmit throws RequestIneligibleOutcome (e.g. Visa
  * Extension's no-matching-TripNexio-visa redirect).
  */
-export function RequestInfoPanel({ title, description, cta }: RequestInfoPanelProps) {
+export function RequestInfoPanel({ title, description, cta, secondaryCta }: RequestInfoPanelProps) {
   return (
     <div className="flex flex-col items-center gap-4 rounded-xl border border-hairline bg-surface-1 px-6 py-14 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
@@ -29,6 +31,11 @@ export function RequestInfoPanel({ title, description, cta }: RequestInfoPanelPr
         {cta ? (
           <ButtonLink href={cta.href} variant="primary" size="md">
             {cta.label}
+          </ButtonLink>
+        ) : null}
+        {secondaryCta ? (
+          <ButtonLink href={secondaryCta.href} variant="primary" size="md">
+            {secondaryCta.label}
           </ButtonLink>
         ) : null}
         <ButtonLink href={utilityLinks.trackStatus.href} variant="ghost" size="md">

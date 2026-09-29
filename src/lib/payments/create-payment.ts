@@ -7,7 +7,7 @@ import { getPaymentGateway } from "./get-gateway";
 import { leadReference } from "../leads/reference";
 
 /** Fallback when the service has no configured `paymentDeadlineHours` (Step 42) — the original hardcoded value, unchanged for every service until an Admin opts in. */
-const DEFAULT_PAYMENT_LINK_VALIDITY_HOURS = 24;
+export const DEFAULT_PAYMENT_LINK_VALIDITY_HOURS = 24;
 
 function roundToPaise(value: number): number {
   return Math.round(value * 100) / 100;

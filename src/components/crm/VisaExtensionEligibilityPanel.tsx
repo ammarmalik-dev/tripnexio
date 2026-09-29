@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
-
-type EligibilityOutcome = "ELIGIBLE" | "URGENT_TODAY" | "NOT_ELIGIBLE";
+import { formatDeadlineDay, type UrgentDeadline, type VisaExtensionEligibilityOutcome as EligibilityOutcome } from "@/lib/visa-extension/rules";
 
 const OUTCOME_COPY: Record<EligibilityOutcome, { label: string; description: string; tone: string; icon: typeof CheckCircle2 }> = {
   ELIGIBLE: {
@@ -37,7 +36,9 @@ interface VisaExtensionEligibilityPanelProps {
   leadId: string;
   verifiedExpiryDate?: string;
   eligibilityOutcome?: EligibilityOutcome;
-  onVerified: (result: { verifiedExpiryDate: string; outcome: EligibilityOutcome }) => void;
+  /** P13 — URGENT_TODAY only: the 6:00 PM working-day deadline and any next-day UAE/India holiday. */
+  urgentDeadline?: UrgentDeadline | null;
+  onVerified: (result: { verifiedExpiryDate: string; outcome: EligibilityOutcome; urgentDeadline: UrgentDeadline | null }) => void;
 }
 
 /**
@@ -51,6 +52,7 @@ export function VisaExtensionEligibilityPanel({
   leadId,
   verifiedExpiryDate,
   eligibilityOutcome,
+  urgentDeadline,
   onVerified,
 }: VisaExtensionEligibilityPanelProps) {
   const [date, setDate] = useState(verifiedExpiryDate ?? "");
@@ -62,7 +64,7 @@ export function VisaExtensionEligibilityPanel({
     setSaving(true);
     setError(undefined);
     try {
-      const result = await patchJson<{ verifiedExpiryDate: string; outcome: EligibilityOutcome }>(
+      const result = await patchJson<{ verifiedExpiryDate: string; outcome: EligibilityOutcome; urgentDeadline: UrgentDeadline | null }>(
         `/api/leads/${leadId}/visa-extension-verify`,
         { verifiedExpiryDate: date }
       );
@@ -102,7 +104,20 @@ export function VisaExtensionEligibilityPanel({
           <div className="flex flex-col gap-0.5">
             <p className="text-sm font-semibold">{outcomeCopy.label}</p>
             <p className="text-xs opacity-90">{outcomeCopy.description}</p>
+            {eligibilityOutcome === "URGENT_TODAY" && urgentDeadline ? (
+              <p className="text-xs font-semibold">Payment deadline: 6:00 PM, {formatDeadlineDay(urgentDeadline.day)}</p>
+            ) : null}
           </div>
+        </div>
+      ) : null}
+      {eligibilityOutcome === "URGENT_TODAY" && urgentDeadline && urgentDeadline.nextDayHolidays.length > 0 ? (
+        <div role="alert" className="mt-3 flex items-start gap-3 rounded-lg border border-error/30 bg-error/10 p-3 text-error">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <p className="text-xs">
+            <span className="font-semibold">Extra urgent:</span> the next day is a holiday (
+            {urgentDeadline.nextDayHolidays.map((h) => `${h.country === "UAE" ? "UAE" : "India"} — ${h.name}`).join("; ")}). Nothing can be processed
+            then — the payment must be completed before today&apos;s 6:00 PM deadline.
+          </p>
         </div>
       ) : null}
     </section>

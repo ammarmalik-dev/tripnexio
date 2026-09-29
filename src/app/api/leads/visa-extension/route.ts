@@ -8,6 +8,9 @@ import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { describeError } from "@/lib/api/describe-error";
+import { db } from "@/lib/db";
+import { writeAudit } from "@/lib/audit/log";
+import { findPriorTripNexioVisaByPassport } from "@/lib/leads/visa-extension-eligibility";
 
 export async function POST(request: NextRequest) {
   const limited = await rateLimitByIp(request, "leads-visa-extension", LEAD_INTAKE_RATE_LIMIT, "Too many requests. Please try again later.");
@@ -90,7 +93,35 @@ export async function POST(request: NextRequest) {
       ])
     );
 
-    return jsonSuccess(result, 201);
+    // P13 — prior-TripNexio-visa lookup per applicant passport. The lead is
+    // always kept; applicants with no match flag it `noPriorVisa` for staff,
+    // and the website then offers Visa Change (inside the UAE) or New Visa
+    // (outside the UAE).
+    const unmatchedApplicants: string[] = [];
+    for (const applicant of applicants) {
+      if (!(await findPriorTripNexioVisaByPassport(applicant.passportNumber))) unmatchedApplicants.push(applicant.fullName);
+    }
+    if (unmatchedApplicants.length > 0) {
+      try {
+        const lead = await db.lead.findUnique({ where: { id: result.leadId }, select: { details: true } });
+        await db.$transaction(async (tx) => {
+          await tx.lead.update({
+            where: { id: result.leadId },
+            data: { details: { ...((lead?.details ?? {}) as Record<string, unknown>), noPriorVisa: true, noPriorVisaApplicants: unmatchedApplicants } },
+          });
+          await writeAudit(tx, {
+            entityType: "Lead",
+            entityId: result.leadId,
+            action: "NO_PRIOR_VISA",
+            note: `No prior TripNexio visa found for: ${unmatchedApplicants.join(", ")} — customer shown the Visa Change / New Visa options`,
+          });
+        });
+      } catch (flagError) {
+        console.error("[api/leads/visa-extension] couldn't flag noPriorVisa", describeError(flagError));
+      }
+    }
+
+    return jsonSuccess({ ...result, priorVisaFound: unmatchedApplicants.length === 0, unmatchedApplicants }, 201);
   } catch (error) {
     console.error("[api/leads/visa-extension]", describeError(error));
     return jsonError(500, "Something went wrong while submitting your request. Please try again.");
