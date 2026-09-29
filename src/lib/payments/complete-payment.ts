@@ -4,6 +4,7 @@ import { writeAudit } from "../audit/log";
 import { nextInvoiceNumber } from "../invoices/invoice-number";
 import { applySystemEvent, type StatusNotification } from "../service-status/engine";
 import { purchasePlansForPayment } from "../protection-plan/lifecycle";
+import { onSpecialFareExtraPaymentSuccess } from "../special-fare/post-payment";
 
 type PaymentWithBookingLead = Payment & { booking: Booking & { lead: Lead } };
 
@@ -119,6 +120,17 @@ export async function completePaymentSuccess(
       applySystemEvent(tx, { scope: "LEAD", entityId: updatedLead.id, event: "PAYMENT_SUCCESS", ...eventActor }),
     ])
   ).filter((notification): notification is StatusNotification => notification !== null);
+
+  // P16 — Special Fare: payment isn't ticketing. The first payment puts the
+  // booking at "Final Confirmation" (staff confirm availability next); the
+  // extra payment for a higher-fare alternative confirms that alternative.
+  if (payment.booking.lead.serviceType === "FLIGHT_SPECIAL_FARE") {
+    const fsfNotification =
+      payment.purpose === "EXTRA"
+        ? await onSpecialFareExtraPaymentSuccess(tx, payment.bookingId, actor.actorLabel)
+        : await applySystemEvent(tx, { scope: "BOOKING", entityId: payment.bookingId, event: "FSF_FINAL_CONFIRMATION", ...eventActor });
+    if (fsfNotification) statusNotifications.push(fsfNotification);
+  }
 
   return { payment: updatedPayment, booking: updatedBooking, lead: updatedLead, didTransition: true, statusNotifications };
 }

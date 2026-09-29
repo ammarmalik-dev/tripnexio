@@ -19,6 +19,7 @@ import { DeliverOutputSection } from "./DeliverOutputSection";
 import { ApplicantsTable } from "./ApplicantsTable";
 import { EmbassyActionsPanel } from "./EmbassyActionsPanel";
 import { VisaChangeActionsPanel, type VisaChangeBookingView } from "./VisaChangeActionsPanel";
+import { SpecialFareActionsPanel, type SpecialFareBookingView } from "./SpecialFareActionsPanel";
 import { RequestDocumentForm } from "./RequestDocumentForm";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
@@ -76,7 +77,7 @@ interface BookingDetailResponse {
   leadId: string;
   leadReferenceId: string;
   serviceType: ServiceType;
-  selectedQuotation: { id: string; sellingPrice: string; margin: string } | null;
+  selectedQuotation: { id: string; sellingPrice: string; margin: string; cancellationCharge?: string | null } | null;
   customer: {
     id: string;
     name: string;
@@ -102,6 +103,8 @@ interface BookingDetailResponse {
   originalBooking: { id: string; bookingId: string; status: BookingStatus } | null;
   /** P14 — Visa Change only. */
   visaChange: VisaChangeBookingView | null;
+  /** P16 — Special Fare only. */
+  specialFare: SpecialFareBookingView | null;
   extensions: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   /** P12 — New Visa only: per passenger, Visa status and Protection Plan status side by side. */
   passengerStatuses: { passengerId: string; fullName: string; visaStatus: string; protectionPlanStatus: ProtectionPlanStatus | null }[];
@@ -370,6 +373,9 @@ export function BookingDetail({
                     onChanged={() => setReloadNonce((current) => current + 1)}
                     canApproveRefunds={canApproveRefunds}
                     canApproveBankTransfer={canApproveBankTransfer}
+                    defaultCancellationCharge={
+                      booking.selectedQuotation?.cancellationCharge != null ? Number(booking.selectedQuotation.cancellationCharge) : undefined
+                    }
                   />
                 ))}
               </div>
@@ -417,6 +423,15 @@ export function BookingDetail({
               travelDate={booking.travelDate}
               currentStatus={booking.serviceStatusName}
               rejectionReason={booking.visaRejectionReason}
+              onChanged={() => setReloadNonce((current) => current + 1)}
+            />
+          ) : null}
+
+          {booking.serviceType === "FLIGHT_SPECIAL_FARE" && booking.specialFare ? (
+            <SpecialFareActionsPanel
+              bookingId={booking.id}
+              view={booking.specialFare}
+              currentStatus={booking.serviceStatusName}
               onChanged={() => setReloadNonce((current) => current + 1)}
             />
           ) : null}

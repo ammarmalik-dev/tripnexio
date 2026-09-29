@@ -13,6 +13,7 @@ import { siteConfig } from "@/lib/site-config";
 import { utilityLinks } from "@/lib/nav-config";
 import { TermsAgreement } from "@/components/terms/TermsAgreement";
 import { PostTicketOfferCard } from "@/components/cross-sell/PostTicketOfferCard";
+import { SpecialFareAlternativeCard, type SpecialFareAlternativeView } from "./SpecialFareAlternativeCard";
 
 interface CheckoutView {
   serviceType: string;
@@ -20,6 +21,7 @@ interface CheckoutView {
   bookingId: string | null;
   payment: {
     status: "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED";
+    description: string | null;
     /** Service fee only — excludes the Protection Plan line. */
     amount: number;
     protectionPlan: number;
@@ -43,6 +45,8 @@ interface CheckoutView {
   documents: { passengerId: string; type: string; status: string }[];
   /** P15 — show the post-ticket Return Ticket / OTB offer. */
   postTicketOffer: boolean;
+  /** P16 — Special Fare alternative offered after the paid flight became unavailable. */
+  specialFareAlternative: SpecialFareAlternativeView | null;
 }
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
@@ -257,6 +261,8 @@ export function CheckoutPanel({ token }: { token: string }) {
         </h1>
       </div>
 
+      {view.specialFareAlternative ? <SpecialFareAlternativeCard token={token} offer={view.specialFareAlternative} onChanged={refresh} /> : null}
+
       {!payment ? (
         <ErrorState
           title="No payment is set up for this request"
@@ -265,7 +271,8 @@ export function CheckoutPanel({ token }: { token: string }) {
         />
       ) : (
         <div className="rounded-xl border border-hairline bg-surface-1 px-5">
-          <Row label="Service fee" value={formatRupees(payment.amount)} />
+          {payment.description ? <Row label="For" value={payment.description} /> : null}
+          <Row label={payment.description ? "Amount" : "Service fee"} value={formatRupees(payment.amount)} />
           {payment.protectionPlan > 0 ? <Row label="Protection Plan" value={formatRupees(payment.protectionPlan)} /> : null}
           {payment.discount > 0 ? <Row label="Discount" value={`− ${formatRupees(payment.discount)}`} /> : null}
           {payment.gst > 0 ? <Row label="GST" value={formatRupees(payment.gst)} /> : null}

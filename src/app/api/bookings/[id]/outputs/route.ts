@@ -65,6 +65,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (booking.lead.serviceType === "VISA_CHANGE" && parsed.data.outputType === "PACKAGE_PDF") {
     return jsonError(409, "Use Generate Package — the Visa Change package is generated from the operational details.");
   }
+  // P16 — a Special Fare ticket is issued only after its PNR is recorded (Issue Ticket on the booking).
+  if (booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" && parsed.data.outputType === "TICKET_PDF" && !booking.pnr) {
+    return jsonError(409, "Record the PNR first, then use Issue Ticket.");
+  }
   // P13 — the extended visa PDF follows a recorded "Extended" outcome.
   if (booking.lead.serviceType === "VISA_EXTENSION" && parsed.data.outputType === "EXTENDED_VISA_PDF" && booking.extensionOutcome !== "EXTENDED") {
     return jsonError(409, "Record the extension outcome as Extended before delivering the extended visa PDF.");

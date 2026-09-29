@@ -479,6 +479,19 @@ model Booking {
   /// nothing) and what they recorded: method, airport/border, staff, notes.
   exitCompletedAt           DateTime?
   exitDetails               Json?
+  /// P16 — Flight Special Fare post-payment operations (Flight_Special_Fare.md §16-20).
+  /// finalConfirmedAt: staff confirmed seat/fare availability after payment.
+  finalConfirmedAt          DateTime?
+  /// The alternative offered when the paid flight became unavailable:
+  /// { flight fields, sellingPrice, vendorCost (internal), difference,
+  /// direction HIGHER|LOWER|SAME|NONE, offeredAt, decision PAY|REFUND|null, decidedAt }.
+  alternativeOffer          Json?
+  /// PNR and ticket issuance are separate states (Locked v2.0 Q18).
+  pnr                       String?
+  pnrVendorReference        String?
+  pnrRecordedAt             DateTime?
+  ticketIssuedAt            DateTime?
+  ticketBaggage             String?
   /// P13 — a Visa Extension booking's original New Visa booking (the prior
   /// TripNexio visa matched by passport). Null for every other service, or
   /// when no prior TripNexio visa was found.
@@ -531,12 +544,14 @@ enum ExtensionOutcome {
 /// — that is a distinct, unbuilt feature (its own future roadmap step), not
 /// what this reuses or replaces.
 model BookingPassenger {
-  id          String        @id @default(cuid())
-  bookingId   String
-  passengerId String
-  status      BookingStatus @default(PENDING)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id           String        @id @default(cuid())
+  bookingId    String
+  passengerId  String
+  status       BookingStatus @default(PENDING)
+  /// P16 — Special Fare: this passenger's ticket number once issued.
+  ticketNumber String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   booking   Booking   @relation(fields: [bookingId], references: [id])
   passenger Passenger @relation(fields: [passengerId], references: [id])

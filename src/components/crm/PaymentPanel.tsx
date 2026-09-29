@@ -61,8 +61,11 @@ export function PaymentPanel({
   onChanged,
   canApproveRefunds,
   canApproveBankTransfer,
+  defaultCancellationCharge,
 }: {
   payment: PaymentData;
+  /** P16 — prefills the refund calculator (Special Fare: the selected quote's cancellation charge). */
+  defaultCancellationCharge?: number;
   /** This booking's own passengers — passed through to the refund calculator's passenger-selection checkboxes (CRM.md §21, Step 14). */
   passengers: { id: string; fullName: string }[];
   onChanged: () => void;
@@ -269,6 +272,8 @@ export function PaymentPanel({
       {showRefundForm && payment.refundRule?.allowed ? (
         <RefundCalculatorForm
           defaultPaidAmount={total}
+          defaultCancellationCharge={defaultCancellationCharge}
+          defaultGatewayCharge={Number(payment.gatewayFee)}
           refundRule={payment.refundRule}
           passengers={passengers}
           onSubmit={handleCreateRefund}

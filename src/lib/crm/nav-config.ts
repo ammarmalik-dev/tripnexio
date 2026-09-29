@@ -88,6 +88,11 @@ export const crmNavGroups: CrmNavGroup[] = [
     ],
   },
   {
+    // P16 — Flight_Special_Fare.md §25 Phase 1 analytics.
+    label: "Analytics",
+    items: [{ label: "Special Fare Analytics", href: "/crm/analytics/special-fare", icon: BarChart3 }],
+  },
+  {
     // Step 38 — CRM.md §3's Profile group, previously unbuilt (see doc
     // comment above) — this is the first screen in it.
     label: "Profile",

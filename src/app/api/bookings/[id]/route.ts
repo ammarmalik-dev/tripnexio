@@ -89,6 +89,20 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     travelDate: typeof (booking.lead.details as Record<string, unknown> | null)?.travelDate === "string" ? ((booking.lead.details as Record<string, unknown>).travelDate as string) : null,
     serviceStatusName: booking.serviceStatus?.name ?? null,
     originalBooking: booking.originalBooking,
+    // P16 — Special Fare post-payment facts for the staff actions panel.
+    specialFare:
+      booking.lead.serviceType === "FLIGHT_SPECIAL_FARE"
+        ? {
+            finalConfirmedAt: booking.finalConfirmedAt,
+            alternativeOffer: booking.alternativeOffer,
+            pnr: booking.pnr,
+            pnrVendorReference: booking.pnrVendorReference,
+            pnrRecordedAt: booking.pnrRecordedAt,
+            ticketIssuedAt: booking.ticketIssuedAt,
+            ticketBaggage: booking.ticketBaggage,
+            tickets: booking.passengers.map((row) => ({ passengerId: row.passenger.id, fullName: row.passenger.fullName, ticketNumber: row.ticketNumber })),
+          }
+        : null,
     // P14 — Visa Change package / exit facts for the staff actions panel.
     visaChange:
       booking.lead.serviceType === "VISA_CHANGE"

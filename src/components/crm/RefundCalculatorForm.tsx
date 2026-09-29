@@ -13,6 +13,9 @@ import type { RefundRuleResult } from "@/lib/refunds/rules";
 
 interface RefundCalculatorFormProps {
   defaultPaidAmount: number;
+  /** P16 — prefill: the quote's cancellation charge (Special Fare) and the gateway fee stored on the payment. Staff can still edit both. */
+  defaultCancellationCharge?: number;
+  defaultGatewayCharge?: number;
   /** Step 15 (audit §7.4) — the applicable per-service refund rule, computed server-side (see GET /api/bookings/[id]). Always `allowed` here — PaymentPanel hides this form entirely when it isn't. */
   refundRule: RefundRuleResult;
   /** This booking's own passengers — CRM.md §21 (Step 14) passenger-level partial refund selection. Empty selection = whole-booking refund, unchanged from before this step. */
@@ -24,6 +27,8 @@ interface RefundCalculatorFormProps {
 
 export function RefundCalculatorForm({
   defaultPaidAmount,
+  defaultCancellationCharge = 0,
+  defaultGatewayCharge = 0,
   refundRule,
   passengers,
   onSubmit,
@@ -38,7 +43,7 @@ export function RefundCalculatorForm({
     formState: { errors },
   } = useForm<CreateRefundValues>({
     resolver: zodResolver(createRefundSchema),
-    defaultValues: { cancellationCharge: 0, gatewayCharge: 0 },
+    defaultValues: { cancellationCharge: defaultCancellationCharge, gatewayCharge: defaultGatewayCharge },
   });
 
   const togglePassenger = (id: string) => {

@@ -30,6 +30,13 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   "EXTENSION_REJECTED",
   // P14 — Visa Change: staff marked the exit done.
   "VC_EXIT_COMPLETED",
+  // P16 — Flight Special Fare post-payment operations.
+  "FSF_FINAL_CONFIRMATION",
+  "FSF_AVAILABILITY_CONFIRMED",
+  "FSF_ALTERNATIVE_OFFERED",
+  "FSF_ADDITIONAL_PAYMENT_PENDING",
+  "FSF_REFUND_PENDING",
+  "FSF_PNR_RECORDED",
 ] as const;
 
 export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[number];
@@ -59,5 +66,11 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   EXTENSION_NOT_ACCEPTED: "Extension: not accepted",
   EXTENSION_REJECTED: "Extension: rejected",
   VC_EXIT_COMPLETED: "Visa Change: exit completed",
+  FSF_FINAL_CONFIRMATION: "Special Fare: awaiting final confirmation",
+  FSF_AVAILABILITY_CONFIRMED: "Special Fare: availability confirmed",
+  FSF_ALTERNATIVE_OFFERED: "Special Fare: alternative offered",
+  FSF_ADDITIONAL_PAYMENT_PENDING: "Special Fare: additional payment pending",
+  FSF_REFUND_PENDING: "Special Fare: refund pending",
+  FSF_PNR_RECORDED: "Special Fare: PNR recorded",
   ON_HOLD: "On Hold (marker)",
 };
