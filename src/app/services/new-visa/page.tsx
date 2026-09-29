@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { FileText, Clock, ClipboardList, CheckCircle2, MapPin, Briefcase, GraduationCap, Users } from "lucide-react";
+import { FileText, Clock, MapPin, Briefcase, GraduationCap, Users, Baby } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -9,23 +9,22 @@ import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
 import { NewVisaProductSelector } from "@/components/services/new-visa/NewVisaProductSelector";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
+import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
+import { NewVisaRequirementsSection } from "@/components/services/new-visa/landing/NewVisaRequirementsSection";
+import { NewVisaProcessingTimeSection } from "@/components/services/new-visa/landing/NewVisaProcessingTimeSection";
+import {
+  NewVisaValiditySection,
+  NewVisaBeforeYouApplySection,
+} from "@/components/services/new-visa/landing/NewVisaValidityAndNotesSections";
+
+// FAQ rows and Admin-managed timelines refresh without a redeploy.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "New Visa",
   description:
     "UAE visa, made simple. Apply online, choose your visa option, and let TripNexio guide you from application to completion.",
 };
-
-const whatYoullNeed = [
-  "Full name",
-  "Mobile number",
-  "Email address",
-  "Destination country",
-  "Visa type",
-  "Number of travelers",
-  "Travel date",
-  "Processing type — Normal or Express",
-];
 
 // Locked content — doc §9 "The Visa Process — reference-style visual".
 const visaProcessSteps = [
@@ -77,9 +76,9 @@ export default function NewVisaLandingPage() {
       </section>
 
       <section className="py-16 sm:py-20">
-        <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+        <Container>
           <MotionReveal>
-            <div className="flex flex-col gap-4">
+            <div className="mx-auto flex max-w-3xl flex-col gap-4">
               {/* Locked copy — UAE Visa Page Content FINAL §2. */}
               <SectionHeading eyebrow="What is a New Visa Request?" title="Your UAE visa application, guided end to end" />
               <p className="text-sm text-ink-secondary sm:text-base">
@@ -91,25 +90,6 @@ export default function NewVisaLandingPage() {
                 way.
               </p>
             </div>
-          </MotionReveal>
-
-          <MotionReveal delay={0.08}>
-            <GlassCard tier={2} className="flex flex-col gap-4 p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                  <ClipboardList className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <p className="text-base font-semibold text-ink-heading">What you&rsquo;ll need</p>
-              </div>
-              <ul className="flex flex-col gap-2.5">
-                {whatYoullNeed.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </GlassCard>
           </MotionReveal>
         </Container>
       </section>
@@ -149,6 +129,30 @@ export default function NewVisaLandingPage() {
         </Container>
       </section>
 
+      <NewVisaRequirementsSection />
+
+      <section className="py-16 sm:py-20">
+        <Container>
+          <MotionReveal>
+            <GlassCard tier={2} className="mx-auto flex max-w-3xl flex-col items-start gap-4 p-6 sm:flex-row sm:p-8">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
+                <Baby className="h-6 w-6" aria-hidden="true" />
+              </span>
+              <div className="flex flex-col gap-2">
+                {/* Locked copy — UAE Visa Page Content FINAL §7. */}
+                <h2 className="text-xl font-semibold text-ink-heading sm:text-2xl">Travelling with children</h2>
+                <p className="text-sm text-ink-secondary sm:text-base">
+                  Applicants under 18 years must apply with at least one parent in the same booking. The child must be
+                  linked to that parent. Adult and Child pricing can be configured separately.
+                </p>
+              </div>
+            </GlassCard>
+          </MotionReveal>
+        </Container>
+      </section>
+
+      <NewVisaProcessingTimeSection />
+
       <section className="py-16 sm:py-20">
         <Container className="flex flex-col gap-12">
           <MotionReveal>
@@ -157,6 +161,12 @@ export default function NewVisaLandingPage() {
           <VisaProcessSteps steps={visaProcessSteps} sampleStatusText="Your visa application is being processed." />
         </Container>
       </section>
+
+      <NewVisaValiditySection />
+
+      <NewVisaBeforeYouApplySection />
+
+      <ServiceFaqSection serviceType="NEW_VISA" />
 
       <section className="pb-20 sm:pb-28">
         <Container>

@@ -8,6 +8,21 @@ import { GradientMesh } from "@/components/motion/GradientMesh";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
+import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
+import {
+  DocumentsRequiredSection,
+  type ReturnTicketLandingDocument,
+} from "@/components/services/return-ticket/landing/DocumentsRequiredSection";
+import { VerificationTimingSection } from "@/components/services/return-ticket/landing/VerificationTimingSection";
+import {
+  CancellationRefundSection,
+  type ReturnTicketLandingDestination,
+} from "@/components/services/return-ticket/landing/CancellationRefundSection";
+import { DisclaimerAfterTravelSection } from "@/components/services/return-ticket/landing/DisclaimerAfterTravelSection";
+import { db } from "@/lib/db";
+
+// Admin-managed documents/destinations are read at request time, cached 5 min.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Return Verified Ticket",
@@ -29,7 +44,55 @@ const visaProcessSteps = [
   { step: "05", headline: "Receive your return ticket", supportingCopy: "Once issued, your return ticket is delivered to you." },
 ];
 
-export default function ReturnTicketLandingPage() {
+/**
+ * Admin's RETURN_TICKET document checklist — same filter as the checkout
+ * (src/lib/checkout/required-documents.ts): active rows with no nationality
+ * (this service never collects one). Destination-specific rows are left out
+ * since no destination is chosen on this page. Deduped by name.
+ */
+async function loadDocuments(): Promise<ReturnTicketLandingDocument[] | null> {
+  try {
+    const rows = await db.documentRequirement.findMany({
+      where: { serviceType: "RETURN_TICKET", active: true, nationality: null, nationalityId: null, countryId: null },
+      orderBy: [{ required: "desc" }, { documentName: "asc" }],
+      select: { documentName: true, required: true },
+    });
+    const seen = new Set<string>();
+    const documents: ReturnTicketLandingDocument[] = [];
+    for (const row of rows) {
+      const key = row.documentName.trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      documents.push({ name: row.documentName, required: row.required });
+    }
+    return documents;
+  } catch (error) {
+    console.error("[return-ticket-landing] couldn't load document requirements", error);
+    return null;
+  }
+}
+
+/** Active destinations with their Admin-set rate and cancellation fee (same filter as /api/return-ticket/destinations). */
+async function loadDestinations(): Promise<ReturnTicketLandingDestination[] | null> {
+  try {
+    const rows = await db.returnTicketDestination.findMany({
+      where: { active: true, country: { active: true } },
+      orderBy: [{ displayOrder: "asc" }, { country: { name: "asc" } }],
+      select: { ratePerApplicant: true, cancellationFee: true, country: { select: { name: true } } },
+    });
+    return rows.map((row) => ({
+      countryName: row.country.name,
+      ratePerApplicant: Number(row.ratePerApplicant),
+      cancellationFee: row.cancellationFee === null ? null : Number(row.cancellationFee),
+    }));
+  } catch (error) {
+    console.error("[return-ticket-landing] couldn't load destinations", error);
+    return null;
+  }
+}
+
+export default async function ReturnTicketLandingPage() {
+  const [documents, destinations] = await Promise.all([loadDocuments(), loadDestinations()]);
   return (
     <>
       <section className="relative overflow-hidden">
@@ -68,15 +131,47 @@ export default function ReturnTicketLandingPage() {
       </section>
 
       <section className="py-16 sm:py-20">
+        <Container className="flex flex-col items-center gap-4 text-center">
+          <MotionReveal>
+            <SectionHeading
+              align="center"
+              eyebrow="What is a Return Verified Ticket?"
+              title="Your return ticket, arranged for your trip"
+              className="mx-auto"
+            />
+          </MotionReveal>
+          <MotionReveal delay={0.06}>
+            <p className="max-w-2xl text-sm text-ink-secondary sm:text-base">
+              A Return Verified Ticket is a return ticket reservation arranged for international travel and intended to
+              provide proof of return travel where applicable. TripNexio arranges the reservation according to the
+              travel details provided and configured airline/partner availability.
+            </p>
+          </MotionReveal>
+        </Container>
+      </section>
+
+      <section className="py-16 sm:py-20">
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
           <MotionReveal>
             <div className="flex flex-col gap-4">
-              <SectionHeading eyebrow="How the return date works" title="You give a target, not an exact date" />
+              <SectionHeading eyebrow="How the return date works" title="Tell us your expected return date" />
               <p className="text-sm text-ink-secondary sm:text-base">
-                You tell us your travel date and your expected return date. We then aim to issue a return ticket
-                close to that date, based on current ticket and partner availability — the exact issue date isn&apos;t
-                something you need to work out yourself.
+                You select your destination country, travel date and expected return date. TripNexio looks for a
+                suitable return ticket close to your expected date and issues it according to live ticket
+                availability.
               </p>
+              <ul className="flex flex-col gap-2.5">
+                <li className="flex items-start gap-2.5 text-sm text-ink-secondary">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                  No visa-validity date is requested. You provide an expected return date so we can search for a
+                  suitable ticket close to that date.
+                </li>
+                <li className="flex items-start gap-2.5 text-sm text-ink-secondary">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                  The exact issue date is not selected by you. TripNexio issues the reservation according to available
+                  ticket inventory and the applicable travel schedule.
+                </li>
+              </ul>
             </div>
           </MotionReveal>
 
@@ -101,6 +196,8 @@ export default function ReturnTicketLandingPage() {
         </Container>
       </section>
 
+      <DocumentsRequiredSection documents={documents} />
+
       <section className="py-16 sm:py-20">
         <Container className="flex flex-col gap-12">
           <MotionReveal>
@@ -109,6 +206,14 @@ export default function ReturnTicketLandingPage() {
           <VisaProcessSteps steps={visaProcessSteps} />
         </Container>
       </section>
+
+      <VerificationTimingSection />
+
+      <CancellationRefundSection destinations={destinations} />
+
+      <DisclaimerAfterTravelSection />
+
+      <ServiceFaqSection serviceType="RETURN_TICKET" />
 
       <section className="pb-20 sm:pb-28">
         <Container>

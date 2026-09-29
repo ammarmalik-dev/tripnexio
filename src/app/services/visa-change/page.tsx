@@ -1,28 +1,28 @@
 import type { Metadata } from "next";
-import { ArrowLeftRight, Clock, ClipboardList, CheckCircle2 } from "lucide-react";
+import { ArrowLeftRight, Clock } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { GlassCard } from "@/components/ui/GlassCard";
 import { GradientMesh } from "@/components/motion/GradientMesh";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
+import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
+import { VisaChangeOverview } from "@/components/services/visa-change/landing/VisaChangeOverview";
+import { VisaChangeMethods } from "@/components/services/visa-change/landing/VisaChangeMethods";
+import { VisaChangeRequirements } from "@/components/services/visa-change/landing/VisaChangeRequirements";
+import { VisaChangePricingSection } from "@/components/services/visa-change/landing/VisaChangePricingSection";
+import { VisaChangeConfirmedOptions } from "@/components/services/visa-change/landing/VisaChangeConfirmedOptions";
+import { VisaChangeAfterBooking } from "@/components/services/visa-change/landing/VisaChangeAfterBooking";
+
+// Admin-managed pricing + FAQs are read at render; refresh every 5 minutes.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "Visa Change",
   description:
     "Change your UAE visa status — Airport-to-Airport or Border Exit, confirmed by our team. Submit your details online and we handle the rest.",
 };
-
-const whatYoullNeed = [
-  "Full name",
-  "Passport number",
-  "Visa last date",
-  "Mobile number",
-  "Email address",
-  "Nationality",
-];
 
 // Locked content — doc §11 "How It Works — final reference-style copy" (7 steps).
 // "sponsor/vendor" in the source doc's step 02 kept as "sponsor/partner" — the
@@ -76,39 +76,10 @@ export default function VisaChangeLandingPage() {
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
-          <MotionReveal>
-            <div className="flex flex-col gap-4">
-              <SectionHeading eyebrow="How airports and borders work" title="You never pick the airport or border" />
-              <p className="text-sm text-ink-secondary sm:text-base">
-                You choose only the method — Airport-to-Airport or Border Exit. Our team confirms the exact airport
-                or border crossing, along with all pickup and reporting details, and you&apos;ll only see confirmed
-                options to choose from.
-              </p>
-            </div>
-          </MotionReveal>
-
-          <MotionReveal delay={0.08}>
-            <GlassCard tier={2} className="flex flex-col gap-4 p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                  <ClipboardList className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <p className="text-base font-semibold text-ink-heading">What you&rsquo;ll need</p>
-              </div>
-              <ul className="flex flex-col gap-2.5">
-                {whatYoullNeed.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </GlassCard>
-          </MotionReveal>
-        </Container>
-      </section>
+      <VisaChangeOverview />
+      <VisaChangeMethods />
+      <VisaChangeRequirements />
+      <VisaChangePricingSection />
 
       <section className="py-16 sm:py-20">
         <Container className="flex flex-col gap-12">
@@ -118,6 +89,11 @@ export default function VisaChangeLandingPage() {
           <VisaProcessSteps steps={visaProcessSteps} />
         </Container>
       </section>
+
+      <VisaChangeConfirmedOptions />
+      <VisaChangeAfterBooking />
+
+      <ServiceFaqSection serviceType="VISA_CHANGE" />
 
       <section className="pb-20 sm:pb-28">
         <Container>
@@ -129,9 +105,19 @@ export default function VisaChangeLandingPage() {
               <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
                 Ready to change your visa?
               </h2>
-              <ButtonLink href="/services/visa-change/request" variant="primary" size="lg">
-                Start Visa Change Request
-              </ButtonLink>
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <ButtonLink href="/services/visa-change/request" variant="primary" size="lg">
+                  Start Visa Change
+                </ButtonLink>
+                <ButtonLink
+                  href={utilityLinks.trackStatus.href}
+                  variant="ghost"
+                  size="lg"
+                  className="border-white/40 text-white hover:border-white/70 hover:bg-white/5"
+                >
+                  Track Status
+                </ButtonLink>
+              </div>
             </div>
           </MotionReveal>
         </Container>

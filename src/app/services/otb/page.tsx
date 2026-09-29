@@ -1,5 +1,16 @@
 import type { Metadata } from "next";
-import { PlaneTakeoff, ShieldCheck, Clock, FileCheck2, CheckCircle2, BadgeCheck } from "lucide-react";
+import {
+  PlaneTakeoff,
+  ShieldCheck,
+  Clock,
+  FileCheck2,
+  CheckCircle2,
+  BadgeCheck,
+  Stamp,
+  Network,
+  Ticket,
+  TriangleAlert,
+} from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -8,6 +19,12 @@ import { GradientMesh } from "@/components/motion/GradientMesh";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
+import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
+import { OtbPricingSection } from "@/components/services/otb/landing/OtbPricingSection";
+import { OtbCancellationRefundSection } from "@/components/services/otb/landing/OtbCancellationRefundSection";
+
+// Pricing (Admin Airline master) and FAQs (Admin Faq rows) are DB-backed.
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "OTB — OK to Board",
@@ -34,6 +51,20 @@ const documentsNeeded = [
   "Valid destination visa",
   "Flight ticket (where not already available)",
   "Return ticket (where applicable)",
+];
+
+// Locked content — doc §5 "ECR & ECNR — OTB Service".
+const ecrEcnrSupport = [
+  {
+    title: "ECR Passport Holders",
+    description:
+      "For a smoother travel experience, TripNexio accepts OTB applications from Indian ECR passport holders travelling on applicable Gulf-bound flights and processes the OTB before travel.",
+  },
+  {
+    title: "ECNR / Non-ECR Passport Holders",
+    description:
+      "OTB may not be required for every ECNR/Non-ECR traveller. However, customers who want OTB arranged can request the service where the applicable airline/process channel supports it.",
+  },
 ];
 
 // Locked content — doc §10 "How It Works".
@@ -123,7 +154,10 @@ export default function OtbLandingPage() {
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                   <BadgeCheck className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <p className="text-base font-semibold text-ink-heading">Check your passport endorsement</p>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">ECR / Non-ECR</span>
+                  <h3 className="text-base font-semibold text-ink-heading">Check your passport endorsement</h3>
+                </div>
               </div>
               <p className="text-sm text-ink-secondary">
                 An ECR passport has the words &ldquo;Emigration Check Required&rdquo; printed/endorsed on the
@@ -140,11 +174,44 @@ export default function OtbLandingPage() {
         </Container>
       </section>
 
+      {/* Doc §5 — ECR & ECNR OTB service. */}
+      <section className="py-16 sm:py-20">
+        <Container className="flex flex-col gap-10">
+          <MotionReveal>
+            <SectionHeading
+              align="center"
+              eyebrow="ECR & ECNR"
+              title="OTB support for ECR and ECNR travellers"
+              className="mx-auto"
+            />
+          </MotionReveal>
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            {ecrEcnrSupport.map((item, index) => (
+              <MotionReveal key={item.title} delay={index * 0.06} className="h-full">
+                <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6 sm:p-8">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
+                    <Stamp className="h-5 w-5" aria-hidden="true" />
+                  </span>
+                  <h3 className="text-base font-semibold text-ink-heading">{item.title}</h3>
+                  <p className="text-sm text-ink-secondary">{item.description}</p>
+                </GlassCard>
+              </MotionReveal>
+            ))}
+          </div>
+          <MotionReveal>
+            <p className="mx-auto max-w-2xl text-center text-xs text-ink-tertiary">
+              OTB is an airline clearance service; it is not a substitute for Indian emigration clearance.
+            </p>
+          </MotionReveal>
+        </Container>
+      </section>
+
       <section className="py-16 sm:py-20">
         <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
-          <MotionReveal>
-            <GlassCard tier={2} className="flex flex-col gap-3 p-6 sm:p-8">
-              <p className="text-base font-semibold text-ink-heading">OTB for Indian travellers departing from India</p>
+          <MotionReveal className="h-full">
+            <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6 sm:p-8">
+              <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">India departure</span>
+              <h2 className="text-base font-semibold text-ink-heading">OTB for Indian travellers departing from India</h2>
               <p className="text-sm text-ink-secondary">
                 TripNexio processes OTB for Indian travellers when the journey is departing from India. The airline
                 may be India-based or Gulf-based &mdash; what matters is that the passenger&rsquo;s flight is
@@ -158,15 +225,48 @@ export default function OtbLandingPage() {
             </GlassCard>
           </MotionReveal>
 
-          <MotionReveal delay={0.08}>
+          <MotionReveal delay={0.08} className="h-full">
+            {/* Doc §7 — Airline Network. */}
+            <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6 sm:p-8">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
+                  <Network className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">Airline network</span>
+                  <h2 className="text-base font-semibold text-ink-heading">Supported airlines, India departure only</h2>
+                </div>
+              </div>
+              <p className="text-sm text-ink-secondary">
+                TripNexio can coordinate OTB updates with supported India- and Gulf-based airlines where the
+                applicable airline process is available.
+              </p>
+              <p className="text-sm text-ink-secondary">
+                The key limitation is the departure point: TripNexio&rsquo;s OTB service can update OTB for
+                passengers travelling from India. We cannot update OTB when the passenger is departing from another
+                country.
+              </p>
+              <p className="text-sm text-ink-secondary">
+                Airline processing timelines can differ. Normal and Urgent options are shown according to the
+                selected airline, travel date and operational availability.
+              </p>
+            </GlassCard>
+          </MotionReveal>
+        </Container>
+      </section>
+
+      {/* Doc §8 — What You'll Need. */}
+      <section className="py-16 sm:py-20">
+        <Container>
+          <MotionReveal>
             <GlassCard tier={2} className="flex flex-col gap-4 p-6 sm:p-8">
               <div className="flex items-center gap-3">
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                   <FileCheck2 className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <p className="text-base font-semibold text-ink-heading">What you&rsquo;ll need</p>
+                <h2 className="text-base font-semibold text-ink-heading">What you&rsquo;ll need</h2>
               </div>
-              <ul className="flex flex-col gap-2.5">
+              <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {whatYoullNeed.map((item) => (
                   <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
@@ -184,7 +284,7 @@ export default function OtbLandingPage() {
         <Container>
           <MotionReveal>
             <GlassCard tier={1} className="flex flex-col gap-4 p-6 sm:p-8">
-              <p className="text-base font-semibold text-ink-heading">OTB is an update, not a separate document</p>
+              <h2 className="text-base font-semibold text-ink-heading">OTB is an update, not a separate document</h2>
               <p className="text-sm text-ink-secondary">
                 OTB is a clearance added to the applicable flight booking or ticket record &mdash; it isn&rsquo;t a
                 separate visa, ticket or immigration document. The supporting details TripNexio needs are:
@@ -243,19 +343,31 @@ export default function OtbLandingPage() {
                 <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                   <ShieldCheck className="h-5 w-5" aria-hidden="true" />
                 </span>
-                <p className="text-base font-semibold text-ink-heading">Get your OTB updated before travel</p>
+                <h2 className="text-base font-semibold text-ink-heading">Get your OTB updated before travel</h2>
               </div>
               <p className="text-sm text-ink-secondary">
-                OTB should be updated before you reach the airport &mdash; don&rsquo;t rely on obtaining the first
-                update at the airport. Once updated, the airline&rsquo;s customer support can confirm the status,
-                and airline check-in staff can check the airline system at the time of travel. TripNexio does not
-                guarantee boarding or immigration clearance; final decisions remain with the airline and relevant
-                authorities.
+                TripNexio processes OTB updates before travel when the passenger is departing from India.
+              </p>
+              <p className="text-sm text-ink-secondary">
+                OTB should be updated before the customer reaches the airport. Once updated, the airline&rsquo;s
+                customer support can be contacted to confirm the status, and airline check-in staff can check the
+                airline system at the time of travel.
+              </p>
+              <p className="text-sm text-ink-secondary">
+                If the passenger is travelling from another country, TripNexio cannot update the OTB through this
+                service, even if the airline is an India- or Gulf-based airline.
+              </p>
+              <p className="text-sm font-medium text-ink-primary">
+                TripNexio does not guarantee boarding or immigration clearance. Final boarding and immigration
+                decisions remain with the airline and relevant authorities.
               </p>
             </GlassCard>
           </MotionReveal>
         </Container>
       </section>
+
+      {/* Doc §13 — prices from the Admin Airline master, never hard-coded. */}
+      <OtbPricingSection />
 
       <section className="py-16 sm:py-20">
         <Container className="flex flex-col gap-10">
@@ -266,7 +378,7 @@ export default function OtbLandingPage() {
             {whyTripNexio.map((item, index) => (
               <MotionReveal key={item.title} delay={index * 0.05}>
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-sm font-semibold text-ink-heading">{item.title}</p>
+                  <h3 className="text-sm font-semibold text-ink-heading">{item.title}</h3>
                   <p className="text-xs text-ink-tertiary">{item.description}</p>
                 </div>
               </MotionReveal>
@@ -274,6 +386,58 @@ export default function OtbLandingPage() {
           </div>
         </Container>
       </section>
+
+      {/* Doc §15 Return Ticket + §16 OTB Approval / status confirmation. */}
+      <section className="py-16 sm:py-20">
+        <Container className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <MotionReveal className="h-full">
+            <GlassCard tier={2} className="flex h-full flex-col gap-4 p-6 sm:p-8">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
+                <Ticket className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <h2 className="text-lg font-semibold text-ink-heading">Need a Return Ticket?</h2>
+              <p className="text-sm text-ink-secondary">
+                If your return ticket is missing, TripNexio can arrange a separate Return Verified Ticket and link it
+                with the OTB journey where applicable.
+              </p>
+              <div className="mt-auto pt-2">
+                <ButtonLink href="/services/return-ticket" variant="primary" size="md">
+                  Get Return Ticket
+                </ButtonLink>
+              </div>
+            </GlassCard>
+          </MotionReveal>
+
+          <MotionReveal delay={0.08} className="h-full">
+            <GlassCard tier={2} className="flex h-full flex-col gap-4 p-6 sm:p-8">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
+                <BadgeCheck className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">Once approved</span>
+                <h2 className="text-lg font-semibold text-ink-heading">OTB Approval</h2>
+              </div>
+              <p className="text-sm text-ink-secondary">
+                Your OTB PNR/reference is shared through the available TripNexio channels and updated in your
+                customer portal.
+              </p>
+              <div role="note" className="flex gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4">
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
+                <p className="text-xs text-ink-primary sm:text-sm">
+                  <span className="font-semibold">Important: </span>
+                  TripNexio provides OTB processing as a service provider. OTB approval does not guarantee airline
+                  boarding, immigration clearance, visa approval or entry into the destination country. Final boarding
+                  and immigration decisions remain with the relevant airline and authorities.
+                </p>
+              </div>
+            </GlassCard>
+          </MotionReveal>
+        </Container>
+      </section>
+
+      <OtbCancellationRefundSection />
+
+      <ServiceFaqSection serviceType="OTB" />
 
       <section className="pb-20 sm:pb-28">
         <Container>
