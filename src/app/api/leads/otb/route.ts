@@ -17,6 +17,7 @@ import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
 import { getWorkingCalendar } from "@/lib/calendar/get-working-calendar";
 import { createTask } from "@/lib/tasks/create-task";
 import { describeError } from "@/lib/api/describe-error";
+import { isActiveProcessingType } from "@/lib/processing-types/get";
 
 export async function POST(request: NextRequest) {
   const limited = await rateLimitByIp(request, "leads-otb", LEAD_INTAKE_RATE_LIMIT, "Too many requests. Please try again later.");
@@ -67,6 +68,11 @@ export async function POST(request: NextRequest) {
     // configuration — validated here (never trusted from the client), so a
     // travel date inside the processing time can't be booked with a type the
     // airline can't honour.
+    // P23 — the processing type must be an active option in the Admin master
+    // (a code Admin disabled is hidden from the form and rejected here too).
+    if (!(await isActiveProcessingType("OTB", processingType))) {
+      return jsonError(400, "That processing type isn't available.", { processingType: ["Select an available processing type."] });
+    }
     const airlineRecord = await db.airline.findFirst({ where: { code: airline, active: true, otbRequired: true } });
     if (!airlineRecord) {
       return jsonError(400, "That airline isn't available for OTB.", { airline: ["Select an available airline."] });

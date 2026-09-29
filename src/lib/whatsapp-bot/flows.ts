@@ -8,6 +8,7 @@ import { visaChangeRequestSchema } from "../validation/visa-change-schema";
 import { flightSpecialFareRequestSchema, flightPassengerSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
 import { getActiveVisaTypes } from "../visa-types/active-visa-types";
+import { getProcessingTypeOptions } from "../processing-types/get";
 import { getOtbGlobalRules, resolveAirlineRules } from "../otb/get-otb-rules";
 import { evaluateOtbTravelDate } from "../otb/processing-rules";
 import { getWorkingCalendar } from "../calendar/get-working-calendar";
@@ -99,17 +100,17 @@ function dateStep(fieldKey: string, prompt: string, validator: z.ZodTypeAny, ext
   };
 }
 
-const PROCESSING_TYPE_OPTIONS = [
-  { value: "normal", label: "Normal" },
-  { value: "urgent", label: "Urgent" },
-];
-
-// New Visa's customer-facing wording is Normal / Express (UAE Visa Page
-// Content FINAL §14); the stored value stays "urgent". OTB keeps "Urgent".
-const NEW_VISA_PROCESSING_TYPE_OPTIONS = [
-  { value: "normal", label: "Normal" },
-  { value: "urgent", label: "Express" },
-];
+/**
+ * P23 — processing-type choices (codes + labels) from the Admin Processing
+ * Types master, same source as the website forms: a code Admin disabled isn't
+ * offered, and labels follow Admin edits (New Visa "Express", OTB "Urgent" by
+ * default). Only the codes the request schemas accept are offered.
+ */
+async function getProcessingTypeChoices(serviceType: ServiceType): Promise<{ value: string; label: string }[]> {
+  return (await getProcessingTypeOptions(serviceType))
+    .filter((option) => option.code === "normal" || option.code === "urgent")
+    .map((option) => ({ value: option.code, label: option.label }));
+}
 
 // getActiveAirportOptions/getActiveBorderOptions removed (Step 8,
 // client-locked-spec roadmap) -- the customer never picks a specific
@@ -205,8 +206,8 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       }
       if (!has("processingType")) {
         const outcome = evaluate(collected.travelDate);
-        const options = PROCESSING_TYPE_OPTIONS.filter((option) => (outcome.allowed as string[]).includes(option.value));
-        const header = outcome.message ? `${outcome.message}\nWhich processing type?` : "Normal or urgent processing?";
+        const options = (await getProcessingTypeChoices("OTB")).filter((option) => (outcome.allowed as string[]).includes(option.value));
+        const header = outcome.message ? `${outcome.message}\nWhich processing type?` : "Which processing type?";
         return numberedChoiceStep("processingType", header, options);
       }
       return null;
@@ -228,7 +229,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         }
       }
       if (!has("travelers")) return textStep("travelers", "How many travelers (1-9)?", newVisaRequestSchema.shape.travelers);
-      if (!has("processingType")) return numberedChoiceStep("processingType", "Normal or Express processing?", NEW_VISA_PROCESSING_TYPE_OPTIONS);
+      if (!has("processingType")) return numberedChoiceStep("processingType", "Which processing type?", await getProcessingTypeChoices("NEW_VISA"));
       // No per-traveller passport/DOB/occupation over chat: the engine sends
       // the prefilled website request link instead (see newVisaRequestLink).
       return null;

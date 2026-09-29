@@ -10,7 +10,7 @@ export async function GET() {
   const countries = await db.country.findMany({
     where: { active: true },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-    select: { id: true, code: true, name: true },
+    select: { id: true, code: true, name: true, flagOverride: true },
   });
   return jsonSuccess(countries);
 }

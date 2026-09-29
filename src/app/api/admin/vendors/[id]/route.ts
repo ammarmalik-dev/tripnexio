@@ -35,10 +35,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const updated = await db.$transaction(async (tx) => {
     if (services) {
-      // Replace the vendor's service coverage wholesale — simpler and safer than
-      // diffing add/remove, and this route is never called with a huge service list.
-      await tx.vendorService.deleteMany({ where: { vendorId: id } });
-      await tx.vendorService.createMany({ data: services.map((service) => ({ vendorId: id, service })) });
+      // P23 — diff, don't replace: an unchanged service keeps its existing
+      // VendorService row (and with it that service's cost/rate/validity).
+      // Only services actually removed are deleted, only new ones created.
+      const current = await tx.vendorService.findMany({ where: { vendorId: id }, select: { service: true } });
+      const currentSet = new Set(current.map((row) => row.service));
+      const nextSet = new Set(services);
+      const removed = [...currentSet].filter((service) => !nextSet.has(service));
+      const added = [...nextSet].filter((service) => !currentSet.has(service));
+      if (removed.length) await tx.vendorService.deleteMany({ where: { vendorId: id, service: { in: removed } } });
+      if (added.length) await tx.vendorService.createMany({ data: added.map((service) => ({ vendorId: id, service })) });
     }
     const result = await tx.vendor.update({
       where: { id },

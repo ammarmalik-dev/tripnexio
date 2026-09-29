@@ -249,7 +249,7 @@ function ReferencePanel({ countryId, reference }: { countryId: string; reference
             {rules.length} rule{rules.length === 1 ? "" : "s"} configured.
           </p>
         )}
-        <a href="/admin/pricing" className="text-ink-accent hover:underline">
+        <a href={`/admin/service-configuration?service=NEW_VISA&country=${countryId}&tab=pricing`} className="text-ink-accent hover:underline">
           Manage on Pricing →
         </a>
       </div>
@@ -262,7 +262,7 @@ function ReferencePanel({ countryId, reference }: { countryId: string; reference
             {docs.length} document{docs.length === 1 ? "" : "s"} configured.
           </p>
         )}
-        <a href="/admin/document-requirements" className="text-ink-accent hover:underline">
+        <a href={`/admin/service-configuration?service=NEW_VISA&country=${countryId}&tab=documents`} className="text-ink-accent hover:underline">
           Manage on Documents →
         </a>
       </div>
@@ -277,7 +277,7 @@ function ReferencePanel({ countryId, reference }: { countryId: string; reference
           </p>
         )}
         <p className="italic">Timeline is configured per-service, not per-country, today.</p>
-        <a href="/admin/timelines" className="text-ink-accent hover:underline">
+        <a href={`/admin/service-configuration?service=NEW_VISA&country=${countryId}&tab=timelines`} className="text-ink-accent hover:underline">
           Manage on Timelines →
         </a>
       </div>
@@ -390,8 +390,16 @@ function ConfigCard({
   );
 }
 
-function NewConfigForm({ availableCountries, onCreated }: { availableCountries: CountryData[]; onCreated: (c: ConfigData) => void }) {
-  const [countryId, setCountryId] = useState("");
+function NewConfigForm({
+  availableCountries,
+  onCreated,
+  defaultCountryId,
+}: {
+  availableCountries: CountryData[];
+  onCreated: (c: ConfigData) => void;
+  defaultCountryId?: string;
+}) {
+  const [countryId, setCountryId] = useState(defaultCountryId ?? "");
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
@@ -403,7 +411,7 @@ function NewConfigForm({ availableCountries, onCreated }: { availableCountries: 
       const created = await postJson<ConfigData>("/api/admin/new-visa-countries", { countryId, ...toPayload(form) });
       toast.success(`${created.country.name} added.`);
       onCreated(created);
-      setCountryId("");
+      setCountryId(defaultCountryId ?? "");
       setForm(EMPTY_FORM);
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
@@ -455,7 +463,12 @@ function NewConfigForm({ availableCountries, onCreated }: { availableCountries: 
  * screen is under, so a session that can reach this page can always read
  * them too.
  */
-export function NewVisaCountriesManager() {
+/**
+ * P23 — optional `countryId` (Service Configuration hub) narrows the list to
+ * that country's products and pre-selects it on the add form. Absent = every
+ * country, as before.
+ */
+export function NewVisaCountriesManager({ countryId }: { countryId?: string } = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [configs, setConfigs] = useState<ConfigData[]>([]);
   const [countries, setCountries] = useState<CountryData[]>([]);
@@ -525,12 +538,17 @@ export function NewVisaCountriesManager() {
   // P10 — a country can have several products (stay duration x entry type).
   const availableCountries = countries.filter((c) => c.active);
 
+  const visibleConfigs = countryId ? configs.filter((config) => config.countryId === countryId) : configs;
+
   return (
     <div className="flex flex-col gap-4">
-      {configs.length === 0 ? (
-        <EmptyState title="No New Visa countries yet" description="Add the first country using the form below." />
+      {visibleConfigs.length === 0 ? (
+        <EmptyState
+          title={countryId ? "No New Visa products for this country yet" : "No New Visa countries yet"}
+          description={countryId ? "Add the first product for this country using the form below." : "Add the first country using the form below."}
+        />
       ) : (
-        configs.map((config) => (
+        visibleConfigs.map((config) => (
           <ConfigCard
             key={config.id}
             config={config}
@@ -540,7 +558,11 @@ export function NewVisaCountriesManager() {
           />
         ))
       )}
-      <NewConfigForm availableCountries={availableCountries} onCreated={(created) => setConfigs((current) => [...current, created])} />
+      <NewConfigForm
+        key={countryId ?? ""}
+        availableCountries={availableCountries}
+        defaultCountryId={countryId}
+        onCreated={(created) => setConfigs((current) => [...current, created])} />
     </div>
   );
 }

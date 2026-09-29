@@ -380,8 +380,14 @@ function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: Service
 
 type FetchState = "loading" | "success" | "error";
 
-export function ServiceStatusesManager() {
-  const [serviceType, setServiceType] = useState<ServiceType>("NEW_VISA");
+/**
+ * P23 — optional `serviceType` (Service Configuration hub) locks the manager
+ * to that service and hides its own service picker. Absent = original
+ * behaviour (own picker, defaulting to New Visa).
+ */
+export function ServiceStatusesManager({ serviceType: lockedServiceType }: { serviceType?: ServiceType } = {}) {
+  const [pickedServiceType, setServiceType] = useState<ServiceType>("NEW_VISA");
+  const serviceType = lockedServiceType ?? pickedServiceType;
   const [scope, setScope] = useState<StatusScope>("BOOKING");
   const [state, setState] = useState<FetchState>("loading");
   const [statuses, setStatuses] = useState<StatusData[]>([]);
@@ -413,21 +419,25 @@ export function ServiceStatusesManager() {
 
   return (
     <div className="flex flex-col gap-4">
-      <label htmlFor="service-status-service-select" className="sr-only">
-        Select service
-      </label>
-      <select
-        id="service-status-service-select"
-        value={serviceType}
-        onChange={(e) => setServiceType(e.target.value as ServiceType)}
-        className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[220px]")}
-      >
-        {SERVICE_TYPE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      {lockedServiceType ? null : (
+        <>
+          <label htmlFor="service-status-service-select" className="sr-only">
+            Select service
+          </label>
+          <select
+            id="service-status-service-select"
+            value={serviceType}
+            onChange={(e) => setServiceType(e.target.value as ServiceType)}
+            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[220px]")}
+          >
+            {SERVICE_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
       <div className="flex gap-2" role="group" aria-label="Status list">
         {(["BOOKING", "LEAD"] as const).map((option) => (
           <Button key={option} type="button" size="sm" variant={scope === option ? "primary" : "ghost"} onClick={() => setScope(option)}>

@@ -8,6 +8,7 @@ import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { ConfirmActionDialog } from "@/components/crm/ConfirmActionDialog";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
@@ -146,7 +147,8 @@ function RefundConfigCard({ row, onSaved }: { row: RefundConfigRow; onSaved: (ro
   );
 }
 
-export function RefundConfigManager() {
+/** P23 — optional `serviceType` (Service Configuration hub) shows only that service's rule. Absent = every service. */
+export function RefundConfigManager({ serviceType }: { serviceType?: ServiceType } = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [rows, setRows] = useState<RefundConfigRow[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
@@ -197,9 +199,20 @@ export function RefundConfigManager() {
     );
   }
 
+  const visibleRows = serviceType ? rows.filter((row) => row.serviceType === serviceType) : rows;
+
+  if (serviceType && visibleRows.length === 0) {
+    return (
+      <EmptyState
+        title={`No refund rule for ${SERVICE_TYPE_LABELS[serviceType]}`}
+        description="This service has no refund configuration row yet."
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      {rows.map((row) => (
+      {visibleRows.map((row) => (
         <RefundConfigCard
           key={row.serviceType}
           row={row}

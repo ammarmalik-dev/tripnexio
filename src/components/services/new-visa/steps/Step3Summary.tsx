@@ -7,6 +7,8 @@ import { useVisaTypes } from "@/lib/use-visa-types";
 import { useNewVisaProducts } from "@/lib/new-visa/use-new-visa-products";
 import { NewVisaPricePreview } from "../NewVisaPricePreview";
 import { getJson } from "@/lib/api/client";
+import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
+import { processingTypeLabel } from "@/lib/processing-types/defaults";
 import { GUARDIAN_RELATIONSHIP_LABELS, type NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
 type ProtectionPlanCountryConfig =
@@ -110,11 +112,6 @@ function ProtectionPlanOptIn({ countryCode, travellerNames }: { countryCode: str
   );
 }
 
-const processingTypeLabel: Record<NewVisaRequestValues["processingType"], string> = {
-  normal: "Normal",
-  urgent: "Express",
-};
-
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0">
@@ -135,6 +132,8 @@ export function Step3Summary() {
   const visaTypeLabel = visaTypes.find((visaType) => visaType.id === values.visaType)?.name ?? "";
   const { products } = useNewVisaProducts();
   const productLabel = products.find((product) => product.id === values.newVisaConfigId)?.label ?? "";
+  // P23 — label from the Admin Processing Types master (stored code unchanged).
+  const { options: processingTypeOptions } = useProcessingTypes("NEW_VISA");
 
   return (
     <div className="flex flex-col gap-4">
@@ -158,7 +157,7 @@ export function Step3Summary() {
               : ""
           }
         />
-        <SummaryRow label="Processing Type" value={processingTypeLabel[values.processingType]} />
+        <SummaryRow label="Processing Type" value={processingTypeLabel("NEW_VISA", values.processingType, processingTypeOptions)} />
       </div>
       {[
         { name: values.fullName, ...values },

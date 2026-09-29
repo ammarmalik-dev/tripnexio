@@ -1,23 +1,31 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { ChevronDown, History, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
-import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
+import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { computeVendorScore, type VendorScoringWeights } from "@/lib/vendors/score-formula";
+import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { ChangeHistoryList, type ChangeHistoryEntry, type HistoryJson } from "./ChangeHistoryList";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 interface VendorService {
   id: string;
   service: ServiceType;
+  /** P23 — internal service-wise cost/rate (Decimal serialized as a string) and validity window. */
+  cost: string | null;
+  rate: string | null;
+  validFrom: string | null;
+  validUntil: string | null;
+  updatedAt: string;
 }
 
 interface VendorData {
@@ -295,6 +303,247 @@ function buildPayload(form: FormState) {
   };
 }
 
+interface RateFormState {
+  cost: string;
+  rate: string;
+  validFrom: string;
+  validUntil: string;
+}
+
+function toRateForm(entry: VendorService): RateFormState {
+  return {
+    cost: entry.cost ?? "",
+    rate: entry.rate ?? "",
+    validFrom: entry.validFrom ? entry.validFrom.slice(0, 10) : "",
+    validUntil: entry.validUntil ? entry.validUntil.slice(0, 10) : "",
+  };
+}
+
+function VendorRateRow({ vendorId, entry, onSaved }: { vendorId: string; entry: VendorService; onSaved: (entry: VendorService) => void }) {
+  const [form, setForm] = useState<RateFormState>(toRateForm(entry));
+  const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
+  const [saving, setSaving] = useState(false);
+  const dirty = JSON.stringify(form) !== JSON.stringify(toRateForm(entry));
+  const label = SERVICE_TYPE_LABELS[entry.service];
+
+  const handleSave = async () => {
+    setSaving(true);
+    setErrors({});
+    try {
+      const updated = await patchJson<VendorService>(`/api/admin/vendors/${vendorId}/services/${entry.service}`, {
+        cost: form.cost.trim() === "" ? null : Number(form.cost),
+        rate: form.rate.trim() === "" ? null : Number(form.rate),
+        validFrom: form.validFrom || null,
+        validUntil: form.validUntil || null,
+      });
+      toast.success(`${label} rate saved.`);
+      onSaved(updated);
+    } catch (error) {
+      if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
+      toast.error(error instanceof ApiError ? error.message : "Couldn't save this rate. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const errorText = errors.cost?.[0] ?? errors.rate?.[0] ?? errors.validFrom?.[0] ?? errors.validUntil?.[0];
+  const cell = (field: keyof RateFormState, type: "number" | "date", ariaLabel: string) => (
+    <input
+      type={type}
+      {...(type === "number" ? { min: 0, step: "0.01", inputMode: "decimal" as const } : {})}
+      value={form[field]}
+      disabled={saving}
+      aria-label={`${label} ${ariaLabel}`}
+      aria-invalid={!!errors[field]}
+      onChange={(event) => setForm({ ...form, [field]: event.target.value })}
+      className={cn(fieldControlClass, fieldBorderClass(!!errors[field]), "min-w-[8rem]")}
+    />
+  );
+
+  return (
+    <>
+      <tr className="border-t border-hairline align-top">
+        <th scope="row" className="py-2 pr-3 text-left font-medium text-ink-primary">
+          {label}
+        </th>
+        <td className="py-2 pr-3">{cell("cost", "number", "vendor cost")}</td>
+        <td className="py-2 pr-3">{cell("rate", "number", "rate")}</td>
+        <td className="py-2 pr-3">{cell("validFrom", "date", "valid from")}</td>
+        <td className="py-2 pr-3">{cell("validUntil", "date", "valid until")}</td>
+        <td className="py-2 text-right">
+          <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
+            Save
+          </Button>
+        </td>
+      </tr>
+      {errorText ? (
+        <tr>
+          <td colSpan={6} className="pb-2 text-xs text-error" role="alert">
+            {errorText}
+          </td>
+        </tr>
+      ) : null}
+    </>
+  );
+}
+
+const RATE_FIELD_LABELS: Record<string, string> = { cost: "Vendor cost", rate: "Rate", validFrom: "Valid from", validUntil: "Valid until" };
+
+function formatRateValue(field: string, value: HistoryJson): string | undefined {
+  if (value === null || value === "") return undefined;
+  if (field === "cost" || field === "rate") return `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return undefined;
+}
+
+interface RateHistoryRow extends Omit<ChangeHistoryEntry, "tag"> {
+  service: ServiceType;
+}
+
+function VendorRateHistoryPanel({ vendorId, services }: { vendorId: string; services: ServiceType[] }) {
+  const [open, setOpen] = useState(false);
+  const [service, setService] = useState<ServiceType | "">("");
+  const [state, setState] = useState<FetchState | "idle">("idle");
+  const [entries, setEntries] = useState<ChangeHistoryEntry[]>([]);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const load = async (filter: ServiceType | "") => {
+    setState("loading");
+    try {
+      const query = filter ? `?service=${encodeURIComponent(filter)}` : "";
+      const rows = await getJson<RateHistoryRow[]>(`/api/admin/vendors/${vendorId}/rate-history${query}`);
+      setEntries(rows.map((row) => ({ ...row, tag: SERVICE_TYPE_LABELS[row.service] })));
+      setState("success");
+    } catch (error) {
+      setErrorMessage(error instanceof ApiError ? error.message : "Couldn't load rate history.");
+      setState("error");
+    }
+  };
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next && state !== "success") void load(service);
+  };
+
+  const panelId = `vendor-rate-history-${vendorId}`;
+  const filterId = `${panelId}-service`;
+
+  return (
+    <div className="mt-3">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        aria-controls={panelId}
+        className="inline-flex items-center gap-1.5 rounded-md text-sm font-medium text-ink-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      >
+        <History className="h-4 w-4" aria-hidden="true" />
+        Rate history
+        <ChevronDown className={cn("h-4 w-4 transition-transform motion-reduce:transition-none", open && "rotate-180")} aria-hidden="true" />
+      </button>
+      {open ? (
+        <div id={panelId} className="mt-3 flex flex-col gap-3">
+          <FormField label="Service" htmlFor={filterId} className="max-w-xs">
+            <select
+              id={filterId}
+              value={service}
+              onChange={(event) => {
+                const next = event.target.value as ServiceType | "";
+                setService(next);
+                void load(next);
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false))}
+            >
+              <option value="">All services</option>
+              {services.map((entry) => (
+                <option key={entry} value={entry}>
+                  {SERVICE_TYPE_LABELS[entry]}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          {state === "loading" || state === "idle" ? (
+            <div className="flex flex-col gap-2">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
+          ) : state === "error" ? (
+            <ErrorState
+              title="Couldn't load rate history"
+              description={errorMessage}
+              action={
+                <Button type="button" size="sm" onClick={() => void load(service)}>
+                  Try again
+                </Button>
+              }
+            />
+          ) : entries.length === 0 ? (
+            <EmptyState title="No rate changes yet" description="Saved cost/rate changes appear here." />
+          ) : (
+            <ChangeHistoryList entries={entries} fieldLabel={(field) => RATE_FIELD_LABELS[field] ?? field} formatValue={formatRateValue} />
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** P23 — ADMIN §12 "vendor cost/rate service-wise": one editable row per linked service. Internal only. */
+function VendorRatesSection({ vendor, onServiceSaved }: { vendor: VendorData; onServiceSaved: (entry: VendorService) => void }) {
+  // Remount the history panel after any rate save so its next open refetches.
+  const latestUpdate = vendor.services.map((entry) => entry.updatedAt).join("|");
+  return (
+    <div className="rounded-lg border border-hairline p-3">
+      <h3 className="text-sm font-medium text-ink-primary">Service-wise Cost &amp; Rate (internal)</h3>
+      <p className="mt-0.5 text-xs text-ink-tertiary">
+        Admin-only — never shown to customers or in staff vendor lookups. Leave a field blank if not applicable. Changing
+        service coverage above keeps the rates of services that stay linked.
+      </p>
+      {vendor.services.length === 0 ? (
+        <p className="mt-3 text-sm text-ink-tertiary">Link at least one service above to set its rate.</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-ink-tertiary">
+                <th scope="col" className="pb-2 pr-3 font-medium">
+                  Service
+                </th>
+                <th scope="col" className="pb-2 pr-3 font-medium">
+                  Vendor Cost (₹)
+                </th>
+                <th scope="col" className="pb-2 pr-3 font-medium">
+                  Rate (₹)
+                </th>
+                <th scope="col" className="pb-2 pr-3 font-medium">
+                  Valid From
+                </th>
+                <th scope="col" className="pb-2 pr-3 font-medium">
+                  Valid Until
+                </th>
+                <th scope="col" className="pb-2 font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {vendor.services.map((entry) => (
+                <VendorRateRow
+                  key={`${entry.id}-${entry.updatedAt}`}
+                  vendorId={vendor.id}
+                  entry={entry}
+                  onSaved={onServiceSaved}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <VendorRateHistoryPanel key={latestUpdate} vendorId={vendor.id} services={vendor.services.map((entry) => entry.service)} />
+    </div>
+  );
+}
+
 function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights: VendorScoringWeights | null; onSaved: (vendor: VendorData) => void }) {
   const [form, setForm] = useState<FormState>(toFormState(vendor));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -355,6 +604,12 @@ function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights:
           Save Changes
         </Button>
       </div>
+      <VendorRatesSection
+        vendor={vendor}
+        onServiceSaved={(entry) =>
+          onSaved({ ...vendor, services: vendor.services.map((current) => (current.service === entry.service ? entry : current)) })
+        }
+      />
     </div>
   );
 }

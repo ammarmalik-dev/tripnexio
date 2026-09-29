@@ -238,8 +238,18 @@ function RequirementCard({
   );
 }
 
-function NewRequirementForm({ countries, onCreated }: { countries: CountryData[]; onCreated: (item: DocumentRequirementData) => void }) {
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+function NewRequirementForm({
+  countries,
+  onCreated,
+  defaults,
+}: {
+  countries: CountryData[];
+  onCreated: (item: DocumentRequirementData) => void;
+  /** P23 — Service Configuration hub pre-fill (service/country). Absent = the original empty form. */
+  defaults?: Partial<Pick<FormState, "serviceType" | "countryId">>;
+}) {
+  const initialForm: FormState = { ...EMPTY_FORM, ...defaults };
+  const [form, setForm] = useState<FormState>(initialForm);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
 
@@ -250,7 +260,7 @@ function NewRequirementForm({ countries, onCreated }: { countries: CountryData[]
       const created = await postJson<DocumentRequirementData>("/api/admin/document-requirements", buildPayload(form));
       toast.success(`Document requirement "${created.documentName}" added.`);
       onCreated(created);
-      setForm(EMPTY_FORM);
+      setForm(initialForm);
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
       toast.error(error instanceof ApiError ? error.message : "Couldn't add this requirement. Please try again.");
@@ -283,9 +293,17 @@ function NewRequirementForm({ countries, onCreated }: { countries: CountryData[]
  * A target service that already has an identical document is skipped for
  * that one, never overwritten.
  */
-function BulkApplyPanel({ countries }: { countries: CountryData[] }) {
-  const [sourceServiceType, setSourceServiceType] = useState<ServiceType | "">("");
-  const [sourceCountryId, setSourceCountryId] = useState("");
+function BulkApplyPanel({
+  countries,
+  defaultServiceType,
+  defaultCountryId,
+}: {
+  countries: CountryData[];
+  defaultServiceType?: ServiceType;
+  defaultCountryId?: string;
+}) {
+  const [sourceServiceType, setSourceServiceType] = useState<ServiceType | "">(defaultServiceType ?? "");
+  const [sourceCountryId, setSourceCountryId] = useState(defaultCountryId ?? "");
   const [sourceNationality, setSourceNationality] = useState("");
   const [sourcePaxType, setSourcePaxType] = useState<PaxType | "">("");
   const [preview, setPreview] = useState<DocumentRequirementData[] | null>(null);
@@ -459,7 +477,13 @@ function BulkApplyPanel({ countries }: { countries: CountryData[] }) {
   );
 }
 
-export function DocumentRequirementsManager() {
+/**
+ * P23 — optional Service Configuration hub scoping. `serviceType` narrows the
+ * list to that service; `countryId` narrows it to that country's rules plus
+ * the all-countries (null) ones that also apply there. Both also pre-fill the
+ * new-requirement form and the Bulk Apply source. Absent = original behaviour.
+ */
+export function DocumentRequirementsManager({ serviceType, countryId }: { serviceType?: ServiceType; countryId?: string } = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<DocumentRequirementData[]>([]);
   const [countries, setCountries] = useState<CountryData[]>([]);
@@ -517,13 +541,20 @@ export function DocumentRequirementsManager() {
     );
   }
 
+  const visibleItems = items.filter(
+    (item) =>
+      (!serviceType || item.serviceType === serviceType) &&
+      (!countryId || item.countryId === countryId || item.countryId === null),
+  );
+  const formDefaults = { ...(serviceType ? { serviceType } : {}), ...(countryId ? { countryId } : {}) };
+
   return (
     <div className="flex flex-col gap-4">
-      <BulkApplyPanel countries={countries} />
-      {items.length === 0 ? (
+      <BulkApplyPanel countries={countries} defaultServiceType={serviceType} defaultCountryId={countryId} />
+      {visibleItems.length === 0 ? (
         <EmptyState title="No document requirements yet" description="Add the first one using the form below." />
       ) : (
-        items.map((item) => (
+        visibleItems.map((item) => (
           <RequirementCard
             key={item.id}
             item={item}
@@ -532,7 +563,12 @@ export function DocumentRequirementsManager() {
           />
         ))
       )}
-      <NewRequirementForm countries={countries} onCreated={(created) => setItems((current) => [...current, created])} />
+      <NewRequirementForm
+        key={`${serviceType ?? ""}-${countryId ?? ""}`}
+        countries={countries}
+        defaults={formDefaults}
+        onCreated={(created) => setItems((current) => [...current, created])}
+      />
     </div>
   );
 }

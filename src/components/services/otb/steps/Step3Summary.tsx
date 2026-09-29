@@ -9,11 +9,9 @@ import { formatRupees, useReturnTicketDestinations } from "@/lib/return-ticket/u
 import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
+import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
+import { processingTypeLabel } from "@/lib/processing-types/defaults";
 
-const processingTypeLabel: Record<OtbRequestValues["processingType"], string> = {
-  normal: "Normal",
-  urgent: "Urgent",
-};
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
@@ -39,6 +37,8 @@ export function Step3Summary() {
   const destinationCountryLabel =
     destinationCountryOptions.find((option) => option.value === values.destinationCountry)?.label ??
     values.destinationCountry;
+  // P23 — label from the Admin Processing Types master (stored code unchanged).
+  const { options: processingTypeOptions } = useProcessingTypes("OTB");
   const applicantCount = 1 + values.additionalApplicants.length;
   // P18 — priced per applicant (airline + destination + passenger type).
   const applicantPrices = airline
@@ -74,7 +74,7 @@ export function Step3Summary() {
           }
         />
         <SummaryRow label="Passport Number" value={values.passportNumber} />
-        <SummaryRow label="Processing Type" value={processingTypeLabel[values.processingType]} />
+        <SummaryRow label="Processing Type" value={processingTypeLabel("OTB", values.processingType, processingTypeOptions)} />
         <SummaryRow label="Applicants" value={String(applicantCount)} />
         {otbTotal !== null ? (
           <SummaryRow

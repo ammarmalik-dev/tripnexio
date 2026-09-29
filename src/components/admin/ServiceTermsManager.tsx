@@ -76,8 +76,18 @@ function TermsRow({ terms, onSaved }: { terms: TermsData; onSaved: (t: TermsData
   );
 }
 
-function NewTermsForm({ serviceType, countries, onCreated }: { serviceType: ServiceType; countries: CountryOption[]; onCreated: (t: TermsData) => void }) {
-  const [countryId, setCountryId] = useState("");
+function NewTermsForm({
+  serviceType,
+  countries,
+  onCreated,
+  defaultCountryId,
+}: {
+  serviceType: ServiceType;
+  countries: CountryOption[];
+  onCreated: (t: TermsData) => void;
+  defaultCountryId?: string;
+}) {
+  const [countryId, setCountryId] = useState(defaultCountryId ?? "");
   const [title, setTitle] = useState("Terms & Conditions");
   const [body, setBody] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -131,8 +141,18 @@ function NewTermsForm({ serviceType, countries, onCreated }: { serviceType: Serv
   );
 }
 
-export function ServiceTermsManager() {
-  const [serviceType, setServiceType] = useState<ServiceType>("NEW_VISA");
+/**
+ * P23 — optional Service Configuration hub scoping. `serviceType` locks the
+ * manager to that service (its own picker is hidden); `countryId` narrows the
+ * list to that country's versions plus the all-countries ones, and pre-fills
+ * the new-version form. Absent = original behaviour.
+ */
+export function ServiceTermsManager({
+  serviceType: lockedServiceType,
+  countryId: scopedCountryId,
+}: { serviceType?: ServiceType; countryId?: string } = {}) {
+  const [pickedServiceType, setServiceType] = useState<ServiceType>("NEW_VISA");
+  const serviceType = lockedServiceType ?? pickedServiceType;
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [items, setItems] = useState<TermsData[]>([]);
   const [countries, setCountries] = useState<CountryOption[]>([]);
@@ -164,23 +184,31 @@ export function ServiceTermsManager() {
     };
   }, [serviceType, reloadNonce]);
 
+  const visibleItems = scopedCountryId
+    ? items.filter((item) => item.countryId === scopedCountryId || item.countryId === null)
+    : items;
+
   return (
     <div className="flex flex-col gap-3">
-      <label htmlFor="terms-service" className="sr-only">
-        Select service
-      </label>
-      <select
-        id="terms-service"
-        value={serviceType}
-        onChange={(e) => setServiceType(e.target.value as ServiceType)}
-        className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[220px]")}
-      >
-        {SERVICE_TYPE_OPTIONS.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      {lockedServiceType ? null : (
+        <>
+          <label htmlFor="terms-service" className="sr-only">
+            Select service
+          </label>
+          <select
+            id="terms-service"
+            value={serviceType}
+            onChange={(e) => setServiceType(e.target.value as ServiceType)}
+            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[220px]")}
+          >
+            {SERVICE_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </>
+      )}
       {state === "loading" ? (
         Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
       ) : state === "error" ? (
@@ -195,14 +223,19 @@ export function ServiceTermsManager() {
         />
       ) : (
         <>
-          {items.length === 0 ? (
+          {visibleItems.length === 0 ? (
             <EmptyState title="No terms published for this service" description="Customers agree to the general website Terms until you publish a version here." />
           ) : (
-            items.map((item) => (
+            visibleItems.map((item) => (
               <TermsRow key={item.id} terms={item} onSaved={(updated) => setItems((current) => current.map((t) => (t.id === updated.id ? updated : t)))} />
             ))
           )}
-          <NewTermsForm key={serviceType} serviceType={serviceType} countries={countries} onCreated={(created) => setItems((current) => [created, ...current])} />
+          <NewTermsForm
+            key={`${serviceType}-${scopedCountryId ?? ""}`}
+            serviceType={serviceType}
+            countries={countries}
+            defaultCountryId={scopedCountryId}
+            onCreated={(created) => setItems((current) => [created, ...current])} />
         </>
       )}
     </div>

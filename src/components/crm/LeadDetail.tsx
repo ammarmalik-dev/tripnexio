@@ -21,6 +21,7 @@ import { QuoteBuilder } from "./QuoteBuilder";
 import { AddTaskPanel } from "./tasks/CreateTaskForm";
 import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { humanizeKey, formatDetailValue } from "@/lib/crm/humanize";
+import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 import { VisaExtensionPriorVisaPanel, type PriorVisaMatchItem } from "./VisaExtensionPriorVisaPanel";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -118,6 +119,8 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [creatingBooking, setCreatingBooking] = useState(false);
+  // P23 — processing-type labels from the Admin master for this lead's service.
+  const { options: processingTypeOptions } = useProcessingTypes(lead?.serviceType);
 
   useEffect(() => {
     let cancelled = false;
@@ -263,7 +266,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
                 {detailEntries.map(([key, value]) => (
                   <div key={key} className="flex items-center justify-between gap-4 border-b border-hairline py-2 sm:justify-start">
                     <dt className="text-xs text-ink-tertiary">{humanizeKey(key)}</dt>
-                    <dd className="text-sm font-medium text-ink-primary">{formatDetailValue(lead.serviceType, key, value)}</dd>
+                    <dd className="text-sm font-medium text-ink-primary">{formatDetailValue(lead.serviceType, key, value, processingTypeOptions)}</dd>
                   </div>
                 ))}
               </dl>

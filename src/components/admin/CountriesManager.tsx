@@ -10,11 +10,13 @@ import { TextField } from "@/components/forms/TextField";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { countryFlag } from "@/lib/countries/flag";
 
 interface CountryData {
   id: string;
   code: string;
   name: string;
+  flagOverride: string | null;
   displayOrder: number;
   active: boolean;
 }
@@ -24,12 +26,14 @@ type FetchState = "loading" | "success" | "error";
 interface CountryFormState {
   code: string;
   name: string;
+  flagOverride: string;
   displayOrder: string;
 }
 
 const EMPTY_FORM: CountryFormState = {
   code: "",
   name: "",
+  flagOverride: "",
   displayOrder: "0",
 };
 
@@ -37,8 +41,24 @@ function toFormState(country: CountryData): CountryFormState {
   return {
     code: country.code,
     name: country.name,
+    flagOverride: country.flagOverride ?? "",
     displayOrder: String(country.displayOrder),
   };
+}
+
+/** P23 — renders a country's flag: an Admin image override as an <img>, else the emoji. */
+function FlagBadge({ code, flagOverride, className }: { code: string; flagOverride?: string | null; className?: string }) {
+  const flag = countryFlag({ code, flagOverride });
+  if (flag.kind === "image") {
+    // Admin-supplied arbitrary URL (any host), so a plain <img> rather than next/image's domain allow-list.
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={flag.value} alt="" aria-hidden="true" className={cn("inline-block h-5 w-7 rounded-sm object-cover", className)} />;
+  }
+  return (
+    <span aria-hidden="true" className={cn("text-xl leading-none", className)}>
+      {flag.value}
+    </span>
+  );
 }
 
 function CountryFields({
@@ -72,6 +92,25 @@ function CountryFields({
         error={errors.code?.[0]}
         disabled={disabled}
       />
+      <div className="flex flex-col gap-1.5">
+        <TextField
+          label="Flag override (optional)"
+          name="flagOverride"
+          placeholder="An emoji, or an image URL (https://…)"
+          value={form.flagOverride}
+          onChange={(event) => onChange({ ...form, flagOverride: event.target.value })}
+          error={errors.flagOverride?.[0]}
+          disabled={disabled}
+        />
+        <p className="flex items-center gap-2 text-xs text-ink-tertiary">
+          Auto flag from the code: <FlagBadge code={form.code} className="text-base" />
+          {form.flagOverride.trim() ? (
+            <>
+              · Shown: <FlagBadge code={form.code} flagOverride={form.flagOverride} className="text-base" />
+            </>
+          ) : null}
+        </p>
+      </div>
       <TextField
         label="Display Order"
         name="displayOrder"
@@ -89,6 +128,7 @@ function buildPayload(form: CountryFormState) {
   return {
     name: form.name.trim(),
     code: form.code.trim(),
+    flagOverride: form.flagOverride.trim() || null,
     displayOrder: Number(form.displayOrder) || 0,
   };
 }
@@ -132,14 +172,18 @@ function CountryCard({ country, onSaved }: { country: CountryData; onSaved: (cou
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-medium",
-            country.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-          )}
-        >
-          {country.active ? "Active" : "Disabled"}
-        </span>
+        <div className="flex items-center gap-2">
+          <FlagBadge code={country.code} flagOverride={country.flagOverride} />
+          <span className="text-sm font-semibold text-ink-heading">{country.name}</span>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-medium",
+              country.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+            )}
+          >
+            {country.active ? "Active" : "Disabled"}
+          </span>
+        </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
           {country.active ? "Disable" : "Enable"}
         </Button>

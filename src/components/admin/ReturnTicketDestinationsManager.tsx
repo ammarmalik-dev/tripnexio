@@ -173,11 +173,13 @@ function DestinationCard({ destination, onSaved }: { destination: DestinationDat
 function NewDestinationForm({
   availableCountries,
   onCreated,
+  defaultCountryId,
 }: {
   availableCountries: CountryData[];
   onCreated: (d: DestinationData) => void;
+  defaultCountryId?: string;
 }) {
-  const [countryId, setCountryId] = useState("");
+  const [countryId, setCountryId] = useState(defaultCountryId ?? "");
   const [form, setForm] = useState<FormState>({ rate: "", cancellationFee: "", displayOrder: "0" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
@@ -232,7 +234,12 @@ function NewDestinationForm({
   );
 }
 
-export function ReturnTicketDestinationsManager() {
+/**
+ * P23 — optional `countryId` (Service Configuration hub) narrows the list to
+ * that country's destination and pre-selects it on the add form when it isn't
+ * set up yet. Absent = every destination, as before.
+ */
+export function ReturnTicketDestinationsManager({ countryId }: { countryId?: string } = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [destinations, setDestinations] = useState<DestinationData[]>([]);
   const [countries, setCountries] = useState<CountryData[]>([]);
@@ -293,12 +300,18 @@ export function ReturnTicketDestinationsManager() {
   const usedCountryIds = new Set(destinations.map((d) => d.countryId));
   const availableCountries = countries.filter((c) => c.active && !usedCountryIds.has(c.id));
 
+  const visibleDestinations = countryId ? destinations.filter((d) => d.countryId === countryId) : destinations;
+  const defaultCountryId = countryId && availableCountries.some((c) => c.id === countryId) ? countryId : undefined;
+
   return (
     <div className="flex flex-col gap-4">
-      {destinations.length === 0 ? (
-        <EmptyState title="No destinations yet" description="Add the first destination using the form below." />
+      {visibleDestinations.length === 0 ? (
+        <EmptyState
+          title={countryId ? "This country isn't a Return Ticket destination yet" : "No destinations yet"}
+          description="Add the first destination using the form below."
+        />
       ) : (
-        destinations.map((destination) => (
+        visibleDestinations.map((destination) => (
           <DestinationCard
             key={destination.id}
             destination={destination}
@@ -307,6 +320,8 @@ export function ReturnTicketDestinationsManager() {
         ))
       )}
       <NewDestinationForm
+        key={`${defaultCountryId ?? ""}-${destinations.length}`}
+        defaultCountryId={defaultCountryId}
         availableCountries={availableCountries}
         onCreated={(created) => setDestinations((current) => [...current, created])}
       />

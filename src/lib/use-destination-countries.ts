@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { SelectOption } from "@/lib/sample-data";
+import { countryOptionLabel } from "@/lib/countries/flag";
 
 /**
  * Destination-country options for the New Visa request flow, fetched from
@@ -11,6 +12,10 @@ import type { SelectOption } from "@/lib/sample-data";
  * country with zero deploys, and it shows up here immediately. Uses each
  * country's `code` (not its id) as the option value, since this is
  * descriptive lead data, not a foreign key.
+ *
+ * P23 — each label is prefixed with the country's flag emoji (Admin
+ * override or auto from the code); image overrides are skipped here since a
+ * native <select> option can't render an image.
  */
 export function useDestinationCountryOptions(): SelectOption[] {
   const [options, setOptions] = useState<SelectOption[]>([]);
@@ -21,9 +26,9 @@ export function useDestinationCountryOptions(): SelectOption[] {
       try {
         const res = await fetch("/api/countries");
         if (!res.ok) return;
-        const json = (await res.json()) as { data: { code: string; name: string }[] };
+        const json = (await res.json()) as { data: { code: string; name: string; flagOverride?: string | null }[] };
         if (!cancelled) {
-          setOptions(json.data.map((country) => ({ value: country.code, label: country.name })));
+          setOptions(json.data.map((country) => ({ value: country.code, label: countryOptionLabel(country) })));
         }
       } catch {
         // The select just stays empty until it loads — not worth a toast for a background list load.

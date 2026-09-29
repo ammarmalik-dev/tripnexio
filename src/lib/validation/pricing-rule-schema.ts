@@ -5,13 +5,24 @@ import { ServiceType, type ServiceType as ServiceTypeType, PaxType, type PaxType
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeType, ...ServiceTypeType[]];
 const paxTypeValues = Object.values(PaxType) as [PaxTypeType, ...PaxTypeType[]];
 
-/** "normal" | "urgent" — free string (not an enum) to match the same convention already used by New Visa's/OTB's own processingType values elsewhere. */
-const processingTypeField = z.enum(["normal", "urgent"]).optional();
+/**
+ * P23 — a Processing Types master code ("normal", "urgent", "express" …),
+ * stored as the plain code string on PricingRule.processingType. Which codes
+ * are valid for a service is checked server-side against that master
+ * (src/lib/pricing/validate-rule-refs.ts); null = any / not applicable.
+ */
+const processingTypeField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z0-9_-]{1,40}$/, "Select a valid processing type")
+  .nullable()
+  .optional();
 
 export const createPricingRuleSchema = z.object({
   serviceType: z.enum(serviceTypeValues, { error: "Select a service" }),
   /** Omit for a rule not tied to a destination country (§4: "country where applicable"). */
-  countryId: z.string().min(1).optional(),
+  countryId: z.string().min(1).nullable().optional(),
   processingType: processingTypeField,
   paxType: z.enum(paxTypeValues, { error: "Select a passenger type" }),
   /** Omit/empty for a rule that applies to every nationality. */
@@ -20,6 +31,10 @@ export const createPricingRuleSchema = z.object({
   nationalityId: z.string().min(1).nullable().optional(),
   /** P10 — New Visa only: the product this price is for; null = every product of the country. */
   newVisaConfigId: z.string().min(1).nullable().optional(),
+  /** P23 — optional sub-service (must belong to `serviceType`); null = every sub-service. */
+  subServiceId: z.string().min(1).nullable().optional(),
+  /** P23 — optional visa type; null = every visa type. */
+  visaTypeId: z.string().min(1).nullable().optional(),
   vendorCost: z.number().nonnegative("Vendor cost can't be negative").default(0),
   sellingPrice: z.number({ error: "Enter the selling price" }).nonnegative("Selling price can't be negative"),
   additionalCharges: z.number().nonnegative("Additional charges can't be negative").default(0),

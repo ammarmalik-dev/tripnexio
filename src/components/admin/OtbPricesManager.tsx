@@ -93,8 +93,18 @@ function PriceRow({ row, onSaved }: { row: OtbPriceData; onSaved: (row: OtbPrice
   );
 }
 
-function NewPriceForm({ airlines, countries, onCreated }: { airlines: Option[]; countries: Option[]; onCreated: (row: OtbPriceData) => void }) {
-  const empty = { airlineId: "", countryId: "", paxType: "ADULT", normal: "", urgent: "" };
+function NewPriceForm({
+  airlines,
+  countries,
+  onCreated,
+  defaultCountryId,
+}: {
+  airlines: Option[];
+  countries: Option[];
+  onCreated: (row: OtbPriceData) => void;
+  defaultCountryId?: string;
+}) {
+  const empty = { airlineId: "", countryId: defaultCountryId ?? "", paxType: "ADULT", normal: "", urgent: "" };
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
@@ -146,7 +156,7 @@ function NewPriceForm({ airlines, countries, onCreated }: { airlines: Option[]; 
  * type (Developer Answers §4). Where no active row matches, the airline's
  * own normal/urgent price (Admin → Airlines) is charged.
  */
-export function OtbPricesManager() {
+export function OtbPricesManager({ countryId }: { countryId?: string } = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [rows, setRows] = useState<OtbPriceData[]>([]);
   const [airlines, setAirlines] = useState<Option[]>([]);
@@ -193,14 +203,17 @@ export function OtbPricesManager() {
     );
   }
 
+  // P23 — optional `countryId` (Service Configuration hub) narrows the list and pre-fills the add form. Absent = every row.
+  const visibleRows = countryId ? rows.filter((row) => row.countryId === countryId) : rows;
+
   return (
     <div className="flex flex-col gap-4">
-      {rows.length === 0 ? (
+      {visibleRows.length === 0 ? (
         <EmptyState title="No OTB prices yet" description="Until you add one, each airline's own normal / urgent price is charged." />
       ) : (
-        rows.map((row) => <PriceRow key={row.id} row={row} onSaved={(updated) => setRows((current) => current.map((r) => (r.id === updated.id ? updated : r)))} />)
+        visibleRows.map((row) => <PriceRow key={row.id} row={row} onSaved={(updated) => setRows((current) => current.map((r) => (r.id === updated.id ? updated : r)))} />)
       )}
-      <NewPriceForm airlines={airlines} countries={countries} onCreated={(created) => setRows((current) => [...current, created])} />
+      <NewPriceForm key={countryId ?? ""} defaultCountryId={countryId} airlines={airlines} countries={countries} onCreated={(created) => setRows((current) => [...current, created])} />
     </div>
   );
 }

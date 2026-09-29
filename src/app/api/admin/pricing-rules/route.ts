@@ -6,13 +6,21 @@ import { resolveNationalityInput } from "@/lib/nationalities/resolve";
 import { validatePricingRuleProduct } from "@/lib/new-visa/validate-product-rule";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { pricingRuleSnapshot, writePricingRuleHistory } from "@/lib/pricing/rule-history";
+import { validatePricingRuleRefs } from "@/lib/pricing/validate-rule-refs";
+
+const ruleInclude = {
+  country: { select: { id: true, name: true, code: true } },
+  subService: { select: { id: true, code: true, name: true } },
+  visaType: { select: { id: true, name: true } },
+} as const;
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
 
   const rules = await db.pricingRule.findMany({
-    include: { country: { select: { id: true, name: true, code: true } } },
+    include: ruleInclude,
     orderBy: [{ serviceType: "asc" }, { country: { name: "asc" } }, { paxType: "asc" }],
   });
   return jsonSuccess(rules);
@@ -41,6 +49,17 @@ export async function POST(request: NextRequest) {
   }
   const productError = await validatePricingRuleProduct(parsed.data);
   if (productError) return productError;
+  const refsError = await validatePricingRuleRefs({
+    serviceType: parsed.data.serviceType,
+    countryId: parsed.data.countryId ?? null,
+    subServiceId: parsed.data.subServiceId ?? null,
+    visaTypeId: parsed.data.visaTypeId ?? null,
+    processingType: parsed.data.processingType ?? null,
+    checkSubService: true,
+    checkVisaType: true,
+    checkProcessingType: true,
+  });
+  if (refsError) return refsError;
   const nationalityInput = await resolveNationalityInput(parsed.data);
   if (nationalityInput.error) return nationalityInput.error;
   const ruleData = { ...parsed.data, ...nationalityInput.data };
@@ -57,6 +76,8 @@ export async function POST(request: NextRequest) {
       nationalityId: ruleData.nationalityId ?? null,
       nationality: ruleData.nationality ?? null,
       newVisaConfigId: parsed.data.newVisaConfigId ?? null,
+      subServiceId: parsed.data.subServiceId ?? null,
+      visaTypeId: parsed.data.visaTypeId ?? null,
     },
   });
   if (existing) {
@@ -70,7 +91,14 @@ export async function POST(request: NextRequest) {
         validityFrom: parsed.data.validityFrom ? new Date(parsed.data.validityFrom) : undefined,
         validityUntil: parsed.data.validityUntil ? new Date(parsed.data.validityUntil) : undefined,
       },
-      include: { country: { select: { id: true, name: true, code: true } } },
+      include: ruleInclude,
+    });
+    await writePricingRuleHistory(tx, {
+      pricingRuleId: created.id,
+      action: "CREATE",
+      oldValues: null,
+      newValues: pricingRuleSnapshot(created),
+      userId: session.id,
     });
     await writeAudit(tx, {
       entityType: "PricingRule",

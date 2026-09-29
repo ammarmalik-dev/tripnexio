@@ -15,7 +15,6 @@ import {
   Fence,
   ClipboardList,
   Truck,
-  Tags,
   Ticket,
   HelpCircle,
   MessageSquareText,
@@ -24,14 +23,12 @@ import {
   Activity,
   Globe2,
   LayoutGrid,
-  Waypoints,
   CalendarOff,
   Repeat,
   Sparkles,
   Receipt,
   Wallet,
   TrendingUp,
-  Clock,
   Stamp,
   FileSignature,
   Settings,
@@ -41,11 +38,11 @@ import {
   Undo2,
   Flag,
   CalendarDays,
-  ScrollText,
   AlarmClock,
   CalendarClock,
   UserCircle,
   LifeBuoy,
+  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -159,10 +156,11 @@ export const crmNavGroups: CrmNavGroup[] = [
  * A few items don't map onto exactly one category the client's own list
  * defines unambiguously — placed by the closest fit, not a hard rule from
  * the handover doc, so flagged here:
- * - New Visa Countries / Return Ticket Destinations / Service Statuses /
- *   Protection Plan -> Service Configuration, alongside Pricing/Documents/
- *   Timelines (which §20 itself explicitly names as belonging there) —
- *   all four are per-service business config, same category of thing.
+ * - P23 item 1: Pricing / Documents / Timelines / Service Statuses /
+ *   Service Terms / Refund Configuration / Protection Plan / New Visa
+ *   Countries / Return Ticket Destinations / OTB Prices are no longer
+ *   separate items — they are tabs of the one "Service Configuration" hub
+ *   (/admin/service-configuration); their old URLs redirect there.
  * - Coupons -> Sales & Quotations (a sales/discount tool) rather than
  *   Finance & Invoices (which is reserved for money already collected/
  *   owed — Tax & Fees, Invoice Settings, Expenses).
@@ -191,16 +189,13 @@ export const adminNavGroups: CrmNavGroup[] = [
     label: "Service Configuration",
     items: [
       { label: "Services", href: "/admin/services", icon: LayoutGrid, permission: "masters.manage" },
-      { label: "New Visa Countries", href: "/admin/new-visa-countries", icon: Stamp, permission: "masters.manage" },
-      { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket, permission: "masters.manage" },
-      { label: "OTB Prices", href: "/admin/otb-prices", icon: Tags, permission: "masters.manage" },
-      { label: "Timelines / SLA", href: "/admin/timelines", icon: Clock, permission: "masters.manage" },
+      // P23 item 1 (Admin FINAL handover §3/§20) — ONE hub replaces the separate
+      // Pricing / Documents / Timelines / Statuses / Terms / Refund Config /
+      // Protection Plan / New Visa Countries / Return Ticket Destinations /
+      // OTB Prices items (their old URLs redirect into the hub's matching tab).
+      { label: "Service Configuration", href: "/admin/service-configuration", icon: SlidersHorizontal, permission: "masters.manage" },
+      { label: "Pricing Dashboard", href: "/admin/pricing-dashboard", icon: Gauge, permission: "masters.manage" },
       { label: "Holidays", href: "/admin/holidays", icon: CalendarDays, permission: "masters.manage" },
-      { label: "Service Terms", href: "/admin/service-terms", icon: ScrollText, permission: "masters.manage" },
-      { label: "Document Requirements", href: "/admin/document-requirements", icon: ClipboardList, permission: "masters.manage" },
-      { label: "Pricing", href: "/admin/pricing", icon: Tags, permission: "masters.manage" },
-      { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints, permission: "masters.manage" },
-      { label: "Protection Plan", href: "/admin/protection-plan", icon: ShieldCheck, permission: "masters.manage" },
       { label: "FAQs", href: "/admin/faqs", icon: HelpCircle, permission: "masters.manage" },
     ],
   },
@@ -231,7 +226,6 @@ export const adminNavGroups: CrmNavGroup[] = [
     label: "Payments & Finance",
     items: [
       { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent, permission: "masters.manage" },
-      { label: "Refund Configuration", href: "/admin/refund-config", icon: RotateCcw, permission: "masters.manage" },
       { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature, permission: "masters.manage" },
       { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt, permission: "masters.manage" },
       { label: "Expenses", href: "/admin/expenses", icon: Wallet, permission: "finance.manage" },

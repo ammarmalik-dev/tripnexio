@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
+import { EmptyState } from "@/components/ui/EmptyState";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -238,7 +239,8 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
  * yet wired into an automation trigger — flagged in the UI itself, not
  * silently hidden.
  */
-export function ServiceTimelinesManager() {
+/** P23 — optional `serviceType` (Service Configuration hub) shows only that service's card. Absent = every service. */
+export function ServiceTimelinesManager({ serviceType }: { serviceType?: ServiceType } = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<TimelineData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
@@ -289,9 +291,20 @@ export function ServiceTimelinesManager() {
     );
   }
 
+  const visibleItems = serviceType ? items.filter((item) => item.serviceType === serviceType) : items;
+
+  if (serviceType && visibleItems.length === 0) {
+    return (
+      <EmptyState
+        title={`No timeline row for ${SERVICE_TYPE_LABELS[serviceType]}`}
+        description="This service has no timeline configuration row yet."
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
-      {items.map((item) => (
+      {visibleItems.map((item) => (
         <TimelineCard
           key={item.id}
           item={item}

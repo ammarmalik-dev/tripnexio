@@ -11,11 +11,14 @@ import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
 import { formatOtbRupees, otbApplicantPrice, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { siteConfig } from "@/lib/site-config";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
+import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 
 /**
  * Client rule: a travel date inside the airline's standard processing time
  * (default 2 working days, Admin-configurable) offers/forces Urgent when
  * the airline has it, and otherwise stops the request with an explanation.
+ * P23 — option labels come from the Admin Processing Types master; a code
+ * Admin disabled isn't offered (and the server rejects it).
  */
 export function Step2ProcessingType() {
   const {
@@ -32,34 +35,36 @@ export function Step2ProcessingType() {
   const applicants = (useWatch({ control, name: "additionalApplicants" }) ?? []).length + 1;
   const { state, airlines } = useOtbAirlines();
   const calendar = useWorkingCalendar("INDIA");
+  const { state: optionsState, options: masterOptions } = useProcessingTypes("OTB");
+  const offeredCodes = masterOptions.map((option) => option.code);
 
   const airline = airlines.find((a) => a.code === airlineCode);
   const outcome = airline ? evaluateOtbTravelDate(travelDate, airline, new Date(), calendar) : null;
 
   // A previously chosen type may no longer be valid after the airline/date changed.
-  const allowedKey = outcome?.allowed.join(",") ?? "";
+  const allowedCodes = (outcome?.allowed ?? []).filter((code) => offeredCodes.includes(code));
+  const allowedKey = allowedCodes.join(",");
   useEffect(() => {
+    if (optionsState === "loading") return;
     if (processingType && !allowedKey.split(",").includes(processingType)) {
       setValue("processingType", undefined as unknown as OtbRequestValues["processingType"]);
     }
-  }, [allowedKey, processingType, setValue]);
+  }, [allowedKey, optionsState, processingType, setValue]);
 
-  if (state === "loading") return <Skeleton className="h-40 w-full" />;
+  if (state === "loading" || optionsState === "loading") return <Skeleton className="h-40 w-full" />;
   if (!airline || !outcome) return <p className="text-sm text-ink-secondary">Go back and choose an airline first.</p>;
 
   const priceNote = (price: number | null) => (price === null ? "" : ` ${formatOtbRupees(price)} per applicant.`);
-  const options = [
-    {
-      value: "normal",
-      label: "Normal",
-      description: `Standard processing (${airline.standardDays} working days).${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", paxType, "normal"))}`,
-    },
-    {
-      value: "urgent",
-      label: "Urgent",
-      description: `Expedited processing for time-sensitive travel.${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", paxType, "urgent"))}`,
-    },
-  ].filter((option) => outcome.allowed.includes(option.value as "normal" | "urgent"));
+  const options = masterOptions
+    .filter((option) => allowedCodes.some((code) => code === option.code))
+    .map((option) => ({
+      value: option.code,
+      label: option.label,
+      description:
+        option.code === "urgent"
+          ? `${option.description || "Expedited processing for time-sensitive travel."}${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", paxType, "urgent"))}`
+          : `${option.description || `Standard processing (${airline.standardDays} working days).`}${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", paxType, "normal"))}`,
+    }));
 
   return (
     <div className="flex flex-col gap-4">

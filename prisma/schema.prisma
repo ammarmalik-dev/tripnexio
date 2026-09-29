@@ -1124,10 +1124,16 @@ model VendorScoringConfig {
 
 /// Join table: which services/sub-services a Vendor is linked to (§12 "service coverage").
 model VendorService {
-  id        String      @id @default(cuid())
-  vendorId  String
-  service   ServiceType
-  createdAt DateTime    @default(now())
+  id         String      @id @default(cuid())
+  vendorId   String
+  service    ServiceType
+  /// P23 — ADMIN §12 "vendor cost/rate service-wise" (internal; never customer-facing).
+  cost       Decimal?    @db.Decimal(10, 2)
+  rate       Decimal?    @db.Decimal(10, 2)
+  validFrom  DateTime?
+  validUntil DateTime?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @default(now()) @updatedAt
 
   vendor Vendor @relation(fields: [vendorId], references: [id])
 
@@ -1178,6 +1184,8 @@ model Country {
   id           String   @id @default(cuid())
   code         String   @unique
   name         String
+  /// P23 — manual flag override (an emoji or an image URL); null = auto from the ISO code.
+  flagOverride String?
   active       Boolean  @default(true)
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
@@ -1209,7 +1217,8 @@ model VisaType {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  country Country? @relation(fields: [countryId], references: [id])
+  country      Country?      @relation(fields: [countryId], references: [id])
+  pricingRules PricingRule[]
 
   @@index([active])
   @@index([countryId])
@@ -1412,6 +1421,9 @@ model PricingRule {
   /// P10 — New Visa only: the product (country + stay + entry) this price is
   /// for; null = applies to every product of the country.
   newVisaConfigId   String?
+  /// P23 — optional sub-service / visa type this price applies to (null = any).
+  subServiceId      String?
+  visaTypeId        String?
   /// Internal — never shown to the customer. Same never-trust-the-client
   /// pattern as Quotation.vendorCost/margin: staff/Admin-entered, used to
   /// compute the auto-priced Quotation's own margin at checkout time.
@@ -1427,6 +1439,9 @@ model PricingRule {
   country        Country?              @relation(fields: [countryId], references: [id])
   nationalityRef Nationality?          @relation(fields: [nationalityId], references: [id])
   newVisaConfig  NewVisaCountryConfig? @relation(fields: [newVisaConfigId], references: [id])
+  subService     SubService?           @relation(fields: [subServiceId], references: [id])
+  visaType       VisaType?             @relation(fields: [visaTypeId], references: [id])
+  history        PricingRuleHistory[]
 
   @@index([serviceType])
   @@index([active])
@@ -1434,6 +1449,8 @@ model PricingRule {
   @@index([nationalityId])
   @@index([newVisaConfigId])
   @@index([serviceType, countryId, processingType])
+  @@index([subServiceId])
+  @@index([visaTypeId])
 }
 
 enum CouponType {
@@ -2462,4 +2479,72 @@ model StaffRoster {
 
   @@unique([userId, serviceType, dayOfWeek])
   @@index([serviceType, dayOfWeek, active])
+}
+
+/// P23 — sub-services per service (Admin master), e.g. a visa sub-product.
+/// Used by pricing and the Service Configuration hub; forms fall back to the
+/// service itself when none is configured.
+model SubService {
+  id           String      @id @default(cuid())
+  serviceType  ServiceType
+  code         String
+  name         String
+  description  String?
+  active       Boolean     @default(true)
+  displayOrder Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  pricingRules PricingRule[]
+
+  @@unique([serviceType, code])
+  @@index([serviceType, active])
+}
+
+/// P23 — processing options per service (Normal / Express / Urgent …):
+/// `code` is the value stored on leads/pricing ("normal", "urgent"), `label`
+/// is what customers and staff see. Replaces hard-coded arrays.
+model ProcessingTypeOption {
+  id           String      @id @default(cuid())
+  serviceType  ServiceType
+  code         String
+  label        String
+  description  String?
+  active       Boolean     @default(true)
+  displayOrder Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([serviceType, code])
+  @@index([serviceType, active])
+}
+
+/// P23 — every PricingRule create/update: old and new values, who, when.
+model PricingRuleHistory {
+  id            String   @id @default(cuid())
+  pricingRuleId String
+  action        String
+  oldValues     Json?
+  newValues     Json
+  userId        String?
+  createdAt     DateTime @default(now())
+
+  pricingRule PricingRule @relation(fields: [pricingRuleId], references: [id])
+
+  @@index([pricingRuleId, createdAt])
+}
+
+/// P23 — every vendor service-wise rate change: old and new values, who,
+/// when. Keyed by vendor + service (not the VendorService row id) so the
+/// history survives a service being removed from and re-added to a vendor.
+model VendorRateHistory {
+  id        String      @id @default(cuid())
+  vendorId  String
+  service   ServiceType
+  oldValues Json?
+  newValues Json
+  userId    String?
+  createdAt DateTime    @default(now())
+
+  @@index([vendorId, service, createdAt])
 }

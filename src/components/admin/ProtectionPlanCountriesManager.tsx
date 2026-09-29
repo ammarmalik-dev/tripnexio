@@ -117,7 +117,7 @@ function CountryRow({ setting, onSaved }: { setting: CountrySetting; onSaved: (n
 }
 
 /** P12 — Admin enables/disables Protection Plan per destination country, with optional price and terms overrides. */
-export function ProtectionPlanCountriesManager() {
+export function ProtectionPlanCountriesManager({ countryId }: { countryId?: string } = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [settings, setSettings] = useState<CountrySetting[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
@@ -160,7 +160,12 @@ export function ProtectionPlanCountriesManager() {
     );
   }
 
-  const visible = showAll ? settings : settings.filter((setting) => setting.hasNewVisa || setting.enabled);
+  // P23 — optional `countryId` (Service Configuration hub) shows only that country's row. Absent = original filter.
+  const visible = countryId
+    ? settings.filter((setting) => setting.countryId === countryId)
+    : showAll
+      ? settings
+      : settings.filter((setting) => setting.hasNewVisa || setting.enabled);
 
   return (
     <div className="flex max-w-3xl flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
@@ -171,13 +176,18 @@ export function ProtectionPlanCountriesManager() {
             Offered only for enabled destination countries. Empty price or terms use the defaults below. Changes apply to new bookings only.
           </p>
         </div>
-        <label className="flex items-center gap-2 text-xs text-ink-secondary">
-          <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
-          Show all countries
-        </label>
+        {countryId ? null : (
+          <label className="flex items-center gap-2 text-xs text-ink-secondary">
+            <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
+            Show all countries
+          </label>
+        )}
       </div>
       {visible.length === 0 ? (
-        <EmptyState title="No New Visa countries yet" description="Tick “Show all countries” to enable Protection Plan for any country." />
+        <EmptyState
+          title={countryId ? "This country has no Protection Plan setting" : "No New Visa countries yet"}
+          description={countryId ? "Clear the country filter to see every country." : "Tick “Show all countries” to enable Protection Plan for any country."}
+        />
       ) : (
         <ul>
           {visible.map((setting) => (

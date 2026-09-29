@@ -15,6 +15,8 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
+import { defaultProcessingTypes } from "@/lib/processing-types/defaults";
 
 interface CountryOption {
   id: string;
@@ -79,6 +81,12 @@ export function ManualLeadForm() {
   });
 
   const serviceType = watch("serviceType");
+  // P23 — processing-type labels from the Admin master (codes stay normal/urgent).
+  const processingService = serviceType === "NEW_VISA" || serviceType === "OTB" ? serviceType : undefined;
+  const { state: processingState, options: processingMasterOptions } = useProcessingTypes(processingService);
+  const processingOptions = (
+    processingService && processingState === "loading" ? defaultProcessingTypes(processingService) : processingMasterOptions
+  ).filter((option) => option.code === "normal" || option.code === "urgent");
 
   const numberField = (name: "adultCount" | "childCount" | "infantCount" | "extraCharges") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
@@ -201,8 +209,11 @@ export function ManualLeadForm() {
               {...optionalField("processingType")}
             >
               <option value="">Select processing type</option>
-              <option value="normal">Normal</option>
-              <option value="urgent">Express</option>
+              {processingOptions.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </FormField>
         </div>
@@ -233,8 +244,11 @@ export function ManualLeadForm() {
               {...optionalField("processingType")}
             >
               <option value="">Select processing type</option>
-              <option value="normal">Normal</option>
-              <option value="urgent">Urgent</option>
+              {processingOptions.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </FormField>
         </div>

@@ -7,6 +7,8 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { SelectField } from "@/components/forms/SelectField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { cn } from "@/lib/cn";
+import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
+import { defaultProcessingTypes, type ProcessingTypeView } from "@/lib/processing-types/defaults";
 
 /** One New Visa product (P10): a country + stay duration + entry type, with its from-price. */
 interface Product {
@@ -72,7 +74,17 @@ export function NewVisaProductSelector() {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [countryCode, setCountryCode] = useState("");
   const [productId, setProductId] = useState("");
-  const [processingType, setProcessingType] = useState<ProcessingType>("normal");
+  const [pickedProcessingType, setProcessingType] = useState<ProcessingType>("normal");
+  // P23 — options/labels from the Admin Processing Types master; a disabled
+  // code isn't offered. The fallback pair shows only while the master loads.
+  const { state: processingState, options: processingMaster } = useProcessingTypes("NEW_VISA");
+  const processingOptions = (processingState === "loading" ? defaultProcessingTypes("NEW_VISA") : processingMaster).filter(
+    (option): option is ProcessingTypeView & { code: ProcessingType } => option.code === "normal" || option.code === "urgent"
+  );
+  const processingType: ProcessingType = processingOptions.some((option) => option.code === pickedProcessingType)
+    ? pickedProcessingType
+    : (processingOptions[0]?.code ?? pickedProcessingType);
+  const processingLabel = processingOptions.find((option) => option.code === processingType)?.label ?? processingType;
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
   // Infants are priced separately at checkout (age on the travel date), so
@@ -237,9 +249,15 @@ export function NewVisaProductSelector() {
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium text-ink-heading">Processing Time</span>
         <div className="flex gap-2">
-          {(["normal", "urgent"] as const).map((type) => (
-            <button key={type} type="button" onClick={() => setProcessingType(type)} className={optionClass(processingType === type)} aria-pressed={processingType === type}>
-              {type === "normal" ? "Normal" : "Express"}
+          {processingOptions.map((option) => (
+            <button
+              key={option.code}
+              type="button"
+              onClick={() => setProcessingType(option.code)}
+              className={optionClass(processingType === option.code)}
+              aria-pressed={processingType === option.code}
+            >
+              {option.label}
             </button>
           ))}
         </div>
@@ -260,7 +278,7 @@ export function NewVisaProductSelector() {
         </div>
         <div>
           <dt className="text-xs text-ink-tertiary">Processing Time</dt>
-          <dd className="text-sm font-medium text-ink-primary">{processingType === "normal" ? "Normal" : "Express"}</dd>
+          <dd className="text-sm font-medium text-ink-primary">{processingLabel}</dd>
         </div>
       </dl>
 

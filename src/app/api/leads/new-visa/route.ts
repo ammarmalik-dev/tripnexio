@@ -20,6 +20,7 @@ import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { describeError } from "@/lib/api/describe-error";
 import { getProtectionPlanOffer } from "@/lib/protection-plan/country-offer";
+import { getProcessingTypeOptions } from "@/lib/processing-types/get";
 
 export async function POST(request: NextRequest) {
   const limited = await rateLimitByIp(request, "leads-new-visa", LEAD_INTAKE_RATE_LIMIT, "Too many requests. Please try again later.");
@@ -139,12 +140,19 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Select a visa option.", { newVisaConfigId: ["Select a visa option"] });
   }
 
+  // P23 — the processing type must be an active option in the Admin master
+  // (a code Admin disabled is hidden from the form and rejected here too).
+  const processingOption = (await getProcessingTypeOptions("NEW_VISA")).find((option) => option.code === processingType);
+  if (!processingOption) {
+    return jsonError(400, "That processing type isn't available.", { processingType: ["Select an available processing type."] });
+  }
+
   // P10 — minimum UAE working days before travel for the chosen processing type.
   const travelRules = await getNewVisaTravelRules();
   const workingDays = workingDaysBetween(travelDate, new Date(), await getWorkingCalendar("UAE"));
   if (!allowedProcessingTypes(workingDays, travelRules).includes(processingType)) {
     const needed = processingType === "urgent" ? travelRules.minTravelDaysExpress : travelRules.minTravelDaysNormal;
-    return jsonError(400, `${processingType === "urgent" ? "Express" : "Normal"} processing needs your travel date at least ${needed} working days away.`, {
+    return jsonError(400, `${processingOption.label} processing needs your travel date at least ${needed} working days away.`, {
       processingType: ["This processing type can't meet your travel date."],
     });
   }

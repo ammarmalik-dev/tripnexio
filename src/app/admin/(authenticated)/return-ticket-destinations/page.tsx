@@ -1,20 +1,7 @@
-import type { Metadata } from "next";
-import { ReturnTicketDestinationsManager } from "@/components/admin/ReturnTicketDestinationsManager";
+import { redirect } from "next/navigation";
+import { serviceConfigHref } from "@/lib/admin/service-configuration";
 
-export const metadata: Metadata = { title: "Return Ticket Destinations | Admin" };
-
+/** P23 item 1 — merged into the central Service Configuration hub. */
 export default function AdminReturnTicketDestinationsPage() {
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold text-ink-heading">Return Ticket Destinations</h1>
-        <p className="text-sm text-ink-tertiary">
-          Choose which countries customers can request a Return Verified Ticket for, set the rate per applicant, and
-          pick the visa-validity options (30 / 60 / 90 days) offered for each. Changes apply to the website form
-          immediately.
-        </p>
-      </div>
-      <ReturnTicketDestinationsManager />
-    </div>
-  );
+  redirect(serviceConfigHref("destinations", "RETURN_TICKET"));
 }
