@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { QuoteCountdown } from "./QuoteCountdown";
+import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "@/lib/visa-change/operational";
 
 export interface QuoteCardData {
   id: string;
@@ -19,6 +20,8 @@ export interface QuoteCardData {
   feeAmount: string | null;
   fineOrCharges: string | null;
   otherCharges?: string | null;
+  /** P14 — Visa Change: the A2A / Border block snapshot this option carries. */
+  operationalBlock?: unknown;
   flightTicketPrice: string | null;
   vendorId: string;
   vendorCost: string;
@@ -159,6 +162,24 @@ export function QuoteCard({
           ) : null}
         </dl>
       ) : (
+        <>
+        {(() => {
+          const block = parseOperationalBlock(quotation.operationalBlock);
+          if (!block) return null;
+          return (
+            <div className="mb-2 rounded-lg bg-surface-2 p-3 text-xs">
+              <p className="mb-1 font-semibold text-ink-heading">{OPERATIONAL_BLOCK_TITLE[block.kind]}</p>
+              <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
+                {customerBlockRows(block).map((row) => (
+                  <div key={row.label} className="flex justify-between gap-2">
+                    <dt className="text-ink-tertiary">{row.label}</dt>
+                    <dd className="font-medium text-ink-primary">{row.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          );
+        })()}
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
           {!hasItinerary && quotation.airline ? (
             <div className="flex justify-between gap-2">
@@ -215,6 +236,7 @@ export function QuoteCard({
             </div>
           ) : null}
         </dl>
+        </>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-3">

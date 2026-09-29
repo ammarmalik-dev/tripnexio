@@ -328,6 +328,11 @@ model Quotation {
   fineOrCharges     Decimal?  @db.Decimal(10, 2)
   /// P13 — Visa Extension quote breakdown: any other charges, added to the total like fineOrCharges.
   otherCharges      Decimal?  @db.Decimal(10, 2)
+  /// P14 — Visa Change: snapshot of the operational block this option is for
+  /// (A2A flight or Border exit), copied from the lead's staff panel when the
+  /// quotation is created. Vendor/cost inside it stay internal — the customer
+  /// view strips them (src/lib/visa-change/operational.ts).
+  operationalBlock  Json?
   /// --- Commercial fields shared by every service type ---
   vendorId          String
   vendorCost        Decimal   @db.Decimal(10, 2)
@@ -450,6 +455,10 @@ model Booking {
   /// after the fact) and for any passenger with no nationality on file. See
   /// src/lib/bookings/document-checklist-snapshot.ts for the shape.
   documentChecklistSnapshot Json?
+  /// P14 — Visa Change: when staff marked the exit done (the customer uploads
+  /// nothing) and what they recorded: method, airport/border, staff, notes.
+  exitCompletedAt           DateTime?
+  exitDetails               Json?
   /// P13 — a Visa Extension booking's original New Visa booking (the prior
   /// TripNexio visa matched by passport). Null for every other service, or
   /// when no prior TripNexio visa was found.

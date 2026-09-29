@@ -6,6 +6,7 @@ import { isFlightQuote, supportsItinerary } from "./pricing";
 import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { DEFAULT_PAYMENT_LINK_VALIDITY_HOURS } from "../payments/create-payment";
 import { EXTENSION_DURATION_DAYS, urgentDeadlineFromDetails } from "../visa-extension/rules";
+import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "../visa-change/operational";
 
 /**
  * Loads a customer's quote-review page by their Lead's `customerToken`.
@@ -48,6 +49,13 @@ export async function loadQuoteReviewByToken(token: string) {
             baggageAllowance: quotation.baggageAllowance,
             fareType: quotation.fareType,
           }
+        : {}),
+      // P14 — Visa Change: the option's A2A or Border block (customer-safe rows only — never vendor/cost).
+      ...(lead.serviceType === "VISA_CHANGE"
+        ? (() => {
+            const block = parseOperationalBlock(quotation.operationalBlock);
+            return block ? { operational: { title: OPERATIONAL_BLOCK_TITLE[block.kind], rows: customerBlockRows(block) } } : {};
+          })()
         : {}),
       // P13 — Visa Extension: the customer sees the fee / fine / other charges breakdown.
       ...(lead.serviceType === "VISA_EXTENSION"

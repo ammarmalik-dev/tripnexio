@@ -27,6 +27,7 @@ import type { ServiceType, LeadStatus, LeadTemperature, BookingStatus, PaymentSt
 import { ApplicantsTable } from "./ApplicantsTable";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { urgentDeadlineFromDetails } from "@/lib/visa-extension/rules";
+import { VisaChangeA2ADetailsPanel } from "./VisaChangeA2ADetailsPanel";
 
 interface QuotationSummary {
   id: string;
@@ -178,6 +179,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
     "noPriorVisa",
     "noPriorVisaApplicants",
     "borderOperationalDetails",
+    "a2aOperationalDetails",
     "passengers",
     "applicants",
   ]);
@@ -321,20 +323,27 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               leadId={lead.id}
               existing={
                 lead.details.borderOperationalDetails && typeof lead.details.borderOperationalDetails === "object"
-                  ? (lead.details.borderOperationalDetails as {
-                      borderId: string;
-                      borderName: string;
-                      pickupLocation: string;
-                      reportingTime: string;
-                      pickupPersonName: string;
-                      customerContactNumber: string;
-                    })
+                  ? (lead.details.borderOperationalDetails as Record<string, unknown>)
                   : undefined
               }
               onSaved={(details) =>
                 setLead((current) =>
                   current ? { ...current, details: { ...current.details, borderOperationalDetails: details } } : current
                 )
+              }
+            />
+          ) : null}
+
+          {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "AIRPORT_TO_AIRPORT" ? (
+            <VisaChangeA2ADetailsPanel
+              leadId={lead.id}
+              existing={
+                lead.details.a2aOperationalDetails && typeof lead.details.a2aOperationalDetails === "object"
+                  ? (lead.details.a2aOperationalDetails as Record<string, unknown>)
+                  : undefined
+              }
+              onSaved={(details) =>
+                setLead((current) => (current ? { ...current, details: { ...current.details, a2aOperationalDetails: details } } : current))
               }
             />
           ) : null}

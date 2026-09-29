@@ -48,8 +48,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
 
-  // P11/P13 — a New Visa (or Visa Extension) booking completes only after its visa PDF was delivered.
-  const requiredOutput = booking.lead.serviceType === "NEW_VISA" ? "VISA_PDF" : booking.lead.serviceType === "VISA_EXTENSION" ? "EXTENDED_VISA_PDF" : null;
+  // P11/P13/P14 — a New Visa, Visa Change or Visa Extension booking completes only after its visa PDF was delivered.
+  const requiredOutput =
+    booking.lead.serviceType === "NEW_VISA" || booking.lead.serviceType === "VISA_CHANGE"
+      ? "VISA_PDF"
+      : booking.lead.serviceType === "VISA_EXTENSION"
+        ? "EXTENDED_VISA_PDF"
+        : null;
   if (requiredOutput) {
     const target = await db.serviceStatus.findUnique({ where: { id: parsed.data.serviceStatusId }, select: { mapsToBookingStatus: true } });
     if (target?.mapsToBookingStatus === "COMPLETED") {

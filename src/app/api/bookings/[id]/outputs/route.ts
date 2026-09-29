@@ -4,15 +4,10 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { writeAudit } from "@/lib/audit/log";
 import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
-import { OUTPUT_DELIVERY_EVENT, OUTPUT_TYPES, OUTPUT_TYPE_LABELS } from "@/lib/outputs/output-types";
-import { applySystemEvent, dispatchStatusNotifications, hasReachedStatusEvent, type StatusNotification } from "@/lib/service-status/engine";
-import { notifyCustomer } from "@/lib/notifications/notify";
-import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
-import { leadReference } from "@/lib/leads/reference";
-import { toWhatsAppId } from "@/lib/whatsapp/phone";
-import { siteConfig } from "@/lib/site-config";
+import { OUTPUT_TYPES } from "@/lib/outputs/output-types";
+import { hasReachedStatusEvent } from "@/lib/service-status/engine";
+import { deliverOutput } from "@/lib/outputs/deliver-output";
 import { describeError } from "@/lib/api/describe-error";
 
 interface RouteParams {
@@ -62,6 +57,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (booking.lead.serviceType === "NEW_VISA" && parsed.data.outputType === "VISA_PDF" && !(await hasReachedStatusEvent(booking.id, "EMBASSY_APPROVED"))) {
     return jsonError(409, "Mark the visa as Approved before delivering the visa PDF.");
   }
+  // P14 — Visa Change: the new visa PDF follows Visa Approved (never a rejected
+  // one), and the package is only ever the generated one (Generate Package).
+  if (booking.lead.serviceType === "VISA_CHANGE" && parsed.data.outputType === "VISA_PDF" && (booking.visaRejectionReason || !(await hasReachedStatusEvent(booking.id, "EMBASSY_APPROVED")))) {
+    return jsonError(409, "Mark the visa as Approved before delivering the visa PDF.");
+  }
+  if (booking.lead.serviceType === "VISA_CHANGE" && parsed.data.outputType === "PACKAGE_PDF") {
+    return jsonError(409, "Use Generate Package — the Visa Change package is generated from the operational details.");
+  }
   // P13 — the extended visa PDF follows a recorded "Extended" outcome.
   if (booking.lead.serviceType === "VISA_EXTENSION" && parsed.data.outputType === "EXTENDED_VISA_PDF" && booking.extensionOutcome !== "EXTENDED") {
     return jsonError(409, "Record the extension outcome as Extended before delivering the extended visa PDF.");
@@ -81,38 +84,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(500, "Couldn't save the file. Please try again.");
   }
 
-  const label = OUTPUT_TYPE_LABELS[parsed.data.outputType];
-  let statusNotification: StatusNotification | null = null;
-  const document = await db.$transaction(async (tx) => {
-    const created = await tx.document.create({
-      data: { bookingId: booking.id, passengerId, type: parsed.data.outputType, status: "VERIFIED", fileUrl, deliveredAt: new Date() },
-    });
-    await writeAudit(tx, {
-      entityType: "Document",
-      entityId: created.id,
-      action: "OUTPUT_DELIVERED",
-      byUserId: session.id,
-      note: `${label} delivered to the customer (by ${session.name})`,
-    });
-    statusNotification = await applySystemEvent(tx, {
-      scope: "BOOKING",
-      entityId: booking.id,
-      event: OUTPUT_DELIVERY_EVENT[parsed.data.outputType],
-      userId: session.id,
-      actorLabel: `by ${session.name}`,
-    });
-    return created;
-  });
-
-  await dispatchStatusNotifications([statusNotification]);
-  const downloadLink = booking.customerToken ? `${siteConfig.url}${fileUrl}?token=${booking.customerToken}` : `${siteConfig.url}/account`;
-  await notifyCustomer({
-    event: NOTIFICATION_EVENTS.OUTPUT_DELIVERED,
-    emailTo: booking.customer.email,
-    whatsappTo: toWhatsAppId(booking.customer.mobile),
-    smsTo: toWhatsAppId(booking.customer.mobile),
-    variables: { customerName: booking.customer.name, leadReference: leadReference(booking.lead), documentName: label, downloadLink },
-    auditTarget: { entityType: "Document", entityId: document.id },
+  const document = await deliverOutput({
+    booking,
+    outputType: parsed.data.outputType,
+    passengerId,
+    fileUrl,
+    actor: { userId: session.id, label: `by ${session.name}` },
   });
 
   return jsonSuccess(document, 201);

@@ -32,6 +32,8 @@ interface QuoteOption {
   fareType?: string | null;
   /** P13 — Visa Extension only. */
   breakdown?: { extensionFee: number; fine: number; otherCharges: number };
+  /** P14 — Visa Change only: this option's Airport-to-Airport or Border Exit details. */
+  operational?: { title: string; rows: { label: string; value: string }[] };
 }
 
 interface ExtensionView {
@@ -94,6 +96,15 @@ function QuoteCard({
           ) : null}
           {quote.baggageAllowance ? <span className="text-xs text-ink-tertiary">Baggage: {quote.baggageAllowance}</span> : null}
           {quote.fareType ? <span className="text-xs text-ink-tertiary">Fare: {quote.fareType}</span> : null}
+        </div>
+      ) : null}
+
+      {quote.operational ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-semibold text-ink-heading">{quote.operational.title}</span>
+          {quote.operational.rows.map((row) => (
+            <BreakdownRow key={row.label} label={row.label} value={row.value} />
+          ))}
         </div>
       ) : null}
 

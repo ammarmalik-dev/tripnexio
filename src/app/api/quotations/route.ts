@@ -2,7 +2,9 @@ import type { NextRequest } from "next/server";
 import { createQuotationSchema } from "@/lib/validation/quotation-schema";
 import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import type { Prisma } from "@/generated/prisma/client";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
+import { leadOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
@@ -192,6 +194,11 @@ export async function POST(request: NextRequest) {
   // P13 — a Visa Extension is quoted only after staff verified it ELIGIBLE or URGENT_TODAY.
   const extensionBlock = extensionQuoteBlockReason(lead.serviceType, lead.details);
   if (extensionBlock) return jsonError(409, extensionBlock);
+  // P14 — a Visa Change is quoted only once its A2A / Border operational
+  // details are complete; each option carries a snapshot of them.
+  const visaChangeBlock = visaChangeQuoteBlockReason(lead.serviceType, lead.details);
+  if (visaChangeBlock) return jsonError(409, visaChangeBlock);
+  const operationalBlock = lead.serviceType === "VISA_CHANGE" ? leadOperationalBlock(lead.details) : null;
 
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
   if (!vendor || !vendor.active) {
@@ -265,6 +272,7 @@ export async function POST(request: NextRequest) {
         feeAmount,
         fineOrCharges,
         otherCharges,
+        operationalBlock: operationalBlock ? (operationalBlock as unknown as Prisma.InputJsonValue) : undefined,
         flightTicketPrice: supportsItinerary(lead.serviceType) ? flightTicketPrice : undefined,
         vendorCost,
         sellingPrice: resolvedSellingPrice,

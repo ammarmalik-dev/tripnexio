@@ -28,6 +28,8 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   "EXTENSION_EXTENDED",
   "EXTENSION_NOT_ACCEPTED",
   "EXTENSION_REJECTED",
+  // P14 — Visa Change: staff marked the exit done.
+  "VC_EXIT_COMPLETED",
 ] as const;
 
 export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[number];
@@ -56,5 +58,6 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   EXTENSION_EXTENDED: "Extension: extended",
   EXTENSION_NOT_ACCEPTED: "Extension: not accepted",
   EXTENSION_REJECTED: "Extension: rejected",
+  VC_EXIT_COMPLETED: "Visa Change: exit completed",
   ON_HOLD: "On Hold (marker)",
 };

@@ -3,7 +3,8 @@
 /* ==========================================================================
    TripNexio Design Tokens
    Source of truth: /docs/brand/Brand_Foundation.md (approved brand tokens)
-   Swap the four --tn-* raw values below to re-brand the whole product.
+   Swap the four --tn-* raw values below to re-brand the whole product
+   (and src/lib/brand/pdf-tokens.ts, the same four for server-rendered PDFs).
 
    Website default surface is LIGHT (Brand Foundation §13 defines Glass
    01/02/03 as white-based; "dark glass requires its own validated

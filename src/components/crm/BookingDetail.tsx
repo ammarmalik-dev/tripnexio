@@ -18,6 +18,7 @@ import { AddDocumentForm } from "./AddDocumentForm";
 import { DeliverOutputSection } from "./DeliverOutputSection";
 import { ApplicantsTable } from "./ApplicantsTable";
 import { EmbassyActionsPanel } from "./EmbassyActionsPanel";
+import { VisaChangeActionsPanel, type VisaChangeBookingView } from "./VisaChangeActionsPanel";
 import { RequestDocumentForm } from "./RequestDocumentForm";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
@@ -99,6 +100,8 @@ interface BookingDetailResponse {
   applicants: ApplicantRow[];
   /** P13 — Visa Extension: the New Visa booking it extends; a New Visa booking: its extensions. */
   originalBooking: { id: string; bookingId: string; status: BookingStatus } | null;
+  /** P14 — Visa Change only. */
+  visaChange: VisaChangeBookingView | null;
   extensions: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   /** P12 — New Visa only: per passenger, Visa status and Protection Plan status side by side. */
   passengerStatuses: { passengerId: string; fullName: string; visaStatus: string; protectionPlanStatus: ProtectionPlanStatus | null }[];
@@ -412,6 +415,16 @@ export function BookingDetail({
               bookingDate={booking.createdAt}
               appliedToEmbassyAt={booking.appliedToEmbassyAt}
               travelDate={booking.travelDate}
+              currentStatus={booking.serviceStatusName}
+              rejectionReason={booking.visaRejectionReason}
+              onChanged={() => setReloadNonce((current) => current + 1)}
+            />
+          ) : null}
+
+          {booking.serviceType === "VISA_CHANGE" && booking.visaChange ? (
+            <VisaChangeActionsPanel
+              bookingId={booking.id}
+              view={booking.visaChange}
               currentStatus={booking.serviceStatusName}
               rejectionReason={booking.visaRejectionReason}
               onChanged={() => setReloadNonce((current) => current + 1)}

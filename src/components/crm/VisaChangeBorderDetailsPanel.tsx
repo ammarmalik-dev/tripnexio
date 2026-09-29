@@ -1,67 +1,72 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
+import { Textarea } from "@/components/forms/Textarea";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { parseOperationalBlock } from "@/lib/visa-change/operational";
 
-interface BorderOption {
+interface Option {
   id: string;
   name: string;
 }
 
-interface BorderOperationalDetails {
-  borderId: string;
-  borderName: string;
-  pickupLocation: string;
-  reportingTime: string;
-  pickupPersonName: string;
-  customerContactNumber: string;
-}
-
 interface VisaChangeBorderDetailsPanelProps {
   leadId: string;
-  existing?: BorderOperationalDetails;
-  onSaved: (details: BorderOperationalDetails) => void;
+  /** Lead.details.borderOperationalDetails as stored (may be an older, incomplete set). */
+  existing?: Record<string, unknown>;
+  onSaved: (details: Record<string, unknown>) => void;
 }
 
-const EMPTY_FORM = { borderId: "", pickupLocation: "", reportingTime: "", pickupPersonName: "", customerContactNumber: "" };
+const FIELDS = [
+  "borderId",
+  "pickupLocation",
+  "reportingTime",
+  "travelTime",
+  "pickupPersonName",
+  "customerContactNumber",
+  "pickupPersonContact",
+  "dropLocation",
+  "busOperator",
+  "vendorId",
+  "instructions",
+] as const;
+type FieldName = (typeof FIELDS)[number];
+const REQUIRED: FieldName[] = ["borderId", "pickupLocation", "reportingTime", "travelTime", "pickupPersonName", "customerContactNumber"];
 
 /**
- * Visa_Change.md §9/§10, Locked Rules #10-13: Pickup Location, Reporting
- * Time, Pickup Person Name, and Customer Contact Number are all mandatory
- * for a Border Exit package — enforced here as one all-or-nothing save
- * (the API route rejects a partial submission), so a future package-
- * generation step can trust this data is complete whenever it exists.
+ * Visa_Change.md §9/§10, Locked Rules #10-13 (P14): the Border Exit
+ * operational details — mandatory before quoting and printed on the package
+ * PDF. Saved all-or-nothing; the API rejects a partial set.
  */
 export function VisaChangeBorderDetailsPanel({ leadId, existing, onSaved }: VisaChangeBorderDetailsPanelProps) {
-  const [borders, setBorders] = useState<BorderOption[]>([]);
-  const [form, setForm] = useState(
-    existing
-      ? {
-          borderId: existing.borderId,
-          pickupLocation: existing.pickupLocation,
-          reportingTime: existing.reportingTime,
-          pickupPersonName: existing.pickupPersonName,
-          customerContactNumber: existing.customerContactNumber,
-        }
-      : EMPTY_FORM
+  const [borders, setBorders] = useState<Option[]>([]);
+  const [vendors, setVendors] = useState<Option[]>([]);
+  const [form, setForm] = useState<Record<FieldName, string>>(
+    () => Object.fromEntries(FIELDS.map((field) => [field, typeof existing?.[field] === "string" ? (existing[field] as string) : ""])) as Record<FieldName, string>
   );
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
+  const complete = parseOperationalBlock(existing);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const result = await getJson<BorderOption[]>("/api/borders");
-        if (!cancelled) setBorders(result);
+        const [borderList, vendorList] = await Promise.all([
+          getJson<Option[]>("/api/borders"),
+          getJson<Option[]>("/api/vendors?service=VISA_CHANGE"),
+        ]);
+        if (cancelled) return;
+        setBorders(borderList);
+        setVendors(vendorList);
       } catch {
-        // The select just stays empty — not worth a toast for a background list load.
+        // The selects just stay empty — not worth a toast for a background list load.
       }
     }
     void load();
@@ -70,14 +75,13 @@ export function VisaChangeBorderDetailsPanel({ leadId, existing, onSaved }: Visa
     };
   }, []);
 
+  const set = (field: FieldName, value: string) => setForm((current) => ({ ...current, [field]: value }));
+
   const handleSave = async () => {
     setSaving(true);
     setErrors({});
     try {
-      const result = await patchJson<{ borderOperationalDetails: BorderOperationalDetails }>(
-        `/api/leads/${leadId}/visa-change-border-details`,
-        form
-      );
+      const result = await patchJson<{ borderOperationalDetails: Record<string, unknown> }>(`/api/leads/${leadId}/visa-change-border-details`, form);
       toast.success("Border operational details confirmed.");
       onSaved(result.borderOperationalDetails);
     } catch (error) {
@@ -88,30 +92,46 @@ export function VisaChangeBorderDetailsPanel({ leadId, existing, onSaved }: Visa
     }
   };
 
-  const allFilled = form.borderId && form.pickupLocation && form.reportingTime && form.pickupPersonName && form.customerContactNumber;
+  const allFilled = REQUIRED.every((field) => form[field].trim());
+  const text = (field: FieldName, label: string, extra: { placeholder?: string; hint?: string } = {}) => (
+    <TextField
+      label={label}
+      name={field}
+      value={form[field]}
+      onChange={(e) => set(field, e.target.value)}
+      error={errors[field]?.[0]}
+      disabled={saving}
+      required={REQUIRED.includes(field)}
+      {...extra}
+    />
+  );
 
   return (
     <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-      <h2 className="mb-1 text-sm font-semibold text-ink-heading">Border Operational Details</h2>
+      <h2 className="mb-1 text-sm font-semibold text-ink-heading">Border Exit Operational Details</h2>
       <p className="mb-4 text-xs text-ink-tertiary">
-        All four fields are mandatory before this can count as a confirmed Border Exit package — the customer never
-        enters these themselves.
+        Required before this lead can be quoted, and printed on the customer&apos;s package PDF. The customer never enters these.
       </p>
 
-      {existing ? (
+      {complete ? (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
           <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Confirmed: {existing.borderName}
+          Confirmed: {complete.kind === "BORDER" ? complete.borderName : ""}
+        </div>
+      ) : existing ? (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-warning">
+          <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Saved details are incomplete (e.g. travel time missing) — update them before quoting.
         </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <FormField label="Border Crossing" htmlFor="borderId" error={errors.borderId?.[0]}>
+        <FormField label="Border Crossing" htmlFor="borderId" error={errors.borderId?.[0]} required>
           <select
             id="borderId"
             value={form.borderId}
             disabled={saving}
-            onChange={(event) => setForm({ ...form, borderId: event.target.value })}
+            onChange={(event) => set("borderId", event.target.value)}
             className={cn(fieldControlClass, fieldBorderClass(!!errors.borderId))}
           >
             <option value="" disabled>
@@ -124,38 +144,41 @@ export function VisaChangeBorderDetailsPanel({ leadId, existing, onSaved }: Visa
             ))}
           </select>
         </FormField>
-        <TextField
-          label="Pickup Location"
-          name="pickupLocation"
-          value={form.pickupLocation}
-          onChange={(e) => setForm({ ...form, pickupLocation: e.target.value })}
-          error={errors.pickupLocation?.[0]}
+        {text("pickupLocation", "Pickup Location")}
+        {text("reportingTime", "Reporting Time", { placeholder: "e.g. 6:00 AM" })}
+        {text("travelTime", "Departure / Travel Time", { placeholder: "e.g. 7:00 AM" })}
+        {text("pickupPersonName", "Pickup Person Name")}
+        {text("customerContactNumber", "Customer Contact Number")}
+        {text("pickupPersonContact", "Pickup Person Contact (optional)")}
+        {text("dropLocation", "Drop / Border Location (optional)")}
+        {text("busOperator", "Bus / Operator (optional)")}
+        <FormField label="Vendor / Sponsor (optional)" htmlFor="border-vendorId" error={errors.vendorId?.[0]}>
+          <select
+            id="border-vendorId"
+            value={form.vendorId}
+            disabled={saving}
+            onChange={(event) => set("vendorId", event.target.value)}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.vendorId))}
+          >
+            <option value="">None</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      </div>
+      <div className="mt-4">
+        <Textarea
+          label="Instructions for the customer (optional)"
+          name="instructions"
+          rows={3}
+          value={form.instructions}
+          onChange={(e) => set("instructions", e.target.value)}
+          error={errors.instructions?.[0]}
           disabled={saving}
-        />
-        <TextField
-          label="Reporting Time"
-          name="reportingTime"
-          placeholder="e.g. 6:00 AM"
-          value={form.reportingTime}
-          onChange={(e) => setForm({ ...form, reportingTime: e.target.value })}
-          error={errors.reportingTime?.[0]}
-          disabled={saving}
-        />
-        <TextField
-          label="Pickup Person Name"
-          name="pickupPersonName"
-          value={form.pickupPersonName}
-          onChange={(e) => setForm({ ...form, pickupPersonName: e.target.value })}
-          error={errors.pickupPersonName?.[0]}
-          disabled={saving}
-        />
-        <TextField
-          label="Customer Contact Number"
-          name="customerContactNumber"
-          value={form.customerContactNumber}
-          onChange={(e) => setForm({ ...form, customerContactNumber: e.target.value })}
-          error={errors.customerContactNumber?.[0]}
-          disabled={saving}
+          hint="Printed on the package PDF."
         />
       </div>
       <div className="mt-4 flex justify-end">

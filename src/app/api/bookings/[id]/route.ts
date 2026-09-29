@@ -9,6 +9,7 @@ import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
 import { getRefundConfig } from "@/lib/refunds/config";
 import { passengerVisaStatus } from "@/lib/protection-plan/passenger-status";
+import { leadOperationalBlock, parseOperationalBlock } from "@/lib/visa-change/operational";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -88,6 +89,21 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     travelDate: typeof (booking.lead.details as Record<string, unknown> | null)?.travelDate === "string" ? ((booking.lead.details as Record<string, unknown>).travelDate as string) : null,
     serviceStatusName: booking.serviceStatus?.name ?? null,
     originalBooking: booking.originalBooking,
+    // P14 — Visa Change package / exit facts for the staff actions panel.
+    visaChange:
+      booking.lead.serviceType === "VISA_CHANGE"
+        ? (() => {
+            const details = (booking.lead.details ?? {}) as Record<string, unknown>;
+            const block = parseOperationalBlock(booking.lead.quotations[0]?.operationalBlock) ?? leadOperationalBlock(details);
+            return {
+              changeType: details.changeType === "AIRPORT_TO_AIRPORT" || details.changeType === "BORDER_EXIT" ? details.changeType : null,
+              packageGenerated: packageGenerated(booking.documents),
+              defaultExitLocation: block ? (block.kind === "A2A" ? block.exitAirport : block.borderName) : null,
+              exitCompletedAt: booking.exitCompletedAt,
+              exitDetails: booking.exitDetails,
+            };
+          })()
+        : null,
     extensions: booking.extensions,
     applicants: buildApplicantRows(booking.lead.details, booking.passengers.map((row) => row.passenger)),
     leadId: booking.leadId,
