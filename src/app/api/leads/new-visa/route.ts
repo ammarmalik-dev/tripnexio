@@ -19,6 +19,7 @@ import { computePaxType } from "@/lib/leads/pax-type";
 import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { describeError } from "@/lib/api/describe-error";
+import { getProtectionPlanOffer } from "@/lib/protection-plan/country-offer";
 
 export async function POST(request: NextRequest) {
   const limited = await rateLimitByIp(request, "leads-new-visa", LEAD_INTAKE_RATE_LIMIT, "Too many requests. Please try again later.");
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
     processingType,
     passportImageBase64,
     passportImageMimeType,
-    protectionPlanInterested,
+    protectionPlanTravellers,
     protectionPlanTermsAccepted,
     passportNumber,
     dob,
@@ -99,14 +100,24 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please complete every traveller's details.", fieldErrors);
   }
 
-  // New_Visa.md §8: "without agreement the Protection Plan cannot be
-  // purchased" — even though this is only an expressed-interest flag, not
-  // a real purchase, server-side validation still shouldn't trust a client
-  // that sends interested:true without also sending termsAccepted:true.
-  if (protectionPlanInterested && !protectionPlanTermsAccepted) {
-    return jsonError(400, "Accept the Protection Plan terms to express interest, or leave it unchecked.", {
-      protectionPlanTermsAccepted: ["Accept the terms first."],
-    });
+  // P12 — Protection Plan per traveller: only where Admin enabled it for this
+  // destination, only for real travellers, and never without the customer
+  // accepting the full terms (New_Visa.md §8: "without agreement the
+  // Protection Plan cannot be purchased").
+  const chosenPlanIndexes = [...new Set(protectionPlanTravellers)];
+  const protectionPlanOffer = chosenPlanIndexes.length > 0 ? await getProtectionPlanOffer(destinationCountry) : null;
+  if (chosenPlanIndexes.length > 0) {
+    if (!protectionPlanOffer) {
+      return jsonError(400, "Protection Plan isn't available for this destination.", { protectionPlanTravellers: ["Not available for this destination."] });
+    }
+    if (chosenPlanIndexes.some((index) => index >= travellers.length)) {
+      return jsonError(400, "Select Protection Plan only for travellers on this application.", { protectionPlanTravellers: ["Invalid traveller."] });
+    }
+    if (!protectionPlanTermsAccepted) {
+      return jsonError(400, "Accept the Protection Plan terms, or leave Protection Plan unselected.", {
+        protectionPlanTermsAccepted: ["Accept the terms first."],
+      });
+    }
   }
 
   // Visa type comes from the Admin master for this destination (P06): never
@@ -173,19 +184,26 @@ export async function POST(request: NextRequest) {
             : {}),
         })),
         processingType,
-        // Step 20 (audit §7.1) — expressed interest only, captured at
-        // intake time; the ACTUAL Protection Plan purchase (with a real
-        // per-passenger record and price) only happens once a Booking
-        // exists — see createAutoCheckout below, which pre-offers it to
-        // every passenger on a NEW_VISA booking regardless of this flag.
-        // Staff sees this on the Lead as a heads-up that the customer
-        // already expressed interest and acknowledged the terms shown at
-        // intake.
-        ...(protectionPlanInterested
-          ? { protectionPlanInterested: true, protectionPlanTermsAcceptedAt: new Date().toISOString() }
-          : {}),
       },
     });
+
+    // P12 — the chosen travellers' passenger ids and the terms acceptance go
+    // on the lead; the booking created next turns them into TERMS_ACCEPTED
+    // plans whose price is added to the payment as a "Protection Plan" line.
+    if (protectionPlanOffer && chosenPlanIndexes.length > 0) {
+      const lead = await db.lead.findUnique({ where: { id: result.leadId }, select: { details: true } });
+      await db.lead.update({
+        where: { id: result.leadId },
+        data: {
+          details: {
+            ...((lead?.details ?? {}) as Record<string, unknown>),
+            protectionPlanPassengerIds: chosenPlanIndexes.map((index) => result.passengerIds[index]),
+            protectionPlanTermsAcceptedAt: new Date().toISOString(),
+            protectionPlanPrice: protectionPlanOffer.price,
+          },
+        },
+      });
+    }
 
     // Never throws (see handleOptionalPassportUpload); passengerIds follow the travellers' order.
     await Promise.all(

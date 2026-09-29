@@ -2,6 +2,7 @@ import type { Booking, Customer, Lead, Quotation } from "../../generated/prisma/
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { getTaxFeeRates } from "../settings/tax-fee-config";
+import { unpaidAcceptedProtectionPlans } from "./create-payment";
 
 function roundToPaise(value: number): number {
   return Math.round(value * 100) / 100;
@@ -26,7 +27,9 @@ export async function createPendingBankTransferPayment(input: {
 }) {
   const { booking, quotation, actor } = input;
 
-  const amount = Number(quotation.sellingPrice);
+  // P12 — Protection Plans the customer chose are part of the same payment.
+  const protectionPlans = await unpaidAcceptedProtectionPlans(booking.id);
+  const amount = roundToPaise(Number(quotation.sellingPrice) + protectionPlans.amount);
   const couponDiscount = Number(quotation.couponDiscount ?? 0);
   const netAmount = Math.max(0, amount - couponDiscount);
   const { gstRate } = await getTaxFeeRates();
@@ -44,8 +47,12 @@ export async function createPendingBankTransferPayment(input: {
         couponDiscount: quotation.couponId ? couponDiscount : undefined,
         status: "PENDING",
         method: "BANK_TRANSFER",
+        protectionPlanAmount: protectionPlans.amount,
       },
     });
+    if (protectionPlans.ids.length > 0) {
+      await tx.protectionPlan.updateMany({ where: { id: { in: protectionPlans.ids } }, data: { paymentId: created.id } });
+    }
 
     await writeAudit(tx, {
       entityType: "Payment",

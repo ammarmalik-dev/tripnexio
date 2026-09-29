@@ -167,6 +167,22 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
               ) : (
                 <StatusTimeline stages={result.stages} />
               )}
+              {result.passengers && result.passengers.length > 0 ? (
+                <div className="flex flex-col gap-2 border-t border-hairline-on-dark pt-4">
+                  <p className="text-sm font-semibold text-ink-on-dark-primary">Travellers</p>
+                  <ul className="flex flex-col gap-2">
+                    {result.passengers.map((passenger, index) => (
+                      <li key={`${passenger.name}-${index}`} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
+                        <span className="text-ink-on-dark-primary">{passenger.name}</span>
+                        <span className="text-ink-on-dark-secondary">
+                          Visa: {passenger.visaStatus}
+                          {passenger.protectionPlan ? ` · Protection Plan: ${passenger.protectionPlan}` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
               {result.delivered && result.delivered.length > 0 ? (
                 <div className="flex flex-col gap-1 border-t border-hairline-on-dark pt-4">
                   <p className="text-sm font-semibold text-ink-on-dark-primary">Delivered</p>

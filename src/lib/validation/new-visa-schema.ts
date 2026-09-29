@@ -63,19 +63,17 @@ export const newVisaStep2Schema = z.object({
 /**
  * Optional passport-photo upload (Phase 5D — OCR autofill) — see
  * otb-schema.ts's identical field for the full rationale. Also carries the
- * optional Protection Plan interest expression (Step 20, audit §7.1) —
- * New_Visa.md §8's "before purchase... customer must agree" applies to the
- * ACTUAL purchase, which only happens later once a real Booking exists
- * (staff completes it in the CRM); this captures the customer's expressed
- * interest + terms acknowledgement at intake time as a hint for staff, not
- * a completed purchase — see the customer-flow route's own comment.
+ * P12 Protection Plan choice: which travellers (by index — 0 is the main
+ * applicant) the customer opted in, and their acceptance of the full terms,
+ * which is mandatory for any opt-in (checked server-side). The plan is only
+ * offered where Admin enabled it for the destination country, and its price
+ * per chosen traveller is added to the payable total as its own line.
  */
 export const newVisaStep3Schema = z.object({
   passportImageBase64: z.string().optional(),
   passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
-  // Cross-field "must accept terms to express interest" is enforced by the
-  // UI itself (the interest checkbox stays unchecked until terms are
-  // accepted), not a zod .refine() here — a refine()-wrapped schema loses
+  // Cross-field "must accept terms to opt in" is enforced by the UI and
+  // again in the intake route, not a zod .refine() here — a refine()-wrapped schema loses
   // its `.shape`, which both newVisaRequestSchema's `.extend()` below and
   // the WhatsApp bot's per-field schema lookups (flows.ts) rely on. Same
   // gotcha already documented for returnTicketRequestSchema. Plain
@@ -84,7 +82,7 @@ export const newVisaStep3Schema = z.object({
   // `boolean | undefined`, breaking that. The actual default lives in
   // NewVisaRequestFlow's own `defaultValues` instead, same fix already
   // applied to every other field in this project's flows.
-  protectionPlanInterested: z.boolean(),
+  protectionPlanTravellers: z.array(z.number().int().min(0).max(20)).max(21),
   protectionPlanTermsAccepted: z.boolean(),
 });
 

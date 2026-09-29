@@ -3,6 +3,7 @@ import type { PaymentStatus } from "../../generated/prisma/enums";
 import { writeAudit } from "../audit/log";
 import { nextInvoiceNumber } from "../invoices/invoice-number";
 import { applySystemEvent, type StatusNotification } from "../service-status/engine";
+import { purchasePlansForPayment } from "../protection-plan/lifecycle";
 
 type PaymentWithBookingLead = Payment & { booking: Booking & { lead: Lead } };
 
@@ -65,6 +66,10 @@ export async function completePaymentSuccess(
       note: `Used on payment ${payment.id} (${actor.actorLabel})`,
     });
   }
+
+  // P12 — Protection Plans this payment charged for become PURCHASED (and any
+  // OCR flag on those passengers opens an eligibility review).
+  await purchasePlansForPayment(tx, payment.id, { byUserId: actor.byUserId, label: actor.actorLabel });
 
   // Step 52 — an EXTRA payment (Extra Payment Collection) can succeed
   // against a Booking that's already CONFIRMED (its primary payment

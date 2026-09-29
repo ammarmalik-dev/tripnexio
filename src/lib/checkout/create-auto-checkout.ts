@@ -4,7 +4,7 @@ import { writeAudit } from "../audit/log";
 import { bookingIdForLead } from "../bookings/reference";
 import { applySystemEvent, dispatchStatusNotifications, getInitialServiceStatusId, type StatusNotification } from "../service-status/engine";
 import { createPendingPayment } from "../payments/create-payment";
-import { getProtectionPlanDefaultPrice } from "../settings/protection-plan-config";
+import { getProtectionPlanOffer, leadDestinationCountryCode, protectionPlanRowsForBooking } from "../protection-plan/country-offer";
 import { resolveCouponForQuotation } from "../coupons/apply";
 import type { ServiceType } from "../../generated/prisma/enums";
 
@@ -75,7 +75,7 @@ export async function createAutoCheckout(input: {
   // path already offers it for every New Visa booking; this auto-checkout
   // path needs the exact same offer since New Visa no longer goes through
   // that function (Step 35 pivot).
-  const protectionPlanPrice = serviceType === "NEW_VISA" ? await getProtectionPlanDefaultPrice() : null;
+  const protectionPlanOffer = await getProtectionPlanOffer(leadDestinationCountryCode(serviceType, lead.details));
 
   const statusNotifications: (StatusNotification | null)[] = [];
   const { booking, quotation } = await db.$transaction(async (tx) => {
@@ -117,20 +117,16 @@ export async function createAutoCheckout(input: {
       });
     }
 
-    if (protectionPlanPrice !== null && passengerIds.length > 0) {
-      await tx.protectionPlan.createMany({
-        data: passengerIds.map((passengerId) => ({
-          bookingId: createdBooking.id,
-          passengerId,
-          status: "OFFERED",
-          price: protectionPlanPrice,
-        })),
-      });
+    // P12 — only where Admin enabled Protection Plan for the destination;
+    // passengers chosen on the form (terms accepted) are charged now.
+    const planRows = protectionPlanRowsForBooking({ bookingId: createdBooking.id, passengerIds, offer: protectionPlanOffer, leadDetails: lead.details });
+    if (planRows.rows.length > 0) {
+      await tx.protectionPlan.createMany({ data: planRows.rows });
       await writeAudit(tx, {
         entityType: "Booking",
         entityId: createdBooking.id,
         action: "PROTECTION_PLAN_OFFERED",
-        note: `Protection Plan offered to ${passengerIds.length} passenger(s) at ₹${protectionPlanPrice} each`,
+        note: `Protection Plan offered to ${planRows.rows.length} passenger(s) at ₹${protectionPlanOffer?.price} each${planRows.chosen > 0 ? `; ${planRows.chosen} chosen with terms accepted on the application form — terms shown: ${protectionPlanOffer?.termsText}` : ""}`,
       });
     }
 

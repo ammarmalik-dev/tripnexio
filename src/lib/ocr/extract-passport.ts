@@ -5,6 +5,7 @@ import { getOcrProvider } from "./get-provider";
 import { callOcrProviderWithFailureAudit } from "./call-with-failure-audit";
 import { parseMrz } from "./mrz-parser";
 import { createTask } from "../tasks/create-task";
+import { flagPurchasedPlansFromOcr } from "../protection-plan/lifecycle";
 import type { PassportOcrFields } from "./types";
 import type { DocumentExtraction } from "../../generated/prisma/client";
 
@@ -81,6 +82,11 @@ export async function runPassportExtraction(documentId: string): Promise<Documen
 
     return created;
   });
+
+  // P12 — an unverifiable MRZ flags this passenger's purchased Protection Plan for eligibility review. Never throws.
+  if (!extraction.mrzValid) {
+    await flagPurchasedPlansFromOcr(document.passengerId, mrz ? "Passport OCR: MRZ checksum mismatch" : "Passport OCR: no MRZ could be read");
+  }
 
   return extraction;
 }

@@ -4,7 +4,7 @@ import { writeAudit } from "../audit/log";
 import { bookingIdForLead } from "./reference";
 import { getInitialServiceStatusId } from "../service-status/engine";
 import { isExpiredNow } from "../quotations/sync-expiry";
-import { getProtectionPlanDefaultPrice } from "../settings/protection-plan-config";
+import { getProtectionPlanOffer, leadDestinationCountryCode, protectionPlanRowsForBooking } from "../protection-plan/country-offer";
 import { buildDocumentChecklistSnapshot } from "./document-checklist-snapshot";
 import { generateToken } from "../quotations/select-quotation";
 
@@ -57,8 +57,9 @@ export async function createBookingFromQuotation(
 
   // New_Visa.md §8: "Protection Plan is offered after processing selection
   // and before payment" — the earliest point a Booking (and fixed passenger
-  // list) exists. New Visa only.
-  const protectionPlanPrice = quotation.lead.serviceType === "NEW_VISA" ? await getProtectionPlanDefaultPrice() : null;
+  // list) exists. New Visa only, and (P12) only where Admin enabled it for
+  // the destination country.
+  const protectionPlanOffer = await getProtectionPlanOffer(leadDestinationCountryCode(quotation.lead.serviceType, quotation.lead.details));
 
   const snapshotPassengers =
     passengerIds.length > 0
@@ -105,20 +106,16 @@ export async function createBookingFromQuotation(
       });
     }
 
-    if (protectionPlanPrice !== null && passengerIds.length > 0) {
-      await tx.protectionPlan.createMany({
-        data: passengerIds.map((passengerId) => ({
-          bookingId: created.id,
-          passengerId,
-          status: "OFFERED",
-          price: protectionPlanPrice,
-        })),
-      });
+    // P12 — only where Admin enabled Protection Plan for the destination;
+    // passengers chosen on the form (terms accepted) are charged now.
+    const planRows = protectionPlanRowsForBooking({ bookingId: created.id, passengerIds, offer: protectionPlanOffer, leadDetails: quotation.lead.details });
+    if (planRows.rows.length > 0) {
+      await tx.protectionPlan.createMany({ data: planRows.rows });
       await writeAudit(tx, {
         entityType: "Booking",
         entityId: created.id,
         action: "PROTECTION_PLAN_OFFERED",
-        note: `Protection Plan offered to ${passengerIds.length} passenger(s) at ₹${protectionPlanPrice} each`,
+        note: `Protection Plan offered to ${planRows.rows.length} passenger(s) at ₹${protectionPlanOffer?.price} each${planRows.chosen > 0 ? `; ${planRows.chosen} chosen with terms accepted on the application form — terms shown: ${protectionPlanOffer?.termsText}` : ""}`,
       });
     }
 

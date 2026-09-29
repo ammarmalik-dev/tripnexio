@@ -179,6 +179,8 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   MANUAL_VERIFICATION: "Manual Verification",
   QUOTE_FOLLOW_UP: "Quote Follow-up",
   CROSS_SELL_FOLLOW_UP: "Cross-sell Follow-up",
+  PROTECTION_PLAN_REVIEW: "Protection Plan Review",
+  PROTECTION_PLAN_REFUND_REVIEW: "Protection Plan Refund Review",
 };
 
 export const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = (

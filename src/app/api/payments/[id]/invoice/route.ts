@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
-import { renderInvoicePdf } from "@/lib/invoices/render-invoice";
+import { paymentInvoiceAmounts, renderInvoicePdf } from "@/lib/invoices/render-invoice";
 import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
 import { ensureInvoiceNumber } from "@/lib/invoices/invoice-number";
 
@@ -28,20 +28,10 @@ export async function GET(_request: Request, { params }: RouteParams) {
     return jsonError(409, "An invoice is only available for a successful payment.");
   }
 
-  const baseFare = Number(payment.amount);
-  // Step 22 (audit §7.8) — coupon discount reduces the base GST/gateway
-  // fee are computed on; see render-invoice.ts's buildInvoicePdfForPayment
-  // for the identical computation (this route duplicates it rather than
-  // calling that one, so it can tell a 404 (missing) apart from a 409
-  // (non-SUCCESS) — buildInvoicePdfForPayment collapses both to null).
-  const couponDiscount = Number(payment.couponDiscount ?? 0);
-  const netAmount = baseFare - couponDiscount;
-  const gstAmount = Number(payment.gstAmount);
-  const gatewayFee = Number(payment.gatewayFee);
-  const total = netAmount + gstAmount + gatewayFee;
+  // Same line/amount computation as buildInvoicePdfForPayment (this route
+  // fetches the payment itself so it can tell a 404 apart from a 409).
   // Derived from what was actually charged on this payment, not today's
   // config — a rate change later shouldn't rewrite a historical invoice.
-  const gstRatePercent = netAmount > 0 ? (gstAmount / netAmount) * 100 : 0;
   const company = await getInvoiceCompanyDetails();
 
   const pdf = await renderInvoicePdf({
@@ -52,14 +42,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
     customerName: payment.booking.customer.name,
     customerMobile: payment.booking.customer.mobile,
     customerEmail: payment.booking.customer.email,
-    description: `${payment.booking.lead.serviceType.replaceAll("_", " ")} — Service Fee`,
-    baseFare,
+    ...paymentInvoiceAmounts(payment),
     couponCode: payment.couponCode,
-    couponDiscount,
-    gstAmount,
-    gstRatePercent,
-    gatewayFee,
-    total,
     company,
   });
 

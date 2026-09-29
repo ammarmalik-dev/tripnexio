@@ -508,60 +508,64 @@ model BookingPassenger {
 }
 
 model Payment {
-  id             String         @id @default(cuid())
-  bookingId      String
+  id                   String         @id @default(cuid())
+  bookingId            String
   /// The pre-discount base fare — GST/gatewayFee below are computed on
   /// `amount - couponDiscount`, not on `amount` itself (Step 22, audit
   /// §7.8), so the original figure stays visible on the invoice as its own
   /// line even after a coupon is applied.
-  amount         Decimal        @db.Decimal(10, 2)
-  gstAmount      Decimal        @db.Decimal(10, 2)
-  gatewayFee     Decimal        @db.Decimal(10, 2)
+  amount               Decimal        @db.Decimal(10, 2)
+  gstAmount            Decimal        @db.Decimal(10, 2)
+  gatewayFee           Decimal        @db.Decimal(10, 2)
   /// Snapshotted from the selected Quotation at payment-creation time — see
   /// Quotation.couponDiscount's own doc comment for the config-snapshot
   /// rationale. `couponId` is what src/lib/payments/complete-payment.ts
   /// increments Coupon.usageCount against, once, only on the real
   /// PENDING -> SUCCESS transition (never on quote creation — a quote can
   /// expire unused).
-  couponId       String?
-  couponCode     String?
-  couponDiscount Decimal?       @db.Decimal(10, 2)
-  status         PaymentStatus  @default(PENDING)
+  couponId             String?
+  couponCode           String?
+  couponDiscount       Decimal?       @db.Decimal(10, 2)
+  status               PaymentStatus  @default(PENDING)
   /// The gateway's own id for this payment link/order — how an incoming
   /// webhook is matched back to this row. Unique (Postgres allows multiple
   /// NULLs under a unique constraint, so this is safe before a payment
   /// link has been generated).
-  gatewayRef     String?        @unique
-  paymentLink    String?
-  linkExpiresAt  DateTime?
+  gatewayRef           String?        @unique
+  paymentLink          String?
+  linkExpiresAt        DateTime?
   /// Step 51 — GATEWAY (default) for every existing/website-checkout
   /// payment; BANK_TRANSFER for one raised via the Manual Lead flow's
   /// "Bank Transfer" option. A BANK_TRANSFER payment never gets a
   /// gatewayRef/paymentLink and has gatewayFee 0 (no gateway involved).
-  method         PaymentMethod  @default(GATEWAY)
+  method               PaymentMethod  @default(GATEWAY)
   /// Staff-uploaded evidence for a BANK_TRANSFER payment (local-file-
   /// storage path, same convention as Document.fileUrl) — set by
   /// POST /api/payments/[id]/bank-slip, required before the approval
   /// route (payments.approve) will confirm it.
-  bankSlipUrl    String?
+  bankSlipUrl          String?
   /// Step 52 — PRIMARY (default) for every payment before this step, tied
   /// to the booking's selected Quotation. EXTRA for a later add-on charge
   /// raised via the Extra Payment Collection screen — no Quotation
   /// involved, `description` (below) is its staff-entered reason.
-  purpose        PaymentPurpose @default(PRIMARY)
+  purpose              PaymentPurpose @default(PRIMARY)
   /// Staff-entered reason for an EXTRA payment (e.g. "Additional baggage
   /// fee") — always null for a PRIMARY payment, which already has its
   /// reason implicit in the booking's own service/quotation.
-  description    String?
+  description          String?
   /// Persisted tax-invoice number, assigned once when the payment succeeds
   /// (InvoiceCounter, per financial year) — never regenerated per request.
-  invoiceNumber  String?        @unique
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  invoiceNumber        String?        @unique
+  /// P12 — the part of `amount` that is Protection Plan (per-passenger plan
+  /// prices), shown as its own invoice line. 0 when no plan is paid for here.
+  protectionPlanAmount Decimal        @default(0) @db.Decimal(10, 2)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
-  booking Booking  @relation(fields: [bookingId], references: [id])
-  coupon  Coupon?  @relation(fields: [couponId], references: [id])
-  refunds Refund[]
+  booking         Booking          @relation(fields: [bookingId], references: [id])
+  coupon          Coupon?          @relation(fields: [couponId], references: [id])
+  refunds         Refund[]
+  protectionPlans ProtectionPlan[]
 
   @@index([bookingId])
   @@index([couponId])
@@ -644,7 +648,9 @@ model Refund {
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 
-  payment Payment @relation(fields: [paymentId], references: [id])
+  payment        Payment         @relation(fields: [paymentId], references: [id])
+  /// P12 — set when this refund was raised by a Protection Plan refund approval.
+  protectionPlan ProtectionPlan?
 
   @@index([paymentId])
   @@index([status])
@@ -920,6 +926,10 @@ enum TaskType {
   /// OTB → Return Ticket cross-sell automation: auto-created when an OTB
   /// lead reports no existing return ticket (Lead.details.returnTicketNeeded).
   CROSS_SELL_FOLLOW_UP
+  /// P12 — an OCR or staff flag on a purchased Protection Plan.
+  PROTECTION_PLAN_REVIEW
+  /// P12 — visa rejected on a booking with a purchased Protection Plan.
+  PROTECTION_PLAN_REFUND_REVIEW
 }
 
 enum TaskPriority {
@@ -1108,6 +1118,7 @@ model Country {
   visaTypes               VisaType[]
   nationalities           Nationality[]
   serviceTerms            ServiceTerms[]
+  protectionPlanCountry   ProtectionPlanCountry?
 
   @@index([active])
 }
@@ -1771,16 +1782,43 @@ model ProtectionPlan {
   /// specified for Protection Plan anywhere in New_Visa.md, unlike the
   /// service-level refund rules in src/lib/refunds/rules.ts.
   refundAmount    Decimal?             @db.Decimal(10, 2)
+  /// P12 — the payment that charges (or charged) this plan: the booking's
+  /// first payment when chosen in the application flow, or a separate EXTRA
+  /// payment for a later staff purchase. PURCHASED once it succeeds.
+  paymentId       String?
+  /// P12 — the Refund raised when a manager approves this plan's refund.
+  refundId        String?              @unique
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
   booking   Booking   @relation(fields: [bookingId], references: [id])
   passenger Passenger @relation(fields: [passengerId], references: [id])
+  payment   Payment?  @relation(fields: [paymentId], references: [id])
+  refund    Refund?   @relation(fields: [refundId], references: [id])
 
   @@unique([bookingId, passengerId])
   @@index([bookingId])
   @@index([passengerId])
   @@index([status])
+  @@index([paymentId])
+}
+
+/// P12 — client confirmed: Admin enables/disables Protection Plan per
+/// destination country. No row, or enabled=false, means the plan is never
+/// offered for that country and no ProtectionPlan rows are created. Price and
+/// terms fall back to ProtectionPlanConfig when left empty.
+model ProtectionPlanCountry {
+  id        String   @id @default(cuid())
+  countryId String   @unique
+  enabled   Boolean  @default(false)
+  price     Decimal? @db.Decimal(10, 2)
+  termsText String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id])
+
+  @@index([enabled])
 }
 
 /// Admin-managed destinations for the Return Verified Ticket service (client

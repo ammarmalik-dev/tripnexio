@@ -7,6 +7,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { writeAudit } from "@/lib/audit/log";
 import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import { EMBASSY_ACTIONS, EMBASSY_ACTION_KEYS } from "@/lib/new-visa/embassy-actions";
+import { openRefundReviewsForRejectedVisa } from "@/lib/protection-plan/lifecycle";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -67,6 +68,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (action === "REJECTED") {
       await tx.booking.update({ where: { id }, data: { visaRejectionReason: reason } });
       await writeAudit(tx, { entityType: "Booking", entityId: id, action: "VISA_REJECTED", byUserId: session.id, note: `Rejection reason: ${reason} (by ${session.name})` });
+      // P12 — purchased Protection Plans go to refund review (manager task).
+      await openRefundReviewsForRejectedVisa(tx, id, reason ?? "", { byUserId: session.id, label: `by ${session.name}` });
     }
     return outcome;
   });

@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertValidRefundTransition } from "@/lib/refunds/transitions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { paymentTotal } from "@/lib/payments/totals";
+import { syncPlanWithRefund } from "@/lib/protection-plan/lifecycle";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -62,6 +63,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       byUserId: session.id,
       note: `${refund.status} -> ${parsed.data.status}${parsed.data.note ? `: ${parsed.data.note}` : ""} (by ${session.name})`,
     });
+    // P12 — a Protection Plan refund keeps the plan's status in step.
+    await syncPlanWithRefund(tx, id, parsed.data.status, { byUserId: session.id, label: `by ${session.name}` });
 
     // Once completed refunds cover everything successfully paid on the booking, the booking is REFUNDED.
     const booking = refund.payment.booking;

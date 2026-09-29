@@ -4,6 +4,7 @@ import type { TrackResult, TrackStage, TrackStageStatus } from "./types";
 import type { BookingStatus, LeadStatus, ServiceType } from "../../generated/prisma/enums";
 import { HOLD_MARKER } from "../service-status/events";
 import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, type OutputType } from "../outputs/output-types";
+import { customerPassengerStatuses } from "../protection-plan/customer-passenger-statuses";
 
 /**
  * The 5 locked customer-facing stages — Homepage_FINAL_Locked_1of1.docx §6:
@@ -146,6 +147,12 @@ async function deliveredOutputs(bookingId: string | null | undefined) {
   }));
 }
 
+/** P12 — per-passenger Visa / Protection Plan rows (masked names), only when a New Visa booking has any. */
+async function passengerRows(bookingId: string) {
+  const rows = await customerPassengerStatuses(bookingId, maskName);
+  return rows.length > 0 ? rows : undefined;
+}
+
 function closedMessageFor(bookingStatus: BookingStatus | null, leadStatus: LeadStatus, visaRejectionReason?: string | null): string {
   // P11 — a New Visa the embassy rejected shows the reason staff recorded.
   if (visaRejectionReason) return `Your visa application was rejected. Reason: ${visaRejectionReason}`;
@@ -214,6 +221,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
       submittedDate: formatDate(lead.createdAt),
       stages: stageIndex === "closed" ? [] : (serviceStages ?? buildStages(stageIndex)),
       delivered: await deliveredOutputs(booking?.id),
+      passengers: booking ? await passengerRows(booking.id) : undefined,
       closedMessage: stageIndex === "closed" ? closedMessageFor(booking?.status ?? null, lead.status, booking?.visaRejectionReason) : undefined,
     };
   }
@@ -237,6 +245,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
       submittedDate: formatDate(booking.createdAt),
       stages: stageIndex === "closed" ? [] : (serviceStages ?? buildStages(stageIndex)),
       delivered: await deliveredOutputs(booking.id),
+      passengers: await passengerRows(booking.id),
       closedMessage: stageIndex === "closed" ? closedMessageFor(booking.status, booking.lead.status, booking.visaRejectionReason) : undefined,
     };
   }

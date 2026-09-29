@@ -27,6 +27,8 @@ export async function loadCheckoutByToken(token: string) {
   const gst = payment ? Number(payment.gstAmount) : 0;
   const gatewayFee = payment ? Number(payment.gatewayFee) : 0;
   const discount = Number(payment?.couponDiscount ?? 0);
+  // P12 — the Protection Plan part of `amount`, shown as its own line.
+  const protectionPlan = payment ? Number(payment.protectionPlanAmount) : 0;
 
   const documentTypes = paid ? await resolveCheckoutDocumentTypes(booking) : [];
   // P10 — New Visa returning passengers: earlier uploads that could fill a slot (offered, never auto-used).
@@ -55,7 +57,8 @@ export async function loadCheckoutByToken(token: string) {
       payment: payment
         ? {
             status: payment.status,
-            amount,
+            amount: amount - protectionPlan,
+            protectionPlan,
             gst,
             gatewayFee,
             discount,

@@ -118,7 +118,7 @@ export function ProtectionPlanConfigManager() {
         onChange={(event) => setTermsText(event.target.value)}
         error={errors.termsText?.[0]}
         disabled={saving}
-        hint="Shown to staff before a Protection Plan purchase is confirmed."
+        hint="Default terms shown to the customer (and to staff before a purchase) wherever a country has no terms of its own."
       />
 
       <div className="flex flex-col gap-2">

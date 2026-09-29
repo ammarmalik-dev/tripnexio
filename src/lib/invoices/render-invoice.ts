@@ -1,4 +1,5 @@
 import PDFDocument from "pdfkit";
+import type { Payment } from "../../generated/prisma/client";
 import { db } from "../db";
 import { leadReference } from "../leads/reference";
 import { formatCurrency } from "../format-currency";
@@ -44,7 +45,10 @@ export interface InvoicePdfInput {
   customerEmail: string | null;
   /** Line-item service description — e.g. "New Visa — Service Fee". */
   description: string;
+  /** The service line's amount — excludes `protectionPlanAmount`. */
   baseFare: number;
+  /** P12 — per-passenger Protection Plan total, its own "Protection Plan" line; 0/absent renders none. */
+  protectionPlanAmount?: number;
   /** CRM.md §8: "Coupon discount must remain a separate invoice line" (Step 22, audit §7.8) — null/0 renders no line at all. */
   couponCode: string | null;
   couponDiscount: number;
@@ -172,6 +176,16 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   doc.text(fmt(input.baseFare), col4, itemY, { align: "right", width: 75 });
   doc.moveDown(1);
 
+  const protectionPlanAmount = input.protectionPlanAmount ?? 0;
+  if (protectionPlanAmount > 0) {
+    const planY = doc.y;
+    doc.text("Protection Plan", col1, planY, { width: 240 });
+    doc.text(input.company.sacCode ?? "—", col2, planY);
+    doc.text("1", col3, planY);
+    doc.text(fmt(protectionPlanAmount), col4, planY, { align: "right", width: 75 });
+    doc.moveDown(1);
+  }
+
   doc.moveTo(50, doc.y + 4).lineTo(545, doc.y + 4).strokeColor("#cccccc").stroke();
   doc.moveDown(0.8);
 
@@ -186,7 +200,7 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   if (input.couponDiscount > 0) {
     row(`Discount (${input.couponCode ?? "coupon"})`, `- ${fmt(input.couponDiscount)}`);
   }
-  const taxableValue = input.baseFare - input.couponDiscount;
+  const taxableValue = input.baseFare + protectionPlanAmount - input.couponDiscount;
   row("Taxable Value", fmt(taxableValue));
   if (input.gstAmount > 0) {
     row(`GST @ ${input.gstRatePercent.toFixed(2)}%`, fmt(input.gstAmount));
@@ -247,18 +261,9 @@ export async function buildInvoicePdfForPayment(paymentId: string): Promise<Paym
   });
   if (!payment || payment.status !== "SUCCESS") return null;
 
-  const baseFare = Number(payment.amount);
-  const couponDiscount = Number(payment.couponDiscount ?? 0);
-  const netAmount = baseFare - couponDiscount;
-  const gstAmount = Number(payment.gstAmount);
-  const gatewayFee = Number(payment.gatewayFee);
-  // Total reflects what was actually charged: base minus the coupon, plus GST/gateway (both already computed on the discounted amount at payment-creation time).
-  const total = netAmount + gstAmount + gatewayFee;
-  // GST rate is reconstructed against netAmount (what it was actually computed on), not baseFare — otherwise a coupon would make the displayed rate look lower than it really was.
-  const gstRatePercent = netAmount > 0 ? (gstAmount / netAmount) * 100 : 0;
   const invoiceNumber = await ensureInvoiceNumber(payment);
-
   const company = await getInvoiceCompanyDetails();
+  const amounts = paymentInvoiceAmounts(payment);
 
   const pdf = await renderInvoicePdf({
     invoiceNumber,
@@ -268,23 +273,51 @@ export async function buildInvoicePdfForPayment(paymentId: string): Promise<Paym
     customerName: payment.booking.customer.name,
     customerMobile: payment.booking.customer.mobile,
     customerEmail: payment.booking.customer.email,
-    // Step 52 — an EXTRA payment's invoice line is its own staff-entered
-    // reason, not the generic service-fee description a PRIMARY payment gets.
-    description:
-      payment.purpose === "EXTRA"
-        ? (payment.description ?? "Extra Payment")
-        : `${payment.booking.lead.serviceType.replaceAll("_", " ")} — Service Fee`,
-    baseFare,
+    ...amounts,
     couponCode: payment.couponCode,
-    couponDiscount,
-    gstAmount,
-    gstRatePercent,
-    gatewayFee,
-    total,
     company,
   });
 
-  return { pdf, invoiceNumber, bookingId: payment.booking.bookingId, total };
+  return { pdf, invoiceNumber, bookingId: payment.booking.bookingId, total: amounts.total };
+}
+
+/**
+ * The line/amount part of a payment's invoice, shared by the email trigger
+ * and the staff download route. `amount` includes any Protection Plan
+ * (P12), split out here into its own line; a payment that only charges
+ * Protection Plan (a later staff purchase) shows just that line.
+ */
+export function paymentInvoiceAmounts(
+  payment: Pick<Payment, "amount" | "couponDiscount" | "gstAmount" | "gatewayFee" | "protectionPlanAmount" | "purpose" | "description"> & {
+    booking: { lead: { serviceType: string } };
+  }
+) {
+  const amount = Number(payment.amount);
+  const planAmount = Number(payment.protectionPlanAmount ?? 0);
+  const serviceAmount = Math.max(0, amount - planAmount);
+  const onlyPlan = planAmount > 0 && serviceAmount < 0.005;
+  const couponDiscount = Number(payment.couponDiscount ?? 0);
+  const netAmount = amount - couponDiscount;
+  const gstAmount = Number(payment.gstAmount);
+  const gatewayFee = Number(payment.gatewayFee);
+  return {
+    // Step 52 — an EXTRA payment's invoice line is its own staff-entered
+    // reason, not the generic service-fee description a PRIMARY payment gets.
+    description: onlyPlan
+      ? "Protection Plan"
+      : payment.purpose === "EXTRA"
+        ? (payment.description ?? "Extra Payment")
+        : `${payment.booking.lead.serviceType.replaceAll("_", " ")} — Service Fee`,
+    baseFare: onlyPlan ? planAmount : serviceAmount,
+    protectionPlanAmount: onlyPlan ? 0 : planAmount,
+    couponDiscount,
+    gstAmount,
+    // GST rate is reconstructed against netAmount (what it was actually computed on), not the gross — otherwise a coupon would make the displayed rate look lower than it really was.
+    gstRatePercent: netAmount > 0 ? (gstAmount / netAmount) * 100 : 0,
+    gatewayFee,
+    // Total reflects what was actually charged: base minus the coupon, plus GST/gateway (both already computed on the discounted amount at payment-creation time).
+    total: netAmount + gstAmount + gatewayFee,
+  };
 }
 
 export interface QuotationInvoice {

@@ -8,6 +8,7 @@ import { buildApplicantRows } from "@/lib/new-visa/applicants";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
 import { getRefundConfig } from "@/lib/refunds/config";
+import { passengerVisaStatus } from "@/lib/protection-plan/passenger-status";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -112,6 +113,21 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     payments: paymentsWithRule,
     documents: booking.documents,
     protectionPlans: booking.protectionPlans,
+    // P12 — New Visa: each passenger's visa status next to their Protection Plan status.
+    passengerStatuses:
+      booking.lead.serviceType === "NEW_VISA"
+        ? booking.passengers.map(({ passenger }) => ({
+            passengerId: passenger.id,
+            fullName: passenger.fullName,
+            visaStatus: passengerVisaStatus({
+              passengerId: passenger.id,
+              visaRejected: Boolean(booking.visaRejectionReason),
+              bookingStatusLabel: booking.serviceStatus?.name ?? synced.status,
+              documents: booking.documents,
+            }),
+            protectionPlanStatus: booking.protectionPlans.find((plan) => plan.passengerId === passenger.id)?.status ?? null,
+          }))
+        : [],
     // Step 23 (audit §7.6) — null for any booking created before this field
     // existed; the UI simply omits the checklist section in that case.
     documentChecklistSnapshot: synced.documentChecklistSnapshot,

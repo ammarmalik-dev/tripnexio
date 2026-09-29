@@ -19,7 +19,9 @@ interface CheckoutView {
   bookingId: string | null;
   payment: {
     status: "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED";
+    /** Service fee only — excludes the Protection Plan line. */
     amount: number;
+    protectionPlan: number;
     gst: number;
     gatewayFee: number;
     discount: number;
@@ -261,6 +263,7 @@ export function CheckoutPanel({ token }: { token: string }) {
       ) : (
         <div className="rounded-xl border border-hairline bg-surface-1 px-5">
           <Row label="Service fee" value={formatRupees(payment.amount)} />
+          {payment.protectionPlan > 0 ? <Row label="Protection Plan" value={formatRupees(payment.protectionPlan)} /> : null}
           {payment.discount > 0 ? <Row label="Discount" value={`− ${formatRupees(payment.discount)}`} /> : null}
           {payment.gst > 0 ? <Row label="GST" value={formatRupees(payment.gst)} /> : null}
           <Row label="Payment gateway fee" value={formatRupees(payment.gatewayFee)} />

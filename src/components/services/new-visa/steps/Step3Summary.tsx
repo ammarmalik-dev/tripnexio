@@ -9,31 +9,35 @@ import { NewVisaPricePreview } from "../NewVisaPricePreview";
 import { getJson } from "@/lib/api/client";
 import { GUARDIAN_RELATIONSHIP_LABELS, type NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 
-interface ProtectionPlanPublicConfig {
-  defaultPrice: string;
-  termsText: string;
-  eligibilityConditions: string[];
-}
+type ProtectionPlanCountryConfig =
+  | { enabled: false }
+  | { enabled: true; price: number; termsText: string; eligibilityConditions: string[] };
 
 /**
- * New_Visa.md §8 (Step 20, audit §7.1) — this is the customer flow's ONLY
- * touchpoint with Protection Plan: expressing interest + acknowledging the
- * terms at intake time, carried into Lead.details for staff to see. The
- * actual chargeable purchase only happens later once a real Booking (and
- * therefore a real per-passenger record) exists — see
- * src/app/api/leads/new-visa/route.ts's own comment.
+ * P12 — per-traveller Protection Plan opt-in, shown only when Admin enabled
+ * the plan for this destination. The full terms are shown and accepting them
+ * is mandatory for any opt-in (re-checked server-side); each chosen
+ * traveller's price is added to the payable total as a separate
+ * "Protection Plan" line on the payment and invoice.
  */
-function ProtectionPlanOptIn() {
+function ProtectionPlanOptIn({ countryCode, travellerNames }: { countryCode: string; travellerNames: string[] }) {
   const { watch, setValue } = useFormContext<NewVisaRequestValues>();
-  const [config, setConfig] = useState<ProtectionPlanPublicConfig | null>(null);
-  const interested = watch("protectionPlanInterested");
+  const [config, setConfig] = useState<ProtectionPlanCountryConfig | null>(null);
+  const chosen = watch("protectionPlanTravellers");
   const termsAccepted = watch("protectionPlanTermsAccepted");
 
   useEffect(() => {
+    if (!countryCode) return;
     let cancelled = false;
-    getJson<ProtectionPlanPublicConfig>("/api/protection-plan-config")
+    getJson<ProtectionPlanCountryConfig>(`/api/protection-plan-config?country=${encodeURIComponent(countryCode)}`)
       .then((result) => {
-        if (!cancelled) setConfig(result);
+        if (cancelled) return;
+        setConfig(result);
+        // Never carry a choice over to a destination where the plan isn't offered.
+        if (!result.enabled) {
+          setValue("protectionPlanTravellers", []);
+          setValue("protectionPlanTermsAccepted", false);
+        }
       })
       .catch(() => {
         // Non-critical — Protection Plan is optional; the rest of the request still works without it.
@@ -41,36 +45,48 @@ function ProtectionPlanOptIn() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [countryCode, setValue]);
 
-  if (!config) return null;
+  if (!config || !config.enabled) return null;
+
+  const toggle = (index: number, checked: boolean) => {
+    const next = checked ? [...new Set([...chosen, index])].sort((a, b) => a - b) : chosen.filter((value) => value !== index);
+    setValue("protectionPlanTravellers", next);
+    if (next.length === 0) setValue("protectionPlanTermsAccepted", false);
+  };
+  const planTotal = chosen.length * config.price;
 
   return (
     <div className="rounded-xl border border-hairline bg-surface-1 p-5">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-ink-heading">Protection Plan (optional)</h3>
-        <span className="text-sm font-medium text-ink-accent">₹{config.defaultPrice} / eligible passenger</span>
+        <span className="text-sm font-medium text-ink-accent">₹{config.price.toLocaleString("en-IN")} per traveller</span>
       </div>
-      <p className="mb-2 text-xs text-ink-tertiary">Subject to eligibility review. Conditions include:</p>
-      <ul className="mb-3 list-inside list-disc text-xs text-ink-tertiary">
-        {config.eligibilityConditions.map((condition) => (
-          <li key={condition}>{condition}</li>
-        ))}
-      </ul>
-      <label className="mb-2 flex items-center gap-2 text-sm text-ink-secondary">
-        <input
-          type="checkbox"
-          checked={interested}
-          onChange={(event) => {
-            setValue("protectionPlanInterested", event.target.checked);
-            if (!event.target.checked) setValue("protectionPlanTermsAccepted", false);
-          }}
-        />
-        I&apos;m interested in Protection Plan
-      </label>
-      {interested ? (
+      {config.eligibilityConditions.length > 0 ? (
         <>
-          <p className="mb-2 max-h-24 overflow-y-auto rounded-md bg-surface-2 p-2 text-xs text-ink-tertiary">{config.termsText}</p>
+          <p className="mb-2 text-xs text-ink-tertiary">Subject to eligibility review. Conditions include:</p>
+          <ul className="mb-3 list-inside list-disc text-xs text-ink-tertiary">
+            {config.eligibilityConditions.map((condition) => (
+              <li key={condition}>{condition}</li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      <fieldset className="mb-3 flex flex-col gap-2">
+        <legend className="mb-1 text-xs font-medium text-ink-secondary">Add Protection Plan for:</legend>
+        {travellerNames.map((name, index) => (
+          <label key={index} className="flex items-center gap-2 text-sm text-ink-secondary">
+            <input type="checkbox" checked={chosen.includes(index)} onChange={(event) => toggle(index, event.target.checked)} />
+            {name || `Traveller ${index + 1}`}
+          </label>
+        ))}
+      </fieldset>
+      {chosen.length > 0 ? (
+        <>
+          <h4 className="mb-1 text-xs font-semibold text-ink-heading">Protection Plan terms</h4>
+          <div className="mb-2 max-h-56 overflow-y-auto whitespace-pre-line rounded-md bg-surface-2 p-3 text-xs text-ink-tertiary" tabIndex={0}>
+            {config.termsText}
+          </div>
           <label className="flex items-start gap-2 text-xs text-ink-secondary">
             <input
               type="checkbox"
@@ -80,6 +96,14 @@ function ProtectionPlanOptIn() {
             />
             I have read and accept the Protection Plan terms above.
           </label>
+          {!termsAccepted ? <p className="mt-1 text-xs text-error">Accepting the terms is required to add Protection Plan.</p> : null}
+          <div className="mt-3 flex items-center justify-between border-t border-hairline pt-3 text-sm">
+            <span className="text-ink-tertiary">
+              Protection Plan ({chosen.length} × ₹{config.price.toLocaleString("en-IN")})
+            </span>
+            <span className="font-medium text-ink-primary">₹{planTotal.toLocaleString("en-IN")}</span>
+          </div>
+          <p className="mt-1 text-xs text-ink-tertiary">Added to your payable total as a separate line.</p>
         </>
       ) : null}
     </div>
@@ -160,7 +184,10 @@ export function Step3Summary() {
         travelDate={values.travelDate}
         travellers={[{ fullName: values.fullName, dob: values.dob }, ...values.additionalTravellers.map((t) => ({ fullName: t.fullName, dob: t.dob }))]}
       />
-      <ProtectionPlanOptIn />
+      <ProtectionPlanOptIn
+        countryCode={values.destinationCountry}
+        travellerNames={[values.fullName, ...values.additionalTravellers.map((t) => t.fullName)]}
+      />
     </div>
   );
 }

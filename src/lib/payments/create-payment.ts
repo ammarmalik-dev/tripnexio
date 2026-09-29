@@ -24,6 +24,8 @@ interface CreateGatewayPaymentInput {
   purpose: "PRIMARY" | "EXTRA";
   /** EXTRA only — the staff-entered reason, stored on Payment.description and used in the gateway link's own description. */
   description?: string;
+  /** P12 — Protection Plans this payment charges for; their prices are already part of `baseAmount`. */
+  protectionPlans?: { ids: string[]; amount: number };
 }
 
 /**
@@ -34,7 +36,7 @@ interface CreateGatewayPaymentInput {
  * instead of two parallel implementations.
  */
 async function createGatewayPayment(input: CreateGatewayPaymentInput) {
-  const { booking, actor, baseAmount, couponId, couponCode, purpose, description } = input;
+  const { booking, actor, baseAmount, couponId, couponCode, purpose, description, protectionPlans } = input;
   const couponDiscount = input.couponDiscount ?? 0;
 
   // CRM.md §10: "...− Coupon + Gateway Charge = Customer Payable." GST and the
@@ -94,8 +96,14 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
         linkExpiresAt,
         purpose,
         description: purpose === "EXTRA" ? description : undefined,
+        protectionPlanAmount: protectionPlans?.amount ?? 0,
       },
     });
+
+    // P12 — link the plans; they become PURCHASED when this payment succeeds.
+    if (protectionPlans && protectionPlans.ids.length > 0) {
+      await tx.protectionPlan.updateMany({ where: { id: { in: protectionPlans.ids } }, data: { paymentId: created.id } });
+    }
 
     await writeAudit(tx, {
       entityType: "Payment",
@@ -105,7 +113,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
       note:
         purpose === "EXTRA"
           ? `Extra payment link created for booking ${booking.id} — total ₹${totalAmount} — reason: ${description} (${actor.label})`
-          : `Payment link created for booking ${booking.id} via ${gateway.providerName} — total ₹${totalAmount}${couponId ? ` (coupon ${couponCode} applied, -₹${couponDiscount})` : ""} (${actor.label})`,
+          : `Payment link created for booking ${booking.id} via ${gateway.providerName} — total ₹${totalAmount}${couponId ? ` (coupon ${couponCode} applied, -₹${couponDiscount})` : ""}${protectionPlans?.amount ? ` (includes Protection Plan ₹${protectionPlans.amount})` : ""} (${actor.label})`,
     });
 
     return created;
@@ -126,14 +134,55 @@ export async function createPendingPayment(input: {
   actor: { byUserId?: string; label: string };
 }) {
   const { booking, quotation, actor } = input;
+  const protectionPlans = await unpaidAcceptedProtectionPlans(booking.id);
   return createGatewayPayment({
     booking,
     actor,
-    baseAmount: Number(quotation.sellingPrice),
+    baseAmount: Number(quotation.sellingPrice) + protectionPlans.amount,
     couponId: quotation.couponId,
     couponCode: quotation.couponCode,
     couponDiscount: Number(quotation.couponDiscount ?? 0),
     purpose: "PRIMARY",
+    protectionPlans,
+  });
+}
+
+/**
+ * P12 — plans the customer chose (terms accepted) that no live payment covers
+ * yet: never linked, or linked to a payment that failed/expired. Their prices
+ * are added to the next payment as the "Protection Plan" line.
+ */
+export async function unpaidAcceptedProtectionPlans(bookingId: string): Promise<{ ids: string[]; amount: number }> {
+  const plans = await db.protectionPlan.findMany({
+    where: {
+      bookingId,
+      status: "TERMS_ACCEPTED",
+      OR: [{ paymentId: null }, { payment: { status: { in: ["FAILED", "EXPIRED"] } } }],
+    },
+    select: { id: true, price: true },
+  });
+  return { ids: plans.map((plan) => plan.id), amount: roundToPaise(plans.reduce((sum, plan) => sum + Number(plan.price), 0)) };
+}
+
+/**
+ * P12 — a later staff purchase of Protection Plan(s) on an already-paid
+ * booking: its own EXTRA payment on the same booking, charged only the plan
+ * prices, shown on the invoice as "Protection Plan".
+ */
+export async function createProtectionPlanPayment(input: {
+  booking: Booking & { customer: Customer; lead: Lead };
+  plans: { id: string; price: number }[];
+  actor: { byUserId?: string; label: string };
+}) {
+  const { booking, plans, actor } = input;
+  const amount = roundToPaise(plans.reduce((sum, plan) => sum + plan.price, 0));
+  return createGatewayPayment({
+    booking,
+    actor,
+    baseAmount: amount,
+    purpose: "EXTRA",
+    description: "Protection Plan",
+    protectionPlans: { ids: plans.map((plan) => plan.id), amount },
   });
 }
 

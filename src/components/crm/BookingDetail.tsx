@@ -23,12 +23,12 @@ import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
 import { ReusableDocumentsPrompt } from "./ReusableDocumentsPrompt";
 import { CommunicationsPanel } from "./CommunicationsPanel";
-import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { SERVICE_TYPE_LABELS, PROTECTION_PLAN_STATUS_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { cn } from "@/lib/cn";
-import type { BookingStatus, DocumentStatus, ExtensionOutcome, PaxType, ServiceType } from "../../generated/prisma/enums";
+import type { BookingStatus, DocumentStatus, ExtensionOutcome, PaxType, ProtectionPlanStatus, ServiceType } from "../../generated/prisma/enums";
 
 interface DocumentItem {
   id: string;
@@ -97,6 +97,8 @@ interface BookingDetailResponse {
   travelDate: string | null;
   serviceStatusName: string | null;
   applicants: ApplicantRow[];
+  /** P12 — New Visa only: per passenger, Visa status and Protection Plan status side by side. */
+  passengerStatuses: { passengerId: string; fullName: string; visaStatus: string; protectionPlanStatus: ProtectionPlanStatus | null }[];
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -350,6 +352,34 @@ export function BookingDetail({
             <ApplicantsTable applicants={booking.applicants} />
           </section>
 
+          {booking.passengerStatuses.length > 0 ? (
+            <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+              <h2 className="mb-3 text-sm font-semibold text-ink-heading">Visa &amp; Protection Plan by passenger</h2>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[420px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-hairline text-xs text-ink-tertiary">
+                      <th scope="col" className="py-2 pr-3 font-medium">Passenger</th>
+                      <th scope="col" className="py-2 pr-3 font-medium">Visa status</th>
+                      <th scope="col" className="py-2 font-medium">Protection Plan</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {booking.passengerStatuses.map((row) => (
+                      <tr key={row.passengerId} className="border-b border-hairline last:border-b-0">
+                        <td className="py-2 pr-3 text-ink-primary">{row.fullName}</td>
+                        <td className="py-2 pr-3 text-ink-secondary">{row.visaStatus}</td>
+                        <td className="py-2 text-ink-secondary">
+                          {row.protectionPlanStatus ? PROTECTION_PLAN_STATUS_LABELS[row.protectionPlanStatus] : "Not offered"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          ) : null}
+
           {booking.serviceType === "NEW_VISA" ? (
             <EmbassyActionsPanel
               bookingId={booking.id}
@@ -435,13 +465,8 @@ export function BookingDetail({
                         <div className="mt-2 border-t border-hairline pt-2">
                           <ProtectionPlanControl
                             plan={protectionPlan}
-                            onChanged={(updated) =>
-                              setBooking((current) =>
-                                current
-                                  ? { ...current, protectionPlans: current.protectionPlans.map((p) => (p.id === updated.id ? updated : p)) }
-                                  : current
-                              )
-                            }
+                            canDecideRefund={canApproveRefunds}
+                            onChanged={() => setReloadNonce((current) => current + 1)}
                           />
                         </div>
                       ) : null}

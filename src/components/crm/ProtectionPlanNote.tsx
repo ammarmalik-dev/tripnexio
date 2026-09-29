@@ -10,8 +10,8 @@ import { getJson } from "@/lib/api/client";
  * since Protection Plan is fundamentally per-BookingPassenger and no
  * BookingPassenger rows exist yet until a Booking is created. The real
  * interactive purchase flow lives on the Booking detail page
- * (ProtectionPlanControl.tsx), where every New Visa booking's passengers
- * are pre-offered a plan automatically.
+ * (ProtectionPlanControl.tsx), where a New Visa booking's passengers are
+ * offered a plan when it's enabled for the destination country (P12).
  */
 export function ProtectionPlanNote() {
   const [price, setPrice] = useState<string | null>(null);
@@ -35,8 +35,8 @@ export function ProtectionPlanNote() {
   return (
     <div className="mb-3 flex items-center gap-2 rounded-lg bg-accent/5 px-3 py-2 text-xs text-ink-secondary">
       <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-ink-accent" aria-hidden="true" />
-      Protection Plan (₹{price}/eligible passenger) will be offered to each passenger once this lead becomes a booking — manage it from the
-      booking&apos;s Passengers section.
+      Protection Plan (default ₹{price}/eligible passenger) is offered to each passenger once this lead becomes a booking, if it&apos;s enabled
+      for the destination country — manage it from the booking&apos;s Passengers section.
     </div>
   );
 }

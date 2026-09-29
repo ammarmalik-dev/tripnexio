@@ -72,7 +72,7 @@ export function NewVisaRequestFlow() {
         passportImageBase64: "",
         additionalTravellers: [],
         processingType: prefill.processingType,
-        protectionPlanInterested: false,
+        protectionPlanTravellers: [],
         protectionPlanTermsAccepted: false,
       }}
       stepFields={newVisaStepFields}
