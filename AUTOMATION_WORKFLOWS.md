@@ -8,7 +8,7 @@ Most of what TripNexio does happens in response to something — a customer subm
 
 Every one of these workflows is visible to the team at **Admin → Automation** — showing when each one last ran, whether it succeeded, and what it did.
 
-## The seven workflows
+## The eight workflows
 
 ### 1. Quote Expiry Handling
 **Runs every 5 minutes.** Calls `POST /api/automation/quote-expiry`.
@@ -50,6 +50,12 @@ This one is different from the other four — it doesn't send anything, it **del
 
 - The Admin System Configuration screen has an "Audit Retention (days)" setting, but nothing has ever actually acted on it. This workflow is the one that would — except it's deliberately shipped in **dry-run mode only**: it reports exactly how many audit-trail rows are older than the configured retention window (visible at Admin → Automation) without deleting a single one.
 - **This stays dry-run until we've explicitly confirmed with you** whether "retention" should mean permanently deleting those old rows, or archiving them somewhere first. Audit trail entries are often exactly what's needed to resolve a customer dispute or answer a compliance question later, so we didn't want to guess and risk deleting something that turns out to matter. Once you've told us which you want, flipping this to actually delete (or archive) is a one-line change to the n8n workflow.
+
+### 8. Document Reminders
+**Runs daily at 11:00 AM.** Calls `POST /api/automation/document-reminder`.
+
+- For every service: while a booking is still waiting on a customer document (required, flagged missing, or rejected and needing a new upload), the customer gets one reminder every 24 hours listing what's outstanding, with the secure link to upload it.
+- It stops on its own as soon as the documents are uploaded or verified, and it never goes to a cancelled, refunded or completed booking, or to a closed request. The 24-hour spacing is enforced by the app, so running the workflow more often never sends more.
 
 ## What each workflow actually sends
 

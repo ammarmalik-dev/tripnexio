@@ -57,7 +57,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "That applicant isn't part of this booking.");
   }
   const documentTypes = await resolveCheckoutDocumentTypes(checkout.booking);
-  if (!documentTypes.some((doc) => doc.type === type)) {
+  // P11 — also a document staff asked this passenger for.
+  const requestedByStaff = checkout.view.requestedDocuments.some((doc) => doc.passengerId === passengerId && doc.type === type);
+  if (!documentTypes.some((doc) => doc.type === type) && !requestedByStaff) {
     return jsonError(400, "That document isn't needed for this service.");
   }
 

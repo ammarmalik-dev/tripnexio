@@ -146,7 +146,9 @@ async function deliveredOutputs(bookingId: string | null | undefined) {
   }));
 }
 
-function closedMessageFor(bookingStatus: BookingStatus | null, leadStatus: LeadStatus): string {
+function closedMessageFor(bookingStatus: BookingStatus | null, leadStatus: LeadStatus, visaRejectionReason?: string | null): string {
+  // P11 — a New Visa the embassy rejected shows the reason staff recorded.
+  if (visaRejectionReason) return `Your visa application was rejected. Reason: ${visaRejectionReason}`;
   if (bookingStatus === "CANCELLED") return "This booking has been cancelled.";
   if (bookingStatus === "REFUNDED") return "This booking was cancelled and refunded.";
   if (leadStatus === "LOST") return "This request is closed.";
@@ -191,8 +193,9 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
     orderBy: { createdAt: "desc" },
     include: {
       customer: { select: { name: true, mobile: true, email: true } },
+      // P11 — the latest booking, whatever its state, so a rejected/cancelled
+      // one shows its closed message instead of generic lead stages.
       bookings: {
-        where: { status: { notIn: ["CANCELLED", "REFUNDED"] } },
         orderBy: { createdAt: "desc" },
         take: 1,
         include: { serviceStatus: { select: { id: true, customerLabel: true, displayOrder: true, systemEvent: true } } },
@@ -211,7 +214,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
       submittedDate: formatDate(lead.createdAt),
       stages: stageIndex === "closed" ? [] : (serviceStages ?? buildStages(stageIndex)),
       delivered: await deliveredOutputs(booking?.id),
-      closedMessage: stageIndex === "closed" ? closedMessageFor(booking?.status ?? null, lead.status) : undefined,
+      closedMessage: stageIndex === "closed" ? closedMessageFor(booking?.status ?? null, lead.status, booking?.visaRejectionReason) : undefined,
     };
   }
 
@@ -234,7 +237,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
       submittedDate: formatDate(booking.createdAt),
       stages: stageIndex === "closed" ? [] : (serviceStages ?? buildStages(stageIndex)),
       delivered: await deliveredOutputs(booking.id),
-      closedMessage: stageIndex === "closed" ? closedMessageFor(booking.status, booking.lead.status) : undefined,
+      closedMessage: stageIndex === "closed" ? closedMessageFor(booking.status, booking.lead.status, booking.visaRejectionReason) : undefined,
     };
   }
 

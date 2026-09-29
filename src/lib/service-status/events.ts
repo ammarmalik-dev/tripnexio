@@ -18,6 +18,12 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   "DELIVERED_RESERVATION_PDF",
   "DELIVERED_PACKAGE_PDF",
   "DELIVERED_OTB_CONFIRMATION",
+  // P11 — New Visa embassy actions staff take on a booking.
+  "EMBASSY_APPLIED",
+  "EMBASSY_ADDITIONAL_DOCS",
+  "EMBASSY_RESUBMITTED",
+  "EMBASSY_APPROVED",
+  "EMBASSY_REJECTED",
 ] as const;
 
 export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[number];
@@ -38,5 +44,10 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   DELIVERED_RESERVATION_PDF: "Reservation PDF delivered",
   DELIVERED_PACKAGE_PDF: "Package PDF delivered",
   DELIVERED_OTB_CONFIRMATION: "OTB confirmation delivered",
+  EMBASSY_APPLIED: "Embassy: applied",
+  EMBASSY_ADDITIONAL_DOCS: "Embassy: additional documents required",
+  EMBASSY_RESUBMITTED: "Embassy: re-submitted",
+  EMBASSY_APPROVED: "Embassy: visa approved",
+  EMBASSY_REJECTED: "Embassy: rejected",
   ON_HOLD: "On Hold (marker)",
 };

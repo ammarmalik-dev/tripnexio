@@ -7,7 +7,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { writeAudit } from "@/lib/audit/log";
 import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
 import { OUTPUT_DELIVERY_EVENT, OUTPUT_TYPES, OUTPUT_TYPE_LABELS } from "@/lib/outputs/output-types";
-import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
+import { applySystemEvent, dispatchStatusNotifications, hasReachedStatusEvent, type StatusNotification } from "@/lib/service-status/engine";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { leadReference } from "@/lib/leads/reference";
@@ -57,6 +57,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+
+  // P11 — a New Visa's visa PDF follows the embassy's approval.
+  if (booking.lead.serviceType === "NEW_VISA" && parsed.data.outputType === "VISA_PDF" && !(await hasReachedStatusEvent(booking.id, "EMBASSY_APPROVED"))) {
+    return jsonError(409, "Mark the visa as Approved before delivering the visa PDF.");
+  }
 
   const passengerId = parsed.data.passengerId ?? null;
   if (passengerId && !booking.passengers.some((row) => row.passengerId === passengerId)) {

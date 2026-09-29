@@ -389,6 +389,10 @@ model Booking {
   termsVersion              Int?
   termsAcceptedAt           DateTime?
   termsAcceptedIp           String?
+  /// P11 — New Visa: when staff marked it Applied to Embassy.
+  appliedToEmbassyAt        DateTime?
+  /// P11 — New Visa: the embassy's rejection reason, shown to the customer.
+  visaRejectionReason       String?
   leadId                    String
   customerId                String
   status                    BookingStatus     @default(PENDING)
@@ -660,6 +664,8 @@ model Document {
   fileUrl         String?
   /// P09 — set when staff deliver an output document (visa, ticket, package...) to the customer.
   deliveredAt     DateTime?
+  /// P11 — why staff asked for this extra document (shown to the customer).
+  requestReason   String?
   /// Step 21 (audit §7.5) — New_Visa.md §27: set when the retention-purge
   /// automation deletes this document's file (3+ months past the
   /// booking's processing completion, Passport/Visa types exempted). The

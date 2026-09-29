@@ -90,9 +90,16 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
     label: "Document(s) required",
-    variables: ["customerName", "documentName", "leadReference"],
+    // P11 — requestReason / uploadLink are filled for staff-requested documents and the daily reminder.
+    variables: ["customerName", "documentName", "leadReference", "requestReason", "uploadLink"],
     wired: true,
-    sampleVariables: { customerName: "Sample Customer", documentName: "PASSPORT", leadReference: "10626VI001" },
+    sampleVariables: {
+      customerName: "Sample Customer",
+      documentName: "Bank statement",
+      leadReference: "10626VI001",
+      requestReason: "The embassy asked for the last 3 months",
+      uploadLink: "https://tripnexio.com/pay/sample",
+    },
   },
   {
     event: NOTIFICATION_EVENTS.DOCUMENT_APPROVED,

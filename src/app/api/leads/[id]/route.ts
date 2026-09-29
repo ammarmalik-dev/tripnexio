@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
+import { buildApplicantRows } from "@/lib/new-visa/applicants";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
 import { findPriorTripNexioVisaByPassport } from "@/lib/leads/visa-extension-eligibility";
@@ -76,6 +77,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   return jsonSuccess({
     id: lead.id,
     referenceId: leadReference(lead),
+    // P11 — every applicant with passport, DOB, occupation, pax type and guardian.
+    applicants: buildApplicantRows(lead.details, lead.customer.passengers),
     serviceType: lead.serviceType,
     status: lead.status,
     temperature: lead.temperature,

@@ -122,6 +122,9 @@ export default async function AccountPage() {
               <span className="rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
                 {customerStatusLabel("BOOKING", booking.serviceStatus, booking.status)}
               </span>
+              {booking.visaRejectionReason ? (
+                <p className="w-full text-xs text-error">Reason: {booking.visaRejectionReason}</p>
+              ) : null}
             </div>
           ))
         )}

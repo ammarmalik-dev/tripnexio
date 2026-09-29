@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
+import { buildApplicantRows } from "@/lib/new-visa/applicants";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
 import { getRefundConfig } from "@/lib/refunds/config";
@@ -77,6 +78,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     reservationIssuedAt: synced.reservationIssuedAt,
     reservationExpiresAt: synced.reservationExpiresAt,
     reservationExpired: synced.reservationExpired,
+    // P11 — Booking Date (createdAt above), Applied to Embassy Date and Travel Date, each shown separately.
+    appliedToEmbassyAt: booking.appliedToEmbassyAt,
+    visaRejectionReason: booking.visaRejectionReason,
+    travelDate: typeof (booking.lead.details as Record<string, unknown> | null)?.travelDate === "string" ? ((booking.lead.details as Record<string, unknown>).travelDate as string) : null,
+    serviceStatusName: booking.serviceStatus?.name ?? null,
+    applicants: buildApplicantRows(booking.lead.details, booking.passengers.map((row) => row.passenger)),
     leadId: booking.leadId,
     leadReferenceId: leadReference(booking.lead),
     serviceType: booking.lead.serviceType,

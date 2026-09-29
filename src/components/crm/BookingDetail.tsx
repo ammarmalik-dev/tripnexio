@@ -16,6 +16,10 @@ import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { DeliverOutputSection } from "./DeliverOutputSection";
+import { ApplicantsTable } from "./ApplicantsTable";
+import { EmbassyActionsPanel } from "./EmbassyActionsPanel";
+import { RequestDocumentForm } from "./RequestDocumentForm";
+import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
 import { ReusableDocumentsPrompt } from "./ReusableDocumentsPrompt";
 import { CommunicationsPanel } from "./CommunicationsPanel";
@@ -87,6 +91,12 @@ interface BookingDetailResponse {
   protectionPlans: ProtectionPlanData[];
   /** Step 23 (audit §7.6) — null for a booking created before this field existed. */
   documentChecklistSnapshot: DocumentChecklistSnapshot | null;
+  /** P11 — dates staff need side by side, the embassy outcome, and every applicant. */
+  appliedToEmbassyAt: string | null;
+  visaRejectionReason: string | null;
+  travelDate: string | null;
+  serviceStatusName: string | null;
+  applicants: ApplicantRow[];
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -335,6 +345,23 @@ export function BookingDetail({
             )}
           </section>
 
+          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Applicants</h2>
+            <ApplicantsTable applicants={booking.applicants} />
+          </section>
+
+          {booking.serviceType === "NEW_VISA" ? (
+            <EmbassyActionsPanel
+              bookingId={booking.id}
+              bookingDate={booking.createdAt}
+              appliedToEmbassyAt={booking.appliedToEmbassyAt}
+              travelDate={booking.travelDate}
+              currentStatus={booking.serviceStatusName}
+              rejectionReason={booking.visaRejectionReason}
+              onChanged={() => setReloadNonce((current) => current + 1)}
+            />
+          ) : null}
+
           <DeliverOutputSection
             bookingId={booking.id}
             passengers={booking.passengers}
@@ -353,6 +380,13 @@ export function BookingDetail({
                 passengers={booking.passengers}
                 onAdded={() => setReloadNonce((current) => current + 1)}
               />
+              <div className="mt-2">
+                <RequestDocumentForm
+                  bookingId={booking.id}
+                  passengers={booking.passengers}
+                  onRequested={() => setReloadNonce((current) => current + 1)}
+                />
+              </div>
             </div>
             {booking.passengers.length === 0 ? (
               <p className="text-sm text-ink-tertiary">No passengers linked to this booking.</p>

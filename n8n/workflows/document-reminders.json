@@ -1,0 +1,69 @@
+{
+  "name": "TripNexio - Document Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 11 * * *"
+            }
+          ]
+        }
+      },
+      "id": "5b1f0c2e-7d3a-4c7e-9f21-3a6d2c8e4b10",
+      "name": "Daily at 11:00 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "notes": "Set this n8n instance's timezone to Asia/Kolkata so this actually fires at 11:00 AM IST. The app itself spaces reminders 24h apart per booking."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIPNEXIO_BASE_URL }}/api/automation/document-reminder",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "a8c3e2d1-4f5b-4a6c-8e9d-0b1c2d3e4f50",
+      "name": "Call Document Reminder API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "TripNexio Automation Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily at 11:00 AM": {
+      "main": [
+        [
+          {
+            "node": "Call Document Reminder API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

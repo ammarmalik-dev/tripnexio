@@ -204,3 +204,37 @@ export async function dispatchStatusNotifications(notifications: (StatusNotifica
     }
   }
 }
+
+/**
+ * P11 — a staff action named by its system event (e.g. "Applied to
+ * Embassy"): resolves the service's status tagged with that event and
+ * applies it like a Change Status, so the configured transitions still
+ * decide whether it's allowed from where the record is now.
+ */
+export async function setServiceStatusByEvent(
+  tx: Tx,
+  input: { scope: StatusScope; entityId: string; event: ServiceStatusSystemEvent; note?: string; userId?: string; actorLabel: string }
+): Promise<SetServiceStatusResult> {
+  const entity = await loadEntity(tx, input.scope, input.entityId);
+  if (!entity) return { ok: false, httpStatus: 404, error: "Record not found." };
+  const target = await tx.serviceStatus.findFirst({
+    where: { serviceType: entity.serviceType, scope: input.scope, systemEvent: input.event, active: true },
+    select: { id: true },
+  });
+  if (!target) return { ok: false, httpStatus: 409, error: "This action isn't set up for this service (Admin → Service Statuses)." };
+  return setServiceStatus(tx, { ...input, toStatusId: target.id });
+}
+
+/** P11 — has the booking reached (or passed) the status tagged with `event`, by status order? False when it has no status or the event isn't configured. */
+export async function hasReachedStatusEvent(bookingId: string, event: ServiceStatusSystemEvent): Promise<boolean> {
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: { serviceStatus: { select: { displayOrder: true, systemEvent: true } }, lead: { select: { serviceType: true } } },
+  });
+  if (!booking?.serviceStatus || booking.serviceStatus.systemEvent === HOLD_MARKER) return false;
+  const target = await db.serviceStatus.findFirst({
+    where: { serviceType: booking.lead.serviceType, scope: "BOOKING", systemEvent: event, active: true },
+    select: { displayOrder: true },
+  });
+  return !!target && booking.serviceStatus.displayOrder >= target.displayOrder;
+}

@@ -33,6 +33,12 @@ export const AUTOMATION_WORKFLOWS: { key: string; label: string; intendedSchedul
     endpoint: "/api/automation/lead-followup",
   },
   {
+    key: "document-reminder",
+    label: "Document Reminders (every 24h while documents are outstanding)",
+    intendedSchedule: "Daily at 11:00 AM IST",
+    endpoint: "/api/automation/document-reminder",
+  },
+  {
     key: "document-retention",
     label: "Document Retention Purge",
     intendedSchedule: "Weekly, Sunday 3:00 AM IST",

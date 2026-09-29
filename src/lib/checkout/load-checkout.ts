@@ -16,7 +16,7 @@ export async function loadCheckoutByToken(token: string) {
       lead: true,
       payments: { orderBy: { createdAt: "desc" }, take: 1 },
       passengers: { include: { passenger: { select: { id: true, fullName: true } } } },
-      documents: { select: { id: true, passengerId: true, type: true, status: true } },
+      documents: { select: { id: true, passengerId: true, type: true, status: true, requestReason: true, rejectionReason: true } },
     },
   });
   if (!booking) return null;
@@ -71,6 +71,10 @@ export async function loadCheckoutByToken(token: string) {
       applicants: booking.passengers.map((row) => ({ id: row.passenger.id, fullName: row.passenger.fullName })),
       documentTypes,
       reusable,
+      // P11 — extra documents staff asked a passenger for, with the reason.
+      requestedDocuments: booking.documents
+        .filter((doc) => doc.passengerId && doc.requestReason)
+        .map((doc) => ({ passengerId: doc.passengerId as string, type: doc.type, reason: doc.requestReason as string, status: doc.status })),
       documents: booking.documents
         .filter((document) => document.passengerId)
         .map((document) => ({ passengerId: document.passengerId as string, type: document.type, status: document.status })),

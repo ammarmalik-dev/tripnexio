@@ -24,6 +24,8 @@ import { VisaExtensionPriorVisaPanel, type PriorVisaMatchItem } from "./VisaExte
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus, LeadTemperature, BookingStatus, PaymentStatus, PaxType, DocumentStatus } from "../../generated/prisma/enums";
+import { ApplicantsTable } from "./ApplicantsTable";
+import type { ApplicantRow } from "@/lib/new-visa/applicants";
 
 interface QuotationSummary {
   id: string;
@@ -67,6 +69,8 @@ interface LeadPassenger {
 interface LeadDetailResponse {
   id: string;
   referenceId: string;
+  /** P11 — every applicant: passport, DOB, occupation, passenger type, guardian. */
+  applicants: ApplicantRow[];
   serviceType: ServiceType;
   status: LeadStatus;
   temperature: LeadTemperature | null;
@@ -311,6 +315,11 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               }
             />
           ) : null}
+
+          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Applicants</h2>
+            <ApplicantsTable applicants={lead.applicants} />
+          </section>
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink-heading">Passengers &amp; Documents</h2>

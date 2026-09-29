@@ -33,6 +33,8 @@ interface CheckoutView {
   demoGateway: boolean;
   applicants: { id: string; fullName: string }[];
   documentTypes: { type: string; label: string; required: boolean }[];
+  /** P11 — extra documents staff asked a passenger for. */
+  requestedDocuments: { passengerId: string; type: string; reason: string; status: string }[];
   /** P10 — earlier uploads the customer may choose to reuse ("Use existing"). */
   reusable: { passengerId: string; type: string; sourceDocumentId: string; uploadedAt: string }[];
   documents: { passengerId: string; type: string; status: string }[];
@@ -345,7 +347,7 @@ export function CheckoutPanel({ token }: { token: string }) {
             </div>
           </div>
 
-          {view.documentTypes.length > 0 ? (
+          {view.documentTypes.length > 0 || view.requestedDocuments.length > 0 ? (
             <section className="flex flex-col gap-4">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-lg font-semibold text-ink-heading">Upload your documents</h2>
@@ -371,6 +373,19 @@ export function CheckoutPanel({ token }: { token: string }) {
                       })()}
                     />
                   ))}
+                  {view.requestedDocuments
+                    .filter((doc) => doc.passengerId === applicant.id && !view.documentTypes.some((type) => type.type === doc.type))
+                    .map((doc) => (
+                      <div key={`requested-${doc.type}`} className="flex flex-col gap-1">
+                        <DocumentSlot
+                          label={`${doc.type} (requested)`}
+                          uploaded={doc.status === "RECEIVED" || doc.status === "VERIFIED"}
+                          uploading={uploadingKey === `${applicant.id}:${doc.type}`}
+                          onFile={(file) => void handleUpload(applicant.id, doc.type, file)}
+                        />
+                        <span className="px-1 text-xs text-ink-tertiary">Why we need it: {doc.reason}</span>
+                      </div>
+                    ))}
                 </div>
               ))}
               <p className="text-xs text-ink-tertiary">
