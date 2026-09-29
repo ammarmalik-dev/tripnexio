@@ -34,6 +34,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { UrgentBadge } from "./UrgentBadge";
 import { AreaTrendChart } from "./charts/AreaTrendChart";
 import { DonutChart } from "./charts/DonutChart";
 import { ConversionFunnelChart } from "./charts/ConversionFunnelChart";
@@ -107,7 +108,7 @@ interface KpiCardProps {
    * Step 53 — "every KPI card must be clickable, opening the relevant
    * screen pre-filtered." Omitted only for a metric that genuinely has no
    * single matching filtered list (a cross-model sum like Staff Action
-   * Required) or isn't buildable at all (Delayed) — see each card's own
+   * Required) — see each card's own
    * `notClickableHint` below for which and why.
    */
   href?: string;
@@ -161,7 +162,10 @@ function ActionQueueRow({ item }: { item: ActionQueueItem }) {
       className="flex items-center justify-between gap-4 rounded-lg px-3 py-2.5 transition-colors duration-150 hover:bg-ink-primary/[0.03]"
     >
       <div className="flex min-w-0 flex-col">
-        <span className="truncate text-sm font-medium text-ink-primary">{item.label}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="truncate text-sm font-medium text-ink-primary">{item.label}</span>
+          {item.urgent ? <UrgentBadge serviceType={item.serviceType} /> : null}
+        </span>
         <span className="truncate text-xs text-ink-tertiary">{item.detail}</span>
       </div>
       <span className="shrink-0 text-xs text-ink-tertiary">
@@ -376,10 +380,10 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
                 value={data.operations.staffActionRequired}
                 icon={Users2}
                 tint="neutral"
-                notClickableHint="Documents awaiting validation + new bookings awaiting processing — see Documents/Bookings separately, no single list shows this combined count."
+                notClickableHint="Documents awaiting validation + new bookings awaiting processing + bookings past their completion SLA — see Documents/Bookings/Delay Analysis separately, no single list shows this combined count."
               />
               <KpiCard label="External Processing" value={data.operations.externalProcessing} icon={Send} tint="accent" href="/crm/bookings?status=PROCESSING" />
-              <KpiCard label="Delayed" value={data.operations.delayed} icon={Clock} tint="neutral" comingSoonHint="Requires Delay Analysis — not built yet" />
+              <KpiCard label="Delayed" value={data.operations.delayed} icon={Clock} tint="error" href="/crm/delays" />
               <KpiCard label="Refunds Raised" value={data.operations.refundsRaised} icon={RotateCcw} tint="warning" href="/crm/refunds?status=PENDING" />
               <KpiCard label="Completed" value={data.operations.completed} icon={CheckCircle2} tint="success" href="/crm/bookings?status=COMPLETED" />
             </div>

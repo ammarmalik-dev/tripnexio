@@ -34,6 +34,7 @@ export function ReturnTicketRequestFlow() {
       stepLabels={returnTicketStepLabels}
       steps={steps}
       onSubmit={submitReturnTicketRequest}
+      draftServiceType="RETURN_TICKET"
       successTitle="Request received"
       successDescription="Your Return Verified Ticket request has been received. Our team will confirm your reservation and get in touch shortly."
     />

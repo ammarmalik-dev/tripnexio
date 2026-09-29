@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronDown, ShieldCheck } from "lucide-react";
-import { crmNavGroups, type CrmNavItem } from "@/lib/crm/nav-config";
+import { crmNavGroups, filterNavGroups, type CrmNavItem } from "@/lib/crm/nav-config";
 import { Logo } from "@/components/layout/Logo";
 import { cn } from "@/lib/cn";
 
-export function CrmSidebar({ showAdminLink = false }: { showAdminLink?: boolean }) {
+/**
+ * `permissions` (P21 item 7) — the signed-in user's permission names, from
+ * the (authenticated) layout's getStaffSession(). Items the user can't open
+ * are hidden (admin.full sees everything). UI courtesy only — every CRM
+ * route/API still enforces its own permission server-side.
+ */
+export function CrmSidebar({ showAdminLink = false, permissions }: { showAdminLink?: boolean; permissions: string[] }) {
   const pathname = usePathname();
+  const visibleGroups = useMemo(() => filterNavGroups(crmNavGroups, permissions), [permissions]);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   function toggleGroup(label: string) {
@@ -29,7 +36,7 @@ export function CrmSidebar({ showAdminLink = false }: { showAdminLink?: boolean 
       </div>
 
       <nav aria-label="Internal Dashboard" className="flex flex-1 flex-col gap-4 overflow-y-auto pr-0.5">
-        {crmNavGroups.map((group, groupIndex) => {
+        {visibleGroups.map((group, groupIndex) => {
           if (!group.label) {
             return (
               <div key={`group-${groupIndex}`} className="flex flex-col gap-1">

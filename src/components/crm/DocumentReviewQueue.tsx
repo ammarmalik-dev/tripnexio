@@ -11,6 +11,8 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DashboardFilterChip } from "./DashboardFilterChip";
+import { DateRangeFilter } from "./DateRangeFilter";
+import { useDateRangeFilter } from "./useDateRangeFilter";
 import { DOCUMENT_STATUS_OPTIONS, DOCUMENT_STATUS_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -46,6 +48,10 @@ export function DocumentReviewQueue() {
   // lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
+    searchParams.get("dateFrom") ?? "",
+    searchParams.get("dateTo") ?? ""
+  );
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
@@ -70,6 +76,8 @@ export function DocumentReviewQueue() {
       try {
         const params = new URLSearchParams();
         if (status) params.set("status", status);
+        if (dateFrom) params.set("dateFrom", dateFrom);
+        if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
 
@@ -90,7 +98,7 @@ export function DocumentReviewQueue() {
     return () => {
       cancelled = true;
     };
-  }, [status, search, sort, refreshNonce]);
+  }, [status, dateFrom, dateTo, search, sort, refreshNonce]);
 
   const missingCount = items.filter((item) => (statusOverrides[item.id] ?? item.status) === "MISSING").length;
 
@@ -160,6 +168,16 @@ export function DocumentReviewQueue() {
           Refresh
         </Button>
       </div>
+
+      <DateRangeFilter
+        idPrefix="document"
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onPreset={applyPreset}
+        onCustomFrom={applyCustomFrom}
+        onCustomTo={applyCustomTo}
+        onClear={clearDates}
+      />
 
       <DashboardFilterChip
         label={status.includes(",") ? status.split(",").map((s) => DOCUMENT_STATUS_LABELS[s as DocumentStatus] ?? s).join(", ") : undefined}

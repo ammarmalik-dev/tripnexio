@@ -13,6 +13,8 @@ import { canIssueReservation } from "@/lib/bookings/reservation";
 import { getRefundConfig } from "@/lib/refunds/config";
 import { passengerVisaStatus } from "@/lib/protection-plan/passenger-status";
 import { leadOperationalBlock, parseOperationalBlock } from "@/lib/visa-change/operational";
+import { getBookingTimeline } from "@/lib/audit/booking-timeline";
+import { getBookingDates } from "@/lib/crm/booking-dates";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -69,6 +71,14 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         select: { id: true, bookingId: true, lead: { select: { serviceType: true } }, serviceStatus: { select: { name: true } } },
       })
     : null;
+  // P21 — vendor summary + full timeline, each its own small query run in
+  // parallel after the main one (never more nested includes above — that
+  // query is already heavy enough to strain the local dev database).
+  const selectedQuotation = booking.lead.quotations[0] ?? null;
+  const [selectedVendor, timeline] = await Promise.all([
+    selectedQuotation ? db.vendor.findUnique({ where: { id: selectedQuotation.vendorId }, select: { id: true, name: true } }) : Promise.resolve(null),
+    getBookingTimeline(booking),
+  ]);
   const paymentsWithRule = booking.payments.map((payment) => ({
     ...payment,
     refundRule:
@@ -101,6 +111,29 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     visaRejectionReason: booking.visaRejectionReason,
     travelDate: typeof (booking.lead.details as Record<string, unknown> | null)?.travelDate === "string" ? ((booking.lead.details as Record<string, unknown>).travelDate as string) : null,
     serviceStatusName: booking.serviceStatus?.name ?? null,
+    // P21 — CRM.md §12: every service's own labelled dates for the booking header.
+    bookingDates: getBookingDates({
+      serviceType: booking.lead.serviceType,
+      details: booking.lead.details,
+      bookingCreatedAt: synced.createdAt,
+      appliedToEmbassyAt: booking.appliedToEmbassyAt,
+    }),
+    // P21 — staff-internal vendor summary (vendor cost / margin never go to a customer view).
+    vendorSummary: selectedQuotation
+      ? {
+          vendorId: selectedQuotation.vendorId,
+          vendorName: selectedVendor?.name ?? null,
+          vendorCost: selectedQuotation.vendorCost.toString(),
+          margin: selectedQuotation.margin.toString(),
+          sellingPrice: selectedQuotation.sellingPrice.toString(),
+          quotationVendorReference: selectedQuotation.vendorReference,
+          vendorReference: booking.pnrVendorReference,
+          pnr: booking.pnr,
+        }
+      : null,
+    // P21 — CRM.md §36: booking + lead + quotations + payments/refunds + documents, oldest first, capped.
+    timeline: timeline.entries,
+    timelineTruncated: timeline.truncated,
     originalBooking: booking.originalBooking,
     // P16 — Special Fare post-payment facts for the staff actions panel.
     specialFare:
@@ -140,8 +173,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           const travelDateRaw = (booking.lead.details as Record<string, unknown> | null)?.travelDate;
           const travelDate = typeof travelDateRaw === "string" ? new Date(travelDateRaw) : null;
           const otb = await linkedOtbState(booking.id);
-          const quotation = booking.lead.quotations[0];
-          const vendor = quotation ? await db.vendor.findUnique({ where: { id: quotation.vendorId }, select: { id: true, name: true } }) : null;
+          const quotation = selectedQuotation;
+          const vendor = selectedVendor;
           const delivered = booking.documents.find((document) => document.type === "RESERVATION_PDF" && document.deliveredAt);
           return {
             cancellationFee,
@@ -175,7 +208,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     leadId: booking.leadId,
     leadReferenceId: leadReference(booking.lead),
     serviceType: booking.lead.serviceType,
-    selectedQuotation: booking.lead.quotations[0] ?? null,
+    selectedQuotation,
     customer: {
       id: booking.customer.id,
       name: booking.customer.name,

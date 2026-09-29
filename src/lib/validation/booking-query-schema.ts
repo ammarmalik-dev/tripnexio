@@ -1,7 +1,13 @@
 import { z } from "zod";
-import { BookingStatus, type BookingStatus as BookingStatusType } from "../../generated/prisma/enums";
+import {
+  BookingStatus,
+  type BookingStatus as BookingStatusType,
+  ServiceType,
+  type ServiceType as ServiceTypeType,
+} from "../../generated/prisma/enums";
 
 const bookingStatusValues = Object.values(BookingStatus) as [BookingStatusType, ...BookingStatusType[]];
+const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeType, ...ServiceTypeType[]];
 
 /**
  * Step 53 — Command Centre's "Active Bookings" KPI is PENDING+CONFIRMED+
@@ -17,6 +23,8 @@ const statusListSchema = z
 
 export const bookingListQuerySchema = z.object({
   status: statusListSchema.optional(),
+  /** P21 item 4 — filter by the booking's lead's serviceType. */
+  serviceType: z.enum(serviceTypeValues).optional(),
   search: z.string().trim().min(1).optional(),
   /** Step 54 — standardized date-range filter, matching Leads/Quotations/Payments. */
   dateFrom: z.string().optional(),

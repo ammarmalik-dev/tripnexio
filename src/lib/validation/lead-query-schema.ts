@@ -21,6 +21,12 @@ export const leadListQuerySchema = z.object({
   /** Step 53 — Command Centre's Sales Overview cards are period-scoped by createdAt; a card's link needs this to make the linked list's count actually match. */
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
+  /**
+   * P21 item 2 — "1" restricts to leads whose latest booking's latest
+   * payment didn't go through (status FAILED or EXPIRED — see
+   * PAYMENT_FAILED_STATUSES in src/lib/crm/payment-failed.ts).
+   */
+  paymentFailed: z.enum(["1"]).optional(),
   sort: z.enum(["createdAt_asc", "createdAt_desc"]).default("createdAt_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),

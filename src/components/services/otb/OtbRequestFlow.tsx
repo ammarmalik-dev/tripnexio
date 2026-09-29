@@ -41,6 +41,7 @@ export function OtbRequestFlow() {
       stepLabels={otbStepLabels}
       steps={steps}
       onSubmit={submitOtbRequest}
+      draftServiceType="OTB"
       successTitle="Request submitted"
       successDescription="Your OTB request has been received. Our team will verify the details and get in touch shortly."
     />

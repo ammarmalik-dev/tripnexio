@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
-import { toCsv } from "@/lib/csv/to-csv";
+import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import type { Quotation } from "@/generated/prisma/client";
 
@@ -65,26 +65,27 @@ export async function GET(request: NextRequest) {
   };
 
   const quotations = await db.quotation.findMany({
+    take: EXPORT_QUERY_TAKE,
     where,
     include: { lead: { include: { customer: true } } },
     orderBy: { createdAt: "desc" },
   });
 
-  const csv = toCsv(quotations, [
-    { key: "leadReferenceId", header: "Lead Reference", value: (row) => leadReference(row.lead) },
-    { key: "service", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.lead.serviceType] },
-    { key: "status", header: "Status", value: (row) => quotationStatus(row, now) },
-    { key: "customerName", header: "Customer Name", value: (row) => row.lead.customer.name },
-    { key: "customerMobile", header: "Customer Mobile", value: (row) => row.lead.customer.mobile },
-    { key: "sellingPrice", header: "Selling Price", value: (row) => Number(row.sellingPrice) },
-    { key: "margin", header: "Margin (internal)", value: (row) => Number(row.margin) },
-    { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
-  ]);
-
-  return new Response(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="quotations-${new Date().toISOString().slice(0, 10)}.csv"`,
-    },
+  return csvExportResponse({
+    exportName: "quotations",
+    filename: `quotations-${new Date().toISOString().slice(0, 10)}.csv`,
+    rows: quotations,
+    byUserId: auth.session.id,
+    filters: exportFiltersFromSearchParams(searchParams),
+    columns: [
+      { key: "leadReferenceId", header: "Lead Reference", value: (row) => leadReference(row.lead) },
+      { key: "service", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.lead.serviceType] },
+      { key: "status", header: "Status", value: (row) => quotationStatus(row, now) },
+      { key: "customerName", header: "Customer Name", value: (row) => row.lead.customer.name },
+      { key: "customerMobile", header: "Customer Mobile", value: (row) => row.lead.customer.mobile },
+      { key: "sellingPrice", header: "Selling Price", value: (row) => Number(row.sellingPrice) },
+      { key: "margin", header: "Margin (internal)", value: (row) => Number(row.margin) },
+      { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
+    ],
   });
 }

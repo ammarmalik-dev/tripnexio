@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
-  const { status, type, priority, assignedToId, sort, page, pageSize } = parsed.data;
+  const { status, type, priority, assignedToId, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
 
   // Task.serviceType is nullable (denormalized, not every trigger can
   // resolve one) — a null-serviceType task is never hidden by scoping,
@@ -26,6 +26,9 @@ export async function GET(request: NextRequest) {
     ...(status ? { status } : {}),
     ...(type ? { type } : {}),
     ...(priority ? { priority } : {}),
+    ...(dateFrom || dateTo
+      ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
+      : {}),
     ...(assignedToId ? { assignedToId: assignedToId === "unassigned" ? null : assignedToId } : {}),
     ...(!isServiceScopeUnrestricted(auth.session)
       ? { OR: [{ serviceType: null }, { serviceType: { in: auth.session.allowedServiceTypes } }] }

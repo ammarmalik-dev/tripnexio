@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, ChevronDown, type LucideIcon } from "lucide-react";
-import { adminNavGroups, type CrmNavItem } from "@/lib/crm/nav-config";
+import { adminNavGroups, filterNavGroups, type CrmNavItem } from "@/lib/crm/nav-config";
 import { Logo } from "@/components/layout/Logo";
 import { cn } from "@/lib/cn";
 
@@ -27,9 +27,11 @@ function isItemActive(pathname: string | null, href: string) {
  * permission independently (see nav-config.ts's own doc comment); this
  * component has never been the real access gate.
  */
-export function AdminSidebar() {
+export function AdminSidebar({ permissions }: { permissions: string[] }) {
   const pathname = usePathname();
-  const activeGroupLabel = adminNavGroups.find((group) => group.items.some((item) => isItemActive(pathname, item.href)))?.label ?? null;
+  // P21 item 7 — only the items this user's permissions can open (admin.full sees everything); empty groups drop out.
+  const visibleGroups = filterNavGroups(adminNavGroups, permissions);
+  const activeGroupLabel = visibleGroups.find((group) => group.items.some((item) => isItemActive(pathname, item.href)))?.label ?? null;
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupLabel);
 
   return (
@@ -39,7 +41,7 @@ export function AdminSidebar() {
         <p className="mt-1.5 text-[10.5px] font-semibold tracking-wide text-ink-on-dark-muted uppercase">Admin</p>
       </div>
       <nav aria-label="Admin" className="flex flex-1 flex-col gap-1 overflow-y-auto pr-0.5">
-        {adminNavGroups.map((group, groupIndex) => {
+        {visibleGroups.map((group, groupIndex) => {
           if (group.label === null) {
             return (
               <div key={`group-${groupIndex}`} className="flex flex-col gap-1 pb-2">

@@ -1,6 +1,7 @@
 import { Download } from "lucide-react";
 import { buttonBaseClass, buttonVariantClass, buttonSizeClass } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { MAX_EXPORT_ROWS } from "@/lib/csv/export-limits";
 
 const EXPORTS = [
   { label: "Customers", href: "/api/admin/export/customers", description: "Every customer record: name, mobile, email, created date." },
@@ -17,6 +18,9 @@ const EXPORTS = [
 export function DataExportPanel() {
   return (
     <div className="flex flex-col gap-4">
+      <p className="text-xs text-ink-tertiary">
+        Each export is capped at {MAX_EXPORT_ROWS.toLocaleString("en-IN")} rows (oldest first) and every download is recorded in the audit trail.
+      </p>
       {EXPORTS.map((item) => (
         <div key={item.href} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
           <div>

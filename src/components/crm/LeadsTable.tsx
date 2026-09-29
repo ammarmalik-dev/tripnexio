@@ -14,10 +14,12 @@ import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { LeadTemperatureBadge } from "./LeadTemperatureBadge";
+import { UrgentBadge } from "./UrgentBadge";
+import { ListPagination } from "./ListPagination";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TEMPERATURE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
-import type { ServiceType, LeadStatus, LeadTemperature } from "../../generated/prisma/enums";
+import type { ServiceType, LeadStatus, LeadTemperature, PaymentStatus } from "../../generated/prisma/enums";
 
 interface LeadListItem {
   id: string;
@@ -27,6 +29,9 @@ interface LeadListItem {
   temperature: LeadTemperature | null;
   source: string | null;
   createdAt: string;
+  urgent: boolean;
+  abandoned: boolean;
+  paymentFailedStatus: PaymentStatus | null;
   customer: { name: string; mobile: string; email: string | null };
   assignedStaff: { id: string; name: string; active: boolean } | null;
 }
@@ -39,6 +44,8 @@ interface LeadListResponse {
 }
 
 type SortOption = "createdAt_desc" | "createdAt_asc";
+
+const PAGE_SIZE = 25;
 type FetchState = "loading" | "success" | "error";
 
 function formatDate(iso: string): string {
@@ -52,7 +59,16 @@ export function LeadsTable() {
   const [serviceType, setServiceType] = useState(() => searchParams.get("serviceType") ?? "");
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
   const [temperature, setTemperature] = useState(() => searchParams.get("temperature") ?? "");
-  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
+  const [paymentFailed, setPaymentFailed] = useState(() => searchParams.get("paymentFailed") === "1");
+  const [page, setPage] = useState(1);
+  const {
+    dateFrom,
+    dateTo,
+    applyPreset: applyPresetRaw,
+    applyCustomFrom: applyCustomFromRaw,
+    applyCustomTo: applyCustomToRaw,
+    clear: clearDatesRaw,
+  } = useDateRangeFilter(
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
   );
@@ -64,6 +80,25 @@ export function LeadsTable() {
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+
+  // Any filter/search/sort change goes back to page 1 — set alongside the
+  // filter itself (in the event handler), never from an effect.
+  function applyPreset(days: number) {
+    applyPresetRaw(days);
+    setPage(1);
+  }
+  function applyCustomFrom(dateOnly: string) {
+    applyCustomFromRaw(dateOnly);
+    setPage(1);
+  }
+  function applyCustomTo(dateOnly: string) {
+    applyCustomToRaw(dateOnly);
+    setPage(1);
+  }
+  function clearDates() {
+    clearDatesRaw();
+    setPage(1);
+  }
 
   function buildFilterParams() {
     const params = new URLSearchParams();
@@ -78,7 +113,13 @@ export function LeadsTable() {
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    // Only fires after searchInput actually changes (plus once on mount,
+    // when page is already 1), so resetting the page here never undoes a
+    // Prev/Next click.
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
 
@@ -95,7 +136,10 @@ export function LeadsTable() {
         if (dateFrom) params.set("dateFrom", dateFrom);
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
+        if (paymentFailed) params.set("paymentFailed", "1");
         params.set("sort", sort);
+        params.set("page", String(page));
+        params.set("pageSize", String(PAGE_SIZE));
 
         const result = await getJson<LeadListResponse>(`/api/leads?${params.toString()}`);
         if (cancelled) return;
@@ -113,7 +157,7 @@ export function LeadsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, status, temperature, dateFrom, dateTo, search, sort, refreshNonce]);
+  }, [serviceType, status, temperature, paymentFailed, dateFrom, dateTo, search, sort, page, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -139,7 +183,10 @@ export function LeadsTable() {
         <select
           id="filter-service"
           value={serviceType}
-          onChange={(event) => setServiceType(event.target.value)}
+          onChange={(event) => {
+            setServiceType(event.target.value);
+            setPage(1);
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="">All services</option>
@@ -156,7 +203,10 @@ export function LeadsTable() {
         <select
           id="filter-status"
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            setPage(1);
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
         >
           <option value="">All statuses</option>
@@ -173,7 +223,10 @@ export function LeadsTable() {
         <select
           id="filter-temperature"
           value={temperature}
-          onChange={(event) => setTemperature(event.target.value)}
+          onChange={(event) => {
+            setTemperature(event.target.value);
+            setPage(1);
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
         >
           <option value="">All temperatures</option>
@@ -184,13 +237,32 @@ export function LeadsTable() {
           ))}
         </select>
 
+        <label htmlFor="filter-payment-failed" className="sr-only">
+          Filter by payment outcome
+        </label>
+        <select
+          id="filter-payment-failed"
+          value={paymentFailed ? "1" : ""}
+          onChange={(event) => {
+            setPaymentFailed(event.target.value === "1");
+            setPage(1);
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+        >
+          <option value="">All payments</option>
+          <option value="1">Payment failed</option>
+        </select>
+
         <label htmlFor="sort-leads" className="sr-only">
           Sort by created date
         </label>
         <select
           id="sort-leads"
           value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            setPage(1);
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="createdAt_desc">Newest first</option>
@@ -270,6 +342,31 @@ export function LeadsTable() {
                     <Link href={`/crm/leads/${lead.id}`} className="text-ink-accent hover:underline">
                       {lead.referenceId}
                     </Link>
+                    {lead.urgent || lead.paymentFailedStatus || lead.abandoned ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {lead.abandoned ? (
+                          <span
+                            className="inline-flex items-center whitespace-nowrap rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning"
+                            title="Contact details only — the customer left the website form after step 1"
+                          >
+                            Abandoned
+                          </span>
+                        ) : null}
+                        {lead.urgent ? <UrgentBadge serviceType={lead.serviceType} /> : null}
+                        {lead.paymentFailedStatus ? (
+                          <span
+                            className="inline-flex items-center whitespace-nowrap rounded-full bg-error/10 px-2 py-0.5 text-xs font-medium text-error"
+                            title={
+                              lead.paymentFailedStatus === "EXPIRED"
+                                ? "Latest payment link expired unpaid"
+                                : "Latest payment attempt failed"
+                            }
+                          >
+                            Payment failed
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col">
@@ -304,9 +401,14 @@ export function LeadsTable() {
       ) : null}
 
       {state === "success" ? (
-        <p className="text-xs text-ink-tertiary">
-          Showing {items.length} of {total} lead{total === 1 ? "" : "s"}
-        </p>
+        <ListPagination
+          noun="lead"
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={total}
+          itemCount={items.length}
+          onPageChange={setPage}
+        />
       ) : null}
     </div>
   );

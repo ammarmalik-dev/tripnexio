@@ -29,6 +29,10 @@ import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
 import { ReusableDocumentsPrompt } from "./ReusableDocumentsPrompt";
 import { CommunicationsPanel } from "./CommunicationsPanel";
+import { BookingDatesRow } from "./booking/BookingDatesRow";
+import { BookingVendorSummary, type BookingVendorSummaryData } from "./booking/BookingVendorSummary";
+import { BookingTimelineSection, type BookingTimelineEntry } from "./booking/BookingTimelineSection";
+import type { BookingDateItem } from "@/lib/crm/booking-dates";
 import { SERVICE_TYPE_LABELS, PROTECTION_PLAN_STATUS_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -121,13 +125,16 @@ interface BookingDetailResponse {
   extensions: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   /** P12 — New Visa only: per passenger, Visa status and Protection Plan status side by side. */
   passengerStatuses: { passengerId: string; fullName: string; visaStatus: string; protectionPlanStatus: ProtectionPlanStatus | null }[];
+  /** P21 — CRM.md §12 service-specific labelled dates. */
+  bookingDates: BookingDateItem[];
+  /** P21 — staff-internal vendor / cost / margin / reference / PNR summary. */
+  vendorSummary: BookingVendorSummaryData | null;
+  /** P21 — CRM.md §36, oldest first, capped server-side. */
+  timeline: BookingTimelineEntry[];
+  timelineTruncated: boolean;
 }
 
 type FetchState = "loading" | "success" | "error";
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
 
 /** Step 16 (audit §3.6) — same type-name convention /api/documents/[id]/upload already auto-triggers OCR on. */
 function extractionTypeForDocument(type: string): "TICKET" | "VISA" | null {
@@ -268,8 +275,9 @@ export function BookingDetail({
           </p>
           <h1 className="text-xl font-semibold text-ink-heading">{booking.bookingId}</h1>
           <p className="text-xs text-ink-tertiary">
-            {booking.customer.name} · {booking.customer.mobile} · Created {formatDate(booking.createdAt)}
+            {booking.customer.name} · {booking.customer.mobile}
           </p>
+          <BookingDatesRow items={booking.bookingDates} />
           {booking.originalBooking ? (
             <p className="text-xs text-ink-secondary">
               Extends original New Visa booking{" "}
@@ -663,6 +671,8 @@ export function BookingDetail({
               </section>
             );
           })()}
+
+          <BookingTimelineSection entries={booking.timeline} truncated={booking.timelineTruncated} />
         </div>
 
         <div className="flex flex-col gap-6">
@@ -675,15 +685,14 @@ export function BookingDetail({
             </div>
           </section>
 
-          {booking.selectedQuotation ? (
-            <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-              <h2 className="mb-3 text-sm font-semibold text-ink-heading">Selected Quotation</h2>
-              <p className="text-sm text-ink-secondary">
-                Selling Price: <span className="font-medium text-ink-primary">₹{booking.selectedQuotation.sellingPrice}</span>
-              </p>
-              <p className="text-xs text-ink-tertiary">Margin (internal): ₹{booking.selectedQuotation.margin}</p>
-            </section>
-          ) : null}
+          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
+            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Vendor</h2>
+            {booking.vendorSummary ? (
+              <BookingVendorSummary vendor={booking.vendorSummary} compact={booking.serviceType === "RETURN_TICKET"} />
+            ) : (
+              <p className="text-sm text-ink-tertiary">No selected quotation, so no vendor on record.</p>
+            )}
+          </section>
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink-heading">Communications</h2>

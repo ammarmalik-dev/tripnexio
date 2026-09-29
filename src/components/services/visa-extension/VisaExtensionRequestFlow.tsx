@@ -34,6 +34,7 @@ export function VisaExtensionRequestFlow() {
       stepLabels={visaExtensionStepLabels}
       steps={steps}
       onSubmit={submitVisaExtensionRequest}
+      draftServiceType="VISA_EXTENSION"
       successTitle="Request received"
       successDescription="Your Visa Extension request has been received. Our team will validate each applicant's details and documents and get in touch shortly."
     />

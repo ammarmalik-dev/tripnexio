@@ -1,5 +1,7 @@
 import { db } from "../db";
 import { leadReference } from "../leads/reference";
+import { getDelayKpis } from "./delays";
+import { isUrgentRequest } from "./urgency";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 /**
@@ -19,9 +21,8 @@ export interface DashboardPeriod {
 
 /**
  * CRM.md §4 lists "Hot/Warm/Cold Leads" as a possible KPI — real as of Step
- * 12 (the `Lead.temperature` field). "Delayed" is still `null`: there's no
- * Delay/DelayAnalysis model at all yet (a later, unscoped feature — CRM.md
- * §30 has its own "Delay Analysis" nav item). Per CLAUDE.md hard rule #1
+ * 12 (the `Lead.temperature` field). "Delayed" is real as of P21 item 9
+ * (SLA-based, src/lib/crm/delays.ts — see /crm/delays). Per CLAUDE.md hard rule #1
  * ("never invent authoritative domain data... don't fabricate numbers"),
  * an unbuildable KPI stays `null` -> the UI's "Coming soon" state, rather
  * than a fake 0 or being silently dropped.
@@ -55,7 +56,8 @@ export interface OperationsOverview {
   customerActionRequired: number;
   staffActionRequired: number;
   externalProcessing: number;
-  delayed: null;
+  /** P21 item 9 — distinct bookings with an open SLA delay (src/lib/crm/delays.ts). */
+  delayed: number;
   refundsRaised: number;
   completed: number;
 }
@@ -81,6 +83,10 @@ export interface ActionQueueItem {
   href: string;
   /** ISO timestamp — a future deadline for QUOTE_EXPIRING, a past "waiting since" moment for everything else. */
   occurredAt: string;
+  /** P21 item 6 — the underlying request is New Visa Express / urgent OTB (rule: ./urgency.ts). */
+  urgent: boolean;
+  /** Service of the underlying lead — lets the UI word the urgent badge per service. */
+  serviceType: ServiceType;
 }
 
 // Same status list + threshold as the n8n "Periodic Service Follow-ups"
@@ -119,6 +125,11 @@ const ACTION_QUEUE_GROUP_LIMIT = 8;
  * number, disclose it" precedent as LEAD_STALLED_AFTER_MS above.
  */
 const TRAVEL_DATE_SERVICES = ["NEW_VISA", "OTB", "RETURN_TICKET", "FLIGHT_SPECIAL_FARE"] as const;
+/** P21 item 6 — the urgency + service fields every ActionQueueItem carries, derived from its underlying lead. */
+function leadUrgency(lead: { serviceType: ServiceType; details: unknown }): Pick<ActionQueueItem, "urgent" | "serviceType"> {
+  return { urgent: isUrgentRequest(lead.serviceType, lead.details), serviceType: lead.serviceType };
+}
+
 const APPROACHING_TRAVEL_DATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 /** A Lead this far along has either converted or died — no travel date on it is still "approaching" in a way that needs action. */
 const TRAVEL_DATE_TERMINAL_STATUSES = ["CONVERTED", "LOST", "CLOSED"] as const;
@@ -360,6 +371,9 @@ export async function getOperationsOverview(allowedServiceTypes?: ServiceScope):
 
   const bookingCount = (status: string) => bookingStatusGroups.find((g) => g.status === status)?._count._all ?? 0;
   const documentCount = (status: string) => documentStatusGroups.find((g) => g.status === status)?._count._all ?? 0;
+  // P21 item 9 — the same delay helper /crm/delays uses; run after the
+  // groupBys above (not in the Promise.all) to keep concurrent queries low.
+  const delayKpis = await getDelayKpis(allowedServiceTypes);
 
   return {
     activeBookings: bookingCount("PENDING") + bookingCount("CONFIRMED") + bookingCount("PROCESSING"),
@@ -368,11 +382,14 @@ export async function getOperationsOverview(allowedServiceTypes?: ServiceScope):
     customerActionRequired: documentCount("MISSING"),
     // Staff must act: a customer-uploaded document awaiting validation, or
     // a booking that hasn't been picked up for processing yet.
-    staffActionRequired: documentCount("RECEIVED") + bookingCount("PENDING"),
+    // P21 item 9 — plus bookings past their completion SLA that aren't
+    // PENDING (PENDING ones and RECEIVED documents, the document-SLA case,
+    // are already in the first two terms — never double-counted).
+    staffActionRequired: documentCount("RECEIVED") + bookingCount("PENDING") + delayKpis.completionDelayedBeyondPending,
     // Sent to an external party (vendor/airline/embassy) — the existing
     // BookingStatus.PROCESSING state.
     externalProcessing: bookingCount("PROCESSING"),
-    delayed: null,
+    delayed: delayKpis.delayedBookings,
     refundsRaised,
     completed: bookingCount("COMPLETED"),
   };
@@ -420,31 +437,31 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
     where: { status: "MISSING", bookingId: { not: null }, ...bookingLeadScope },
     orderBy: { updatedAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
-    include: { booking: { include: { customer: true } } },
+    include: { booking: { include: { customer: true, lead: true } } },
   });
   const documentsReceived = await db.document.findMany({
     where: { status: "RECEIVED", bookingId: { not: null }, ...bookingLeadScope },
     orderBy: { updatedAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
-    include: { booking: { include: { customer: true } } },
+    include: { booking: { include: { customer: true, lead: true } } },
   });
   const documentsRejected = await db.document.findMany({
     where: { status: "REJECTED", bookingId: { not: null }, ...bookingLeadScope },
     orderBy: { updatedAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
-    include: { booking: { include: { customer: true } } },
+    include: { booking: { include: { customer: true, lead: true } } },
   });
   const pendingRefunds = await db.refund.findMany({
     where: { status: "PENDING", ...(allowedServiceTypes ? { payment: bookingLeadScope } : {}) },
     orderBy: { createdAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
-    include: { payment: { include: { booking: { include: { customer: true } } } } },
+    include: { payment: { include: { booking: { include: { customer: true, lead: true } } } } },
   });
   const newBookings = await db.booking.findMany({
     where: { status: "PENDING", ...leadRelationScope },
     orderBy: { createdAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
-    include: { customer: true },
+    include: { customer: true, lead: true },
   });
   const staleLeads = await db.lead.findMany({
     where: { status: { in: [...LEAD_STALLED_STATUSES] }, updatedAt: { lt: staleCutoff }, ...leadScope },
@@ -463,7 +480,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
     where: { status: "PENDING", ...bookingLeadScope },
     orderBy: { createdAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
-    include: { booking: { include: { customer: true } } },
+    include: { booking: { include: { customer: true, lead: true } } },
   });
   // Step 53 — "approaching travel dates." travelDate lives in Lead.details
   // (JSON, not a real column), so this can't be pushed into the where
@@ -504,6 +521,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
         detail: `${lead.customer.name} — ${leadReference(lead)}`,
         href: `/crm/leads/${lead.id}`,
         occurredAt: travelDate.toISOString(),
+        ...leadUrgency(lead),
       };
       return item;
     })
@@ -518,6 +536,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${q.lead.customer.name} — ${leadReference(q.lead)}`,
       href: `/crm/leads/${q.leadId}`,
       occurredAt: (q.validityExpiresAt as Date).toISOString(),
+      ...leadUrgency(q.lead),
     })),
     ...approachingTravelDates,
   ].sort((a, b) => new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime());
@@ -532,6 +551,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${p.booking.customer.name} — ${p.booking.bookingId}`,
       href: `/crm/bookings/${p.booking.id}`,
       occurredAt: p.createdAt.toISOString(),
+      ...leadUrgency(p.booking.lead),
     });
   }
   for (const lead of assignedToInactiveStaff) {
@@ -541,6 +561,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${lead.customer.name} — ${leadReference(lead)} (was: ${lead.assignedStaff!.name})`,
       href: `/crm/leads/${lead.id}`,
       occurredAt: lead.updatedAt.toISOString(),
+      ...leadUrgency(lead),
     });
   }
 
@@ -552,6 +573,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${d.booking.customer.name} — ${d.booking.bookingId}`,
       href: `/crm/bookings/${d.booking.id}`,
       occurredAt: d.updatedAt.toISOString(),
+      ...leadUrgency(d.booking.lead),
     });
   }
   for (const d of documentsReceived) {
@@ -562,6 +584,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${d.booking.customer.name} — ${d.booking.bookingId}`,
       href: `/crm/bookings/${d.booking.id}`,
       occurredAt: d.updatedAt.toISOString(),
+      ...leadUrgency(d.booking.lead),
     });
   }
   for (const d of documentsRejected) {
@@ -572,6 +595,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${d.booking.customer.name} — ${d.booking.bookingId}`,
       href: `/crm/bookings/${d.booking.id}`,
       occurredAt: d.updatedAt.toISOString(),
+      ...leadUrgency(d.booking.lead),
     });
   }
   for (const r of pendingRefunds) {
@@ -582,6 +606,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${r.payment.booking.customer.name} — ${r.payment.booking.bookingId}`,
       href: `/crm/bookings/${r.payment.booking.id}`,
       occurredAt: r.createdAt.toISOString(),
+      ...leadUrgency(r.payment.booking.lead),
     });
   }
   for (const b of newBookings) {
@@ -591,6 +616,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${b.customer.name} — ${b.bookingId}`,
       href: `/crm/bookings/${b.id}`,
       occurredAt: b.createdAt.toISOString(),
+      ...leadUrgency(b.lead),
     });
   }
   for (const lead of staleLeads) {
@@ -600,6 +626,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${lead.customer.name} — ${leadReference(lead)}`,
       href: `/crm/leads/${lead.id}`,
       occurredAt: lead.updatedAt.toISOString(),
+      ...leadUrgency(lead),
     });
   }
   for (const q of selectedQuotations) {
@@ -611,6 +638,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
       detail: `${q.lead.customer.name} — ${leadReference(q.lead)}`,
       href: `/crm/leads/${q.leadId}`,
       occurredAt: q.updatedAt.toISOString(),
+      ...leadUrgency(q.lead),
     });
   }
 

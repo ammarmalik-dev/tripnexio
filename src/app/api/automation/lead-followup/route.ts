@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
+import { ABANDONED_DRAFT_SOURCE } from "@/lib/leads/abandoned-draft";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
@@ -70,6 +71,8 @@ export async function POST(request: NextRequest) {
           serviceType: { not: "FLIGHT_SPECIAL_FARE" },
           status: { in: [...OPEN_STATUSES] },
           followUpOptOut: false,
+          // P21 — never nudge an abandoned step-1 draft as if a request had been submitted.
+          OR: [{ source: null }, { source: { not: ABANDONED_DRAFT_SOURCE } }],
           updatedAt: { lt: new Date(now - STALE_AFTER_MS) },
         },
         include: { customer: true },

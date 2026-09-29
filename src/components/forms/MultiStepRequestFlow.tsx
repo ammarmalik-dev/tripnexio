@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ComponentType } from "react";
+import { useRef, useState, type ComponentType } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { FormProvider, useForm, type DefaultValues, type FieldValues, type Path, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,6 +17,7 @@ import { HONEYPOT_FIELD } from "@/lib/validation/honeypot";
 import { RequestInfoPanel } from "./RequestInfoPanel";
 import { toast } from "@/components/ui/Toaster";
 import { ApiError, RequestIneligibleOutcome } from "@/lib/api/client";
+import type { DraftServiceType } from "@/lib/validation/lead-draft-schema";
 
 type SubmitState = "idle" | "loading" | "success" | "error" | "ineligible";
 
@@ -41,6 +42,33 @@ interface MultiStepRequestFlowProps<T extends FieldValues> {
   onSubmit: (values: T) => Promise<{ referenceId: string; nextUrl?: string }>;
   successTitle: string;
   successDescription: string;
+  /**
+   * P21 — abandoned-form capture. When set, leaving the contact step
+   * (`draftStepIndex`, default 0) fires a fire-and-forget POST to
+   * /api/leads/draft with the form's `fullName`/`mobile`/`email`, so an
+   * abandoned form still leaves a Lead. Never blocks or errors the UI.
+   */
+  draftServiceType?: DraftServiceType;
+  /** The step index whose fields include fullName/mobile/email (Visa Change collects them on its second step). */
+  draftStepIndex?: number;
+}
+
+/** Fire-and-forget: a failed draft save must never surface to the visitor. */
+function saveAbandonedDraft(payload: { serviceType: DraftServiceType; fullName: string; mobile: string; email: string; website: string }) {
+  try {
+    void fetch("/api/leads/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // Ignore — the full submission creates the lead regardless.
+  }
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
 }
 
 /**
@@ -61,6 +89,8 @@ export function MultiStepRequestFlow<T extends FieldValues>({
   onSubmit,
   successTitle,
   successDescription,
+  draftServiceType,
+  draftStepIndex = 0,
 }: MultiStepRequestFlowProps<T>) {
   const methods = useForm<T>({
     // zod's generic schema type and react-hook-form's Resolver type don't
@@ -77,6 +107,8 @@ export function MultiStepRequestFlow<T extends FieldValues>({
   const [nextUrl, setNextUrl] = useState<string | null>(null);
   const [ineligibleOutcome, setIneligibleOutcome] = useState<RequestIneligibleOutcome | null>(null);
   const shouldReduceMotion = useReducedMotion();
+  // Last contact combo sent to /api/leads/draft — Back/Continue without changes doesn't re-post.
+  const lastDraftKey = useRef<string | null>(null);
 
   const handleNext = async () => {
     const valid = await methods.trigger(stepFields[currentIndex] as Path<T>[]);
@@ -87,6 +119,21 @@ export function MultiStepRequestFlow<T extends FieldValues>({
         methods.setError(issue.path as Path<T>, { type: "manual", message: issue.message });
       }
       return;
+    }
+    if (draftServiceType && currentIndex === draftStepIndex) {
+      const values = methods.getValues() as Record<string, unknown>;
+      const payload = {
+        serviceType: draftServiceType,
+        fullName: stringValue(values.fullName),
+        mobile: stringValue(values.mobile),
+        email: stringValue(values.email),
+        website: stringValue(values[HONEYPOT_FIELD]),
+      };
+      const key = `${payload.fullName}|${payload.mobile}|${payload.email}`;
+      if (payload.fullName && payload.mobile && payload.email && key !== lastDraftKey.current) {
+        lastDraftKey.current = key;
+        saveAbandonedDraft(payload);
+      }
     }
     goNext();
   };

@@ -34,6 +34,7 @@ export function FlightSpecialFareRequestFlow() {
       stepLabels={flightSpecialFareStepLabels}
       steps={steps}
       onSubmit={submitFlightSpecialFareRequest}
+      draftServiceType="FLIGHT_SPECIAL_FARE"
       successTitle="Request received"
       successDescription="Your Flight Special Fare request has been received. Our team will check available fares and get in touch shortly."
     />

@@ -42,13 +42,24 @@ import {
   Flag,
   CalendarDays,
   ScrollText,
+  AlarmClock,
   type LucideIcon,
 } from "lucide-react";
+import { hasPermission } from "@/lib/auth/permissions";
 
 export interface CrmNavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  /**
+   * P21 item 7 — the permission this screen's own API requires. Omitted =
+   * visible to every signed-in staff member (e.g. Command Centre, My Leave).
+   * UI courtesy only: every route still enforces its own permission
+   * server-side regardless of what the sidebar shows.
+   */
+  permission?: string;
+  /** Visible when the user holds ANY of these (checked in addition to `permission`, if both are set). */
+  anyOf?: string[];
 }
 
 export interface CrmNavGroup {
@@ -72,25 +83,27 @@ export const crmNavGroups: CrmNavGroup[] = [
   {
     label: "Sales",
     items: [
-      { label: "Leads", href: "/crm/leads", icon: ListChecks },
-      { label: "Customers", href: "/crm/customers", icon: Users },
-      { label: "Quotations", href: "/crm/quotations", icon: FileText },
+      { label: "Leads", href: "/crm/leads", icon: ListChecks, permission: "leads.view" },
+      { label: "Customers", href: "/crm/customers", icon: Users, permission: "leads.view" },
+      { label: "Quotations", href: "/crm/quotations", icon: FileText, permission: "quotations.view" },
     ],
   },
   {
     label: "Operations",
     items: [
-      { label: "Bookings", href: "/crm/bookings", icon: CalendarCheck },
-      { label: "Payments", href: "/crm/payments", icon: CreditCard },
-      { label: "Refunds", href: "/crm/refunds", icon: RotateCcw },
-      { label: "Documents", href: "/crm/documents", icon: FolderOpen },
-      { label: "Tasks", href: "/crm/tasks", icon: ListTodo },
+      { label: "Bookings", href: "/crm/bookings", icon: CalendarCheck, permission: "bookings.view" },
+      { label: "Payments", href: "/crm/payments", icon: CreditCard, permission: "payments.view" },
+      { label: "Refunds", href: "/crm/refunds", icon: RotateCcw, permission: "refunds.view" },
+      { label: "Documents", href: "/crm/documents", icon: FolderOpen, permission: "documents.view" },
+      { label: "Tasks", href: "/crm/tasks", icon: ListTodo, permission: "tasks.view" },
+      // P21 item 9 — CRM.md §3/§30 "Delay Analysis" (Operations group).
+      { label: "Delay Analysis", href: "/crm/delays", icon: AlarmClock, permission: "bookings.view" },
     ],
   },
   {
     // P16 — Flight_Special_Fare.md §25 Phase 1 analytics.
     label: "Analytics",
-    items: [{ label: "Special Fare Analytics", href: "/crm/analytics/special-fare", icon: BarChart3 }],
+    items: [{ label: "Special Fare Analytics", href: "/crm/analytics/special-fare", icon: BarChart3, permission: "leads.view" }],
   },
   {
     // Step 38 — CRM.md §3's Profile group, previously unbuilt (see doc
@@ -104,7 +117,7 @@ export const crmNavGroups: CrmNavGroup[] = [
     // in it. Vendors (CRM.md's other named Resources item) stays Admin-only
     // (masters.manage), not added here.
     label: "Resources",
-    items: [{ label: "Knowledge Centre", href: "/crm/knowledge-centre", icon: BookOpen }],
+    items: [{ label: "Knowledge Centre", href: "/crm/knowledge-centre", icon: BookOpen, permission: "knowledge.view" }],
   },
 ];
 
@@ -143,81 +156,100 @@ export const crmNavGroups: CrmNavGroup[] = [
  *   report than a "System Setting."
  */
 export const adminNavGroups: CrmNavGroup[] = [
-  { label: null, items: [{ label: "AI Command Center", href: "/admin/command-center", icon: Sparkles }] },
+  { label: null, items: [{ label: "AI Command Center", href: "/admin/command-center", icon: Sparkles, permission: "ai.assist" }] },
   {
     label: "People & Access",
     items: [
-      { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck },
-      { label: "Staff", href: "/admin/users", icon: UserCog },
-      { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff },
-      { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat },
+      { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck, permission: "roles.manage" },
+      { label: "Staff", href: "/admin/users", icon: UserCog, permission: "staff.manage" },
+      { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff, permission: "staff.manage" },
+      { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat, permission: "leads.reassign" },
     ],
   },
   {
     label: "Service Configuration",
     items: [
-      { label: "Services", href: "/admin/services", icon: LayoutGrid },
-      { label: "New Visa Countries", href: "/admin/new-visa-countries", icon: Stamp },
-      { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket },
-      { label: "OTB Prices", href: "/admin/otb-prices", icon: Tags },
-      { label: "Timelines / SLA", href: "/admin/timelines", icon: Clock },
-      { label: "Holidays", href: "/admin/holidays", icon: CalendarDays },
-      { label: "Service Terms", href: "/admin/service-terms", icon: ScrollText },
-      { label: "Document Requirements", href: "/admin/document-requirements", icon: ClipboardList },
-      { label: "Pricing", href: "/admin/pricing", icon: Tags },
-      { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints },
-      { label: "Protection Plan", href: "/admin/protection-plan", icon: ShieldCheck },
-      { label: "FAQs", href: "/admin/faqs", icon: HelpCircle },
+      { label: "Services", href: "/admin/services", icon: LayoutGrid, permission: "masters.manage" },
+      { label: "New Visa Countries", href: "/admin/new-visa-countries", icon: Stamp, permission: "masters.manage" },
+      { label: "Return Ticket Destinations", href: "/admin/return-ticket-destinations", icon: Ticket, permission: "masters.manage" },
+      { label: "OTB Prices", href: "/admin/otb-prices", icon: Tags, permission: "masters.manage" },
+      { label: "Timelines / SLA", href: "/admin/timelines", icon: Clock, permission: "masters.manage" },
+      { label: "Holidays", href: "/admin/holidays", icon: CalendarDays, permission: "masters.manage" },
+      { label: "Service Terms", href: "/admin/service-terms", icon: ScrollText, permission: "masters.manage" },
+      { label: "Document Requirements", href: "/admin/document-requirements", icon: ClipboardList, permission: "masters.manage" },
+      { label: "Pricing", href: "/admin/pricing", icon: Tags, permission: "masters.manage" },
+      { label: "Service Statuses", href: "/admin/service-statuses", icon: Waypoints, permission: "masters.manage" },
+      { label: "Protection Plan", href: "/admin/protection-plan", icon: ShieldCheck, permission: "masters.manage" },
+      { label: "FAQs", href: "/admin/faqs", icon: HelpCircle, permission: "masters.manage" },
     ],
   },
   {
     label: "Master Data",
     items: [
-      { label: "Countries", href: "/admin/countries", icon: Globe2 },
-      { label: "Nationalities", href: "/admin/nationalities", icon: Flag },
-      { label: "Visa Types", href: "/admin/visa-types", icon: Stamp },
-      { label: "Occupations", href: "/admin/occupations", icon: ClipboardList },
-      { label: "Airports", href: "/admin/airports", icon: Building2 },
-      { label: "Airlines", href: "/admin/airlines", icon: Plane },
-      { label: "Borders", href: "/admin/borders", icon: Fence },
+      { label: "Countries", href: "/admin/countries", icon: Globe2, permission: "masters.manage" },
+      { label: "Nationalities", href: "/admin/nationalities", icon: Flag, permission: "masters.manage" },
+      { label: "Visa Types", href: "/admin/visa-types", icon: Stamp, permission: "masters.manage" },
+      { label: "Occupations", href: "/admin/occupations", icon: ClipboardList, permission: "masters.manage" },
+      { label: "Airports", href: "/admin/airports", icon: Building2, permission: "masters.manage" },
+      { label: "Airlines", href: "/admin/airlines", icon: Plane, permission: "masters.manage" },
+      { label: "Borders", href: "/admin/borders", icon: Fence, permission: "masters.manage" },
     ],
   },
   {
     label: "Vendors",
     items: [
-      { label: "Vendors", href: "/admin/vendors", icon: Truck },
-      { label: "Vendor Scoring", href: "/admin/vendor-scoring", icon: Gauge },
+      { label: "Vendors", href: "/admin/vendors", icon: Truck, permission: "masters.manage" },
+      { label: "Vendor Scoring", href: "/admin/vendor-scoring", icon: Gauge, permission: "masters.manage" },
     ],
   },
   {
     label: "Sales & Quotations",
-    items: [{ label: "Coupons", href: "/admin/coupons", icon: Ticket }],
+    items: [{ label: "Coupons", href: "/admin/coupons", icon: Ticket, permission: "masters.manage" }],
   },
   {
     label: "Payments & Finance",
     items: [
-      { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent },
-      { label: "Refund Configuration", href: "/admin/refund-config", icon: RotateCcw },
-      { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature },
-      { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt },
-      { label: "Expenses", href: "/admin/expenses", icon: Wallet },
+      { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent, permission: "masters.manage" },
+      { label: "Refund Configuration", href: "/admin/refund-config", icon: RotateCcw, permission: "masters.manage" },
+      { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature, permission: "masters.manage" },
+      { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt, permission: "masters.manage" },
+      { label: "Expenses", href: "/admin/expenses", icon: Wallet, permission: "finance.manage" },
     ],
   },
   {
     label: "Reports & Exports",
     items: [
-      { label: "Data Export", href: "/admin/data-export", icon: Download },
-      { label: "Automation", href: "/admin/automation", icon: Activity },
-      { label: "P&L Report", href: "/admin/pnl-report", icon: TrendingUp },
-      { label: "Revenue Report", href: "/admin/revenue-report", icon: BarChart3 },
-      { label: "Refund Report", href: "/admin/refund-report", icon: Undo2 },
+      { label: "Data Export", href: "/admin/data-export", icon: Download, permission: "data.export" },
+      { label: "Automation", href: "/admin/automation", icon: Activity, permission: "automation.view" },
+      { label: "P&L Report", href: "/admin/pnl-report", icon: TrendingUp, permission: "finance.manage" },
+      { label: "Revenue Report", href: "/admin/revenue-report", icon: BarChart3, permission: "finance.manage" },
+      { label: "Refund Report", href: "/admin/refund-report", icon: Undo2, permission: "finance.manage" },
     ],
   },
   {
     label: "System Settings",
     items: [
-      { label: "Notification Templates", href: "/admin/notification-templates", icon: MessageSquareText },
-      { label: "System Configuration", href: "/admin/system-config", icon: Settings },
+      { label: "Notification Templates", href: "/admin/notification-templates", icon: MessageSquareText, permission: "masters.manage" },
+      { label: "System Configuration", href: "/admin/system-config", icon: Settings, permission: "masters.manage" },
     ],
   },
 ];
+
+/**
+ * P21 item 7 — the sidebar's permission filter. Drops every item the user
+ * can't open (`admin.full` passes everything, via `hasPermission`), then
+ * drops any group left with no items. A UI courtesy only — see
+ * `CrmNavItem.permission`.
+ */
+export function canSeeNavItem(item: CrmNavItem, permissions: string[]): boolean {
+  const session = { permissions };
+  if (item.permission && !hasPermission(session, item.permission)) return false;
+  if (item.anyOf && item.anyOf.length > 0 && !item.anyOf.some((permission) => hasPermission(session, permission))) return false;
+  return true;
+}
+
+export function filterNavGroups(groups: CrmNavGroup[], permissions: string[]): CrmNavGroup[] {
+  return groups
+    .map((group) => ({ ...group, items: group.items.filter((item) => canSeeNavItem(item, permissions)) }))
+    .filter((group) => group.items.length > 0);
+}

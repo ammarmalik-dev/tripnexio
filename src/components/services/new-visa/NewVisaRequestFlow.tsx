@@ -80,6 +80,7 @@ export function NewVisaRequestFlow() {
       steps={steps}
       extraStepValidation={{ 0: findNewVisaStep1Issues, 1: findNewVisaTravellerIssues }}
       onSubmit={submitNewVisaRequest}
+      draftServiceType="NEW_VISA"
       successTitle="Request submitted"
       successDescription="Your New Visa request has been received. Our team will review the details and get in touch shortly."
     />

@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { Prisma, type ServiceType } from "../../generated/prisma/client";
+import { Prisma, type Lead, type ServiceType } from "../../generated/prisma/client";
 import { nextLeadReference } from "./reference";
 import { getInitialServiceStatusId } from "../service-status/engine";
 import { writeAudit } from "../audit/log";
@@ -9,6 +9,7 @@ import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { generateToken } from "../quotations/select-quotation";
 import { findCustomerByMobile } from "../customers/find-by-mobile";
+import { findOpenDraftLead } from "./abandoned-draft";
 
 /**
  * The services that go through a staff-prepared quotation the customer
@@ -55,7 +56,7 @@ export interface CreateLeadResult {
 }
 
 /** Reuses an existing Customer by normalised mobile (primary) or email so returning customers keep their history. */
-async function findOrCreateCustomer(tx: Prisma.TransactionClient, contact: LeadContact) {
+export async function findOrCreateCustomer(tx: Prisma.TransactionClient, contact: LeadContact) {
   let customer = await findCustomerByMobile(tx, contact.mobile);
   if (!customer && contact.email) {
     customer = await tx.customer.findUnique({ where: { email: contact.email } });
@@ -154,27 +155,56 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     // Booking.customerToken via the automatic checkout instead.
     const customerToken = QUOTE_REVIEW_SERVICES.has(serviceType) ? generateToken() : undefined;
 
-    // Locked reference (1 + MM + YY + ServiceCode + monthly sequence), taken
-    // from the shared counter in this same transaction.
-    const reference = await nextLeadReference(tx, serviceType);
-    const lead = await tx.lead.create({
-      data: {
-        customerId: customer.id,
-        serviceType,
-        source: source ?? "Website",
-        reference,
-        serviceStatusId: await getInitialServiceStatusId(tx, serviceType, "LEAD"),
-        details: { ...safeDetails, passengerIds } as Prisma.InputJsonValue,
-        customerToken,
-      },
-    });
+    // P21 — abandoned-form takeover. If this customer left a step-1 draft
+    // for the same service (POST /api/leads/draft), the full submission
+    // completes THAT Lead row instead of creating a second one: same id,
+    // same reference, staff's existing notes/assignment/status kept;
+    // details are replaced by the real submission (which clears
+    // `abandonedDraft`) and `source` becomes the real source.
+    const draft = await findOpenDraftLead(tx, customer.id, serviceType);
+    let lead: Lead;
+    let reference: string;
+    if (draft) {
+      reference = draft.reference ?? (await nextLeadReference(tx, serviceType));
+      lead = await tx.lead.update({
+        where: { id: draft.id },
+        data: {
+          source: source ?? "Website",
+          reference,
+          details: { ...safeDetails, passengerIds, completedFromDraft: true } as Prisma.InputJsonValue,
+          customerToken: draft.customerToken ?? customerToken,
+          serviceStatusId: draft.serviceStatusId ?? (await getInitialServiceStatusId(tx, serviceType, "LEAD")),
+        },
+      });
+      await writeAudit(tx, {
+        entityType: "Lead",
+        entityId: lead.id,
+        action: "DRAFT_COMPLETED",
+        note: `Abandoned ${serviceType} draft completed — full form submitted via ${source ?? "Website"} for customer ${customer.id}`,
+      });
+    } else {
+      // Locked reference (1 + MM + YY + ServiceCode + monthly sequence), taken
+      // from the shared counter in this same transaction.
+      reference = await nextLeadReference(tx, serviceType);
+      lead = await tx.lead.create({
+        data: {
+          customerId: customer.id,
+          serviceType,
+          source: source ?? "Website",
+          reference,
+          serviceStatusId: await getInitialServiceStatusId(tx, serviceType, "LEAD"),
+          details: { ...safeDetails, passengerIds } as Prisma.InputJsonValue,
+          customerToken,
+        },
+      });
 
-    await writeAudit(tx, {
-      entityType: "Lead",
-      entityId: lead.id,
-      action: "CREATE",
-      note: `${serviceType} lead created via ${source ?? "Website"} for customer ${customer.id}`,
-    });
+      await writeAudit(tx, {
+        entityType: "Lead",
+        entityId: lead.id,
+        action: "CREATE",
+        note: `${serviceType} lead created via ${source ?? "Website"} for customer ${customer.id}`,
+      });
+    }
 
     return {
       leadId: lead.id,

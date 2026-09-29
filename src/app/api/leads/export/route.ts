@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
-import { toCsv } from "@/lib/csv/to-csv";
+import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { SERVICE_TYPE_LABELS, LEAD_STATUS_LABELS } from "@/lib/crm/labels";
 
 /**
@@ -46,25 +46,26 @@ export async function GET(request: NextRequest) {
   };
 
   const leads = await db.lead.findMany({
+    take: EXPORT_QUERY_TAKE,
     where,
     include: { customer: true, assignedStaff: true },
     orderBy: { createdAt: "desc" },
   });
 
-  const csv = toCsv(leads, [
-    { key: "referenceId", header: "Reference", value: (row) => leadReference(row) },
-    { key: "service", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.serviceType] },
-    { key: "status", header: "Status", value: (row) => LEAD_STATUS_LABELS[row.status] },
-    { key: "customerName", header: "Customer Name", value: (row) => row.customer.name },
-    { key: "customerMobile", header: "Customer Mobile", value: (row) => row.customer.mobile },
-    { key: "assignedStaff", header: "Assigned Staff", value: (row) => row.assignedStaff?.name ?? "" },
-    { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
-  ]);
-
-  return new Response(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="leads-${new Date().toISOString().slice(0, 10)}.csv"`,
-    },
+  return csvExportResponse({
+    exportName: "leads",
+    filename: `leads-${new Date().toISOString().slice(0, 10)}.csv`,
+    rows: leads,
+    byUserId: auth.session.id,
+    filters: exportFiltersFromSearchParams(searchParams),
+    columns: [
+      { key: "referenceId", header: "Reference", value: (row) => leadReference(row) },
+      { key: "service", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.serviceType] },
+      { key: "status", header: "Status", value: (row) => LEAD_STATUS_LABELS[row.status] },
+      { key: "customerName", header: "Customer Name", value: (row) => row.customer.name },
+      { key: "customerMobile", header: "Customer Mobile", value: (row) => row.customer.mobile },
+      { key: "assignedStaff", header: "Assigned Staff", value: (row) => row.assignedStaff?.name ?? "" },
+      { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
+    ],
   });
 }

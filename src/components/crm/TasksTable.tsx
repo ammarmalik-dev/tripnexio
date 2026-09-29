@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { TaskStatusControl } from "./TaskStatusControl";
 import { TaskPriorityBadge } from "./TaskPriorityBadge";
 import { TaskAssignmentControl } from "./TaskAssignmentControl";
+import { DateRangeFilter } from "./DateRangeFilter";
+import { useDateRangeFilter } from "./useDateRangeFilter";
 import { TASK_STATUS_OPTIONS, TASK_TYPE_OPTIONS, TASK_PRIORITY_OPTIONS, TASK_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -50,6 +52,7 @@ export function TasksTable() {
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
   const [priority, setPriority] = useState("");
+  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<TaskListItem[]>([]);
@@ -69,6 +72,8 @@ export function TasksTable() {
         if (status) params.set("status", status);
         if (type) params.set("type", type);
         if (priority) params.set("priority", priority);
+        if (dateFrom) params.set("dateFrom", dateFrom);
+        if (dateTo) params.set("dateTo", dateTo);
         params.set("sort", sort);
 
         const result = await getJson<TaskListResponse>(`/api/tasks?${params.toString()}`);
@@ -89,7 +94,7 @@ export function TasksTable() {
     return () => {
       cancelled = true;
     };
-  }, [status, type, priority, sort, refreshNonce]);
+  }, [status, type, priority, dateFrom, dateTo, sort, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -170,6 +175,16 @@ export function TasksTable() {
           Refresh
         </Button>
       </div>
+
+      <DateRangeFilter
+        idPrefix="task"
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onPreset={applyPreset}
+        onCustomFrom={applyCustomFrom}
+        onCustomTo={applyCustomTo}
+        onClear={clearDates}
+      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

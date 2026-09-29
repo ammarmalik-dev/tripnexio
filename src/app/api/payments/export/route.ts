@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
-import { toCsv } from "@/lib/csv/to-csv";
+import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { PAYMENT_STATUS_LABELS } from "@/lib/crm/labels";
 
 /**
@@ -44,28 +44,29 @@ export async function GET(request: NextRequest) {
   };
 
   const payments = await db.payment.findMany({
+    take: EXPORT_QUERY_TAKE,
     where,
     include: { booking: { include: { customer: true, lead: true } } },
     orderBy: { createdAt: "desc" },
   });
 
-  const csv = toCsv(payments, [
-    { key: "bookingId", header: "Booking ID", value: (row) => row.booking.bookingId },
-    { key: "leadReferenceId", header: "Lead Reference", value: (row) => leadReference(row.booking.lead) },
-    { key: "customerName", header: "Customer Name", value: (row) => row.booking.customer.name },
-    { key: "customerMobile", header: "Customer Mobile", value: (row) => row.booking.customer.mobile },
-    { key: "amount", header: "Base", value: (row) => Number(row.amount) },
-    { key: "gstAmount", header: "GST", value: (row) => Number(row.gstAmount) },
-    { key: "gatewayFee", header: "Gateway Fee", value: (row) => Number(row.gatewayFee) },
-    { key: "status", header: "Status", value: (row) => PAYMENT_STATUS_LABELS[row.status] },
-    { key: "gatewayRef", header: "Gateway Ref", value: (row) => row.gatewayRef ?? "" },
-    { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
-  ]);
-
-  return new Response(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="payments-${new Date().toISOString().slice(0, 10)}.csv"`,
-    },
+  return csvExportResponse({
+    exportName: "payments",
+    filename: `payments-${new Date().toISOString().slice(0, 10)}.csv`,
+    rows: payments,
+    byUserId: auth.session.id,
+    filters: exportFiltersFromSearchParams(searchParams),
+    columns: [
+      { key: "bookingId", header: "Booking ID", value: (row) => row.booking.bookingId },
+      { key: "leadReferenceId", header: "Lead Reference", value: (row) => leadReference(row.booking.lead) },
+      { key: "customerName", header: "Customer Name", value: (row) => row.booking.customer.name },
+      { key: "customerMobile", header: "Customer Mobile", value: (row) => row.booking.customer.mobile },
+      { key: "amount", header: "Base", value: (row) => Number(row.amount) },
+      { key: "gstAmount", header: "GST", value: (row) => Number(row.gstAmount) },
+      { key: "gatewayFee", header: "Gateway Fee", value: (row) => Number(row.gatewayFee) },
+      { key: "status", header: "Status", value: (row) => PAYMENT_STATUS_LABELS[row.status] },
+      { key: "gatewayRef", header: "Gateway Ref", value: (row) => row.gatewayRef ?? "" },
+      { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
+    ],
   });
 }

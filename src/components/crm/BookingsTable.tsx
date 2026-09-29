@@ -15,7 +15,8 @@ import { DashboardFilterChip } from "./DashboardFilterChip";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
-import { SERVICE_TYPE_LABELS, BOOKING_STATUS_OPTIONS, BOOKING_STATUS_LABELS } from "@/lib/crm/labels";
+import { UrgentBadge } from "./UrgentBadge";
+import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, BOOKING_STATUS_OPTIONS, BOOKING_STATUS_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, PaymentStatus } from "../../generated/prisma/enums";
@@ -26,6 +27,7 @@ interface BookingListItem {
   status: BookingStatus;
   createdAt: string;
   serviceType: ServiceType;
+  urgent: boolean;
   leadReferenceId: string;
   customer: { name: string; mobile: string };
   latestPayment: { id: string; status: PaymentStatus } | null;
@@ -51,6 +53,7 @@ export function BookingsTable() {
   // pick a single status — the combo itself still drives the fetch though.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [serviceType, setServiceType] = useState(() => searchParams.get("serviceType") ?? "");
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
@@ -87,6 +90,7 @@ export function BookingsTable() {
       try {
         const params = new URLSearchParams();
         if (status) params.set("status", status);
+        if (serviceType) params.set("serviceType", serviceType);
         if (dateFrom) params.set("dateFrom", dateFrom);
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
@@ -108,7 +112,7 @@ export function BookingsTable() {
     return () => {
       cancelled = true;
     };
-  }, [status, dateFrom, dateTo, search, sort, refreshNonce]);
+  }, [status, serviceType, dateFrom, dateTo, search, sort, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -139,6 +143,23 @@ export function BookingsTable() {
         >
           <option value="">All statuses</option>
           {BOOKING_STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor="filter-booking-service" className="sr-only">
+          Filter by service
+        </label>
+        <select
+          id="filter-booking-service"
+          value={serviceType}
+          onChange={(event) => setServiceType(event.target.value)}
+          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+        >
+          <option value="">All services</option>
+          {SERVICE_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -236,6 +257,11 @@ export function BookingsTable() {
                       {booking.bookingId}
                     </Link>
                     <div className="text-xs text-ink-tertiary">{booking.leadReferenceId}</div>
+                    {booking.urgent ? (
+                      <div className="mt-1">
+                        <UrgentBadge serviceType={booking.serviceType} />
+                      </div>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-col">

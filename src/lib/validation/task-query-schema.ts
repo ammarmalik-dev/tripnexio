@@ -11,6 +11,9 @@ export const taskListQuerySchema = z.object({
   priority: z.enum(taskPriorityValues).optional(),
   /** "unassigned" is a sentinel for assignedToId IS NULL — a real staff id filters to that assignee. */
   assignedToId: z.string().trim().min(1).optional(),
+  /** P21 item 4 — createdAt range (ISO timestamps from the shared useDateRangeFilter hook). */
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
   sort: z.enum(["createdAt_asc", "createdAt_desc", "dueDate_asc"]).default("createdAt_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),

@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
-  const { status, search, sort, page, pageSize } = parsed.data;
+  const { status, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
 
   // A document scoped to a Passenger only (no Booking) has no single
   // derivable serviceType — a passenger can have leads across multiple
@@ -59,6 +59,9 @@ export async function GET(request: NextRequest) {
   // Booking-linked document is actually filtered.
   const where = {
     ...(status ? { status: { in: status } } : {}),
+    ...(dateFrom || dateTo
+      ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
+      : {}),
     ...(!isServiceScopeUnrestricted(auth.session)
       ? { OR: [{ bookingId: null }, { booking: { lead: serviceTypeCondition(auth.session) } }] }
       : {}),

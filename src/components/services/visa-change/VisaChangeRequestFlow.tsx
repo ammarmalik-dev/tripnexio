@@ -38,6 +38,8 @@ export function VisaChangeRequestFlow() {
       steps={steps}
       extraStepValidation={{ 2: findMissingApplicantDocuments }}
       onSubmit={submitVisaChangeRequest}
+      draftServiceType="VISA_CHANGE"
+      draftStepIndex={1}
       successTitle="Request received"
       successDescription="Your Visa Change request has been received. Our team will check availability and get in touch shortly."
     />

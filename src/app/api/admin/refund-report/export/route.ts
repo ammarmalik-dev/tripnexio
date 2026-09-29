@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { toCsv } from "@/lib/csv/to-csv";
+import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { SERVICE_TYPE_LABELS, REFUND_STATUS_LABELS } from "@/lib/crm/labels";
 import { leadReference } from "@/lib/leads/reference";
 
@@ -22,29 +22,30 @@ export async function GET(request: NextRequest) {
   const toDateEndOfDay = new Date(toDate.getTime() + 24 * 60 * 60 * 1000 - 1);
 
   const refunds = await db.refund.findMany({
+    take: EXPORT_QUERY_TAKE,
     where: { createdAt: { gte: fromDate, lte: toDateEndOfDay } },
     include: { payment: { include: { booking: { include: { lead: true, customer: true } } } } },
     orderBy: { createdAt: "asc" },
   });
 
-  const csv = toCsv(refunds, [
-    { key: "bookingId", header: "Booking ID", value: (row) => row.payment.booking.bookingId },
-    { key: "leadReference", header: "Lead Reference", value: (row) => leadReference(row.payment.booking.lead) },
-    { key: "customerName", header: "Customer Name", value: (row) => row.payment.booking.customer.name },
-    { key: "serviceType", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.payment.booking.lead.serviceType] },
-    { key: "status", header: "Status", value: (row) => REFUND_STATUS_LABELS[row.status] },
-    { key: "paidAmount", header: "Paid Amount", value: (row) => row.paidAmount.toString() },
-    { key: "cancellationCharge", header: "Cancellation Charge", value: (row) => row.cancellationCharge.toString() },
-    { key: "gatewayCharge", header: "Gateway Charge", value: (row) => row.gatewayCharge.toString() },
-    { key: "refundAmount", header: "Refund Amount", value: (row) => row.refundAmount.toString() },
-    { key: "reason", header: "Reason", value: (row) => row.reason ?? "" },
-    { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
-  ]);
-
-  return new Response(csv, {
-    headers: {
-      "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="refund-report-${from}-to-${to}.csv"`,
-    },
+  return csvExportResponse({
+    exportName: "refund-report",
+    filename: `refund-report-${from}-to-${to}.csv`,
+    rows: refunds,
+    byUserId: auth.session.id,
+    filters: exportFiltersFromSearchParams(searchParams),
+    columns: [
+      { key: "bookingId", header: "Booking ID", value: (row) => row.payment.booking.bookingId },
+      { key: "leadReference", header: "Lead Reference", value: (row) => leadReference(row.payment.booking.lead) },
+      { key: "customerName", header: "Customer Name", value: (row) => row.payment.booking.customer.name },
+      { key: "serviceType", header: "Service", value: (row) => SERVICE_TYPE_LABELS[row.payment.booking.lead.serviceType] },
+      { key: "status", header: "Status", value: (row) => REFUND_STATUS_LABELS[row.status] },
+      { key: "paidAmount", header: "Paid Amount", value: (row) => row.paidAmount.toString() },
+      { key: "cancellationCharge", header: "Cancellation Charge", value: (row) => row.cancellationCharge.toString() },
+      { key: "gatewayCharge", header: "Gateway Charge", value: (row) => row.gatewayCharge.toString() },
+      { key: "refundAmount", header: "Refund Amount", value: (row) => row.refundAmount.toString() },
+      { key: "reason", header: "Reason", value: (row) => row.reason ?? "" },
+      { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
+    ],
   });
 }
