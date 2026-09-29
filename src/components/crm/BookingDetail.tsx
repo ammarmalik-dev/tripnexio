@@ -20,6 +20,9 @@ import { ApplicantsTable } from "./ApplicantsTable";
 import { EmbassyActionsPanel } from "./EmbassyActionsPanel";
 import { VisaChangeActionsPanel, type VisaChangeBookingView } from "./VisaChangeActionsPanel";
 import { SpecialFareActionsPanel, type SpecialFareBookingView } from "./SpecialFareActionsPanel";
+import { ReturnTicketActionsPanel, type ReturnTicketBookingView } from "./ReturnTicketActionsPanel";
+import { LinkedBookingPanel, type LinkedBookingView } from "./LinkedBookingPanel";
+import { DEFAULT_OUTPUT_BY_SERVICE } from "@/lib/outputs/output-types";
 import { RequestDocumentForm } from "./RequestDocumentForm";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
@@ -105,6 +108,13 @@ interface BookingDetailResponse {
   visaChange: VisaChangeBookingView | null;
   /** P16 — Special Fare only. */
   specialFare: SpecialFareBookingView | null;
+  /** P17 — Return Ticket only. */
+  returnTicket: ReturnTicketBookingView | null;
+  /** P17 — OTB <-> Return Ticket pair (CRM.md §15). */
+  linkedBooking: LinkedBookingView | null;
+  reservationIssuedAt: string | null;
+  reservationExpiresAt: string | null;
+  reservationExpired: boolean;
   extensions: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   /** P12 — New Visa only: per passenger, Visa status and Protection Plan status side by side. */
   passengerStatuses: { passengerId: string; fullName: string; visaStatus: string; protectionPlanStatus: ProtectionPlanStatus | null }[];
@@ -427,6 +437,26 @@ export function BookingDetail({
             />
           ) : null}
 
+          {booking.serviceType === "RETURN_TICKET" && booking.returnTicket ? (
+            <ReturnTicketActionsPanel
+              bookingId={booking.id}
+              view={booking.returnTicket}
+              reservationIssuedAt={booking.reservationIssuedAt}
+              reservationExpiresAt={booking.reservationExpiresAt}
+              reservationExpired={booking.reservationExpired}
+              onChanged={() => setReloadNonce((current) => current + 1)}
+            />
+          ) : null}
+
+          {booking.serviceType === "RETURN_TICKET" || booking.serviceType === "OTB" ? (
+            <LinkedBookingPanel
+              bookingId={booking.id}
+              serviceType={booking.serviceType}
+              linked={booking.linkedBooking}
+              onChanged={() => setReloadNonce((current) => current + 1)}
+            />
+          ) : null}
+
           {booking.serviceType === "FLIGHT_SPECIAL_FARE" && booking.specialFare ? (
             <SpecialFareActionsPanel
               bookingId={booking.id}
@@ -451,6 +481,7 @@ export function BookingDetail({
             passengers={booking.passengers}
             documents={booking.documents}
             onDelivered={() => setReloadNonce((current) => current + 1)}
+            defaultOutputType={DEFAULT_OUTPUT_BY_SERVICE[booking.serviceType]}
           />
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">

@@ -8,6 +8,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { computeRefundAmount } from "@/lib/refunds/pricing";
 import { paymentTotal } from "@/lib/payments/totals";
 import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
+import { returnTicketCancellationFee } from "@/lib/return-ticket/operations";
 import { getRefundConfig } from "@/lib/refunds/config";
 
 interface RouteParams {
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     packageGenerated: packageGenerated(payment.booking.documents),
     extensionOutcome: payment.booking.extensionOutcome,
     paymentSucceededAt: payment.updatedAt,
+    cancellationFee: payment.booking.lead.serviceType === "RETURN_TICKET" ? await returnTicketCancellationFee(payment.booking.lead.details) : null,
   }, await getRefundConfig(payment.booking.lead.serviceType));
   if (!rule.allowed) {
     return jsonError(409, rule.label);

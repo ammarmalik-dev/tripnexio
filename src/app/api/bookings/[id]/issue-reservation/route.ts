@@ -4,6 +4,8 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { canIssueReservation, computeReservationExpiry } from "@/lib/bookings/reservation";
+import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
+import { linkedOtbState } from "@/lib/return-ticket/operations";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -33,6 +35,14 @@ export async function PATCH(_request: Request, { params }: RouteParams) {
   if (booking.reservationIssuedAt) {
     return jsonError(409, "This reservation has already been issued.");
   }
+  if (booking.status !== "CONFIRMED" && booking.status !== "PROCESSING") {
+    return jsonError(409, "A reservation can only be issued on a paid, active booking.");
+  }
+  // P17 — CRM.md §15: never before the linked OTB is approved.
+  const otbState = await linkedOtbState(id);
+  if (!otbState.issuanceAllowed) {
+    return jsonError(409, `The linked OTB booking ${otbState.otb?.bookingId} isn't approved yet — the reservation can't be issued before OTB approval.`);
+  }
 
   const travelDateRaw = (booking.lead.details as Record<string, unknown> | null)?.travelDate;
   const travelDate = typeof travelDateRaw === "string" ? new Date(travelDateRaw) : null;
@@ -46,6 +56,7 @@ export async function PATCH(_request: Request, { params }: RouteParams) {
   const issuedAt = new Date();
   const expiresAt = computeReservationExpiry(issuedAt);
 
+  let statusNotification: StatusNotification | null = null;
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.booking.update({
       where: { id },
@@ -58,8 +69,17 @@ export async function PATCH(_request: Request, { params }: RouteParams) {
       byUserId: session.id,
       note: `Reservation issued, valid until ${expiresAt.toISOString()} (by ${session.name})`,
     });
+    // P17 — the booking moves to "Ticket Issued"; the RESERVATION_PDF delivery then moves it to "Delivered".
+    statusNotification = await applySystemEvent(tx, {
+      scope: "BOOKING",
+      entityId: id,
+      event: "RT_RESERVATION_ISSUED",
+      userId: session.id,
+      actorLabel: `by ${session.name}`,
+    });
     return result;
   });
+  await dispatchStatusNotifications([statusNotification]);
 
   return jsonSuccess(updated);
 }

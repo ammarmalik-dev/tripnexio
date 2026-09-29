@@ -7,6 +7,7 @@ export interface ReturnTicketDestinationOption {
   countryId: string;
   countryName: string;
   ratePerApplicant: number;
+  cancellationFee: number | null;
 }
 
 type LoadState = "loading" | "success" | "error";

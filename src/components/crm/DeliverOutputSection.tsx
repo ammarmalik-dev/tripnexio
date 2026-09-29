@@ -40,13 +40,16 @@ export function DeliverOutputSection({
   passengers,
   documents,
   onDelivered,
+  defaultOutputType = "VISA_PDF",
 }: {
   bookingId: string;
   passengers: { id: string; fullName: string }[];
   documents: DeliveredDocument[];
   onDelivered: () => void;
+  /** P17 — the output this booking's service normally delivers. */
+  defaultOutputType?: OutputType;
 }) {
-  const [outputType, setOutputType] = useState<OutputType>("VISA_PDF");
+  const [outputType, setOutputType] = useState<OutputType>(defaultOutputType);
   const [passengerId, setPassengerId] = useState(passengers[0]?.id ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);

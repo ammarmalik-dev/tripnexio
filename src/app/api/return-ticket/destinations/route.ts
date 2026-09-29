@@ -18,6 +18,8 @@ export async function GET() {
       countryId: d.countryId,
       countryName: d.country.name,
       ratePerApplicant: Number(d.ratePerApplicant),
+      // P17 — shown to the customer before payment.
+      cancellationFee: d.cancellationFee === null ? null : Number(d.cancellationFee),
     }))
   );
 }

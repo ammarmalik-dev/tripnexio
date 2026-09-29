@@ -7,6 +7,7 @@ import { getEffectiveTerms, resolveLeadCountryId } from "../terms/service-terms"
 import { findReusableDocuments } from "./reusable-documents";
 import { showPostTicketOffer } from "../cross-sell/post-ticket";
 import { customerAlternativeOffer, parseAlternativeOffer } from "../special-fare/post-payment";
+import { returnTicketCancellationFee } from "../return-ticket/operations";
 
 /** Loads everything the guest /pay/<token> page needs, or null for an unknown token. Never exposes internal fields (vendor cost, margin, staff notes). */
 export async function loadCheckoutByToken(token: string) {
@@ -82,6 +83,9 @@ export async function loadCheckoutByToken(token: string) {
       requestedDocuments: booking.documents
         .filter((doc) => doc.passengerId && doc.requestReason)
         .map((doc) => ({ passengerId: doc.passengerId as string, type: doc.type, reason: doc.requestReason as string, status: doc.status })),
+      /** P17 — Return Ticket: the destination's cancellation fee, shown before payment (null = not set / other services). */
+      returnTicketCancellation:
+        booking.lead.serviceType === "RETURN_TICKET" ? { fee: await returnTicketCancellationFee(booking.lead.details) } : null,
       /** P16 — Special Fare alternative after the paid flight became unavailable (customer-safe; no vendor cost). */
       specialFareAlternative: booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" ? customerAlternativeOffer(parseAlternativeOffer(booking.alternativeOffer)) : null,
       /** P15 — Special Fare ticket delivered and not declined: offer Return Ticket / OTB. */

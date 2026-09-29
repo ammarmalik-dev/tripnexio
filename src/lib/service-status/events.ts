@@ -37,6 +37,9 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   "FSF_ADDITIONAL_PAYMENT_PENDING",
   "FSF_REFUND_PENDING",
   "FSF_PNR_RECORDED",
+  // P17 — Return Verified Ticket: staff issued the reservation; auto-complete job.
+  "RT_RESERVATION_ISSUED",
+  "RT_AUTO_COMPLETED",
 ] as const;
 
 export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[number];
@@ -72,5 +75,7 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   FSF_ADDITIONAL_PAYMENT_PENDING: "Special Fare: additional payment pending",
   FSF_REFUND_PENDING: "Special Fare: refund pending",
   FSF_PNR_RECORDED: "Special Fare: PNR recorded",
+  RT_RESERVATION_ISSUED: "Return Ticket: reservation issued",
+  RT_AUTO_COMPLETED: "Return Ticket: auto-completed after travel",
   ON_HOLD: "On Hold (marker)",
 };

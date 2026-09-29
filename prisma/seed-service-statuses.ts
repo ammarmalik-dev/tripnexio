@@ -205,9 +205,9 @@ export const SERVICE_STATUS_SEED: ServiceStatusSeedDef[] = [
         blocksRefund: true,
       },
       { name: "Ticket / Reservation Processing", customerLabel: "Sent to Airlines", mapsToBookingStatus: "PROCESSING", blocksRefund: true },
-      { name: "Ticket Issued", customerLabel: "Ticket Issued", mapsToBookingStatus: "PROCESSING", blocksRefund: true, systemEvent: "DELIVERED_TICKET_PDF" },
+      { name: "Ticket Issued", customerLabel: "Ticket Issued", mapsToBookingStatus: "PROCESSING", blocksRefund: true, systemEvent: "RT_RESERVATION_ISSUED" },
       { name: "Delivered", mapsToBookingStatus: "PROCESSING", blocksRefund: true, systemEvent: "DELIVERED_RESERVATION_PDF" },
-      { name: "Completed", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true },
+      { name: "Completed", isTerminal: true, mapsToBookingStatus: "COMPLETED", blocksRefund: true, systemEvent: "RT_AUTO_COMPLETED" },
       // Exceptions (Return_Verified_Ticket.md §24)
       { name: "Customer Cancellation", group: "Exceptions", isTerminal: true, mapsToBookingStatus: "CANCELLED" },
       { name: "Refund Processing", group: "Exceptions", mapsToBookingStatus: "REFUNDED" },

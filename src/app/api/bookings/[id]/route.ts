@@ -7,6 +7,8 @@ import { leadReference } from "@/lib/leads/reference";
 import { buildApplicantRows } from "@/lib/new-visa/applicants";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
+import { linkedOtbState, returnTicketCancellationFee } from "@/lib/return-ticket/operations";
+import { canIssueReservation } from "@/lib/bookings/reservation";
 import { getRefundConfig } from "@/lib/refunds/config";
 import { passengerVisaStatus } from "@/lib/protection-plan/passenger-status";
 import { leadOperationalBlock, parseOperationalBlock } from "@/lib/visa-change/operational";
@@ -57,6 +59,15 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   // just as an error after they submit.
   const docsValidated = documentsValidated(booking.documents);
   const refundConfig = await getRefundConfig(booking.lead.serviceType);
+  const isReturnTicket = booking.lead.serviceType === "RETURN_TICKET";
+  const cancellationFee = isReturnTicket ? await returnTicketCancellationFee(booking.lead.details) : null;
+  // P17 — the OTB <-> Return Ticket link (CRM.md §15), loaded separately to keep the main query small.
+  const linkedBooking = booking.linkedBookingId
+    ? await db.booking.findUnique({
+        where: { id: booking.linkedBookingId },
+        select: { id: true, bookingId: true, lead: { select: { serviceType: true } }, serviceStatus: { select: { name: true } } },
+      })
+    : null;
   const paymentsWithRule = booking.payments.map((payment) => ({
     ...payment,
     refundRule:
@@ -69,6 +80,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             packageGenerated: packageGenerated(booking.documents),
             extensionOutcome: synced.extensionOutcome,
             paymentSucceededAt: payment.updatedAt,
+            cancellationFee,
           }, refundConfig)
         : null,
   }));
@@ -103,6 +115,31 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             tickets: booking.passengers.map((row) => ({ passengerId: row.passenger.id, fullName: row.passenger.fullName, ticketNumber: row.ticketNumber })),
           }
         : null,
+    // P17 — OTB <-> Return Ticket link, visible from both bookings.
+    linkedBooking: linkedBooking
+      ? { id: linkedBooking.id, bookingId: linkedBooking.bookingId, serviceType: linkedBooking.lead.serviceType, statusName: linkedBooking.serviceStatus?.name ?? null }
+      : null,
+    // P17 — Return Verified Ticket reservation, vendor and cancellation facts for the staff panel.
+    returnTicket: isReturnTicket
+      ? await (async () => {
+          const travelDateRaw = (booking.lead.details as Record<string, unknown> | null)?.travelDate;
+          const travelDate = typeof travelDateRaw === "string" ? new Date(travelDateRaw) : null;
+          const otb = await linkedOtbState(booking.id);
+          const quotation = booking.lead.quotations[0];
+          const vendor = quotation ? await db.vendor.findUnique({ where: { id: quotation.vendorId }, select: { id: true, name: true } }) : null;
+          const delivered = booking.documents.find((document) => document.type === "RESERVATION_PDF" && document.deliveredAt);
+          return {
+            cancellationFee,
+            withinIssueWindow: travelDate && !Number.isNaN(travelDate.getTime()) ? canIssueReservation(travelDate) : false,
+            otbApprovalPending: !otb.issuanceAllowed,
+            vendor,
+            vendorCost: quotation ? Number(quotation.vendorCost) : null,
+            vendorReference: booking.pnrVendorReference,
+            pnr: booking.pnr,
+            deliveredAt: delivered?.deliveredAt ?? null,
+          };
+        })()
+      : null,
     // P14 — Visa Change package / exit facts for the staff actions panel.
     visaChange:
       booking.lead.serviceType === "VISA_CHANGE"

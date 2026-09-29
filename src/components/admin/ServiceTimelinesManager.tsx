@@ -21,6 +21,7 @@ interface TimelineData {
   followUpIntervalDays: number | null;
   minTravelDaysNormal: number | null;
   minTravelDaysExpress: number | null;
+  autoCompleteAfterDays: number | null;
   active: boolean;
 }
 
@@ -34,6 +35,7 @@ interface FormState {
   followUpIntervalDays: string;
   minTravelDaysNormal: string;
   minTravelDaysExpress: string;
+  autoCompleteAfterDays: string;
 }
 
 function toFormState(item: TimelineData): FormState {
@@ -45,6 +47,7 @@ function toFormState(item: TimelineData): FormState {
     followUpIntervalDays: item.followUpIntervalDays === null ? "" : String(item.followUpIntervalDays),
     minTravelDaysNormal: item.minTravelDaysNormal === null ? "" : String(item.minTravelDaysNormal),
     minTravelDaysExpress: item.minTravelDaysExpress === null ? "" : String(item.minTravelDaysExpress),
+    autoCompleteAfterDays: item.autoCompleteAfterDays === null ? "" : String(item.autoCompleteAfterDays),
   };
 }
 
@@ -58,6 +61,7 @@ function buildPayload(form: FormState) {
     followUpIntervalDays: toNullableInt(form.followUpIntervalDays),
     minTravelDaysNormal: toNullableInt(form.minTravelDaysNormal),
     minTravelDaysExpress: toNullableInt(form.minTravelDaysExpress),
+    autoCompleteAfterDays: toNullableInt(form.autoCompleteAfterDays),
   };
 }
 
@@ -200,6 +204,20 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
               disabled={saving}
             />
           </>
+        ) : null}
+        {item.serviceType === "RETURN_TICKET" ? (
+          <TextField
+            label="Auto-complete: days after travel date"
+            name={`auto-complete-${item.id}`}
+            type="number"
+            min={0}
+            placeholder="0 (default)"
+            hint="A delivered booking moves to Completed this many days after its travel date. Uses 0 when not set."
+            value={form.autoCompleteAfterDays}
+            onChange={(event) => setForm({ ...form, autoCompleteAfterDays: event.target.value })}
+            error={errors.autoCompleteAfterDays?.[0]}
+            disabled={saving}
+          />
         ) : null}
       </div>
       <div className="flex justify-end">

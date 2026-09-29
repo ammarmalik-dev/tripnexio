@@ -69,6 +69,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" && parsed.data.outputType === "TICKET_PDF" && !booking.pnr) {
     return jsonError(409, "Record the PNR first, then use Issue Ticket.");
   }
+  // P17 — a Return Ticket PDF is delivered only after Issue Reservation (which itself waits for a linked OTB's approval).
+  if (
+    booking.lead.serviceType === "RETURN_TICKET" &&
+    (parsed.data.outputType === "RESERVATION_PDF" || parsed.data.outputType === "TICKET_PDF") &&
+    !booking.reservationIssuedAt
+  ) {
+    return jsonError(409, "Issue the reservation first, then upload the reservation PDF.");
+  }
   // P13 — the extended visa PDF follows a recorded "Extended" outcome.
   if (booking.lead.serviceType === "VISA_EXTENSION" && parsed.data.outputType === "EXTENDED_VISA_PDF" && booking.extensionOutcome !== "EXTENDED") {
     return jsonError(409, "Record the extension outcome as Extended before delivering the extended visa PDF.");

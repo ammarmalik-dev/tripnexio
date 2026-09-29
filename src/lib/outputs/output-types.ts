@@ -1,4 +1,5 @@
 import type { ServiceStatusSystemEvent } from "../service-status/events";
+import type { ServiceType } from "../../generated/prisma/enums";
 
 /**
  * P09 — documents TripNexio delivers TO the customer (the service result),
@@ -25,6 +26,17 @@ export const OUTPUT_DELIVERY_EVENT: Record<OutputType, ServiceStatusSystemEvent>
   RESERVATION_PDF: "DELIVERED_RESERVATION_PDF",
   PACKAGE_PDF: "DELIVERED_PACKAGE_PDF",
   OTB_CONFIRMATION: "DELIVERED_OTB_CONFIRMATION",
+};
+
+/** The output each service normally delivers — the Upload & Deliver form's default choice. */
+export const DEFAULT_OUTPUT_BY_SERVICE: Record<ServiceType, OutputType> = {
+  NEW_VISA: "VISA_PDF",
+  VISA_EXTENSION: "EXTENDED_VISA_PDF",
+  VISA_CHANGE: "PACKAGE_PDF",
+  FLIGHT_SPECIAL_FARE: "TICKET_PDF",
+  RETURN_TICKET: "RESERVATION_PDF",
+  OTB: "OTB_CONFIRMATION",
+  OTHER: "VISA_PDF",
 };
 
 export function isOutputType(type: string): type is OutputType {

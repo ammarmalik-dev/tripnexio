@@ -47,6 +47,8 @@ interface CheckoutView {
   postTicketOffer: boolean;
   /** P16 — Special Fare alternative offered after the paid flight became unavailable. */
   specialFareAlternative: SpecialFareAlternativeView | null;
+  /** P17 — Return Ticket cancellation terms shown before payment. */
+  returnTicketCancellation: { fee: number | null } | null;
 }
 
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
@@ -280,6 +282,16 @@ export function CheckoutPanel({ token }: { token: string }) {
           <Row label="Total to pay" value={formatRupees(payment.total)} strong />
         </div>
       )}
+
+      {view.returnTicketCancellation && payment?.status === "PENDING" ? (
+        <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-secondary">
+          <span className="font-medium text-ink-primary">Cancellation: </span>
+          {view.returnTicketCancellation.fee !== null && view.returnTicketCancellation.fee > 0
+            ? `${formatRupees(view.returnTicketCancellation.fee)} cancellation fee plus gateway charges if you cancel before your request is forwarded to the airline/vendor.`
+            : "Gateway charges are non-refundable if you cancel before your request is forwarded to the airline/vendor."}{" "}
+          No refund after forwarding or after the ticket is issued.
+        </p>
+      ) : null}
 
       {payment?.status === "PENDING" && view.quotationExpired ? (
         <div className="flex flex-col gap-3 rounded-xl border border-error/30 bg-error/10 p-5">

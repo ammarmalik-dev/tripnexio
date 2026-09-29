@@ -56,4 +56,10 @@ export const AUTOMATION_WORKFLOWS: { key: string; label: string; intendedSchedul
     intendedSchedule: "Weekly, Sunday 4:00 AM IST",
     endpoint: "/api/automation/audit-retention",
   },
+  {
+    key: "return-ticket-auto-complete",
+    label: "Return Ticket: Auto-complete After Travel",
+    intendedSchedule: "Daily at 6:00 AM IST",
+    endpoint: "/api/automation/return-ticket-auto-complete",
+  },
 ];

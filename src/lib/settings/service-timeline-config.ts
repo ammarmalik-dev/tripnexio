@@ -9,6 +9,8 @@ export interface ServiceTimelineRules {
   followUpIntervalDays: number | null;
   minTravelDaysNormal: number | null;
   minTravelDaysExpress: number | null;
+  /** P17 — Return Ticket: days after travel before a delivered booking auto-completes. */
+  autoCompleteAfterDays: number | null;
 }
 
 const EMPTY_RULES: ServiceTimelineRules = {
@@ -19,6 +21,7 @@ const EMPTY_RULES: ServiceTimelineRules = {
   followUpIntervalDays: null,
   minTravelDaysNormal: null,
   minTravelDaysExpress: null,
+  autoCompleteAfterDays: null,
 };
 
 /**
@@ -38,5 +41,6 @@ export async function getServiceTimelineRules(serviceType: ServiceType): Promise
     followUpIntervalDays: config.followUpIntervalDays,
     minTravelDaysNormal: config.minTravelDaysNormal,
     minTravelDaysExpress: config.minTravelDaysExpress,
+    autoCompleteAfterDays: config.autoCompleteAfterDays,
   };
 }

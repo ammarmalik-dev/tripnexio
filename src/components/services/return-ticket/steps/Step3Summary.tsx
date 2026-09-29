@@ -48,7 +48,20 @@ export function Step3Summary() {
             )}`}
           />
         ) : null}
+        {destination ? (
+          <SummaryRow
+            label="Cancellation fee"
+            value={
+              destination.cancellationFee !== null && destination.cancellationFee > 0
+                ? `${formatRupees(destination.cancellationFee)} + gateway charges if cancelled before forwarding`
+                : "Gateway charges only if cancelled before forwarding"
+            }
+          />
+        ) : null}
       </div>
+      <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-tertiary">
+        No refund once your request has been forwarded to the airline/vendor or after the ticket is issued.
+      </p>
       {values.additionalApplicants.map((applicant, index) => (
         <div key={index} className="rounded-xl border border-hairline bg-surface-1 px-5">
           <p className="pt-3 text-xs font-medium uppercase tracking-wide text-ink-accent">Applicant {index + 2}</p>

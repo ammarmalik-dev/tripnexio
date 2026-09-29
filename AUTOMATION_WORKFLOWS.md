@@ -57,6 +57,11 @@ This one is different from the other four — it doesn't send anything, it **del
 - For every service: while a booking is still waiting on a customer document (required, flagged missing, or rejected and needing a new upload), the customer gets one reminder every 24 hours listing what's outstanding, with the secure link to upload it.
 - It stops on its own as soon as the documents are uploaded or verified, and it never goes to a cancelled, refunded or completed booking, or to a closed request. The 24-hour spacing is enforced by the app, so running the workflow more often never sends more.
 
+### 9. Return Ticket: Auto-complete After Travel
+**Runs daily at 6:00 AM.** Calls `POST /api/automation/return-ticket-auto-complete`.
+
+- A Return Verified Ticket booking whose reservation/ticket PDF has been delivered moves to **Completed** once its travel date has passed, plus the number of days set in Admin → Timelines ("Auto-complete: days after travel date"; 0 when not set). A booking on hold, cancelled, refunded or already completed is never touched. It sends no reminder — only the normal status update, if a notification is configured for the Completed status.
+
 ## What each workflow actually sends
 
 Every message the first five workflows send uses the **same Admin-managed templates** as everything else in the CRM (Admin → Notification Templates) — `QUOTE_REMINDER`, `PAYMENT_REMINDER`, `DOCUMENTS_REQUIRED`, `LEAD_FOLLOWUP`, and `VISA_EXTENSION_REMINDER`. Editing the copy there changes what these automatic messages say, exactly like it does for the notifications staff-triggered actions send. The same email/WhatsApp rules apply too — a WhatsApp reminder only actually sends once its template has been approved by Meta (see `docs/deployment/WHATSAPP_SETUP.md`); until then, only the email version goes out. The sixth workflow (Document Retention Purge) doesn't send a customer message at all — it only deletes files.
@@ -67,4 +72,4 @@ Each of the first five jobs runs on a tight schedule (as often as every 15 minut
 
 ## How to see if it's working
 
-**Admin → Automation** shows all seven workflows with their last run time and whether it succeeded — this is the first place to check if reminders seem to have stopped going out. A workflow that's never appeared there hasn't been connected in n8n yet (see the setup doc). A workflow showing "Failure" with an error message means something needs attention — the error text explains what went wrong.
+**Admin → Automation** shows every workflow with their last run time and whether it succeeded — this is the first place to check if reminders seem to have stopped going out. A workflow that's never appeared there hasn't been connected in n8n yet (see the setup doc). A workflow showing "Failure" with an error message means something needs attention — the error text explains what went wrong.

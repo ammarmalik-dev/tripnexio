@@ -496,11 +496,15 @@ model Booking {
   /// TripNexio visa matched by passport). Null for every other service, or
   /// when no prior TripNexio visa was found.
   originalBookingId         String?
+  /// P17 — CRM.md §15: the OTB <-> Return Verified Ticket pair, set on both bookings.
+  linkedBookingId           String?
   createdAt                 DateTime          @default(now())
   updatedAt                 DateTime          @updatedAt
 
   originalBooking Booking?             @relation("BookingExtensions", fields: [originalBookingId], references: [id])
   extensions      Booking[]            @relation("BookingExtensions")
+  linkedBooking   Booking?             @relation("LinkedServiceBooking", fields: [linkedBookingId], references: [id])
+  linkedFrom      Booking[]            @relation("LinkedServiceBooking")
   lead            Lead                 @relation(fields: [leadId], references: [id])
   customer        Customer             @relation(fields: [customerId], references: [id])
   serviceStatus   ServiceStatus?       @relation(fields: [serviceStatusId], references: [id])
@@ -516,6 +520,7 @@ model Booking {
   @@index([serviceStatusId])
   @@index([status])
   @@index([originalBookingId])
+  @@index([linkedBookingId])
 }
 
 enum ExtensionOutcome {
@@ -1892,6 +1897,9 @@ model ReturnTicketDestination {
   id               String   @id @default(cuid())
   countryId        String   @unique
   ratePerApplicant Decimal  @db.Decimal(10, 2)
+  /// P17 — per-booking cancellation fee for this destination (Admin-set, null = none).
+  /// Shown before payment and deducted by the refund engine before forwarding.
+  cancellationFee  Decimal? @db.Decimal(10, 2)
   active           Boolean  @default(true)
   displayOrder     Int      @default(0)
   createdAt        DateTime @default(now())
@@ -2241,6 +2249,8 @@ model ServiceTimelineConfig {
   /// P10 — New Visa: minimum working days before travel for Normal / Express (defaults 7 / 3 when unset).
   minTravelDaysNormal       Int?
   minTravelDaysExpress      Int?
+  /// P17 — Return Ticket: days after the travel date before a delivered booking auto-completes (null = 0).
+  autoCompleteAfterDays     Int?
 
   active    Boolean  @default(true)
   createdAt DateTime @default(now())

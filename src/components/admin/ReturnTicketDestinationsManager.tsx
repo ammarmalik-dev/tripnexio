@@ -18,6 +18,7 @@ interface DestinationData {
   countryName: string;
   countryCode: string;
   ratePerApplicant: number;
+  cancellationFee: number | null;
   active: boolean;
   displayOrder: number;
 }
@@ -33,16 +34,22 @@ type FieldErrors = Record<string, string[] | undefined>;
 
 interface FormState {
   rate: string;
+  cancellationFee: string;
   displayOrder: string;
 }
 
 function toFormState(d: DestinationData): FormState {
-  return { rate: String(d.ratePerApplicant), displayOrder: String(d.displayOrder) };
+  return {
+    rate: String(d.ratePerApplicant),
+    cancellationFee: d.cancellationFee === null ? "" : String(d.cancellationFee),
+    displayOrder: String(d.displayOrder),
+  };
 }
 
 function toPayload(form: FormState) {
   return {
     ratePerApplicant: Number(form.rate),
+    cancellationFee: form.cancellationFee.trim() === "" ? null : Number(form.cancellationFee),
     displayOrder: Number(form.displayOrder) || 0,
   };
 }
@@ -59,7 +66,7 @@ function RateFields({
   disabled: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <TextField
         label="Rate per applicant (₹)"
         name="rate"
@@ -68,6 +75,18 @@ function RateFields({
         value={form.rate}
         onChange={(event) => onChange({ ...form, rate: event.target.value })}
         error={errors.ratePerApplicant?.[0]}
+        disabled={disabled}
+      />
+      <TextField
+        label="Cancellation fee per booking (₹)"
+        name="cancellationFee"
+        type="number"
+        min={0}
+        placeholder="Not set"
+        hint="Shown before payment; deducted on cancellation before forwarding."
+        value={form.cancellationFee}
+        onChange={(event) => onChange({ ...form, cancellationFee: event.target.value })}
+        error={errors.cancellationFee?.[0]}
         disabled={disabled}
       />
       <TextField
@@ -159,7 +178,7 @@ function NewDestinationForm({
   onCreated: (d: DestinationData) => void;
 }) {
   const [countryId, setCountryId] = useState("");
-  const [form, setForm] = useState<FormState>({ rate: "", displayOrder: "0" });
+  const [form, setForm] = useState<FormState>({ rate: "", cancellationFee: "", displayOrder: "0" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
 
@@ -174,7 +193,7 @@ function NewDestinationForm({
       toast.success(`${created.countryName} added.`);
       onCreated(created);
       setCountryId("");
-      setForm({ rate: "", displayOrder: "0" });
+      setForm({ rate: "", cancellationFee: "", displayOrder: "0" });
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
       toast.error(error instanceof ApiError ? error.message : "Couldn't add this destination. Please try again.");

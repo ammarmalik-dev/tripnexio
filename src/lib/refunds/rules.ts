@@ -33,6 +33,8 @@ export interface RefundRuleContext {
   extensionOutcome: ExtensionOutcome | null;
   /** When the payment succeeded — for the full-refund window. */
   paymentSucceededAt: Date;
+  /** P17 — Return Ticket only: the destination's Admin-set cancellation fee (null = none set). */
+  cancellationFee?: number | null;
   now?: Date;
 }
 
@@ -69,6 +71,12 @@ export function evaluateRefundRule(context: RefundRuleContext, config: RefundCon
   const externallySubmitted =
     context.blocksRefund ?? (context.bookingStatus === "PROCESSING" || context.bookingStatus === "COMPLETED");
 
+  // P17 — Return_Verified_Ticket.md §16-17 (locked): no refund once
+  // forwarded to the airline/vendor or after issuance, whatever the Admin
+  // cutoff setting says.
+  if (context.serviceType === "RETURN_TICKET" && externallySubmitted) {
+    return blocked("No refund — the request has already been forwarded to the airline / vendor.");
+  }
   if (config.noRefundAfter === "EXTERNAL_SUBMISSION" && externallySubmitted) {
     return blocked(CUTOFF_LABEL.EXTERNAL_SUBMISSION);
   }
@@ -81,6 +89,17 @@ export function evaluateRefundRule(context: RefundRuleContext, config: RefundCon
     if (context.extensionOutcome === "NOT_ACCEPTED") {
       return { allowed: true, fixedDeduction: 0, label: "Refund minus gateway charges — the sponsor/authority did not accept the extension." };
     }
+  }
+
+  // P17 — the destination's cancellation fee, shown to the customer before
+  // payment, is the service-specific deduction for a Return Ticket
+  // cancelled before forwarding (gateway charges are entered on top).
+  if (context.serviceType === "RETURN_TICKET" && context.cancellationFee != null && context.cancellationFee > 0) {
+    return {
+      allowed: true,
+      fixedDeduction: context.cancellationFee,
+      label: `₹${context.cancellationFee} destination cancellation fee + gateway charges (before forwarding).`,
+    };
   }
 
   if (config.fullRefundWindowHours !== null) {
