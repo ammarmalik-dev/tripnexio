@@ -8,7 +8,7 @@ Most of what TripNexio does happens in response to something — a customer subm
 
 Every one of these workflows is visible to the team at **Admin → Automation** — showing when each one last ran, whether it succeeded, and what it did.
 
-## The eight workflows
+## The workflows
 
 ### 1. Quote Expiry Handling
 **Runs every 5 minutes.** Calls `POST /api/automation/quote-expiry`.
@@ -61,6 +61,13 @@ This one is different from the other four — it doesn't send anything, it **del
 **Runs daily at 6:00 AM.** Calls `POST /api/automation/return-ticket-auto-complete`.
 
 - A Return Verified Ticket booking whose reservation/ticket PDF has been delivered moves to **Completed** once its travel date has passed, plus the number of days set in Admin → Timelines ("Auto-complete: days after travel date"; 0 when not set). A booking on hold, cancelled, refunded or already completed is never touched. It sends no reminder — only the normal status update, if a notification is configured for the Completed status.
+
+### 10. Staff Alerts: Follow-ups Due & Delayed Bookings
+**Runs every hour.** Calls `POST /api/automation/staff-alerts`.
+
+- This one never messages a customer — it fills the CRM's own **Notifications** panel for your team. When a task (a follow-up, a document to collect, etc.) is due today or already overdue, the person it's assigned to (or the lead's assigned staff member) gets a "Due today"/"Overdue" notification. At most once a day per task.
+- When a booking runs past its SLA (the same definition the CRM's **Delays** page uses, from Admin → Timelines / SLA), the lead's assigned staff member — or, if nobody is assigned, everyone who can see bookings for that service — gets a "Delayed booking" notification. At most once a week per booking while it stays delayed.
+- The once-a-day / once-a-week spacing is enforced by the app, so running the workflow more often never sends more.
 
 ## What each workflow actually sends
 

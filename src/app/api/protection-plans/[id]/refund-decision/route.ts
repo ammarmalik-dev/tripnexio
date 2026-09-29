@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
 import { paymentTotal } from "@/lib/payments/totals";
+import { notifyRefundsRaised } from "@/lib/staff-notifications/triggers";
 import { protectionPlanRefundDecisionSchema } from "@/lib/validation/protection-plan-schema";
 
 interface RouteParams {
@@ -115,5 +116,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   });
 
   if (!result) return jsonError(409, `Refunds on this payment can't exceed the ₹${paidAmount} paid.`);
+  await notifyRefundsRaised([result.refund.id]);
   return jsonSuccess(result);
 }

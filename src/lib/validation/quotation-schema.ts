@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { itinerarySchema } from "../quotations/itinerary";
 
 const isoDate = (message: string) => z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), message);
 
@@ -49,12 +50,32 @@ export const createQuotationSchema = z.object({
 
   /** CRM.md §10 (Step 22) — resolved and validated server-side; rejected outright for a flight quote. Empty string clears an already-applied coupon. */
   couponCode: z.string().trim().optional(),
+
+  /**
+   * P22 — multi-sector itinerary (Visa Change / Flight Special Fare only;
+   * the API derives the service type server-side and rejects a non-empty
+   * itinerary for any other service). An empty array clears it.
+   */
+  itinerary: itinerarySchema.optional(),
+
+  /**
+   * P22 — true creates the quotation as an unsent draft (isDraft=true,
+   * sentAt=null): no customer notification, no lead-status/engine event,
+   * invisible to the customer, and it can't be selected/booked/paid until
+   * POST /api/quotations/[id]/send.
+   */
+  saveAsDraft: z.boolean().optional(),
 });
 
-export const updateQuotationSchema = createQuotationSchema.omit({ leadId: true }).partial();
+export const updateQuotationSchema = createQuotationSchema.omit({ leadId: true, saveAsDraft: true }).partial();
 
-/** What the quote-builder form itself collects — leadId is supplied by the page, not the form. */
-export const quoteFormSchema = createQuotationSchema.omit({ leadId: true });
+/** What the quote-builder form itself collects — leadId is supplied by the page, and draft-vs-send by which button was pressed. */
+export const quoteFormSchema = createQuotationSchema.omit({ leadId: true, saveAsDraft: true });
+
+/** P22 — POST /api/quotations/[id]/send: optionally restart the validity clock at send time. */
+export const sendQuotationSchema = z.object({
+  validityExpiresAt: isoDate("Enter a valid validity expiry date/time").optional(),
+});
 
 /**
  * Adds the same "sellingPrice required for flight quotes, feeAmount required

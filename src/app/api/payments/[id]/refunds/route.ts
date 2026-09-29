@@ -10,6 +10,7 @@ import { paymentTotal } from "@/lib/payments/totals";
 import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
 import { returnTicketCancellationFee } from "@/lib/return-ticket/operations";
 import { getRefundConfig } from "@/lib/refunds/config";
+import { notifyRefundsRaised } from "@/lib/staff-notifications/triggers";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -144,6 +145,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!refund) {
     return jsonError(409, `Refunds on this payment can't exceed the ₹${paidAmount} paid.`);
   }
+
+  await notifyRefundsRaised([refund.id]);
 
   return jsonSuccess({ ...refund, appliedRule: rule }, 201);
 }

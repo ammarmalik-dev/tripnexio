@@ -5,6 +5,7 @@ import { writeAudit } from "../audit/log";
 import { setServiceStatusByEvent, type StatusNotification } from "../service-status/engine";
 import { raiseFullRefundForBooking, raiseRefund } from "../refunds/raise-refund";
 import { paymentTotal } from "../payments/totals";
+import { notifyRefundsRaised } from "../staff-notifications/triggers";
 
 type Tx = Prisma.TransactionClient;
 
@@ -115,7 +116,9 @@ export async function confirmAvailability(bookingId: string, actor: Actor): Prom
  * difference decides the path; without one, a full refund is raised.
  */
 export async function markUnavailable(bookingId: string, alternative: AlternativeOptionInput | null, actor: Actor): Promise<Result> {
-  return db.$transaction(async (tx) => {
+  // P22 — refunds raised inside the transaction are announced to refunds.approve staff once it commits.
+  const raisedRefundIds: string[] = [];
+  const result = await db.$transaction(async (tx): Promise<Result> => {
     const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { id: true, leadId: true } });
     if (!booking) return { ok: false as const, httpStatus: 404, error: "Booking not found." };
     const now = new Date().toISOString();
@@ -126,6 +129,7 @@ export async function markUnavailable(bookingId: string, alternative: Alternativ
       const offer: AlternativeOffer = { direction: "NONE", difference: 0, offeredAt: now, decision: null, decidedAt: null };
       await tx.booking.update({ where: { id: bookingId }, data: { alternativeOffer: offer as unknown as Prisma.InputJsonValue } });
       const refunds = await raiseFullRefundForBooking(tx, { bookingId, reason: "Special Fare unavailable — no suitable alternative (full refund)", actorLabel: actor.label });
+      raisedRefundIds.push(...refunds.map((refund) => refund.id));
       await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_UNAVAILABLE", byUserId: actor.userId, note: `Flight unavailable, no alternative — full refund raised (${refunds.length} refund(s), ${actor.label})` });
       return { ok: true as const, notifications: [moved.notification], message: "Full refund raised — it needs approval in Refunds." };
     }
@@ -157,7 +161,8 @@ export async function markUnavailable(bookingId: string, alternative: Alternativ
         const net = Number(primary.amount) - Number(primary.couponDiscount ?? 0);
         const gstRate = net > 0 ? Number(primary.gstAmount) / net : 0;
         refundAmount = round(-difference * (1 + gstRate));
-        await raiseRefund(tx, { paymentId: primary.id, amount: Math.min(refundAmount, paymentTotal(primary)), reason: `Special Fare alternative is ₹${-difference} cheaper — fare difference refund`, actorLabel: actor.label });
+        const differenceRefund = await raiseRefund(tx, { paymentId: primary.id, amount: Math.min(refundAmount, paymentTotal(primary)), reason: `Special Fare alternative is ₹${-difference} cheaper — fare difference refund`, actorLabel: actor.label });
+        if (differenceRefund) raisedRefundIds.push(differenceRefund.id);
       }
       note = `Flight unavailable; alternative ${alternative.route} at ₹${alternative.sellingPrice} (₹${-difference} lower) — difference refund ₹${refundAmount} raised`;
     }
@@ -168,6 +173,8 @@ export async function markUnavailable(bookingId: string, alternative: Alternativ
       message: direction === "LOWER" ? "Alternative confirmed — the fare difference refund was raised and needs approval." : "Alternative confirmed at the same fare.",
     };
   });
+  await notifyRefundsRaised(raisedRefundIds);
+  return result;
 }
 
 /**
@@ -177,7 +184,9 @@ export async function markUnavailable(bookingId: string, alternative: Alternativ
  * transaction commits (the gateway call is external I/O).
  */
 export async function recordCustomerDecision(bookingId: string, decision: "PAY" | "REFUND"): Promise<Result & { payDifference?: number }> {
-  return db.$transaction(async (tx) => {
+  // P22 — see markUnavailable.
+  const raisedRefundIds: string[] = [];
+  const result = await db.$transaction(async (tx): Promise<Result & { payDifference?: number }> => {
     const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { alternativeOffer: true } });
     const offer = parseAlternativeOffer(booking?.alternativeOffer);
     if (!offer || offer.direction !== "HIGHER") return { ok: false as const, httpStatus: 409, error: "There's no alternative waiting for your decision." };
@@ -191,7 +200,8 @@ export async function recordCustomerDecision(bookingId: string, decision: "PAY" 
     const updated: AlternativeOffer = { ...offer, decision, decidedAt: new Date().toISOString() };
     await tx.booking.update({ where: { id: bookingId }, data: { alternativeOffer: updated as unknown as Prisma.InputJsonValue } });
     if (decision === "REFUND") {
-      await raiseFullRefundForBooking(tx, { bookingId, reason: "Customer declined the higher-fare Special Fare alternative (full refund)", actorLabel: "by the customer" });
+      const refunds = await raiseFullRefundForBooking(tx, { bookingId, reason: "Customer declined the higher-fare Special Fare alternative (full refund)", actorLabel: "by the customer" });
+      raisedRefundIds.push(...refunds.map((refund) => refund.id));
     }
     await writeAudit(tx, {
       entityType: "Booking",
@@ -206,6 +216,8 @@ export async function recordCustomerDecision(bookingId: string, decision: "PAY" 
       payDifference: decision === "PAY" ? offer.difference : undefined,
     };
   });
+  await notifyRefundsRaised(raisedRefundIds);
+  return result;
 }
 
 /** Called inside the payment-success transaction: an extra payment that settles the higher-fare difference confirms the alternative. */

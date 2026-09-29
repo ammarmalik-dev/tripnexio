@@ -26,7 +26,8 @@ export async function buildLeadRecordContext(leadId: string): Promise<string | n
     where: { id: leadId },
     include: {
       customer: { include: { passengers: { include: { documents: true } } } },
-      quotations: { orderBy: { createdAt: "desc" }, take: 1 },
+      // P22 — a customer-message draft must never quote an unsent draft quotation's price.
+      quotations: { where: { isDraft: false }, orderBy: { createdAt: "desc" }, take: 1 },
       bookings: {
         orderBy: { createdAt: "desc" },
         take: 1,

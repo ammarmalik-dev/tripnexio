@@ -132,6 +132,7 @@ const STAFF_ROLE_PERMISSIONS = PERMISSION_CATALOG.filter(
       "finance.manage",
       "payments.approve",
       "knowledge.edit",
+      "vendors.viewCost",
       ADMIN_FULL_PERMISSION,
     ].includes(permission.name)
 ).map((permission) => permission.name);

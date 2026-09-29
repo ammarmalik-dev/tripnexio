@@ -19,7 +19,12 @@ export function isExpiredNow(quotation: Pick<Quotation, "validityExpiresAt" | "i
  * Payability of a selected quote is still time-checked by isExpiredNow().
  */
 export async function syncExpiredQuotations<T extends Quotation>(quotations: T[]): Promise<T[]> {
-  const pastDue = quotations.filter((quotation) => !quotation.isSelected && !quotation.isExpired && isExpiredNow(quotation));
+  // P22 — drafts are skipped: the customer never saw them, so there's no
+  // QUOTE_EXPIRED to send, and a draft's validity is only meaningful once
+  // it's sent (POST /api/quotations/[id]/send refuses a lapsed one).
+  const pastDue = quotations.filter(
+    (quotation) => !quotation.isDraft && !quotation.isSelected && !quotation.isExpired && isExpiredNow(quotation)
+  );
   if (pastDue.length === 0) return quotations;
 
   const paidLeads = await db.payment.findMany({

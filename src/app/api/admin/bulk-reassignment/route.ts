@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { hasServiceAccess } from "@/lib/auth/service-scope";
 import { getStaffIdsOnApprovedLeave, isRosterEligible } from "@/lib/staff/eligible-for-assignment";
 import { leadReference } from "@/lib/leads/reference";
+import { REASSIGN_REASON_MIN_LENGTH } from "@/lib/validation/lead-assign-schema";
 import type { BookingStatus } from "@/generated/prisma/enums";
 
 /** Matches the same terminal-status set Unit 1's workload helper uses. */
@@ -65,10 +66,10 @@ const bulkReassignSchema = z.object({
   toStaffId: z.string().min(1),
   leadIds: z.array(z.string().min(1)).min(1, "Select at least one to reassign"),
   // ADMIN.md §13: "Manual reassignment should record a reason" — required
-  // here (a bulk move of someone's whole book of work), unlike the
-  // existing single-lead LeadAssignmentControl, which doesn't capture one
-  // today — a disclosed scope boundary, not an oversight.
-  reason: z.string().trim().min(1, "A reason is required"),
+  // here (a bulk move of someone's whole book of work). P22 item 8 — the
+  // single-lead LeadAssignmentControl now requires one too; both share the
+  // same 5-character minimum.
+  reason: z.string().trim().min(REASSIGN_REASON_MIN_LENGTH, `Enter a reason of at least ${REASSIGN_REASON_MIN_LENGTH} characters`),
 });
 
 export async function POST(request: NextRequest) {

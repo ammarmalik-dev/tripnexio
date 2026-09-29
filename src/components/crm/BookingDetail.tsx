@@ -29,6 +29,7 @@ import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
 import { ReusableDocumentsPrompt } from "./ReusableDocumentsPrompt";
 import { CommunicationsPanel } from "./CommunicationsPanel";
+import { AddTaskPanel } from "./tasks/CreateTaskForm";
 import { BookingDatesRow } from "./booking/BookingDatesRow";
 import { BookingVendorSummary, type BookingVendorSummaryData } from "./booking/BookingVendorSummary";
 import { BookingTimelineSection, type BookingTimelineEntry } from "./booking/BookingTimelineSection";
@@ -698,6 +699,8 @@ export function BookingDetail({
             <h2 className="mb-3 text-sm font-semibold text-ink-heading">Communications</h2>
             <CommunicationsPanel leadId={booking.leadId} />
           </section>
+
+          <AddTaskPanel bookingId={booking.id} />
         </div>
       </div>
     </div>

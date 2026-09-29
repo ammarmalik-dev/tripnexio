@@ -10,6 +10,8 @@ import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { generateToken } from "../quotations/select-quotation";
 import { findCustomerByMobile } from "../customers/find-by-mobile";
 import { findOpenDraftLead } from "./abandoned-draft";
+import { autoAssignLead } from "../staff/auto-assign";
+import { notifyStaff } from "@/lib/staff-notifications/notify";
 
 /**
  * The services that go through a staff-prepared quotation the customer
@@ -215,7 +217,33 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
       customerEmail: customer.email,
       customerMobile: customer.mobile,
       passengerIds,
+      assignedStaffId: lead.assignedStaffId,
     };
+  });
+
+  // P22 item 8 — Admin roster auto-assignment, run AFTER the transaction
+  // commits (never the global client inside an open transaction). A
+  // completed abandoned draft is assigned here too (its details no longer
+  // carry `abandonedDraft`); a bare draft never reaches this function —
+  // createOrRefreshDraftLead() is separate and deliberately not assigned.
+  // Never throws; no eligible staff → the lead stays unassigned.
+  let assigneeId = result.assignedStaffId;
+  if (!assigneeId) {
+    const autoAssigned = await autoAssignLead(result.leadId, serviceType);
+    assigneeId = autoAssigned?.staffId ?? null;
+  }
+
+  // P22 item 8 — new-lead staff notification: the assignee if there is one,
+  // otherwise everyone who can view leads for this service. notifyStaff()
+  // never throws by contract.
+  await notifyStaff({
+    type: "NEW_LEAD",
+    title: `New ${SERVICE_TYPE_LABELS[serviceType]} lead ${result.referenceId}`,
+    body: `${result.customerName} submitted a ${SERVICE_TYPE_LABELS[serviceType]} request via ${source ?? "Website"}.`,
+    link: `/crm/leads/${result.leadId}`,
+    entityType: "Lead",
+    entityId: result.leadId,
+    recipients: assigneeId ? { userIds: [assigneeId] } : { permission: "leads.view", serviceType },
   });
 
   await notifyCustomer({

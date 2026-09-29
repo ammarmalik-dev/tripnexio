@@ -62,4 +62,10 @@ export const AUTOMATION_WORKFLOWS: { key: string; label: string; intendedSchedul
     intendedSchedule: "Daily at 6:00 AM IST",
     endpoint: "/api/automation/return-ticket-auto-complete",
   },
+  {
+    key: "staff-alerts",
+    label: "Staff Alerts: Follow-ups Due & Delayed Bookings",
+    intendedSchedule: "Every hour",
+    endpoint: "/api/automation/staff-alerts",
+  },
 ];

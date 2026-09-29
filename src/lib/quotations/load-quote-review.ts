@@ -8,6 +8,7 @@ import { DEFAULT_PAYMENT_LINK_VALIDITY_HOURS } from "../payments/create-payment"
 import { EXTENSION_DURATION_DAYS, urgentDeadlineFromDetails } from "../visa-extension/rules";
 import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "../visa-change/operational";
 import { alternativeRouteLabel, requestedRouteFromDetails } from "./flight-quote";
+import { parseStoredItinerary, supportsMultiSectorItinerary } from "./itinerary";
 
 const money = (value: unknown) => (value === null || value === undefined ? null : Number(value));
 
@@ -22,7 +23,8 @@ export async function loadQuoteReviewByToken(token: string) {
 
   const lead = await db.lead.findUnique({
     where: { customerToken: token },
-    include: { quotations: { orderBy: { createdAt: "desc" } } },
+    // P22 — unsent drafts are never visible to the customer.
+    include: { quotations: { where: { isDraft: false }, orderBy: { createdAt: "desc" } } },
   });
   if (!lead) return null;
 
@@ -63,6 +65,8 @@ export async function loadQuoteReviewByToken(token: string) {
             fareType: quotation.fareType,
           }
         : {}),
+      // P22 — multi-sector itinerary (customer-safe: places, times, airline, flight number, sector notes).
+      ...(supportsMultiSectorItinerary(lead.serviceType) ? { itinerary: parseStoredItinerary(quotation.itinerary) } : {}),
       // P15 — Special Fare: fares per passenger type, the customer-facing
       // details and cancellation terms (never vendor cost, margin or vendor
       // reference), and the alternative-route wording.

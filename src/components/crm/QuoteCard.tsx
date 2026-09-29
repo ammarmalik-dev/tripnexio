@@ -4,6 +4,8 @@ import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { QuoteCountdown } from "./QuoteCountdown";
 import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "@/lib/visa-change/operational";
+import { parseStoredItinerary } from "@/lib/quotations/itinerary";
+import { ItinerarySectors } from "@/components/quotations/ItinerarySectors";
 
 export interface QuoteCardData {
   id: string;
@@ -48,6 +50,13 @@ export interface QuoteCardData {
   isExpired: boolean;
   alternativeOfId: string | null;
   createdAt: string;
+  /** P22 — unsent draft: invisible to the customer, can't be selected/booked/paid until sent. */
+  isDraft?: boolean;
+  sentAt?: string | null;
+  /** P22 — 1 for the original send; +1 per "Send revision". */
+  revision?: number;
+  /** P22 — multi-sector itinerary Json (Visa Change / Special Fare). */
+  itinerary?: unknown;
 }
 
 function formatDateTime(iso: string): string {
@@ -68,6 +77,10 @@ export function QuoteCard({
   selecting,
   onRevalidate,
   revalidating,
+  onEdit,
+  onSend,
+  sending = false,
+  onRevise,
 }: {
   quotation: QuoteCardData;
   isFlightQuote: boolean;
@@ -80,8 +93,23 @@ export function QuoteCard({
   /** Business Rules §9 "Staff revalidation" — re-enables an expired quote's same payment link with a new validity window. Optional so other QuoteCard call sites (e.g. the customer-facing review page, if it ever reuses this) aren't forced to wire it up. */
   onRevalidate?: (validityExpiresAt: string, reason: string) => void;
   revalidating?: boolean;
+  /** P22 — open the builder on this draft. */
+  onEdit?: () => void;
+  /** P22 — send this draft to the customer. */
+  onSend?: () => void;
+  sending?: boolean;
+  /** P22 — open the builder to revise this sent, unselected quote (edited in place, customer re-notified). */
+  onRevise?: () => void;
 }) {
-  const liveExpired = quotation.isExpired || Boolean(quotation.validityExpiresAt && new Date(quotation.validityExpiresAt).getTime() <= now);
+  const isDraft = quotation.isDraft === true;
+  const revision = quotation.revision ?? 1;
+  const itinerary = parseStoredItinerary(quotation.itinerary);
+  // A draft's validity only starts to matter once it's sent (the send route
+  // refuses a lapsed one), so it isn't shown as "Expired" — only a draft
+  // closed by another quote's selection (isExpired) is.
+  const liveExpired =
+    quotation.isExpired ||
+    (!isDraft && Boolean(quotation.validityExpiresAt && new Date(quotation.validityExpiresAt).getTime() <= now));
   const isAlternative = Boolean(quotation.alternativeOfId);
   const [showRevalidate, setShowRevalidate] = useState(false);
   const [newValidity, setNewValidity] = useState("");
@@ -111,6 +139,12 @@ export function QuoteCard({
                 ? `${quotation.airline ?? (hasItinerary ? "Itinerary option" : "Quotation")}${quotation.flightNumber ? ` ${quotation.flightNumber}` : ""}`
                 : "Quotation"}
             </span>
+            {isDraft ? (
+              <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs font-medium text-ink-secondary">Draft</span>
+            ) : null}
+            {!isDraft && revision > 1 ? (
+              <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-ink-accent">Revision {revision}</span>
+            ) : null}
             {quotation.isSelected ? (
               <span className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">Selected</span>
             ) : null}
@@ -123,7 +157,9 @@ export function QuoteCard({
           </div>
           {(isFlightQuote || hasItinerary) && quotation.route ? <span className="text-sm text-ink-secondary">{quotation.route}</span> : null}
         </div>
-        {quotation.validityExpiresAt ? (
+        {isDraft ? (
+          <span className="text-xs text-ink-tertiary">Not sent — invisible to the customer</span>
+        ) : quotation.validityExpiresAt ? (
           <QuoteCountdown validityExpiresAt={quotation.validityExpiresAt} now={now} />
         ) : (
           <span className="text-xs text-ink-tertiary">No expiry set</span>
@@ -288,6 +324,8 @@ export function QuoteCard({
         </>
       )}
 
+      {itinerary.length > 0 ? <ItinerarySectors segments={itinerary} /> : null}
+
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-3">
         <div className="flex flex-col gap-0.5">
           <span className="text-sm font-semibold text-ink-heading">
@@ -302,19 +340,41 @@ export function QuoteCard({
             Vendor: {vendorName} · <span title="Internal — never shown to the customer">Cost {money(quotation.vendorCost)} · Margin {money(quotation.margin)} (internal)</span>
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <a
-            href={`/api/quotations/${quotation.id}/invoice`}
-            className="inline-flex h-9 items-center gap-1.5 rounded-md border border-hairline px-3 text-xs font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border hover:bg-white/[0.03]"
-          >
-            Download Proforma
-          </a>
-          {quotation.isSelected ? null : (
-            <Button type="button" size="sm" variant="ghost" onClick={onSelect} isLoading={selecting} disabled={liveExpired}>
-              Select
-            </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isDraft ? (
+            <>
+              {onEdit && !liveExpired ? (
+                <Button type="button" size="sm" variant="ghost" onClick={onEdit} disabled={sending}>
+                  Edit
+                </Button>
+              ) : null}
+              {onSend && !liveExpired ? (
+                <Button type="button" size="sm" onClick={onSend} isLoading={sending}>
+                  Send
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <a
+                href={`/api/quotations/${quotation.id}/invoice`}
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-hairline px-3 text-xs font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border hover:bg-white/[0.03]"
+              >
+                Download Proforma
+              </a>
+              {!quotation.isSelected && !liveExpired && onRevise ? (
+                <Button type="button" size="sm" variant="ghost" onClick={onRevise}>
+                  Revise
+                </Button>
+              ) : null}
+              {quotation.isSelected ? null : (
+                <Button type="button" size="sm" variant="ghost" onClick={onSelect} isLoading={selecting} disabled={liveExpired}>
+                  Select
+                </Button>
+              )}
+            </>
           )}
-          {liveExpired && onRevalidate ? (
+          {!isDraft && liveExpired && onRevalidate ? (
             <Button type="button" size="sm" variant="ghost" onClick={() => setShowRevalidate((current) => !current)}>
               Revalidate
             </Button>

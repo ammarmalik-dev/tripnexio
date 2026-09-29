@@ -6,6 +6,7 @@ import { applySystemEvent, dispatchStatusNotifications, getInitialServiceStatusI
 import { createPendingPayment } from "../payments/create-payment";
 import { getProtectionPlanOffer, leadDestinationCountryCode, protectionPlanRowsForBooking } from "../protection-plan/country-offer";
 import { resolveCouponForQuotation } from "../coupons/apply";
+import { notifyNewBooking } from "../staff-notifications/triggers";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 const DIRECT_VENDOR_NAME = "Direct (auto-priced)";
@@ -92,6 +93,8 @@ export async function createAutoCheckout(input: {
         couponCode: appliedCoupon?.couponCode,
         couponDiscount: appliedCoupon?.discountAmount,
         isSelected: true,
+        // P22 — an automatic quotation is live immediately (never a draft).
+        sentAt: new Date(),
       },
     });
     // Step 49 — QUOTED -> QUOTATION_ACCEPTED; the quotation this creates is
@@ -148,6 +151,9 @@ export async function createAutoCheckout(input: {
     });
     return { booking: createdBooking, quotation: createdQuotation };
   });
+
+  // P22 — staff notifications feed (after commit, before the payment call so a gateway error can't skip it; never throws).
+  await notifyNewBooking(booking.id);
 
   if (!skipAutoPayment) {
     await createPendingPayment({

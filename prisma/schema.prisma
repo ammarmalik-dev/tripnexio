@@ -382,6 +382,12 @@ model Quotation {
   /// sibling quotation (on the same lead) it stands in for. The UI must
   /// always render this quotation's own `route`, never the requested one.
   alternativeOfId            String?
+  /// P22 — a draft is prepared/revised by staff and only sent to the customer (QUOTE_READY) on "Send".
+  isDraft                    Boolean   @default(false)
+  sentAt                     DateTime?
+  revision                   Int       @default(1)
+  /// P22 — multi-sector itinerary for Visa Change / flight quotes: [{from, to, departAt, arriveAt, airline, flightNumber, notes}].
+  itinerary                  Json?
   createdAt                  DateTime  @default(now())
   updatedAt                  DateTime  @updatedAt
 
@@ -994,6 +1000,10 @@ enum TaskType {
   PROTECTION_PLAN_REVIEW
   /// P12 — visa rejected on a booking with a purchased Protection Plan.
   PROTECTION_PLAN_REFUND_REVIEW
+  /// P22 — created by staff by hand (Tasks page, Lead/Booking detail).
+  MANUAL
+  /// P22 — "Report an issue" from the CRM Help page.
+  SUPPORT_REQUEST
 }
 
 enum TaskPriority {
@@ -1763,6 +1773,8 @@ model SystemConfig {
   workdayEndHour         Int      @default(18)
   maintenanceMessage     String?
   systemAlertEmail       String?
+  /// P22 — auto-assign new leads to the eligible rostered staff member with the lowest PAX workload.
+  autoAssignLeads        Boolean  @default(false)
   /// P20 — Company/Support/Legal doc §3 + §9.16 + §14: legal details kept as
   /// configuration until the client supplies them (never hard-coded). The
   /// legal pages render only what's filled in.
@@ -2025,6 +2037,11 @@ model User {
   /// Embedded in every staff session JWT; incrementing it (e.g. on password
   /// reset) invalidates every session issued before.
   sessionVersion      Int           @default(0)
+  /// P22 — Profile: optional security question; the answer is stored bcrypt-hashed, never plain.
+  securityQuestion    String?
+  securityAnswerHash  String?
+  /// P22 — play a sound for new staff notifications (CRM.md §33).
+  notificationSound   Boolean       @default(false)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -2039,6 +2056,8 @@ model User {
   approvedLeaves              StaffLeave[]         @relation("StaffLeaveApprovals")
   recordedExpenses            Expense[]
   passwordResetTokens         PasswordResetToken[]
+  staffNotifications          StaffNotification[]
+  rosterEntries               StaffRoster[]
 
   @@index([roleId])
   @@index([active])
@@ -2406,4 +2425,41 @@ model OtbPrice {
   @@unique([airlineId, countryId, paxType])
   @@index([active])
   @@index([countryId])
+}
+
+/// P22 — CRM.md §4/§26 staff notifications feed: one row per recipient,
+/// read state per user. Written after the triggering change commits.
+model StaffNotification {
+  id         String    @id @default(cuid())
+  userId     String
+  type       String
+  title      String
+  body       String?
+  link       String?
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+}
+
+/// P22 — Admin roster: which staff work which service on which weekday
+/// (0 = Sunday … 6 = Saturday), used by lead auto-assignment.
+model StaffRoster {
+  id          String      @id @default(cuid())
+  userId      String
+  serviceType ServiceType
+  dayOfWeek   Int
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, serviceType, dayOfWeek])
+  @@index([serviceType, dayOfWeek, active])
 }

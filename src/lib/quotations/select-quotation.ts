@@ -21,6 +21,10 @@ export interface SelectActor {
 export async function selectQuotation(quotationId: string, actor: SelectActor) {
   const quotation = await db.quotation.findUnique({ where: { id: quotationId } });
   if (!quotation) return { ok: false as const, error: "Quotation not found." };
+  // P22 — an unsent draft is invisible to the customer and can never be selected (staff or customer).
+  if (quotation.isDraft) {
+    return { ok: false as const, error: "This quotation is still a draft — send it to the customer before it can be selected." };
+  }
   if (isExpiredNow(quotation)) {
     return { ok: false as const, error: "This quotation has expired and can't be selected." };
   }

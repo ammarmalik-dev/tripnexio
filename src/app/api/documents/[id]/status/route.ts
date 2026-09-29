@@ -14,6 +14,7 @@ import type { NotificationEvent } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { createTask, autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
 import { assertValidDocumentTransition } from "@/lib/documents/transitions";
+import { notifyDocumentRejected } from "@/lib/staff-notifications/triggers";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -104,6 +105,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return result;
   });
   await dispatchStatusNotifications(statusNotifications);
+  if (updated.status === "REJECTED") await notifyDocumentRejected(updated.id, session.id);
 
   const EVENT_BY_STATUS: Partial<Record<typeof updated.status, NotificationEvent>> = {
     MISSING: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,

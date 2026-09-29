@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { assignLeadSchema } from "@/lib/validation/lead-assign-schema";
+import { assignLeadSchema, REASSIGN_REASON_MIN_LENGTH } from "@/lib/validation/lead-assign-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -57,6 +57,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(403, "This lead is already assigned — only an Admin can reassign it.");
   }
 
+  // P22 item 8 — ADMIN.md §13: "Manual reassignment should record a
+  // reason." Required (min 5 chars) whenever the lead already had an
+  // assignee and it's actually changing — including an inactive one being
+  // replaced, and unassigning. Claiming a never-assigned lead needs none.
+  const hadAssignee = lead.assignedStaffId !== null;
+  const isChangingExistingAssignee = hadAssignee && lead.assignedStaffId !== parsed.data.staffId;
+  const reason = parsed.data.reason;
+  if (isChangingExistingAssignee && (!reason || reason.length < REASSIGN_REASON_MIN_LENGTH)) {
+    return jsonError(400, "Give a reason for this reassignment.", {
+      reason: [`Enter a reason of at least ${REASSIGN_REASON_MIN_LENGTH} characters.`],
+    });
+  }
+
   let staffName: string | null = null;
   if (parsed.data.staffId) {
     const staff = await db.user.findUnique({
@@ -94,12 +107,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const note = staffName
       ? `Assigned to ${staffName} (by ${session.name})${wasAssignedToInactiveStaff ? ` — was previously assigned to ${lead.assignedStaff!.name}, now inactive` : ""}`
       : `Unassigned (by ${session.name})`;
+    const noteWithReason = isChangingExistingAssignee && reason ? `${note} — reason: ${reason}` : note;
     await writeAudit(tx, {
       entityType: "Lead",
       entityId: id,
       action: "ASSIGN",
       byUserId: session.id,
-      note,
+      note: noteWithReason,
     });
     return result;
   });

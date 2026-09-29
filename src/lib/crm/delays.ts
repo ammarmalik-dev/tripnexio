@@ -425,3 +425,13 @@ export async function getDelayKpis(scope?: ServiceScope): Promise<DelayKpis> {
     ).size,
   };
 }
+
+/**
+ * P22 — every open delay across all services (unscoped), for the
+ * staff-alerts automation's DELAY notifications. Same single source of
+ * truth as the /crm/delays page and the Command Centre KPIs.
+ */
+export async function getOpenDelayRecords(): Promise<DelayRecord[]> {
+  const { records } = await collectDelays(undefined, { includeResolved: false });
+  return records.filter((record) => record.status === "OPEN");
+}

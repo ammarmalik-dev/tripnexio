@@ -428,7 +428,7 @@ export async function getActionQueue(allowedServiceTypes?: ServiceScope): Promis
   // simply not firing them all at once rather than restructuring the query
   // shape.
   const expiringQuotes = await db.quotation.findMany({
-    where: { isExpired: false, isSelected: false, validityExpiresAt: { gt: now }, ...leadRelationScope },
+    where: { isExpired: false, isSelected: false, isDraft: false, validityExpiresAt: { gt: now }, ...leadRelationScope },
     orderBy: { validityExpiresAt: "asc" },
     take: ACTION_QUEUE_GROUP_LIMIT,
     include: { lead: { include: { customer: true } } },

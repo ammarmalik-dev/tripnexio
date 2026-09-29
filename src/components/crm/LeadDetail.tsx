@@ -18,6 +18,7 @@ import { VisaChangeBorderDetailsPanel } from "./VisaChangeBorderDetailsPanel";
 import { LeadTimeline } from "./LeadTimeline";
 import { CommunicationsPanel } from "./CommunicationsPanel";
 import { QuoteBuilder } from "./QuoteBuilder";
+import { AddTaskPanel } from "./tasks/CreateTaskForm";
 import { SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { humanizeKey, formatDetailValue } from "@/lib/crm/humanize";
 import { VisaExtensionPriorVisaPanel, type PriorVisaMatchItem } from "./VisaExtensionPriorVisaPanel";
@@ -523,6 +524,8 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               )}
             </div>
           </section>
+
+          <AddTaskPanel leadId={lead.id} />
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink-heading">Activity Timeline</h2>

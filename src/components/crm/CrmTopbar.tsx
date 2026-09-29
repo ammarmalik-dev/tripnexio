@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { toast } from "@/components/ui/Toaster";
 import { GlobalSearch } from "./GlobalSearch";
+import { NotificationsMenu } from "./NotificationsMenu";
 
 interface CrmTopbarProps {
   staffName: string;
@@ -32,6 +33,8 @@ export function CrmTopbar({ staffName, staffRole }: CrmTopbarProps) {
     <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-hairline bg-white/85 px-6 backdrop-blur-md">
       <GlobalSearch />
       <div className="flex shrink-0 items-center gap-3.5">
+        <NotificationsMenu />
+        <div className="h-6 w-px bg-hairline" aria-hidden="true" />
         <div className="flex items-center gap-2.5">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[image:var(--gradient-accent)] text-[11px] font-bold text-white">
             {initials(staffName)}

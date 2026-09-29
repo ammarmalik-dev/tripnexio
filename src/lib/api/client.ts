@@ -78,6 +78,16 @@ export async function patchJson<T>(url: string, body: unknown): Promise<T> {
   return unwrapResponse<T>(response);
 }
 
+/** Shared client-side PUT helper — for bulk-replace routes (e.g. PUT /api/admin/roster). */
+export async function putJson<T>(url: string, body: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return unwrapResponse<T>(response);
+}
+
 /** Shared client-side DELETE helper. */
 export async function deleteJson<T>(url: string): Promise<T> {
   const response = await fetch(url, { method: "DELETE" });

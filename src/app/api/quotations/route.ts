@@ -5,7 +5,6 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import type { Prisma } from "@/generated/prisma/client";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
 import { leadOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
-import { resolveNewQuoteRequest } from "@/lib/quotations/new-quote-request";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
@@ -14,15 +13,11 @@ import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted }
 import { computeSellingPrice, isFlightQuote, supportsItinerary } from "@/lib/quotations/pricing";
 import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
-import { notifyCustomer } from "@/lib/notifications/notify";
-import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { leadReference } from "@/lib/leads/reference";
-import { money } from "@/lib/invoices/render-invoice";
-import { toWhatsAppId } from "@/lib/whatsapp/phone";
-import { siteConfig } from "@/lib/site-config";
-import { ensureLeadCustomerToken } from "@/lib/quotations/select-quotation";
 import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
-import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
+import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
+import { applyQuotationSentEffects, notifyQuoteReady } from "@/lib/quotations/send-quotation";
+import { normalizeItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
 import type { Quotation } from "@/generated/prisma/client";
 
 /**
@@ -199,7 +194,10 @@ export async function POST(request: NextRequest) {
     customerCancellationPolicy,
     alternativeOfId,
     couponCode,
+    itinerary,
+    saveAsDraft,
   } = parsed.data;
+  const isDraft = saveAsDraft === true;
 
   const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
   if (!lead) return jsonError(404, "Lead not found.");
@@ -241,6 +239,16 @@ export async function POST(request: NextRequest) {
   if (validityError) {
     return jsonError(400, validityError, { validityExpiresAt: [validityError] });
   }
+
+  // P22 — multi-sector itinerary: Visa Change / Flight Special Fare only
+  // (service type derived from the lead server-side, never the client).
+  const multiSector = supportsMultiSectorItinerary(lead.serviceType);
+  if (itinerary && itinerary.length > 0 && !multiSector) {
+    return jsonError(400, "An itinerary can only be added to Visa Change or Special Fare quotations.", {
+      itinerary: ["Not available for this service."],
+    });
+  }
+  const storedItinerary = multiSector && itinerary && itinerary.length > 0 ? normalizeItinerary(itinerary) : null;
 
   if (alternativeOfId) {
     const alternativeOf = await db.quotation.findUnique({ where: { id: alternativeOfId } });
@@ -314,6 +322,10 @@ export async function POST(request: NextRequest) {
         couponDiscount: appliedCoupon?.discountAmount,
         validityExpiresAt: validityExpiresAt ? new Date(validityExpiresAt) : undefined,
         alternativeOfId,
+        itinerary: storedItinerary ? (storedItinerary as unknown as Prisma.InputJsonValue) : undefined,
+        // P22 — a draft is invisible to the customer until POST /api/quotations/[id]/send.
+        isDraft,
+        sentAt: isDraft ? null : new Date(),
       },
     });
 
@@ -322,59 +334,28 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Quotation created for lead ${leadId} — margin ${margin}${appliedCoupon ? `, coupon ${appliedCoupon.couponCode} applied (-₹${appliedCoupon.discountAmount})` : ""} (by ${session.name})`,
+      note: `${isDraft ? "Draft quotation" : "Quotation"} created${isDraft ? "" : " and sent"} for lead ${leadId} — margin ${margin}${appliedCoupon ? `, coupon ${appliedCoupon.couponCode} applied (-₹${appliedCoupon.discountAmount})` : ""} (by ${session.name})`,
     });
 
-    // Step 49 — a fresh quotation moves an early-stage lead to QUOTATION_CREATED.
-    // Only from the "not yet quoted" states — never regress a lead already
-    // further along (accepted/payment-pending/converted), and never override
-    // Follow-up Required/Lost/Closed, which are deliberately staff-controlled.
-    const earlyStatuses = ["NEW", "CONTACTED", "FOLLOW_UP_REQUIRED", "CUSTOMER_RESPONDED", "QUALIFIED"];
-    if (earlyStatuses.includes(lead.status)) {
-      await tx.lead.update({ where: { id: leadId }, data: { status: "QUOTATION_CREATED" } });
-      await writeAudit(tx, {
-        entityType: "Lead",
-        entityId: leadId,
-        action: "STATUS_CHANGE",
-        byUserId: session.id,
-        note: `${lead.status} -> QUOTATION_CREATED (quotation created by ${session.name})`,
-      });
+    // P22 — the "quotation sent" side effects (Step 49 lead-status move,
+    // status-engine QUOTATION_CREATED event, P15 new-quote-request
+    // resolution) only run for a quotation the customer can actually see.
+    // A draft runs them later, from POST /api/quotations/[id]/send.
+    if (!isDraft) {
+      statusNotifications.push(await applyQuotationSentEffects(tx, lead, { byUserId: session.id, name: session.name }));
     }
-    statusNotifications.push(
-      await applySystemEvent(tx, { scope: "LEAD", entityId: leadId, event: "QUOTATION_CREATED", userId: session.id, actorLabel: `by ${session.name}` })
-    );
-    // P15 — a new quote answers a customer's "Request New Quote".
-    await resolveNewQuoteRequest(tx, leadId, `New quotation created (by ${session.name})`);
 
     return created;
   });
 
   await dispatchStatusNotifications(statusNotifications);
-  const payableAfterCoupon = resolvedSellingPrice - (appliedCoupon?.discountAmount ?? 0);
-  const reviewToken = await ensureLeadCustomerToken(lead);
 
-  // "Quote ready" fires on every new quotation for this lead, not only the
-  // first one — a lead can reasonably get more than one quote over its
-  // lifetime (a revised offer, an alternative route), and there's no signal
-  // in the data model for "this is the one to actually notify about" beyond
-  // "a quote now exists." Revisit if the client wants this scoped tighter
-  // (e.g. only on the first quote, or only once staff explicitly shares it).
-  await notifyCustomer({
-    event: NOTIFICATION_EVENTS.QUOTE_READY,
-    emailTo: lead.customer.email,
-    whatsappTo: toWhatsAppId(lead.customer.mobile),
-    smsTo: toWhatsAppId(lead.customer.mobile),
-    variables: {
-      customerName: lead.customer.name,
-      leadReference: leadReference(lead),
-      sellingPrice: money(payableAfterCoupon),
-      quoteValidUntil: validityExpiresAt
-        ? new Date(validityExpiresAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-        : "no expiry set",
-      reviewLink: `${siteConfig.url}/quote/${reviewToken}`,
-    },
-    auditTarget: { entityType: "Quotation", entityId: quotation.id },
-  });
+  // "Quote ready" fires on every quotation the customer is sent — never for
+  // a draft (P22). A lead can reasonably get more than one quote over its
+  // lifetime (a revised offer, an alternative route).
+  if (!isDraft) {
+    await notifyQuoteReady(lead, quotation);
+  }
 
   return jsonSuccess(quotation, 201);
 }

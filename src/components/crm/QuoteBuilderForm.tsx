@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { TextField } from "@/components/forms/TextField";
@@ -11,6 +12,44 @@ import { buildQuoteFormSchema, type QuoteFormValues } from "@/lib/validation/quo
 import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES } from "@/lib/quotations/pricing";
 import { getJson } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
+import { MAX_ITINERARY_SEGMENTS, type ItinerarySegment } from "@/lib/quotations/itinerary";
+
+/** P22 — which button submitted the form: keep/save as an unsent draft, or make it visible to the customer. */
+export type QuoteFormAction = "draft" | "send";
+
+/**
+ * P22 — create: a brand-new quote ("Save as draft" / "Create & send").
+ * editDraft: an unsent draft ("Save draft" / "Save & send").
+ * revise: a sent, unselected quote — edited in place as Revision N+1 and
+ * re-sent to the customer ("Send revision").
+ */
+export type QuoteFormMode = "create" | "editDraft" | "revise";
+
+const EMPTY_SEGMENT: ItinerarySegment = { from: "", to: "", departAt: "", arriveAt: "", airline: "", flightNumber: "", notes: "" };
+
+const DATE_TIME_KEYS = ["flightDateTime", "arrivalDateTime", "validityExpiresAt", "bookingDeadline"] as const;
+
+/** datetime-local values are local wall-clock time — convert to an absolute ISO instant in the browser, never on the server. */
+function toIsoOrUndefined(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function normalizeForSubmit(values: QuoteFormValues): QuoteFormValues {
+  const next: QuoteFormValues = { ...values };
+  for (const key of DATE_TIME_KEYS) {
+    next[key] = toIsoOrUndefined(values[key]);
+  }
+  if (values.itinerary) {
+    next.itinerary = values.itinerary.map((segment) => ({
+      ...segment,
+      departAt: toIsoOrUndefined(segment.departAt),
+      arriveAt: toIsoOrUndefined(segment.arriveAt),
+    }));
+  }
+  return next;
+}
 
 // Mirrors VisaChangeFeeSuggestion in src/lib/quotations/visa-change-pricing.ts
 // — duplicated as a plain client-side type rather than imported, since that
@@ -53,7 +92,15 @@ interface QuoteBuilderFormProps {
   vendors: VendorOption[];
   airlines: AirlineOption[];
   alternativeOptions: AlternativeOption[];
-  onSubmit: (values: QuoteFormValues) => Promise<void>;
+  /** P22 — Visa Change / Special Fare: show the multi-sector itinerary builder. */
+  multiSectorItinerary?: boolean;
+  /** P22 — create (default), edit an unsent draft, or revise a sent quote. */
+  mode?: QuoteFormMode;
+  /** P22 — pre-filled values when editing/revising (datetime fields in datetime-local format). */
+  initialValues?: Partial<QuoteFormValues>;
+  /** Shown on the revise banner — the quote's current revision number. */
+  currentRevision?: number;
+  onSubmit: (values: QuoteFormValues, action: QuoteFormAction) => Promise<void>;
   onCancel: () => void;
   submitting: boolean;
 }
@@ -73,6 +120,10 @@ export function QuoteBuilderForm({
   vendors,
   airlines,
   alternativeOptions,
+  multiSectorItinerary = false,
+  mode = "create",
+  initialValues,
+  currentRevision = 1,
   onSubmit,
   onCancel,
   submitting,
@@ -81,10 +132,30 @@ export function QuoteBuilderForm({
     register,
     handleSubmit,
     setValue,
+    control,
     formState: { errors },
   } = useForm<QuoteFormValues>({
     resolver: zodResolver(buildQuoteFormSchema(isFlightQuote)),
+    defaultValues: {
+      ...initialValues,
+      ...(multiSectorItinerary ? { itinerary: initialValues?.itinerary ?? [] } : {}),
+    },
   });
+  const { fields: sectorFields, append: appendSector, remove: removeSector, move: moveSector } = useFieldArray({
+    control,
+    name: "itinerary",
+  });
+  const [pendingAction, setPendingAction] = useState<QuoteFormAction | null>(null);
+
+  // Every button stays type="button" and calls handleSubmit directly (see the
+  // multi-step button type-toggle race in CLAUDE.md) — the <form> itself
+  // never submits, so pressing Enter can't send a quote to a customer.
+  const submitWith = (action: QuoteFormAction) => {
+    setPendingAction(action);
+    void handleSubmit(async (values) => {
+      await onSubmit(normalizeForSubmit(values), action);
+    })().finally(() => setPendingAction(null));
+  };
 
   // Item 9 (client-message/PENDING_WORK_PROMPTS.md) — Visa Change's
   // nationality/adult/child-wise fee suggestion, from the lead's own
@@ -117,7 +188,6 @@ export function QuoteBuilderForm({
       | "route"
       | "baggageAllowance"
       | "fareType"
-      | "couponCode"
       | "terminal"
       | "reportingTime"
       | "fareRules"
@@ -126,15 +196,18 @@ export function QuoteBuilderForm({
       | "chargeBasis"
       | "timeCondition"
       | "customerCancellationPolicy"
-      | "bookingDeadline"
   ) =>
+    register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
+
+  // datetime-local inputs: blank = not set; converted to ISO in normalizeForSubmit().
+  const dateTimeField = (name: (typeof DATE_TIME_KEYS)[number]) =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
 
   const airlineSelect = (label: string, required: boolean) => (
     <FormField label={label} htmlFor="airline" error={errors.airline?.message} required={required}>
       <select
         id="airline"
-        defaultValue=""
+        defaultValue={initialValues?.airline ?? ""}
         className={cn(fieldControlClass, fieldBorderClass(!!errors.airline))}
         {...register("airline", { setValueAs: (value: string) => (value === "" ? undefined : value) })}
       >
@@ -148,15 +221,30 @@ export function QuoteBuilderForm({
     </FormField>
   );
 
+  const sectorErrors = errors.itinerary;
+  const sectorListError = sectorErrors?.message;
+
   return (
     <form
-      onSubmit={handleSubmit(onSubmit)}
+      onSubmit={(event) => event.preventDefault()}
+      noValidate
       className="flex flex-col gap-4 rounded-lg border border-hairline bg-surface-1 p-4"
     >
+      {mode === "revise" ? (
+        <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs text-warning">
+          This quote has already been sent. Sending a revision updates it in place as Revision {currentRevision + 1}, records every
+          change in the audit trail, and re-notifies the customer with the revised quote.
+        </p>
+      ) : null}
+      {mode === "editDraft" ? (
+        <p className="rounded-lg bg-surface-2 px-3 py-2 text-xs text-ink-tertiary">
+          Draft — not visible to the customer until you send it.
+        </p>
+      ) : null}
       <FormField label="Vendor" htmlFor="vendorId" error={errors.vendorId?.message} required>
         <select
           id="vendorId"
-          defaultValue=""
+          defaultValue={initialValues?.vendorId ?? ""}
           className={cn(fieldControlClass, fieldBorderClass(!!errors.vendorId))}
           {...register("vendorId")}
         >
@@ -183,13 +271,13 @@ export function QuoteBuilderForm({
             <TextField
               label="Departure"
               type="datetime-local"
-              {...register("flightDateTime")}
+              {...dateTimeField("flightDateTime")}
               error={errors.flightDateTime?.message}
             />
             <TextField
               label="Arrival"
               type="datetime-local"
-              {...register("arrivalDateTime")}
+              {...dateTimeField("arrivalDateTime")}
               error={errors.arrivalDateTime?.message}
             />
           </div>
@@ -231,7 +319,7 @@ export function QuoteBuilderForm({
               error={errors.vendorReference?.message}
               hint="Never shown to the customer."
             />
-            <TextField label="Booking Deadline" type="datetime-local" {...optionalField("bookingDeadline")} error={errors.bookingDeadline?.message} />
+            <TextField label="Booking Deadline" type="datetime-local" {...dateTimeField("bookingDeadline")} error={errors.bookingDeadline?.message} />
           </div>
 
           <fieldset className="flex flex-col gap-4 rounded-lg border border-hairline p-4">
@@ -271,7 +359,7 @@ export function QuoteBuilderForm({
             >
               <select
                 id="alternativeOfId"
-                defaultValue=""
+                defaultValue={initialValues?.alternativeOfId ?? ""}
                 className={cn(fieldControlClass, fieldBorderClass(false))}
                 {...register("alternativeOfId", { setValueAs: (value: string) => (value === "" ? undefined : value) })}
               >
@@ -349,8 +437,12 @@ export function QuoteBuilderForm({
           {showAirlineField ? airlineSelect("Airline", false) : null}
           <TextField
             label="Coupon Code"
-            hint="Optional — validated on save (active, within date range, under usage limit)."
-            {...optionalField("couponCode")}
+            hint={
+              mode === "create"
+                ? "Optional — validated on save (active, within date range, under usage limit)."
+                : "Optional — re-validated on save; clear it to remove the coupon."
+            }
+            {...register("couponCode")}
             error={errors.couponCode?.message}
           />
         </div>
@@ -371,8 +463,8 @@ export function QuoteBuilderForm({
           </div>
           <TextField label="Route" placeholder="e.g. DXB → MCT" {...optionalField("route")} error={errors.route?.message} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField label="Departure" type="datetime-local" {...register("flightDateTime")} error={errors.flightDateTime?.message} />
-            <TextField label="Arrival" type="datetime-local" {...register("arrivalDateTime")} error={errors.arrivalDateTime?.message} />
+            <TextField label="Departure" type="datetime-local" {...dateTimeField("flightDateTime")} error={errors.flightDateTime?.message} />
+            <TextField label="Arrival" type="datetime-local" {...dateTimeField("arrivalDateTime")} error={errors.arrivalDateTime?.message} />
           </div>
           <TextField
             label="Baggage Allowance"
@@ -380,6 +472,120 @@ export function QuoteBuilderForm({
             {...optionalField("baggageAllowance")}
             error={errors.baggageAllowance?.message}
           />
+        </fieldset>
+      ) : null}
+
+      {multiSectorItinerary ? (
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-dashed border-hairline p-4">
+          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-accent">
+            Multi-sector itinerary (optional)
+          </legend>
+          <p className="text-xs text-ink-tertiary">
+            Add each flight leg in travel order. Everything here is shown to the customer on their quote page.
+          </p>
+          {sectorFields.length === 0 ? <p className="text-xs text-ink-tertiary">No sectors added.</p> : null}
+          <ol className="flex flex-col gap-3">
+            {sectorFields.map((field, index) => {
+              const rowErrors = sectorErrors?.[index];
+              return (
+                <li key={field.id} className="flex flex-col gap-3 rounded-lg border border-hairline bg-surface-2 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-ink-heading">Sector {index + 1}</span>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => moveSector(index, index - 1)}
+                        disabled={index === 0}
+                        aria-label={`Move sector ${index + 1} up`}
+                      >
+                        <ArrowUp className="h-3.5 w-3.5" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => moveSector(index, index + 1)}
+                        disabled={index === sectorFields.length - 1}
+                        aria-label={`Move sector ${index + 1} down`}
+                      >
+                        <ArrowDown className="h-3.5 w-3.5" aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => removeSector(index)}
+                        aria-label={`Remove sector ${index + 1}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <TextField
+                      label="From"
+                      placeholder="e.g. DXB"
+                      required
+                      {...register(`itinerary.${index}.from` as const)}
+                      error={rowErrors?.from?.message}
+                    />
+                    <TextField
+                      label="To"
+                      placeholder="e.g. MCT"
+                      required
+                      {...register(`itinerary.${index}.to` as const)}
+                      error={rowErrors?.to?.message}
+                    />
+                    <TextField
+                      label="Departure"
+                      type="datetime-local"
+                      {...register(`itinerary.${index}.departAt` as const)}
+                      error={rowErrors?.departAt?.message}
+                    />
+                    <TextField
+                      label="Arrival"
+                      type="datetime-local"
+                      {...register(`itinerary.${index}.arriveAt` as const)}
+                      error={rowErrors?.arriveAt?.message}
+                    />
+                    <TextField
+                      label="Airline"
+                      placeholder="e.g. Air Arabia"
+                      {...register(`itinerary.${index}.airline` as const)}
+                      error={rowErrors?.airline?.message}
+                    />
+                    <TextField
+                      label="Flight Number"
+                      placeholder="e.g. G9 123"
+                      {...register(`itinerary.${index}.flightNumber` as const)}
+                      error={rowErrors?.flightNumber?.message}
+                    />
+                  </div>
+                  <Textarea
+                    label="Sector Notes"
+                    rows={2}
+                    hint="Shown to the customer (e.g. terminal change, layover)."
+                    {...register(`itinerary.${index}.notes` as const)}
+                    error={rowErrors?.notes?.message}
+                  />
+                </li>
+              );
+            })}
+          </ol>
+          {sectorListError ? <p className="text-xs text-error">{sectorListError}</p> : null}
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="self-start"
+            onClick={() => appendSector({ ...EMPTY_SEGMENT })}
+            disabled={sectorFields.length >= MAX_ITINERARY_SEGMENTS}
+          >
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Add Sector
+          </Button>
         </fieldset>
       ) : null}
 
@@ -410,7 +616,7 @@ export function QuoteBuilderForm({
         type="datetime-local"
         max={isFlightQuote ? maxValidityLocalIso() : undefined}
         hint={isFlightQuote ? `Optional — up to ${FLIGHT_QUOTE_MAX_VALIDITY_MINUTES} minutes from now.` : "Optional."}
-        {...register("validityExpiresAt")}
+        {...dateTimeField("validityExpiresAt")}
         error={errors.validityExpiresAt?.message}
       />
 
@@ -418,9 +624,33 @@ export function QuoteBuilderForm({
         <Button type="button" variant="ghost" size="sm" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button type="submit" size="sm" isLoading={submitting}>
-          Save Quote
-        </Button>
+        {mode === "revise" ? (
+          <Button type="button" size="sm" onClick={() => submitWith("send")} isLoading={submitting && pendingAction === "send"} disabled={submitting}>
+            Send Revision
+          </Button>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => submitWith("draft")}
+              isLoading={submitting && pendingAction === "draft"}
+              disabled={submitting}
+            >
+              {mode === "editDraft" ? "Save Draft" : "Save as Draft"}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => submitWith("send")}
+              isLoading={submitting && pendingAction === "send"}
+              disabled={submitting}
+            >
+              {mode === "editDraft" ? "Save & Send" : "Create & Send"}
+            </Button>
+          </>
+        )}
       </div>
     </form>
   );

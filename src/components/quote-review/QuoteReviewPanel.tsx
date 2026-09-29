@@ -14,6 +14,8 @@ import { formatRupees } from "@/lib/return-ticket/use-return-ticket-destinations
 import { siteConfig } from "@/lib/site-config";
 import { TermsCheckbox, type TermsView } from "@/components/terms/TermsAgreement";
 import { formatDeadlineDay, type UrgentDeadline } from "@/lib/visa-extension/rules";
+import type { StoredItinerarySegment } from "@/lib/quotations/itinerary";
+import { ItinerarySectors } from "@/components/quotations/ItinerarySectors";
 
 interface QuoteOption {
   id: string;
@@ -54,6 +56,8 @@ interface QuoteOption {
     policy: string | null;
   };
   alternativeLabel?: string | null;
+  /** P22 — Visa Change / Special Fare multi-sector itinerary (customer-safe fields only). */
+  itinerary?: StoredItinerarySegment[];
 }
 
 interface SpecialFareView {
@@ -155,6 +159,8 @@ function QuoteCard({
           {quote.bookingDeadline ? <span className="text-xs text-ink-tertiary">Booking deadline: {formatDateTime(quote.bookingDeadline)}</span> : null}
         </div>
       ) : null}
+
+      {quote.itinerary && quote.itinerary.length > 0 ? <ItinerarySectors segments={quote.itinerary} title="Your itinerary" /> : null}
 
       {specialFare && counts ? (
         <div className="flex flex-col gap-2">

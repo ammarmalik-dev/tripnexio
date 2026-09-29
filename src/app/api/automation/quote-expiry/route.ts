@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
         where: {
           isExpired: false,
           isSelected: false,
+          // P22 — unsent drafts get no customer reminders and no expiry notification.
+          isDraft: false,
           validityExpiresAt: { not: null },
           lead: { bookings: { none: { payments: { some: { status: "SUCCESS" } } } } },
         },

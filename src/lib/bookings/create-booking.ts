@@ -8,6 +8,7 @@ import { getProtectionPlanOffer, leadDestinationCountryCode, protectionPlanRowsF
 import { buildDocumentChecklistSnapshot } from "./document-checklist-snapshot";
 import { generateToken } from "../quotations/select-quotation";
 import { findOriginalBookingForExtension } from "../leads/visa-extension-eligibility";
+import { notifyNewBooking } from "../staff-notifications/triggers";
 
 export interface CreateBookingActor {
   byUserId?: string;
@@ -36,6 +37,10 @@ export async function createBookingFromQuotation(
 ): Promise<CreateBookingResult> {
   const quotation = await db.quotation.findUnique({ where: { id: quotationId }, include: { lead: true } });
   if (!quotation) return { ok: false, status: 404, error: "Quotation not found." };
+  // P22 — a draft can never be booked (and so never paid): send it first.
+  if (quotation.isDraft) {
+    return { ok: false, status: 409, error: "This quotation is still a draft — send it to the customer first." };
+  }
   if (!quotation.isSelected) {
     return { ok: false, status: 409, error: "Select this quotation before booking it." };
   }
@@ -134,6 +139,9 @@ export async function createBookingFromQuotation(
 
     return created;
   });
+
+  // P22 — staff notifications feed (after commit; never throws).
+  await notifyNewBooking(booking.id);
 
   return { ok: true, booking };
 }

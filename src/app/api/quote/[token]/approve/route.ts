@@ -9,6 +9,7 @@ import { describeError } from "@/lib/api/describe-error";
 import { clientIp } from "@/lib/auth/rate-limit";
 import { recordTermsAcceptance } from "@/lib/terms/service-terms";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
+import { notifyQuotationAccepted } from "@/lib/staff-notifications/triggers";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -52,7 +53,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
 
   const quotation = await db.quotation.findUnique({ where: { id: parsed.data.quotationId } });
-  if (!quotation || quotation.leadId !== lead.id) {
+  // P22 — a draft is invisible to the customer: treat it exactly like a quote that isn't theirs.
+  if (!quotation || quotation.leadId !== lead.id || quotation.isDraft) {
     return jsonError(400, "That quote isn't part of this request.", { quotationId: ["Invalid selection."] });
   }
 
@@ -69,6 +71,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!selectResult.ok) {
     return jsonError(selectResult.error === "Quotation not found." ? 404 : 409, selectResult.error);
   }
+  // P22 — staff notifications feed (selectQuotation has committed; never throws).
+  await notifyQuotationAccepted(lead.id, quotation.id);
 
   const bookingResult = await createBookingFromQuotation(quotation.id, { label: "by the customer" });
   if (!bookingResult.ok) {

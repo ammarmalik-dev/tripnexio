@@ -10,6 +10,7 @@ import { resolveCheckoutDocumentTypes } from "@/lib/checkout/required-documents"
 import { deleteUploadedFile, saveUploadedFile } from "@/lib/storage/local-file-storage";
 import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
 import { describeError } from "@/lib/api/describe-error";
+import { notifyDocumentUploaded } from "@/lib/staff-notifications/triggers";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return saved;
     });
     await dispatchStatusNotifications(statusNotifications);
+    await notifyDocumentUploaded(document.id);
     if (existing?.fileUrl) await deleteUploadedFile(existing.fileUrl);
 
     return jsonSuccess({ id: document.id, passengerId, type, status: document.status }, 201);

@@ -3,6 +3,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { setServiceStatusByEvent, type StatusNotification } from "../service-status/engine";
 import { raiseFullRefundForBooking } from "../refunds/raise-refund";
+import { notifyRefundsRaised } from "../staff-notifications/triggers";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { toWhatsAppId } from "../whatsapp/phone";
@@ -79,7 +80,9 @@ export async function runOtbAction(
   input: OtbActionInput,
   actor: { userId: string; label: string }
 ): Promise<OtbActionResult> {
-  return db.$transaction(async (tx) => {
+  // P22 — refunds raised inside the transaction are announced to refunds.approve staff once it commits.
+  const raisedRefundIds: string[] = [];
+  const result = await db.$transaction(async (tx): Promise<OtbActionResult> => {
     const note =
       input.action === "APPROVE"
         ? `OTB PNR/reference ${input.otbReference.toUpperCase()}`
@@ -121,6 +124,7 @@ export async function runOtbAction(
           raisedByUserId: actor.userId,
           actorLabel: actor.label,
         });
+        raisedRefundIds.push(...refunds.map((refund) => refund.id));
         return {
           ok: true,
           message: refunds.length > 0 ? "Marked unable to process — a refund is pending approval." : "Marked unable to process (nothing paid to refund).",
@@ -131,6 +135,8 @@ export async function runOtbAction(
         return { ok: true, message: "Status updated.", notification: moved.notification };
     }
   });
+  await notifyRefundsRaised(raisedRefundIds);
+  return result;
 }
 
 /**

@@ -43,7 +43,11 @@ export async function GET(request: NextRequest) {
   let leastLoadedWorkload = workloads.get(leastLoaded.id)!;
   for (const candidate of eligibleStaff.slice(1)) {
     const candidateWorkload = workloads.get(candidate.id)!;
-    if (candidateWorkload.paxCount < leastLoadedWorkload.paxCount) {
+    // P22 item 8 — same tie-break as roster auto-assign: fewer open leads wins an equal-PAX tie.
+    if (
+      candidateWorkload.paxCount < leastLoadedWorkload.paxCount ||
+      (candidateWorkload.paxCount === leastLoadedWorkload.paxCount && candidateWorkload.openLeadCount < leastLoadedWorkload.openLeadCount)
+    ) {
       leastLoaded = candidate;
       leastLoadedWorkload = candidateWorkload;
     }
@@ -55,6 +59,7 @@ export async function GET(request: NextRequest) {
       name: leastLoaded.name,
       paxCount: leastLoadedWorkload.paxCount,
       openBookingCount: leastLoadedWorkload.openBookingCount,
+      openLeadCount: leastLoadedWorkload.openLeadCount,
     },
   });
 }

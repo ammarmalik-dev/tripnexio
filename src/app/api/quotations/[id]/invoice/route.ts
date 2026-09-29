@@ -25,6 +25,8 @@ export async function GET(_request: Request, { params }: RouteParams) {
   if (!quotation) return jsonError(404, "Quotation not found.");
   const scopeError = assertServiceAccess(auth.session, quotation.lead.serviceType);
   if (scopeError) return scopeError;
+  // P22 — a proforma is a customer-bound document; an unsent draft never gets one.
+  if (quotation.isDraft) return jsonError(409, "Send this quotation before generating a proforma invoice.");
 
   const invoice = await buildInvoicePdfForQuotation(id);
   if (!invoice) return jsonError(404, "Quotation not found.");

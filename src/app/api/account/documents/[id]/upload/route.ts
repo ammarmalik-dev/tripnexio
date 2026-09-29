@@ -11,6 +11,7 @@ import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { runTicketExtraction } from "@/lib/ocr/extract-ticket";
 import { runVisaExtraction } from "@/lib/ocr/extract-visa";
 import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+import { notifyDocumentUploaded } from "@/lib/staff-notifications/triggers";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -87,6 +88,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return result;
   });
   await dispatchStatusNotifications(statusNotifications);
+  await notifyDocumentUploaded(updated.id);
 
   if (existing.fileUrl && existing.fileUrl !== fileUrl) {
     void deleteUploadedFile(existing.fileUrl);

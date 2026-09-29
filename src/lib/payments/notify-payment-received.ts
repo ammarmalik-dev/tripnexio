@@ -6,6 +6,7 @@ import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { paymentTotal } from "./totals";
 import { dispatchStatusNotifications, type StatusNotification } from "../service-status/engine";
+import { notifyStaffPaymentReceived } from "../staff-notifications/triggers";
 
 /**
  * Called by the mark-success route and the gateway webhook route right
@@ -21,6 +22,10 @@ import { dispatchStatusNotifications, type StatusNotification } from "../service
 export async function notifyPaymentReceived(paymentId: string, statusNotifications: StatusNotification[] = []): Promise<void> {
   // P08 — any per-service status messages Admin configured for the statuses the payment moved the booking/lead onto.
   await dispatchStatusNotifications(statusNotifications);
+  // P22 — staff notifications feed. Every success path (webhook, mark-success,
+  // bank-transfer approval, demo pay) calls this only after its transaction
+  // commits and only on a real transition, so staff are notified exactly once.
+  await notifyStaffPaymentReceived(paymentId);
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
     include: { booking: { include: { customer: true, lead: true } } },

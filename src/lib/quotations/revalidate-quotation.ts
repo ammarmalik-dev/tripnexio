@@ -33,6 +33,10 @@ export async function revalidateQuotation(
 ) {
   const quotation = await db.quotation.findUnique({ where: { id: quotationId }, include: { lead: true } });
   if (!quotation) return { ok: false as const, error: "Quotation not found." };
+  // P22 — a draft isn't live, so there's nothing to revalidate; edit it and send it instead.
+  if (quotation.isDraft) {
+    return { ok: false as const, error: "This quotation is still a draft — edit its validity and send it instead." };
+  }
   if (!isExpiredNow(quotation)) {
     return { ok: false as const, error: "Only an expired quotation can be revalidated." };
   }

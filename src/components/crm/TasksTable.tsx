@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, RotateCw } from "lucide-react";
+import { Search, RotateCw, Plus, X } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,6 +12,7 @@ import { TaskStatusControl } from "./TaskStatusControl";
 import { TaskPriorityBadge } from "./TaskPriorityBadge";
 import { TaskAssignmentControl } from "./TaskAssignmentControl";
 import { DateRangeFilter } from "./DateRangeFilter";
+import { CreateTaskForm } from "./tasks/CreateTaskForm";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { TASK_STATUS_OPTIONS, TASK_TYPE_OPTIONS, TASK_PRIORITY_OPTIONS, TASK_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
@@ -48,7 +49,8 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function TasksTable() {
+export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
+  const [showCreate, setShowCreate] = useState(false);
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
   const [priority, setPriority] = useState("");
@@ -174,7 +176,27 @@ export function TasksTable() {
           <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
           Refresh
         </Button>
+
+        {canCreate ? (
+          <Button type="button" size="md" className="ml-auto" onClick={() => setShowCreate((current) => !current)} aria-expanded={showCreate}>
+            {showCreate ? <X className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+            {showCreate ? "Close" : "New task"}
+          </Button>
+        ) : null}
       </div>
+
+      {canCreate && showCreate ? (
+        <div className="rounded-xl border border-hairline bg-surface-1 p-5">
+          <h2 className="mb-4 text-sm font-semibold text-ink-heading">New task</h2>
+          <CreateTaskForm
+            onCreated={() => {
+              setShowCreate(false);
+              setRefreshNonce((current) => current + 1);
+            }}
+            onCancel={() => setShowCreate(false)}
+          />
+        </div>
+      ) : null}
 
       <DateRangeFilter
         idPrefix="task"
@@ -210,7 +232,7 @@ export function TasksTable() {
         <EmptyState
           icon={<Search className="h-5 w-5" aria-hidden="true" />}
           title="No tasks match these filters"
-          description="Tasks are created automatically — e.g. when a document is flagged missing, an OCR extraction needs review, or a quote is about to expire."
+          description="Tasks are created automatically — e.g. when a document is flagged missing, an OCR extraction needs review, or a quote is about to expire — or by hand with New task."
         />
       ) : null}
 

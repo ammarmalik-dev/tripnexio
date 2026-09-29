@@ -43,6 +43,9 @@ import {
   CalendarDays,
   ScrollText,
   AlarmClock,
+  CalendarClock,
+  UserCircle,
+  LifeBuoy,
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -103,21 +106,38 @@ export const crmNavGroups: CrmNavGroup[] = [
   {
     // P16 — Flight_Special_Fare.md §25 Phase 1 analytics.
     label: "Analytics",
-    items: [{ label: "Special Fare Analytics", href: "/crm/analytics/special-fare", icon: BarChart3, permission: "leads.view" }],
+    items: [
+      // P22 item 3 — CRM.md §29 Reports.
+      { label: "Reports", href: "/crm/reports", icon: TrendingUp, permission: "leads.view" },
+      { label: "Special Fare Analytics", href: "/crm/analytics/special-fare", icon: BarChart3, permission: "leads.view" },
+    ],
   },
   {
     // Step 38 — CRM.md §3's Profile group, previously unbuilt (see doc
     // comment above) — this is the first screen in it.
     label: "Profile",
-    items: [{ label: "My Leave", href: "/crm/my-leave", icon: CalendarOff }],
+    items: [
+      // P22 item 5 — CRM.md §31 Profile & Security (own account only, no permission).
+      { label: "My Profile", href: "/crm/profile", icon: UserCircle },
+      { label: "My Leave", href: "/crm/my-leave", icon: CalendarOff },
+    ],
   },
   {
     // Item 14 (PENDING_WORK_PROMPTS.md) — CRM.md §3/§77's Resources group,
     // previously unbuilt (see doc comment above) — this is the first screen
-    // in it. Vendors (CRM.md's other named Resources item) stays Admin-only
-    // (masters.manage), not added here.
+    // in it. P22 item 6 — Vendors (CRM.md §24) now has a read-only staff
+    // view here; vendor CRUD stays Admin-only (/admin/vendors, masters.manage).
     label: "Resources",
-    items: [{ label: "Knowledge Centre", href: "/crm/knowledge-centre", icon: BookOpen, permission: "knowledge.view" }],
+    items: [
+      { label: "Knowledge Centre", href: "/crm/knowledge-centre", icon: BookOpen, permission: "knowledge.view" },
+      { label: "Vendors", href: "/crm/vendors", icon: Truck, permission: "quotations.view" },
+    ],
+  },
+  {
+    // P22 item 2 — CRM.md §3/§28 Help group. No permission: every signed-in
+    // staff member can search help and report an issue.
+    label: "Help",
+    items: [{ label: "Help", href: "/crm/help", icon: LifeBuoy }],
   },
 ];
 
@@ -163,6 +183,7 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Roles & Permissions", href: "/admin/roles", icon: ShieldCheck, permission: "roles.manage" },
       { label: "Staff", href: "/admin/users", icon: UserCog, permission: "staff.manage" },
       { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff, permission: "staff.manage" },
+      { label: "Staff Roster", href: "/admin/roster", icon: CalendarClock, permission: "staff.manage" },
       { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat, permission: "leads.reassign" },
     ],
   },

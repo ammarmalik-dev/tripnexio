@@ -51,7 +51,9 @@ export async function getSpecialFareAnalytics(input: { from: Date; to: Date; inc
       createdAt: true,
       details: true,
       assignedStaff: { select: { name: true } },
+      // P22 — "quotes sent" means sent; unsent drafts are excluded.
       quotations: {
+        where: { isDraft: false },
         select: { id: true, createdAt: true, isSelected: true, isExpired: true, validityExpiresAt: true, sellingPrice: true, couponDiscount: true, margin: true, vendor: { select: { name: true } } },
       },
       bookings: {

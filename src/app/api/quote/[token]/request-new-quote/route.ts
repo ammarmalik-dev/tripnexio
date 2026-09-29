@@ -33,7 +33,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   const lead = await db.lead.findUnique({
     where: { customerToken: token },
-    include: { quotations: true, customer: { select: { name: true } }, assignedStaff: { select: { id: true } } },
+    // P22 — only quotations the customer was actually sent count here, never drafts.
+    include: { quotations: { where: { isDraft: false } }, customer: { select: { name: true } }, assignedStaff: { select: { id: true } } },
   });
   if (!lead) return jsonError(404, "Page not found.");
   if (lead.serviceType !== "FLIGHT_SPECIAL_FARE") return jsonError(409, "New quotes can be requested for Special Fare requests only.");

@@ -181,6 +181,8 @@ export const TASK_TYPE_LABELS: Record<TaskType, string> = {
   CROSS_SELL_FOLLOW_UP: "Cross-sell Follow-up",
   PROTECTION_PLAN_REVIEW: "Protection Plan Review",
   PROTECTION_PLAN_REFUND_REVIEW: "Protection Plan Refund Review",
+  MANUAL: "Manual Task",
+  SUPPORT_REQUEST: "Support Request",
 };
 
 export const TASK_TYPE_OPTIONS: { value: TaskType; label: string }[] = (

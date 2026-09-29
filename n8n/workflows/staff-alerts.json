@@ -1,0 +1,55 @@
+{
+  "name": "TripNexio - Staff Alerts (Follow-ups Due & Delayed Bookings)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "5a1f0c2e-7b3d-4e8a-9c21-3f4e5d6a7b80",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "notes": "Hourly is plenty — the app itself limits alerts to once a day per task and once a week per delayed booking."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIPNEXIO_BASE_URL }}/api/automation/staff-alerts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "6b2a1d3f-8c4e-4f9b-8d32-4a5f6e7b8c91",
+      "name": "Call Staff Alerts API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "TripNexio Automation Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every hour": {
+      "main": [[{ "node": "Call Staff Alerts API", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/forms/Textarea";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { REASSIGN_REASON_MIN_LENGTH } from "@/lib/validation/lead-assign-schema";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
@@ -123,8 +124,8 @@ export function BulkReassignmentManager() {
 
   const handleReassign = async () => {
     setReasonError("");
-    if (!reason.trim()) {
-      setReasonError("A reason is required.");
+    if (reason.trim().length < REASSIGN_REASON_MIN_LENGTH) {
+      setReasonError(`Enter a reason of at least ${REASSIGN_REASON_MIN_LENGTH} characters.`);
       return;
     }
     setSubmitting(true);

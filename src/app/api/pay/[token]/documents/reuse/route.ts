@@ -7,6 +7,7 @@ import { rateLimitByIp } from "@/lib/auth/rate-limit";
 import { loadCheckoutByToken } from "@/lib/checkout/load-checkout";
 import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
 import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
+import { notifyDocumentUploaded } from "@/lib/staff-notifications/triggers";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return created;
   });
   await dispatchStatusNotifications(statusNotifications);
+  await notifyDocumentUploaded(document.id);
 
   return jsonSuccess({ id: document.id, passengerId, type, status: document.status }, 201);
 }
