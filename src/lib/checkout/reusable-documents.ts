@@ -1,8 +1,7 @@
 import { db } from "../db";
+import { getSystemConfig } from "../settings/system-config";
 import type { CheckoutDocumentType } from "./required-documents";
 
-/** P10 — a returning passenger's upload can be reused for this long. */
-export const REUSE_WINDOW_DAYS = 90;
 
 export interface ReusableDocument {
   passengerId: string;
@@ -24,7 +23,7 @@ function fits(slot: CheckoutDocumentType, sourceType: string): boolean {
 /**
  * P10 — New Visa "Use Existing / Upload New": for each passenger slot not yet
  * uploaded on this booking, the passenger's most recent matching upload from
- * the last 3 months (passport front / photograph, never purged or rejected).
+ * the Admin document-retention window (passport front / photograph, never purged or rejected).
  * Only ever offered — nothing is reused without the customer's click.
  */
 export async function findReusableDocuments(input: {
@@ -34,7 +33,8 @@ export async function findReusableDocuments(input: {
   uploaded: { passengerId: string; type: string }[];
 }): Promise<ReusableDocument[]> {
   if (input.passengerIds.length === 0 || input.documentTypes.length === 0) return [];
-  const since = new Date(Date.now() - REUSE_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  // P27 - the reuse window is the Admin document-retention setting; purged files are excluded below.
+  const since = new Date(Date.now() - (await getSystemConfig()).documentRetentionDays * 24 * 60 * 60 * 1000);
   const candidates = await db.document.findMany({
     where: {
       passengerId: { in: input.passengerIds },

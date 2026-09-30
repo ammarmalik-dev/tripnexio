@@ -27,6 +27,8 @@ interface DeliveredDocument {
   passengerId: string | null;
   fileUrl: string | null;
   deliveredAt?: string | null;
+  /** P27 - set when the retention job deleted the file. */
+  purgedAt?: string | null;
 }
 
 /**
@@ -162,6 +164,8 @@ export function DeliverOutputSection({
                   <a href={document.fileUrl} target="_blank" rel="noopener noreferrer" className="text-ink-accent underline">
                     View
                   </a>
+                ) : document.purgedAt ? (
+                  <span>Deleted after retention period</span>
                 ) : null}
               </span>
             </li>

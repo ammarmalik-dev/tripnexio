@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { getSystemConfig } from "../settings/system-config";
 
 /**
  * New_Visa.md §17 / Visa_Extension.md §16, locked, identical wording in
@@ -9,11 +10,13 @@ import { db } from "../db";
  * (both docs give the exact same 3-month/retained-types split), not
  * specific to New Visa.
  */
-export const REUSE_WINDOW_DAYS = 90;
-
-/** Same type-matching convention already established for OCR auto-trigger and retention purge — see DocumentExtraction/purge job's own comments. */
-function isRetainedType(type: string): boolean {
-  return /passport/i.test(type) || /visa/i.test(type);
+/**
+ * P27 - the reuse window is the Admin document-retention setting (no
+ * hard-coded 90 days and no passport/visa exemption: every file is deleted
+ * after the retention period, and a purged file is never offered).
+ */
+async function reuseWindowDays(): Promise<number> {
+  return (await getSystemConfig()).documentRetentionDays;
 }
 
 export interface ReusableDocument {
@@ -41,6 +44,7 @@ export async function getReusableDocumentsForPassenger(passengerId: string): Pro
   });
 
   const now = Date.now();
+  const windowDays = await reuseWindowDays();
   return documents.map((document) => {
     const ageInDays = Math.floor((now - document.createdAt.getTime()) / (24 * 60 * 60 * 1000));
     return {
@@ -50,7 +54,7 @@ export async function getReusableDocumentsForPassenger(passengerId: string): Pro
       bookingId: document.bookingId,
       createdAt: document.createdAt,
       ageInDays,
-      reusable: ageInDays <= REUSE_WINDOW_DAYS || isRetainedType(document.type),
+      reusable: ageInDays <= windowDays,
     };
   });
 }

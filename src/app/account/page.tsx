@@ -49,9 +49,10 @@ export default async function AccountPage() {
     getOutstandingDocuments(session.id),
     // P09 — the service results TripNexio delivered (visa, ticket, package...).
     db.document.findMany({
-      where: { booking: { customerId: session.id }, type: { in: [...OUTPUT_TYPES] }, deliveredAt: { not: null }, fileUrl: { not: null } },
+      // P27 - purged files stay listed as "Deleted after retention period".
+      where: { booking: { customerId: session.id }, type: { in: [...OUTPUT_TYPES] }, deliveredAt: { not: null }, OR: [{ fileUrl: { not: null } }, { purgedAt: { not: null } }] },
       orderBy: { deliveredAt: "desc" },
-      select: { id: true, type: true, fileUrl: true, deliveredAt: true, passenger: { select: { fullName: true } }, booking: { select: { bookingId: true } } },
+      select: { id: true, type: true, fileUrl: true, purgedAt: true, deliveredAt: true, passenger: { select: { fullName: true } }, booking: { select: { bookingId: true } } },
     }),
   ]);
   // P12 — New Visa: each passenger's visa status beside their Protection Plan status.
@@ -83,14 +84,18 @@ export default async function AccountPage() {
                   {document.booking?.bookingId} · delivered {formatDate(document.deliveredAt as Date)}
                 </span>
               </div>
-              <a
-                href={document.fileUrl as string}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-ink-accent hover:bg-accent/20"
-              >
-                Download
-              </a>
+              {document.fileUrl ? (
+                <a
+                  href={document.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full bg-accent/10 px-3 py-1 text-xs font-medium text-ink-accent hover:bg-accent/20"
+                >
+                  Download
+                </a>
+              ) : (
+                <span className="rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-ink-tertiary">Deleted after retention period</span>
+              )}
             </div>
           ))}
         </section>

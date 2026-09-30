@@ -8,6 +8,7 @@ import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface ConfigData {
   id: string;
@@ -150,6 +151,7 @@ function Section({ title, description, children }: { title: string; description?
 export function SystemConfigManager() {
   const [state, setState] = useState<FetchState>("loading");
   const [config, setConfig] = useState<ConfigData | null>(null);
+  const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
@@ -197,10 +199,21 @@ export function SystemConfigManager() {
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(config));
 
   const handleSave = async () => {
+    // P27 - changing the retention period changes when every document file is deleted.
+    let reason: string | undefined;
+    if (config && Number(form.documentRetentionDays) !== config.documentRetentionDays) {
+      const answer = await confirm({
+        title: "Change the document retention period?",
+        description: `All documents (passport, visa, tickets, bank slips and delivered PDFs) will be deleted ${form.documentRetentionDays} days after their case is closed, instead of ${config.documentRetentionDays}. A shorter period can delete files on the next daily run.`,
+        confirmLabel: "Change retention",
+      });
+      if (!answer) return;
+      reason = answer;
+    }
     setSaving(true);
     setErrors({});
     try {
-      const updated = await patchJson<ConfigData>("/api/admin/system-config", buildPayload(form));
+      const updated = await patchJson<ConfigData>("/api/admin/system-config", { ...buildPayload(form), ...(reason ? { reason } : {}) });
       toast.success("System configuration updated.");
       setConfig(updated);
       setForm(toFormState(updated));
@@ -295,12 +308,13 @@ export function SystemConfigManager() {
       </Section>
 
       <Section title="Data Retention">
+        {dialog}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <TextField
             label="Document Retention (days)"
             name="documentRetentionDays"
             type="number"
-            hint="Wired into the automated document-purge job."
+            hint="All documents are deleted this many days after the case is closed."
             value={form.documentRetentionDays}
             onChange={(e) => setForm({ ...form, documentRetentionDays: e.target.value })}
             error={errors.documentRetentionDays?.[0]}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PurgedFileTag } from "./PurgedFileTag";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Search, RotateCw } from "lucide-react";
@@ -24,6 +25,8 @@ interface DocumentListItem {
   status: DocumentStatus;
   rejectionReason?: string | null;
   fileUrl: string | null;
+  /** P27 - set when the retention job deleted the file. */
+  purgedAt?: string | null;
   createdAt: string;
   passenger: { id: string; fullName: string } | null;
   booking: { id: string; bookingId: string; leadReferenceId: string } | null;
@@ -227,7 +230,12 @@ export function DocumentReviewQueue() {
             <tbody>
               {items.map((document) => (
                 <tr key={document.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
-                  <td className="px-4 py-3 font-medium text-ink-primary">{document.type}</td>
+                  <td className="px-4 py-3 font-medium text-ink-primary">
+                    <span className="flex flex-wrap items-center gap-2">
+                      {document.type}
+                      <PurgedFileTag purgedAt={document.purgedAt} />
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-xs text-ink-tertiary">
                     {document.booking ? (
                       <Link href={`/crm/bookings/${document.booking.id}`} className="text-ink-accent hover:underline">

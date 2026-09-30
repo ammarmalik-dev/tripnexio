@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { PurgedFileTag } from "./PurgedFileTag";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -59,6 +60,8 @@ interface PassengerDocument {
   type: string;
   status: DocumentStatus;
   fileUrl: string | null;
+  /** P27 - set when the retention job deleted the file. */
+  purgedAt?: string | null;
 }
 
 interface LeadPassenger {
@@ -403,7 +406,10 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
                       ) : (
                         passenger.documents.map((document) => (
                           <div key={document.id} className="flex items-center gap-1.5">
-                            <span className="text-xs text-ink-tertiary">{document.type}</span>
+                            <span className="flex flex-wrap items-center gap-2 text-xs text-ink-tertiary">
+                              {document.type}
+                              <PurgedFileTag purgedAt={document.purgedAt} />
+                            </span>
                             <DocumentStatusBadge status={document.status} />
                           </div>
                         ))

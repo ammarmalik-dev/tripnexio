@@ -1,108 +1,53 @@
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
-import { db } from "@/lib/db";
 import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
-import { writeAudit } from "@/lib/audit/log";
-import { deleteUploadedFile } from "@/lib/storage/local-file-storage";
+import { executeDocumentRetention, planDocumentRetention } from "@/lib/documents/retention";
 import { getSystemConfig } from "@/lib/settings/system-config";
 
-const TERMINAL_BOOKING_STATUSES = ["COMPLETED", "CANCELLED", "REFUNDED"] as const;
-
-function isRetainedType(type: string): boolean {
-  return /passport/i.test(type) || /visa/i.test(type);
-}
-
 /**
- * New_Visa.md §27 (Step 21, audit §7.5): "After 3 months: keep Passport
- * Front Page, keep Visa Copy/PDF, auto-delete other customer-uploaded
- * document files. Customer/Buyer/Passenger/Booking history remains."
+ * P27 - client decision: ALL documents auto-delete after the Admin-selected
+ * number of days (System Configuration -> Document retention). No type is
+ * exempt. The rules (closed bookings, never-booked leads, never an active
+ * case) live in src/lib/documents/retention.ts.
  *
- * "3 months past processing completion" is read as: the booking has
- * reached a terminal BookingStatus (COMPLETED/CANCELLED/REFUNDED — the
- * coarse enum every other part of this app already treats as "the case is
- * done," see Step 19), and it's been at least 3 months since
- * Booking.updatedAt. This is a proxy, not an exact "completed at"
- * timestamp (Booking has no dedicated field for that) — it's reliable
- * today because nothing currently re-touches Booking.status after it goes
- * terminal, but would need revisiting if a future change (e.g. Step 19
- * Units 2-3's serviceStatus cascade) starts writing to `status` again
- * after completion.
- *
- * Only ever purges the FILE (deleteUploadedFile + fileUrl -> null,
- * purgedAt set) — the Document row itself stays, matching "history
- * remains." Documents not attached to any Booking (e.g. a passport photo
- * from an abandoned lead that never became a booking) are out of scope —
- * there's no "processing completion" for something that was never
- * processed.
- *
- * `dryRun: true` in the request body computes what WOULD be purged
- * without deleting anything or writing to the DB — the roadmap prompt's
- * own explicit ask: "dry-run the purge job against test data before ever
- * running it against real documents." n8n's own scheduled call omits this
- * (defaults to a real run); a manual dry-run check can pass it explicitly.
+ * Real delete by default when called with the automation key (daily cron);
+ * `?dryRun=true` (or a JSON body `{"dryRun": true}`) only previews counts
+ * and writes nothing.
  */
 export async function POST(request: NextRequest) {
   if (!verifyAutomationKey(request)) return jsonError(401, "Unauthorized.");
 
-  let dryRun = false;
+  let dryRun = request.nextUrl.searchParams.get("dryRun") === "true";
   try {
     const body = await request.json();
-    dryRun = body?.dryRun === true;
+    if (body?.dryRun === true) dryRun = true;
   } catch {
-    // No body (or invalid JSON) is fine — defaults to a real run, matching every other automation route's tolerant parsing.
+    // No body (cron GET) or invalid JSON - the query string decides.
   }
 
   try {
     const summary = await recordAutomationRun("document-retention", async () => {
-      // Step 45 (Admin FINAL handover §19, "data retention") — replaces
-      // the previously hardcoded 90-day constant.
       const { documentRetentionDays } = await getSystemConfig();
-      const cutoff = new Date(Date.now() - documentRetentionDays * 24 * 60 * 60 * 1000);
-
-      const candidates = await db.document.findMany({
-        where: {
-          bookingId: { not: null },
-          fileUrl: { not: null },
-          purgedAt: null,
-          booking: { status: { in: [...TERMINAL_BOOKING_STATUSES] }, updatedAt: { lte: cutoff } },
-        },
-        include: { booking: true },
-      });
-
-      const eligible = candidates.filter((doc) => !isRetainedType(doc.type));
-      const retained = candidates.length - eligible.length;
-
+      const plan = await planDocumentRetention(documentRetentionDays);
       if (dryRun) {
         return {
           dryRun: true,
-          checked: candidates.length,
-          wouldPurge: eligible.length,
-          retainedByType: retained,
-          wouldPurgeDocumentIds: eligible.map((doc) => doc.id),
+          retentionDays: plan.retentionDays,
+          cutoff: plan.cutoff.toISOString(),
+          wouldPurgeDocuments: plan.documents.length,
+          wouldPurgeBankSlips: plan.bankSlips.length,
+          keptActiveOrRecent: plan.keptActiveOrRecent,
+          wouldPurgeDocumentIds: plan.documents.slice(0, 500).map((doc) => doc.id),
+          wouldPurgeBankSlipPaymentIds: plan.bankSlips.slice(0, 500).map((slip) => slip.paymentId),
+          byType: plan.documents.reduce<Record<string, number>>((acc, doc) => {
+            acc[doc.type] = (acc[doc.type] ?? 0) + 1;
+            return acc;
+          }, {}),
         };
       }
-
-      let purged = 0;
-      for (const document of eligible) {
-        // Logged BEFORE deleting, per the roadmap prompt's own explicit
-        // instruction — if the file delete or DB update fails partway,
-        // there's still a permanent record the purge was attempted.
-        await writeAudit(db, {
-          entityType: "Document",
-          entityId: document.id,
-          action: "PURGE",
-          note: `File purged by 3-month retention policy (type "${document.type}", booking ${document.booking!.bookingId}, originally uploaded ${document.createdAt.toISOString()})`,
-        });
-        // Detach first, then delete: deleteUploadedFile keeps a file another
-        // record still references (a reused document), so it must no longer
-        // count this one.
-        await db.document.update({ where: { id: document.id }, data: { fileUrl: null, purgedAt: new Date() } });
-        await deleteUploadedFile(document.fileUrl!);
-        purged++;
-      }
-
-      return { dryRun: false, checked: candidates.length, purged, retainedByType: retained };
+      const result = await executeDocumentRetention(plan);
+      return { dryRun: false, retentionDays: plan.retentionDays, ...result, keptActiveOrRecent: plan.keptActiveOrRecent };
     });
 
     return jsonSuccess(summary);

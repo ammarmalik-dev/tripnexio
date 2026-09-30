@@ -7,13 +7,13 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 3 * * 0"
+              "expression": "0 3 * * *"
             }
           ]
         }
       },
       "id": "b1c4a9d2-3e5f-4a7b-9c1d-6f8e2a4b7c9d",
-      "name": "Weekly Sunday at 3:00 AM",
+      "name": "Daily at 3:00 AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [0, 0],
@@ -47,7 +47,7 @@
     }
   ],
   "connections": {
-    "Weekly Sunday at 3:00 AM": {
+    "Daily at 3:00 AM": {
       "main": [[{ "node": "Call Document Retention API", "type": "main", "index": 0 }]]
     }
   },

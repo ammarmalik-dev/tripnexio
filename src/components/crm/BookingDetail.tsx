@@ -16,6 +16,7 @@ import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { DeliverOutputSection } from "./DeliverOutputSection";
+import { PurgedFileTag } from "./PurgedFileTag";
 import { ApplicantsTable } from "./ApplicantsTable";
 import { EmbassyActionsPanel } from "./EmbassyActionsPanel";
 import { VisaChangeActionsPanel, type VisaChangeBookingView } from "./VisaChangeActionsPanel";
@@ -48,6 +49,8 @@ interface DocumentItem {
   status: DocumentStatus;
   rejectionReason?: string | null;
   fileUrl: string | null;
+  /** P27 - set when the retention job deleted the file. */
+  purgedAt?: string | null;
   createdAt: string;
   passengerId: string | null;
   /** P09 — set on documents delivered to the customer (visa, ticket, package...). */
@@ -598,7 +601,10 @@ export function BookingDetail({
                             return (
                               <div key={document.id} className="rounded-md bg-surface-2 px-3 py-2 text-sm">
                                 <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <span className="text-ink-primary">{document.type}</span>
+                                  <span className="flex flex-wrap items-center gap-2 text-ink-primary">
+                                    {document.type}
+                                    <PurgedFileTag purgedAt={document.purgedAt} />
+                                  </span>
                                   <DocumentStatusControl
                                     documentId={document.id}
                                     status={document.status}
@@ -648,7 +654,10 @@ export function BookingDetail({
                     return (
                       <div key={document.id} className="rounded-lg border border-hairline p-3 text-sm">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="font-medium text-ink-primary">{document.type}</span>
+                          <span className="flex flex-wrap items-center gap-2 font-medium text-ink-primary">
+                            {document.type}
+                            <PurgedFileTag purgedAt={document.purgedAt} />
+                          </span>
                           <DocumentStatusControl
                             documentId={document.id}
                             status={document.status}

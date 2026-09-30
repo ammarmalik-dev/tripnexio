@@ -133,6 +133,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         type: document.type,
         status: document.status,
         fileUrl: document.fileUrl,
+        purgedAt: document.purgedAt,
       })),
     })),
     priorVisaMatches,

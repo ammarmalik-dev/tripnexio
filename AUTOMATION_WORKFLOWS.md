@@ -34,11 +34,15 @@ Every one of these workflows is visible to the team at **Admin → Automation** 
 - A request that's been sitting without any progress for a few days (not yet quoted, or quoted but the customer hasn't responded) gets a friendly "still interested?" nudge. Unlike the other three (which each customer gets at most once), this one can repeat periodically — as long as a request stays stalled, it'll get another gentle nudge every few days.
 
 ### 5. Document Retention Purge
-**Runs weekly, Sunday at 3:00 AM.** Calls `POST /api/automation/document-retention`.
+**Runs daily at 3:00 AM.** Calls `POST /api/automation/document-retention` (Vercel Cron: GET).
 
-This one is different from the other four — it doesn't send anything, it **deletes files**. Once a booking is fully done (completed, cancelled, or refunded) and 3 months have passed, the documents a customer uploaded for it are no longer needed — except their Passport photo and Visa copy/PDF, which TripNexio keeps. Everything else's underlying file is deleted; the record that a document of that type existed stays (so the booking's history still shows what was uploaded), only the file itself is removed.
+This one doesn't send anything: it **deletes files**. Client decision (P27): **every** document file is deleted once the Admin-set number of days (Admin → System Configuration → Document Retention, default 90) has passed after the case closed. No type is exempt: passport, visa, tickets, bank-transfer slips and the visa/ticket/package PDFs TripNexio delivered all go.
 
-**Before this job ever runs for real:** call it once with `{"dryRun": true}` in the request body and check the `wouldPurge`/`wouldPurgeDocumentIds` numbers look right — it reports exactly what it would delete without touching anything. The imported workflow ships with a reminder about this in the HTTP node's own notes.
+- A booking's files go once the booking is closed (completed, cancelled or refunded, or its service status is marked terminal) and the closing date is older than the retention period.
+- Intake uploads on a lead that never became a booking (abandoned or lost) go once that lead has had no update for the retention period.
+- Files of an active lead or booking are never touched.
+- Only the file is removed. The document record stays and screens show "Deleted after retention period"; every deletion is written to the audit trail first.
+- `?dryRun=true` (or a JSON body `{"dryRun": true}`) previews the counts without deleting anything.
 
 ### 6. Visa Extension: Day-25 Re-Extension Reminder
 **Runs daily at 9:00 AM.** Calls `POST /api/automation/visa-extension-reminder`.
@@ -110,7 +114,7 @@ Vercel cron expressions are always **UTC**. India Standard Time is UTC+5:30, so 
 | `/api/automation/visa-extension-reminder` | `45 3 * * *` | daily 09:15 | |
 | `/api/automation/lead-followup` | `30 4 * * *` | daily 10:00 | also covers the Flight Special Fare every-7-days follow-up |
 | `/api/automation/document-reminder` | `30 5 * * *` | daily 11:00 | |
-| `/api/automation/document-retention` | `30 21 * * 6` | weekly, Sunday 03:00 | |
+| `/api/automation/document-retention` | `30 21 * * *` | daily 03:00 | |
 | `/api/automation/audit-retention` | `30 22 * * 6` | weekly, Sunday 04:00 | a body-less call (Vercel's GET) runs as a **dry run** — reports what would be purged, deletes nothing. Real purges still need an explicit `POST {"dryRun": false}` (e.g. from n8n). |
 
 ## What each workflow actually sends

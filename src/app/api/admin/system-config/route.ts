@@ -1,4 +1,6 @@
 import type { NextRequest } from "next/server";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 import { revalidatePath } from "next/cache";
 import { updateSystemConfigSchema } from "@/lib/validation/system-config-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -47,14 +49,26 @@ export async function PATCH(request: NextRequest) {
     return jsonError(400, "The working day must end after it starts.", { workdayEndHour: ["Must be later than the start hour."] });
   }
 
+  // P27 - the retention period decides when every document file is deleted: changing it needs a reason.
+  const retentionChanged = parsed.data.documentRetentionDays !== undefined && parsed.data.documentRetentionDays !== current.documentRetentionDays;
+  let retentionReason: string | undefined;
+  if (retentionChanged) {
+    const reasonResult = readBodyReason(body);
+    if (reasonResult.error) return reasonResult.error;
+    retentionReason = reasonResult.reason;
+  }
+
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.systemConfig.update({ where: { id: SYSTEM_CONFIG_ID }, data: parsed.data });
+    const baseNote = retentionChanged
+      ? `System configuration updated; document retention ${current.documentRetentionDays} -> ${parsed.data.documentRetentionDays} days (by ${session.name})`
+      : `System configuration updated (by ${session.name})`;
     await writeAudit(tx, {
       entityType: "SystemConfig",
       entityId: SYSTEM_CONFIG_ID,
       action: "UPDATE",
       byUserId: session.id,
-      note: `System configuration updated (by ${session.name})`,
+      note: retentionReason ? withReason(baseNote, retentionReason) : baseNote,
     });
     return result;
   });
