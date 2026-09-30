@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
         validFrom: new Date(parsed.data.validFrom),
         validUntil: new Date(parsed.data.validUntil),
         usageLimit: parsed.data.usageLimit,
+        maxDiscount: parsed.data.maxDiscount ?? null,
         active: parsed.data.active,
       },
     });
@@ -65,7 +66,7 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Coupon "${created.code}" created — ${created.type === "PERCENTAGE" ? `${created.value}%` : `₹${created.value}`} (by ${session.name})`,
+      note: `Coupon "${created.code}" created — ${created.type === "PERCENTAGE" ? `${created.value}%` : `₹${created.value}`}${created.maxDiscount != null ? `, max discount ₹${created.maxDiscount}` : ""} (by ${session.name})`,
     });
     return created;
   });

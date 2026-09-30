@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serializeOtbPrice } from "@/lib/otb/pricing";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 const INCLUDE = { airline: { select: { name: true, code: true } }, country: { select: { name: true, code: true } } } as const;
 
@@ -33,6 +35,9 @@ export async function POST(request: NextRequest) {
   }
   const parsed = createOtbPriceSchema.safeParse(body);
   if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const [airline, country] = await Promise.all([
     db.airline.findUnique({ where: { id: parsed.data.airlineId }, select: { id: true } }),
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
       entityId: row.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `OTB price ${row.airline.code} → ${row.country.name} (${row.paxType}): normal ${parsed.data.normalPrice}, urgent ${parsed.data.urgentPrice ?? "airline price"} (by ${session.name})`,
+      note: withReason(`OTB price ${row.airline.code} → ${row.country.name} (${row.paxType}): normal ${parsed.data.normalPrice}, urgent ${parsed.data.urgentPrice ?? "airline price"} (by ${session.name})`, reason),
     });
     return row;
   });

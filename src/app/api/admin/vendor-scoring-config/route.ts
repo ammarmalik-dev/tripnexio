@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { VENDOR_SCORING_CONFIG_ID } from "@/lib/vendors/scoring";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
@@ -29,12 +31,12 @@ export async function PATCH(request: NextRequest) {
     return jsonError(400, "Invalid request body.");
   }
 
-  const { reason, ...rest } = (body as Record<string, unknown>) ?? {};
-  if (typeof reason !== "string" || reason.trim().length < 5) {
-    return jsonError(400, "Enter a reason (at least 5 characters).", { reason: ["Enter a reason (at least 5 characters)."] });
-  }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
-  const parsed = updateVendorScoringConfigSchema.safeParse(rest);
+  // zod's default strip mode drops `reason` from the parsed data.
+  const parsed = updateVendorScoringConfigSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
@@ -49,7 +51,7 @@ export async function PATCH(request: NextRequest) {
       entityId: VENDOR_SCORING_CONFIG_ID,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Weights updated: suitability ${existing.serviceSuitabilityWeight}->${result.serviceSuitabilityWeight}, processing time ${existing.processingTimeWeight}->${result.processingTimeWeight}, performance ${existing.performanceWeight}->${result.performanceWeight}, reliability ${existing.reliabilityWeight}->${result.reliabilityWeight} (by ${session.name}). Reason: ${reason.trim()}`,
+      note: withReason(`Weights updated: suitability ${existing.serviceSuitabilityWeight}->${result.serviceSuitabilityWeight}, processing time ${existing.processingTimeWeight}->${result.processingTimeWeight}, performance ${existing.performanceWeight}->${result.performanceWeight}, reliability ${existing.reliabilityWeight}->${result.reliabilityWeight} (by ${session.name})`, reason),
     });
     return result;
   });

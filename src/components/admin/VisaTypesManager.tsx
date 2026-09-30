@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -79,7 +81,7 @@ function VisaTypeRow({
   const [order, setOrder] = useState(String(visaType.displayOrder));
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
   const dirty =
     name.trim() !== visaType.name ||
     (countryId || null) !== visaType.countryId ||
@@ -101,14 +103,19 @@ function VisaTypeRow({
   };
 
   const remove = async () => {
+    const reason = await confirm({
+      title: `Remove visa type "${visaType.name}"?`,
+      description: "This permanently deletes the visa type. To stop offering it without deleting, hide it instead.",
+      confirmLabel: "Remove Visa Type",
+    });
+    if (!reason) return;
     setBusy(true);
     try {
-      await deleteJson(`/api/admin/visa-types/${visaType.id}`);
+      await deleteJson(withReasonQuery(`/api/admin/visa-types/${visaType.id}`, reason));
       toast.success(`"${visaType.name}" removed.`);
       onDeleted(visaType.id);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't remove this visa type. Please try again.");
-      setConfirming(false);
     } finally {
       setBusy(false);
     }
@@ -141,20 +148,10 @@ function VisaTypeRow({
         <Button type="button" size="sm" variant="ghost" onClick={() => void save({ active: !visaType.active })} disabled={busy}>
           {visaType.active ? "Hide" : "Show"}
         </Button>
-        {confirming ? (
-          <>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={busy}>
-              Keep
-            </Button>
-            <Button type="button" size="sm" onClick={() => void remove()} isLoading={busy}>
-              Confirm remove
-            </Button>
-          </>
-        ) : (
-          <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(true)} disabled={busy}>
-            Remove
-          </Button>
-        )}
+        <Button type="button" size="sm" variant="ghost" onClick={() => void remove()} disabled={busy}>
+          Remove
+        </Button>
+        {dialog}
       </div>
     </div>
   );

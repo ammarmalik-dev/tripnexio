@@ -7,6 +7,8 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { writeAudit } from "@/lib/audit/log";
 import { describeError } from "@/lib/api/describe-error";
 import { linkServiceBookings, returnTicketVendorSchema } from "@/lib/return-ticket/operations";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -77,7 +79,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const vendor = await db.vendor.findUnique({ where: { id: data.vendorId }, select: { id: true, name: true, active: true } });
     if (!vendor || !vendor.active) return jsonError(400, "Select an active vendor.", { vendorId: ["Select an active vendor."] });
 
+    // Business Rules §14 "Sensitive Admin Actions" — changing the booking's vendor or vendor cost needs the confirmation reason; saving only the reference/PNR doesn't.
+    const vendorChanged = vendor.id !== quotation.vendorId || data.vendorCost !== Number(quotation.vendorCost);
+    const reasonResult = readBodyReason(body);
+    if (vendorChanged && reasonResult.error) return reasonResult.error;
+    const reason = reasonResult.reason ?? null;
+
     const margin = Number(quotation.sellingPrice) - data.vendorCost;
+    const vendorNote = `Vendor ${vendor.name}, reference ${data.vendorReference || "—"}, PNR ${data.pnr ? data.pnr.toUpperCase() : "—"} (by ${session.name})`;
     await db.$transaction(async (tx) => {
       await tx.quotation.update({ where: { id: quotation.id }, data: { vendorId: vendor.id, vendorCost: data.vendorCost, margin } });
       await tx.booking.update({
@@ -89,7 +98,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         entityId: id,
         action: "VENDOR_DETAILS",
         byUserId: session.id,
-        note: `Vendor ${vendor.name}, reference ${data.vendorReference || "—"}, PNR ${data.pnr ? data.pnr.toUpperCase() : "—"} (by ${session.name})`,
+        note: reason ? withReason(vendorNote, reason) : vendorNote,
       });
     });
     return jsonSuccess({ saved: true });

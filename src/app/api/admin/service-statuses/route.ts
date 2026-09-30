@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { ServiceType, StatusScope } from "../../../../generated/prisma/enums";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 /**
  * Step 19 Unit 1 (audit §3.9/§7.3) — Admin CRUD for the per-service status
@@ -64,6 +66,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.serviceStatus.findUnique({
     where: { serviceType_scope_name: { serviceType: parsed.data.serviceType, scope: parsed.data.scope, name: parsed.data.name } },
@@ -82,7 +87,7 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Status "${created.name}" created for ${created.serviceType}/${created.scope} (by ${session.name})`,
+      note: withReason(`Status "${created.name}" created for ${created.serviceType}/${created.scope} (by ${session.name})`, reason),
     });
     return created;
   });

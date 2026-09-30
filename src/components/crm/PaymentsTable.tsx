@@ -18,6 +18,7 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { PaymentStatus } from "../../generated/prisma/enums";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface PaymentListItem {
   id: string;
@@ -66,6 +67,7 @@ export function PaymentsTable() {
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirmAction();
 
   function buildFilterParams() {
     const params = new URLSearchParams();
@@ -114,9 +116,15 @@ export function PaymentsTable() {
   }, [status, dateFrom, dateTo, search, sort, refreshNonce]);
 
   const handleMarkSuccess = async (id: string) => {
+    const reason = await confirm({
+      title: "Mark this payment successful manually?",
+      description: "Only use this when the gateway webhook never arrived or the customer paid outside the gateway. The booking is confirmed and the customer is notified.",
+      confirmLabel: "Mark Success",
+    });
+    if (!reason) return;
     setMarkingId(id);
     try {
-      await postJson(`/api/payments/${id}/mark-success`, {});
+      await postJson(`/api/payments/${id}/mark-success`, { reason });
       toast.success("Payment marked successful.");
       setRefreshNonce((current) => current + 1);
     } catch (error) {
@@ -288,6 +296,7 @@ export function PaymentsTable() {
           Showing {items.length} of {total} payment{total === 1 ? "" : "s"}
         </p>
       ) : null}
+      {dialog}
     </div>
   );
 }

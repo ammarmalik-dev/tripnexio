@@ -4,6 +4,8 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 /**
  * Step 28 (audit §4.8) — ADMIN.md §28's expense entries. Gated by the new
@@ -53,6 +55,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const category = await db.expenseCategory.findUnique({ where: { id: parsed.data.categoryId } });
   if (!category || !category.active) {
@@ -75,7 +80,7 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `₹${parsed.data.amount} expense recorded under "${category.name}"${parsed.data.note ? ` — ${parsed.data.note}` : ""} (by ${session.name})`,
+      note: withReason(`₹${parsed.data.amount} expense recorded under "${category.name}"${parsed.data.note ? ` — ${parsed.data.note}` : ""} (by ${session.name})`, reason),
     });
     return created;
   });

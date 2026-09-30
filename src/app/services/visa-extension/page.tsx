@@ -14,6 +14,7 @@ import { ImportantNoticesSection } from "@/components/services/visa-extension/la
 import { DocumentsPaymentSection } from "@/components/services/visa-extension/landing/DocumentsPaymentSection";
 import { AfterPaymentOutcomesSection } from "@/components/services/visa-extension/landing/AfterPaymentOutcomesSection";
 import { db } from "@/lib/db";
+import { getDefaultPaymentLinkHours } from "@/lib/settings/system-config";
 
 // P19 — FAQ block + Admin-configured payment-link validity are read from the DB.
 export const revalidate = 300;
@@ -48,6 +49,9 @@ async function loadPaymentLinkHours(): Promise<number> {
     if (config?.active && config.paymentDeadlineHours != null && config.paymentDeadlineHours > 0) {
       return config.paymentDeadlineHours;
     }
+    // P24 — Admin → Payment Gateway's system-wide default, same order as create-payment.ts.
+    const systemDefault = await getDefaultPaymentLinkHours();
+    if (systemDefault != null && systemDefault > 0) return systemDefault;
   } catch (error) {
     // Never take the landing page down over a config read — fall back to the locked copy.
     console.error("[visa-extension] couldn't load timeline config", error);

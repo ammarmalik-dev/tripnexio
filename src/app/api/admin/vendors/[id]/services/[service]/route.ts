@@ -8,6 +8,8 @@ import { diffSnapshots } from "@/lib/pricing/rule-history";
 import { vendorRateSnapshot } from "@/lib/vendors/rate-history";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { ServiceType } from "@/generated/prisma/enums";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string; service: string }>;
@@ -45,6 +47,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   try {
     const existing = await db.vendorService.findUnique({
@@ -72,7 +77,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         entityId: id,
         action: "RATE_UPDATE",
         byUserId: session.id,
-        note: `Vendor "${existing.vendor.name}" ${SERVICE_TYPE_LABELS[service]} rate updated (by ${session.name})`,
+        note: withReason(`Vendor "${existing.vendor.name}" ${SERVICE_TYPE_LABELS[service]} rate updated (by ${session.name})`, reason),
       });
       return result;
     });

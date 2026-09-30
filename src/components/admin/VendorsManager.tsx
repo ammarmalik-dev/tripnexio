@@ -16,6 +16,7 @@ import { computeVendorScore, type VendorScoringWeights } from "@/lib/vendors/sco
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { ChangeHistoryList, type ChangeHistoryEntry, type HistoryJson } from "./ChangeHistoryList";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface VendorService {
   id: string;
@@ -320,6 +321,7 @@ function toRateForm(entry: VendorService): RateFormState {
 }
 
 function VendorRateRow({ vendorId, entry, onSaved }: { vendorId: string; entry: VendorService; onSaved: (entry: VendorService) => void }) {
+  const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<RateFormState>(toRateForm(entry));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -327,6 +329,12 @@ function VendorRateRow({ vendorId, entry, onSaved }: { vendorId: string; entry: 
   const label = SERVICE_TYPE_LABELS[entry.service];
 
   const handleSave = async () => {
+    const reason = await confirm({
+      title: `Change ${label} vendor rate?`,
+      description: "This changes the vendor cost/rate used for quotes and margin on this service.",
+      confirmLabel: "Save Rate",
+    });
+    if (!reason) return;
     setSaving(true);
     setErrors({});
     try {
@@ -335,6 +343,7 @@ function VendorRateRow({ vendorId, entry, onSaved }: { vendorId: string; entry: 
         rate: form.rate.trim() === "" ? null : Number(form.rate),
         validFrom: form.validFrom || null,
         validUntil: form.validUntil || null,
+        reason,
       });
       toast.success(`${label} rate saved.`);
       onSaved(updated);
@@ -374,6 +383,7 @@ function VendorRateRow({ vendorId, entry, onSaved }: { vendorId: string; entry: 
           <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
             Save
           </Button>
+          {dialog}
         </td>
       </tr>
       {errorText ? (
@@ -545,6 +555,7 @@ function VendorRatesSection({ vendor, onServiceSaved }: { vendor: VendorData; on
 }
 
 function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights: VendorScoringWeights | null; onSaved: (vendor: VendorData) => void }) {
+  const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState>(toFormState(vendor));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -553,10 +564,16 @@ function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights:
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(vendor));
 
   const handleSave = async () => {
+    const reason = await confirm({
+      title: `Update vendor "${vendor.name}"?`,
+      description: "Vendor changes affect which vendor staff can pick for quotations and bookings.",
+      confirmLabel: "Save Vendor",
+    });
+    if (!reason) return;
     setSaving(true);
     setErrors({});
     try {
-      const updated = await patchJson<VendorData>(`/api/admin/vendors/${vendor.id}`, buildPayload(form));
+      const updated = await patchJson<VendorData>(`/api/admin/vendors/${vendor.id}`, { ...buildPayload(form), reason });
       toast.success(`Vendor "${updated.name}" updated.`);
       onSaved(updated);
     } catch (error) {
@@ -568,9 +585,15 @@ function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights:
   };
 
   const handleToggleActive = async () => {
+    const reason = await confirm({
+      title: `${vendor.active ? "Disable" : "Enable"} vendor "${vendor.name}"?`,
+      description: vendor.active ? "Staff will no longer be able to pick this vendor for new quotations or bookings." : "Staff will be able to pick this vendor for quotations and bookings again.",
+      confirmLabel: vendor.active ? "Disable Vendor" : "Enable Vendor",
+    });
+    if (!reason) return;
     setTogglingActive(true);
     try {
-      const updated = await patchJson<VendorData>(`/api/admin/vendors/${vendor.id}`, { active: !vendor.active });
+      const updated = await patchJson<VendorData>(`/api/admin/vendors/${vendor.id}`, { active: !vendor.active, reason });
       toast.success(updated.active ? `${updated.name} enabled.` : `${updated.name} disabled.`);
       onSaved(updated);
     } catch (error) {
@@ -610,20 +633,28 @@ function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights:
           onSaved({ ...vendor, services: vendor.services.map((current) => (current.service === entry.service ? entry : current)) })
         }
       />
+      {dialog}
     </div>
   );
 }
 
 function NewVendorForm({ onCreated }: { onCreated: (vendor: VendorData) => void }) {
+  const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
+    const reason = await confirm({
+      title: `Create vendor "${form.name.trim()}"?`,
+      description: "The new vendor becomes selectable for quotations and bookings on its services.",
+      confirmLabel: "Create Vendor",
+    });
+    if (!reason) return;
     setCreating(true);
     setErrors({});
     try {
-      const created = await postJson<VendorData>("/api/admin/vendors", buildPayload(form));
+      const created = await postJson<VendorData>("/api/admin/vendors", { ...buildPayload(form), reason });
       toast.success(`Vendor "${created.name}" created.`);
       onCreated(created);
       setForm(EMPTY_FORM);
@@ -647,6 +678,7 @@ function NewVendorForm({ onCreated }: { onCreated: (vendor: VendorData) => void 
           Create Vendor
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }

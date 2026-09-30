@@ -17,7 +17,7 @@ export function isProductionRuntime(): boolean {
   return process.env.VERCEL_ENV === "production" || process.env.NODE_ENV === "production";
 }
 
-function isRazorpayConfigured(): boolean {
+export function isRazorpayConfigured(): boolean {
   return (
     !isPlaceholder(process.env.RAZORPAY_KEY_ID) &&
     !isPlaceholder(process.env.RAZORPAY_KEY_SECRET) &&

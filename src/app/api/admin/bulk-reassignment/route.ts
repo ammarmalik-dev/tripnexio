@@ -7,7 +7,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { hasServiceAccess } from "@/lib/auth/service-scope";
 import { getStaffIdsOnApprovedLeave, isRosterEligible } from "@/lib/staff/eligible-for-assignment";
 import { leadReference } from "@/lib/leads/reference";
-import { REASSIGN_REASON_MIN_LENGTH } from "@/lib/validation/lead-assign-schema";
+import { sensitiveReasonSchema, withReason } from "@/lib/validation/sensitive-action";
 import type { BookingStatus } from "@/generated/prisma/enums";
 
 /** Matches the same terminal-status set Unit 1's workload helper uses. */
@@ -69,7 +69,8 @@ const bulkReassignSchema = z.object({
   // here (a bulk move of someone's whole book of work). P22 item 8 — the
   // single-lead LeadAssignmentControl now requires one too; both share the
   // same 5-character minimum.
-  reason: z.string().trim().min(REASSIGN_REASON_MIN_LENGTH, `Enter a reason of at least ${REASSIGN_REASON_MIN_LENGTH} characters`),
+  // Business Rules §14 — bulk reassignment is a Sensitive Admin Action; same shared reason rule as every other one.
+  reason: sensitiveReasonSchema,
 });
 
 export async function POST(request: NextRequest) {
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
         entityId: lead.id,
         action: "ASSIGN",
         byUserId: session.id,
-        note: `Bulk reassigned to ${toStaff.name} — reason: ${parsed.data.reason} (by ${session.name})`,
+        note: withReason(`Bulk reassigned to ${toStaff.name} (by ${session.name})`, parsed.data.reason),
       });
       results.push(updated);
     }

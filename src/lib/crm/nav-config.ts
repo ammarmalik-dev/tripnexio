@@ -43,6 +43,13 @@ import {
   UserCircle,
   LifeBuoy,
   SlidersHorizontal,
+  History,
+  ScrollText,
+  ScanText,
+  Radio,
+  Workflow,
+  Siren,
+  Landmark,
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -169,12 +176,35 @@ export const crmNavGroups: CrmNavGroup[] = [
  * - Notification Templates -> System Settings (system-wide communication
  *   config), not Service Configuration — these aren't scoped to one
  *   service, they're cross-cutting operational settings.
- * - Automation -> Reports & Exports — it's a read-only run-history
- *   monitor (Phase 5E), not an editable setting, so it reads more like a
- *   report than a "System Setting."
+ * - P24: Automation moved from Reports & Exports into the new
+ *   "Monitoring" group, alongside the other read-only system-health /
+ *   oversight screens (Live Activity, OCR Monitor, Audit Log,
+ *   Configuration History).
+ * - P24: "Operations" holds the read-only Admin Bookings search plus the
+ *   SLA Escalation rules; Assignment Rules sits in People & Access next to
+ *   Bulk Reassignment (both decide who works which lead).
  */
 export const adminNavGroups: CrmNavGroup[] = [
   { label: null, items: [{ label: "AI Command Center", href: "/admin/command-center", icon: Sparkles, permission: "ai.assist" }] },
+  {
+    // P24 — read-only cross-service booking search + SLA escalation rules.
+    label: "Operations",
+    items: [
+      { label: "Bookings", href: "/admin/bookings", icon: CalendarCheck, permission: "bookings.view" },
+      { label: "SLA Escalation", href: "/admin/escalations", icon: Siren, permission: "staff.manage" },
+    ],
+  },
+  {
+    // P24 — live/system oversight screens, all read-only.
+    label: "Monitoring",
+    items: [
+      { label: "Live Activity", href: "/admin/live-activity", icon: Radio, permission: "automation.view" },
+      { label: "OCR Monitor", href: "/admin/ocr-monitor", icon: ScanText, permission: "automation.view" },
+      { label: "Automation", href: "/admin/automation", icon: Activity, permission: "automation.view" },
+      { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText, permission: "staff.manage" },
+      { label: "Configuration History", href: "/admin/config-history", icon: History, permission: "masters.manage" },
+    ],
+  },
   {
     label: "People & Access",
     items: [
@@ -183,6 +213,7 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff, permission: "staff.manage" },
       { label: "Staff Roster", href: "/admin/roster", icon: CalendarClock, permission: "staff.manage" },
       { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat, permission: "leads.reassign" },
+      { label: "Assignment Rules", href: "/admin/assignment-rules", icon: Workflow, permission: "staff.manage" },
     ],
   },
   {
@@ -225,6 +256,7 @@ export const adminNavGroups: CrmNavGroup[] = [
   {
     label: "Payments & Finance",
     items: [
+      { label: "Payment Gateway", href: "/admin/payment-gateway", icon: Landmark, permission: "masters.manage" },
       { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent, permission: "masters.manage" },
       { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature, permission: "masters.manage" },
       { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt, permission: "masters.manage" },
@@ -235,7 +267,6 @@ export const adminNavGroups: CrmNavGroup[] = [
     label: "Reports & Exports",
     items: [
       { label: "Data Export", href: "/admin/data-export", icon: Download, permission: "data.export" },
-      { label: "Automation", href: "/admin/automation", icon: Activity, permission: "automation.view" },
       { label: "P&L Report", href: "/admin/pnl-report", icon: TrendingUp, permission: "finance.manage" },
       { label: "Revenue Report", href: "/admin/revenue-report", icon: BarChart3, permission: "finance.manage" },
       { label: "Refund Report", href: "/admin/refund-report", icon: Undo2, permission: "finance.manage" },

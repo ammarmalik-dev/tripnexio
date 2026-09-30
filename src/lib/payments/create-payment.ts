@@ -1,13 +1,27 @@
 import type { Booking, Customer, Lead, Quotation } from "../../generated/prisma/client";
+import type { ServiceType } from "../../generated/prisma/enums";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { getTaxFeeRates } from "../settings/tax-fee-config";
 import { getServiceTimelineRules } from "../settings/service-timeline-config";
+import { getDefaultPaymentLinkHours } from "../settings/system-config";
 import { getPaymentGateway } from "./get-gateway";
 import { leadReference } from "../leads/reference";
 
 /** Fallback when the service has no configured `paymentDeadlineHours` (Step 42) — the original hardcoded value, unchanged for every service until an Admin opts in. */
 export const DEFAULT_PAYMENT_LINK_VALIDITY_HOURS = 24;
+
+/**
+ * P24 — the one place a payment link's validity is decided:
+ * service paymentDeadlineHours (Admin → Timelines) ?? SystemConfig.defaultPaymentLinkHours
+ * (Admin → Payment Gateway) ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS. Uses the
+ * global db — call it outside any transaction.
+ */
+export async function resolvePaymentLinkValidityHours(serviceType: ServiceType): Promise<number> {
+  const { paymentDeadlineHours } = await getServiceTimelineRules(serviceType);
+  if (paymentDeadlineHours != null) return paymentDeadlineHours;
+  return (await getDefaultPaymentLinkHours()) ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS;
+}
 
 function roundToPaise(value: number): number {
   return Math.round(value * 100) / 100;
@@ -48,9 +62,13 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   const totalAmount = roundToPaise(netAmount + gstAmount + gatewayFee);
 
   // Step 42 (Admin FINAL handover §6, "payment deadline") — per-service
-  // configurable, falling back to the original hardcoded 24h when unset.
-  const { paymentDeadlineHours } = await getServiceTimelineRules(booking.lead.serviceType);
-  const linkExpiresAt = new Date(Date.now() + (paymentDeadlineHours ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS) * 60 * 60 * 1000);
+  // configurable; P24 adds the Admin → Payment Gateway system-wide default
+  // (SystemConfig.defaultPaymentLinkHours) before the original 24h fallback.
+  // Read here, BEFORE this function opens its own transaction below — every
+  // caller invokes createPendingPayment/createExtraPayment outside any
+  // transaction, so using the global db is safe.
+  const validityHours = await resolvePaymentLinkValidityHours(booking.lead.serviceType);
+  const linkExpiresAt = new Date(Date.now() + validityHours * 60 * 60 * 1000);
 
   const gateway = getPaymentGateway();
   const reference = leadReference(booking.lead);

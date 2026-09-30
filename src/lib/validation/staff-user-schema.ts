@@ -4,6 +4,11 @@ import { ServiceType, type ServiceType as ServiceTypeT } from "../../generated/p
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeT, ...ServiceTypeT[]];
 /** Step 39 — empty (the default) = unrestricted. See User.allowedServiceTypes' own schema doc comment. */
 const allowedServiceTypesField = z.array(z.enum(serviceTypeValues)).optional();
+/**
+ * P24 item 6 — Country ids this staff member handles; empty (the default) =
+ * every country. The API de-duplicates and checks every id is a real Country.
+ */
+const countriesHandledField = z.array(z.string().trim().min(1).max(40)).max(300, "Too many countries").optional();
 
 /** Admin user-management schemas — distinct from the CRM's lightweight lead-assignment lookup (GET /api/staff). */
 export const createStaffUserSchema = z.object({
@@ -12,6 +17,7 @@ export const createStaffUserSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   roleId: z.string().min(1, "Select a role"),
   allowedServiceTypes: allowedServiceTypesField,
+  countriesHandled: countriesHandledField,
 });
 
 export const updateStaffUserSchema = z.object({
@@ -19,6 +25,7 @@ export const updateStaffUserSchema = z.object({
   roleId: z.string().min(1).optional(),
   active: z.boolean().optional(),
   allowedServiceTypes: allowedServiceTypesField,
+  countriesHandled: countriesHandledField,
 });
 
 export type CreateStaffUserValues = z.infer<typeof createStaffUserSchema>;

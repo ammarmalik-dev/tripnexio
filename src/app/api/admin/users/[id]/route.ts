@@ -6,6 +6,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { hasAnotherActiveAdmin } from "@/lib/auth/admin-guard";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
+import { normalizeCountriesHandled } from "@/lib/staff/rule-refs";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -39,8 +40,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   // Nobody can change their own role or service scope (privilege self-escalation guard).
   const changesRole = Boolean(parsed.data.roleId && parsed.data.roleId !== existing.roleId);
-  if (id === session.id && (changesRole || parsed.data.allowedServiceTypes !== undefined)) {
-    return jsonError(403, "You can't change your own role or service access. Ask another admin.");
+  if (id === session.id && (changesRole || parsed.data.allowedServiceTypes !== undefined || parsed.data.countriesHandled !== undefined)) {
+    return jsonError(403, "You can't change your own role, service access or countries. Ask another admin.");
   }
 
   let newRole = existing.role;
@@ -59,6 +60,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(409, "This is the last active admin — keep at least one active user with full admin access.");
   }
 
+  let countriesHandled: string[] | undefined;
+  if (parsed.data.countriesHandled !== undefined) {
+    const countries = await normalizeCountriesHandled(parsed.data.countriesHandled);
+    if ("errors" in countries) return jsonError(400, "Please check the highlighted fields.", countries.errors);
+    countriesHandled = countries.ids;
+  }
+
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.user.update({
       where: { id },
@@ -67,6 +75,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(parsed.data.roleId ? { roleId: parsed.data.roleId } : {}),
         ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),
         ...(parsed.data.allowedServiceTypes !== undefined ? { allowedServiceTypes: parsed.data.allowedServiceTypes } : {}),
+        ...(countriesHandled !== undefined ? { countriesHandled } : {}),
       },
       include: { role: true },
     });
@@ -81,6 +90,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       changeNotes.push(
         parsed.data.allowedServiceTypes.length > 0 ? `services scoped to ${parsed.data.allowedServiceTypes.join(", ")}` : "services unrestricted"
       );
+    }
+
+    if (countriesHandled !== undefined) {
+      changeNotes.push(countriesHandled.length > 0 ? `countries handled set to ${countriesHandled.join(", ")}` : "countries unrestricted");
     }
 
     await writeAudit(tx, {
@@ -101,5 +114,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     active: updated.active,
     role: { id: updated.role.id, name: updated.role.name },
     allowedServiceTypes: updated.allowedServiceTypes,
+    countriesHandled: updated.countriesHandled,
   });
 }

@@ -11,6 +11,8 @@ import { Textarea } from "@/components/forms/Textarea";
 import { SelectField } from "@/components/forms/SelectField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -300,7 +302,7 @@ function ConfigCard({
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
   const [deleting, setDeleting] = useState(false);
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(config));
 
@@ -333,14 +335,19 @@ function ConfigCard({
   };
 
   const handleDelete = async () => {
+    const reason = await confirm({
+      title: `Remove ${config.country.name} from New Visa?`,
+      description: "This permanently deletes this country's New Visa configuration. To take it offline temporarily, disable it instead.",
+      confirmLabel: "Remove Country",
+    });
+    if (!reason) return;
     setDeleting(true);
     try {
-      await deleteJson(`/api/admin/new-visa-countries/${config.id}`);
+      await deleteJson(withReasonQuery(`/api/admin/new-visa-countries/${config.id}`, reason));
       toast.success(`${config.country.name} removed.`);
       onDeleted(config.id);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't remove this country. Please try again.");
-      setConfirmingDelete(false);
     } finally {
       setDeleting(false);
     }
@@ -362,21 +369,11 @@ function ConfigCard({
           <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggle()} isLoading={toggling}>
             {config.active ? "Disable" : "Enable"}
           </Button>
-          {confirmingDelete ? (
-            <>
-              <Button type="button" size="sm" variant="ghost" onClick={() => void handleDelete()} isLoading={deleting}>
-                Confirm Remove
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingDelete(true)}>
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              Remove
-            </Button>
-          )}
+          <Button type="button" size="sm" variant="ghost" onClick={() => void handleDelete()} isLoading={deleting}>
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            Remove
+          </Button>
+          {dialog}
         </div>
       </div>
       <ConfigFields form={form} onChange={setForm} errors={errors} disabled={saving} />

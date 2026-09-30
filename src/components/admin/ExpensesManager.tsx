@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { getJson, postJson, deleteJson, ApiError } from "@/lib/api/client";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -39,6 +41,7 @@ function formatDate(iso: string): string {
 }
 
 function NewExpenseForm({ categories, onCreated }: { categories: CategoryOption[]; onCreated: (expense: ExpenseData) => void }) {
+  const { confirm, dialog } = useConfirmAction();
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -49,6 +52,12 @@ function NewExpenseForm({ categories, onCreated }: { categories: CategoryOption[
   const activeCategories = categories.filter((category) => category.active);
 
   const handleCreate = async () => {
+    const reason = await confirm({
+      title: `Record a ₹${amount} expense?`,
+      description: "Expenses are a financial adjustment — this changes the P&L report totals.",
+      confirmLabel: "Record Expense",
+    });
+    if (!reason) return;
     setCreating(true);
     setErrors({});
     try {
@@ -57,6 +66,7 @@ function NewExpenseForm({ categories, onCreated }: { categories: CategoryOption[
         amount: Number(amount),
         date,
         note: note.trim() || undefined,
+        reason,
       });
       toast.success(`${money(created.amount)} expense recorded.`);
       onCreated(created);
@@ -129,17 +139,25 @@ function NewExpenseForm({ categories, onCreated }: { categories: CategoryOption[
           Record Expense
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }
 
 function ExpenseRow({ expense, onDeleted }: { expense: ExpenseData; onDeleted: (id: string) => void }) {
   const [deleting, setDeleting] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
 
   const handleDelete = async () => {
+    const reason = await confirm({
+      title: "Remove this expense?",
+      description: "This permanently deletes the expense record and changes the P&L totals it feeds into.",
+      confirmLabel: "Remove Expense",
+    });
+    if (!reason) return;
     setDeleting(true);
     try {
-      await deleteJson(`/api/admin/expenses/${expense.id}`);
+      await deleteJson(withReasonQuery(`/api/admin/expenses/${expense.id}`, reason));
       toast.success("Expense removed.");
       onDeleted(expense.id);
     } catch (error) {
@@ -164,6 +182,7 @@ function ExpenseRow({ expense, onDeleted }: { expense: ExpenseData; onDeleted: (
         <Trash2 className="h-4 w-4" aria-hidden="true" />
         Remove
       </Button>
+      {dialog}
     </div>
   );
 }

@@ -71,7 +71,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Coupon "${result.code}" updated (by ${session.name})`,
+      note: `Coupon "${result.code}" updated${
+        parsed.data.maxDiscount !== undefined && String(existing.maxDiscount ?? "none") !== String(result.maxDiscount ?? "none")
+          ? ` — max discount ${existing.maxDiscount != null ? `₹${existing.maxDiscount}` : "none"} -> ${result.maxDiscount != null ? `₹${result.maxDiscount}` : "none"}`
+          : ""
+      } (by ${session.name})`,
     });
     return result;
   });

@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
-import { createRefundSchema } from "@/lib/validation/refund-schema";
+import { createRefundRequestSchema } from "@/lib/validation/refund-schema";
+import { withReason } from "@/lib/validation/sensitive-action";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Invalid request body.");
   }
 
-  const parsed = createRefundSchema.safeParse(body);
+  const parsed = createRefundRequestSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
@@ -136,7 +137,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Refund calculated for payment ${paymentId}: ₹${refundAmount}${ruleNote}${passengerNote} (by ${session.name})${reason ? ` — reason: ${reason}` : ""}`,
+      note: withReason(`Refund calculated for payment ${paymentId}: ₹${refundAmount}${ruleNote}${passengerNote} (by ${session.name})`, reason),
     });
 
     return created;

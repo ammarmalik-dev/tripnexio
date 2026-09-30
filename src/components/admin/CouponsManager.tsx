@@ -12,6 +12,7 @@ import { COUPON_TYPE_OPTIONS, COUPON_CATEGORY_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { AbandonedCouponConfigCard } from "./AbandonedCouponConfigCard";
 import type { CouponType, CouponCategory } from "../../generated/prisma/enums";
 
 interface CouponData {
@@ -24,6 +25,8 @@ interface CouponData {
   validUntil: string;
   usageLimit: number | null;
   usageCount: number;
+  maxDiscount: string | null;
+  leadId: string | null;
   active: boolean;
 }
 
@@ -37,9 +40,10 @@ interface FormState {
   validFrom: string;
   validUntil: string;
   usageLimit: string;
+  maxDiscount: string;
 }
 
-const EMPTY_FORM: FormState = { code: "", type: "", category: "", value: "", validFrom: "", validUntil: "", usageLimit: "" };
+const EMPTY_FORM: FormState = { code: "", type: "", category: "", value: "", validFrom: "", validUntil: "", usageLimit: "", maxDiscount: "" };
 
 function toDateInputValue(iso: string): string {
   return iso.slice(0, 10);
@@ -54,6 +58,7 @@ function toFormState(coupon: CouponData): FormState {
     validFrom: toDateInputValue(coupon.validFrom),
     validUntil: toDateInputValue(coupon.validUntil),
     usageLimit: coupon.usageLimit == null ? "" : String(coupon.usageLimit),
+    maxDiscount: coupon.maxDiscount == null ? "" : coupon.maxDiscount,
   };
 }
 
@@ -141,6 +146,18 @@ function CouponFields({
         disabled={disabled}
       />
       <TextField
+        label="Max Discount (₹)"
+        name="maxDiscount"
+        type="number"
+        step="0.01"
+        placeholder="Leave blank for no cap"
+        hint={form.type === "FIXED_AMOUNT" ? "Only applies if lower than the value." : "Caps the percentage discount in rupees."}
+        value={form.maxDiscount}
+        onChange={(event) => onChange({ ...form, maxDiscount: event.target.value })}
+        error={errors.maxDiscount?.[0]}
+        disabled={disabled}
+      />
+      <TextField
         label="Valid From"
         name="validFrom"
         type="date"
@@ -171,6 +188,7 @@ function buildPayload(form: FormState) {
     validFrom: form.validFrom ? new Date(form.validFrom).toISOString() : undefined,
     validUntil: form.validUntil ? new Date(form.validUntil).toISOString() : undefined,
     usageLimit: form.usageLimit.trim() === "" ? null : Number(form.usageLimit),
+    maxDiscount: form.maxDiscount.trim() === "" ? null : Number(form.maxDiscount),
   };
 }
 
@@ -221,6 +239,11 @@ function CouponCard({ coupon, onSaved }: { coupon: CouponData; onSaved: (coupon:
         <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-1 text-xs font-medium text-ink-secondary">
           {COUPON_CATEGORY_OPTIONS.find((o) => o.value === coupon.category)?.label}
         </span>
+        {coupon.leadId ? (
+          <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-1 text-xs font-medium text-ink-accent" title={`Only redeemable on lead ${coupon.leadId}`}>
+            Single lead only
+          </span>
+        ) : null}
         <span className="text-xs text-ink-tertiary">
           Used {coupon.usageCount} time{coupon.usageCount === 1 ? "" : "s"}
           {coupon.usageLimit != null ? ` of ${coupon.usageLimit}` : " · unlimited"}
@@ -389,6 +412,7 @@ export function CouponsManager() {
   return (
     <div className="flex flex-col gap-4">
       <EmployeeCouponCapCard />
+      <AbandonedCouponConfigCard />
       {coupons.length === 0 ? (
         <EmptyState title="No coupons yet" description="Add the first one using the form below." />
       ) : (

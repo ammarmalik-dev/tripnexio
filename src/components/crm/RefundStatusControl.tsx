@@ -34,7 +34,7 @@ export function RefundStatusControl({ refundId, status, onChanged, canApprove }:
     if (!pendingStatus) return;
     setPending(true);
     try {
-      await patchJson(`/api/refunds/${refundId}/status`, { status: pendingStatus, note: reason });
+      await patchJson(`/api/refunds/${refundId}/status`, { status: pendingStatus, reason });
       toast.success(`Refund status updated to ${REFUND_STATUS_LABELS[pendingStatus]}`);
       onChanged(pendingStatus);
       setPendingStatus(null);

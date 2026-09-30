@@ -5,6 +5,8 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { createExtraPayment } from "@/lib/payments/create-payment";
 import { createExtraPaymentSchema } from "@/lib/validation/extra-payment-schema";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -53,12 +55,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const payment = await createExtraPayment({
     booking,
     amount: parsed.data.amount,
     description: parsed.data.description,
-    actor: { byUserId: session.id, label: `by ${session.name}` },
+    actor: { byUserId: session.id, label: withReason(`by ${session.name}`, reason) },
   });
 
   return jsonSuccess(payment, 201);

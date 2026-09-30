@@ -9,6 +9,7 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { BookingStatus } from "../../generated/prisma/enums";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface BookingLookupResult {
   id: string;
@@ -36,6 +37,7 @@ export function ExtraPaymentLookupForm({ onCreated }: { onCreated: () => void })
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -63,9 +65,15 @@ export function ExtraPaymentLookupForm({ onCreated }: { onCreated: () => void })
       toast.error("Enter a reason for this extra payment.");
       return;
     }
+    const reason = await confirm({
+      title: `Raise an extra payment of ₹${parsedAmount.toLocaleString("en-IN")} on ${booking.bookingId}?`,
+      description: `A new payment link is raised for the customer on top of what they have already paid. Description shown to the customer: "${description.trim()}"`,
+      confirmLabel: "Raise Extra Payment",
+    });
+    if (!reason) return;
     setSubmitting(true);
     try {
-      await postJson(`/api/bookings/${booking.id}/extra-payments`, { amount: parsedAmount, description: description.trim() });
+      await postJson(`/api/bookings/${booking.id}/extra-payments`, { amount: parsedAmount, description: description.trim(), reason });
       toast.success("Extra payment link created.");
       setBooking(null);
       setQuery("");
@@ -149,6 +157,7 @@ export function ExtraPaymentLookupForm({ onCreated }: { onCreated: () => void })
           )}
         </div>
       ) : null}
+      {dialog}
     </div>
   );
 }

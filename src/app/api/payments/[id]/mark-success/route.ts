@@ -6,6 +6,8 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { completePaymentSuccess } from "@/lib/payments/complete-payment";
 import { notifyPaymentReceived } from "@/lib/payments/notify-payment-received";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,6 +40,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  // Business Rules §14 — a manual payment override is a financial adjustment; only this staff route needs the reason, not the webhook path that shares completePaymentSuccess().
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const payment = await db.payment.findUnique({
     where: { id },
@@ -57,7 +63,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     completePaymentSuccess(
       tx,
       payment,
-      { byUserId: session.id, actorLabel: `manual override by ${session.name} — no gateway webhook received` },
+      { byUserId: session.id, actorLabel: withReason(`manual override by ${session.name} — no gateway webhook received`, reason) },
       { gatewayRef: parsed.data.gatewayRef ?? payment.gatewayRef ?? `MANUAL-${crypto.randomUUID().slice(0, 8).toUpperCase()}` }
     )
   );

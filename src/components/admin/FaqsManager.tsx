@@ -11,6 +11,8 @@ import { Textarea } from "@/components/forms/Textarea";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
@@ -151,7 +153,7 @@ function FaqCard({ faq, onSaved, onDeleted }: { faq: FaqData; onSaved: (faq: Faq
   const [saving, setSaving] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
   const [togglingPublished, setTogglingPublished] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
   const [deleting, setDeleting] = useState(false);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(faq));
@@ -198,15 +200,20 @@ function FaqCard({ faq, onSaved, onDeleted }: { faq: FaqData; onSaved: (faq: Faq
   };
 
   const handleDelete = async () => {
+    const reason = await confirm({
+      title: `Delete FAQ "${faq.question}"?`,
+      description: "This permanently deletes the FAQ. To hide it temporarily, unpublish or disable it instead.",
+      confirmLabel: "Delete FAQ",
+    });
+    if (!reason) return;
     setDeleting(true);
     try {
-      await deleteJson(`/api/admin/faqs/${faq.id}`);
+      await deleteJson(withReasonQuery(`/api/admin/faqs/${faq.id}`, reason));
       toast.success("FAQ deleted.");
       onDeleted(faq.id);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't delete this FAQ. Please try again.");
       setDeleting(false);
-      setConfirmingDelete(false);
     }
   };
 
@@ -228,21 +235,11 @@ function FaqCard({ faq, onSaved, onDeleted }: { faq: FaqData; onSaved: (faq: Faq
           <Button type="button" size="sm" variant="ghost" onClick={() => void handleTogglePublished()} isLoading={togglingPublished}>
             {faq.published ? "Unpublish" : "Publish"}
           </Button>
-          {confirmingDelete ? (
-            <>
-              <Button type="button" size="sm" variant="ghost" onClick={() => void handleDelete()} isLoading={deleting}>
-                Confirm Delete
-              </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingDelete(false)} disabled={deleting}>
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingDelete(true)}>
-              <Trash2 className="h-4 w-4" aria-hidden="true" />
-              Delete
-            </Button>
-          )}
+          <Button type="button" size="sm" variant="ghost" onClick={() => void handleDelete()} isLoading={deleting}>
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            Delete
+          </Button>
+          {dialog}
         </div>
       </div>
       <FaqFields form={form} onChange={setForm} errors={errors} disabled={saving} />

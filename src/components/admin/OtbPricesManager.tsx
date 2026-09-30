@@ -11,6 +11,7 @@ import { SelectField } from "@/components/forms/SelectField";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 type PaxType = "ADULT" | "CHILD" | "INFANT";
 const PAX_LABELS: Record<PaxType, string> = { ADULT: "Adult", CHILD: "Child", INFANT: "Infant" };
@@ -44,6 +45,7 @@ const toNumber = (value: string) => (value.trim() === "" ? Number.NaN : Number(v
 const toNullableNumber = (value: string) => (value.trim() === "" ? null : Number(value));
 
 function PriceRow({ row, onSaved }: { row: OtbPriceData; onSaved: (row: OtbPriceData) => void }) {
+  const { confirm, dialog } = useConfirmAction();
   const initial = { normal: String(row.normalPrice), urgent: row.urgentPrice === null ? "" : String(row.urgentPrice) };
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -51,10 +53,16 @@ function PriceRow({ row, onSaved }: { row: OtbPriceData; onSaved: (row: OtbPrice
   const dirty = form.normal !== initial.normal || form.urgent !== initial.urgent;
 
   const save = async (body: Record<string, unknown>, message: string) => {
+    const reason = await confirm({
+      title: `Change OTB price for ${row.airlineName} → ${row.countryName}?`,
+      description: `${message.replace(/\.$/, "")} — this changes what customers are charged for OTB on this route.`,
+      confirmLabel: "Confirm Change",
+    });
+    if (!reason) return;
     setSaving(true);
     setErrors({});
     try {
-      const updated = await patchJson<OtbPriceData>(`/api/admin/otb-prices/${row.id}`, body);
+      const updated = await patchJson<OtbPriceData>(`/api/admin/otb-prices/${row.id}`, { ...body, reason });
       toast.success(message);
       onSaved(updated);
     } catch (error) {
@@ -89,6 +97,7 @@ function PriceRow({ row, onSaved }: { row: OtbPriceData; onSaved: (row: OtbPrice
           Save Changes
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }
@@ -104,12 +113,19 @@ function NewPriceForm({
   onCreated: (row: OtbPriceData) => void;
   defaultCountryId?: string;
 }) {
+  const { confirm, dialog } = useConfirmAction();
   const empty = { airlineId: "", countryId: defaultCountryId ?? "", paxType: "ADULT", normal: "", urgent: "" };
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
 
   const create = async () => {
+    const reason = await confirm({
+      title: "Add OTB price?",
+      description: "This sets a new OTB price customers will be charged for this airline, destination and passenger type.",
+      confirmLabel: "Add Price",
+    });
+    if (!reason) return;
     setCreating(true);
     setErrors({});
     try {
@@ -119,6 +135,7 @@ function NewPriceForm({
         paxType: form.paxType,
         normalPrice: toNumber(form.normal),
         urgentPrice: toNullableNumber(form.urgent),
+        reason,
       });
       toast.success("OTB price added.");
       onCreated(created);
@@ -147,6 +164,7 @@ function NewPriceForm({
           Add price
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }

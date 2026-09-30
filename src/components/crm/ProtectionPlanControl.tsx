@@ -6,6 +6,7 @@ import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormFiel
 import { Button } from "@/components/ui/Button";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { PROTECTION_PLAN_STATUS_LABELS } from "@/lib/crm/labels";
 import { getStaffSelectableProtectionPlanStatuses, NOTE_REQUIRED_PROTECTION_PLAN_STATUSES } from "@/lib/protection-plan/transitions";
 import { cn } from "@/lib/cn";
@@ -185,15 +186,23 @@ function StatusAction({ plan, onChanged }: { plan: ProtectionPlanData; onChanged
 
 /** Manager/admin (refunds.approve): approve raises a Refund for the plan amount that another approver then processes. */
 function RefundDecision({ plan, onChanged }: { plan: ProtectionPlanData; onChanged: () => void }) {
-  const [note, setNote] = useState("");
   const [pending, setPending] = useState<"APPROVE" | "REJECT" | null>(null);
+  const { confirm, dialog } = useConfirmAction();
 
   const decide = async (decision: "APPROVE" | "REJECT") => {
+    const reason = await confirm({
+      title: decision === "APPROVE" ? `Approve ₹${plan.price} Protection Plan refund?` : "Reject this Protection Plan refund?",
+      description:
+        decision === "APPROVE"
+          ? "This raises a PENDING refund for the plan amount — a different approver must then process it. Your reason is saved as the decision note."
+          : "The plan's refund request is closed without a refund. Your reason is saved as the decision note.",
+      confirmLabel: decision === "APPROVE" ? "Approve Refund" : "Reject Refund",
+    });
+    if (!reason) return;
     setPending(decision);
     try {
-      await patchJson(`/api/protection-plans/${plan.id}/refund-decision`, { decision, note: note.trim() });
+      await patchJson(`/api/protection-plans/${plan.id}/refund-decision`, { decision, reason });
       toast.success(decision === "APPROVE" ? `Refund of ₹${plan.price} raised — another approver must process it.` : "Protection Plan refund rejected.");
-      setNote("");
       onChanged();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't record the decision. Please try again.");
@@ -205,15 +214,15 @@ function RefundDecision({ plan, onChanged }: { plan: ProtectionPlanData; onChang
   return (
     <div className="flex w-full flex-col gap-2 rounded-lg border border-dashed border-warning/40 bg-warning/5 p-3">
       <p className="text-xs font-medium text-ink-secondary">Protection Plan refund review — ₹{plan.price}</p>
-      <textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Decision note (required)" aria-label="Refund decision note" className={noteClass} />
       <div className="flex justify-end gap-2">
-        <Button type="button" size="sm" variant="ghost" onClick={() => void decide("REJECT")} isLoading={pending === "REJECT"} disabled={pending !== null || note.trim().length < 3}>
+        <Button type="button" size="sm" variant="ghost" onClick={() => void decide("REJECT")} isLoading={pending === "REJECT"} disabled={pending !== null}>
           Reject
         </Button>
-        <Button type="button" size="sm" onClick={() => void decide("APPROVE")} isLoading={pending === "APPROVE"} disabled={pending !== null || note.trim().length < 3}>
+        <Button type="button" size="sm" onClick={() => void decide("APPROVE")} isLoading={pending === "APPROVE"} disabled={pending !== null}>
           Approve refund
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }

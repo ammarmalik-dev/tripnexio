@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { TAX_FEE_CONFIG_ID } from "@/lib/settings/tax-fee-config";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
@@ -32,6 +34,9 @@ export async function PATCH(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.taxFeeConfig.findUnique({ where: { id: TAX_FEE_CONFIG_ID } });
   if (!existing) return jsonError(404, "Tax/fee configuration not found — run the seed script.");
@@ -43,7 +48,7 @@ export async function PATCH(request: NextRequest) {
       entityId: TAX_FEE_CONFIG_ID,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Tax/fee config updated: GST ${existing.gstRatePercent}% -> ${result.gstRatePercent}%, gateway fee ${existing.gatewayFeePercent}% -> ${result.gatewayFeePercent}% (by ${session.name})`,
+      note: withReason(`Tax/fee config updated: GST ${existing.gstRatePercent}% -> ${result.gstRatePercent}%, gateway fee ${existing.gatewayFeePercent}% -> ${result.gatewayFeePercent}% (by ${session.name})`, reason),
     });
     return result;
   });

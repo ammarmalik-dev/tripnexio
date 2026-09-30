@@ -3,6 +3,7 @@ import { updateRefundStatusSchema } from "@/lib/validation/refund-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
+import { withReason } from "@/lib/validation/sensitive-action";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertValidRefundTransition } from "@/lib/refunds/transitions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
@@ -61,7 +62,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "STATUS_CHANGE",
       byUserId: session.id,
-      note: `${refund.status} -> ${parsed.data.status}${parsed.data.note ? `: ${parsed.data.note}` : ""} (by ${session.name})`,
+      note: withReason(`${refund.status} -> ${parsed.data.status} (by ${session.name})`, parsed.data.reason),
     });
     // P12 — a Protection Plan refund keeps the plan's status in step.
     await syncPlanWithRefund(tx, id, parsed.data.status, { byUserId: session.id, label: `by ${session.name}` });

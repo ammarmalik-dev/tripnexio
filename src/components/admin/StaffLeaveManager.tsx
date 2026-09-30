@@ -11,6 +11,8 @@ import { FormField, fieldControlClass, fieldBorderClass } from "@/components/for
 import { LeaveStatusBadge } from "@/components/crm/LeaveStatusBadge";
 import { LEAVE_TYPE_OPTIONS, LEAVE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { LeaveStatus, LeaveType } from "../../generated/prisma/enums";
@@ -174,13 +176,20 @@ function LeaveRow({
   onDecided: (leave: StaffLeaveData) => void;
 }) {
   const [deleting, setDeleting] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
   const [deciding, setDeciding] = useState(false);
   const onLeaveNow = isCurrentlyOnLeave(leave);
 
   const handleDelete = async () => {
+    const reason = await confirm({
+      title: `Remove leave record for ${leave.user.name}?`,
+      description: "This permanently deletes the leave record, which can change who is available for auto-assignment on those dates.",
+      confirmLabel: "Remove Leave",
+    });
+    if (!reason) return;
     setDeleting(true);
     try {
-      await deleteJson(`/api/admin/staff-leave/${leave.id}`);
+      await deleteJson(withReasonQuery(`/api/admin/staff-leave/${leave.id}`, reason));
       toast.success("Leave record removed.");
       onDeleted(leave.id);
     } catch (error) {
@@ -236,6 +245,7 @@ function LeaveRow({
           <Trash2 className="h-4 w-4" aria-hidden="true" />
           Remove
         </Button>
+        {dialog}
       </div>
     </div>
   );

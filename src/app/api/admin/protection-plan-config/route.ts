@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { PROTECTION_PLAN_CONFIG_ID } from "@/lib/settings/protection-plan-config";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
@@ -36,6 +38,15 @@ export async function PATCH(request: NextRequest) {
   const existing = await db.protectionPlanConfig.findUnique({ where: { id: PROTECTION_PLAN_CONFIG_ID } });
   if (!existing) return jsonError(404, "Protection Plan configuration not found — run the seed script.");
 
+  // Business Rules §14 "Sensitive Admin Actions" — a default price change needs the confirmation reason; terms/eligibility edits don't.
+  const priceChanged = parsed.data.defaultPrice !== undefined && parsed.data.defaultPrice !== Number(existing.defaultPrice);
+  const reasonResult = readBodyReason(body);
+  if (priceChanged && reasonResult.error) return reasonResult.error;
+  const reason = reasonResult.reason ?? null;
+  const auditNote = priceChanged
+    ? `Protection Plan config updated — default price ₹${Number(existing.defaultPrice)} -> ₹${parsed.data.defaultPrice} (by ${session.name})`
+    : `Protection Plan config updated (by ${session.name})`;
+
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.protectionPlanConfig.update({ where: { id: PROTECTION_PLAN_CONFIG_ID }, data: parsed.data });
     await writeAudit(tx, {
@@ -43,7 +54,7 @@ export async function PATCH(request: NextRequest) {
       entityId: PROTECTION_PLAN_CONFIG_ID,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Protection Plan config updated (by ${session.name})`,
+      note: reason ? withReason(auditNote, reason) : auditNote,
     });
     return result;
   });

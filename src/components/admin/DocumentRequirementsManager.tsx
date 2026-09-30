@@ -15,6 +15,7 @@ import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
 import { NationalitySelect, nationalityFormValue, nationalityPayload } from "./NationalitySelect";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
 
@@ -174,6 +175,7 @@ function RequirementCard({
   countries: CountryData[];
   onSaved: (item: DocumentRequirementData) => void;
 }) {
+  const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState>(toFormState(item));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -182,10 +184,16 @@ function RequirementCard({
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(item));
 
   const handleSave = async () => {
+    const reason = await confirm({
+      title: `Update document requirement "${item.documentName}"?`,
+      description: "This changes the document checklist customers and staff see for new requests.",
+      confirmLabel: "Save Changes",
+    });
+    if (!reason) return;
     setSaving(true);
     setErrors({});
     try {
-      const updated = await patchJson<DocumentRequirementData>(`/api/admin/document-requirements/${item.id}`, buildPayload(form));
+      const updated = await patchJson<DocumentRequirementData>(`/api/admin/document-requirements/${item.id}`, { ...buildPayload(form), reason });
       toast.success(`Document requirement "${updated.documentName}" updated.`);
       onSaved(updated);
     } catch (error) {
@@ -197,9 +205,15 @@ function RequirementCard({
   };
 
   const handleToggleActive = async () => {
+    const reason = await confirm({
+      title: `${item.active ? "Disable" : "Enable"} document requirement "${item.documentName}"?`,
+      description: item.active ? "This document will no longer be requested on new applications." : "This document will be requested on new applications again.",
+      confirmLabel: item.active ? "Disable" : "Enable",
+    });
+    if (!reason) return;
     setTogglingActive(true);
     try {
-      const updated = await patchJson<DocumentRequirementData>(`/api/admin/document-requirements/${item.id}`, { active: !item.active });
+      const updated = await patchJson<DocumentRequirementData>(`/api/admin/document-requirements/${item.id}`, { active: !item.active, reason });
       toast.success(updated.active ? "Enabled." : "Disabled.");
       onSaved(updated);
     } catch (error) {
@@ -234,6 +248,7 @@ function RequirementCard({
           Save Changes
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }
@@ -248,16 +263,23 @@ function NewRequirementForm({
   /** P23 — Service Configuration hub pre-fill (service/country). Absent = the original empty form. */
   defaults?: Partial<Pick<FormState, "serviceType" | "countryId">>;
 }) {
+  const { confirm, dialog } = useConfirmAction();
   const initialForm: FormState = { ...EMPTY_FORM, ...defaults };
   const [form, setForm] = useState<FormState>(initialForm);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
+    const reason = await confirm({
+      title: `Add document requirement "${form.documentName.trim()}"?`,
+      description: "This adds a document to the checklist customers and staff see for new requests.",
+      confirmLabel: "Add Requirement",
+    });
+    if (!reason) return;
     setCreating(true);
     setErrors({});
     try {
-      const created = await postJson<DocumentRequirementData>("/api/admin/document-requirements", buildPayload(form));
+      const created = await postJson<DocumentRequirementData>("/api/admin/document-requirements", { ...buildPayload(form), reason });
       toast.success(`Document requirement "${created.documentName}" added.`);
       onCreated(created);
       setForm(initialForm);
@@ -281,6 +303,7 @@ function NewRequirementForm({
           Add Requirement
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }
@@ -302,6 +325,7 @@ function BulkApplyPanel({
   defaultServiceType?: ServiceType;
   defaultCountryId?: string;
 }) {
+  const { confirm, dialog } = useConfirmAction();
   const [sourceServiceType, setSourceServiceType] = useState<ServiceType | "">(defaultServiceType ?? "");
   const [sourceCountryId, setSourceCountryId] = useState(defaultCountryId ?? "");
   const [sourceNationality, setSourceNationality] = useState("");
@@ -339,6 +363,12 @@ function BulkApplyPanel({
   };
 
   const handleApply = async () => {
+    const reason = await confirm({
+      title: "Bulk-apply document checklist?",
+      description: `This copies the previewed document requirements onto ${targets.size} service(s): ${[...targets].join(", ")}.`,
+      confirmLabel: "Apply Checklist",
+    });
+    if (!reason) return;
     setApplying(true);
     try {
       const result = await postJson<{ copiedByService: Record<string, number> }>("/api/admin/document-requirements/bulk-apply", {
@@ -347,6 +377,7 @@ function BulkApplyPanel({
         sourceNationality: sourceNationality.trim() || undefined,
         sourcePaxType: sourcePaxType || undefined,
         targetServiceTypes: [...targets],
+        reason,
       });
       const summary = Object.entries(result.copiedByService)
         .map(([service, count]) => `${service}: ${count}`)
@@ -473,6 +504,7 @@ function BulkApplyPanel({
           </div>
         </>
       ) : null}
+      {dialog}
     </div>
   );
 }

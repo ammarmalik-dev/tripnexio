@@ -26,6 +26,12 @@ const couponBaseSchema = z.object({
   validUntil: isoDate("Enter a valid end date"),
   /** null/omitted = unlimited uses. */
   usageLimit: z.number().int().positive("Usage limit must be at least 1").nullable().optional(),
+  /**
+   * P24 — per-coupon cap on the discount in rupees (null/omitted = no cap).
+   * For a PERCENTAGE coupon the discount is min(percent × amount, maxDiscount);
+   * for FIXED_AMOUNT it only bites when set below the coupon's own value.
+   */
+  maxDiscount: z.number({ error: "Enter a maximum discount amount" }).positive("Max discount must be greater than 0").nullable().optional(),
   active: z.boolean().default(true),
 });
 

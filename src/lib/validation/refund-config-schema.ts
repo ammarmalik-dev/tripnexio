@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sensitiveReasonSchema } from "./sensitive-action";
 import { RefundCutoff, ServiceType, type RefundCutoff as RefundCutoffT, type ServiceType as ServiceTypeT } from "../../generated/prisma/enums";
 
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeT, ...ServiceTypeT[]];
@@ -13,7 +14,7 @@ export const updateRefundConfigSchema = z.object({
   postValidationDeduction: deduction("post-validation deduction"),
   noRefundAfter: z.enum(cutoffValues),
   /** Sensitive admin action — the confirmation reason, written to the audit trail. */
-  reason: z.string().trim().min(5, "Enter a reason (at least 5 characters)."),
+  reason: sensitiveReasonSchema,
 });
 
 export type UpdateRefundConfigValues = z.infer<typeof updateRefundConfigSchema>;

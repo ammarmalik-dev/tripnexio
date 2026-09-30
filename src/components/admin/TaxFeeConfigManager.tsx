@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface TaxFeeConfigData {
   gstRatePercent: string;
@@ -25,6 +26,7 @@ export function TaxFeeConfigManager() {
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const { confirm, dialog } = useConfirmAction();
 
   useEffect(() => {
     let cancelled = false;
@@ -54,12 +56,19 @@ export function TaxFeeConfigManager() {
   const dirty = config != null && (gstRatePercent !== config.gstRatePercent || gatewayFeePercent !== config.gatewayFeePercent);
 
   const handleSave = async () => {
+    const reason = await confirm({
+      title: "Change GST / gateway fee rates?",
+      description: `GST ${config?.gstRatePercent ?? "?"}% → ${gstRatePercent}%, gateway fee ${config?.gatewayFeePercent ?? "?"}% → ${gatewayFeePercent}%. Every new payment will be charged at these rates.`,
+      confirmLabel: "Save Rates",
+    });
+    if (!reason) return;
     setSaving(true);
     setErrors({});
     try {
       const updated = await patchJson<TaxFeeConfigData>("/api/admin/tax-fee-config", {
         gstRatePercent: Number(gstRatePercent),
         gatewayFeePercent: Number(gatewayFeePercent),
+        reason,
       });
       toast.success("Tax/fee configuration updated — new payments will use these rates.");
       setConfig(updated);
@@ -130,6 +139,7 @@ export function TaxFeeConfigManager() {
           Save Changes
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }

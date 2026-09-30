@@ -1,0 +1,55 @@
+{
+  "name": "TripNexio - Abandoned Quotation Coupons",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "3f6c1d2a-8b4e-4c7a-9e1f-5a2b7c9d0e41",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "notes": "Safe to run often: the app does nothing unless Admin -> Coupons has the abandoned-quotation coupon enabled and configured, and never issues more than one coupon per lead."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIPNEXIO_BASE_URL }}/api/automation/abandoned-quote-coupons",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "b8d2e4f6-1a3c-4e5b-8d7f-9c0a2b4d6e83",
+      "name": "Call Abandoned Quote Coupons API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "TripNexio Automation Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every hour": {
+      "main": [[{ "node": "Call Abandoned Quote Coupons API", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

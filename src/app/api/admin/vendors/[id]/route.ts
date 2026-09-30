@@ -4,6 +4,8 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -27,6 +29,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.vendor.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Vendor not found.");
@@ -56,7 +61,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Vendor "${result.name}" updated (by ${session.name})`,
+      note: withReason(`Vendor "${result.name}" updated (by ${session.name})`, reason),
     });
     return result;
   });

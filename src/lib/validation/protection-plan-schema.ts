@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sensitiveReasonSchema } from "./sensitive-action";
 import { ProtectionPlanStatus, type ProtectionPlanStatus as ProtectionPlanStatusType } from "../../generated/prisma/enums";
 
 const protectionPlanStatusValues = Object.values(ProtectionPlanStatus) as [ProtectionPlanStatusType, ...ProtectionPlanStatusType[]];
@@ -16,7 +17,8 @@ export const purchaseProtectionPlanSchema = z.object({
 /** P12 — manager/admin decision on a plan in refund review. */
 export const protectionPlanRefundDecisionSchema = z.object({
   decision: z.enum(["APPROVE", "REJECT"]),
-  note: z.string().trim().min(3, "Add a note for this decision.").max(1000),
+  /** Business Rules §14 "Sensitive Admin Actions" — a refund approve/reject; the confirmation reason doubles as the plan's decision note. */
+  reason: sensitiveReasonSchema,
 });
 
 export type UpdateProtectionPlanStatusValues = z.infer<typeof updateProtectionPlanStatusSchema>;

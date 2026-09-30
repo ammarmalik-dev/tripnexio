@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { resolveNationalityInput } from "@/lib/nationalities/resolve";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -28,6 +30,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.documentRequirement.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Document requirement not found.");
@@ -82,7 +87,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Document requirement "${result.documentName}" updated (by ${session.name})`,
+      note: withReason(`Document requirement "${result.documentName}" updated (by ${session.name})`, reason),
     });
     return result;
   });

@@ -9,6 +9,7 @@ import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormFiel
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface CountrySetting {
   countryId: string;
@@ -28,16 +29,29 @@ function CountryRow({ setting, onSaved }: { setting: CountrySetting; onSaved: (n
   const [termsText, setTermsText] = useState(setting.termsText ?? "");
   const [showTerms, setShowTerms] = useState(false);
   const [saving, setSaving] = useState<"toggle" | "save" | null>(null);
+  const { confirm, dialog } = useConfirmAction();
 
   const dirty = price !== (setting.price ?? "") || termsText !== (setting.termsText ?? "");
   const priceInvalid = price.trim() !== "" && !(Number(price) > 0);
 
   const save = async (patch: { enabled?: boolean; price?: number | null; termsText?: string | null }, kind: "toggle" | "save") => {
+    // Business Rules §14 — a price change goes through the shared confirmation step; enable/disable and terms don't.
+    let reason: string | undefined;
+    const currentPrice = setting.price == null ? null : Number(setting.price);
+    if (patch.price !== undefined && patch.price !== currentPrice) {
+      const confirmed = await confirm({
+        title: `Change the Protection Plan price for ${setting.name}?`,
+        description: `${currentPrice === null ? "Default price" : `₹${currentPrice}`} → ${patch.price === null ? "default price" : `₹${patch.price}`}. New Protection Plans for this destination are charged the new price.`,
+        confirmLabel: "Save Price",
+      });
+      if (!confirmed) return;
+      reason = confirmed;
+    }
     setSaving(kind);
     try {
       const result = await patchJson<{ enabled: boolean; price: string | null; termsText: string | null }>(
         `/api/admin/protection-plan-countries/${setting.countryId}`,
-        patch
+        { ...patch, reason }
       );
       onSaved({ ...setting, ...result });
       setPrice(result.price ?? "");
@@ -112,6 +126,7 @@ function CountryRow({ setting, onSaved }: { setting: CountrySetting; onSaved: (n
           disabled={saving !== null}
         />
       ) : null}
+      {dialog}
     </li>
   );
 }

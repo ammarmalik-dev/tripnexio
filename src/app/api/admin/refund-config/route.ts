@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { updateRefundConfigSchema } from "@/lib/validation/refund-config-schema";
 import { DEFAULT_REFUND_CONFIG, getRefundConfig } from "@/lib/refunds/config";
 import { ServiceType } from "@/generated/prisma/enums";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 /** Every service's current refund rule (stored row, or the locked default when none exists yet). */
 export async function GET() {
@@ -48,7 +49,7 @@ export async function PATCH(request: NextRequest) {
       entityId: serviceType,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Refund rule for ${serviceType}: ${JSON.stringify(before)} -> ${JSON.stringify(values)} (by ${session.name}). Reason: ${reason}`,
+      note: withReason(`Refund rule for ${serviceType}: ${JSON.stringify(before)} -> ${JSON.stringify(values)} (by ${session.name})`, reason),
     });
     return row;
   });

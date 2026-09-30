@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serializeDestination } from "@/lib/return-ticket/serialize-destination";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
@@ -33,6 +35,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
   if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
@@ -51,7 +56,7 @@ export async function POST(request: NextRequest) {
       entityId: row.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Return Ticket destination "${row.country.name}" added at rate ${parsed.data.ratePerApplicant} (by ${session.name})`,
+      note: withReason(`Return Ticket destination "${row.country.name}" added at rate ${parsed.data.ratePerApplicant} (by ${session.name})`, reason),
     });
     return row;
   });

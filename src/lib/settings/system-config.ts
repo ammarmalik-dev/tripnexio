@@ -149,3 +149,15 @@ export async function getEffectiveSiteConfig(): Promise<EffectiveSiteConfig> {
     email: pick(config.companyEmail, siteConfig.contact.email),
   };
 }
+
+/**
+ * P24 — Admin → Payment Gateway's "Default payment-link validity (hours)".
+ * null = not set (callers fall back to DEFAULT_PAYMENT_LINK_VALIDITY_HOURS).
+ * Reads through the caller's own client so it can be used without touching
+ * the global `db` from inside a transaction; createGatewayPayment calls it
+ * before opening its own transaction, with the default `db`.
+ */
+export async function getDefaultPaymentLinkHours(client: Pick<typeof db, "systemConfig"> = db): Promise<number | null> {
+  const row = await client.systemConfig.findUnique({ where: { id: SYSTEM_CONFIG_ID }, select: { defaultPaymentLinkHours: true } });
+  return row?.defaultPaymentLinkHours ?? null;
+}

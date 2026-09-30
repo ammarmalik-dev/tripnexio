@@ -15,6 +15,7 @@ import { cn } from "@/lib/cn";
 import { NationalitySelect, nationalityFormValue, nationalityPayload } from "./NationalitySelect";
 import { ChangeHistoryList, type ChangeHistoryEntry, type HistoryJson } from "./ChangeHistoryList";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
 /** Used only for a service with no Processing Types configured yet (the pre-P23 codes). */
@@ -537,6 +538,7 @@ function PricingRuleHistoryPanel({ rule, lookups }: { rule: PricingRuleData; loo
 }
 
 function PricingCard({ rule, lookups, onSaved }: { rule: PricingRuleData; lookups: Lookups; onSaved: (rule: PricingRuleData) => void }) {
+  const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState>(toFormState(rule));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -545,10 +547,16 @@ function PricingCard({ rule, lookups, onSaved }: { rule: PricingRuleData; lookup
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(rule));
 
   const handleSave = async () => {
+    const reason = await confirm({
+      title: "Change this pricing rule?",
+      description: `Selling price ₹${rule.sellingPrice} → ₹${form.sellingPrice || "?"}. New quotes and checkouts matching this rule will use the updated pricing.`,
+      confirmLabel: "Save Pricing",
+    });
+    if (!reason) return;
     setSaving(true);
     setErrors({});
     try {
-      const updated = await patchJson<PricingRuleData>(`/api/admin/pricing-rules/${rule.id}`, buildPayload(form));
+      const updated = await patchJson<PricingRuleData>(`/api/admin/pricing-rules/${rule.id}`, { ...buildPayload(form), reason });
       toast.success("Pricing rule updated.");
       onSaved(updated);
     } catch (error) {
@@ -560,9 +568,15 @@ function PricingCard({ rule, lookups, onSaved }: { rule: PricingRuleData; lookup
   };
 
   const handleToggleActive = async () => {
+    const reason = await confirm({
+      title: `${rule.active ? "Disable" : "Enable"} this pricing rule?`,
+      description: rule.active ? "Requests matching this rule will stop using its price." : "Requests matching this rule will use its price again.",
+      confirmLabel: rule.active ? "Disable Rule" : "Enable Rule",
+    });
+    if (!reason) return;
     setTogglingActive(true);
     try {
-      const updated = await patchJson<PricingRuleData>(`/api/admin/pricing-rules/${rule.id}`, { active: !rule.active });
+      const updated = await patchJson<PricingRuleData>(`/api/admin/pricing-rules/${rule.id}`, { active: !rule.active, reason });
       toast.success(updated.active ? "Enabled." : "Disabled.");
       onSaved(updated);
     } catch (error) {
@@ -600,20 +614,28 @@ function PricingCard({ rule, lookups, onSaved }: { rule: PricingRuleData; lookup
       </div>
       {/* Keyed on updatedAt so a save resets the panel and the next open refetches the new entry. */}
       <PricingRuleHistoryPanel key={rule.updatedAt} rule={rule} lookups={lookups} />
+      {dialog}
     </div>
   );
 }
 
 function NewPricingRuleForm({ lookups, onCreated }: { lookups: Lookups; onCreated: (rule: PricingRuleData) => void }) {
+  const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
+    const reason = await confirm({
+      title: "Create pricing rule?",
+      description: `This sets a selling price of ₹${form.sellingPrice} for matching requests.`,
+      confirmLabel: "Create Rule",
+    });
+    if (!reason) return;
     setCreating(true);
     setErrors({});
     try {
-      const created = await postJson<PricingRuleData>("/api/admin/pricing-rules", buildPayload(form));
+      const created = await postJson<PricingRuleData>("/api/admin/pricing-rules", { ...buildPayload(form), reason });
       toast.success("Pricing rule created.");
       onCreated(created);
       setForm(EMPTY_FORM);
@@ -637,6 +659,7 @@ function NewPricingRuleForm({ lookups, onCreated }: { lookups: Lookups; onCreate
           Create Pricing Rule
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }

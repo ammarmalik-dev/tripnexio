@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
   // resolveCouponForQuotation's own doc comment on why).
   let appliedCoupon: { couponId: string; couponCode: string; discountAmount: number } | null = null;
   if (couponCode) {
-    const result = await resolveCouponForQuotation(couponCode, lead.serviceType, resolvedSellingPrice);
+    const result = await resolveCouponForQuotation(couponCode, lead.serviceType, resolvedSellingPrice, leadId);
     if (!result.ok) {
       return jsonError(400, result.error, { couponCode: [result.error] });
     }

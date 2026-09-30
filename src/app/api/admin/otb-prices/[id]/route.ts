@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serializeOtbPrice } from "@/lib/otb/pricing";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -25,6 +27,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
   const parsed = updateOtbPriceSchema.safeParse(body);
   if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.otbPrice.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "OTB price not found.");
@@ -40,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `OTB price ${row.airline.code} → ${row.country.name} (${row.paxType}) updated: normal ${Number(row.normalPrice)}, urgent ${row.urgentPrice === null ? "airline price" : Number(row.urgentPrice)}, ${row.active ? "active" : "disabled"} (by ${session.name})`,
+      note: withReason(`OTB price ${row.airline.code} → ${row.country.name} (${row.paxType}) updated: normal ${Number(row.normalPrice)}, urgent ${row.urgentPrice === null ? "airline price" : Number(row.urgentPrice)}, ${row.active ? "active" : "disabled"} (by ${session.name})`, reason),
     });
     return row;
   });

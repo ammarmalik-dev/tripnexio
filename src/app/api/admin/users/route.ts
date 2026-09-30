@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
+import { normalizeCountriesHandled } from "@/lib/staff/rule-refs";
 
 export async function GET() {
   const auth = await requirePermission("staff.manage");
@@ -22,6 +23,8 @@ export async function GET() {
       createdAt: user.createdAt,
       role: { id: user.role.id, name: user.role.name },
       allowedServiceTypes: user.allowedServiceTypes,
+      /** P24 — Country ids; empty = every country. */
+      countriesHandled: user.countriesHandled,
     }))
   );
 }
@@ -56,6 +59,9 @@ export async function POST(request: NextRequest) {
     return jsonError(403, "Only a full admin can create an account with full admin access.");
   }
 
+  const countries = await normalizeCountriesHandled(parsed.data.countriesHandled ?? []);
+  if ("errors" in countries) return jsonError(400, "Please check the highlighted fields.", countries.errors);
+
   const passwordHash = await bcrypt.hash(parsed.data.password, 10);
 
   const user = await db.$transaction(async (tx) => {
@@ -67,6 +73,7 @@ export async function POST(request: NextRequest) {
         roleId: parsed.data.roleId,
         active: true,
         allowedServiceTypes: parsed.data.allowedServiceTypes ?? [],
+        countriesHandled: countries.ids,
       },
       include: { role: true },
     });
@@ -76,7 +83,7 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Staff account "${created.name}" (${created.email}) created with role ${created.role.name}${created.allowedServiceTypes.length > 0 ? `, scoped to ${created.allowedServiceTypes.join(", ")}` : ""} (by ${session.name})`,
+      note: `Staff account "${created.name}" (${created.email}) created with role ${created.role.name}${created.allowedServiceTypes.length > 0 ? `, scoped to ${created.allowedServiceTypes.join(", ")}` : ""}${created.countriesHandled.length > 0 ? `, handling ${created.countriesHandled.length} country(ies)` : ""} (by ${session.name})`,
     });
 
     return created;
@@ -90,6 +97,7 @@ export async function POST(request: NextRequest) {
       active: user.active,
       role: { id: user.role.id, name: user.role.name },
       allowedServiceTypes: user.allowedServiceTypes,
+      countriesHandled: user.countriesHandled,
     },
     201
   );

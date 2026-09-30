@@ -15,6 +15,8 @@ import { NOTIFICATION_EVENT_CATALOG } from "@/lib/notifications/events";
 import { SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER, SYSTEM_EVENT_LABELS } from "@/lib/service-status/events";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, LeadStatus } from "../../generated/prisma/enums";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 
 const SYSTEM_EVENT_OPTIONS = [...SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER].map((value) => ({ value, label: SYSTEM_EVENT_LABELS[value] }));
 
@@ -221,13 +223,20 @@ function StatusCard({
   const [togglingActive, setTogglingActive] = useState(false);
   const [newTransitionTarget, setNewTransitionTarget] = useState("");
   const [addingTransition, setAddingTransition] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(status));
 
   const handleSave = async () => {
+    const reason = await confirm({
+      title: `Update status "${status.name}"?`,
+      description: "This changes the workflow/status configuration every Lead or Booking of this service follows from now on.",
+      confirmLabel: "Save Changes",
+    });
+    if (!reason) return;
     setSaving(true);
     try {
-      const updated = await patchJson<StatusData>(`/api/admin/service-statuses/${status.id}`, buildPayload(form, status.scope));
+      const updated = await patchJson<StatusData>(`/api/admin/service-statuses/${status.id}`, { ...buildPayload(form, status.scope), reason });
       toast.success(`Status "${updated.name}" updated.`);
       onSaved(updated);
     } catch (error) {
@@ -238,9 +247,15 @@ function StatusCard({
   };
 
   const handleToggleActive = async () => {
+    const reason = await confirm({
+      title: `${status.active ? "Disable" : "Enable"} status "${status.name}"?`,
+      description: status.active ? "Staff will no longer be able to move records into this status." : "Staff will be able to move records into this status again.",
+      confirmLabel: status.active ? "Disable Status" : "Enable Status",
+    });
+    if (!reason) return;
     setTogglingActive(true);
     try {
-      const updated = await patchJson<StatusData>(`/api/admin/service-statuses/${status.id}`, { active: !status.active });
+      const updated = await patchJson<StatusData>(`/api/admin/service-statuses/${status.id}`, { active: !status.active, reason });
       toast.success(updated.active ? `${updated.name} enabled.` : `${updated.name} disabled.`);
       onSaved(updated);
     } catch (error) {
@@ -252,9 +267,15 @@ function StatusCard({
 
   const handleAddTransition = async () => {
     if (!newTransitionTarget) return;
+    const reason = await confirm({
+      title: "Add status transition?",
+      description: `Records in "${status.name}" will be allowed to move to "${allStatuses.find((s) => s.id === newTransitionTarget)?.name ?? "the selected status"}".`,
+      confirmLabel: "Add Transition",
+    });
+    if (!reason) return;
     setAddingTransition(true);
     try {
-      await postJson("/api/admin/service-status-transitions", { fromStatusId: status.id, toStatusId: newTransitionTarget });
+      await postJson("/api/admin/service-status-transitions", { fromStatusId: status.id, toStatusId: newTransitionTarget, reason });
       toast.success("Transition added.");
       setNewTransitionTarget("");
       onTransitionChanged();
@@ -320,17 +341,25 @@ function StatusCard({
           </div>
         ) : null}
       </div>
+      {dialog}
     </div>
   );
 }
 
 function RemoveTransitionButton({ transitionId, onRemoved }: { transitionId: string; onRemoved: () => void }) {
   const [removing, setRemoving] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
 
   const handleRemove = async () => {
+    const reason = await confirm({
+      title: "Remove status transition?",
+      description: "Records will no longer be able to move along this transition.",
+      confirmLabel: "Remove Transition",
+    });
+    if (!reason) return;
     setRemoving(true);
     try {
-      await deleteJson(`/api/admin/service-status-transitions/${transitionId}`);
+      await deleteJson(withReasonQuery(`/api/admin/service-status-transitions/${transitionId}`, reason));
       onRemoved();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't remove this transition. Please try again.");
@@ -340,20 +369,30 @@ function RemoveTransitionButton({ transitionId, onRemoved }: { transitionId: str
   };
 
   return (
-    <button type="button" onClick={() => void handleRemove()} disabled={removing} className="text-ink-tertiary hover:text-error" aria-label="Remove transition">
-      <X className="h-3 w-3" aria-hidden="true" />
-    </button>
+    <>
+      <button type="button" onClick={() => void handleRemove()} disabled={removing} className="text-ink-tertiary hover:text-error" aria-label="Remove transition">
+        <X className="h-3 w-3" aria-hidden="true" />
+      </button>
+      {dialog}
+    </>
   );
 }
 
 function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: ServiceType; scope: StatusScope; onCreated: (status: StatusData) => void }) {
   const [form, setForm] = useState<StatusFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
 
   const handleCreate = async () => {
+    const reason = await confirm({
+      title: `Create status "${form.name.trim()}"?`,
+      description: "This adds a new status to this service's workflow configuration.",
+      confirmLabel: "Create Status",
+    });
+    if (!reason) return;
     setCreating(true);
     try {
-      const created = await postJson<StatusData>("/api/admin/service-statuses", { serviceType, scope, ...buildPayload(form, scope) });
+      const created = await postJson<StatusData>("/api/admin/service-statuses", { serviceType, scope, ...buildPayload(form, scope), reason });
       toast.success(`Status "${created.name}" created.`);
       onCreated(created);
       setForm(EMPTY_FORM);
@@ -374,6 +413,7 @@ function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: Service
           Create Status
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus } from "lucide-react";
+import { Plus, KeyRound } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
@@ -30,6 +30,140 @@ interface StaffUser {
   role: { id: string; name: string };
   /** Step 39 — empty = unrestricted (every existing account starts this way). */
   allowedServiceTypes: ServiceType[];
+  /** P24 — Country ids this staff member handles; empty = every country. */
+  countriesHandled: string[];
+}
+
+interface CountryOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+/**
+ * P24 item 6 — searchable checkbox multi-select of countries (a native
+ * <details> disclosure, so it stays keyboard-accessible without a popover
+ * library). Ids not in `countries` (e.g. a since-deactivated country) are
+ * kept in the selection and counted, never silently dropped.
+ */
+function CountryMultiSelect({
+  idPrefix,
+  countries,
+  selected,
+  onChange,
+  disabled,
+}: {
+  idPrefix: string;
+  countries: CountryOption[];
+  selected: string[];
+  onChange: (next: string[]) => void;
+  disabled: boolean;
+}) {
+  const [filter, setFilter] = useState("");
+  const selectedSet = new Set(selected);
+  const known = new Map(countries.map((country) => [country.id, country]));
+  const unknownCount = selected.filter((id) => !known.has(id)).length;
+  const needle = filter.trim().toLowerCase();
+  const visible = needle
+    ? countries.filter((country) => country.name.toLowerCase().includes(needle) || country.code.toLowerCase().includes(needle))
+    : countries;
+
+  const knownNames = selected
+    .map((id) => known.get(id)?.name)
+    .filter((name): name is string => Boolean(name));
+  const summary =
+    selected.length === 0
+      ? "All countries"
+      : [
+          knownNames.slice(0, 3).join(", "),
+          knownNames.length > 3 ? `+${knownNames.length - 3} more` : "",
+          unknownCount > 0 ? `${unknownCount} inactive` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+  const toggle = (id: string) => {
+    onChange(selectedSet.has(id) ? selected.filter((entry) => entry !== id) : [...selected, id]);
+  };
+
+  return (
+    <details className="rounded-lg border border-hairline bg-surface-1 text-xs">
+      <summary className="cursor-pointer select-none px-2.5 py-1.5 text-ink-secondary focus-visible:outline-2 focus-visible:outline-offset-2">
+        {summary}
+      </summary>
+      <div className="flex flex-col gap-2 border-t border-hairline p-2">
+        <label htmlFor={`${idPrefix}-country-filter`} className="sr-only">
+          Filter countries
+        </label>
+        <input
+          id={`${idPrefix}-country-filter`}
+          type="search"
+          value={filter}
+          disabled={disabled}
+          onChange={(event) => setFilter(event.target.value)}
+          placeholder="Search countries"
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-8 text-xs")}
+        />
+        <div className="max-h-44 overflow-y-auto pr-1">
+          {countries.length === 0 ? (
+            <p className="px-1 py-2 text-ink-tertiary">No active countries — add them under Admin → Countries.</p>
+          ) : visible.length === 0 ? (
+            <p className="px-1 py-2 text-ink-tertiary">No matching countries.</p>
+          ) : (
+            visible.map((country) => (
+              <label key={country.id} className="flex items-center gap-1.5 px-1 py-0.5 text-ink-secondary">
+                <input type="checkbox" checked={selectedSet.has(country.id)} disabled={disabled} onChange={() => toggle(country.id)} />
+                {country.name} <span className="text-ink-tertiary">({country.code})</span>
+              </label>
+            ))
+          )}
+        </div>
+        {selected.length > 0 ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={() => onChange([])}
+            className="self-start text-ink-accent underline-offset-2 hover:underline"
+          >
+            Clear (handle all countries)
+          </button>
+        ) : null}
+      </div>
+    </details>
+  );
+}
+
+function CountriesCell({ user, countries, onSaved }: { user: StaffUser; countries: CountryOption[]; onSaved: (user: StaffUser) => void }) {
+  const [selected, setSelected] = useState<string[]>(user.countriesHandled);
+  const [saving, setSaving] = useState(false);
+
+  const dirty = JSON.stringify([...selected].sort()) !== JSON.stringify([...user.countriesHandled].sort());
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const updated = await patchJson<StaffUser>(`/api/admin/users/${user.id}`, { countriesHandled: selected });
+      toast.success(
+        updated.countriesHandled.length > 0 ? `${updated.name}'s countries updated.` : `${updated.name} now handles every country.`
+      );
+      onSaved(updated);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't update this staff member's countries. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <CountryMultiSelect idPrefix={`staff-${user.id}`} countries={countries} selected={selected} onChange={setSelected} disabled={saving} />
+      {dirty ? (
+        <Button type="button" size="sm" variant="ghost" onClick={() => void handleSave()} isLoading={saving}>
+          Save Countries
+        </Button>
+      ) : null}
+    </div>
+  );
 }
 
 /** Compact checkbox grid reused by both the per-row editor and the New Staff form. */
@@ -61,7 +195,15 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function NewStaffForm({ roles, onCreated }: { roles: RoleOption[]; onCreated: (user: StaffUser) => void }) {
+function NewStaffForm({
+  roles,
+  countries,
+  onCreated,
+}: {
+  roles: RoleOption[];
+  countries: CountryOption[];
+  onCreated: (user: StaffUser) => void;
+}) {
   const {
     register,
     handleSubmit,
@@ -70,6 +212,7 @@ function NewStaffForm({ roles, onCreated }: { roles: RoleOption[]; onCreated: (u
   } = useForm<CreateStaffUserValues>({ resolver: zodResolver(createStaffUserSchema) });
   const [submitting, setSubmitting] = useState(false);
   const [allowedServiceTypes, setAllowedServiceTypes] = useState<ServiceType[]>([]);
+  const [countriesHandled, setCountriesHandled] = useState<string[]>([]);
 
   const toggleService = (service: ServiceType) => {
     setAllowedServiceTypes((current) => (current.includes(service) ? current.filter((s) => s !== service) : [...current, service]));
@@ -78,11 +221,16 @@ function NewStaffForm({ roles, onCreated }: { roles: RoleOption[]; onCreated: (u
   const onSubmit = async (values: CreateStaffUserValues) => {
     setSubmitting(true);
     try {
-      const created = await postJson<Omit<StaffUser, "createdAt">>("/api/admin/users", { ...values, allowedServiceTypes });
+      const created = await postJson<Omit<StaffUser, "createdAt">>("/api/admin/users", {
+        ...values,
+        allowedServiceTypes,
+        countriesHandled,
+      });
       toast.success(`Staff account "${created.name}" created.`);
       onCreated({ ...created, createdAt: new Date().toISOString() });
       reset();
       setAllowedServiceTypes([]);
+      setCountriesHandled([]);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't create this staff account. Please try again.");
     } finally {
@@ -122,6 +270,13 @@ function NewStaffForm({ roles, onCreated }: { roles: RoleOption[]; onCreated: (u
         <span className="mb-1.5 block text-sm font-medium text-ink-primary">Service Scope</span>
         <ServiceScopeChecklist selected={allowedServiceTypes} onToggle={toggleService} disabled={submitting} />
         <p className="mt-1 text-xs text-ink-tertiary">Leave every box unchecked for unrestricted access to every service.</p>
+      </div>
+      <div>
+        <span className="mb-1.5 block text-sm font-medium text-ink-primary">Countries Handled</span>
+        <CountryMultiSelect idPrefix="new-staff" countries={countries} selected={countriesHandled} onChange={setCountriesHandled} disabled={submitting} />
+        <p className="mt-1 text-xs text-ink-tertiary">
+          Leave empty to handle every country. When set, auto-assign only gives this person leads for these destination countries.
+        </p>
       </div>
       <div className="flex justify-end">
         <Button type="submit" size="sm" isLoading={submitting}>
@@ -175,6 +330,8 @@ export function StaffUsersManager() {
   const [state, setState] = useState<FetchState>("loading");
   const [users, setUsers] = useState<StaffUser[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [resettingId, setResettingId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -185,13 +342,17 @@ export function StaffUsersManager() {
     async function load() {
       setState("loading");
       try {
-        const [userList, roleList] = await Promise.all([
+        const [userList, roleList, countryList] = await Promise.all([
           getJson<StaffUser[]>("/api/admin/users"),
           getJson<{ id: string; name: string }[]>("/api/admin/roles"),
+          // Active countries from the Country master (Admin → Countries). The read-only /api/countries list is
+          // used because /api/admin/countries needs masters.manage, which a staff.manage-only admin may lack.
+          getJson<CountryOption[]>("/api/countries").catch((): CountryOption[] => []),
         ]);
         if (cancelled) return;
         setUsers(userList);
         setRoles(roleList.map((role) => ({ id: role.id, name: role.name })));
+        setCountries(countryList.map((country) => ({ id: country.id, code: country.code, name: country.name })));
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -232,6 +393,23 @@ export function StaffUsersManager() {
     }
   };
 
+  const handlePasswordReset = async (user: StaffUser) => {
+    if (!window.confirm(`Email a password reset link to ${user.name} (${user.email})? Their current password keeps working until they use the link.`)) {
+      return;
+    }
+    setResettingId(user.id);
+    try {
+      const result = await postJson<{ sent: boolean; email: string }>(`/api/admin/users/${user.id}/password-reset`, {});
+      toast.success(`Password reset link sent to ${result.email}.`);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't send the reset email. Please try again.");
+    } finally {
+      setResettingId(null);
+    }
+  };
+
+  const replaceUser = (updated: StaffUser) => setUsers((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)));
+
   if (state === "loading") {
     return (
       <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">
@@ -259,13 +437,14 @@ export function StaffUsersManager() {
   return (
     <div className="flex flex-col gap-4">
       <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-        <table className="w-full min-w-[920px] border-collapse text-sm">
+        <table className="w-full min-w-[1140px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Service Scope</th>
+              <th className="px-4 py-3">Countries</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Created</th>
               <th className="px-4 py-3" />
@@ -291,10 +470,10 @@ export function StaffUsersManager() {
                   </select>
                 </td>
                 <td className="px-4 py-3 min-w-[220px]">
-                  <ServiceScopeCell
-                    user={user}
-                    onSaved={(updated) => setUsers((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-                  />
+                  <ServiceScopeCell user={user} onSaved={replaceUser} />
+                </td>
+                <td className="px-4 py-3 min-w-[220px]">
+                  <CountriesCell user={user} countries={countries} onSaved={replaceUser} />
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -308,22 +487,37 @@ export function StaffUsersManager() {
                 </td>
                 <td className="px-4 py-3 text-ink-tertiary">{formatDate(user.createdAt)}</td>
                 <td className="px-4 py-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => void handleToggleActive(user)}
-                    isLoading={savingId === user.id}
-                  >
-                    {user.active ? "Deactivate" : "Reactivate"}
-                  </Button>
+                  <div className="flex flex-col items-start gap-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void handleToggleActive(user)}
+                      isLoading={savingId === user.id}
+                    >
+                      {user.active ? "Deactivate" : "Reactivate"}
+                    </Button>
+                    {user.active ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => void handlePasswordReset(user)}
+                        isLoading={resettingId === user.id}
+                        aria-label={`Send password reset email to ${user.name}`}
+                      >
+                        <KeyRound className="h-4 w-4" aria-hidden="true" />
+                        Send password reset
+                      </Button>
+                    ) : null}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <NewStaffForm roles={roles} onCreated={(user) => setUsers((current) => [...current, user])} />
+      <NewStaffForm roles={roles} countries={countries} onCreated={(user) => setUsers((current) => [...current, user])} />
     </div>
   );
 }

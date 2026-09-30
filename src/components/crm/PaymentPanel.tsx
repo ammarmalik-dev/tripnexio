@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/Toaster";
 import type { CreateRefundValues } from "@/lib/validation/refund-schema";
 import type { RefundRuleResult } from "@/lib/refunds/rules";
 import type { PaymentStatus, PaymentMethod, PaymentPurpose, RefundStatus } from "../../generated/prisma/enums";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 const ALLOWED_SLIP_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
 const MAX_SLIP_BYTES = 8 * 1024 * 1024;
@@ -80,14 +81,21 @@ export function PaymentPanel({
   const [uploadingSlip, setUploadingSlip] = useState(false);
   const [approvingTransfer, setApprovingTransfer] = useState(false);
   const [slipError, setSlipError] = useState<string | null>(null);
+  const { confirm, dialog } = useConfirmAction();
 
   const couponDiscount = Number(payment.couponDiscount ?? 0);
   const total = Number(payment.amount) - couponDiscount + Number(payment.gstAmount) + Number(payment.gatewayFee);
 
   const handleMarkSuccess = async () => {
+    const reason = await confirm({
+      title: `Mark ${money(total)} payment successful manually?`,
+      description: "Only use this when the gateway webhook never arrived or the customer paid outside the gateway. The booking is confirmed and the customer is notified.",
+      confirmLabel: "Mark Success",
+    });
+    if (!reason) return;
     setMarkingSuccess(true);
     try {
-      await postJson(`/api/payments/${payment.id}/mark-success`, {});
+      await postJson(`/api/payments/${payment.id}/mark-success`, { reason });
       toast.success("Payment marked successful.");
       onChanged();
     } catch (error) {
@@ -130,9 +138,15 @@ export function PaymentPanel({
   };
 
   const handleApproveBankTransfer = async () => {
+    const reason = await confirm({
+      title: `Approve ${money(total)} bank transfer?`,
+      description: "Confirm you have checked the uploaded slip against the bank statement. The payment moves to Success and the booking is confirmed.",
+      confirmLabel: "Approve Transfer",
+    });
+    if (!reason) return;
     setApprovingTransfer(true);
     try {
-      await postJson(`/api/payments/${payment.id}/approve-bank-transfer`, {});
+      await postJson(`/api/payments/${payment.id}/approve-bank-transfer`, { reason });
       toast.success("Bank transfer approved.");
       onChanged();
     } catch (error) {
@@ -143,9 +157,16 @@ export function PaymentPanel({
   };
 
   const handleCreateRefund = async (values: CreateRefundValues) => {
+    const reason = await confirm({
+      title: "Record this refund?",
+      description: "The refund amount is calculated server-side from the charges entered and recorded as PENDING — a different approver must then approve it before it is processed.",
+      confirmLabel: "Record Refund",
+      defaultReason: values.reason ?? "",
+    });
+    if (!reason) return;
     setCreatingRefund(true);
     try {
-      await postJson(`/api/payments/${payment.id}/refunds`, values);
+      await postJson(`/api/payments/${payment.id}/refunds`, { ...values, reason });
       toast.success("Refund calculated and recorded.");
       setShowRefundForm(false);
       onChanged();
@@ -315,6 +336,7 @@ export function PaymentPanel({
           ))}
         </div>
       ) : null}
+      {dialog}
     </div>
   );
 }

@@ -13,6 +13,8 @@ import { Prisma, type Quotation } from "@/generated/prisma/client";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
 import { normalizeItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
 import { notifyQuoteReady } from "@/lib/quotations/send-quotation";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -206,13 +208,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (couponCode === "") {
       couponFields = { couponId: null, couponCode: null, couponDiscount: null };
     } else {
-      const result = await resolveCouponForQuotation(couponCode, lead.serviceType, sellingPrice);
+      const result = await resolveCouponForQuotation(couponCode, lead.serviceType, sellingPrice, existing.leadId);
       if (!result.ok) {
         return jsonError(400, result.error, { couponCode: [result.error] });
       }
       couponFields = { couponId: result.coupon.couponId, couponCode: result.coupon.couponCode, couponDiscount: result.coupon.discountAmount };
     }
   }
+
+  // Business Rules §14 "Sensitive Admin Actions" — a price or vendor change
+  // (selling price, vendor cost, vendor, coupon) needs the confirmation
+  // reason; a non-price edit (route text, baggage, notes…) doesn't.
+  const priceOrVendorChanged =
+    sellingPrice !== Number(existing.sellingPrice ?? 0) ||
+    vendorCost !== Number(existing.vendorCost) ||
+    (parsed.data.vendorId !== undefined && parsed.data.vendorId !== existing.vendorId) ||
+    (couponFields !== undefined && couponFields.couponCode !== existing.couponCode);
+  const reasonResult = readBodyReason(body);
+  if (priceOrVendorChanged && reasonResult.error) return reasonResult.error;
+  const reason = reasonResult.reason ?? null;
 
   const updated = await db.$transaction(async (tx) => {
     const result = await tx.quotation.update({
@@ -233,12 +247,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     });
 
     const changes = describeChanges(existing, result);
+    const auditNote = `${isRevision ? `Revision ${result.revision} sent` : "Draft updated"} by ${session.name} — margin now ${margin}${couponFields ? (couponFields.couponCode ? `, coupon ${couponFields.couponCode} applied (-₹${couponFields.couponDiscount})` : ", coupon removed") : ""}. Changes: ${changes.length > 0 ? changes.join("; ") : "none"}`;
     await writeAudit(tx, {
       entityType: "Quotation",
       entityId: id,
       action: isRevision ? "REVISE" : "UPDATE",
       byUserId: session.id,
-      note: `${isRevision ? `Revision ${result.revision} sent` : "Draft updated"} by ${session.name} — margin now ${margin}${couponFields ? (couponFields.couponCode ? `, coupon ${couponFields.couponCode} applied (-₹${couponFields.couponDiscount})` : ", coupon removed") : ""}. Changes: ${changes.length > 0 ? changes.join("; ") : "none"}`,
+      note: reason ? withReason(auditNote, reason) : auditNote,
     });
 
     return result;

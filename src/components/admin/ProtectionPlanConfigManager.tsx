@@ -9,6 +9,7 @@ import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface ProtectionPlanConfigData {
   defaultPrice: string;
@@ -30,6 +31,7 @@ export function ProtectionPlanConfigManager() {
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const { confirm, dialog } = useConfirmAction();
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +62,16 @@ export function ProtectionPlanConfigManager() {
     (defaultPrice !== config.defaultPrice || termsText !== config.termsText || JSON.stringify(eligibilityConditions) !== JSON.stringify(config.eligibilityConditions));
 
   const handleSave = async () => {
+    let reason: string | undefined;
+    if (config && defaultPrice !== config.defaultPrice) {
+      const confirmed = await confirm({
+        title: "Change the Protection Plan default price?",
+        description: `₹${config.defaultPrice} → ₹${defaultPrice}. Every country without its own price override charges this for new Protection Plans.`,
+        confirmLabel: "Save Price",
+      });
+      if (!confirmed) return;
+      reason = confirmed;
+    }
     setSaving(true);
     setErrors({});
     try {
@@ -67,6 +79,7 @@ export function ProtectionPlanConfigManager() {
         defaultPrice: Number(defaultPrice),
         termsText,
         eligibilityConditions,
+        reason,
       });
       toast.success("Protection Plan configuration updated.");
       setConfig(updated);
@@ -175,6 +188,7 @@ export function ProtectionPlanConfigManager() {
           Save Changes
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }

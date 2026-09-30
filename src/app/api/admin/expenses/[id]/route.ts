@@ -4,6 +4,8 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { withReason } from "@/lib/validation/sensitive-action";
+import { readBodyReason, readDeleteReason } from "@/lib/api/sensitive-reason";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -27,6 +29,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.expense.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Expense not found.");
@@ -54,7 +59,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Expense updated (by ${session.name})`,
+      note: withReason(`Expense updated (by ${session.name})`, reason),
     });
     return result;
   });
@@ -62,12 +67,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   return jsonSuccess(updated);
 }
 
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("finance.manage");
   if (auth.error) return auth.error;
   const { session } = auth;
 
   const { id } = await params;
+  const reasonResult = await readDeleteReason(request);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.expense.findUnique({ where: { id }, include: { category: true } });
   if (!existing) return jsonError(404, "Expense not found.");
@@ -79,7 +87,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "DELETE",
       byUserId: session.id,
-      note: `₹${existing.amount} expense under "${existing.category.name}" removed (by ${session.name})`,
+      note: withReason(`₹${existing.amount} expense under "${existing.category.name}" removed (by ${session.name})`, reason),
     });
   });
 

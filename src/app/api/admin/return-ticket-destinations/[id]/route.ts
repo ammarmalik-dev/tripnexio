@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serializeDestination } from "@/lib/return-ticket/serialize-destination";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -27,6 +29,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
   // The country is fixed once added — to change it, disable this row and add another.
   const data = { ...parsed.data };
   delete data.countryId;
@@ -45,7 +50,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Return Ticket destination "${row.country.name}" updated (by ${session.name})`,
+      note: withReason(`Return Ticket destination "${row.country.name}" updated (by ${session.name})`, reason),
     });
     return row;
   });

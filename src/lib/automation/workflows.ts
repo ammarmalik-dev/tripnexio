@@ -68,4 +68,16 @@ export const AUTOMATION_WORKFLOWS: { key: string; label: string; intendedSchedul
     intendedSchedule: "Every hour",
     endpoint: "/api/automation/staff-alerts",
   },
+  {
+    key: "sla-escalation",
+    label: "SLA Escalation: Bookings Stuck in a Status",
+    intendedSchedule: "Every hour",
+    endpoint: "/api/automation/sla-escalation",
+  },
+  {
+    key: "abandoned-quote-coupons",
+    label: "Abandoned Quotation Coupons (Admin toggle)",
+    intendedSchedule: "Every hour",
+    endpoint: "/api/automation/abandoned-quote-coupons",
+  },
 ];

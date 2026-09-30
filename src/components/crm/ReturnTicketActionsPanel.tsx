@@ -7,6 +7,7 @@ import { getJson, patchJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { cn } from "@/lib/cn";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 export interface ReturnTicketBookingView {
   cancellationFee: number | null;
@@ -58,6 +59,7 @@ export function ReturnTicketActionsPanel({
     pnr: view.pnr ?? "",
   });
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
+  const { confirm, dialog } = useConfirmAction();
 
   useEffect(() => {
     let cancelled = false;
@@ -100,6 +102,19 @@ export function ReturnTicketActionsPanel({
   };
 
   const saveVendor = async () => {
+    // Business Rules §14 — changing the vendor or vendor cost is a sensitive action; saving only the reference/PNR isn't.
+    const vendorChanged =
+      form.vendorId !== (view.vendor?.id ?? "") || (form.vendorCost.trim() === "" ? null : Number(form.vendorCost)) !== view.vendorCost;
+    let reason: string | undefined;
+    if (vendorChanged) {
+      const confirmed = await confirm({
+        title: "Change this booking's vendor?",
+        description: `Vendor: ${vendors.find((v) => v.id === form.vendorId)?.name ?? "—"}, vendor cost ₹${form.vendorCost || "—"}. The internal margin is recomputed from the selected quote.`,
+        confirmLabel: "Save Vendor",
+      });
+      if (!confirmed) return;
+      reason = confirmed;
+    }
     setSaving(true);
     setErrors({});
     try {
@@ -109,6 +124,7 @@ export function ReturnTicketActionsPanel({
         vendorCost: form.vendorCost.trim() === "" ? Number.NaN : Number(form.vendorCost),
         vendorReference: form.vendorReference,
         pnr: form.pnr,
+        reason,
       });
       toast.success("Vendor details saved.");
       onChanged();
@@ -213,6 +229,7 @@ export function ReturnTicketActionsPanel({
           </Button>
         </div>
       </div>
+      {dialog}
     </section>
   );
 }

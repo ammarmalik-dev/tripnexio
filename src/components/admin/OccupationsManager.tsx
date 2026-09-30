@@ -8,6 +8,8 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -33,7 +35,7 @@ function OccupationRow({
   const [order, setOrder] = useState(String(occupation.displayOrder));
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
   const dirty = name.trim() !== occupation.name || (Number(order) || 0) !== occupation.displayOrder;
 
   const save = async (patch: Partial<Pick<OccupationData, "name" | "displayOrder" | "active">>) => {
@@ -52,14 +54,19 @@ function OccupationRow({
   };
 
   const remove = async () => {
+    const reason = await confirm({
+      title: `Remove occupation "${occupation.name}"?`,
+      description: "This permanently deletes the occupation from the master list. To stop offering it without deleting, hide it instead.",
+      confirmLabel: "Remove Occupation",
+    });
+    if (!reason) return;
     setBusy(true);
     try {
-      await deleteJson(`/api/admin/occupations/${occupation.id}`);
+      await deleteJson(withReasonQuery(`/api/admin/occupations/${occupation.id}`, reason));
       toast.success(`"${occupation.name}" removed.`);
       onDeleted(occupation.id);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't remove this occupation. Please try again.");
-      setConfirming(false);
     } finally {
       setBusy(false);
     }
@@ -93,20 +100,10 @@ function OccupationRow({
         <Button type="button" size="sm" variant="ghost" onClick={() => void save({ active: !occupation.active })} disabled={busy}>
           {occupation.active ? "Hide" : "Show"}
         </Button>
-        {confirming ? (
-          <>
-            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(false)} disabled={busy}>
-              Keep
-            </Button>
-            <Button type="button" size="sm" onClick={() => void remove()} isLoading={busy}>
-              Confirm remove
-            </Button>
-          </>
-        ) : (
-          <Button type="button" size="sm" variant="ghost" onClick={() => setConfirming(true)} disabled={busy}>
-            Remove
-          </Button>
-        )}
+        <Button type="button" size="sm" variant="ghost" onClick={() => void remove()} disabled={busy}>
+          Remove
+        </Button>
+        {dialog}
       </div>
     </div>
   );

@@ -6,14 +6,13 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
-import { Textarea } from "@/components/forms/Textarea";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
-import { REASSIGN_REASON_MIN_LENGTH } from "@/lib/validation/lead-assign-schema";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus } from "../../generated/prisma/enums";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface StaffOption {
   id: string;
@@ -52,9 +51,8 @@ export function BulkReassignmentManager() {
 
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [toStaffId, setToStaffId] = useState("");
-  const [reason, setReason] = useState("");
-  const [reasonError, setReasonError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
 
   useEffect(() => {
     let cancelled = false;
@@ -123,23 +121,24 @@ export function BulkReassignmentManager() {
   };
 
   const handleReassign = async () => {
-    setReasonError("");
-    if (reason.trim().length < REASSIGN_REASON_MIN_LENGTH) {
-      setReasonError(`Enter a reason of at least ${REASSIGN_REASON_MIN_LENGTH} characters.`);
-      return;
-    }
+    const toStaffName = staffOptions.find((option) => option.id === toStaffId)?.name ?? "the selected staff member";
+    const reason = await confirm({
+      title: `Reassign ${selectedLeadIds.size} lead${selectedLeadIds.size === 1 ? "" : "s"} to ${toStaffName}?`,
+      description: "Every selected lead's open work moves to the new owner. The reason is recorded on each affected lead's audit trail.",
+      confirmLabel: "Reassign",
+    });
+    if (!reason) return;
     setSubmitting(true);
     try {
       const result = await postJson<{ reassignedCount: number }>("/api/admin/bulk-reassignment", {
         fromStaffId,
         toStaffId,
         leadIds: Array.from(selectedLeadIds),
-        reason: reason.trim(),
+        reason,
       });
       toast.success(`Reassigned ${result.reassignedCount} lead${result.reassignedCount === 1 ? "" : "s"}.`);
       setOpenWork((current) => current.filter((item) => !selectedLeadIds.has(item.leadId)));
       setSelectedLeadIds(new Set());
-      setReason("");
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't reassign the selected work. Please try again.");
     } finally {
@@ -248,15 +247,7 @@ export function BulkReassignmentManager() {
           </div>
 
           <div className="mt-2 flex flex-col gap-3 border-t border-hairline pt-4">
-            <Textarea
-              name="bulk-reassign-reason"
-              label="Reason"
-              hint="Required — recorded on every affected lead's audit trail."
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-              error={reasonError}
-              rows={2}
-            />
+            <p className="text-xs text-ink-tertiary">You&apos;ll be asked for a reason — it&apos;s recorded on every affected lead&apos;s audit trail.</p>
             <div className="flex justify-end">
               <Button type="button" onClick={() => void handleReassign()} isLoading={submitting} disabled={!canReassign}>
                 Reassign {selectedCount || ""} to {staffOptions.find((option) => option.id === toStaffId)?.name ?? "…"}
@@ -265,6 +256,7 @@ export function BulkReassignmentManager() {
           </div>
         </div>
       )}
+      {dialog}
     </div>
   );
 }

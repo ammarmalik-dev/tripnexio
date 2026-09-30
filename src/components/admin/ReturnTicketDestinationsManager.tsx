@@ -11,6 +11,7 @@ import { SelectField } from "@/components/forms/SelectField";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface DestinationData {
   id: string;
@@ -103,6 +104,7 @@ function RateFields({
 }
 
 function DestinationCard({ destination, onSaved }: { destination: DestinationData; onSaved: (d: DestinationData) => void }) {
+  const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState>(toFormState(destination));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
@@ -110,12 +112,18 @@ function DestinationCard({ destination, onSaved }: { destination: DestinationDat
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(destination));
 
   const handleSave = async () => {
+    const reason = await confirm({
+      title: `Change Return Ticket rate for ${destination.countryName}?`,
+      description: "This changes the per-applicant rate/cancellation fee customers are charged for this destination.",
+      confirmLabel: "Save Rate",
+    });
+    if (!reason) return;
     setSaving(true);
     setErrors({});
     try {
       const updated = await patchJson<DestinationData>(
         `/api/admin/return-ticket-destinations/${destination.id}`,
-        toPayload(form)
+        { ...toPayload(form), reason }
       );
       toast.success(`${updated.countryName} updated.`);
       onSaved(updated);
@@ -128,10 +136,17 @@ function DestinationCard({ destination, onSaved }: { destination: DestinationDat
   };
 
   const handleToggle = async () => {
+    const reason = await confirm({
+      title: `${destination.active ? "Disable" : "Enable"} ${destination.countryName}?`,
+      description: destination.active ? "Customers will no longer be able to request a Return Ticket for this destination." : "Customers will be able to request a Return Ticket for this destination again.",
+      confirmLabel: destination.active ? "Disable" : "Enable",
+    });
+    if (!reason) return;
     setToggling(true);
     try {
       const updated = await patchJson<DestinationData>(`/api/admin/return-ticket-destinations/${destination.id}`, {
         active: !destination.active,
+        reason,
       });
       toast.success(updated.active ? `${updated.countryName} enabled.` : `${updated.countryName} disabled.`);
       onSaved(updated);
@@ -166,6 +181,7 @@ function DestinationCard({ destination, onSaved }: { destination: DestinationDat
           Save Changes
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }
@@ -179,18 +195,26 @@ function NewDestinationForm({
   onCreated: (d: DestinationData) => void;
   defaultCountryId?: string;
 }) {
+  const { confirm, dialog } = useConfirmAction();
   const [countryId, setCountryId] = useState(defaultCountryId ?? "");
   const [form, setForm] = useState<FormState>({ rate: "", cancellationFee: "", displayOrder: "0" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
 
   const handleCreate = async () => {
+    const reason = await confirm({
+      title: "Add Return Ticket destination?",
+      description: `This sets a rate of ₹${form.rate || "?"} per applicant for the selected country.`,
+      confirmLabel: "Add Destination",
+    });
+    if (!reason) return;
     setCreating(true);
     setErrors({});
     try {
       const created = await postJson<DestinationData>("/api/admin/return-ticket-destinations", {
         countryId,
         ...toPayload(form),
+        reason,
       });
       toast.success(`${created.countryName} added.`);
       onCreated(created);
@@ -230,6 +254,7 @@ function NewDestinationForm({
           Add Destination
         </Button>
       </div>
+      {dialog}
     </div>
   );
 }

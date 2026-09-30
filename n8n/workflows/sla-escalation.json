@@ -1,0 +1,55 @@
+{
+  "name": "TripNexio - SLA Escalation (Bookings Stuck in a Status)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "15 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "8d4c2f1a-3b5e-4c7d-9e10-2a3b4c5d6e70",
+      "name": "Every hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "notes": "Hourly (at :15, offset from Staff Alerts). The app itself escalates each booking once per stay in a status, so running this more often never sends more."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.TRIPNEXIO_BASE_URL }}/api/automation/sla-escalation",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "9e5d3a2b-4c6f-4d8e-8f21-3b4c5d6e7f81",
+      "name": "Call SLA Escalation API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [280, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_CREDENTIAL_ID",
+          "name": "TripNexio Automation Key"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every hour": {
+      "main": [[{ "node": "Call SLA Escalation API", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

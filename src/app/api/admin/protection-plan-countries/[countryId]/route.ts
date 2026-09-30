@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { updateProtectionPlanCountrySchema } from "@/lib/validation/protection-plan-config-schema";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ countryId: string }>;
@@ -34,6 +36,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!country) return jsonError(404, "Country not found.");
 
   const before = country.protectionPlanCountry;
+
+  // Business Rules §14 "Sensitive Admin Actions" — a price change needs the confirmation reason; enable/disable and terms edits don't.
+  const priceChanged =
+    parsed.data.price !== undefined && (before?.price == null ? null : Number(before.price)) !== parsed.data.price;
+  const reasonResult = readBodyReason(body);
+  if (priceChanged && reasonResult.error) return reasonResult.error;
+  const reason = reasonResult.reason ?? null;
   const data = {
     ...(parsed.data.enabled !== undefined ? { enabled: parsed.data.enabled } : {}),
     ...(parsed.data.price !== undefined ? { price: parsed.data.price } : {}),
@@ -52,12 +61,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         String(before?.price ?? "") !== String(row.price ?? "") ? `price ${before?.price ?? "default"} -> ${row.price ?? "default"}` : null,
         (before?.termsText ?? null) !== row.termsText ? "terms override updated" : null,
       ].filter(Boolean);
+      const auditNote = `Protection Plan for ${country.name}: ${changes.join(", ") || "no change"} (by ${session.name})`;
       await writeAudit(tx, {
         entityType: "ProtectionPlanCountry",
         entityId: row.id,
         action: "UPDATE",
         byUserId: session.id,
-        note: `Protection Plan for ${country.name}: ${changes.join(", ") || "no change"} (by ${session.name})`,
+        note: reason ? withReason(auditNote, reason) : auditNote,
       });
       return row;
     });

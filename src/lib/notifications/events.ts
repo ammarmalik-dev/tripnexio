@@ -28,6 +28,7 @@ export const NOTIFICATION_EVENTS = {
   SERVICE_STATUS_UPDATE: "SERVICE_STATUS_UPDATE",
   OUTPUT_DELIVERED: "OUTPUT_DELIVERED",
   OTB_APPROVED: "OTB_APPROVED",
+  ABANDONED_QUOTE_COUPON: "ABANDONED_QUOTE_COUPON",
 } as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[keyof typeof NOTIFICATION_EVENTS];
@@ -166,6 +167,22 @@ export const NOTIFICATION_EVENT_CATALOG: {
       leadReference: "10626OT001",
       otbReference: "ABC123",
       returnTicketOffer: "Need a return ticket? Get a Return Verified Ticket: https://tripnexio.com/services/return-ticket",
+    },
+  },
+  {
+    // P24 — sent by the abandoned-quotation coupon automation (n8n →
+    // /api/automation/abandoned-quote-coupons) when Admin has enabled it.
+    // {{couponValue}} is already formatted ("10% (up to Rs. 500.00)" / "Rs. 500.00").
+    event: NOTIFICATION_EVENTS.ABANDONED_QUOTE_COUPON,
+    label: "Abandoned quotation: single-use coupon",
+    variables: ["customerName", "leadReference", "couponCode", "couponValue", "validUntil"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      leadReference: "10626VI001",
+      couponCode: "SAMPLEAQ7K2P",
+      couponValue: "10% (up to Rs. 500.00)",
+      validUntil: "7 Oct 2026",
     },
   },
 ];

@@ -1488,6 +1488,10 @@ model Coupon {
   /// null = unlimited uses.
   usageLimit Int?
   usageCount Int            @default(0)
+  /// P24 - cap on the discount a PERCENTAGE coupon can give (null = no cap).
+  maxDiscount Decimal?      @db.Decimal(10, 2)
+  /// P24 - set on a single-use coupon auto-generated for an abandoned quotation.
+  leadId     String?
   active     Boolean        @default(true)
   createdAt  DateTime       @default(now())
   updatedAt  DateTime       @updatedAt
@@ -1509,6 +1513,14 @@ model Coupon {
 model CouponConfig {
   id                String   @id
   employeeCouponCap Decimal  @db.Decimal(10, 2)
+  /// P24 - abandoned-quotation coupon automation (Admin toggle). Every value
+  /// is Admin-set; the job does nothing until it is enabled AND configured.
+  abandonedCouponEnabled     Boolean     @default(false)
+  abandonedAfterHours        Int?
+  abandonedCouponType        CouponType?
+  abandonedCouponValue       Decimal?    @db.Decimal(10, 2)
+  abandonedCouponMaxDiscount Decimal?    @db.Decimal(10, 2)
+  abandonedCouponValidDays   Int?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -1792,6 +1804,8 @@ model SystemConfig {
   systemAlertEmail       String?
   /// P22 — auto-assign new leads to the eligible rostered staff member with the lowest PAX workload.
   autoAssignLeads        Boolean  @default(false)
+  /// P24 - default payment-link validity (hours) when a service has no Timelines value; null = 24.
+  defaultPaymentLinkHours Int?
   /// P20 — Company/Support/Legal doc §3 + §9.16 + §14: legal details kept as
   /// configuration until the client supplies them (never hard-coded). The
   /// legal pages render only what's filled in.
@@ -2059,6 +2073,8 @@ model User {
   securityAnswerHash  String?
   /// P22 — play a sound for new staff notifications (CRM.md §33).
   notificationSound   Boolean       @default(false)
+  /// P24 - Country ids this staff member handles (empty = all countries).
+  countriesHandled    String[]      @default([])
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -2547,4 +2563,39 @@ model VendorRateHistory {
   createdAt DateTime    @default(now())
 
   @@index([vendorId, service, createdAt])
+}
+
+/// P24 - Admin assignment rules: for a service (optionally a sub-service),
+/// only staff with this role are eligible for auto-assignment, capped at
+/// maxOpenLeads open leads each (null = no cap). No rule for a service =
+/// any eligible rostered staff (P22 behaviour).
+model AssignmentRule {
+  id           String      @id @default(cuid())
+  serviceType  ServiceType
+  subServiceId String?
+  roleId       String?
+  maxOpenLeads Int?
+  priority     Int         @default(0)
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([serviceType, active])
+}
+
+/// P24 - SLA escalation: a booking that has stayed in a status for more
+/// than hoursInStatus is escalated (staff notification + audit) to managers
+/// (staff.manage) or admins (admin.full). serviceStatusId null = any status
+/// of that service; serviceType null = every service.
+model EscalationRule {
+  id              String       @id @default(cuid())
+  serviceType     ServiceType?
+  serviceStatusId String?
+  hoursInStatus   Int
+  escalateTo      String
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([active])
 }

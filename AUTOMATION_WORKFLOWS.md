@@ -69,6 +69,22 @@ This one is different from the other four — it doesn't send anything, it **del
 - When a booking runs past its SLA (the same definition the CRM's **Delays** page uses, from Admin → Timelines / SLA), the lead's assigned staff member — or, if nobody is assigned, everyone who can see bookings for that service — gets a "Delayed booking" notification. At most once a week per booking while it stays delayed.
 - The once-a-day / once-a-week spacing is enforced by the app, so running the workflow more often never sends more.
 
+### 11. SLA Escalation: Bookings Stuck in a Status
+**Runs every hour.** Calls `POST /api/automation/sla-escalation`.
+
+- Uses the rules set in **Admin → SLA Escalation**. Each rule names a service (or every service), a status (or any status that isn't final), a number of hours, and who to escalate to — **Managers** (anyone who can manage staff) or **Admins** (full admin access).
+- When an open booking has sat in that status longer than the hours set — counted from the last time its status changed, or from when the booking was created if it never changed — those people get an "Escalation: <booking> in <status> for N h" notification in the CRM's **Notifications** panel, linking to the booking, and a "SLA escalated" entry is added to the booking's history. Only people who can see that service are notified.
+- It never messages a customer. Each booking is escalated **once per rule for each stay in a status**: if it moves on and later comes back to the same status, the clock starts again.
+
+### 12. Abandoned Quotation Coupons
+**Runs every hour.** Calls `POST /api/automation/abandoned-quote-coupons`. Workflow file: `n8n/workflows/abandoned-quote-coupons.json`.
+
+- **Off by default.** It only does anything once an Admin turns it on in **Admin → Coupons → Abandoned-Quotation Coupon** and sets the coupon type (percentage or fixed amount), value, optional maximum discount, how many hours to wait, and how many days the coupon stays valid. The app won't let it be switched on until those are set.
+- A request qualifies when its latest quotation that was actually sent to the customer (not a draft) has expired, **or** its booking payment is still unpaid (pending, expired or failed, with no successful payment) — in either case more than the configured number of hours after the quotation/payment was created.
+- It is never sent for a request that is Converted, Lost or Closed, to a customer who opted out of follow-ups, or for a request that already has a successful payment.
+- The customer gets **one single-use coupon** (a random code, category "Abandoned quotation", usable once, valid from now for the configured number of days, with the configured maximum discount) by email and WhatsApp using the `ABANDONED_QUOTE_COUPON` template in Admin → Notification Templates. The coupon only works on that customer's own request — entering it on any other request is rejected.
+- At most **one coupon per request, ever**: the app checks whether it already generated an abandoned-quotation coupon for that request before creating another, so running the workflow more often never sends more. Every coupon created is recorded in the request's history and in the audit trail, and appears in Admin → Coupons.
+
 ## What each workflow actually sends
 
 Every message the first five workflows send uses the **same Admin-managed templates** as everything else in the CRM (Admin → Notification Templates) — `QUOTE_REMINDER`, `PAYMENT_REMINDER`, `DOCUMENTS_REQUIRED`, `LEAD_FOLLOWUP`, and `VISA_EXTENSION_REMINDER`. Editing the copy there changes what these automatic messages say, exactly like it does for the notifications staff-triggered actions send. The same email/WhatsApp rules apply too — a WhatsApp reminder only actually sends once its template has been approved by Meta (see `docs/deployment/WHATSAPP_SETUP.md`); until then, only the email version goes out. The sixth workflow (Document Retention Purge) doesn't send a customer message at all — it only deletes files.

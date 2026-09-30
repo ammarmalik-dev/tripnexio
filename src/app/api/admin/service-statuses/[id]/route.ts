@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import type { ServiceType, StatusScope } from "@/generated/prisma/enums";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 /** One status per system event per service and scope — otherwise the engine couldn't tell which one an event means. */
 async function systemEventTaken(serviceType: ServiceType, scope: StatusScope, systemEvent: string | null | undefined, exceptId?: string) {
@@ -35,6 +37,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.serviceStatus.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Status not found.");
@@ -57,7 +62,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Status "${result.name}" updated (by ${session.name})`,
+      note: withReason(`Status "${result.name}" updated (by ${session.name})`, reason),
     });
     return result;
   });

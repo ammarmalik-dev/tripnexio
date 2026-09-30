@@ -15,6 +15,7 @@ import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus } from "../../generated/prisma/enums";
 import type { QuoteFormValues } from "@/lib/validation/quotation-schema";
 import { parseStoredItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface VendorRecord {
   id: string;
@@ -132,6 +133,7 @@ export function QuoteBuilder({
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [now, setNow] = useState(() => Date.now());
+  const { confirm, dialog } = useConfirmAction();
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -188,9 +190,19 @@ export function QuoteBuilder({
   const handleEditSubmit = async (values: QuoteFormValues, action: QuoteFormAction) => {
     if (!editing) return;
     const { quotation, mode } = editing;
+    // Business Rules §14 — editing a quote can change its price/vendor, so it goes through the shared confirmation step.
+    const reason = await confirm({
+      title: mode === "revise" ? "Send a revised quotation?" : "Save changes to this draft quotation?",
+      description:
+        mode === "revise"
+          ? "Price or vendor changes on a sent quote are a sensitive action — the customer is notified of the revision immediately."
+          : "Price or vendor changes on a quotation are a sensitive action and are recorded in the audit trail with your reason.",
+      confirmLabel: mode === "revise" ? "Send Revision" : "Save Draft",
+    });
+    if (!reason) return;
     setSubmitting(true);
     try {
-      await patchJson(`/api/quotations/${quotation.id}`, values);
+      await patchJson(`/api/quotations/${quotation.id}`, { ...values, reason });
       if (mode === "editDraft" && action === "send") {
         await postJson(`/api/quotations/${quotation.id}/send`, {});
         toast.success("Draft saved and sent to the customer.");
@@ -371,6 +383,7 @@ export function QuoteBuilder({
           ))}
         </div>
       ) : null}
+      {dialog}
     </section>
   );
 }

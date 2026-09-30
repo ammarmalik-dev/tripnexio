@@ -4,6 +4,8 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { readDeleteReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -59,11 +61,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   return jsonSuccess(updated);
 }
 
-export async function DELETE(_request: NextRequest, { params }: RouteParams) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
   const { session } = auth;
   const { id } = await params;
+  const reasonResult = await readDeleteReason(request);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.newVisaCountryConfig.findUnique({
     where: { id },
@@ -78,7 +83,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "DELETE",
       byUserId: session.id,
-      note: `New Visa country config for "${existing.country.name}" removed (by ${session.name})`,
+      note: withReason(`New Visa country config for "${existing.country.name}" removed (by ${session.name})`, reason),
     });
   });
 

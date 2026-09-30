@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RefundStatus, type RefundStatus as RefundStatusType } from "../../generated/prisma/enums";
+import { sensitiveReasonSchema } from "./sensitive-action";
 
 /** The paid amount is never taken from the client — the server computes it from the Payment row. */
 export const createRefundSchema = z.object({
@@ -10,12 +11,20 @@ export const createRefundSchema = z.object({
   passengerIds: z.array(z.string()).optional(),
 });
 
+/**
+ * Business Rules §14 "Sensitive Admin Actions" — the HTTP route's body
+ * schema: refund creation requires the confirmation reason (collected by
+ * ConfirmActionDialog, pre-filled from the calculator form's optional
+ * reason). The calculator form itself keeps using `createRefundSchema`.
+ */
+export const createRefundRequestSchema = createRefundSchema.extend({ reason: sensitiveReasonSchema });
+
 const refundStatusValues = Object.values(RefundStatus) as [RefundStatusType, ...RefundStatusType[]];
 
 export const updateRefundStatusSchema = z.object({
   status: z.enum(refundStatusValues, { error: "Select a valid refund status" }),
   /** Business Rules §14 "Sensitive Admin Actions" — refund status changes are the approval action itself (see the route's own comment), so a reason is required, not optional, as the "Extra Confirmation" step. */
-  note: z.string().trim().min(5, "Enter a reason (at least 5 characters)."),
+  reason: sensitiveReasonSchema,
 });
 
 export type CreateRefundValues = z.infer<typeof createRefundSchema>;

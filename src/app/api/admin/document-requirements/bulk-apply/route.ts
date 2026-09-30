@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { ServiceType, type ServiceType as ServiceTypeT } from "@/generated/prisma/enums";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeT, ...ServiceTypeT[]];
 
@@ -72,6 +74,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const { sourceServiceType, sourceCountryId, sourceNationality, sourcePaxType, targetServiceTypes } = parsed.data;
 
@@ -134,7 +139,7 @@ export async function POST(request: NextRequest) {
         entityId: targetService,
         action: "BULK_APPLY",
         byUserId: session.id,
-        note: `Copied ${toCopy.length} document requirement(s) from ${sourceServiceType}${sourceCountryId ? ` (country ${sourceCountryId})` : ""}${sourceNationality ? ` / ${sourceNationality}` : ""}${sourcePaxType ? ` / ${sourcePaxType}` : ""} onto ${targetService} (by ${session.name})`,
+        note: withReason(`Copied ${toCopy.length} document requirement(s) from ${sourceServiceType}${sourceCountryId ? ` (country ${sourceCountryId})` : ""}${sourceNationality ? ` / ${sourceNationality}` : ""}${sourcePaxType ? ` / ${sourcePaxType}` : ""} onto ${targetService} (by ${session.name})`, reason),
       });
     }
   });

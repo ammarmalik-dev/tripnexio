@@ -40,6 +40,7 @@ import { toast } from "@/components/ui/Toaster";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { cn } from "@/lib/cn";
 import type { BookingStatus, DocumentStatus, ExtensionOutcome, PaxType, ProtectionPlanStatus, ServiceType } from "../../generated/prisma/enums";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface DocumentItem {
   id: string;
@@ -162,6 +163,7 @@ export function BookingDetail({
   const [extraAmount, setExtraAmount] = useState("");
   const [extraDescription, setExtraDescription] = useState("");
   const [creatingExtraPayment, setCreatingExtraPayment] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
 
   useEffect(() => {
     let cancelled = false;
@@ -210,9 +212,15 @@ export function BookingDetail({
       toast.error("Enter a reason for this extra payment.");
       return;
     }
+    const reason = await confirm({
+      title: `Raise an extra payment of ₹${amount.toLocaleString("en-IN")}?`,
+      description: `A new payment link is raised for the customer on top of what they have already paid. Description shown to the customer: "${extraDescription.trim()}"`,
+      confirmLabel: "Raise Extra Payment",
+    });
+    if (!reason) return;
     setCreatingExtraPayment(true);
     try {
-      await postJson(`/api/bookings/${bookingId}/extra-payments`, { amount, description: extraDescription.trim() });
+      await postJson(`/api/bookings/${bookingId}/extra-payments`, { amount, description: extraDescription.trim(), reason });
       toast.success("Extra payment link created.");
       setShowExtraPaymentForm(false);
       setExtraAmount("");
@@ -703,6 +711,7 @@ export function BookingDetail({
           <AddTaskPanel bookingId={booking.id} />
         </div>
       </div>
+      {dialog}
     </div>
   );
 }

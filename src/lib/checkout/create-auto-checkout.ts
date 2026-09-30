@@ -56,7 +56,7 @@ export async function createAutoCheckout(input: {
   const grossSellingPrice = totalPrice + extraCharges;
   let appliedCoupon: { couponId: string; couponCode: string; discountAmount: number } | null = null;
   if (couponCode) {
-    const result = await resolveCouponForQuotation(couponCode, serviceType, grossSellingPrice);
+    const result = await resolveCouponForQuotation(couponCode, serviceType, grossSellingPrice, leadId);
     if (!result.ok) throw new Error(result.error);
     appliedCoupon = result.coupon;
   }

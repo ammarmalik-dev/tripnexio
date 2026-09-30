@@ -3,8 +3,7 @@ import { leadReference } from "../leads/reference";
 import { getEffectiveTerms, resolveLeadCountryId } from "../terms/service-terms";
 import { isExpiredNow } from "./sync-expiry";
 import { isFlightQuote, supportsItinerary } from "./pricing";
-import { getServiceTimelineRules } from "../settings/service-timeline-config";
-import { DEFAULT_PAYMENT_LINK_VALIDITY_HOURS } from "../payments/create-payment";
+import { resolvePaymentLinkValidityHours } from "../payments/create-payment";
 import { EXTENSION_DURATION_DAYS, urgentDeadlineFromDetails } from "../visa-extension/rules";
 import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "../visa-change/operational";
 import { alternativeRouteLabel, requestedRouteFromDetails } from "./flight-quote";
@@ -119,7 +118,7 @@ export async function loadQuoteReviewByToken(token: string) {
     lead.serviceType === "VISA_EXTENSION"
       ? {
           durationDays: EXTENSION_DURATION_DAYS,
-          paymentDeadlineHours: (await getServiceTimelineRules("VISA_EXTENSION")).paymentDeadlineHours ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS,
+          paymentDeadlineHours: await resolvePaymentLinkValidityHours("VISA_EXTENSION"),
           urgentDeadline: urgentDeadlineFromDetails(lead.details),
         }
       : null;

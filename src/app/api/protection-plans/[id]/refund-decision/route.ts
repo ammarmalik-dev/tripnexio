@@ -8,6 +8,7 @@ import { autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
 import { paymentTotal } from "@/lib/payments/totals";
 import { notifyRefundsRaised } from "@/lib/staff-notifications/triggers";
 import { protectionPlanRefundDecisionSchema } from "@/lib/validation/protection-plan-schema";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -35,7 +36,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
   const parsed = protectionPlanRefundDecisionSchema.safeParse(body);
   if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
-  const { decision, note } = parsed.data;
+  const { decision, reason: note } = parsed.data;
 
   const plan = await db.protectionPlan.findUnique({
     where: { id },
@@ -56,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         entityId: id,
         action: "REFUND_REJECTED",
         byUserId: session.id,
-        note: `REFUND_UNDER_REVIEW -> REFUND_REJECTED: ${note} (by ${session.name})`,
+        note: withReason(`REFUND_UNDER_REVIEW -> REFUND_REJECTED (by ${session.name})`, note),
       });
       await autoCompleteTasksForEntity(tx, "ProtectionPlan", id, `Protection Plan refund rejected (by ${session.name})`);
       return result;
@@ -98,7 +99,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: refund.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Protection Plan refund ₹${price} raised for ${plan.passenger.fullName} on payment ${payment.id} (by ${session.name})`,
+      note: withReason(`Protection Plan refund ₹${price} raised for ${plan.passenger.fullName} on payment ${payment.id} (by ${session.name})`, note),
     });
     const updated = await tx.protectionPlan.update({
       where: { id },
@@ -109,7 +110,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "REFUND_APPROVED",
       byUserId: session.id,
-      note: `REFUND_UNDER_REVIEW -> REFUND_APPROVED, refund ${refund.id} ₹${price}: ${note} (by ${session.name})`,
+      note: withReason(`REFUND_UNDER_REVIEW -> REFUND_APPROVED, refund ${refund.id} ₹${price} (by ${session.name})`, note),
     });
     await autoCompleteTasksForEntity(tx, "ProtectionPlan", id, `Protection Plan refund approved (by ${session.name})`);
     return { plan: updated, refund };

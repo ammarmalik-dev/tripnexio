@@ -8,6 +8,8 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { diffSnapshots, pricingRuleSnapshot, writePricingRuleHistory } from "@/lib/pricing/rule-history";
 import { validatePricingRuleRefs } from "@/lib/pricing/validate-rule-refs";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 const ruleInclude = {
   country: { select: { id: true, name: true, code: true } },
@@ -37,6 +39,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const existing = await db.pricingRule.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Pricing rule not found.");
@@ -88,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Pricing rule updated — selling ₹${result.sellingPrice} (by ${session.name})`,
+      note: withReason(`Pricing rule updated — selling ₹${result.sellingPrice} (by ${session.name})`, reason),
     });
     return result;
   });

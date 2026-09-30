@@ -10,6 +10,8 @@ import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { useCountries, type CountryOption } from "@/lib/admin/use-countries";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -193,7 +195,7 @@ function AirportCard({
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
-  const [confirmingRemove, setConfirmingRemove] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
   const [removing, setRemoving] = useState(false);
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(airport));
@@ -227,14 +229,19 @@ function AirportCard({
   };
 
   const handleRemove = async () => {
+    const reason = await confirm({
+      title: `Remove airport "${airport.name}"?`,
+      description: "This permanently deletes the airport record. If it's still referenced elsewhere the removal will be refused — disable it instead.",
+      confirmLabel: "Remove Airport",
+    });
+    if (!reason) return;
     setRemoving(true);
     try {
-      await deleteJson(`/api/admin/airports/${airport.id}`);
+      await deleteJson(withReasonQuery(`/api/admin/airports/${airport.id}`, reason));
       toast.success(`Airport "${airport.name}" removed.`);
       onDeleted(airport.id);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't remove this airport. Please try again.");
-      setConfirmingRemove(false);
     } finally {
       setRemoving(false);
     }
@@ -255,20 +262,10 @@ function AirportCard({
           <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
             {airport.active ? "Disable" : "Enable"}
           </Button>
-          {confirmingRemove ? (
-            <>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingRemove(false)} disabled={removing}>
-                Keep
-              </Button>
-              <Button type="button" size="sm" onClick={() => void handleRemove()} isLoading={removing}>
-                Confirm remove
-              </Button>
-            </>
-          ) : (
-            <Button type="button" size="sm" variant="ghost" onClick={() => setConfirmingRemove(true)}>
-              Remove
-            </Button>
-          )}
+          <Button type="button" size="sm" variant="ghost" onClick={() => void handleRemove()} isLoading={removing}>
+            Remove
+          </Button>
+          {dialog}
         </div>
       </div>
       <AirportFields form={form} onChange={setForm} errors={errors} disabled={saving} countryOptions={countryOptions} />

@@ -5,6 +5,8 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { completePaymentSuccess } from "@/lib/payments/complete-payment";
 import { notifyPaymentReceived } from "@/lib/payments/notify-payment-received";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -21,12 +23,23 @@ interface RouteParams {
  * goes through (Payment -> SUCCESS, Booking -> CONFIRMED + real bookingId,
  * Lead -> CONVERTED).
  */
-export async function POST(_request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("payments.approve");
   if (auth.error) return auth.error;
   const { session } = auth;
 
   const { id } = await params;
+
+  // Business Rules §14 — bank-transfer approval is a financial adjustment, so the confirmation reason is required.
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError(400, "Invalid request body.");
+  }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   const payment = await db.payment.findUnique({
     where: { id },
@@ -56,7 +69,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   }
 
   const result = await db.$transaction((tx) =>
-    completePaymentSuccess(tx, payment, { byUserId: session.id, actorLabel: `bank-transfer approved by ${session.name}` })
+    completePaymentSuccess(tx, payment, { byUserId: session.id, actorLabel: withReason(`bank-transfer approved by ${session.name}`, reason) })
   );
 
   if (result.didTransition) {

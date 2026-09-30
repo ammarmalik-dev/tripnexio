@@ -637,6 +637,13 @@ async function main() {
       subject: "Your OTB PNR has been approved by the airline — {{leadReference}}",
       body: "Hi {{customerName}},\n\nYour OTB PNR has been approved by the airline.\n\nOTB PNR / reference: {{otbReference}}\nBooking: {{leadReference}}\n\nYou can see this in your TripNexio account and on Track Status.\n{{returnTicketOffer}}\n\n— TripNexio",
     },
+    {
+      // P24 — abandoned-quotation coupon automation (neutral, factual copy).
+      id: "notification-template-abandoned-quote-coupon",
+      event: NOTIFICATION_EVENTS.ABANDONED_QUOTE_COUPON,
+      subject: "A single-use coupon for your request {{leadReference}}",
+      body: "Hi {{customerName}},\n\nYour request {{leadReference}} hasn't been completed yet. If you'd still like to go ahead, you can use this single-use coupon on it:\n\nCoupon code: {{couponCode}}\nDiscount: {{couponValue}}\nValid until: {{validUntil}}\n\nThe coupon applies only to this request. Contact us if you'd like an updated quote.\n\n— TripNexio",
+    },
   ];
   for (const template of emailTemplates) {
     const data = { id: template.id, event: template.event, channel: "EMAIL" as const, subject: template.subject, body: template.body, active: true };
@@ -713,6 +720,11 @@ async function main() {
       id: "notification-template-otb-approved-wa",
       event: NOTIFICATION_EVENTS.OTB_APPROVED,
       body: "Hi {{customerName}}, your OTB PNR has been approved by the airline. OTB PNR / reference: {{otbReference}} (booking {{leadReference}}). {{returnTicketOffer}}",
+    },
+    {
+      id: "notification-template-abandoned-quote-coupon-wa",
+      event: NOTIFICATION_EVENTS.ABANDONED_QUOTE_COUPON,
+      body: "Hi {{customerName}}, your request {{leadReference}} isn't completed yet. If you'd still like to go ahead, coupon {{couponCode}} gives {{couponValue}} off this request, valid until {{validUntil}}. Single use, for this request only.",
     },
   ];
   for (const template of whatsappTemplates) {

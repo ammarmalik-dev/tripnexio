@@ -8,6 +8,8 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { pricingRuleSnapshot, writePricingRuleHistory } from "@/lib/pricing/rule-history";
 import { validatePricingRuleRefs } from "@/lib/pricing/validate-rule-refs";
+import { readBodyReason } from "@/lib/api/sensitive-reason";
+import { withReason } from "@/lib/validation/sensitive-action";
 
 const ruleInclude = {
   country: { select: { id: true, name: true, code: true } },
@@ -42,6 +44,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
+  const reasonResult = readBodyReason(body);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
 
   if (parsed.data.countryId) {
     const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
@@ -105,7 +110,7 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Pricing rule created: ${created.serviceType} / ${created.paxType}${created.country ? ` / ${created.country.name}` : ""}${created.processingType ? ` / ${created.processingType}` : ""}${created.nationality ? ` / ${created.nationality}` : " / all nationalities"} — selling ₹${created.sellingPrice} (by ${session.name})`,
+      note: withReason(`Pricing rule created: ${created.serviceType} / ${created.paxType}${created.country ? ` / ${created.country.name}` : ""}${created.processingType ? ` / ${created.processingType}` : ""}${created.nationality ? ` / ${created.nationality}` : " / all nationalities"} — selling ₹${created.sellingPrice} (by ${session.name})`, reason),
     });
     return created;
   });
