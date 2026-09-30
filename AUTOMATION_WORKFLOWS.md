@@ -98,17 +98,17 @@ The workflows above can be triggered by **either** of two schedulers — both ca
 
 Don't run both schedulers against the same deployment at full frequency — it's safe (the app de-duplicates reminders) but wasteful.
 
-**Vercel plan limit:** on the **Hobby** plan each cron job runs **at most once a day** (and only within the scheduled hour, not the exact minute). The sub-daily schedules below (every 5 minutes, hourly) need **Vercel Pro** — otherwise keep n8n or a VPS cron for those jobs.
+**Vercel plan limit:** on the **Hobby** plan each cron job runs **at most once a day** (and only within the scheduled hour, not the exact minute). This project is on **Hobby**, so `vercel.json` runs every job **once a day** as a safety net. The five jobs meant to run more often (quote-expiry every 5 minutes; payment-followup, staff-alerts, sla-escalation and abandoned-quote-coupons hourly) must also be scheduled from n8n or a VPS cron at their real frequency — or move to Vercel Pro and restore the sub-daily schedules.
 
 Vercel cron expressions are always **UTC**. India Standard Time is UTC+5:30, so the times below were converted (JSON can't hold comments, so this table is the reference for `vercel.json`):
 
 | Route | Vercel schedule (UTC) | Equivalent IST | Notes |
 |---|---|---|---|
-| `/api/automation/quote-expiry` | `*/5 * * * *` | every 5 min | needs Pro |
-| `/api/automation/payment-followup` | `5 * * * *` | hourly at :35 | needs Pro |
-| `/api/automation/staff-alerts` | `0 * * * *` | hourly at :30 | needs Pro |
-| `/api/automation/sla-escalation` | `15 * * * *` | hourly at :45 | needs Pro |
-| `/api/automation/abandoned-quote-coupons` | `45 * * * *` | hourly at :15 | needs Pro |
+| `/api/automation/quote-expiry` | `0 1 * * *` | daily 06:30 (run every 5 min from n8n/VPS) | Hobby fallback |
+| `/api/automation/payment-followup` | `0 2 * * *` | daily 07:30 (run hourly from n8n/VPS) | Hobby fallback |
+| `/api/automation/staff-alerts` | `0 3 * * *` | daily 08:30 (run hourly from n8n/VPS) | Hobby fallback |
+| `/api/automation/sla-escalation` | `15 3 * * *` | daily 08:45 (run hourly from n8n/VPS) | Hobby fallback |
+| `/api/automation/abandoned-quote-coupons` | `0 6 * * *` | daily 11:30 (run hourly from n8n/VPS) | Hobby fallback |
 | `/api/automation/return-ticket-auto-complete` | `30 0 * * *` | daily 06:00 | |
 | `/api/automation/otb-requirement-check` | `30 3 * * *` | daily 09:00 | |
 | `/api/automation/visa-extension-reminder` | `45 3 * * *` | daily 09:15 | |
