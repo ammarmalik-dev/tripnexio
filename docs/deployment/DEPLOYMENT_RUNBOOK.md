@@ -58,7 +58,11 @@ migration file and bypasses this whole tracked-history requirement.
 
 ## 3. Deployment docs
 
-This file plus the existing three:
+This file plus:
+
+- `docs/deployment/VPS_SETUP.md` — the concrete Hostinger VPS + Coolify
+  setup (PostgreSQL on the same VPS, `FILE_STORAGE=db`, data move from Neon,
+  backups, n8n schedules). Decided 2026-10-01.
 
 - `docs/deployment/EMAIL_SETUP.md` — Resend domain/DNS setup.
 - `docs/deployment/N8N_SETUP.md` — installing n8n and importing the
