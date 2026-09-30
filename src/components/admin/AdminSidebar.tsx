@@ -8,7 +8,7 @@ import { adminNavGroups, filterNavGroups, type CrmNavItem } from "@/lib/crm/nav-
 import { Logo } from "@/components/layout/Logo";
 import { cn } from "@/lib/cn";
 
-function isItemActive(pathname: string | null, href: string) {
+function matchesPath(pathname: string | null, href: string) {
   return pathname === href || (pathname?.startsWith(`${href}/`) ?? false);
 }
 
@@ -31,7 +31,15 @@ export function AdminSidebar({ permissions }: { permissions: string[] }) {
   const pathname = usePathname();
   // P21 item 7 — only the items this user's permissions can open (admin.full sees everything); empty groups drop out.
   const visibleGroups = filterNavGroups(adminNavGroups, permissions);
-  const activeGroupLabel = visibleGroups.find((group) => group.items.some((item) => isItemActive(pathname, item.href)))?.label ?? null;
+  // P25 — only the MOST specific matching href is active, so a nested item
+  // (/admin/reports/management) doesn't also light up its parent (/admin/reports).
+  const activeHref =
+    visibleGroups
+      .flatMap((group) => group.items.map((item) => item.href))
+      .filter((href) => matchesPath(pathname, href))
+      .sort((a, b) => b.length - a.length)[0] ?? null;
+  const isItemActive = (href: string) => href === activeHref;
+  const activeGroupLabel = visibleGroups.find((group) => group.items.some((item) => isItemActive(item.href)))?.label ?? null;
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupLabel);
 
   return (
@@ -46,7 +54,7 @@ export function AdminSidebar({ permissions }: { permissions: string[] }) {
             return (
               <div key={`group-${groupIndex}`} className="flex flex-col gap-1 pb-2">
                 {group.items.map((item) => (
-                  <NavLink key={item.href} item={item} isActive={isItemActive(pathname, item.href)} />
+                  <NavLink key={item.href} item={item} isActive={isItemActive(item.href)} />
                 ))}
               </div>
             );
@@ -72,7 +80,7 @@ export function AdminSidebar({ permissions }: { permissions: string[] }) {
               <div className={cn("grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]", isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
                 <div className="flex flex-col gap-1 overflow-hidden pb-2">
                   {group.items.map((item) => (
-                    <NavLink key={item.href} item={item} isActive={isItemActive(pathname, item.href)} />
+                    <NavLink key={item.href} item={item} isActive={isItemActive(item.href)} />
                   ))}
                 </div>
               </div>

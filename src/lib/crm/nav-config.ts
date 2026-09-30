@@ -50,6 +50,7 @@ import {
   Workflow,
   Siren,
   Landmark,
+  FileBarChart,
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -259,17 +260,25 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Payment Gateway", href: "/admin/payment-gateway", icon: Landmark, permission: "masters.manage" },
       { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent, permission: "masters.manage" },
       { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature, permission: "masters.manage" },
-      { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt, permission: "masters.manage" },
-      { label: "Expenses", href: "/admin/expenses", icon: Wallet, permission: "finance.manage" },
     ],
   },
   {
-    label: "Reports & Exports",
+    // P25 (Locked Business Rules v2.0 §15) — one "Reports & Finance" group:
+    // the management dashboard, the report framework, the dedicated P&L /
+    // Revenue / Refund screens, and the expense screens moved here from
+    // "Payments & Finance". Expense Categories keeps masters.manage and Data
+    // Export keeps data.export — each item's permission mirrors what its own
+    // API route actually enforces.
+    label: "Reports & Finance",
     items: [
-      { label: "Data Export", href: "/admin/data-export", icon: Download, permission: "data.export" },
+      { label: "Management Dashboard", href: "/admin/reports/management", icon: Gauge, permission: "finance.manage" },
+      { label: "Finance & MIS Reports", href: "/admin/reports", icon: FileBarChart, permission: "finance.manage" },
       { label: "P&L Report", href: "/admin/pnl-report", icon: TrendingUp, permission: "finance.manage" },
       { label: "Revenue Report", href: "/admin/revenue-report", icon: BarChart3, permission: "finance.manage" },
       { label: "Refund Report", href: "/admin/refund-report", icon: Undo2, permission: "finance.manage" },
+      { label: "Expenses", href: "/admin/expenses", icon: Wallet, permission: "finance.manage" },
+      { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt, permission: "masters.manage" },
+      { label: "Data Export", href: "/admin/data-export", icon: Download, permission: "data.export" },
     ],
   },
   {
