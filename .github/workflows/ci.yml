@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # prisma7.config.ts reads DATABASE_URL (dotenv); `prisma generate` never
+      # connects, but a dummy value keeps the CLI config from resolving to
+      # undefined. No real database or secrets are used by this job.
+      DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+
+      # No "engines" field or .nvmrc in the repo — Node 22 (the dev machine's version).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test

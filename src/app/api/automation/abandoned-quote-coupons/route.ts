@@ -20,3 +20,6 @@ export async function POST(request: NextRequest) {
     return jsonError(500, "Abandoned quotation coupon job failed.");
   }
 }
+
+/** P26 — Vercel Cron calls this with GET (see vercel.json); same handler and auth as n8n's POST. */
+export const GET = POST;

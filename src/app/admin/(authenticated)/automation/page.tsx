@@ -22,9 +22,9 @@ export default function AdminAutomationPage() {
         <div>
           <h2 className="text-lg font-semibold text-ink-heading">Automation</h2>
           <p className="text-sm text-ink-tertiary">
-            Background workflows run by n8n — quote expiry handling, payment follow-up reminders, OTB requirement checks, and periodic
+            Background workflows run by n8n or Vercel Cron — quote expiry handling, payment follow-up reminders, OTB requirement checks, and periodic
             service follow-ups. See <code className="rounded bg-ink-primary/[0.04] px-1 py-0.5">AUTOMATION_WORKFLOWS.md</code> for what
-            each one does and how to set it up in n8n.
+            each one does and how to schedule it (n8n or Vercel Cron).
           </p>
         </div>
         <AutomationMonitor />

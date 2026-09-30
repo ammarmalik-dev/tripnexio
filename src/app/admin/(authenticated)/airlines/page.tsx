@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AirlinesManager } from "@/components/admin/AirlinesManager";
+import { CsvImportPanel } from "@/components/admin/CsvImportPanel";
 
 export const metadata: Metadata = { title: "Airlines | Admin" };
 
@@ -13,6 +14,7 @@ export default function AdminAirlinesPage() {
           SAMPLE rows are seeded for development — propose the real list for review before it replaces them.
         </p>
       </div>
+      <CsvImportPanel entity="airlines" />
       <AirlinesManager />
     </div>
   );

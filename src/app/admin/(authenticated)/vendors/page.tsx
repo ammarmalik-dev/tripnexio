@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { VendorsManager } from "@/components/admin/VendorsManager";
+import { CsvImportPanel } from "@/components/admin/CsvImportPanel";
 
 export const metadata: Metadata = { title: "Vendors | Admin" };
 
@@ -13,6 +14,7 @@ export default function AdminVendorsPage() {
           development — propose the real list for review before it replaces them.
         </p>
       </div>
+      <CsvImportPanel entity="vendors" />
       <VendorsManager />
     </div>
   );

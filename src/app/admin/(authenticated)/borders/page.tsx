@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { BordersManager } from "@/components/admin/BordersManager";
+import { CsvImportPanel } from "@/components/admin/CsvImportPanel";
 
 export const metadata: Metadata = { title: "Borders | Admin" };
 
@@ -13,6 +14,7 @@ export default function AdminBordersPage() {
           for development — propose the real list for review before it replaces it.
         </p>
       </div>
+      <CsvImportPanel entity="borders" />
       <BordersManager />
     </div>
   );

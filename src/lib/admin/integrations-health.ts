@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { isPlaceholder } from "@/lib/env-placeholder";
+import { runSequentially } from "@/lib/db-sequential";
 
 export interface IntegrationEvent {
   at: string;
@@ -38,15 +39,15 @@ export async function getIntegrationsHealth(): Promise<IntegrationHealth[]> {
   const ocrConfigured = !isPlaceholder(process.env.ANTHROPIC_API_KEY);
 
   const [lastSuccessfulPayment, lastGatewayError, lastEmailSent, lastEmailFailed, lastWhatsappSent, lastWhatsappFailed, lastExtraction, lastOcrError] =
-    await Promise.all([
-      db.payment.findFirst({ where: { gatewayRef: { not: null } }, orderBy: { createdAt: "desc" }, select: { createdAt: true, gatewayRef: true } }),
-      db.auditTrail.findFirst({ where: { action: "PAYMENT_GATEWAY_ERROR" }, orderBy: { timestamp: "desc" } }),
-      db.auditTrail.findFirst({ where: { action: "EMAIL_SENT" }, orderBy: { timestamp: "desc" } }),
-      db.auditTrail.findFirst({ where: { action: "EMAIL_FAILED" }, orderBy: { timestamp: "desc" } }),
-      db.auditTrail.findFirst({ where: { action: "WHATSAPP_SENT" }, orderBy: { timestamp: "desc" } }),
-      db.auditTrail.findFirst({ where: { action: "WHATSAPP_FAILED" }, orderBy: { timestamp: "desc" } }),
-      db.documentExtraction.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true, provider: true, extractionType: true } }),
-      db.auditTrail.findFirst({ where: { action: "OCR_FAILED" }, orderBy: { timestamp: "desc" } }),
+    await runSequentially([
+      () => db.payment.findFirst({ where: { gatewayRef: { not: null } }, orderBy: { createdAt: "desc" }, select: { createdAt: true, gatewayRef: true } }),
+      () => db.auditTrail.findFirst({ where: { action: "PAYMENT_GATEWAY_ERROR" }, orderBy: { timestamp: "desc" } }),
+      () => db.auditTrail.findFirst({ where: { action: "EMAIL_SENT" }, orderBy: { timestamp: "desc" } }),
+      () => db.auditTrail.findFirst({ where: { action: "EMAIL_FAILED" }, orderBy: { timestamp: "desc" } }),
+      () => db.auditTrail.findFirst({ where: { action: "WHATSAPP_SENT" }, orderBy: { timestamp: "desc" } }),
+      () => db.auditTrail.findFirst({ where: { action: "WHATSAPP_FAILED" }, orderBy: { timestamp: "desc" } }),
+      () => db.documentExtraction.findFirst({ orderBy: { createdAt: "desc" }, select: { createdAt: true, provider: true, extractionType: true } }),
+      () => db.auditTrail.findFirst({ where: { action: "OCR_FAILED" }, orderBy: { timestamp: "desc" } }),
     ]);
 
   return [

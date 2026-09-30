@@ -85,6 +85,34 @@ This one is different from the other four — it doesn't send anything, it **del
 - The customer gets **one single-use coupon** (a random code, category "Abandoned quotation", usable once, valid from now for the configured number of days, with the configured maximum discount) by email and WhatsApp using the `ABANDONED_QUOTE_COUPON` template in Admin → Notification Templates. The coupon only works on that customer's own request — entering it on any other request is rejected.
 - At most **one coupon per request, ever**: the app checks whether it already generated an abandoned-quotation coupon for that request before creating another, so running the workflow more often never sends more. Every coupon created is recorded in the request's history and in the audit trail, and appears in Admin → Coupons.
 
+## Running the schedule: n8n or Vercel Cron
+
+The workflows above can be triggered by **either** of two schedulers — both call the exact same `/api/automation/*` routes, so the behaviour, the "no spam" guarantee and Admin → Automation monitoring are identical whichever one you use:
+
+- **n8n** (or any VPS cron) — `POST` with `Authorization: Bearer <AUTOMATION_API_KEY>`. Still fully supported; see `docs/deployment/N8N_SETUP.md` and `n8n/workflows/*.json`.
+- **Vercel Cron** — configured in `vercel.json` (`"crons"`). Vercel sends a `GET` with `Authorization: Bearer <CRON_SECRET>`. Set `CRON_SECRET` in the Vercel project's Environment Variables (Production) and redeploy; until it's set, Vercel's calls are rejected (safe-closed).
+
+Don't run both schedulers against the same deployment at full frequency — it's safe (the app de-duplicates reminders) but wasteful.
+
+**Vercel plan limit:** on the **Hobby** plan each cron job runs **at most once a day** (and only within the scheduled hour, not the exact minute). The sub-daily schedules below (every 5 minutes, hourly) need **Vercel Pro** — otherwise keep n8n or a VPS cron for those jobs.
+
+Vercel cron expressions are always **UTC**. India Standard Time is UTC+5:30, so the times below were converted (JSON can't hold comments, so this table is the reference for `vercel.json`):
+
+| Route | Vercel schedule (UTC) | Equivalent IST | Notes |
+|---|---|---|---|
+| `/api/automation/quote-expiry` | `*/5 * * * *` | every 5 min | needs Pro |
+| `/api/automation/payment-followup` | `5 * * * *` | hourly at :35 | needs Pro |
+| `/api/automation/staff-alerts` | `0 * * * *` | hourly at :30 | needs Pro |
+| `/api/automation/sla-escalation` | `15 * * * *` | hourly at :45 | needs Pro |
+| `/api/automation/abandoned-quote-coupons` | `45 * * * *` | hourly at :15 | needs Pro |
+| `/api/automation/return-ticket-auto-complete` | `30 0 * * *` | daily 06:00 | |
+| `/api/automation/otb-requirement-check` | `30 3 * * *` | daily 09:00 | |
+| `/api/automation/visa-extension-reminder` | `45 3 * * *` | daily 09:15 | |
+| `/api/automation/lead-followup` | `30 4 * * *` | daily 10:00 | also covers the Flight Special Fare every-7-days follow-up |
+| `/api/automation/document-reminder` | `30 5 * * *` | daily 11:00 | |
+| `/api/automation/document-retention` | `30 21 * * 6` | weekly, Sunday 03:00 | |
+| `/api/automation/audit-retention` | `30 22 * * 6` | weekly, Sunday 04:00 | a body-less call (Vercel's GET) runs as a **dry run** — reports what would be purged, deletes nothing. Real purges still need an explicit `POST {"dryRun": false}` (e.g. from n8n). |
+
 ## What each workflow actually sends
 
 Every message the first five workflows send uses the **same Admin-managed templates** as everything else in the CRM (Admin → Notification Templates) — `QUOTE_REMINDER`, `PAYMENT_REMINDER`, `DOCUMENTS_REQUIRED`, `LEAD_FOLLOWUP`, and `VISA_EXTENSION_REMINDER`. Editing the copy there changes what these automatic messages say, exactly like it does for the notifications staff-triggered actions send. The same email/WhatsApp rules apply too — a WhatsApp reminder only actually sends once its template has been approved by Meta (see `docs/deployment/WHATSAPP_SETUP.md`); until then, only the email version goes out. The sixth workflow (Document Retention Purge) doesn't send a customer message at all — it only deletes files.

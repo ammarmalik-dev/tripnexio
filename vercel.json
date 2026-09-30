@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    { "path": "/api/automation/quote-expiry", "schedule": "*/5 * * * *" },
+    { "path": "/api/automation/payment-followup", "schedule": "5 * * * *" },
+    { "path": "/api/automation/staff-alerts", "schedule": "0 * * * *" },
+    { "path": "/api/automation/sla-escalation", "schedule": "15 * * * *" },
+    { "path": "/api/automation/abandoned-quote-coupons", "schedule": "45 * * * *" },
+    { "path": "/api/automation/return-ticket-auto-complete", "schedule": "30 0 * * *" },
+    { "path": "/api/automation/otb-requirement-check", "schedule": "30 3 * * *" },
+    { "path": "/api/automation/visa-extension-reminder", "schedule": "45 3 * * *" },
+    { "path": "/api/automation/lead-followup", "schedule": "30 4 * * *" },
+    { "path": "/api/automation/document-reminder", "schedule": "30 5 * * *" },
+    { "path": "/api/automation/document-retention", "schedule": "30 21 * * 6" },
+    { "path": "/api/automation/audit-retention", "schedule": "30 22 * * 6" }
+  ]
+}

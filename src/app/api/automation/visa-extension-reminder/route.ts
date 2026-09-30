@@ -125,3 +125,6 @@ export async function POST(request: NextRequest) {
     return jsonError(500, "Visa Extension reminder job failed.");
   }
 }
+
+/** P26 — Vercel Cron calls this with GET (see vercel.json); same handler and auth as n8n's POST. */
+export const GET = POST;

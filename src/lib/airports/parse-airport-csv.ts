@@ -1,3 +1,5 @@
+import { splitCsv } from "@/lib/csv/parse-csv";
+
 export interface AirportCsvRow {
   line: number;
   name: string;
@@ -9,44 +11,6 @@ export interface AirportCsvRow {
 export interface AirportCsvParseResult {
   rows: AirportCsvRow[];
   errors: { line: number; message: string }[];
-}
-
-/** Minimal RFC-4180 record splitter: handles quoted fields, escaped quotes ("") and commas/newlines inside quotes. */
-function splitCsv(text: string): string[][] {
-  const records: string[][] = [];
-  let field = "";
-  let record: string[] = [];
-  let inQuotes = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (inQuotes) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"';
-        i++;
-      } else if (char === '"') {
-        inQuotes = false;
-      } else {
-        field += char;
-      }
-    } else if (char === '"') {
-      inQuotes = true;
-    } else if (char === ",") {
-      record.push(field);
-      field = "";
-    } else if (char === "\n" || char === "\r") {
-      if (char === "\r" && text[i + 1] === "\n") i++;
-      record.push(field);
-      field = "";
-      if (record.some((value) => value.trim() !== "")) records.push(record);
-      record = [];
-    } else {
-      field += char;
-    }
-  }
-  record.push(field);
-  if (record.some((value) => value.trim() !== "")) records.push(record);
-  return records;
 }
 
 /**

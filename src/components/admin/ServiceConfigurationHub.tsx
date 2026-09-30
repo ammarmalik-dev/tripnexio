@@ -15,6 +15,7 @@ import {
 import type { ServiceType } from "../../generated/prisma/enums";
 import { PricingRulesManager } from "./PricingRulesManager";
 import { DocumentRequirementsManager } from "./DocumentRequirementsManager";
+import { CsvImportPanel } from "./CsvImportPanel";
 import { ServiceTimelinesManager } from "./ServiceTimelinesManager";
 import { ServiceStatusesManager } from "./ServiceStatusesManager";
 import { ServiceTermsManager } from "./ServiceTermsManager";
@@ -79,11 +80,17 @@ function TabPanelContent({ service, country, tab }: { service: ServiceType; coun
               The rules below cover the other auto-priced services.
             </p>
           ) : null}
+          <CsvImportPanel entity="pricing-rules" />
           <PricingRulesManager />
         </div>
       );
     case "documents":
-      return <DocumentRequirementsManager serviceType={service} countryId={countryId} />;
+      return (
+        <div className="flex flex-col gap-3">
+          <CsvImportPanel entity="document-requirements" />
+          <DocumentRequirementsManager serviceType={service} countryId={countryId} />
+        </div>
+      );
     case "timelines":
       return <ServiceTimelinesManager serviceType={service} />;
     case "statuses":

@@ -1806,6 +1806,10 @@ model SystemConfig {
   autoAssignLeads        Boolean  @default(false)
   /// P24 - default payment-link validity (hours) when a service has no Timelines value; null = 24.
   defaultPaymentLinkHours Int?
+  /// P26 - "Go-live ready" flag: Admin can set it only while every Integrations Health check passes.
+  goLiveReady            Boolean  @default(false)
+  goLiveMarkedAt         DateTime?
+  goLiveMarkedById       String?
   /// P20 — Company/Support/Legal doc §3 + §9.16 + §14: legal details kept as
   /// configuration until the client supplies them (never hard-coded). The
   /// legal pages render only what's filled in.
