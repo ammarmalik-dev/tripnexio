@@ -4,7 +4,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { GlassCard } from "@/components/ui/GlassCard";
-import { GradientMesh } from "@/components/motion/GradientMesh";
+import { ServiceHeroBackdrop } from "@/components/services/ServiceHeroBackdrop";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
 import { NewVisaProductSelector } from "@/components/services/new-visa/NewVisaProductSelector";
@@ -41,7 +41,7 @@ export default function NewVisaLandingPage() {
   return (
     <>
       <section className="relative overflow-hidden">
-        <GradientMesh />
+        <ServiceHeroBackdrop service="NEW_VISA" />
         <Container className="relative flex flex-col items-center gap-6 py-20 text-center sm:py-28">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { X, Phone, Mail } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { SocialIcon, type SocialPlatform } from "@/components/ui/SocialIcon";
+import { SocialIcon, SOCIAL_HOVER_CLASS, type SocialPlatform } from "@/components/ui/SocialIcon";
 import { siteConfig } from "@/lib/site-config";
 import { mainNav, headerActions, headerContact } from "@/lib/nav-config";
 
@@ -144,7 +144,7 @@ export function SiteDrawer({ open, onClose }: SiteDrawerProps) {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label={label}
-                    className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink-secondary hover:border-glass-border hover:text-ink-primary"
+                    className={`flex h-9 w-9 items-center justify-center rounded-full border border-hairline text-ink-secondary transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${SOCIAL_HOVER_CLASS[platform]}`}
                   >
                     <SocialIcon platform={platform} className="h-4 w-4" />
                   </a>

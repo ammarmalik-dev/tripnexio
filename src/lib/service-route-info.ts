@@ -8,7 +8,7 @@
  * metadata with these fixed facts.
  *
  * Photography sourced from Unsplash (free to use under the Unsplash
- * License, no attribution required) — placeholder-quality stock shots;
+ * License, no attribution required) — high-resolution (2400px) stock shots, also used full-bleed behind each service page's hero (ServiceHeroBackdrop);
  * swap for TripNexio's own branded photography when the client provides it.
  */
 export interface ServiceRouteInfo {
@@ -20,32 +20,32 @@ export interface ServiceRouteInfo {
 export const SERVICE_ROUTE_INFO: Record<string, ServiceRouteInfo> = {
   NEW_VISA: {
     href: "/services/new-visa",
-    image: "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=1200&q=80",
-    imageAlt: "A commercial aircraft parked at an airport terminal gate",
+    image: "https://images.unsplash.com/photo-1517400508447-f8dd518b86db?auto=format&fit=crop&w=2400&q=85",
+    imageAlt: "A traveller reading the departures board in an airport terminal",
   },
   VISA_EXTENSION: {
     href: "/services/visa-extension",
-    image: "https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=1200&q=80",
-    imageAlt: "A flat lay of travel planning essentials — map, notebook and camera",
+    image: "https://images.unsplash.com/photo-1530521954074-e64f6810b32d?auto=format&fit=crop&w=2400&q=85",
+    imageAlt: "A relaxed traveller waiting in an airport lounge as a plane takes off",
   },
   VISA_CHANGE: {
     href: "/services/visa-change",
-    image: "https://images.unsplash.com/photo-1500835556837-99ac94a94552?auto=format&fit=crop&w=1200&q=80",
-    imageAlt: "View of an airplane wing above clouds at sunset",
+    image: "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=2400&q=85",
+    imageAlt: "An airliner coming in to land over a runway",
   },
   FLIGHT_SPECIAL_FARE: {
     href: "/services/flight-special-fare",
-    image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=80",
-    imageAlt: "View of an airplane wing above clouds, backlit by the sun",
+    image: "https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?auto=format&fit=crop&w=2400&q=85",
+    imageAlt: "An airliner climbing through bright clouds",
   },
   RETURN_TICKET: {
     href: "/services/return-ticket",
-    image: "https://images.unsplash.com/photo-1540339832862-474599807836?auto=format&fit=crop&w=1200&q=80",
-    imageAlt: "Interior of an airplane cabin with passengers seated",
+    image: "https://images.unsplash.com/photo-1544016768-982d1554f0b9?auto=format&fit=crop&w=2400&q=85",
+    imageAlt: "An airliner flying overhead against a soft evening sky",
   },
   OTB: {
     href: "/services/otb",
-    image: "https://images.unsplash.com/photo-1533387520709-752d83de3630?auto=format&fit=crop&w=1200&q=80",
-    imageAlt: "Sunset over layered mountain ridges with a jet contrail overhead",
+    image: "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=2400&q=85",
+    imageAlt: "An airliner parked at the gate at sunrise, ready for boarding",
   },
 };

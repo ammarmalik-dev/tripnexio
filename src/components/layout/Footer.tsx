@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Logo } from "./Logo";
 import { Container } from "@/components/ui/Container";
-import { SocialIcon, type SocialPlatform } from "@/components/ui/SocialIcon";
+import { SocialIcon, SOCIAL_HOVER_CLASS, type SocialPlatform } from "@/components/ui/SocialIcon";
 import { siteConfig } from "@/lib/site-config";
 import { utilityLinks } from "@/lib/nav-config";
 import { getSystemConfig } from "@/lib/settings/system-config";
@@ -83,7 +83,7 @@ export async function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={label}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-hairline-on-dark text-ink-on-dark-secondary transition-colors duration-200 hover:border-white/30 hover:text-ink-on-dark-primary"
+                className={`flex h-9 w-9 items-center justify-center rounded-full border border-hairline-on-dark text-ink-on-dark-secondary transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${SOCIAL_HOVER_CLASS[platform]}`}
               >
                 <SocialIcon platform={platform} className="h-4 w-4" />
               </a>

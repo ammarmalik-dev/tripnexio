@@ -23,7 +23,7 @@ export const siteConfig = {
   },
   socials: {
     instagram: "https://instagram.com/tripnexio",
-    facebook: "https://facebook.com/tripnexio",
+    facebook: "https://www.facebook.com/people/TripNexio/61592777304578/",
     linkedin: "https://linkedin.com/company/tripnexio",
     x: "https://x.com/tripnexio",
     threads: "https://threads.net/@tripnexio",

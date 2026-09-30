@@ -15,6 +15,13 @@
    ========================================================================== */
 
 :root {
+  /* Third-party social brand colours (hover state of the social icons). */
+  --social-facebook: #1877f2;
+  --social-linkedin: #0a66c2;
+  --social-x: #000000;
+  --social-threads: #000000;
+  --social-whatsapp: #25d366;
+  --social-instagram: radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%);
   /* Raw approved brand tokens */
   --tn-deep-navy: #182a4d;
   --tn-electric-blue: #3e6fdb;
@@ -242,4 +249,15 @@ body {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Service landing hero: warm-white wash over the photo so the dark headline
+   stays readable (strongest behind the text, lighter at the edges). */
+.service-hero-wash {
+  background: radial-gradient(
+    ellipse 70% 65% at 50% 45%,
+    color-mix(in srgb, var(--surface-base) 90%, transparent) 0%,
+    color-mix(in srgb, var(--surface-base) 72%, transparent) 55%,
+    color-mix(in srgb, var(--surface-base) 45%, transparent) 100%
+  );
 }
