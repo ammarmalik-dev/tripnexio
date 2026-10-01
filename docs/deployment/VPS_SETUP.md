@@ -6,6 +6,31 @@ dedicated IP), with **PostgreSQL running on the same VPS**. This file is the
 concrete, ordered checklist for that move. `DEPLOYMENT_RUNBOOK.md` covers the
 general process (migrations, rollback, branch workflow).
 
+**Status (2026-10-01): live at https://tripnexio.com** on server `187.126.116.174`
+(Hostinger KVM 2, Mumbai), Coolify 4.3.23 at https://coolify.tripnexio.com (the
+client's own admin account; registration is closed). Data was moved from Neon and
+every table's row count matched. What actually differed from the plan below:
+
+- **Build pack is the repo's `Dockerfile`, not Nixpacks.** Nixpacks pins Node
+  22.11 and Prisma 7 refuses to install below 22.12.
+- **Migrations run in the container start command** (`prisma migrate deploy &&
+  next start`), not as Coolify's pre-deployment command. Coolify runs that in
+  the *old* container, which has the old migrations folder (and on a first
+  deploy it is skipped).
+- **Health check:** `/api/health` (no DB), `curl` is in the image, start period 90s.
+- **Neon runs PostgreSQL 18; the VPS database is 17.** The dump was taken with
+  `pg_dump` 18 in plain SQL and loaded with `psql --single-transaction`
+  (a custom-format 18 archive can't be read by `pg_restore` 17). The original
+  dump is in `/root/backups/` on the server.
+- **Hostinger writes `authorized_keys` without a trailing newline**, so the
+  Coolify installer glued its key onto the panel-added key's line and Coolify
+  couldn't SSH to its own host ("Permission denied (publickey)"). Fixed by
+  splitting the line. Check this file after adding any key in the Hostinger panel.
+- **Hostinger DNS:** the parked-domain A record had TTL 50, below Hostinger's
+  minimum of 60, so editing it failed silently until the TTL was changed.
+- Coolify API token for server-side automation: `/root/.coolify-token` (600);
+  resource ids: `/root/tripnexio-coolify.ids`. Daily DB backup: 02:30 UTC, 14 kept.
+
 Everything runs under Coolify on the one server:
 
 | Service | How | Rough RAM |
