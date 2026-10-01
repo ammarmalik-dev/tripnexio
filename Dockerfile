@@ -2,9 +2,10 @@
 # Official Node 22 image: Nixpacks pins Node 22.11, but Prisma 7 needs 22.12+.
 FROM node:22-bookworm-slim
 
-# openssl/ca-certificates for Prisma and outbound TLS (Neon, Razorpay, Resend, Meta, Anthropic).
+# openssl/ca-certificates for Prisma and outbound TLS (Razorpay, Resend, Meta, Anthropic);
+# curl for Coolify's container health check.
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && apt-get install -y --no-install-recommends openssl ca-certificates curl \
   && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
