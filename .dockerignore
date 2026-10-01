@@ -1,0 +1,22 @@
+# Never ship local secrets or build output into the image.
+.env*
+!.env.example
+node_modules
+.next
+storage
+public/uploads
+src/generated
+coverage
+.git
+.github
+.vercel
+.claude
+*.log
+
+# Docs, client files and screenshots aren't needed at runtime.
+client-message
+client-update-screenshots
+BRAND ASSEST
+docs
+n8n
+tests
