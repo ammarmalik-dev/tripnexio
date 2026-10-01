@@ -16,12 +16,16 @@ import {
   type ImportRowResult,
 } from "@/lib/csv/import-specs";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 const ACTION_BADGE: Record<ImportRowResult["action"], { label: string; className: string }> = {
   create: { label: "Create", className: "bg-success/10 text-success" },
   update: { label: "Update", className: "bg-ink-accent/10 text-ink-accent" },
   error: { label: "Error", className: "bg-error/10 text-error" },
 };
+
+const EMPTY_ROWS: ImportRowResult[] = [];
 
 export interface CsvImportPanelProps {
   entity: ImportEntityKey;
@@ -52,11 +56,14 @@ export function CsvImportPanel({ entity, onImported }: CsvImportPanelProps) {
 
   const templateHref = `data:text/csv;charset=utf-8,${encodeURIComponent(csvHeaderLine(spec.columns.map((column) => column.name)))}`;
   const validCount = preview ? preview.totals.create + preview.totals.update : 0;
+  const rows = committed?.rows ?? preview?.rows ?? EMPTY_ROWS;
+  const { pageItems: pageRows, paginationProps, resetPage } = useClientPagination(rows);
 
   const resetResults = () => {
     setPreview(null);
     setCommitted(null);
     setRequestError("");
+    resetPage();
   };
 
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -119,6 +126,7 @@ export function CsvImportPanel({ entity, onImported }: CsvImportPanelProps) {
       });
       setCommitted(data);
       setPreview(null);
+      resetPage();
       toast.success(`Import finished: ${data.created} created, ${data.updated} updated${data.skipped ? `, ${data.skipped} skipped` : ""}.`);
       onImported?.();
     } catch (error) {
@@ -129,8 +137,6 @@ export function CsvImportPanel({ entity, onImported }: CsvImportPanelProps) {
       setBusy(null);
     }
   };
-
-  const rows = committed?.rows ?? preview?.rows ?? [];
 
   return (
     <details className="group rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
@@ -251,7 +257,7 @@ export function CsvImportPanel({ entity, onImported }: CsvImportPanelProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row) => (
+                    {pageRows.map((row) => (
                       <tr key={row.line} className="border-t border-hairline align-top">
                         <td className="py-1 pr-3">{row.line}</td>
                         <td className="py-1 pr-3 break-words">{row.key}</td>
@@ -275,6 +281,7 @@ export function CsvImportPanel({ entity, onImported }: CsvImportPanelProps) {
                 </table>
               </div>
             ) : null}
+            <ListPagination noun="import row" {...paginationProps} />
           </div>
         ) : null}
       </div>

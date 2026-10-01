@@ -14,6 +14,8 @@ import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { PAYMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { ListPagination } from "./ListPagination";
+import { usePaginationState } from "./usePagination";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
@@ -66,6 +68,7 @@ export function PaymentsTable() {
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
   const [markingId, setMarkingId] = useState<string | null>(null);
   const { confirm, dialog } = useConfirmAction();
 
@@ -80,9 +83,12 @@ export function PaymentsTable() {
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +102,8 @@ export function PaymentsTable() {
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
 
         const result = await getJson<PaymentListResponse>(`/api/payments?${params.toString()}`);
         if (cancelled) return;
@@ -113,7 +121,7 @@ export function PaymentsTable() {
     return () => {
       cancelled = true;
     };
-  }, [status, dateFrom, dateTo, search, sort, refreshNonce]);
+  }, [status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   const handleMarkSuccess = async (id: string) => {
     const reason = await confirm({
@@ -158,7 +166,10 @@ export function PaymentsTable() {
         <select
           id="filter-payment-status"
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
         >
           <option value="">All statuses</option>
@@ -175,7 +186,10 @@ export function PaymentsTable() {
         <select
           id="sort-payments"
           value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="createdAt_desc">Newest first</option>
@@ -200,10 +214,22 @@ export function PaymentsTable() {
         idPrefix="payment"
         dateFrom={dateFrom}
         dateTo={dateTo}
-        onPreset={applyPreset}
-        onCustomFrom={applyCustomFrom}
-        onCustomTo={applyCustomTo}
-        onClear={clearDates}
+        onPreset={(days) => {
+          applyPreset(days);
+          resetPage();
+        }}
+        onCustomFrom={(dateOnly) => {
+          applyCustomFrom(dateOnly);
+          resetPage();
+        }}
+        onCustomTo={(dateOnly) => {
+          applyCustomTo(dateOnly);
+          resetPage();
+        }}
+        onClear={() => {
+          clearDates();
+          resetPage();
+        }}
       />
 
       {state === "loading" ? (
@@ -292,9 +318,14 @@ export function PaymentsTable() {
       ) : null}
 
       {state === "success" ? (
-        <p className="text-xs text-ink-tertiary">
-          Showing {items.length} of {total} payment{total === 1 ? "" : "s"}
-        </p>
+        <ListPagination
+          noun="payment"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          itemCount={items.length}
+          {...paginationHandlers}
+        />
       ) : null}
       {dialog}
     </div>

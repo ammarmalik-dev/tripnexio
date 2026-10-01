@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2, Check, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Trash2, Check, X, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -9,7 +9,9 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { LeaveStatusBadge } from "@/components/crm/LeaveStatusBadge";
-import { LEAVE_TYPE_OPTIONS, LEAVE_TYPE_LABELS } from "@/lib/crm/labels";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+import { LEAVE_TYPE_OPTIONS, LEAVE_TYPE_LABELS, LEAVE_STATUS_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
@@ -266,6 +268,19 @@ export function StaffLeaveManager({ canApprove }: { canApprove: boolean }) {
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LeaveStatus | "">("");
+
+  const filteredLeaves = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return leaves.filter(
+      (leave) =>
+        (!statusFilter || leave.status === statusFilter) &&
+        (!needle || leave.user.name.toLowerCase().includes(needle) || (leave.reason ?? "").toLowerCase().includes(needle))
+    );
+  }, [leaves, search, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filteredLeaves);
+  const pendingCount = leaves.filter((leave) => leave.status === "PENDING").length;
 
   useEffect(() => {
     let cancelled = false;
@@ -323,15 +338,69 @@ export function StaffLeaveManager({ canApprove }: { canApprove: boolean }) {
       {leaves.length === 0 ? (
         <EmptyState title="No leave recorded yet" description="Record the first one using the form below." />
       ) : (
-        leaves.map((leave) => (
-          <LeaveRow
-            key={leave.id}
-            leave={leave}
-            canApprove={canApprove}
-            onDeleted={(id) => setLeaves((current) => current.filter((entry) => entry.id !== id))}
-            onDecided={(updated) => setLeaves((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-          />
-        ))
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[220px] max-w-md flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+              <label htmlFor="staff-leave-search" className="sr-only">
+                Search leave by staff name or reason
+              </label>
+              <input
+                id="staff-leave-search"
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  resetPage();
+                }}
+                placeholder="Search by staff name or reason…"
+                className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+              />
+            </div>
+            <label htmlFor="staff-leave-status" className="sr-only">
+              Filter by status
+            </label>
+            <select
+              id="staff-leave-status"
+              value={statusFilter}
+              onChange={(event) => {
+                setStatusFilter(event.target.value as LeaveStatus | "");
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+            >
+              <option value="">All statuses</option>
+              {(Object.keys(LEAVE_STATUS_LABELS) as LeaveStatus[]).map((status) => (
+                <option key={status} value={status}>
+                  {LEAVE_STATUS_LABELS[status]}
+                </option>
+              ))}
+            </select>
+            {pendingCount > 0 ? (
+              <span className="rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">{pendingCount} awaiting approval</span>
+            ) : null}
+          </div>
+          {filteredLeaves.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No matching leave records"
+              description="Try a different name, reason or status."
+            />
+          ) : (
+            <div className="flex flex-col gap-3">
+              {pageItems.map((leave) => (
+                <LeaveRow
+                  key={leave.id}
+                  leave={leave}
+                  canApprove={canApprove}
+                  onDeleted={(id) => setLeaves((current) => current.filter((entry) => entry.id !== id))}
+                  onDecided={(updated) => setLeaves((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+                />
+              ))}
+            </div>
+          )}
+          <ListPagination noun="leave record" {...paginationProps} />
+        </>
       )}
       <NewLeaveForm staffOptions={staffOptions} onCreated={(created) => setLeaves((current) => [created, ...current])} />
     </div>

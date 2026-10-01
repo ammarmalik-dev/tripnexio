@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -12,6 +12,8 @@ import { useCountries, type CountryOption } from "@/lib/admin/use-countries";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 interface BorderData {
   id: string;
@@ -26,6 +28,7 @@ interface BorderData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type StatusFilter = "all" | "active" | "disabled";
 
 interface BorderFormState {
   name: string;
@@ -192,15 +195,30 @@ function BorderCard({
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-medium",
-            border.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-          )}
-        >
-          {border.active ? "Active" : "Disabled"}
-        </span>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-ink-heading">{border.name}</h3>
+            {border.country?.name ? (
+              <span className="rounded-md bg-ink-primary/[0.05] px-1.5 py-0.5 text-xs text-ink-secondary">
+                {border.country.name}
+              </span>
+            ) : null}
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                border.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}
+            >
+              {border.active ? "Active" : "Disabled"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-ink-tertiary">
+            {border.uaeLocation} → {border.destinationLocation} ·{" "}
+            {border.activeForVisaChange ? "Available for Visa Change" : "Not offered for Visa Change"} · Order{" "}
+            {border.displayOrder}
+          </p>
+        </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
           {border.active ? "Disable" : "Enable"}
         </Button>
@@ -245,8 +263,7 @@ function NewBorderForm({
   const canSubmit = form.name.trim() && form.countryId && form.uaeLocation.trim() && form.destinationLocation.trim();
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">New Border Crossing</h2>
+    <div className="flex flex-col gap-4">
       <BorderFields form={form} onChange={setForm} errors={errors} disabled={creating} countryOptions={countryOptions} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
@@ -264,6 +281,24 @@ export function BordersManager() {
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const countryOptions = useCountries();
+  const [search, setSearch] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return borders.filter((border) => {
+      if (countryFilter && border.countryId !== countryFilter) return false;
+      if (statusFilter === "active" && !border.active) return false;
+      if (statusFilter === "disabled" && border.active) return false;
+      if (!term) return true;
+      return [border.name, border.uaeLocation, border.destinationLocation, border.country?.name ?? ""].some((value) =>
+        value.toLowerCase().includes(term)
+      );
+    });
+  }, [borders, search, countryFilter, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
     let cancelled = false;
@@ -312,21 +347,127 @@ export function BordersManager() {
     );
   }
 
+  const clearFilters = () => {
+    setSearch("");
+    setCountryFilter("");
+    setStatusFilter("all");
+    resetPage();
+  };
+  const createOpen = showCreate || borders.length === 0;
+  const trimmedSearch = search.trim();
+
   return (
     <div className="flex flex-col gap-4">
-      {borders.length === 0 ? (
-        <EmptyState title="No border crossings yet" description="Add the first one using the form below." />
-      ) : (
-        borders.map((border) => (
-          <BorderCard
-            key={border.id}
-            border={border}
-            onSaved={(updated) => setBorders((current) => current.map((b) => (b.id === updated.id ? updated : b)))}
-            countryOptions={countryOptions}
+      <section className="rounded-xl border border-hairline bg-surface-1">
+        <button
+          type="button"
+          onClick={() => setShowCreate((current) => !current)}
+          aria-expanded={createOpen}
+          aria-controls="new-border-panel"
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <Plus className="h-4 w-4 text-accent-on-light" aria-hidden="true" />
+            Add new border crossing
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-ink-tertiary transition-transform duration-200", createOpen && "rotate-180")}
+            aria-hidden="true"
           />
-        ))
+        </button>
+        {createOpen ? (
+          <div id="new-border-panel" className="border-t border-hairline p-5">
+            <NewBorderForm
+              onCreated={(created) => {
+                setBorders((current) => [created, ...current]);
+                clearFilters();
+              }}
+              countryOptions={countryOptions}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {borders.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              aria-label="Search border crossings"
+              placeholder="Search crossing, location or country"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by country"
+            value={countryFilter}
+            onChange={(event) => {
+              setCountryFilter(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-48")}
+          >
+            <option value="">All countries</option>
+            {countryOptions.map((country) => (
+              <option key={country.id} value={country.id}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} crossing{filtered.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      ) : null}
+
+      {borders.length === 0 ? (
+        <EmptyState title="No border crossings yet" description="Add the first one using the form above." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={trimmedSearch ? `No border crossings match "${trimmedSearch}"` : "No border crossings match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pageItems.map((border) => (
+            <BorderCard
+              key={border.id}
+              border={border}
+              onSaved={(updated) => setBorders((current) => current.map((b) => (b.id === updated.id ? updated : b)))}
+              countryOptions={countryOptions}
+            />
+          ))}
+        </div>
       )}
-      <NewBorderForm onCreated={(created) => setBorders((current) => [...current, created])} countryOptions={countryOptions} />
+
+      <ListPagination noun="border crossing" {...paginationProps} />
     </div>
   );
 }

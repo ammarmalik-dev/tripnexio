@@ -6,6 +6,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 
@@ -36,6 +38,8 @@ interface AutomationData {
 }
 
 type FetchState = "loading" | "success" | "error";
+
+const EMPTY_RUNS: RunData[] = [];
 
 function formatDateTime(value: string): string {
   return new Date(value).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -127,6 +131,8 @@ export function AutomationMonitor() {
     };
   }, [reloadNonce]);
 
+  const runsPagination = useClientPagination(data?.recentRuns ?? EMPTY_RUNS);
+
   if (state === "loading") {
     return (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -161,39 +167,44 @@ export function AutomationMonitor() {
         ))}
       </div>
 
-      <div className="rounded-xl border border-hairline bg-surface-1 p-5">
-        <h2 className="mb-3 text-sm font-semibold text-ink-heading">Recent Runs</h2>
+      <section aria-labelledby="automation-recent-runs" className="flex flex-col gap-3">
+        <h2 id="automation-recent-runs" className="text-sm font-semibold text-ink-heading">
+          Recent Runs
+        </h2>
         {data.recentRuns.length === 0 ? (
           <EmptyState title="No runs yet" description="Once n8n starts calling these endpoints, every run will show up here." />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-hairline text-left text-xs text-ink-tertiary">
-                  <th className="pb-2 pr-4 font-medium">Workflow</th>
-                  <th className="pb-2 pr-4 font-medium">Status</th>
-                  <th className="pb-2 pr-4 font-medium">Started</th>
-                  <th className="pb-2 font-medium">Detail</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentRuns.map((run) => (
-                  <tr key={run.id} className="border-b border-hairline last:border-b-0">
-                    <td className="py-2 pr-4 text-ink-primary">{run.workflowKey}</td>
-                    <td className="py-2 pr-4">
-                      <StatusBadge status={run.status} />
-                    </td>
-                    <td className="py-2 pr-4 text-ink-tertiary">{formatDateTime(run.startedAt)}</td>
-                    <td className={cn("py-2 text-xs", run.status === "FAILURE" ? "text-error" : "text-ink-tertiary")}>
-                      {run.status === "FAILURE" ? run.errorMessage : summaryText(run.summary)}
-                    </td>
+          <>
+            <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
+              <table className="w-full min-w-[640px] border-collapse text-sm">
+                <thead>
+                  <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
+                    <th scope="col" className="px-4 py-3">Workflow</th>
+                    <th scope="col" className="px-4 py-3">Status</th>
+                    <th scope="col" className="px-4 py-3">Started</th>
+                    <th scope="col" className="px-4 py-3">Detail</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {runsPagination.pageItems.map((run) => (
+                    <tr key={run.id} className="border-b border-hairline align-top last:border-b-0 hover:bg-ink-primary/[0.02]">
+                      <td className="px-4 py-3 text-ink-primary">{run.workflowKey}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={run.status} />
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-ink-tertiary">{formatDateTime(run.startedAt)}</td>
+                      <td className={cn("px-4 py-3 text-xs", run.status === "FAILURE" ? "text-error" : "text-ink-tertiary")}>
+                        {run.status === "FAILURE" ? run.errorMessage : summaryText(run.summary)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <ListPagination noun="run" {...runsPagination.paginationProps} />
+          </>
         )}
-      </div>
+      </section>
     </div>
   );
 }

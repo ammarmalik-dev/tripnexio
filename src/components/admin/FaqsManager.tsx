@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus, Search, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -15,6 +15,8 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 interface FaqData {
@@ -30,6 +32,14 @@ interface FaqData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type StatusFilter = "all" | "published" | "draft" | "active" | "disabled";
+/** "" = every service, "GENERAL" = FAQs not tied to one service. */
+type ServiceFilter = ServiceType | "" | "GENERAL";
+
+function serviceLabel(serviceType: ServiceType | null): string {
+  if (!serviceType) return "General";
+  return SERVICE_TYPE_OPTIONS.find((option) => option.value === serviceType)?.label ?? serviceType;
+}
 
 interface FormState {
   question: string;
@@ -219,16 +229,39 @@ function FaqCard({ faq, onSaved, onDeleted }: { faq: FaqData; onSaved: (faq: Faq
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", faq.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
-            {faq.active ? "Active" : "Disabled"}
-          </span>
-          <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", faq.published ? "bg-accent/10 text-accent-on-light" : "bg-ink-primary/[0.06] text-ink-tertiary")}>
-            {faq.published ? "Published" : "Draft"}
-          </span>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                faq.published ? "bg-accent/10 text-accent-on-light" : "bg-ink-primary/[0.06] text-ink-tertiary"
+              )}
+            >
+              {faq.published ? "Published" : "Draft"}
+            </span>
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                faq.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}
+            >
+              {faq.active ? "Active" : "Disabled"}
+            </span>
+          </div>
+          <h3 className="mt-2 line-clamp-2 text-base font-semibold text-ink-heading">{faq.question}</h3>
+          <p className="mt-1 text-xs text-ink-tertiary">
+            {[
+              serviceLabel(faq.serviceType),
+              faq.category,
+              `Order ${faq.displayOrder}`,
+              faq.keywords.length > 0 ? `${faq.keywords.length} keyword${faq.keywords.length === 1 ? "" : "s"}` : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-1">
           <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
             {faq.active ? "Disable" : "Enable"}
           </Button>
@@ -276,8 +309,7 @@ function NewFaqForm({ onCreated }: { onCreated: (faq: FaqData) => void }) {
   const canSubmit = form.question.trim().length >= 4 && form.answer.trim().length >= 4;
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">New FAQ</h2>
+    <div className="flex flex-col gap-4">
       <FaqFields form={form} onChange={setForm} errors={errors} disabled={creating} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
@@ -294,6 +326,25 @@ export function FaqsManager() {
   const [faqs, setFaqs] = useState<FaqData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return faqs.filter((faq) => {
+      if (serviceFilter === "GENERAL" && faq.serviceType !== null) return false;
+      if (serviceFilter && serviceFilter !== "GENERAL" && faq.serviceType !== serviceFilter) return false;
+      if (statusFilter === "published" && !faq.published) return false;
+      if (statusFilter === "draft" && faq.published) return false;
+      if (statusFilter === "active" && !faq.active) return false;
+      if (statusFilter === "disabled" && faq.active) return false;
+      if (!term) return true;
+      return [faq.question, faq.answer, faq.category ?? "", ...faq.keywords].some((value) => value.toLowerCase().includes(term));
+    });
+  }, [faqs, search, serviceFilter, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
     let cancelled = false;
@@ -342,21 +393,129 @@ export function FaqsManager() {
     );
   }
 
+  const clearFilters = () => {
+    setSearch("");
+    setServiceFilter("");
+    setStatusFilter("all");
+    resetPage();
+  };
+  const createOpen = showCreate || faqs.length === 0;
+  const trimmedSearch = search.trim();
+
   return (
     <div className="flex flex-col gap-4">
-      {faqs.length === 0 ? (
-        <EmptyState title="No FAQs yet" description="Add the first one using the form below." />
-      ) : (
-        faqs.map((faq) => (
-          <FaqCard
-            key={faq.id}
-            faq={faq}
-            onSaved={(updated) => setFaqs((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-            onDeleted={(id) => setFaqs((current) => current.filter((entry) => entry.id !== id))}
+      <section className="rounded-xl border border-hairline bg-surface-1">
+        <button
+          type="button"
+          onClick={() => setShowCreate((current) => !current)}
+          aria-expanded={createOpen}
+          aria-controls="new-faq-panel"
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <Plus className="h-4 w-4 text-accent-on-light" aria-hidden="true" />
+            Add new FAQ
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-ink-tertiary transition-transform duration-200", createOpen && "rotate-180")}
+            aria-hidden="true"
           />
-        ))
+        </button>
+        {createOpen ? (
+          <div id="new-faq-panel" className="border-t border-hairline p-5">
+            <NewFaqForm
+              onCreated={(created) => {
+                setFaqs((current) => [created, ...current]);
+                clearFilters();
+              }}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {faqs.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              aria-label="Search FAQs"
+              placeholder="Search question, answer, category or keyword"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by service"
+            value={serviceFilter}
+            onChange={(event) => {
+              setServiceFilter(event.target.value as ServiceFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-48")}
+          >
+            <option value="">All services</option>
+            <option value="GENERAL">General</option>
+            {SERVICE_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-40")}
+          >
+            <option value="all">All statuses</option>
+            <option value="published">Published</option>
+            <option value="draft">Draft (unpublished)</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} FAQ{filtered.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      ) : null}
+
+      {faqs.length === 0 ? (
+        <EmptyState title="No FAQs yet" description="Add the first one using the form above." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={trimmedSearch ? `No FAQs match "${trimmedSearch}"` : "No FAQs match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pageItems.map((faq) => (
+            <FaqCard
+              key={faq.id}
+              faq={faq}
+              onSaved={(updated) => setFaqs((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+              onDeleted={(id) => setFaqs((current) => current.filter((entry) => entry.id !== id))}
+            />
+          ))}
+        </div>
       )}
-      <NewFaqForm onCreated={(created) => setFaqs((current) => [...current, created])} />
+
+      <ListPagination noun="FAQ" {...paginationProps} />
     </div>
   );
 }

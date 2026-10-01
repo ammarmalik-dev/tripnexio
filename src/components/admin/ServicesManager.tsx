@@ -15,6 +15,8 @@ import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 interface ServiceData {
   id: string;
@@ -69,23 +71,27 @@ function IconPreview({ iconName }: { iconName: string }) {
 }
 
 function ServiceFields({
+  idPrefix,
   form,
   onChange,
   errors,
   disabled,
   codeLocked,
 }: {
+  /** Keeps control ids unique when several cards are on screen at once. */
+  idPrefix: string;
   form: ServiceFormState;
   onChange: (next: ServiceFormState) => void;
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
   codeLocked: boolean;
 }) {
+  const id = (field: string) => `${idPrefix}-${field}`;
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <FormField label="Service" htmlFor="code" error={errors.code?.[0]}>
+      <FormField label="Service" htmlFor={id("code")} error={errors.code?.[0]}>
         <select
-          id="code"
+          id={id("code")}
           value={form.code}
           disabled={disabled || codeLocked}
           onChange={(event) => onChange({ ...form, code: event.target.value as ServiceType })}
@@ -103,7 +109,7 @@ function ServiceFields({
       </FormField>
       <TextField
         label="Display Name"
-        name="name"
+        name={id("name")}
         value={form.name}
         onChange={(event) => onChange({ ...form, name: event.target.value })}
         error={errors.name?.[0]}
@@ -112,7 +118,7 @@ function ServiceFields({
       <div className="sm:col-span-2">
         <Textarea
           label="Short Description"
-          name="shortDescription"
+          name={id("shortDescription")}
           value={form.shortDescription}
           onChange={(event) => onChange({ ...form, shortDescription: event.target.value })}
           error={errors.shortDescription?.[0]}
@@ -122,7 +128,7 @@ function ServiceFields({
       </div>
       <TextField
         label="Button Text"
-        name="ctaLabel"
+        name={id("ctaLabel")}
         value={form.ctaLabel}
         onChange={(event) => onChange({ ...form, ctaLabel: event.target.value })}
         error={errors.ctaLabel?.[0]}
@@ -130,7 +136,7 @@ function ServiceFields({
       />
       <TextField
         label="Reference Code"
-        name="referenceCode"
+        name={id("referenceCode")}
         maxLength={2}
         value={form.referenceCode}
         onChange={(event) => onChange({ ...form, referenceCode: event.target.value.toUpperCase() })}
@@ -138,10 +144,10 @@ function ServiceFields({
         disabled={disabled}
         hint="Two letters inside every reference, e.g. VI in 10626VI001. VI, FL and RT are the client's confirmed codes; VE, VC and OT are pending client confirmation. A change applies to new references only."
       />
-      <FormField label="Icon" htmlFor="iconName" error={errors.iconName?.[0]}>
+      <FormField label="Icon" htmlFor={id("iconName")} error={errors.iconName?.[0]}>
         <div className="flex items-center gap-2">
           <select
-            id="iconName"
+            id={id("iconName")}
             value={form.iconName}
             disabled={disabled}
             onChange={(event) => onChange({ ...form, iconName: event.target.value })}
@@ -158,7 +164,7 @@ function ServiceFields({
       </FormField>
       <TextField
         label="Display Order"
-        name="displayOrder"
+        name={id("displayOrder")}
         type="number"
         value={form.displayOrder}
         onChange={(event) => onChange({ ...form, displayOrder: event.target.value })}
@@ -222,19 +228,26 @@ function ServiceCard({ service, onSaved }: { service: ServiceData; onSaved: (ser
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-medium",
-            service.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-          )}
-        >
-          {service.active ? "Active — visible on website" : "Disabled — hidden from website"}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <IconPreview iconName={service.iconName} />
+            {service.name}
+          </span>
+          <span className="rounded-full bg-ink-primary/[0.06] px-2 py-0.5 font-mono text-xs text-ink-secondary">{service.referenceCode}</span>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-1 text-xs font-medium",
+              service.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+            )}
+          >
+            {service.active ? "Active — visible on website" : "Disabled — hidden from website"}
+          </span>
+        </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
           {service.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <ServiceFields form={form} onChange={setForm} errors={errors} disabled={saving} codeLocked />
+      <ServiceFields idPrefix={`service-${service.id}`} form={form} onChange={setForm} errors={errors} disabled={saving} codeLocked />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -274,7 +287,7 @@ function NewServiceForm({ onCreated }: { onCreated: (service: ServiceData) => vo
         Only for the 6 already-built services — a real request flow must already exist behind the selected service
         type for this to be meaningful.
       </p>
-      <ServiceFields form={form} onChange={setForm} errors={errors} disabled={creating} codeLocked={false} />
+      <ServiceFields idPrefix="new-service" form={form} onChange={setForm} errors={errors} disabled={creating} codeLocked={false} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -290,6 +303,7 @@ export function ServicesManager() {
   const [services, setServices] = useState<ServiceData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const { pageItems, paginationProps } = useClientPagination(services);
 
   useEffect(() => {
     let cancelled = false;
@@ -343,13 +357,16 @@ export function ServicesManager() {
       {services.length === 0 ? (
         <EmptyState title="No service metadata yet" description="Add the first one using the form below." />
       ) : (
-        services.map((service) => (
-          <ServiceCard
-            key={service.id}
-            service={service}
-            onSaved={(updated) => setServices((current) => current.map((s) => (s.id === updated.id ? updated : s)))}
-          />
-        ))
+        <>
+          {pageItems.map((service) => (
+            <ServiceCard
+              key={service.id}
+              service={service}
+              onSaved={(updated) => setServices((current) => current.map((s) => (s.id === updated.id ? updated : s)))}
+            />
+          ))}
+          <ListPagination noun="service" {...paginationProps} />
+        </>
       )}
       <NewServiceForm onCreated={(created) => setServices((current) => [...current, created])} />
     </div>

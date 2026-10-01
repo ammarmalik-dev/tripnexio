@@ -51,6 +51,7 @@ import {
   Siren,
   Landmark,
   FileBarChart,
+  ReceiptText,
   type LucideIcon,
 } from "lucide-react";
 import { hasPermission } from "@/lib/auth/permissions";
@@ -101,6 +102,7 @@ export const crmNavGroups: CrmNavGroup[] = [
     items: [
       { label: "Bookings", href: "/crm/bookings", icon: CalendarCheck, permission: "bookings.view" },
       { label: "Payments", href: "/crm/payments", icon: CreditCard, permission: "payments.view" },
+      { label: "Invoices", href: "/crm/invoices", icon: ReceiptText, permission: "payments.view" },
       { label: "Refunds", href: "/crm/refunds", icon: RotateCcw, permission: "refunds.view" },
       { label: "Documents", href: "/crm/documents", icon: FolderOpen, permission: "documents.view" },
       { label: "Tasks", href: "/crm/tasks", icon: ListTodo, permission: "tasks.view" },
@@ -260,6 +262,7 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Payment Gateway", href: "/admin/payment-gateway", icon: Landmark, permission: "masters.manage" },
       { label: "Tax & Fees", href: "/admin/tax-fee", icon: Percent, permission: "masters.manage" },
       { label: "Invoice Settings", href: "/admin/invoice-settings", icon: FileSignature, permission: "masters.manage" },
+      { label: "Invoice History", href: "/admin/invoices", icon: ReceiptText, permission: "payments.view" },
     ],
   },
   {

@@ -6,6 +6,7 @@ import { RotateCw, RefreshCcw, ShieldCheck, ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toaster";
 import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination, usePaginationState } from "@/components/crm/usePagination";
 import { FilterSelect, ListStateView, type FetchState } from "./MonitoringControls";
 import { formatDateTime } from "@/lib/admin/monitoring";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
@@ -54,7 +55,8 @@ interface OcrMonitorResponse {
   failures: OcrFailure[];
 }
 
-const PAGE_SIZE = 25;
+const EMPTY_FAILURES: OcrFailure[] = [];
+
 
 const STATUS_LABELS: Record<OcrExtractionStatus, string> = {
   PENDING_REVIEW: "Pending review",
@@ -110,7 +112,7 @@ function LinkedCell({ booking, passenger }: LinkedRecords) {
 export function OcrMonitor() {
   const [status, setStatus] = useState("");
   const [extractionType, setExtractionType] = useState("");
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
   const [state, setState] = useState<FetchState>("loading");
   const [data, setData] = useState<OcrMonitorResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -125,7 +127,7 @@ export function OcrMonitor() {
       if (status) params.set("status", status);
       if (extractionType) params.set("extractionType", extractionType);
       params.set("page", String(page));
-      params.set("pageSize", String(PAGE_SIZE));
+      params.set("pageSize", String(pageSize));
       try {
         const result = await getJson<OcrMonitorResponse>(`/api/admin/ocr-monitor?${params.toString()}`);
         if (cancelled) return;
@@ -141,7 +143,7 @@ export function OcrMonitor() {
     return () => {
       cancelled = true;
     };
-  }, [status, extractionType, page, refreshNonce]);
+  }, [status, extractionType, page, pageSize, refreshNonce]);
 
   async function retry(documentId: string) {
     setRetryingDocumentId(documentId);
@@ -190,7 +192,8 @@ export function OcrMonitor() {
   }
 
   const jobs = data?.jobs.items ?? [];
-  const failures = data?.failures ?? [];
+  const failures = data?.failures ?? EMPTY_FAILURES;
+  const failurePagination = useClientPagination(failures);
 
   return (
     <div className="flex flex-col gap-8">
@@ -284,7 +287,7 @@ export function OcrMonitor() {
                   </tr>
                 </thead>
                 <tbody>
-                  {failures.map((failure) => (
+                  {failurePagination.pageItems.map((failure) => (
                     <tr key={failure.id} className="border-b border-hairline align-top last:border-b-0">
                       <td className="whitespace-nowrap px-4 py-3 text-ink-tertiary">{formatDateTime(failure.timestamp)}</td>
                       <td className="px-4 py-3">
@@ -308,6 +311,7 @@ export function OcrMonitor() {
               </table>
             </div>
           )}
+          <ListPagination noun="failure" {...failurePagination.paginationProps} />
         </section>
       ) : null}
 
@@ -407,7 +411,7 @@ export function OcrMonitor() {
           </div>
         </ListStateView>
         {state === "success" && data ? (
-          <ListPagination noun="job" page={data.jobs.page} pageSize={data.jobs.pageSize} total={data.jobs.total} itemCount={jobs.length} onPageChange={setPage} />
+          <ListPagination noun="job" page={data.jobs.page} pageSize={data.jobs.pageSize} total={data.jobs.total} itemCount={jobs.length} {...paginationHandlers} />
         ) : null}
       </section>
     </div>

@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
@@ -40,6 +43,7 @@ interface Option {
 
 type FieldErrors = Record<string, string[] | undefined>;
 type FetchState = "loading" | "success" | "error";
+type ActiveFilter = "all" | "active" | "inactive";
 
 const toNumber = (value: string) => (value.trim() === "" ? Number.NaN : Number(value));
 const toNullableNumber = (value: string) => (value.trim() === "" ? null : Number(value));
@@ -180,6 +184,40 @@ export function OtbPricesManager({ countryId }: { countryId?: string } = {}) {
   const [airlines, setAirlines] = useState<Option[]>([]);
   const [countries, setCountries] = useState<Option[]>([]);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [airlineFilter, setAirlineFilter] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [paxFilter, setPaxFilter] = useState<PaxType | "">("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  // P23 — optional `countryId` (Service Configuration hub) narrows the list and pre-fills the add form. Absent = every row.
+  const visibleRows = countryId ? rows.filter((row) => row.countryId === countryId) : rows;
+  const query = search.trim().toLowerCase();
+  const filtered = visibleRows.filter((row) => {
+    if (airlineFilter && row.airlineId !== airlineFilter) return false;
+    if (countryFilter && row.countryId !== countryFilter) return false;
+    if (paxFilter && row.paxType !== paxFilter) return false;
+    if (activeFilter === "active" && !row.active) return false;
+    if (activeFilter === "inactive" && row.active) return false;
+    if (!query) return true;
+    return [row.airlineName, row.airlineCode, row.countryName, row.countryCode].join(" ").toLowerCase().includes(query);
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters = query !== "" || airlineFilter !== "" || countryFilter !== "" || paxFilter !== "" || activeFilter !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setAirlineFilter("");
+    setCountryFilter("");
+    setPaxFilter("");
+    setActiveFilter("all");
+    resetPage();
+  };
+  // Filter options come from the price rows themselves, so an airline/country that has since been deactivated is still filterable.
+  const airlineOptions = [...new Map(visibleRows.map((row) => [row.airlineId, `${row.airlineName} (${row.airlineCode})`])).entries()].sort((a, b) =>
+    a[1].localeCompare(b[1]),
+  );
+  const countryOptions = [...new Map(visibleRows.map((row) => [row.countryId, row.countryName])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const filterClass = cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]");
 
   useEffect(() => {
     let cancelled = false;
@@ -221,15 +259,133 @@ export function OtbPricesManager({ countryId }: { countryId?: string } = {}) {
     );
   }
 
-  // P23 — optional `countryId` (Service Configuration hub) narrows the list and pre-fills the add form. Absent = every row.
-  const visibleRows = countryId ? rows.filter((row) => row.countryId === countryId) : rows;
-
   return (
     <div className="flex flex-col gap-4">
       {visibleRows.length === 0 ? (
         <EmptyState title="No OTB prices yet" description="Until you add one, each airline's own normal / urgent price is charged." />
       ) : (
-        visibleRows.map((row) => <PriceRow key={row.id} row={row} onSaved={(updated) => setRows((current) => current.map((r) => (r.id === updated.id ? updated : r)))} />)
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+              <label htmlFor="otb-price-search" className="sr-only">
+                Search OTB prices
+              </label>
+              <input
+                id="otb-price-search"
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  resetPage();
+                }}
+                placeholder="Search by airline or destination…"
+                className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+              />
+            </div>
+            <label htmlFor="otb-price-filter-airline" className="sr-only">
+              Filter by airline
+            </label>
+            <select
+              id="otb-price-filter-airline"
+              value={airlineFilter}
+              onChange={(event) => {
+                setAirlineFilter(event.target.value);
+                resetPage();
+              }}
+              className={filterClass}
+            >
+              <option value="">All airlines</option>
+              {airlineOptions.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+            {countryId ? null : (
+              <>
+                <label htmlFor="otb-price-filter-country" className="sr-only">
+                  Filter by destination country
+                </label>
+                <select
+                  id="otb-price-filter-country"
+                  value={countryFilter}
+                  onChange={(event) => {
+                    setCountryFilter(event.target.value);
+                    resetPage();
+                  }}
+                  className={filterClass}
+                >
+                  <option value="">All destinations</option>
+                  {countryOptions.map(([id, label]) => (
+                    <option key={id} value={id}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            <label htmlFor="otb-price-filter-pax" className="sr-only">
+              Filter by passenger type
+            </label>
+            <select
+              id="otb-price-filter-pax"
+              value={paxFilter}
+              onChange={(event) => {
+                setPaxFilter(event.target.value as PaxType | "");
+                resetPage();
+              }}
+              className={filterClass}
+            >
+              <option value="">All passenger types</option>
+              {(Object.keys(PAX_LABELS) as PaxType[]).map((pax) => (
+                <option key={pax} value={pax}>
+                  {PAX_LABELS[pax]}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="otb-price-filter-active" className="sr-only">
+              Filter by status
+            </label>
+            <select
+              id="otb-price-filter-active"
+              value={activeFilter}
+              onChange={(event) => {
+                setActiveFilter(event.target.value as ActiveFilter);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Disabled</option>
+            </select>
+            {hasFilters ? (
+              <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No OTB prices match these filters"
+              description={`None of the ${visibleRows.length} OTB prices match. Try a different search term or clear the filters.`}
+              action={
+                <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {pageItems.map((row) => (
+                <PriceRow key={row.id} row={row} onSaved={(updated) => setRows((current) => current.map((r) => (r.id === updated.id ? updated : r)))} />
+              ))}
+              <ListPagination noun="OTB price" {...paginationProps} />
+            </>
+          )}
+        </>
       )}
       <NewPriceForm key={countryId ?? ""} defaultCountryId={countryId} airlines={airlines} countries={countries} onCreated={(created) => setRows((current) => [...current, created])} />
     </div>

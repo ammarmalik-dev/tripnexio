@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Search, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -15,6 +15,8 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 interface CountryData {
   id: string;
@@ -68,6 +70,7 @@ interface ReferenceData {
 
 type FetchState = "loading" | "success" | "error";
 type FieldErrors = Record<string, string[] | undefined>;
+type ActiveFilter = "all" | "active" | "inactive";
 
 interface FormState {
   visaCategory: string;
@@ -124,22 +127,26 @@ function toPayload(form: FormState) {
 }
 
 function ConfigFields({
+  idPrefix,
   form,
   onChange,
   errors,
   disabled,
 }: {
+  /** Keeps control ids unique when several cards are on screen at once. */
+  idPrefix: string;
   form: FormState;
   onChange: (next: FormState) => void;
   errors: FieldErrors;
   disabled: boolean;
 }) {
+  const id = (field: string) => `${idPrefix}-${field}`;
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <FormField label="Stay Duration" htmlFor="stayDays" error={errors.stayDays?.[0]} required>
+        <FormField label="Stay Duration" htmlFor={id("stayDays")} error={errors.stayDays?.[0]} required>
           <select
-            id="stayDays"
+            id={id("stayDays")}
             value={form.stayDays}
             disabled={disabled}
             onChange={(event) => onChange({ ...form, stayDays: event.target.value })}
@@ -152,9 +159,9 @@ function ConfigFields({
             <option value="60">60 Days</option>
           </select>
         </FormField>
-        <FormField label="Entry Type" htmlFor="entryKind" error={errors.entryKind?.[0]} required>
+        <FormField label="Entry Type" htmlFor={id("entryKind")} error={errors.entryKind?.[0]} required>
           <select
-            id="entryKind"
+            id={id("entryKind")}
             value={form.entryKind}
             disabled={disabled}
             onChange={(event) => onChange({ ...form, entryKind: event.target.value })}
@@ -169,7 +176,7 @@ function ConfigFields({
         </FormField>
         <TextField
           label="Display Order"
-          name="displayOrder"
+          name={id("displayOrder")}
           type="number"
           value={form.displayOrder}
           onChange={(event) => onChange({ ...form, displayOrder: event.target.value })}
@@ -179,7 +186,7 @@ function ConfigFields({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField
           label="Visa Category"
-          name="visaCategory"
+          name={id("visaCategory")}
           placeholder="e.g. Tourist / Visit Visa"
           value={form.visaCategory}
           onChange={(event) => onChange({ ...form, visaCategory: event.target.value })}
@@ -188,7 +195,7 @@ function ConfigFields({
         />
         <TextField
           label="Duration text (optional)"
-          name="duration"
+          name={id("duration")}
           placeholder="Defaults to e.g. 30 Days"
           value={form.duration}
           onChange={(event) => onChange({ ...form, duration: event.target.value })}
@@ -197,7 +204,7 @@ function ConfigFields({
         />
         <TextField
           label="Entry type text (optional)"
-          name="entryType"
+          name={id("entryType")}
           placeholder="Defaults to e.g. Single Entry"
           value={form.entryType}
           onChange={(event) => onChange({ ...form, entryType: event.target.value })}
@@ -207,7 +214,7 @@ function ConfigFields({
       </div>
       <TextField
         label="Processing Type"
-        name="processingType"
+        name={id("processingType")}
         placeholder="e.g. Normal & Express available"
         value={form.processingType}
         onChange={(event) => onChange({ ...form, processingType: event.target.value })}
@@ -216,7 +223,7 @@ function ConfigFields({
       />
       <Textarea
         label="Description"
-        name="description"
+        name={id("description")}
         value={form.description}
         onChange={(event) => onChange({ ...form, description: event.target.value })}
         error={errors.description?.[0]}
@@ -224,7 +231,7 @@ function ConfigFields({
       />
       <Textarea
         label="Terms & Conditions"
-        name="termsAndConditions"
+        name={id("termsAndConditions")}
         value={form.termsAndConditions}
         onChange={(event) => onChange({ ...form, termsAndConditions: event.target.value })}
         error={errors.termsAndConditions?.[0]}
@@ -376,7 +383,7 @@ function ConfigCard({
           {dialog}
         </div>
       </div>
-      <ConfigFields form={form} onChange={setForm} errors={errors} disabled={saving} />
+      <ConfigFields idPrefix={`new-visa-${config.id}`} form={form} onChange={setForm} errors={errors} disabled={saving} />
       <ReferencePanel countryId={config.countryId} reference={reference} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
@@ -432,7 +439,7 @@ function NewConfigForm({
       <h2 className="text-sm font-semibold text-ink-heading">Add New Visa Product</h2>
       <SelectField
         label="Country"
-        name="countryId"
+        name="new-visa-new-countryId"
         placeholder={availableCountries.length ? "Select a country" : "No active countries"}
         options={availableCountries.map((c) => ({ value: c.id, label: `${c.name} (${c.code})` }))}
         value={countryId}
@@ -440,7 +447,7 @@ function NewConfigForm({
         error={errors.countryId?.[0]}
         disabled={creating || availableCountries.length === 0}
       />
-      <ConfigFields form={form} onChange={setForm} errors={errors} disabled={creating} />
+      <ConfigFields idPrefix="new-visa-new" form={form} onChange={setForm} errors={errors} disabled={creating} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -472,6 +479,34 @@ export function NewVisaCountriesManager({ countryId }: { countryId?: string } = 
   const [reference, setReference] = useState<ReferenceData>({ pricingRules: [], documentRequirements: [], newVisaTimeline: null });
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [stayFilter, setStayFilter] = useState("");
+  const [entryFilter, setEntryFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  const visibleConfigs = countryId ? configs.filter((config) => config.countryId === countryId) : configs;
+  const query = search.trim().toLowerCase();
+  const filtered = visibleConfigs.filter((config) => {
+    if (stayFilter && String(config.stayDays ?? "") !== stayFilter) return false;
+    if (entryFilter && config.entryKind !== entryFilter) return false;
+    if (activeFilter === "active" && !config.active) return false;
+    if (activeFilter === "inactive" && config.active) return false;
+    if (!query) return true;
+    return [config.country.name, config.country.code, config.visaCategory, config.duration, config.entryType, config.processingType]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters = query !== "" || stayFilter !== "" || entryFilter !== "" || activeFilter !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setStayFilter("");
+    setEntryFilter("");
+    setActiveFilter("all");
+    resetPage();
+  };
+  const filterClass = cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]");
 
   useEffect(() => {
     let cancelled = false;
@@ -535,8 +570,6 @@ export function NewVisaCountriesManager({ countryId }: { countryId?: string } = 
   // P10 — a country can have several products (stay duration x entry type).
   const availableCountries = countries.filter((c) => c.active);
 
-  const visibleConfigs = countryId ? configs.filter((config) => config.countryId === countryId) : configs;
-
   return (
     <div className="flex flex-col gap-4">
       {visibleConfigs.length === 0 ? (
@@ -545,15 +578,105 @@ export function NewVisaCountriesManager({ countryId }: { countryId?: string } = 
           description={countryId ? "Add the first product for this country using the form below." : "Add the first country using the form below."}
         />
       ) : (
-        visibleConfigs.map((config) => (
-          <ConfigCard
-            key={config.id}
-            config={config}
-            reference={reference}
-            onSaved={(updated) => setConfigs((current) => current.map((c) => (c.id === updated.id ? updated : c)))}
-            onDeleted={(id) => setConfigs((current) => current.filter((c) => c.id !== id))}
-          />
-        ))
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+              <label htmlFor="new-visa-product-search" className="sr-only">
+                Search New Visa products
+              </label>
+              <input
+                id="new-visa-product-search"
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  resetPage();
+                }}
+                placeholder="Search by country, code or visa category…"
+                className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+              />
+            </div>
+            <label htmlFor="new-visa-product-filter-stay" className="sr-only">
+              Filter by stay duration
+            </label>
+            <select
+              id="new-visa-product-filter-stay"
+              value={stayFilter}
+              onChange={(event) => {
+                setStayFilter(event.target.value);
+                resetPage();
+              }}
+              className={filterClass}
+            >
+              <option value="">All durations</option>
+              <option value="30">30 Days</option>
+              <option value="60">60 Days</option>
+            </select>
+            <label htmlFor="new-visa-product-filter-entry" className="sr-only">
+              Filter by entry type
+            </label>
+            <select
+              id="new-visa-product-filter-entry"
+              value={entryFilter}
+              onChange={(event) => {
+                setEntryFilter(event.target.value);
+                resetPage();
+              }}
+              className={filterClass}
+            >
+              <option value="">All entry types</option>
+              <option value="SINGLE">Single Entry</option>
+              <option value="MULTIPLE">Multiple Entry</option>
+            </select>
+            <label htmlFor="new-visa-product-filter-active" className="sr-only">
+              Filter by status
+            </label>
+            <select
+              id="new-visa-product-filter-active"
+              value={activeFilter}
+              onChange={(event) => {
+                setActiveFilter(event.target.value as ActiveFilter);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Disabled</option>
+            </select>
+            {hasFilters ? (
+              <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No New Visa products match these filters"
+              description={`None of the ${visibleConfigs.length} products match. Try a different search term or clear the filters.`}
+              action={
+                <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {pageItems.map((config) => (
+                <ConfigCard
+                  key={config.id}
+                  config={config}
+                  reference={reference}
+                  onSaved={(updated) => setConfigs((current) => current.map((c) => (c.id === updated.id ? updated : c)))}
+                  onDeleted={(id) => setConfigs((current) => current.filter((c) => c.id !== id))}
+                />
+              ))}
+              <ListPagination noun="New Visa product" {...paginationProps} />
+            </>
+          )}
+        </>
       )}
       <NewConfigForm
         key={countryId ?? ""}

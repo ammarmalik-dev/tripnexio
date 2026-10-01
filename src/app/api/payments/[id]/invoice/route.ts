@@ -11,7 +11,8 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(_request: Request, { params }: RouteParams) {
+/** `?inline=1` serves the PDF inline (the Invoice History "View" action opens it in a new tab); default stays a download. */
+export async function GET(request: Request, { params }: RouteParams) {
   const auth = await requirePermission("payments.view");
   if (auth.error) return auth.error;
 
@@ -47,10 +48,12 @@ export async function GET(_request: Request, { params }: RouteParams) {
     company,
   });
 
+  const disposition = new URL(request.url).searchParams.get("inline") === "1" ? "inline" : "attachment";
+
   return new Response(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="invoice-${payment.booking.bookingId}.pdf"`,
+      "Content-Disposition": `${disposition}; filename="invoice-${payment.booking.bookingId}.pdf"`,
     },
   });
 }

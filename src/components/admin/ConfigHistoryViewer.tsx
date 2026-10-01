@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { DateRangeFilter } from "@/components/crm/DateRangeFilter";
 import { useDateRangeFilter } from "@/components/crm/useDateRangeFilter";
 import { ListPagination } from "@/components/crm/ListPagination";
+import { usePaginationState } from "@/components/crm/usePagination";
 import { FilterSelect, ListStateView, type FetchState } from "./MonitoringControls";
 import type { AuditFacets } from "./AuditLogViewer";
 import { CONFIG_ENTITY_TYPES, formatDateTime } from "@/lib/admin/monitoring";
@@ -34,7 +35,6 @@ interface ConfigHistoryResponse {
   pageSize: number;
 }
 
-const PAGE_SIZE = 50;
 
 const SOURCE_LABELS: Record<HistorySource, string> = {
   AUDIT: "Audit trail",
@@ -56,7 +56,7 @@ export function ConfigHistoryViewer() {
   const [entityType, setEntityType] = useState("");
   const [userId, setUserId] = useState("");
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
 
   const [users, setUsers] = useState<AuditFacets["users"]>([]);
   const [state, setState] = useState<FetchState>("loading");
@@ -90,7 +90,7 @@ export function ConfigHistoryViewer() {
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       params.set("page", String(page));
-      params.set("pageSize", String(PAGE_SIZE));
+      params.set("pageSize", String(pageSize));
       try {
         const result = await getJson<ConfigHistoryResponse>(`/api/admin/config-history?${params.toString()}`);
         if (cancelled) return;
@@ -106,7 +106,7 @@ export function ConfigHistoryViewer() {
     return () => {
       cancelled = true;
     };
-  }, [entityType, userId, dateFrom, dateTo, page, refreshNonce]);
+  }, [entityType, userId, dateFrom, dateTo, page, pageSize, refreshNonce]);
 
   function onFilter(setter: (value: string) => void) {
     return (value: string) => {
@@ -230,7 +230,7 @@ export function ConfigHistoryViewer() {
       </ListStateView>
 
       {state === "success" && data ? (
-        <ListPagination noun="change" page={data.page} pageSize={data.pageSize} total={data.total} itemCount={items.length} onPageChange={setPage} />
+        <ListPagination noun="change" page={data.page} pageSize={data.pageSize} total={data.total} itemCount={items.length} {...paginationHandlers} />
       ) : null}
     </div>
   );

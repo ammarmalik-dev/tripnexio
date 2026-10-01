@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -13,6 +13,8 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 interface CountryOption {
   id: string;
@@ -29,6 +31,7 @@ interface VisaTypeData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type StatusFilter = "all" | "active" | "hidden";
 
 function CountrySelect({
   id,
@@ -122,36 +125,50 @@ function VisaTypeRow({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-4 lg:flex-row lg:items-end">
-      <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_100px]">
-        <TextField label="Visa type" name={`name-${visaType.id}`} value={name} onChange={(e) => setName(e.target.value)} error={error} disabled={busy} />
-        <CountrySelect id={`country-${visaType.id}`} value={countryId} countries={countries} onChange={setCountryId} disabled={busy} />
-        <TextField label="Order" name={`order-${visaType.id}`} type="number" value={order} onChange={(e) => setOrder(e.target.value)} disabled={busy} />
+    <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-ink-heading">{visaType.name}</h3>
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                visaType.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}
+            >
+              {visaType.active ? "Active" : "Hidden"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-ink-tertiary">
+            {visaType.country?.name ?? "All countries"} · Order {visaType.displayOrder}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button type="button" size="sm" variant="ghost" onClick={() => void save({ active: !visaType.active })} disabled={busy}>
+            {visaType.active ? "Hide" : "Show"}
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => void remove()} disabled={busy}>
+            Remove
+          </Button>
+          {dialog}
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-1">
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-medium",
-            visaType.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-          )}
-        >
-          {visaType.active ? "Active" : "Hidden"}
-        </span>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => void save({ name: name.trim(), countryId: countryId || null, displayOrder: Number(order) || 0 })}
-          disabled={!dirty || busy}
-        >
-          Save
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => void save({ active: !visaType.active })} disabled={busy}>
-          {visaType.active ? "Hide" : "Show"}
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => void remove()} disabled={busy}>
-          Remove
-        </Button>
-        {dialog}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_100px]">
+          <TextField label="Visa type" name={`name-${visaType.id}`} value={name} onChange={(e) => setName(e.target.value)} error={error} disabled={busy} />
+          <CountrySelect id={`country-${visaType.id}`} value={countryId} countries={countries} onChange={setCountryId} disabled={busy} />
+          <TextField label="Order" name={`order-${visaType.id}`} type="number" value={order} onChange={(e) => setOrder(e.target.value)} disabled={busy} />
+        </div>
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => void save({ name: name.trim(), countryId: countryId || null, displayOrder: Number(order) || 0 })}
+            disabled={!dirty || busy}
+          >
+            Save Changes
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -180,15 +197,17 @@ function NewVisaTypeForm({ countries, onCreated }: { countries: CountryOption[];
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-dashed border-hairline bg-surface-1 p-4 lg:flex-row lg:items-end">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
       <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
         <TextField label="New visa type" name="new-visa-type" value={name} onChange={(e) => setName(e.target.value)} error={error} disabled={creating} />
         <CountrySelect id="new-visa-type-country" value={countryId} countries={countries} onChange={setCountryId} disabled={creating} />
       </div>
-      <Button type="button" size="sm" onClick={() => void create()} isLoading={creating} disabled={name.trim().length < 2}>
-        <Plus className="h-4 w-4" aria-hidden="true" />
-        Add
-      </Button>
+      <div className="flex justify-end">
+        <Button type="button" size="sm" onClick={() => void create()} isLoading={creating} disabled={name.trim().length < 2}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add Visa Type
+        </Button>
+      </div>
     </div>
   );
 }
@@ -199,6 +218,22 @@ export function VisaTypesManager() {
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (countryFilter && item.countryId !== countryFilter) return false;
+      if (statusFilter === "active" && !item.active) return false;
+      if (statusFilter === "hidden" && item.active) return false;
+      if (!term) return true;
+      return [item.name, item.country?.name ?? ""].some((value) => value.toLowerCase().includes(term));
+    });
+  }, [items, search, countryFilter, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,25 +283,131 @@ export function VisaTypesManager() {
     );
   }
 
+  const clearFilters = () => {
+    setSearch("");
+    setCountryFilter("");
+    setStatusFilter("all");
+    resetPage();
+  };
+  const createOpen = showCreate || items.length === 0;
+  const trimmedSearch = search.trim();
+
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-4">
+      <section className="rounded-xl border border-hairline bg-surface-1">
+        <button
+          type="button"
+          onClick={() => setShowCreate((current) => !current)}
+          aria-expanded={createOpen}
+          aria-controls="new-visa-type-panel"
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <Plus className="h-4 w-4 text-accent-on-light" aria-hidden="true" />
+            Add new visa type
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-ink-tertiary transition-transform duration-200", createOpen && "rotate-180")}
+            aria-hidden="true"
+          />
+        </button>
+        {createOpen ? (
+          <div id="new-visa-type-panel" className="border-t border-hairline p-5">
+            <NewVisaTypeForm
+              countries={countries}
+              onCreated={(created) => {
+                setItems((current) => [created, ...current]);
+                clearFilters();
+              }}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {items.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              aria-label="Search visa types"
+              placeholder="Search visa type or country"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by destination country"
+            value={countryFilter}
+            onChange={(event) => {
+              setCountryFilter(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-48")}
+          >
+            <option value="">All countries</option>
+            {countries.map((country) => (
+              <option key={country.id} value={country.id}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="hidden">Hidden</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} visa type{filtered.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      ) : null}
+
       {items.length === 0 ? (
         <EmptyState
           title="No visa types yet"
           description="Until one is added, the New Visa form skips the Visa Type question and your team confirms it with the customer."
         />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={trimmedSearch ? `No visa types match "${trimmedSearch}"` : "No visa types match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
       ) : (
-        items.map((item) => (
-          <VisaTypeRow
-            key={item.id}
-            visaType={item}
-            countries={countries}
-            onSaved={(updated) => setItems((current) => current.map((v) => (v.id === updated.id ? updated : v)))}
-            onDeleted={(id) => setItems((current) => current.filter((v) => v.id !== id))}
-          />
-        ))
+        <div className="flex flex-col gap-3">
+          {pageItems.map((item) => (
+            <VisaTypeRow
+              key={item.id}
+              visaType={item}
+              countries={countries}
+              onSaved={(updated) => setItems((current) => current.map((v) => (v.id === updated.id ? updated : v)))}
+              onDeleted={(id) => setItems((current) => current.filter((v) => v.id !== id))}
+            />
+          ))}
+        </div>
       )}
-      <NewVisaTypeForm countries={countries} onCreated={(created) => setItems((current) => [...current, created])} />
+
+      <ListPagination noun="visa type" {...paginationProps} />
     </div>
   );
 }

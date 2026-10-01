@@ -9,6 +9,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { ListPagination } from "@/components/crm/ListPagination";
+import { usePaginationState } from "@/components/crm/usePagination";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -86,7 +87,6 @@ const EMPTY_FILTERS: Filters = {
   expiringWithinDays: "",
 };
 
-const PAGE_SIZE = 25;
 const EXPIRY_WINDOWS = [7, 15, 30, 60, 90];
 
 const STATUS_LABELS: Record<RuleStatus, string> = {
@@ -112,11 +112,11 @@ function formatDate(value: string | null): string {
   return new Date(value).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-function buildQuery(filters: Filters, page: number): string {
+function buildQuery(filters: Filters, page: number, pageSize: number): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
   params.set("page", String(page));
-  params.set("pageSize", String(PAGE_SIZE));
+  params.set("pageSize", String(pageSize));
   return params.toString();
 }
 
@@ -182,7 +182,7 @@ function SummaryTile({ label, value, hint, active, onClick }: { label: string; v
  */
 export function PricingDashboard() {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [options, setOptions] = useState<DashboardOptions | null>(null);
@@ -198,7 +198,7 @@ export function PricingDashboard() {
       setState("loading");
       try {
         const needsOptions = !optionsLoadedRef.current;
-        const result = await getJson<DashboardResponse>(`/api/admin/pricing-dashboard?${buildQuery(filters, page)}${needsOptions ? "&includeOptions=1" : ""}`);
+        const result = await getJson<DashboardResponse>(`/api/admin/pricing-dashboard?${buildQuery(filters, page, pageSize)}${needsOptions ? "&includeOptions=1" : ""}`);
         if (cancelled) return;
         setData(result);
         if (result.options) {
@@ -217,7 +217,7 @@ export function PricingDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [filters, page, reloadNonce]);
+  }, [filters, page, pageSize, reloadNonce]);
 
   const updateFilters = (patch: Partial<Filters>) => {
     setFilters((current) => ({ ...current, ...patch }));
@@ -455,7 +455,6 @@ export function PricingDashboard() {
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-ink-tertiary">Margin = selling price + extra charges − vendor cost (internal).</p>
             <ListPagination
               noun="pricing rule"
               page={data.page}
@@ -463,8 +462,9 @@ export function PricingDashboard() {
               total={data.total}
               itemCount={data.items.length}
               disabled={state === "loading"}
-              onPageChange={setPage}
+              {...paginationHandlers}
             />
+            <p className="text-xs text-ink-tertiary">Margin = selling price + extra charges − vendor cost (internal).</p>
           </>
         ) : null}
       </section>

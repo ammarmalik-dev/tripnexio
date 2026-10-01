@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -14,6 +14,8 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 interface AirportData {
   id: string;
@@ -30,9 +32,7 @@ interface AirportData {
 }
 
 type FetchState = "loading" | "success" | "error";
-
-/** Keeps the page responsive once a large CSV has been imported — search/filter narrows the rest. */
-const MAX_VISIBLE_AIRPORTS = 50;
+type StatusFilter = "all" | "active" | "disabled";
 
 interface AirportFormState {
   name: string;
@@ -249,15 +249,27 @@ function AirportCard({
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={cn(
-            "rounded-full px-2.5 py-1 text-xs font-medium",
-            airport.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-          )}
-        >
-          {airport.active ? "Active" : "Disabled"}
-        </span>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-base font-semibold text-ink-heading">{airport.name}</h3>
+            <span className="rounded-md bg-ink-primary/[0.05] px-1.5 py-0.5 font-mono text-xs text-ink-secondary">
+              {airport.code}
+            </span>
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                airport.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}
+            >
+              {airport.active ? "Active" : "Disabled"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-ink-tertiary">
+            {[airport.city, airport.country, airport.countryRef?.name].filter(Boolean).join(" · ")} · Order{" "}
+            {airport.displayOrder}
+          </p>
+        </div>
         <div className="flex items-center gap-1">
           <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
             {airport.active ? "Disable" : "Enable"}
@@ -308,8 +320,7 @@ function NewAirportForm({
   const canSubmit = form.name.trim() && form.code.trim() && form.country.trim() && form.city.trim() && form.countryId;
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">New Airport</h2>
+    <div className="flex flex-col gap-4">
       <AirportFields form={form} onChange={setForm} errors={errors} disabled={creating} countryOptions={countryOptions} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
@@ -329,7 +340,20 @@ export function AirportsManager() {
   const countryOptions = useCountries();
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return airports.filter((airport) => {
+      if (countryFilter && airport.countryId !== countryFilter) return false;
+      if (statusFilter === "active" && !airport.active) return false;
+      if (statusFilter === "disabled" && airport.active) return false;
+      if (!term) return true;
+      return [airport.name, airport.code, airport.city, airport.country].some((value) => value.toLowerCase().includes(term));
+    });
+  }, [airports, search, countryFilter, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
     let cancelled = false;
@@ -378,67 +402,116 @@ export function AirportsManager() {
     );
   }
 
-  const term = search.trim().toLowerCase();
-  const filtered = airports.filter((airport) => {
-    if (countryFilter && airport.countryId !== countryFilter) return false;
-    if (statusFilter === "active" && !airport.active) return false;
-    if (statusFilter === "disabled" && airport.active) return false;
-    if (!term) return true;
-    return [airport.name, airport.code, airport.city, airport.country].some((value) => value.toLowerCase().includes(term));
-  });
-  const visible = filtered.slice(0, MAX_VISIBLE_AIRPORTS);
+  const clearFilters = () => {
+    setSearch("");
+    setCountryFilter("");
+    setStatusFilter("all");
+    resetPage();
+  };
+  const createOpen = showCreate || airports.length === 0;
+  const trimmedSearch = search.trim();
 
   return (
     <div className="flex flex-col gap-4">
-      {airports.length > 0 ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <TextField
-            label="Search"
-            name="airport-search"
-            placeholder="Name, code, city or country"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
+      <section className="rounded-xl border border-hairline bg-surface-1">
+        <button
+          type="button"
+          onClick={() => setShowCreate((current) => !current)}
+          aria-expanded={createOpen}
+          aria-controls="new-airport-panel"
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <Plus className="h-4 w-4 text-accent-on-light" aria-hidden="true" />
+            Add new airport
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-ink-tertiary transition-transform duration-200", createOpen && "rotate-180")}
+            aria-hidden="true"
           />
-          <FormField label="Country" htmlFor="airport-country-filter">
-            <select
-              id="airport-country-filter"
-              value={countryFilter}
-              onChange={(event) => setCountryFilter(event.target.value)}
-              className={cn(fieldControlClass, fieldBorderClass(false))}
-            >
-              <option value="">All countries</option>
-              {countryOptions.map((country) => (
-                <option key={country.id} value={country.id}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
-          </FormField>
-          <FormField label="Status" htmlFor="airport-status-filter">
-            <select
-              id="airport-status-filter"
-              value={statusFilter}
-              onChange={(event) => setStatusFilter(event.target.value as "all" | "active" | "disabled")}
-              className={cn(fieldControlClass, fieldBorderClass(false))}
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="disabled">Disabled</option>
-            </select>
-          </FormField>
+        </button>
+        {createOpen ? (
+          <div id="new-airport-panel" className="border-t border-hairline p-5">
+            <NewAirportForm
+              onCreated={(created) => {
+                setAirports((current) => [created, ...current]);
+                clearFilters();
+              }}
+              countryOptions={countryOptions}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {airports.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              aria-label="Search airports"
+              placeholder="Search name, code, city or country"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by country"
+            value={countryFilter}
+            onChange={(event) => {
+              setCountryFilter(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-48")}
+          >
+            <option value="">All countries</option>
+            {countryOptions.map((country) => (
+              <option key={country.id} value={country.id}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} airport{filtered.length === 1 ? "" : "s"}
+          </p>
         </div>
       ) : null}
+
       {airports.length === 0 ? (
-        <EmptyState title="No airports yet" description="Add the first one using the form below, or bulk-import a CSV above." />
+        <EmptyState title="No airports yet" description="Add the first one using the form above, or bulk-import a CSV." />
       ) : filtered.length === 0 ? (
-        <EmptyState title="No airports match" description="Try a different search or filter." />
+        <EmptyState
+          title={trimmedSearch ? `No airports match "${trimmedSearch}"` : "No airports match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
       ) : (
-        <>
-          <p className="text-xs text-ink-tertiary">
-            Showing {visible.length} of {filtered.length} airport{filtered.length === 1 ? "" : "s"}
-            {filtered.length > visible.length ? " — narrow the search to see the rest." : "."}
-          </p>
-          {visible.map((airport) => (
+        <div className="flex flex-col gap-3">
+          {pageItems.map((airport) => (
             <AirportCard
               key={airport.id}
               airport={airport}
@@ -447,9 +520,10 @@ export function AirportsManager() {
               countryOptions={countryOptions}
             />
           ))}
-        </>
+        </div>
       )}
-      <NewAirportForm onCreated={(created) => setAirports((current) => [...current, created])} countryOptions={countryOptions} />
+
+      <ListPagination noun="airport" {...paginationProps} />
     </div>
   );
 }

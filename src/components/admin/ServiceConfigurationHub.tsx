@@ -81,7 +81,10 @@ function TabPanelContent({ service, country, tab }: { service: ServiceType; coun
             </p>
           ) : null}
           <CsvImportPanel entity="pricing-rules" />
-          <PricingRulesManager />
+          <PricingRulesManager
+            initialServiceType={service === "OTB" || service === "RETURN_TICKET" ? undefined : service}
+            initialCountryId={countryId}
+          />
         </div>
       );
     case "documents":

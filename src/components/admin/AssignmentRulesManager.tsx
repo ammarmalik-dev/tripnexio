@@ -15,6 +15,10 @@ import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+
+type ActiveFilter = "all" | "active" | "inactive";
 
 interface AssignmentRuleData {
   id: string;
@@ -317,6 +321,22 @@ export function AssignmentRulesManager() {
   const [options, setOptions] = useState<Options>({ subServices: [], roles: [] });
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  const filtered = rules.filter((rule) => {
+    if (serviceFilter && rule.serviceType !== serviceFilter) return false;
+    if (activeFilter === "active" && !rule.active) return false;
+    if (activeFilter === "inactive" && rule.active) return false;
+    return true;
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters = serviceFilter !== "" || activeFilter !== "all";
+  const clearFilters = () => {
+    setServiceFilter("");
+    setActiveFilter("all");
+    resetPage();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -374,15 +394,74 @@ export function AssignmentRulesManager() {
           description="Without rules, auto-assign picks the rostered staff member with the lowest PAX workload. Add a rule to limit it by role or open-lead count."
         />
       ) : (
-        rules.map((rule) => (
-          <RuleCard
-            key={rule.id}
-            rule={rule}
-            options={options}
-            onSaved={replace}
-            onDeleted={(id) => setRules((current) => current.filter((entry) => entry.id !== id))}
-          />
-        ))
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <label htmlFor="assignment-rule-filter-service" className="sr-only">
+              Filter by service
+            </label>
+            <select
+              id="assignment-rule-filter-service"
+              value={serviceFilter}
+              onChange={(event) => {
+                setServiceFilter(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[180px]")}
+            >
+              <option value="">All services</option>
+              {SERVICE_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="assignment-rule-filter-active" className="sr-only">
+              Filter by status
+            </label>
+            <select
+              id="assignment-rule-filter-active"
+              value={activeFilter}
+              onChange={(event) => {
+                setActiveFilter(event.target.value as ActiveFilter);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Disabled</option>
+            </select>
+            {hasFilters ? (
+              <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              title="No rules match these filters"
+              description={`None of the ${rules.length} rules match. Clear the filters to see them all.`}
+              action={
+                <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {pageItems.map((rule) => (
+                <RuleCard
+                  key={rule.id}
+                  rule={rule}
+                  options={options}
+                  onSaved={replace}
+                  onDeleted={(id) => setRules((current) => current.filter((entry) => entry.id !== id))}
+                />
+              ))}
+              <ListPagination noun="assignment rule" {...paginationProps} />
+            </>
+          )}
+        </>
       )}
       <NewRuleForm options={options} onCreated={(created) => setRules((current) => [...current, created])} />
     </div>

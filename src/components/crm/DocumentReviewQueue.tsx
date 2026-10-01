@@ -15,6 +15,8 @@ import { DashboardFilterChip } from "./DashboardFilterChip";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { DOCUMENT_STATUS_OPTIONS, DOCUMENT_STATUS_LABELS } from "@/lib/crm/labels";
+import { ListPagination } from "./ListPagination";
+import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { DocumentStatus } from "../../generated/prisma/enums";
@@ -63,13 +65,17 @@ export function DocumentReviewQueue() {
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
   const [statusOverrides, setStatusOverrides] = useState<Record<string, DocumentStatus>>({});
   const [reasonOverrides, setReasonOverrides] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +89,8 @@ export function DocumentReviewQueue() {
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
 
         const result = await getJson<DocumentListResponse>(`/api/documents?${params.toString()}`);
         if (cancelled) return;
@@ -101,7 +109,7 @@ export function DocumentReviewQueue() {
     return () => {
       cancelled = true;
     };
-  }, [status, dateFrom, dateTo, search, sort, refreshNonce]);
+  }, [status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   const missingCount = items.filter((item) => (statusOverrides[item.id] ?? item.status) === "MISSING").length;
 
@@ -136,7 +144,10 @@ export function DocumentReviewQueue() {
         <select
           id="filter-document-status"
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
         >
           <option value="">All statuses</option>
@@ -153,7 +164,10 @@ export function DocumentReviewQueue() {
         <select
           id="sort-documents"
           value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="createdAt_desc">Newest first</option>
@@ -176,10 +190,22 @@ export function DocumentReviewQueue() {
         idPrefix="document"
         dateFrom={dateFrom}
         dateTo={dateTo}
-        onPreset={applyPreset}
-        onCustomFrom={applyCustomFrom}
-        onCustomTo={applyCustomTo}
-        onClear={clearDates}
+        onPreset={(days) => {
+          applyPreset(days);
+          resetPage();
+        }}
+        onCustomFrom={(dateOnly) => {
+          applyCustomFrom(dateOnly);
+          resetPage();
+        }}
+        onCustomTo={(dateOnly) => {
+          applyCustomTo(dateOnly);
+          resetPage();
+        }}
+        onClear={() => {
+          clearDates();
+          resetPage();
+        }}
       />
 
       <DashboardFilterChip
@@ -275,9 +301,14 @@ export function DocumentReviewQueue() {
       ) : null}
 
       {state === "success" ? (
-        <p className="text-xs text-ink-tertiary">
-          Showing {items.length} of {total} document{total === 1 ? "" : "s"}
-        </p>
+        <ListPagination
+          noun="document"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          itemCount={items.length}
+          {...paginationHandlers}
+        />
       ) : null}
     </div>
   );

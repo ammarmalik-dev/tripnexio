@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Copy } from "lucide-react";
+import { Plus, Copy, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { SERVICE_TYPE_OPTIONS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
+import { SERVICE_TYPE_OPTIONS, SERVICE_TYPE_LABELS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
 import { NationalitySelect, nationalityFormValue, nationalityPayload } from "./NationalitySelect";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
 
@@ -39,6 +41,10 @@ interface DocumentRequirementData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type ActiveFilter = "all" | "active" | "inactive";
+type RequiredFilter = "all" | "required" | "optional";
+/** Country filter value for the all-countries (not country-specific) rows. */
+const NO_COUNTRY = "__none";
 
 interface FormState {
   serviceType: ServiceType | "";
@@ -63,6 +69,7 @@ function toFormState(item: DocumentRequirementData): FormState {
 }
 
 function RequirementFields({
+  idPrefix,
   form,
   onChange,
   errors,
@@ -70,6 +77,8 @@ function RequirementFields({
   countries,
   currentNationalityName,
 }: {
+  /** Keeps control ids unique when several cards are on screen at once. */
+  idPrefix: string;
   form: FormState;
   onChange: (next: FormState) => void;
   errors: Record<string, string[] | undefined>;
@@ -77,11 +86,12 @@ function RequirementFields({
   countries: CountryData[];
   currentNationalityName?: string | null;
 }) {
+  const id = (field: string) => `${idPrefix}-${field}`;
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <FormField label="Service" htmlFor="serviceType" error={errors.serviceType?.[0]}>
+      <FormField label="Service" htmlFor={id("serviceType")} error={errors.serviceType?.[0]}>
         <select
-          id="serviceType"
+          id={id("serviceType")}
           value={form.serviceType}
           disabled={disabled}
           onChange={(event) => onChange({ ...form, serviceType: event.target.value as ServiceType })}
@@ -99,17 +109,17 @@ function RequirementFields({
       </FormField>
       <SelectField
         label="Country"
-        name="countryId"
+        name={id("countryId")}
         placeholder="All countries (not country-specific)"
         options={countries.map((c) => ({ value: c.id, label: c.name }))}
         value={form.countryId}
         onChange={(event) => onChange({ ...form, countryId: event.target.value })}
         error={errors.countryId?.[0]}
         disabled={disabled}
-        hint="Optional — the destination GCC country, distinct from nationality below."
+        hint="Optional — the destination country, distinct from nationality below."
       />
       <NationalitySelect
-        id="nationality"
+        id={id("nationality")}
         value={form.nationality}
         onChange={(value) => onChange({ ...form, nationality: value })}
         currentName={currentNationalityName}
@@ -117,9 +127,9 @@ function RequirementFields({
         disabled={disabled}
         hint="Optional — the applicant's own nationality."
       />
-      <FormField label="Passenger Type" htmlFor="paxType" error={errors.paxType?.[0]}>
+      <FormField label="Passenger Type" htmlFor={id("paxType")} error={errors.paxType?.[0]}>
         <select
-          id="paxType"
+          id={id("paxType")}
           value={form.paxType}
           disabled={disabled}
           onChange={(event) => onChange({ ...form, paxType: event.target.value as PaxType })}
@@ -135,7 +145,7 @@ function RequirementFields({
       </FormField>
       <TextField
         label="Document Name"
-        name="documentName"
+        name={id("documentName")}
         placeholder="e.g. Passport Copy"
         value={form.documentName}
         onChange={(event) => onChange({ ...form, documentName: event.target.value })}
@@ -236,6 +246,7 @@ function RequirementCard({
         </Button>
       </div>
       <RequirementFields
+        idPrefix={`requirement-${item.id}`}
         form={form}
         onChange={setForm}
         errors={errors}
@@ -296,7 +307,7 @@ function NewRequirementForm({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Document Requirement</h2>
-      <RequirementFields form={form} onChange={setForm} errors={errors} disabled={creating} countries={countries} />
+      <RequirementFields idPrefix="new-requirement" form={form} onChange={setForm} errors={errors} disabled={creating} countries={countries} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -521,6 +532,48 @@ export function DocumentRequirementsManager({ serviceType, countryId }: { servic
   const [countries, setCountries] = useState<CountryData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [serviceFilter, setServiceFilter] = useState<ServiceType | "">("");
+  const [countryFilter, setCountryFilter] = useState("");
+  const [paxFilter, setPaxFilter] = useState<PaxType | "">("");
+  const [requiredFilter, setRequiredFilter] = useState<RequiredFilter>("all");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  // Hub scoping first (service / country props), then the toolbar filters.
+  const visibleItems = items.filter(
+    (item) =>
+      (!serviceType || item.serviceType === serviceType) &&
+      (!countryId || item.countryId === countryId || item.countryId === null),
+  );
+  const query = search.trim().toLowerCase();
+  const filtered = visibleItems.filter((item) => {
+    if (serviceFilter && item.serviceType !== serviceFilter) return false;
+    if (countryFilter === NO_COUNTRY ? item.countryId !== null : countryFilter !== "" && item.countryId !== countryFilter) return false;
+    if (paxFilter && item.paxType !== paxFilter) return false;
+    if (requiredFilter === "required" && !item.required) return false;
+    if (requiredFilter === "optional" && item.required) return false;
+    if (activeFilter === "active" && !item.active) return false;
+    if (activeFilter === "inactive" && item.active) return false;
+    if (!query) return true;
+    return [item.documentName, item.country?.name, item.country?.code, item.nationality, SERVICE_TYPE_LABELS[item.serviceType]]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters =
+    query !== "" || serviceFilter !== "" || countryFilter !== "" || paxFilter !== "" || requiredFilter !== "all" || activeFilter !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setServiceFilter("");
+    setCountryFilter("");
+    setPaxFilter("");
+    setRequiredFilter("all");
+    setActiveFilter("all");
+    resetPage();
+  };
+  const filterClass = cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]");
 
   useEffect(() => {
     let cancelled = false;
@@ -573,11 +626,6 @@ export function DocumentRequirementsManager({ serviceType, countryId }: { servic
     );
   }
 
-  const visibleItems = items.filter(
-    (item) =>
-      (!serviceType || item.serviceType === serviceType) &&
-      (!countryId || item.countryId === countryId || item.countryId === null),
-  );
   const formDefaults = { ...(serviceType ? { serviceType } : {}), ...(countryId ? { countryId } : {}) };
 
   return (
@@ -586,14 +634,152 @@ export function DocumentRequirementsManager({ serviceType, countryId }: { servic
       {visibleItems.length === 0 ? (
         <EmptyState title="No document requirements yet" description="Add the first one using the form below." />
       ) : (
-        visibleItems.map((item) => (
-          <RequirementCard
-            key={item.id}
-            item={item}
-            countries={countries}
-            onSaved={(updated) => setItems((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-          />
-        ))
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+              <label htmlFor="document-requirement-search" className="sr-only">
+                Search document requirements
+              </label>
+              <input
+                id="document-requirement-search"
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  resetPage();
+                }}
+                placeholder="Search by document, country or nationality…"
+                className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+              />
+            </div>
+            {serviceType ? null : (
+              <>
+                <label htmlFor="document-requirement-filter-service" className="sr-only">
+                  Filter by service
+                </label>
+                <select
+                  id="document-requirement-filter-service"
+                  value={serviceFilter}
+                  onChange={(event) => {
+                    setServiceFilter(event.target.value as ServiceType | "");
+                    resetPage();
+                  }}
+                  className={filterClass}
+                >
+                  <option value="">All services</option>
+                  {SERVICE_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+            <label htmlFor="document-requirement-filter-country" className="sr-only">
+              Filter by country
+            </label>
+            <select
+              id="document-requirement-filter-country"
+              value={countryFilter}
+              onChange={(event) => {
+                setCountryFilter(event.target.value);
+                resetPage();
+              }}
+              className={filterClass}
+            >
+              <option value="">All countries</option>
+              <option value={NO_COUNTRY}>Not country-specific</option>
+              {countries
+                .filter((entry) => !countryId || entry.id === countryId)
+                .map((entry) => (
+                  <option key={entry.id} value={entry.id}>
+                    {entry.name}
+                  </option>
+                ))}
+            </select>
+            <label htmlFor="document-requirement-filter-pax" className="sr-only">
+              Filter by passenger type
+            </label>
+            <select
+              id="document-requirement-filter-pax"
+              value={paxFilter}
+              onChange={(event) => {
+                setPaxFilter(event.target.value as PaxType | "");
+                resetPage();
+              }}
+              className={filterClass}
+            >
+              <option value="">All passenger types</option>
+              {PAX_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="document-requirement-filter-required" className="sr-only">
+              Filter by required or optional
+            </label>
+            <select
+              id="document-requirement-filter-required"
+              value={requiredFilter}
+              onChange={(event) => {
+                setRequiredFilter(event.target.value as RequiredFilter);
+                resetPage();
+              }}
+              className={filterClass}
+            >
+              <option value="all">Required &amp; optional</option>
+              <option value="required">Required only</option>
+              <option value="optional">Optional only</option>
+            </select>
+            <label htmlFor="document-requirement-filter-active" className="sr-only">
+              Filter by status
+            </label>
+            <select
+              id="document-requirement-filter-active"
+              value={activeFilter}
+              onChange={(event) => {
+                setActiveFilter(event.target.value as ActiveFilter);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Disabled</option>
+            </select>
+            {hasFilters ? (
+              <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No document requirements match these filters"
+              description={`None of the ${visibleItems.length} document requirements match. Try a different search term or clear the filters.`}
+              action={
+                <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {pageItems.map((item) => (
+                <RequirementCard
+                  key={item.id}
+                  item={item}
+                  countries={countries}
+                  onSaved={(updated) => setItems((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+                />
+              ))}
+              <ListPagination noun="document requirement" {...paginationProps} />
+            </>
+          )}
+        </>
       )}
       <NewRequirementForm
         key={`${serviceType ?? ""}-${countryId ?? ""}`}

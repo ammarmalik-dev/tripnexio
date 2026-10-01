@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Pause, Play, RotateCw, ListChecks, CalendarCheck, CreditCard, MessageCircle, ScanText } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { LeadStatusBadge } from "@/components/crm/LeadStatusBadge";
 import { BookingStatusBadge } from "@/components/crm/BookingStatusBadge";
 import { PaymentStatusBadge } from "@/components/crm/PaymentStatusBadge";
@@ -66,8 +68,19 @@ const OCR_STATUS_LABELS: Record<OcrExtractionStatus, string> = {
   REJECTED: "Rejected",
 };
 
-function ActivityCard({ title, icon, count, children }: { title: string; icon: ReactNode; count: number; children: ReactNode }) {
+interface ActivityCardProps<T extends { id: string }> {
+  title: string;
+  /** Singular noun for the pagination summary, e.g. "lead". */
+  noun: string;
+  icon: ReactNode;
+  items: readonly T[];
+  renderItem: (item: T) => ReactNode;
+}
+
+/** One activity type: the latest rows, 10 per page, with its own pager. */
+function ActivityCard<T extends { id: string }>({ title, noun, icon, items, renderItem }: ActivityCardProps<T>) {
   const headingId = `live-${title.toLowerCase().replace(/\W+/g, "-")}`;
+  const { pageItems, paginationProps } = useClientPagination(items);
   return (
     <section aria-labelledby={headingId} className="flex min-w-0 flex-col rounded-xl border border-hairline bg-surface-1">
       <header className="flex items-center justify-between gap-2 border-b border-hairline px-4 py-3">
@@ -75,19 +88,24 @@ function ActivityCard({ title, icon, count, children }: { title: string; icon: R
           {icon}
           {title}
         </h2>
-        <span className="text-xs text-ink-tertiary">Last {count}</span>
+        <span className="text-xs text-ink-tertiary">Last {items.length}</span>
       </header>
-      {count === 0 ? (
+      {items.length === 0 ? (
         <EmptyState className="m-4" title={`No ${title.toLowerCase()} yet`} />
       ) : (
-        <ul className="flex max-h-[420px] flex-col overflow-y-auto">{children}</ul>
+        <>
+          <ul className="flex flex-col">
+            {pageItems.map((item) => (
+              <li key={item.id} className="flex items-start justify-between gap-3 border-b border-hairline px-4 py-2.5 text-sm last:border-b-0">
+                {renderItem(item)}
+              </li>
+            ))}
+          </ul>
+          <ListPagination noun={noun} {...paginationProps} className="m-3 mt-auto" />
+        </>
       )}
     </section>
   );
-}
-
-function ActivityRow({ children }: { children: ReactNode }) {
-  return <li className="flex items-start justify-between gap-3 border-b border-hairline px-4 py-2.5 text-sm last:border-b-0">{children}</li>;
 }
 
 /**
@@ -168,9 +186,13 @@ export function LiveActivityFeed() {
       >
         {data ? (
           <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
-            <ActivityCard title="Leads" icon={<ListChecks className="h-4 w-4" aria-hidden="true" />} count={data.leads.length}>
-              {data.leads.map((lead) => (
-                <ActivityRow key={lead.id}>
+            <ActivityCard
+              title="Leads"
+              noun="lead"
+              icon={<ListChecks className="h-4 w-4" aria-hidden="true" />}
+              items={data.leads}
+              renderItem={(lead) => (
+                <>
                   <div className="min-w-0">
                     <Link href={`/crm/leads/${lead.id}`} className="font-medium text-ink-accent hover:underline">
                       {lead.reference}
@@ -184,13 +206,17 @@ export function LiveActivityFeed() {
                     <LeadStatusBadge status={lead.status} />
                     <span className="text-xs text-ink-tertiary">{formatDateTime(lead.createdAt)}</span>
                   </div>
-                </ActivityRow>
-              ))}
-            </ActivityCard>
+                </>
+              )}
+            />
 
-            <ActivityCard title="Payments" icon={<CreditCard className="h-4 w-4" aria-hidden="true" />} count={data.payments.length}>
-              {data.payments.map((payment) => (
-                <ActivityRow key={payment.id}>
+            <ActivityCard
+              title="Payments"
+              noun="payment"
+              icon={<CreditCard className="h-4 w-4" aria-hidden="true" />}
+              items={data.payments}
+              renderItem={(payment) => (
+                <>
                   <div className="min-w-0">
                     <div className="font-medium text-ink-primary">{formatCurrency(payment.total)}</div>
                     <div className="truncate text-xs text-ink-tertiary">
@@ -204,13 +230,17 @@ export function LiveActivityFeed() {
                     <PaymentStatusBadge status={payment.status} />
                     <span className="text-xs text-ink-tertiary">{formatDateTime(payment.createdAt)}</span>
                   </div>
-                </ActivityRow>
-              ))}
-            </ActivityCard>
+                </>
+              )}
+            />
 
-            <ActivityCard title="Bookings" icon={<CalendarCheck className="h-4 w-4" aria-hidden="true" />} count={data.bookings.length}>
-              {data.bookings.map((booking) => (
-                <ActivityRow key={booking.id}>
+            <ActivityCard
+              title="Bookings"
+              noun="booking"
+              icon={<CalendarCheck className="h-4 w-4" aria-hidden="true" />}
+              items={data.bookings}
+              renderItem={(booking) => (
+                <>
                   <div className="min-w-0">
                     <Link href={`/crm/bookings/${booking.id}`} className="font-medium text-ink-accent hover:underline">
                       {booking.bookingId}
@@ -223,17 +253,17 @@ export function LiveActivityFeed() {
                     <BookingStatusBadge status={booking.status} />
                     <span className="text-xs text-ink-tertiary">{formatDateTime(booking.createdAt)}</span>
                   </div>
-                </ActivityRow>
-              ))}
-            </ActivityCard>
+                </>
+              )}
+            />
 
             <ActivityCard
               title="WhatsApp Conversations"
+              noun="conversation"
               icon={<MessageCircle className="h-4 w-4" aria-hidden="true" />}
-              count={data.conversations.length}
-            >
-              {data.conversations.map((conversation) => (
-                <ActivityRow key={conversation.id}>
+              items={data.conversations}
+              renderItem={(conversation) => (
+                <>
                   <div className="min-w-0">
                     <div className="font-medium text-ink-primary">
                       {conversation.customerName ?? "Unknown"} <span className="text-xs font-normal text-ink-tertiary">{conversation.maskedNumber}</span>
@@ -262,13 +292,17 @@ export function LiveActivityFeed() {
                   <span className="shrink-0 text-xs text-ink-tertiary">
                     {formatDateTime(conversation.latestMessage?.createdAt ?? conversation.updatedAt)}
                   </span>
-                </ActivityRow>
-              ))}
-            </ActivityCard>
+                </>
+              )}
+            />
 
-            <ActivityCard title="OCR Jobs" icon={<ScanText className="h-4 w-4" aria-hidden="true" />} count={data.ocrJobs.length}>
-              {data.ocrJobs.map((job) => (
-                <ActivityRow key={job.id}>
+            <ActivityCard
+              title="OCR Jobs"
+              noun="OCR job"
+              icon={<ScanText className="h-4 w-4" aria-hidden="true" />}
+              items={data.ocrJobs}
+              renderItem={(job) => (
+                <>
                   <div className="min-w-0">
                     <div className="font-medium text-ink-primary">
                       {job.extractionType.charAt(0) + job.extractionType.slice(1).toLowerCase()}
@@ -294,9 +328,9 @@ export function LiveActivityFeed() {
                     <span className="text-xs font-medium text-ink-secondary">{OCR_STATUS_LABELS[job.status]}</span>
                     <span className="text-xs text-ink-tertiary">{formatDateTime(job.createdAt)}</span>
                   </div>
-                </ActivityRow>
-              ))}
-            </ActivityCard>
+                </>
+              )}
+            />
           </div>
         ) : null}
       </ListStateView>

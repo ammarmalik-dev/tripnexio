@@ -7,6 +7,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { DateRangeFilter } from "@/components/crm/DateRangeFilter";
 import { useDateRangeFilter } from "@/components/crm/useDateRangeFilter";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import type { ConversionRow, CountAmountRow, CrmReports } from "@/lib/crm/reports";
 
@@ -35,32 +38,40 @@ function Section({ title, description, children }: { title: string; description?
   );
 }
 
-function ReportTable({ headers, rows, empty }: { headers: string[]; rows: ReactNode[][]; empty: string }) {
+/**
+ * Read-only report table. Paginates (10 rows first) once it has more rows
+ * than a single default page, so short breakdowns stay uncluttered.
+ */
+function ReportTable({ headers, rows, empty, noun = "row" }: { headers: string[]; rows: ReactNode[][]; empty: string; noun?: string }) {
+  const { pageItems, paginationProps } = useClientPagination(rows);
   if (rows.length === 0) return <p className="text-sm text-ink-tertiary">{empty}</p>;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full min-w-[20rem] text-left text-sm">
-        <thead>
-          <tr className="border-b border-hairline text-xs text-ink-tertiary">
-            {headers.map((header, i) => (
-              <th key={header} scope="col" className={i === 0 ? "py-2 pr-3 font-medium" : "py-2 pl-3 text-right font-medium"}>
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((cells, rowIndex) => (
-            <tr key={rowIndex} className="border-b border-hairline last:border-0">
-              {cells.map((cell, i) => (
-                <td key={i} className={i === 0 ? "py-2 pr-3 text-ink-secondary" : "py-2 pl-3 text-right font-medium text-ink-primary"}>
-                  {cell}
-                </td>
+    <div className="flex flex-col gap-3">
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[20rem] text-left text-sm">
+          <thead>
+            <tr className="border-b border-hairline text-xs uppercase tracking-wide text-ink-tertiary">
+              {headers.map((header, i) => (
+                <th key={header} scope="col" className={i === 0 ? "py-2 pr-3 font-medium" : "py-2 pl-3 text-right font-medium"}>
+                  {header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {pageItems.map((cells, rowIndex) => (
+              <tr key={rowIndex} className="border-b border-hairline last:border-0 hover:bg-ink-primary/[0.02]">
+                {cells.map((cell, i) => (
+                  <td key={i} className={i === 0 ? "py-2 pr-3 text-ink-secondary" : "py-2 pl-3 text-right font-medium tabular-nums text-ink-primary"}>
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {rows.length > DEFAULT_PAGE_SIZE ? <ListPagination noun={noun} {...paginationProps} /> : null}
     </div>
   );
 }
@@ -173,7 +184,7 @@ export function CrmReportsView() {
               <ReportTable headers={["Service", "Leads", "Qualified", "Converted", "Rate"]} rows={conversionRows(data.conversionByService)} empty="No leads in this period." />
             </Section>
             <Section title="Lead conversion by source">
-              <ReportTable headers={["Source", "Leads", "Qualified", "Converted", "Rate"]} rows={conversionRows(data.conversionBySource)} empty="No leads in this period." />
+              <ReportTable noun="source" headers={["Source", "Leads", "Qualified", "Converted", "Rate"]} rows={conversionRows(data.conversionBySource)} empty="No leads in this period." />
             </Section>
             <Section title="Service mix" description="Share of period bookings and of revenue collected, per service.">
               <ReportTable
@@ -195,6 +206,7 @@ export function CrmReportsView() {
           <Section title="Staff workload" description="Live snapshot of open work (not period-filtered). Bookings and PAX are attributed via the booking's lead assignee.">
             <ReportTable
               headers={["Staff", "Open leads", "Open bookings", "PAX", "Open tasks"]}
+              noun="staff member"
               rows={data.staffWorkload.map((row) => [
                 row.active ? row.name : `${row.name} (inactive)`,
                 String(row.openLeads),

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -10,6 +11,8 @@ import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 interface CountrySetting {
   countryId: string;
@@ -23,6 +26,7 @@ interface CountrySetting {
 }
 
 type FetchState = "loading" | "success" | "error";
+type EnabledFilter = "all" | "enabled" | "disabled";
 
 function CountryRow({ setting, onSaved }: { setting: CountrySetting; onSaved: (next: CountrySetting) => void }) {
   const [price, setPrice] = useState(setting.price ?? "");
@@ -138,6 +142,28 @@ export function ProtectionPlanCountriesManager({ countryId }: { countryId?: stri
   const [errorMessage, setErrorMessage] = useState("");
   const [showAll, setShowAll] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [enabledFilter, setEnabledFilter] = useState<EnabledFilter>("all");
+
+  // P23 — optional `countryId` (Service Configuration hub) shows only that country's row. Absent = original filter.
+  const visible = countryId
+    ? settings.filter((setting) => setting.countryId === countryId)
+    : showAll
+      ? settings
+      : settings.filter((setting) => setting.hasNewVisa || setting.enabled);
+  const query = search.trim().toLowerCase();
+  const filtered = visible.filter((setting) => {
+    if (enabledFilter === "enabled" && !setting.enabled) return false;
+    if (enabledFilter === "disabled" && setting.enabled) return false;
+    return !query || `${setting.name} ${setting.code}`.toLowerCase().includes(query);
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters = query !== "" || enabledFilter !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setEnabledFilter("all");
+    resetPage();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -175,13 +201,6 @@ export function ProtectionPlanCountriesManager({ countryId }: { countryId?: stri
     );
   }
 
-  // P23 — optional `countryId` (Service Configuration hub) shows only that country's row. Absent = original filter.
-  const visible = countryId
-    ? settings.filter((setting) => setting.countryId === countryId)
-    : showAll
-      ? settings
-      : settings.filter((setting) => setting.hasNewVisa || setting.enabled);
-
   return (
     <div className="flex max-w-3xl flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -193,7 +212,14 @@ export function ProtectionPlanCountriesManager({ countryId }: { countryId?: stri
         </div>
         {countryId ? null : (
           <label className="flex items-center gap-2 text-xs text-ink-secondary">
-            <input type="checkbox" checked={showAll} onChange={(event) => setShowAll(event.target.checked)} />
+            <input
+              type="checkbox"
+              checked={showAll}
+              onChange={(event) => {
+                setShowAll(event.target.checked);
+                resetPage();
+              }}
+            />
             Show all countries
           </label>
         )}
@@ -204,15 +230,75 @@ export function ProtectionPlanCountriesManager({ countryId }: { countryId?: stri
           description={countryId ? "Clear the country filter to see every country." : "Tick “Show all countries” to enable Protection Plan for any country."}
         />
       ) : (
-        <ul>
-          {visible.map((setting) => (
-            <CountryRow
-              key={setting.countryId}
-              setting={setting}
-              onSaved={(next) => setSettings((current) => current.map((row) => (row.countryId === next.countryId ? next : row)))}
+        <>
+          {countryId ? null : (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-[200px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+                <label htmlFor="protection-plan-country-search" className="sr-only">
+                  Search countries
+                </label>
+                <input
+                  id="protection-plan-country-search"
+                  type="search"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    resetPage();
+                  }}
+                  placeholder="Search by country name or code…"
+                  className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+                />
+              </div>
+              <label htmlFor="protection-plan-country-filter" className="sr-only">
+                Filter by Protection Plan availability
+              </label>
+              <select
+                id="protection-plan-country-filter"
+                value={enabledFilter}
+                onChange={(event) => {
+                  setEnabledFilter(event.target.value as EnabledFilter);
+                  resetPage();
+                }}
+                className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+              >
+                <option value="all">All countries</option>
+                <option value="enabled">Enabled only</option>
+                <option value="disabled">Disabled only</option>
+              </select>
+              {hasFilters ? (
+                <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              ) : null}
+            </div>
+          )}
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No countries match these filters"
+              description={`None of the ${visible.length} countries match. Try a different search term or clear the filters.`}
+              action={
+                <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
             />
-          ))}
-        </ul>
+          ) : (
+            <>
+              <ul>
+                {pageItems.map((setting) => (
+                  <CountryRow
+                    key={setting.countryId}
+                    setting={setting}
+                    onSaved={(next) => setSettings((current) => current.map((row) => (row.countryId === next.countryId ? next : row)))}
+                  />
+                ))}
+              </ul>
+              <ListPagination noun="destination" {...paginationProps} />
+            </>
+          )}
+        </>
       )}
     </div>
   );

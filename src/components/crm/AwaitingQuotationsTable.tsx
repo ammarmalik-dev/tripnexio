@@ -9,6 +9,8 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { LeadStatusBadge } from "./LeadStatusBadge";
+import { ListPagination } from "./ListPagination";
+import { usePaginationState } from "./usePagination";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -55,11 +57,15 @@ export function AwaitingQuotationsTable() {
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,6 +76,8 @@ export function AwaitingQuotationsTable() {
         const params = new URLSearchParams();
         if (serviceType) params.set("serviceType", serviceType);
         if (search) params.set("search", search);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
         const result = await getJson<AwaitingQuotationResponse>(`/api/quotations/awaiting?${params.toString()}`);
         if (cancelled) return;
         setItems(result.items);
@@ -86,7 +94,7 @@ export function AwaitingQuotationsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, search, refreshNonce]);
+  }, [serviceType, search, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -112,7 +120,10 @@ export function AwaitingQuotationsTable() {
         <select
           id="filter-awaiting-service"
           value={serviceType}
-          onChange={(event) => setServiceType(event.target.value)}
+          onChange={(event) => {
+            setServiceType(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="">All quote services</option>
@@ -202,9 +213,14 @@ export function AwaitingQuotationsTable() {
       ) : null}
 
       {state === "success" ? (
-        <p className="text-xs text-ink-tertiary">
-          Showing {items.length} of {total} lead{total === 1 ? "" : "s"} awaiting a quotation
-        </p>
+        <ListPagination
+          noun="awaiting lead"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          itemCount={items.length}
+          {...paginationHandlers}
+        />
       ) : null}
     </div>
   );

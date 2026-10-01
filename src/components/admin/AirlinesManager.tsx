@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 interface AirlineData {
   id: string;
@@ -27,6 +30,7 @@ interface AirlineData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type StatusFilter = "all" | "active" | "disabled";
 
 interface AirlineFormState {
   name: string;
@@ -239,27 +243,40 @@ function AirlineCard({ airline, onSaved }: { airline: AirlineData; onSaved: (air
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
+        <div className="flex min-w-0 items-start gap-3">
           {airline.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element -- external, unpredictable-domain logo URL; next/image would need every possible host allow-listed.
             <img
               src={airline.logoUrl}
               alt={`${airline.name} logo`}
-              className="h-7 w-7 rounded object-contain"
+              className="h-9 w-9 shrink-0 rounded-md object-contain"
               onError={(event) => {
                 event.currentTarget.style.display = "none";
               }}
             />
           ) : null}
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium",
-              airline.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-            )}
-          >
-            {airline.active ? "Active" : "Disabled"}
-          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-ink-heading">{airline.name}</h3>
+              <span className="rounded-md bg-ink-primary/[0.05] px-1.5 py-0.5 font-mono text-xs text-ink-secondary">
+                {airline.code}
+              </span>
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  airline.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+                )}
+              >
+                {airline.active ? "Active" : "Disabled"}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-ink-tertiary">
+              {[airline.country, airline.otbRequired ? "OTB required" : "No OTB", `Order ${airline.displayOrder}`]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          </div>
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
           {airline.active ? "Disable" : "Enable"}
@@ -299,8 +316,7 @@ function NewAirlineForm({ onCreated }: { onCreated: (airline: AirlineData) => vo
   const canSubmit = form.name.trim() && form.code.trim() && form.country.trim();
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">New Airline</h2>
+    <div className="flex flex-col gap-4">
       <AirlineFields form={form} onChange={setForm} errors={errors} disabled={creating} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
@@ -317,6 +333,20 @@ export function AirlinesManager() {
   const [airlines, setAirlines] = useState<AirlineData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return airlines.filter((airline) => {
+      if (statusFilter === "active" && !airline.active) return false;
+      if (statusFilter === "disabled" && airline.active) return false;
+      if (!term) return true;
+      return [airline.name, airline.code, airline.country].some((value) => value.toLowerCase().includes(term));
+    });
+  }, [airlines, search, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
     let cancelled = false;
@@ -365,20 +395,108 @@ export function AirlinesManager() {
     );
   }
 
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    resetPage();
+  };
+  const createOpen = showCreate || airlines.length === 0;
+  const trimmedSearch = search.trim();
+
   return (
     <div className="flex flex-col gap-4">
-      {airlines.length === 0 ? (
-        <EmptyState title="No airlines yet" description="Add the first one using the form below." />
-      ) : (
-        airlines.map((airline) => (
-          <AirlineCard
-            key={airline.id}
-            airline={airline}
-            onSaved={(updated) => setAirlines((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
+      <section className="rounded-xl border border-hairline bg-surface-1">
+        <button
+          type="button"
+          onClick={() => setShowCreate((current) => !current)}
+          aria-expanded={createOpen}
+          aria-controls="new-airline-panel"
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <Plus className="h-4 w-4 text-accent-on-light" aria-hidden="true" />
+            Add new airline
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-ink-tertiary transition-transform duration-200", createOpen && "rotate-180")}
+            aria-hidden="true"
           />
-        ))
+        </button>
+        {createOpen ? (
+          <div id="new-airline-panel" className="border-t border-hairline p-5">
+            <NewAirlineForm
+              onCreated={(created) => {
+                setAirlines((current) => [created, ...current]);
+                clearFilters();
+              }}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {airlines.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              aria-label="Search airlines"
+              placeholder="Search name, code or country"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} airline{filtered.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      ) : null}
+
+      {airlines.length === 0 ? (
+        <EmptyState title="No airlines yet" description="Add the first one using the form above." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={trimmedSearch ? `No airlines match "${trimmedSearch}"` : "No airlines match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pageItems.map((airline) => (
+            <AirlineCard
+              key={airline.id}
+              airline={airline}
+              onSaved={(updated) => setAirlines((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
+            />
+          ))}
+        </div>
       )}
-      <NewAirlineForm onCreated={(created) => setAirlines((current) => [...current, created])} />
+
+      <ListPagination noun="airline" {...paginationProps} />
     </div>
   );
 }

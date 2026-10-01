@@ -13,6 +13,8 @@ import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
+import { ListPagination } from "./ListPagination";
+import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
@@ -82,6 +84,7 @@ export function QuotationsTable() {
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
 
   function buildFilterParams() {
     const params = new URLSearchParams();
@@ -95,9 +98,12 @@ export function QuotationsTable() {
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,6 +118,8 @@ export function QuotationsTable() {
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
 
         const result = await getJson<QuotationListResponse>(`/api/quotations?${params.toString()}`);
         if (cancelled) return;
@@ -129,7 +137,7 @@ export function QuotationsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, status, dateFrom, dateTo, search, sort, refreshNonce]);
+  }, [serviceType, status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -155,7 +163,10 @@ export function QuotationsTable() {
         <select
           id="filter-quotation-service"
           value={serviceType}
-          onChange={(event) => setServiceType(event.target.value)}
+          onChange={(event) => {
+            setServiceType(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="">All services</option>
@@ -172,7 +183,10 @@ export function QuotationsTable() {
         <select
           id="filter-quotation-status"
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
         >
           <option value="">All statuses</option>
@@ -189,7 +203,10 @@ export function QuotationsTable() {
         <select
           id="sort-quotations"
           value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="createdAt_desc">Newest first</option>
@@ -214,10 +231,22 @@ export function QuotationsTable() {
         idPrefix="quotation"
         dateFrom={dateFrom}
         dateTo={dateTo}
-        onPreset={applyPreset}
-        onCustomFrom={applyCustomFrom}
-        onCustomTo={applyCustomTo}
-        onClear={clearDates}
+        onPreset={(days) => {
+          applyPreset(days);
+          resetPage();
+        }}
+        onCustomFrom={(dateOnly) => {
+          applyCustomFrom(dateOnly);
+          resetPage();
+        }}
+        onCustomTo={(dateOnly) => {
+          applyCustomTo(dateOnly);
+          resetPage();
+        }}
+        onClear={() => {
+          clearDates();
+          resetPage();
+        }}
       />
 
       {state === "loading" ? (
@@ -307,9 +336,14 @@ export function QuotationsTable() {
       ) : null}
 
       {state === "success" ? (
-        <p className="text-xs text-ink-tertiary">
-          Showing {items.length} of {total} quotation{total === 1 ? "" : "s"}
-        </p>
+        <ListPagination
+          noun="quotation"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          itemCount={items.length}
+          {...paginationHandlers}
+        />
       ) : null}
     </div>
   );

@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
@@ -32,6 +35,7 @@ interface CountryData {
 
 type FetchState = "loading" | "success" | "error";
 type FieldErrors = Record<string, string[] | undefined>;
+type ActiveFilter = "all" | "active" | "inactive";
 
 interface FormState {
   rate: string;
@@ -56,11 +60,14 @@ function toPayload(form: FormState) {
 }
 
 function RateFields({
+  idPrefix,
   form,
   onChange,
   errors,
   disabled,
 }: {
+  /** Keeps control ids unique when several cards are on screen at once. */
+  idPrefix: string;
   form: FormState;
   onChange: (next: FormState) => void;
   errors: FieldErrors;
@@ -70,7 +77,7 @@ function RateFields({
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <TextField
         label="Rate per applicant (₹)"
-        name="rate"
+        name={`${idPrefix}-rate`}
         type="number"
         min={0}
         value={form.rate}
@@ -80,7 +87,7 @@ function RateFields({
       />
       <TextField
         label="Cancellation fee per booking (₹)"
-        name="cancellationFee"
+        name={`${idPrefix}-cancellationFee`}
         type="number"
         min={0}
         placeholder="Not set"
@@ -92,7 +99,7 @@ function RateFields({
       />
       <TextField
         label="Display Order"
-        name="displayOrder"
+        name={`${idPrefix}-displayOrder`}
         type="number"
         value={form.displayOrder}
         onChange={(event) => onChange({ ...form, displayOrder: event.target.value })}
@@ -161,7 +168,9 @@ function DestinationCard({ destination, onSaved }: { destination: DestinationDat
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-ink-heading">{destination.countryName}</span>
+          <span className="text-sm font-semibold text-ink-heading">
+            {destination.countryName} <span className="text-xs font-normal text-ink-tertiary">({destination.countryCode})</span>
+          </span>
           <span
             className={cn(
               "rounded-full px-2.5 py-1 text-xs font-medium",
@@ -175,7 +184,7 @@ function DestinationCard({ destination, onSaved }: { destination: DestinationDat
           {destination.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <RateFields form={form} onChange={setForm} errors={errors} disabled={saving} />
+      <RateFields idPrefix={`destination-${destination.id}`} form={form} onChange={setForm} errors={errors} disabled={saving} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -233,7 +242,7 @@ function NewDestinationForm({
       <h2 className="text-sm font-semibold text-ink-heading">Add Destination</h2>
       <SelectField
         label="Country"
-        name="countryId"
+        name="new-destination-countryId"
         placeholder={availableCountries.length ? "Select a country" : "All countries already added"}
         options={availableCountries.map((c) => ({ value: c.id, label: c.name }))}
         value={countryId}
@@ -241,7 +250,7 @@ function NewDestinationForm({
         error={errors.countryId?.[0]}
         disabled={creating || availableCountries.length === 0}
       />
-      <RateFields form={form} onChange={setForm} errors={errors} disabled={creating} />
+      <RateFields idPrefix="new-destination" form={form} onChange={setForm} errors={errors} disabled={creating} />
       <div className="flex justify-end">
         <Button
           type="button"
@@ -270,6 +279,23 @@ export function ReturnTicketDestinationsManager({ countryId }: { countryId?: str
   const [countries, setCountries] = useState<CountryData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  const visibleDestinations = countryId ? destinations.filter((d) => d.countryId === countryId) : destinations;
+  const query = search.trim().toLowerCase();
+  const filtered = visibleDestinations.filter((destination) => {
+    if (activeFilter === "active" && !destination.active) return false;
+    if (activeFilter === "inactive" && destination.active) return false;
+    return !query || `${destination.countryName} ${destination.countryCode}`.toLowerCase().includes(query);
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters = query !== "" || activeFilter !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setActiveFilter("all");
+    resetPage();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -325,7 +351,6 @@ export function ReturnTicketDestinationsManager({ countryId }: { countryId?: str
   const usedCountryIds = new Set(destinations.map((d) => d.countryId));
   const availableCountries = countries.filter((c) => c.active && !usedCountryIds.has(c.id));
 
-  const visibleDestinations = countryId ? destinations.filter((d) => d.countryId === countryId) : destinations;
   const defaultCountryId = countryId && availableCountries.some((c) => c.id === countryId) ? countryId : undefined;
 
   return (
@@ -336,13 +361,73 @@ export function ReturnTicketDestinationsManager({ countryId }: { countryId?: str
           description="Add the first destination using the form below."
         />
       ) : (
-        visibleDestinations.map((destination) => (
-          <DestinationCard
-            key={destination.id}
-            destination={destination}
-            onSaved={(updated) => setDestinations((current) => current.map((d) => (d.id === updated.id ? updated : d)))}
-          />
-        ))
+        <>
+          {countryId ? null : (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="relative min-w-[220px] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+                <label htmlFor="return-ticket-destination-search" className="sr-only">
+                  Search destinations
+                </label>
+                <input
+                  id="return-ticket-destination-search"
+                  type="search"
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    resetPage();
+                  }}
+                  placeholder="Search by country name or code…"
+                  className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+                />
+              </div>
+              <label htmlFor="return-ticket-destination-filter-active" className="sr-only">
+                Filter by status
+              </label>
+              <select
+                id="return-ticket-destination-filter-active"
+                value={activeFilter}
+                onChange={(event) => {
+                  setActiveFilter(event.target.value as ActiveFilter);
+                  resetPage();
+                }}
+                className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+              >
+                <option value="all">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Disabled</option>
+              </select>
+              {hasFilters ? (
+                <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              ) : null}
+            </div>
+          )}
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No destinations match these filters"
+              description={`None of the ${visibleDestinations.length} destinations match. Try a different search term or clear the filters.`}
+              action={
+                <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {pageItems.map((destination) => (
+                <DestinationCard
+                  key={destination.id}
+                  destination={destination}
+                  onSaved={(updated) => setDestinations((current) => current.map((d) => (d.id === updated.id ? updated : d)))}
+                />
+              ))}
+              <ListPagination noun="destination" {...paginationProps} />
+            </>
+          )}
+        </>
       )}
       <NewDestinationForm
         key={`${defaultCountryId ?? ""}-${destinations.length}`}

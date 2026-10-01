@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, History, Plus } from "lucide-react";
+import { ChevronDown, History, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -16,6 +16,8 @@ import { NationalitySelect, nationalityFormValue, nationalityPayload } from "./N
 import { ChangeHistoryList, type ChangeHistoryEntry, type HistoryJson } from "./ChangeHistoryList";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
 /** Used only for a service with no Processing Types configured yet (the pre-P23 codes). */
@@ -80,6 +82,9 @@ interface PricingRuleData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type ActiveFilter = "all" | "active" | "inactive";
+/** Country filter value for rules not tied to a destination country. */
+const NO_COUNTRY = "__none";
 
 /** P10 — a New Visa product (country + stay + entry) a price can target. */
 interface NewVisaProductOption {
@@ -694,12 +699,57 @@ async function loadServiceOptions(): Promise<Partial<Record<ServiceType, Service
  * processing type from the Processing Types master, and a per-rule change
  * history (PricingRuleHistory).
  */
-export function PricingRulesManager() {
+export function PricingRulesManager({
+  initialServiceType,
+  initialCountryId,
+}: {
+  /** Service Configuration hub pre-selects its service / country in the list filters (still changeable here). */
+  initialServiceType?: ServiceType;
+  initialCountryId?: string;
+} = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [rules, setRules] = useState<PricingRuleData[]>([]);
   const [lookups, setLookups] = useState<Lookups>({ countries: [], products: [], visaTypes: [], serviceOptions: {} });
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [serviceFilter, setServiceFilter] = useState<ServiceType | "">(initialServiceType ?? "");
+  const [countryFilter, setCountryFilter] = useState(initialCountryId ?? "");
+  const [paxFilter, setPaxFilter] = useState<PaxType | "">("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  const query = search.trim().toLowerCase();
+  const filtered = rules.filter((rule) => {
+    if (serviceFilter && rule.serviceType !== serviceFilter) return false;
+    if (countryFilter === NO_COUNTRY ? rule.countryId !== null : countryFilter !== "" && rule.countryId !== countryFilter) return false;
+    if (paxFilter && rule.paxType !== paxFilter) return false;
+    if (activeFilter === "active" && !rule.active) return false;
+    if (activeFilter === "inactive" && rule.active) return false;
+    if (!query) return true;
+    const haystack = [
+      SERVICE_TYPE_LABELS[rule.serviceType],
+      rule.country?.name,
+      rule.country?.code,
+      rule.nationality,
+      rule.processingType ? processingLabel(rule.serviceType, rule.processingType, lookups) : null,
+      PAX_TYPE_LABELS[rule.paxType],
+      rule.sellingPrice,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return haystack.includes(query);
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters = query !== "" || serviceFilter !== "" || countryFilter !== "" || paxFilter !== "" || activeFilter !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setServiceFilter("");
+    setCountryFilter("");
+    setPaxFilter("");
+    setActiveFilter("all");
+    resetPage();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -769,14 +819,130 @@ export function PricingRulesManager() {
       {rules.length === 0 ? (
         <EmptyState title="No pricing rules yet" description="Add the first one using the form below." />
       ) : (
-        rules.map((rule) => (
-          <PricingCard
-            key={rule.id}
-            rule={rule}
-            lookups={lookups}
-            onSaved={(updated) => setRules((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-          />
-        ))
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+              <label htmlFor="pricing-rule-search" className="sr-only">
+                Search pricing rules
+              </label>
+              <input
+                id="pricing-rule-search"
+                type="search"
+                value={search}
+                onChange={(event) => {
+                  setSearch(event.target.value);
+                  resetPage();
+                }}
+                placeholder="Search by country, nationality, processing type or price…"
+                className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+              />
+            </div>
+            <label htmlFor="pricing-rule-filter-service" className="sr-only">
+              Filter by service
+            </label>
+            <select
+              id="pricing-rule-filter-service"
+              value={serviceFilter}
+              onChange={(event) => {
+                setServiceFilter(event.target.value as ServiceType | "");
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+            >
+              <option value="">All services</option>
+              {SERVICE_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="pricing-rule-filter-country" className="sr-only">
+              Filter by country
+            </label>
+            <select
+              id="pricing-rule-filter-country"
+              value={countryFilter}
+              onChange={(event) => {
+                setCountryFilter(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+            >
+              <option value="">All countries</option>
+              <option value={NO_COUNTRY}>Not country-specific</option>
+              {lookups.countries.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.name}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="pricing-rule-filter-pax" className="sr-only">
+              Filter by passenger type
+            </label>
+            <select
+              id="pricing-rule-filter-pax"
+              value={paxFilter}
+              onChange={(event) => {
+                setPaxFilter(event.target.value as PaxType | "");
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+            >
+              <option value="">All passenger types</option>
+              {PAX_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="pricing-rule-filter-active" className="sr-only">
+              Filter by status
+            </label>
+            <select
+              id="pricing-rule-filter-active"
+              value={activeFilter}
+              onChange={(event) => {
+                setActiveFilter(event.target.value as ActiveFilter);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Disabled</option>
+            </select>
+            {hasFilters ? (
+              <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No pricing rules match these filters"
+              description={`None of the ${rules.length} pricing rules match. Try a different search term or clear the filters.`}
+              action={
+                <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {pageItems.map((rule) => (
+                <PricingCard
+                  key={rule.id}
+                  rule={rule}
+                  lookups={lookups}
+                  onSaved={(updated) => setRules((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+                />
+              ))}
+              <ListPagination noun="pricing rule" {...paginationProps} />
+            </>
+          )}
+        </>
       )}
       <NewPricingRuleForm lookups={lookups} onCreated={(created) => setRules((current) => [...current, created])} />
     </div>

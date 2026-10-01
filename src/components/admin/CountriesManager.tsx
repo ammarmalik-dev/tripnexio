@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { countryFlag } from "@/lib/countries/flag";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 
 interface CountryData {
   id: string;
@@ -22,6 +25,7 @@ interface CountryData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type StatusFilter = "all" | "active" | "disabled";
 
 interface CountryFormState {
   code: string;
@@ -171,18 +175,28 @@ function CountryCard({ country, onSaved }: { country: CountryData; onSaved: (cou
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <FlagBadge code={country.code} flagOverride={country.flagOverride} />
-          <span className="text-sm font-semibold text-ink-heading">{country.name}</span>
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 text-xs font-medium",
-              country.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-            )}
-          >
-            {country.active ? "Active" : "Disabled"}
-          </span>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <FlagBadge code={country.code} flagOverride={country.flagOverride} className="mt-0.5" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-base font-semibold text-ink-heading">{country.name}</h3>
+              <span className="rounded-md bg-ink-primary/[0.05] px-1.5 py-0.5 font-mono text-xs text-ink-secondary">
+                {country.code}
+              </span>
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                  country.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+                )}
+              >
+                {country.active ? "Active" : "Disabled"}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-ink-tertiary">
+              {country.flagOverride ? "Custom flag" : "Auto flag"} · Order {country.displayOrder}
+            </p>
+          </div>
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
           {country.active ? "Disable" : "Enable"}
@@ -222,8 +236,7 @@ function NewCountryForm({ onCreated }: { onCreated: (country: CountryData) => vo
   const canSubmit = form.name.trim() && form.code.trim();
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">New Country</h2>
+    <div className="flex flex-col gap-4">
       <CountryFields form={form} onChange={setForm} errors={errors} disabled={creating} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
@@ -240,6 +253,20 @@ export function CountriesManager() {
   const [countries, setCountries] = useState<CountryData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return countries.filter((country) => {
+      if (statusFilter === "active" && !country.active) return false;
+      if (statusFilter === "disabled" && country.active) return false;
+      if (!term) return true;
+      return [country.name, country.code].some((value) => value.toLowerCase().includes(term));
+    });
+  }, [countries, search, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
     let cancelled = false;
@@ -288,20 +315,108 @@ export function CountriesManager() {
     );
   }
 
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    resetPage();
+  };
+  const createOpen = showCreate || countries.length === 0;
+  const trimmedSearch = search.trim();
+
   return (
     <div className="flex flex-col gap-4">
-      {countries.length === 0 ? (
-        <EmptyState title="No countries yet" description="Add the first one using the form below." />
-      ) : (
-        countries.map((country) => (
-          <CountryCard
-            key={country.id}
-            country={country}
-            onSaved={(updated) => setCountries((current) => current.map((c) => (c.id === updated.id ? updated : c)))}
+      <section className="rounded-xl border border-hairline bg-surface-1">
+        <button
+          type="button"
+          onClick={() => setShowCreate((current) => !current)}
+          aria-expanded={createOpen}
+          aria-controls="new-country-panel"
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <Plus className="h-4 w-4 text-accent-on-light" aria-hidden="true" />
+            Add new country
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-ink-tertiary transition-transform duration-200", createOpen && "rotate-180")}
+            aria-hidden="true"
           />
-        ))
+        </button>
+        {createOpen ? (
+          <div id="new-country-panel" className="border-t border-hairline p-5">
+            <NewCountryForm
+              onCreated={(created) => {
+                setCountries((current) => [created, ...current]);
+                clearFilters();
+              }}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {countries.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              aria-label="Search countries"
+              placeholder="Search name or code"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} {filtered.length === 1 ? "country" : "countries"}
+          </p>
+        </div>
+      ) : null}
+
+      {countries.length === 0 ? (
+        <EmptyState title="No countries yet" description="Add the first one using the form above." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={trimmedSearch ? `No countries match "${trimmedSearch}"` : "No countries match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pageItems.map((country) => (
+            <CountryCard
+              key={country.id}
+              country={country}
+              onSaved={(updated) => setCountries((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
+            />
+          ))}
+        </div>
       )}
-      <NewCountryForm onCreated={(created) => setCountries((current) => [...current, created])} />
+
+      <ListPagination noun="country record" {...paginationProps} />
     </div>
   );
 }

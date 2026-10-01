@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
@@ -339,6 +341,9 @@ export function ServiceOptionMasterManager({ config, serviceType }: { config: Se
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [filter, setFilter] = useState<ServiceType | "">("");
+  const activeFilter = serviceType ?? filter;
+  const visible = activeFilter ? rows.filter((row) => row.serviceType === activeFilter) : rows;
+  const { pageItems, paginationProps, resetPage } = useClientPagination(visible);
 
   useEffect(() => {
     let cancelled = false;
@@ -386,20 +391,23 @@ export function ServiceOptionMasterManager({ config, serviceType }: { config: Se
     );
   }
 
-  const activeFilter = serviceType ?? filter;
-  const visible = activeFilter ? rows.filter((row) => row.serviceType === activeFilter) : rows;
-
   return (
     <div className="flex flex-col gap-3">
       {serviceType ? null : (
         <div className="sm:max-w-xs">
-          <ServiceSelect id={`${config.titleKey}-service-filter`} label="Filter by service" value={filter} onChange={setFilter} includeAll />
+          <ServiceSelect id={`${config.titleKey}-service-filter`} label="Filter by service" value={filter}
+            onChange={(next) => {
+              setFilter(next);
+              resetPage();
+            }}
+            includeAll
+          />
         </div>
       )}
       {visible.length === 0 ? (
         <EmptyState title={`No ${config.nounPlural} yet`} description={config.emptyDescription} />
       ) : (
-        visible.map((row) => (
+        pageItems.map((row) => (
           <MasterCard
             key={row.id}
             row={row}
@@ -409,6 +417,7 @@ export function ServiceOptionMasterManager({ config, serviceType }: { config: Se
           />
         ))
       )}
+      <ListPagination noun={config.noun} {...paginationProps} />
       <NewMasterForm
         key={activeFilter || "all"}
         config={config}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -13,6 +13,8 @@ import { NOTIFICATION_CHANNEL_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import type { NotificationChannel } from "../../generated/prisma/enums";
 
 interface TemplateData {
@@ -27,6 +29,7 @@ interface TemplateData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type StatusFilter = "all" | "active" | "disabled";
 
 interface FormState {
   event: string;
@@ -208,12 +211,32 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={cn("rounded-full px-2.5 py-1 text-xs font-medium", template.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}
-        >
-          {template.active ? "Active" : "Disabled"}
-        </span>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="break-all font-mono text-sm font-semibold text-ink-heading">{template.event}</h3>
+            <span className="rounded-md bg-ink-primary/[0.05] px-1.5 py-0.5 text-xs text-ink-secondary">
+              {NOTIFICATION_CHANNEL_OPTIONS.find((option) => option.value === template.channel)?.label ?? template.channel}
+            </span>
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                template.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}
+            >
+              {template.active ? "Active" : "Disabled"}
+            </span>
+          </div>
+          <p className="mt-1 text-xs text-ink-tertiary">
+            {isWhatsApp
+              ? template.metaTemplateName?.trim()
+                ? `Meta template: ${template.metaTemplateName} (${template.metaTemplateLanguage || "no language"})`
+                : "Meta template not set — WhatsApp sends outside the 24h window are skipped"
+              : template.subject?.trim()
+                ? `Subject: ${template.subject}`
+                : "No subject set"}
+          </p>
+        </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
           {template.active ? "Disable" : "Enable"}
         </Button>
@@ -277,8 +300,7 @@ function NewTemplateForm({ onCreated }: { onCreated: (template: TemplateData) =>
   const canSubmit = form.event.trim() && form.channel && form.body.trim();
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">New Notification Template</h2>
+    <div className="flex flex-col gap-4">
       <TemplateFields form={form} onChange={setForm} errors={errors} disabled={creating} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
@@ -295,6 +317,24 @@ export function NotificationTemplatesManager() {
   const [templates, setTemplates] = useState<TemplateData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [channelFilter, setChannelFilter] = useState<NotificationChannel | "">("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return templates.filter((template) => {
+      if (channelFilter && template.channel !== channelFilter) return false;
+      if (statusFilter === "active" && !template.active) return false;
+      if (statusFilter === "disabled" && template.active) return false;
+      if (!term) return true;
+      return [template.event, template.subject ?? "", template.body, template.metaTemplateName ?? ""].some((value) =>
+        value.toLowerCase().includes(term)
+      );
+    });
+  }, [templates, search, channelFilter, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
     let cancelled = false;
@@ -343,20 +383,125 @@ export function NotificationTemplatesManager() {
     );
   }
 
+  const clearFilters = () => {
+    setSearch("");
+    setChannelFilter("");
+    setStatusFilter("all");
+    resetPage();
+  };
+  const createOpen = showCreate || templates.length === 0;
+  const trimmedSearch = search.trim();
+
   return (
     <div className="flex flex-col gap-4">
-      {templates.length === 0 ? (
-        <EmptyState title="No notification templates yet" description="Add the first one using the form below." />
-      ) : (
-        templates.map((template) => (
-          <TemplateCard
-            key={template.id}
-            template={template}
-            onSaved={(updated) => setTemplates((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+      <section className="rounded-xl border border-hairline bg-surface-1">
+        <button
+          type="button"
+          onClick={() => setShowCreate((current) => !current)}
+          aria-expanded={createOpen}
+          aria-controls="new-template-panel"
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <Plus className="h-4 w-4 text-accent-on-light" aria-hidden="true" />
+            Add new notification template
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-ink-tertiary transition-transform duration-200", createOpen && "rotate-180")}
+            aria-hidden="true"
           />
-        ))
+        </button>
+        {createOpen ? (
+          <div id="new-template-panel" className="border-t border-hairline p-5">
+            <NewTemplateForm
+              onCreated={(created) => {
+                setTemplates((current) => [created, ...current]);
+                clearFilters();
+              }}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {templates.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              aria-label="Search notification templates"
+              placeholder="Search event, subject, body or Meta name"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by channel"
+            value={channelFilter}
+            onChange={(event) => {
+              setChannelFilter(event.target.value as NotificationChannel | "");
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-40")}
+          >
+            <option value="">All channels</option>
+            {NOTIFICATION_CHANNEL_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} template{filtered.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      ) : null}
+
+      {templates.length === 0 ? (
+        <EmptyState title="No notification templates yet" description="Add the first one using the form above." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={trimmedSearch ? `No templates match "${trimmedSearch}"` : "No templates match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pageItems.map((template) => (
+            <TemplateCard
+              key={template.id}
+              template={template}
+              onSaved={(updated) => setTemplates((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+            />
+          ))}
+        </div>
       )}
-      <NewTemplateForm onCreated={(created) => setTemplates((current) => [...current, created])} />
+
+      <ListPagination noun="template" {...paginationProps} />
     </div>
   );
 }

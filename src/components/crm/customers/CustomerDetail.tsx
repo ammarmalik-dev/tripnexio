@@ -14,6 +14,9 @@ import { DocumentStatusBadge } from "@/components/crm/DocumentStatusBadge";
 import { TaskStatusBadge } from "@/components/crm/TaskStatusBadge";
 import { TaskPriorityBadge } from "@/components/crm/TaskPriorityBadge";
 import { LeadTimeline } from "@/components/crm/LeadTimeline";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { PAX_TYPE_LABELS, SERVICE_TYPE_LABELS, TASK_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -35,7 +38,7 @@ const COMMUNICATION_STATUS_LABELS: Record<string, string> = {
 
 const thClass = "px-3 py-2 text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary";
 const tdClass = "px-3 py-2 align-top";
-const rowClass = "border-b border-hairline last:border-b-0";
+const rowClass = "border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]";
 
 function Section({ title, count, children }: { title: string; count?: number; children: ReactNode }) {
   return (
@@ -48,6 +51,21 @@ function Section({ title, count, children }: { title: string; count?: number; ch
       </h2>
       {children}
     </section>
+  );
+}
+
+/**
+ * Client-side pagination for one Customer 360 section: renders the first 10
+ * entries and a pager once the section holds more than one default page
+ * (sections are fully loaded; each keeps its own page).
+ */
+function Paged<T>({ items, noun, children }: { items: readonly T[]; noun: string; children: (pageItems: T[]) => ReactNode }) {
+  const { pageItems, paginationProps } = useClientPagination(items);
+  return (
+    <>
+      {children(pageItems)}
+      {items.length > DEFAULT_PAGE_SIZE ? <ListPagination className="mt-3" noun={noun} {...paginationProps} /> : null}
+    </>
   );
 }
 
@@ -197,6 +215,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             {leads.length === 0 ? (
               <Muted>No leads for this customer.</Muted>
             ) : (
+              <Paged items={leads} noun="lead">
+                {(rows) => (
               <TableWrap>
                 <thead>
                   <tr className="border-b border-hairline">
@@ -208,7 +228,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {leads.map((lead) => (
+                  {rows.map((lead) => (
                     <tr key={lead.id} className={rowClass}>
                       <td className={tdClass}>
                         <Link href={`/crm/leads/${lead.id}`} className="font-medium text-ink-accent hover:underline">
@@ -225,6 +245,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   ))}
                 </tbody>
               </TableWrap>
+                )}
+              </Paged>
             )}
           </Section>
 
@@ -234,6 +256,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             ) : bookings.length === 0 ? (
               <Muted>No bookings yet.</Muted>
             ) : (
+              <Paged items={bookings} noun="booking">
+                {(rows) => (
               <TableWrap>
                 <thead>
                   <tr className="border-b border-hairline">
@@ -245,7 +269,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {bookings.map((booking) => (
+                  {rows.map((booking) => (
                     <tr key={booking.id} className={rowClass}>
                       <td className={tdClass}>
                         <BookingLink id={booking.id} label={booking.bookingId} />
@@ -264,6 +288,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   ))}
                 </tbody>
               </TableWrap>
+                )}
+              </Paged>
             )}
           </Section>
 
@@ -273,6 +299,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             ) : quotations.length === 0 ? (
               <Muted>No quotations yet.</Muted>
             ) : (
+              <Paged items={quotations} noun="quotation">
+                {(rows) => (
               <TableWrap>
                 <thead>
                   <tr className="border-b border-hairline">
@@ -285,7 +313,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {quotations.map((quotation) => (
+                  {rows.map((quotation) => (
                     <tr key={quotation.id} className={rowClass}>
                       <td className={tdClass}>
                         <Link href={`/crm/leads/${quotation.leadId}`} className="text-ink-accent hover:underline">
@@ -312,6 +340,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   ))}
                 </tbody>
               </TableWrap>
+                )}
+              </Paged>
             )}
           </Section>
 
@@ -321,6 +351,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             ) : payments.length === 0 ? (
               <Muted>No payments yet.</Muted>
             ) : (
+              <Paged items={payments} noun="payment">
+                {(rows) => (
               <TableWrap minWidth="min-w-[640px]">
                 <thead>
                   <tr className="border-b border-hairline">
@@ -333,7 +365,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {payments.map((payment) => (
+                  {rows.map((payment) => (
                     <tr key={payment.id} className={rowClass}>
                       <td className={tdClass}>
                         <BookingLink id={payment.bookingId} label={payment.bookingDisplayId || "View booking"} />
@@ -359,6 +391,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   ))}
                 </tbody>
               </TableWrap>
+                )}
+              </Paged>
             )}
           </Section>
 
@@ -368,6 +402,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             ) : refunds.length === 0 ? (
               <Muted>No refunds.</Muted>
             ) : (
+              <Paged items={refunds} noun="refund">
+                {(rows) => (
               <TableWrap>
                 <thead>
                   <tr className="border-b border-hairline">
@@ -379,7 +415,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {refunds.map((refund) => (
+                  {rows.map((refund) => (
                     <tr key={refund.id} className={rowClass}>
                       <td className={tdClass}>
                         {refund.bookingId ? (
@@ -400,6 +436,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   ))}
                 </tbody>
               </TableWrap>
+                )}
+              </Paged>
             )}
           </Section>
 
@@ -409,6 +447,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             ) : documents.length === 0 ? (
               <Muted>No documents yet.</Muted>
             ) : (
+              <Paged items={documents} noun="document">
+                {(rows) => (
               <TableWrap>
                 <thead>
                   <tr className="border-b border-hairline">
@@ -420,7 +460,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {documents.map((document) => (
+                  {rows.map((document) => (
                     <tr key={document.id} className={rowClass}>
                       <td className={cn(tdClass, "font-medium text-ink-primary")}>{document.type}</td>
                       <td className={cn(tdClass, "text-ink-secondary")}>{document.passengerName ?? "—"}</td>
@@ -444,6 +484,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   ))}
                 </tbody>
               </TableWrap>
+                )}
+              </Paged>
             )}
           </Section>
 
@@ -453,7 +495,9 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
               refunds, documents and passengers.
               {data.truncated.timeline ? " Showing the most recent 200 entries." : ""}
             </p>
-            <LeadTimeline entries={timeline} />
+            <Paged items={timeline} noun="timeline event">
+              {(rows) => <LeadTimeline entries={rows} />}
+            </Paged>
           </Section>
         </div>
 
@@ -473,8 +517,10 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             {passengers.length === 0 ? (
               <Muted>No passengers on file.</Muted>
             ) : (
+              <Paged items={passengers} noun="passenger">
+                {(rows) => (
               <ul className="flex flex-col gap-3">
-                {passengers.map((passenger) => (
+                {rows.map((passenger) => (
                   <li key={passenger.id} className="rounded-lg border border-hairline p-3">
                     <p className="text-sm font-medium text-ink-primary">{passenger.fullName}</p>
                     <p className="text-xs text-ink-tertiary">
@@ -486,6 +532,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   </li>
                 ))}
               </ul>
+                )}
+              </Paged>
             )}
           </Section>
 
@@ -495,8 +543,10 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
             ) : tasks.length === 0 ? (
               <Muted>No follow-ups or tasks.</Muted>
             ) : (
+              <Paged items={tasks} noun="task">
+                {(rows) => (
               <ul className="flex flex-col gap-3">
-                {tasks.map((task) => (
+                {rows.map((task) => (
                   <li key={task.id} className="flex flex-col gap-1 rounded-lg border border-hairline p-3">
                     <p className="text-sm font-medium text-ink-primary">{task.title}</p>
                     <div className="flex flex-wrap items-center gap-1.5">
@@ -521,6 +571,8 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   </li>
                 ))}
               </ul>
+                )}
+              </Paged>
             )}
           </Section>
 
@@ -533,11 +585,15 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                   Newest first. To send a message, open one of the customer&apos;s leads.
                   {data.truncated.communications ? " Showing the most recent 100." : ""}
                 </p>
-                <ul className="flex max-h-[32rem] flex-col gap-4 overflow-y-auto pr-1">
-                  {communications.map((item) => (
+                <Paged items={communications} noun="message">
+                {(rows) => (
+              <ul className="flex max-h-[32rem] flex-col gap-4 overflow-y-auto pr-1">
+                  {rows.map((item) => (
                     <CommunicationRow key={`${item.channel}-${item.id}`} item={item} />
                   ))}
                 </ul>
+                )}
+              </Paged>
               </>
             )}
           </Section>

@@ -16,6 +16,13 @@ import { cn } from "@/lib/cn";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { ESCALATE_TO_LABELS, ESCALATE_TO_VALUES, type EscalateTo } from "@/lib/validation/escalation-rule-schema";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+
+type ActiveFilter = "all" | "active" | "inactive";
+
+/** Service filter value for rules that apply to every service (serviceType null). */
+const ALL_SERVICES_ONLY = "__all";
 
 interface EscalationRuleData {
   id: string;
@@ -302,6 +309,23 @@ export function EscalationRulesManager() {
   const [statuses, setStatuses] = useState<StatusOption[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  const filtered = rules.filter((rule) => {
+    // A service-wide (null) rule applies to every service, so it stays visible under any service filter.
+    if (serviceFilter === ALL_SERVICES_ONLY ? rule.serviceType !== null : serviceFilter !== "" && rule.serviceType !== null && rule.serviceType !== serviceFilter) return false;
+    if (activeFilter === "active" && !rule.active) return false;
+    if (activeFilter === "inactive" && rule.active) return false;
+    return true;
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters = serviceFilter !== "" || activeFilter !== "all";
+  const clearFilters = () => {
+    setServiceFilter("");
+    setActiveFilter("all");
+    resetPage();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -359,15 +383,75 @@ export function EscalationRulesManager() {
           description="Add a rule to alert managers or admins when a booking stays in a status longer than it should."
         />
       ) : (
-        rules.map((rule) => (
-          <RuleCard
-            key={rule.id}
-            rule={rule}
-            statuses={statuses}
-            onSaved={replace}
-            onDeleted={(id) => setRules((current) => current.filter((entry) => entry.id !== id))}
-          />
-        ))
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <label htmlFor="escalation-rule-filter-service" className="sr-only">
+              Filter by service
+            </label>
+            <select
+              id="escalation-rule-filter-service"
+              value={serviceFilter}
+              onChange={(event) => {
+                setServiceFilter(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[180px]")}
+            >
+              <option value="">All services</option>
+              <option value={ALL_SERVICES_ONLY}>All-services rules only</option>
+              {SERVICE_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <label htmlFor="escalation-rule-filter-active" className="sr-only">
+              Filter by status
+            </label>
+            <select
+              id="escalation-rule-filter-active"
+              value={activeFilter}
+              onChange={(event) => {
+                setActiveFilter(event.target.value as ActiveFilter);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Disabled</option>
+            </select>
+            {hasFilters ? (
+              <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
+          {filtered.length === 0 ? (
+            <EmptyState
+              title="No rules match these filters"
+              description={`None of the ${rules.length} rules match. Clear the filters to see them all.`}
+              action={
+                <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                  Clear filters
+                </Button>
+              }
+            />
+          ) : (
+            <>
+              {pageItems.map((rule) => (
+                <RuleCard
+                  key={rule.id}
+                  rule={rule}
+                  statuses={statuses}
+                  onSaved={replace}
+                  onDeleted={(id) => setRules((current) => current.filter((entry) => entry.id !== id))}
+                />
+              ))}
+              <ListPagination noun="escalation rule" {...paginationProps} />
+            </>
+          )}
+        </>
       )}
       <NewRuleForm statuses={statuses} onCreated={(created) => setRules((current) => [...current, created])} />
     </div>

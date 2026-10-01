@@ -9,6 +9,7 @@ import { PaymentStatusBadge } from "@/components/crm/PaymentStatusBadge";
 import { DateRangeFilter } from "@/components/crm/DateRangeFilter";
 import { useDateRangeFilter } from "@/components/crm/useDateRangeFilter";
 import { ListPagination } from "@/components/crm/ListPagination";
+import { usePaginationState } from "@/components/crm/usePagination";
 import { FilterSelect, FilterTextInput, ListStateView, SEARCH_DEBOUNCE_MS, type FetchState } from "./MonitoringControls";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, BOOKING_STATUS_OPTIONS, PAYMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { formatDateTime } from "@/lib/admin/monitoring";
@@ -47,7 +48,6 @@ interface FilterOptionsResponse {
   serviceStatuses: { id: string; name: string; serviceType: ServiceType; active: boolean }[];
 }
 
-const PAGE_SIZE = 25;
 
 /** P24 item 5 — Admin → Bookings: read-only cross-service search; every row opens the existing CRM booking page. */
 export function AdminBookingsExplorer() {
@@ -61,7 +61,7 @@ export function AdminBookingsExplorer() {
   const [serviceStatusId, setServiceStatusId] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
 
   const [state, setState] = useState<FetchState>("loading");
   const [data, setData] = useState<AdminBookingsResponse | null>(null);
@@ -75,7 +75,7 @@ export function AdminBookingsExplorer() {
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,7 +109,7 @@ export function AdminBookingsExplorer() {
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       params.set("page", String(page));
-      params.set("pageSize", String(PAGE_SIZE));
+      params.set("pageSize", String(pageSize));
       try {
         const result = await getJson<AdminBookingsResponse>(`/api/admin/bookings?${params.toString()}`);
         if (cancelled) return;
@@ -125,7 +125,7 @@ export function AdminBookingsExplorer() {
     return () => {
       cancelled = true;
     };
-  }, [search, serviceType, countryId, staffId, vendorId, status, serviceStatusId, paymentStatus, dateFrom, dateTo, page, refreshNonce]);
+  }, [search, serviceType, countryId, staffId, vendorId, status, serviceStatusId, paymentStatus, dateFrom, dateTo, page, pageSize, refreshNonce]);
 
   /** Wraps a filter setter so any filter change goes back to page 1. */
   function onFilter(setter: (value: string) => void) {
@@ -347,7 +347,7 @@ export function AdminBookingsExplorer() {
           pageSize={data.pageSize}
           total={data.total}
           itemCount={items.length}
-          onPageChange={setPage}
+          {...paginationHandlers}
         />
       ) : null}
     </div>

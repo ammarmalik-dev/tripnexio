@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, KeyRound } from "lucide-react";
+import { Plus, KeyRound, Search, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
@@ -335,6 +338,19 @@ export function StaffUsersManager() {
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredUsers = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return users;
+    return users.filter(
+      (user) =>
+        user.name.toLowerCase().includes(needle) ||
+        user.email.toLowerCase().includes(needle) ||
+        user.role.name.toLowerCase().includes(needle)
+    );
+  }, [users, search]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filteredUsers);
 
   useEffect(() => {
     let cancelled = false;
@@ -436,6 +452,35 @@ export function StaffUsersManager() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[220px] max-w-md flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+          <label htmlFor="staff-search" className="sr-only">
+            Search staff by name, email or role
+          </label>
+          <input
+            id="staff-search"
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              resetPage();
+            }}
+            placeholder="Search by name, email or role…"
+            className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+          />
+        </div>
+        <p className="text-xs text-ink-tertiary">
+          {users.length} staff account{users.length === 1 ? "" : "s"} · {users.filter((user) => user.active).length} active
+        </p>
+      </div>
+      {filteredUsers.length === 0 ? (
+        <EmptyState
+          icon={search ? <Search className="h-5 w-5" aria-hidden="true" /> : <Users className="h-5 w-5" aria-hidden="true" />}
+          title={search ? "No matching staff" : "No staff accounts yet"}
+          description={search ? "Try a different name, email or role." : "Create the first staff account below."}
+        />
+      ) : (
       <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
         <table className="w-full min-w-[1140px] border-collapse text-sm">
           <thead>
@@ -451,7 +496,7 @@ export function StaffUsersManager() {
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => (
+            {pageItems.map((user) => (
               <tr key={user.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
                 <td className="px-4 py-3 font-medium text-ink-primary">{user.name}</td>
                 <td className="px-4 py-3 text-ink-secondary">{user.email}</td>
@@ -517,6 +562,8 @@ export function StaffUsersManager() {
           </tbody>
         </table>
       </div>
+      )}
+      <ListPagination noun="staff account" {...paginationProps} />
       <NewStaffForm roles={roles} countries={countries} onCreated={(user) => setUsers((current) => [...current, user])} />
     </div>
   );

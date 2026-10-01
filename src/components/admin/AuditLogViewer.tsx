@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { DateRangeFilter } from "@/components/crm/DateRangeFilter";
 import { useDateRangeFilter } from "@/components/crm/useDateRangeFilter";
 import { ListPagination } from "@/components/crm/ListPagination";
+import { usePaginationState } from "@/components/crm/usePagination";
 import { FilterSelect, FilterTextInput, ListStateView, SEARCH_DEBOUNCE_MS, type FetchState } from "./MonitoringControls";
 import { entityHref, formatDateTime } from "@/lib/admin/monitoring";
 import { getJson, ApiError } from "@/lib/api/client";
@@ -35,7 +36,6 @@ export interface AuditFacets {
   users: { id: string; name: string; active: boolean }[];
 }
 
-const PAGE_SIZE = 50;
 
 /** P24 item 7 — Admin → Audit Log: every AuditTrail row, filterable by user, entity, action, and date. */
 export function AuditLogViewer() {
@@ -45,7 +45,7 @@ export function AuditLogViewer() {
   const [entityId, setEntityId] = useState("");
   const [action, setAction] = useState("");
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
 
   const [facets, setFacets] = useState<AuditFacets | null>(null);
   const [state, setState] = useState<FetchState>("loading");
@@ -59,7 +59,7 @@ export function AuditLogViewer() {
       setPage(1);
     }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [entityIdInput]);
+  }, [entityIdInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +89,7 @@ export function AuditLogViewer() {
       if (dateFrom) params.set("dateFrom", dateFrom);
       if (dateTo) params.set("dateTo", dateTo);
       params.set("page", String(page));
-      params.set("pageSize", String(PAGE_SIZE));
+      params.set("pageSize", String(pageSize));
       try {
         const result = await getJson<AuditLogResponse>(`/api/admin/audit-log?${params.toString()}`);
         if (cancelled) return;
@@ -105,7 +105,7 @@ export function AuditLogViewer() {
     return () => {
       cancelled = true;
     };
-  }, [userId, entityType, entityId, action, dateFrom, dateTo, page, refreshNonce]);
+  }, [userId, entityType, entityId, action, dateFrom, dateTo, page, pageSize, refreshNonce]);
 
   function onFilter(setter: (value: string) => void) {
     return (value: string) => {
@@ -249,7 +249,7 @@ export function AuditLogViewer() {
       </ListStateView>
 
       {state === "success" && data ? (
-        <ListPagination noun="record" page={data.page} pageSize={data.pageSize} total={data.total} itemCount={items.length} onPageChange={setPage} />
+        <ListPagination noun="record" page={data.page} pageSize={data.pageSize} total={data.total} itemCount={items.length} {...paginationHandlers} />
       ) : null}
     </div>
   );

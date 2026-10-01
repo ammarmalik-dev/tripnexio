@@ -15,6 +15,8 @@ import { DateRangeFilter } from "./DateRangeFilter";
 import { CreateTaskForm } from "./tasks/CreateTaskForm";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { TASK_STATUS_OPTIONS, TASK_TYPE_OPTIONS, TASK_PRIORITY_OPTIONS, TASK_TYPE_LABELS } from "@/lib/crm/labels";
+import { ListPagination } from "./ListPagination";
+import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { TaskStatus, TaskType, TaskPriority, ServiceType } from "../../generated/prisma/enums";
@@ -61,6 +63,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const { page, pageSize, resetPage, paginationHandlers } = usePaginationState();
   const [statusOverrides, setStatusOverrides] = useState<Record<string, TaskStatus>>({});
   const [assigneeOverrides, setAssigneeOverrides] = useState<Record<string, { id: string; name: string } | null>>({});
 
@@ -77,6 +80,8 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
         if (dateFrom) params.set("dateFrom", dateFrom);
         if (dateTo) params.set("dateTo", dateTo);
         params.set("sort", sort);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
 
         const result = await getJson<TaskListResponse>(`/api/tasks?${params.toString()}`);
         if (cancelled) return;
@@ -96,7 +101,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [status, type, priority, dateFrom, dateTo, sort, refreshNonce]);
+  }, [status, type, priority, dateFrom, dateTo, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,7 +112,10 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
         <select
           id="filter-task-type"
           value={type}
-          onChange={(event) => setType(event.target.value)}
+          onChange={(event) => {
+            setType(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[180px]")}
         >
           <option value="">All task types</option>
@@ -124,7 +132,10 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
         <select
           id="filter-task-status"
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
         >
           <option value="">All statuses</option>
@@ -141,7 +152,10 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
         <select
           id="filter-task-priority"
           value={priority}
-          onChange={(event) => setPriority(event.target.value)}
+          onChange={(event) => {
+            setPriority(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
         >
           <option value="">All priorities</option>
@@ -158,7 +172,10 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
         <select
           id="sort-tasks"
           value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="createdAt_desc">Newest first</option>
@@ -202,10 +219,22 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
         idPrefix="task"
         dateFrom={dateFrom}
         dateTo={dateTo}
-        onPreset={applyPreset}
-        onCustomFrom={applyCustomFrom}
-        onCustomTo={applyCustomTo}
-        onClear={clearDates}
+        onPreset={(days) => {
+          applyPreset(days);
+          resetPage();
+        }}
+        onCustomFrom={(dateOnly) => {
+          applyCustomFrom(dateOnly);
+          resetPage();
+        }}
+        onCustomTo={(dateOnly) => {
+          applyCustomTo(dateOnly);
+          resetPage();
+        }}
+        onClear={() => {
+          clearDates();
+          resetPage();
+        }}
       />
 
       {state === "loading" ? (
@@ -295,9 +324,14 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
       ) : null}
 
       {state === "success" ? (
-        <p className="text-xs text-ink-tertiary">
-          Showing {items.length} of {total} task{total === 1 ? "" : "s"}
-        </p>
+        <ListPagination
+          noun="task"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          itemCount={items.length}
+          {...paginationHandlers}
+        />
       ) : null}
     </div>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Plus, Search, X } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { TextField } from "@/components/forms/TextField";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -17,6 +17,11 @@ import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, LeadStatus } from "../../generated/prisma/enums";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+
+/** Group filter value for "every group" (an empty string is the real "ungrouped" group). */
+const ALL_GROUPS = "__all";
 
 const SYSTEM_EVENT_OPTIONS = [...SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER].map((value) => ({ value, label: SYSTEM_EVENT_LABELS[value] }));
 
@@ -130,22 +135,26 @@ function OptionSelect({
 }
 
 function StatusFields({
+  idPrefix,
   form,
   onChange,
   disabled,
   scope,
 }: {
+  /** Keeps control ids unique when several cards are on screen at once. */
+  idPrefix: string;
   form: StatusFormState;
   onChange: (next: StatusFormState) => void;
   disabled: boolean;
   scope: StatusScope;
 }) {
+  const id = (field: string) => `${idPrefix}-${field}`;
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-      <TextField label="Name" name="name" value={form.name} onChange={(e) => onChange({ ...form, name: e.target.value })} disabled={disabled} />
+      <TextField label="Name" name={id("name")} value={form.name} onChange={(e) => onChange({ ...form, name: e.target.value })} disabled={disabled} />
       <TextField
         label="Group (optional)"
-        name="group"
+        name={id("group")}
         placeholder="e.g. Airline, Exceptions"
         value={form.group}
         onChange={(e) => onChange({ ...form, group: e.target.value })}
@@ -153,14 +162,14 @@ function StatusFields({
       />
       <TextField
         label="Display Order"
-        name="displayOrder"
+        name={id("displayOrder")}
         type="number"
         value={form.displayOrder}
         onChange={(e) => onChange({ ...form, displayOrder: e.target.value })}
         disabled={disabled}
       />
       <OptionSelect
-        id="mapsTo"
+        id={id("mapsTo")}
         label={scope === "LEAD" ? "Maps to Lead Status" : "Maps to Booking Status"}
         value={form.mapsTo}
         emptyLabel="Not mapped (keeps the current one)"
@@ -169,7 +178,7 @@ function StatusFields({
         disabled={disabled}
       />
       <OptionSelect
-        id="systemEvent"
+        id={id("systemEvent")}
         label="Moved here automatically on"
         value={form.systemEvent}
         emptyLabel="Staff only (no system event)"
@@ -178,7 +187,7 @@ function StatusFields({
         disabled={disabled}
       />
       <OptionSelect
-        id="notificationEvent"
+        id={id("notificationEvent")}
         label="Notify customer with"
         value={form.notificationEvent}
         emptyLabel="No message"
@@ -188,7 +197,7 @@ function StatusFields({
       />
       <TextField
         label="Customer-Safe Label (optional)"
-        name="customerLabel"
+        name={id("customerLabel")}
         placeholder="Shown to the customer instead of the internal name"
         value={form.customerLabel}
         onChange={(e) => onChange({ ...form, customerLabel: e.target.value })}
@@ -292,14 +301,20 @@ function StatusCard({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", status.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
-          {status.active ? "Active" : "Disabled"}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold text-ink-heading">{status.name}</span>
+          <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", status.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
+            {status.active ? "Active" : "Disabled"}
+          </span>
+          {status.isTerminal ? (
+            <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-1 text-xs font-medium text-ink-secondary">Terminal</span>
+          ) : null}
+        </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
           {status.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <StatusFields form={form} onChange={setForm} disabled={saving} scope={status.scope} />
+      <StatusFields idPrefix={`status-${status.id}`} form={form} onChange={setForm} disabled={saving} scope={status.scope} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -324,6 +339,7 @@ function StatusCard({
           <div className="mt-2 flex items-center gap-2">
             <select
               value={newTransitionTarget}
+              aria-label={`Add a transition from ${status.name}`}
               onChange={(e) => setNewTransitionTarget(e.target.value)}
               className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[180px] text-sm")}
             >
@@ -370,7 +386,13 @@ function RemoveTransitionButton({ transitionId, onRemoved }: { transitionId: str
 
   return (
     <>
-      <button type="button" onClick={() => void handleRemove()} disabled={removing} className="text-ink-tertiary hover:text-error" aria-label="Remove transition">
+      <button
+        type="button"
+        onClick={() => void handleRemove()}
+        disabled={removing}
+        className="rounded-full text-ink-tertiary hover:text-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        aria-label="Remove transition"
+      >
         <X className="h-3 w-3" aria-hidden="true" />
       </button>
       {dialog}
@@ -406,7 +428,7 @@ function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: Service
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Status</h2>
-      <StatusFields form={form} onChange={setForm} disabled={creating} scope={scope} />
+      <StatusFields idPrefix={`new-status-${scope}`} form={form} onChange={setForm} disabled={creating} scope={scope} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!form.name.trim()}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -419,6 +441,7 @@ function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: Service
 }
 
 type FetchState = "loading" | "success" | "error";
+type ActiveFilter = "all" | "active" | "inactive";
 
 /**
  * P23 — optional `serviceType` (Service Configuration hub) locks the manager
@@ -433,6 +456,31 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
   const [statuses, setStatuses] = useState<StatusData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  // Display order: each group in first-seen order, statuses in API order within it (as before pagination).
+  // Pagination runs over this flat, ordered list and each page is regrouped, so a group heading repeats on
+  // every page it spans and the order across pages never changes.
+  const groups = Array.from(new Set(statuses.map((s) => s.group ?? "")));
+  const ordered = groups.flatMap((group) => statuses.filter((s) => (s.group ?? "") === group));
+  const query = search.trim().toLowerCase();
+  const filtered = ordered.filter((status) => {
+    if (groupFilter !== null && (status.group ?? "") !== groupFilter) return false;
+    if (activeFilter === "active" && !status.active) return false;
+    if (activeFilter === "inactive" && status.active) return false;
+    return !query || [status.name, status.customerLabel, status.group].filter(Boolean).join(" ").toLowerCase().includes(query);
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const pageGroups = Array.from(new Set(pageItems.map((s) => s.group ?? "")));
+  const hasFilters = query !== "" || groupFilter !== null || activeFilter !== "all";
+  const clearFilters = () => {
+    setSearch("");
+    setGroupFilter(null);
+    setActiveFilter("all");
+    resetPage();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -455,8 +503,6 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
     };
   }, [serviceType, scope, reloadNonce]);
 
-  const groups = Array.from(new Set(statuses.map((s) => s.group ?? "")));
-
   return (
     <div className="flex flex-col gap-4">
       {lockedServiceType ? null : (
@@ -467,7 +513,11 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
           <select
             id="service-status-service-select"
             value={serviceType}
-            onChange={(e) => setServiceType(e.target.value as ServiceType)}
+            onChange={(e) => {
+              setServiceType(e.target.value as ServiceType);
+              setGroupFilter(null);
+              resetPage();
+            }}
             className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[220px]")}
           >
             {SERVICE_TYPE_OPTIONS.map((option) => (
@@ -480,7 +530,14 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
       )}
       <div className="flex gap-2" role="group" aria-label="Status list">
         {(["BOOKING", "LEAD"] as const).map((option) => (
-          <Button key={option} type="button" size="sm" variant={scope === option ? "primary" : "ghost"} onClick={() => setScope(option)}>
+          <Button key={option} type="button" size="sm" variant={scope === option ? "primary" : "ghost"}
+            aria-pressed={scope === option}
+            onClick={() => {
+              setScope(option);
+              setGroupFilter(null);
+              resetPage();
+            }}
+          >
             {option === "BOOKING" ? "Booking statuses" : "Lead statuses"}
           </Button>
         ))}
@@ -510,11 +567,90 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
         <EmptyState title={`No statuses yet for ${SERVICE_TYPE_LABELS[serviceType]}`} description="Add the first one using the form below." />
       ) : null}
 
+      {state === "success" && statuses.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+            <label htmlFor="service-status-search" className="sr-only">
+              Search statuses
+            </label>
+            <input
+              id="service-status-search"
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              placeholder="Search by status name or customer label…"
+              className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+            />
+          </div>
+          {groups.length > 1 ? (
+            <>
+              <label htmlFor="service-status-filter-group" className="sr-only">
+                Filter by group
+              </label>
+              <select
+                id="service-status-filter-group"
+                value={groupFilter === null ? ALL_GROUPS : groupFilter}
+                onChange={(event) => {
+                  setGroupFilter(event.target.value === ALL_GROUPS ? null : event.target.value);
+                  resetPage();
+                }}
+                className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+              >
+                <option value={ALL_GROUPS}>All groups</option>
+                {groups.map((group) => (
+                  <option key={group} value={group}>
+                    {group || "Ungrouped"}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : null}
+          <label htmlFor="service-status-filter-active" className="sr-only">
+            Filter by status
+          </label>
+          <select
+            id="service-status-filter-active"
+            value={activeFilter}
+            onChange={(event) => {
+              setActiveFilter(event.target.value as ActiveFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+          >
+            <option value="all">Active &amp; disabled</option>
+            <option value="active">Active only</option>
+            <option value="inactive">Disabled only</option>
+          </select>
+          {hasFilters ? (
+            <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+
+      {state === "success" && statuses.length > 0 && filtered.length === 0 ? (
+        <EmptyState
+          icon={<Search className="h-5 w-5" aria-hidden="true" />}
+          title="No statuses match these filters"
+          description={`None of the ${statuses.length} statuses match. Try a different search term or clear the filters.`}
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : null}
+
       {state === "success"
-        ? groups.map((group) => (
+        ? pageGroups.map((group) => (
             <div key={group} className="flex flex-col gap-3">
               {group ? <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-tertiary">{group}</h3> : null}
-              {statuses
+              {pageItems
                 .filter((s) => (s.group ?? "") === group)
                 .map((status) => (
                   <StatusCard
@@ -528,6 +664,8 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
             </div>
           ))
         : null}
+
+      {state === "success" ? <ListPagination noun="status option" {...paginationProps} /> : null}
 
       {state === "success" ? (
         <NewStatusForm key={`${serviceType}-${scope}`} serviceType={serviceType} scope={scope} onCreated={(created) => setStatuses((current) => [...current, created])} />

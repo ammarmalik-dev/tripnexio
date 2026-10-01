@@ -9,6 +9,9 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { getJson, ApiError } from "@/lib/api/client";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { cn } from "@/lib/cn";
 import type { DelayAnalysis, DelayBreakdownRow, DelayType } from "@/lib/crm/delays";
 
@@ -36,6 +39,8 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 }
 
 function BreakdownCard({ title, rows }: { title: string; rows: DelayBreakdownRow[] }) {
+  // By staff / by vendor can grow without bound; short breakdowns stay unpaged.
+  const { pageItems, paginationProps } = useClientPagination(rows);
   return (
     <section className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">
       <h2 className="text-sm font-semibold text-ink-heading">{title}</h2>
@@ -44,7 +49,7 @@ function BreakdownCard({ title, rows }: { title: string; rows: DelayBreakdownRow
       ) : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-ink-tertiary">
+            <tr className="text-left text-xs uppercase tracking-wide text-ink-tertiary">
               <th className="py-1 pr-2 font-medium">Name</th>
               <th className="py-1 pr-2 text-right font-medium">Open</th>
               <th className="py-1 pr-2 text-right font-medium">Resolved</th>
@@ -52,8 +57,8 @@ function BreakdownCard({ title, rows }: { title: string; rows: DelayBreakdownRow
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr key={row.key} className="border-t border-hairline">
+            {pageItems.map((row) => (
+              <tr key={row.key} className="border-t border-hairline hover:bg-ink-primary/[0.02]">
                 <td className="py-1.5 pr-2 text-ink-secondary">{row.label}</td>
                 <td className="py-1.5 pr-2 text-right font-medium text-ink-primary">{row.open}</td>
                 <td className="py-1.5 pr-2 text-right text-ink-secondary">{row.resolved}</td>
@@ -63,6 +68,7 @@ function BreakdownCard({ title, rows }: { title: string; rows: DelayBreakdownRow
           </tbody>
         </table>
       )}
+      {rows.length > DEFAULT_PAGE_SIZE ? <ListPagination noun={`${title.replace(/^By /, "").toLowerCase()} row`} {...paginationProps} /> : null}
     </section>
   );
 }
@@ -107,6 +113,7 @@ export function DelayAnalysisView() {
         (reasonFilter === "" || record.type === reasonFilter)
     );
   }, [data, statusFilter, serviceFilter, reasonFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(visibleRecords);
 
   if (state === "loading") {
     return (
@@ -185,7 +192,10 @@ export function DelayAnalysisView() {
           <div className="flex flex-wrap items-end gap-3">
             <label className="flex flex-col gap-1 text-xs text-ink-tertiary">
               Status
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as StatusFilter)} className={selectClass}>
+              <select value={statusFilter} onChange={(e) => {
+                  setStatusFilter(e.target.value as StatusFilter);
+                  resetPage();
+                }} className={selectClass}>
                 <option value="OPEN">Open</option>
                 <option value="RESOLVED">Resolved</option>
                 <option value="ALL">All</option>
@@ -193,7 +203,10 @@ export function DelayAnalysisView() {
             </label>
             <label className="flex flex-col gap-1 text-xs text-ink-tertiary">
               Service
-              <select value={serviceFilter} onChange={(e) => setServiceFilter(e.target.value)} className={selectClass}>
+              <select value={serviceFilter} onChange={(e) => {
+                  setServiceFilter(e.target.value);
+                  resetPage();
+                }} className={selectClass}>
                 <option value="">All services</option>
                 {data.configuredServices.map((service) => (
                   <option key={service.serviceType} value={service.serviceType}>
@@ -204,7 +217,10 @@ export function DelayAnalysisView() {
             </label>
             <label className="flex flex-col gap-1 text-xs text-ink-tertiary">
               Reason
-              <select value={reasonFilter} onChange={(e) => setReasonFilter(e.target.value as DelayType | "")} className={selectClass}>
+              <select value={reasonFilter} onChange={(e) => {
+                  setReasonFilter(e.target.value as DelayType | "");
+                  resetPage();
+                }} className={selectClass}>
                 <option value="">All reasons</option>
                 {data.byReason.map((row) => (
                   <option key={row.key} value={row.key}>
@@ -235,7 +251,7 @@ export function DelayAnalysisView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleRecords.map((record) => (
+                  {pageItems.map((record) => (
                     <tr key={record.key} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
                       <td className="px-4 py-3 font-medium">
                         <Link href={`/crm/bookings/${record.bookingId}`} className="text-ink-accent hover:underline">
@@ -275,8 +291,9 @@ export function DelayAnalysisView() {
             </div>
           )}
 
+          <ListPagination noun="delay" {...paginationProps} />
           <p className="text-xs text-ink-tertiary">
-            Showing {visibleRecords.length} of {data.records.length} delay{data.records.length === 1 ? "" : "s"}.
+            {visibleRecords.length} of {data.records.length} delay{data.records.length === 1 ? "" : "s"} match these filters.
           </p>
         </>
       )}

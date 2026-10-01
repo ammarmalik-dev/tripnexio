@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowRight, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { BookingStatusBadge } from "@/components/crm/BookingStatusBadge";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -53,6 +56,21 @@ export function BulkReassignmentManager() {
   const [toStaffId, setToStaffId] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const { confirm, dialog } = useConfirmAction();
+  const [search, setSearch] = useState("");
+
+  const filteredWork = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return openWork;
+    return openWork.filter(
+      (item) =>
+        item.bookingIdFormatted.toLowerCase().includes(needle) ||
+        item.leadReferenceId.toLowerCase().includes(needle) ||
+        item.customerName.toLowerCase().includes(needle) ||
+        SERVICE_TYPE_LABELS[item.serviceType].toLowerCase().includes(needle)
+    );
+  }, [openWork, search]);
+  // Selections are lead ids held here, independent of the visible page, so they persist across pages and searches.
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filteredWork);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,9 +133,25 @@ export function BulkReassignmentManager() {
     });
   };
 
-  const allSelected = openWork.length > 0 && selectedLeadIds.size === new Set(openWork.map((item) => item.leadId)).size;
-  const toggleSelectAll = () => {
-    setSelectedLeadIds(allSelected ? new Set() : new Set(openWork.map((item) => item.leadId)));
+  const pageLeadIds = [...new Set(pageItems.map((item) => item.leadId))];
+  const filteredLeadIds = [...new Set(filteredWork.map((item) => item.leadId))];
+  const totalLeadCount = new Set(openWork.map((item) => item.leadId)).size;
+  const pageAllSelected = pageLeadIds.length > 0 && pageLeadIds.every((id) => selectedLeadIds.has(id));
+  const filteredAllSelected = filteredLeadIds.length > 0 && filteredLeadIds.every((id) => selectedLeadIds.has(id));
+
+  const togglePageSelection = () => {
+    setSelectedLeadIds((current) => {
+      const next = new Set(current);
+      for (const id of pageLeadIds) {
+        if (pageAllSelected) next.delete(id);
+        else next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAllFiltered = () => {
+    setSelectedLeadIds((current) => new Set([...current, ...filteredLeadIds]));
   };
 
   const handleReassign = async () => {
@@ -167,6 +201,8 @@ export function BulkReassignmentManager() {
             onChange={(event) => {
               setFromStaffId(event.target.value);
               setToStaffId("");
+              setSearch("");
+              resetPage();
             }}
             className={cn(fieldControlClass, fieldBorderClass(false))}
           >
@@ -211,40 +247,86 @@ export function BulkReassignmentManager() {
       ) : openWork.length === 0 ? (
         <EmptyState title="No open bookings" description="This staff member has no open, non-terminal bookings to reassign." />
       ) : (
-        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-ink-heading">
-              Open Bookings ({openWork.length}) — {selectedCount} selected
-            </h2>
-            <Button type="button" size="sm" variant="ghost" onClick={toggleSelectAll}>
-              {allSelected ? "Deselect All" : "Select All"}
-            </Button>
+        <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-col gap-0.5">
+              <h2 className="text-sm font-semibold text-ink-heading">Open Bookings ({openWork.length})</h2>
+              <p className="text-xs text-ink-tertiary" aria-live="polite">
+                <span className="font-medium text-ink-secondary">{selectedCount}</span> of {totalLeadCount} lead
+                {totalLeadCount === 1 ? "" : "s"} selected
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button type="button" size="sm" variant="ghost" onClick={togglePageSelection} disabled={pageLeadIds.length === 0}>
+                {pageAllSelected ? "Deselect this page" : `Select this page (${pageLeadIds.length})`}
+              </Button>
+              {!filteredAllSelected && filteredLeadIds.length > 0 ? (
+                <Button type="button" size="sm" variant="ghost" onClick={selectAllFiltered}>
+                  {search.trim() ? `Select all ${filteredLeadIds.length} matching` : `Select all ${filteredLeadIds.length}`}
+                </Button>
+              ) : null}
+              {selectedCount > 0 ? (
+                <Button type="button" size="sm" variant="ghost" onClick={() => setSelectedLeadIds(new Set())}>
+                  Clear selection
+                </Button>
+              ) : null}
+            </div>
           </div>
-          <div className="flex flex-col gap-2">
-            {openWork.map((item) => (
-              <label
-                key={item.bookingId}
-                className="flex cursor-pointer items-center justify-between gap-3 rounded-lg border border-hairline px-3 py-2.5 text-sm hover:bg-ink-primary/[0.02]"
-              >
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedLeadIds.has(item.leadId)}
-                    onChange={() => toggleLead(item.leadId)}
-                  />
-                  <div className="flex flex-col">
-                    <span className="font-medium text-ink-primary">
-                      {item.bookingIdFormatted} <span className="text-ink-tertiary">({item.leadReferenceId})</span>
-                    </span>
-                    <span className="text-xs text-ink-tertiary">
-                      {item.customerName} · {SERVICE_TYPE_LABELS[item.serviceType]} · {item.paxCount} PAX
-                    </span>
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+            <label htmlFor="bulk-work-search" className="sr-only">
+              Search open bookings
+            </label>
+            <input
+              id="bulk-work-search"
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              placeholder="Search booking ID, reference, customer or service…"
+              className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+            />
+          </div>
+          {filteredWork.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No matching bookings"
+              description="Try a different booking ID, reference, customer or service. Existing selections are kept."
+            />
+          ) : (
+            <div className="flex flex-col gap-2">
+              {pageItems.map((item) => (
+                <label
+                  key={item.bookingId}
+                  className={cn(
+                    "flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-sm transition-colors hover:bg-ink-primary/[0.02]",
+                    selectedLeadIds.has(item.leadId) ? "border-accent/30 bg-accent/[0.04]" : "border-hairline"
+                  )}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={selectedLeadIds.has(item.leadId)}
+                      onChange={() => toggleLead(item.leadId)}
+                      aria-label={`Select ${item.bookingIdFormatted} for ${item.customerName}`}
+                    />
+                    <div className="flex flex-col">
+                      <span className="font-medium text-ink-primary">
+                        {item.bookingIdFormatted} <span className="text-ink-tertiary">({item.leadReferenceId})</span>
+                      </span>
+                      <span className="text-xs text-ink-tertiary">
+                        {item.customerName} · {SERVICE_TYPE_LABELS[item.serviceType]} · {item.paxCount} PAX
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <span className="rounded-full bg-ink-primary/[0.06] px-2 py-0.5 text-xs text-ink-tertiary">{item.status}</span>
-              </label>
-            ))}
-          </div>
+                  <BookingStatusBadge status={item.status} />
+                </label>
+              ))}
+            </div>
+          )}
+          <ListPagination noun="open booking" {...paginationProps} />
 
           <div className="mt-2 flex flex-col gap-3 border-t border-hairline pt-4">
             <p className="text-xs text-ink-tertiary">You&apos;ll be asked for a reason — it&apos;s recorded on every affected lead&apos;s audit trail.</p>

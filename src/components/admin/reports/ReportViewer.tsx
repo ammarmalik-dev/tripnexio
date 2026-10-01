@@ -5,6 +5,8 @@ import { Download, Info } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { Button, buttonBaseClass, buttonSizeClass, buttonVariantClass } from "@/components/ui/Button";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -146,49 +148,59 @@ interface ReportTableProps {
   currencyCode: string;
 }
 
+/**
+ * The table pages its rows client-side (it remounts, back on page 1, whenever
+ * the filters reload the report). The totals footer is the API's figure over
+ * ALL rows, never the current page, and the CSV export is never paged.
+ */
 function ReportTable({ columns, rows, totals, currencyCode }: ReportTableProps) {
   const showTotals = totals !== undefined && Object.keys(totals).length > 0;
+  const { pageItems, paginationProps } = useClientPagination(rows);
+  const offset = (paginationProps.page - 1) * paginationProps.pageSize;
   return (
-    <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-      <table className="w-full min-w-max text-left text-sm">
-        <thead className="border-b border-hairline text-xs uppercase tracking-wide text-ink-tertiary">
-          <tr>
-            {columns.map((column) => (
-              <th key={column.key} scope="col" className={cn("whitespace-nowrap px-4 py-3 font-medium", isNumericKind(column.kind) && "text-right")}>
-                {column.label}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, index) => (
-            <tr key={index} className="border-b border-hairline last:border-b-0">
+    <div className="flex flex-col gap-3">
+      <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
+        <table className="w-full min-w-max text-left text-sm">
+          <thead className="border-b border-hairline text-xs uppercase tracking-wide text-ink-tertiary">
+            <tr>
               {columns.map((column) => (
-                <td
-                  key={column.key}
-                  className={cn("whitespace-nowrap px-4 py-2.5 text-ink-primary", isNumericKind(column.kind) && "text-right tabular-nums")}
-                >
-                  {formatReportCell(row[column.key], column.kind, currencyCode)}
-                </td>
+                <th key={column.key} scope="col" className={cn("whitespace-nowrap px-4 py-3 font-medium", isNumericKind(column.kind) && "text-right")}>
+                  {column.label}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-        {showTotals ? (
-          <tfoot className="border-t-2 border-hairline bg-surface-2 font-semibold text-ink-heading">
-            <tr>
-              {columns.map((column, index) => {
-                const total = totals?.[column.key];
-                return (
-                  <td key={column.key} className={cn("whitespace-nowrap px-4 py-3", isNumericKind(column.kind) && "text-right tabular-nums")}>
-                    {typeof total === "number" ? formatReportCell(total, column.kind, currencyCode) : index === 0 ? "Total" : ""}
+          </thead>
+          <tbody>
+            {pageItems.map((row, index) => (
+              <tr key={offset + index} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
+                {columns.map((column) => (
+                  <td
+                    key={column.key}
+                    className={cn("whitespace-nowrap px-4 py-2.5 text-ink-primary", isNumericKind(column.kind) && "text-right tabular-nums")}
+                  >
+                    {formatReportCell(row[column.key], column.kind, currencyCode)}
                   </td>
-                );
-              })}
-            </tr>
-          </tfoot>
-        ) : null}
-      </table>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+          {showTotals ? (
+            <tfoot className="border-t-2 border-hairline bg-surface-2 font-semibold text-ink-heading">
+              <tr>
+                {columns.map((column, index) => {
+                  const total = totals?.[column.key];
+                  return (
+                    <td key={column.key} className={cn("whitespace-nowrap px-4 py-3", isNumericKind(column.kind) && "text-right tabular-nums")}>
+                      {typeof total === "number" ? formatReportCell(total, column.kind, currencyCode) : index === 0 ? "Total" : ""}
+                    </td>
+                  );
+                })}
+              </tr>
+            </tfoot>
+          ) : null}
+        </table>
+      </div>
+      <ListPagination noun="row" {...paginationProps} />
     </div>
   );
 }

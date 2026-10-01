@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { ChevronDown, History, Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, History, Plus, Search } from "lucide-react";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -689,6 +691,29 @@ export function VendorsManager() {
   const [weights, setWeights] = useState<VendorScoringWeights | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [serviceFilter, setServiceFilter] = useState<ServiceType | "">("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
+
+  const trimmedSearch = search.trim();
+  const filtered = useMemo(() => {
+    const term = trimmedSearch.toLowerCase();
+    return vendors.filter((vendor) => {
+      if (statusFilter === "active" && !vendor.active) return false;
+      if (statusFilter === "disabled" && vendor.active) return false;
+      if (serviceFilter && !vendor.services.some((entry) => entry.service === serviceFilter)) return false;
+      if (!term) return true;
+      return [vendor.name, vendor.pocName, vendor.mobile, vendor.email, vendor.gstNumber].some((value) => (value ?? "").toLowerCase().includes(term));
+    });
+  }, [vendors, trimmedSearch, serviceFilter, statusFilter]);
+  const { pageItems, paginationProps, resetPage, setPage } = useClientPagination(filtered);
+
+  const clearFilters = () => {
+    setSearch("");
+    setServiceFilter("");
+    setStatusFilter("all");
+    resetPage();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -743,19 +768,89 @@ export function VendorsManager() {
 
   return (
     <div className="flex flex-col gap-4">
+      {vendors.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
+            <input
+              type="search"
+              aria-label="Search vendors"
+              placeholder="Search name, contact, mobile, email or GST"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by service"
+            value={serviceFilter}
+            onChange={(event) => {
+              setServiceFilter(event.target.value as ServiceType | "");
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-48")}
+          >
+            <option value="">All services</option>
+            {SERVICE_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as "all" | "active" | "disabled");
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} vendor{filtered.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      ) : null}
+
       {vendors.length === 0 ? (
         <EmptyState title="No vendors yet" description="Add the first one using the form below." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={trimmedSearch ? `No vendors match "${trimmedSearch}"` : "No vendors match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
       ) : (
-        vendors.map((vendor) => (
-          <VendorCard
-            key={vendor.id}
-            vendor={vendor}
-            weights={weights}
-            onSaved={(updated) => setVendors((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-          />
-        ))
+        <div className="flex flex-col gap-3">
+          {pageItems.map((vendor) => (
+            <VendorCard
+              key={vendor.id}
+              vendor={vendor}
+              weights={weights}
+              onSaved={(updated) => setVendors((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+            />
+          ))}
+        </div>
       )}
-      <NewVendorForm onCreated={(created) => setVendors((current) => [...current, created])} />
+      <ListPagination noun="vendor" {...paginationProps} />
+      <NewVendorForm
+        onCreated={(created) => {
+          setVendors((current) => [created, ...current]);
+          clearFilters();
+          setPage(1);
+        }}
+      />
     </div>
   );
 }

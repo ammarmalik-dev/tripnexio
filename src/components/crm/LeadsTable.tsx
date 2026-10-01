@@ -16,6 +16,7 @@ import { LeadStatusBadge } from "./LeadStatusBadge";
 import { LeadTemperatureBadge } from "./LeadTemperatureBadge";
 import { UrgentBadge } from "./UrgentBadge";
 import { ListPagination } from "./ListPagination";
+import { usePaginationState } from "./usePagination";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TEMPERATURE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -45,7 +46,6 @@ interface LeadListResponse {
 
 type SortOption = "createdAt_desc" | "createdAt_asc";
 
-const PAGE_SIZE = 25;
 type FetchState = "loading" | "success" | "error";
 
 function formatDate(iso: string): string {
@@ -60,7 +60,7 @@ export function LeadsTable() {
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
   const [temperature, setTemperature] = useState(() => searchParams.get("temperature") ?? "");
   const [paymentFailed, setPaymentFailed] = useState(() => searchParams.get("paymentFailed") === "1");
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
   const {
     dateFrom,
     dateTo,
@@ -121,7 +121,7 @@ export function LeadsTable() {
       setPage(1);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -139,7 +139,7 @@ export function LeadsTable() {
         if (paymentFailed) params.set("paymentFailed", "1");
         params.set("sort", sort);
         params.set("page", String(page));
-        params.set("pageSize", String(PAGE_SIZE));
+        params.set("pageSize", String(pageSize));
 
         const result = await getJson<LeadListResponse>(`/api/leads?${params.toString()}`);
         if (cancelled) return;
@@ -157,7 +157,7 @@ export function LeadsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, status, temperature, paymentFailed, dateFrom, dateTo, search, sort, page, refreshNonce]);
+  }, [serviceType, status, temperature, paymentFailed, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -404,10 +404,10 @@ export function LeadsTable() {
         <ListPagination
           noun="lead"
           page={page}
-          pageSize={PAGE_SIZE}
+          pageSize={pageSize}
           total={total}
           itemCount={items.length}
-          onPageChange={setPage}
+          {...paginationHandlers}
         />
       ) : null}
     </div>

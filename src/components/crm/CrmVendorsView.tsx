@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { GitCompare, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { GitCompare, Search, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { cn } from "@/lib/cn";
@@ -165,6 +167,21 @@ export function CrmVendorsView() {
   const [reloadNonce, setReloadNonce] = useState(0);
   const [compareMode, setCompareMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+
+  const filteredVendors = useMemo(() => {
+    const vendors = data?.vendors ?? [];
+    const needle = search.trim().toLowerCase();
+    if (!needle) return vendors;
+    return vendors.filter(
+      (vendor) =>
+        vendor.name.toLowerCase().includes(needle) ||
+        vendor.services.some((entry) => entry.label.toLowerCase().includes(needle)) ||
+        (vendor.processingDetails ?? "").toLowerCase().includes(needle)
+    );
+  }, [data, search]);
+  // Compare selections are ids held here, so they survive paging and searching.
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filteredVendors);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,9 +219,17 @@ export function CrmVendorsView() {
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-xs text-ink-tertiary">
           Service
-          <select value={service} onChange={(e) => setService(e.target.value)} className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}>
+          <select
+            value={service}
+            onChange={(e) => {
+              setService(e.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
+          >
             <option value="">All services</option>
             {SERVICE_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -213,6 +238,24 @@ export function CrmVendorsView() {
             ))}
           </select>
         </label>
+        <div className="relative min-w-[220px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+          <label htmlFor="vendor-search" className="sr-only">
+            Search vendors
+          </label>
+          <input
+            id="vendor-search"
+            type="search"
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              resetPage();
+            }}
+            placeholder="Search vendors…"
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 pl-9 text-sm")}
+          />
+        </div>
+        </div>
         {compareMode ? (
           <div className="flex items-center gap-2">
             <span className="text-xs text-ink-tertiary" aria-live="polite">
@@ -260,9 +303,15 @@ export function CrmVendorsView() {
         />
       ) : data.vendors.length === 0 ? (
         <EmptyState title="No active vendors" description={service ? "No active vendor offers this service. Try another service." : "No active vendors are configured yet — Admin manages vendors."} />
+      ) : filteredVendors.length === 0 ? (
+        <EmptyState
+          icon={<Search className="h-5 w-5" aria-hidden="true" />}
+          title="No matching vendors"
+          description="Try a different vendor name, service or processing detail."
+        />
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {data.vendors.map((vendor) => (
+          {pageItems.map((vendor) => (
             <VendorCard
               key={vendor.id}
               vendor={vendor}
@@ -275,6 +324,7 @@ export function CrmVendorsView() {
           ))}
         </ul>
       )}
+      {state === "success" && data ? <ListPagination noun="vendor" {...paginationProps} /> : null}
     </div>
   );
 }

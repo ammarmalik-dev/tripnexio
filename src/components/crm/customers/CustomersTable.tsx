@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, RotateCw, Search, Users } from "lucide-react";
+import { RotateCw, Search, Users } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,8 +12,8 @@ import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { CustomerListItem, CustomerListResponse } from "@/lib/customers/types";
 import { formatCrmDate } from "./format";
-
-const PAGE_SIZE = 25;
+import { ListPagination } from "../ListPagination";
+import { usePaginationState } from "../usePagination";
 
 type FetchState = "loading" | "success" | "error";
 
@@ -21,7 +21,7 @@ type FetchState = "loading" | "success" | "error";
 export function CustomersTable() {
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -35,7 +35,7 @@ export function CustomersTable() {
       setPage(1);
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -46,7 +46,7 @@ export function CustomersTable() {
         const params = new URLSearchParams();
         if (search) params.set("search", search);
         params.set("page", String(page));
-        params.set("pageSize", String(PAGE_SIZE));
+        params.set("pageSize", String(pageSize));
         const result = await getJson<CustomerListResponse>(`/api/customers?${params.toString()}`);
         if (cancelled) return;
         setItems(result.items);
@@ -63,11 +63,7 @@ export function CustomersTable() {
     return () => {
       cancelled = true;
     };
-  }, [search, page, refreshNonce]);
-
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const firstRow = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const lastRow = (page - 1) * PAGE_SIZE + items.length;
+  }, [search, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -163,39 +159,15 @@ export function CustomersTable() {
         </div>
       ) : null}
 
-      {state === "success" && total > 0 ? (
-        <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="Customers pagination">
-          <p className="text-xs text-ink-tertiary">
-            Showing {firstRow}–{lastRow} of {total} customer{total === 1 ? "" : "s"}
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
-              disabled={page <= 1}
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-              Previous
-            </Button>
-            <span className="text-xs text-ink-tertiary">
-              Page {page} of {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
-              disabled={page >= totalPages}
-              aria-label="Next page"
-            >
-              Next
-              <ChevronRight className="h-4 w-4" aria-hidden="true" />
-            </Button>
-          </div>
-        </nav>
+      {state === "success" ? (
+        <ListPagination
+          noun="customer"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          itemCount={items.length}
+          {...paginationHandlers}
+        />
       ) : null}
     </div>
   );

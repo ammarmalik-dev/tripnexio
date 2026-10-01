@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { KNOWLEDGE_ARTICLE_CATEGORY_LABELS, KNOWLEDGE_ARTICLE_CATEGORY_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -298,6 +300,7 @@ export function KnowledgeCentreManager({ canEdit }: { canEdit: boolean }) {
         );
       });
   }, [articles, canEdit, categoryFilter, search]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(visibleArticles);
 
   if (state === "loading") {
     return (
@@ -331,7 +334,10 @@ export function KnowledgeCentreManager({ canEdit }: { canEdit: boolean }) {
           <input
             type="search"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              resetPage();
+            }}
             placeholder="Search SOPs, staff FAQ, training material…"
             className={cn(fieldControlClass, "pl-9")}
             aria-label="Search the Knowledge Centre"
@@ -339,7 +345,10 @@ export function KnowledgeCentreManager({ canEdit }: { canEdit: boolean }) {
         </div>
         <select
           value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value as KnowledgeArticleCategory | "ALL")}
+          onChange={(event) => {
+            setCategoryFilter(event.target.value as KnowledgeArticleCategory | "ALL");
+            resetPage();
+          }}
           className={cn(fieldControlClass, "sm:w-56")}
           aria-label="Filter by category"
         >
@@ -359,15 +368,18 @@ export function KnowledgeCentreManager({ canEdit }: { canEdit: boolean }) {
           description={articles.length === 0 ? "SOPs, staff FAQ, and training material will show up here once added." : "Try a different search or category."}
         />
       ) : (
-        visibleArticles.map((article) => (
-          <ArticleCard
-            key={article.id}
-            article={article}
-            canEdit={canEdit}
-            onSaved={(updated) => setArticles((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-          />
-        ))
+        <div className="flex flex-col gap-3">
+          {pageItems.map((article) => (
+            <ArticleCard
+              key={article.id}
+              article={article}
+              canEdit={canEdit}
+              onSaved={(updated) => setArticles((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+            />
+          ))}
+        </div>
       )}
+      <ListPagination noun="article" {...paginationProps} />
 
       {canEdit ? <NewArticleForm onCreated={(created) => setArticles((current) => [...current, created])} /> : null}
     </div>

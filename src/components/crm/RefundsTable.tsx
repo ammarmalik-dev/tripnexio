@@ -14,6 +14,8 @@ import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { RefundStatusControl } from "./RefundStatusControl";
 import { REFUND_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { ListPagination } from "./ListPagination";
+import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { RefundStatus } from "../../generated/prisma/enums";
@@ -65,6 +67,7 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
   const [statusOverrides, setStatusOverrides] = useState<Record<string, RefundStatus>>({});
 
   function buildFilterParams() {
@@ -78,9 +81,12 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -94,6 +100,8 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
         params.set("sort", sort);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
 
         const result = await getJson<RefundListResponse>(`/api/refunds?${params.toString()}`);
         if (cancelled) return;
@@ -112,7 +120,7 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
     return () => {
       cancelled = true;
     };
-  }, [status, dateFrom, dateTo, search, sort, refreshNonce]);
+  }, [status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -138,7 +146,10 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
         <select
           id="filter-refund-status"
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
         >
           <option value="">All statuses</option>
@@ -155,7 +166,10 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
         <select
           id="sort-refunds"
           value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="createdAt_desc">Newest first</option>
@@ -180,10 +194,22 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
         idPrefix="refund"
         dateFrom={dateFrom}
         dateTo={dateTo}
-        onPreset={applyPreset}
-        onCustomFrom={applyCustomFrom}
-        onCustomTo={applyCustomTo}
-        onClear={clearDates}
+        onPreset={(days) => {
+          applyPreset(days);
+          resetPage();
+        }}
+        onCustomFrom={(dateOnly) => {
+          applyCustomFrom(dateOnly);
+          resetPage();
+        }}
+        onCustomTo={(dateOnly) => {
+          applyCustomTo(dateOnly);
+          resetPage();
+        }}
+        onClear={() => {
+          clearDates();
+          resetPage();
+        }}
       />
 
       {state === "loading" ? (
@@ -264,9 +290,14 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
       ) : null}
 
       {state === "success" ? (
-        <p className="text-xs text-ink-tertiary">
-          Showing {items.length} of {total} refund{total === 1 ? "" : "s"}
-        </p>
+        <ListPagination
+          noun="refund"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          itemCount={items.length}
+          {...paginationHandlers}
+        />
       ) : null}
     </div>
   );

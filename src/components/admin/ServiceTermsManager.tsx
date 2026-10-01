@@ -13,6 +13,12 @@ import { toast } from "@/components/ui/Toaster";
 import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+
+type ActiveFilter = "all" | "active" | "inactive";
+/** Country filter value for the all-countries (not country-specific) versions. */
+const NO_COUNTRY = "__none";
 
 interface CountryOption {
   id: string;
@@ -158,6 +164,29 @@ export function ServiceTermsManager({
   const [countries, setCountries] = useState<CountryOption[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [countryFilter, setCountryFilter] = useState("");
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+
+  const visibleItems = scopedCountryId
+    ? items.filter((item) => item.countryId === scopedCountryId || item.countryId === null)
+    : items;
+  const filtered = visibleItems.filter((item) => {
+    if (countryFilter === NO_COUNTRY ? item.countryId !== null : countryFilter !== "" && item.countryId !== countryFilter) return false;
+    if (activeFilter === "active" && !item.active) return false;
+    if (activeFilter === "inactive" && item.active) return false;
+    return true;
+  });
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
+  const hasFilters = countryFilter !== "" || activeFilter !== "all";
+  const clearFilters = () => {
+    setCountryFilter("");
+    setActiveFilter("all");
+    resetPage();
+  };
+  // Only countries that actually have a published version are worth filtering by.
+  const filterCountries = [...new Map(visibleItems.flatMap((item) => (item.country ? [[item.country.id, item.country.name] as const] : []))).entries()].sort(
+    (a, b) => a[1].localeCompare(b[1]),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -184,10 +213,6 @@ export function ServiceTermsManager({
     };
   }, [serviceType, reloadNonce]);
 
-  const visibleItems = scopedCountryId
-    ? items.filter((item) => item.countryId === scopedCountryId || item.countryId === null)
-    : items;
-
   return (
     <div className="flex flex-col gap-3">
       {lockedServiceType ? null : (
@@ -198,7 +223,11 @@ export function ServiceTermsManager({
           <select
             id="terms-service"
             value={serviceType}
-            onChange={(e) => setServiceType(e.target.value as ServiceType)}
+            onChange={(e) => {
+              setServiceType(e.target.value as ServiceType);
+              setCountryFilter("");
+              resetPage();
+            }}
             className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[220px]")}
           >
             {SERVICE_TYPE_OPTIONS.map((option) => (
@@ -226,9 +255,73 @@ export function ServiceTermsManager({
           {visibleItems.length === 0 ? (
             <EmptyState title="No terms published for this service" description="Customers agree to the general website Terms until you publish a version here." />
           ) : (
-            visibleItems.map((item) => (
-              <TermsRow key={item.id} terms={item} onSaved={(updated) => setItems((current) => current.map((t) => (t.id === updated.id ? updated : t)))} />
-            ))
+            <>
+              <div className="flex flex-wrap items-center gap-3">
+                {filterCountries.length > 0 ? (
+                  <>
+                    <label htmlFor="terms-filter-country" className="sr-only">
+                      Filter by destination country
+                    </label>
+                    <select
+                      id="terms-filter-country"
+                      value={countryFilter}
+                      onChange={(event) => {
+                        setCountryFilter(event.target.value);
+                        resetPage();
+                      }}
+                      className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[170px]")}
+                    >
+                      <option value="">All versions</option>
+                      <option value={NO_COUNTRY}>All-countries versions</option>
+                      {filterCountries.map(([id, name]) => (
+                        <option key={id} value={id}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                ) : null}
+                <label htmlFor="terms-filter-active" className="sr-only">
+                  Filter by status
+                </label>
+                <select
+                  id="terms-filter-active"
+                  value={activeFilter}
+                  onChange={(event) => {
+                    setActiveFilter(event.target.value as ActiveFilter);
+                    resetPage();
+                  }}
+                  className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[130px]")}
+                >
+                  <option value="all">All statuses</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Disabled</option>
+                </select>
+                {hasFilters ? (
+                  <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                ) : null}
+              </div>
+              {filtered.length === 0 ? (
+                <EmptyState
+                  title="No versions match these filters"
+                  description={`None of the ${visibleItems.length} published versions match. Clear the filters to see them all.`}
+                  action={
+                    <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+                      Clear filters
+                    </Button>
+                  }
+                />
+              ) : (
+                <>
+                  {pageItems.map((item) => (
+                    <TermsRow key={item.id} terms={item} onSaved={(updated) => setItems((current) => current.map((t) => (t.id === updated.id ? updated : t)))} />
+                  ))}
+                  <ListPagination noun="terms version" {...paginationProps} />
+                </>
+              )}
+            </>
           )}
           <NewTermsForm
             key={`${serviceType}-${scopedCountryId ?? ""}`}

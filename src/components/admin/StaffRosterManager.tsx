@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock } from "lucide-react";
+import { CalendarClock, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, putJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -258,6 +261,15 @@ export function StaffRosterManager() {
   }, [reloadKey]);
 
   const anyDirty = useMemo(() => !sameSet(selected, saved), [selected, saved]);
+  const [search, setSearch] = useState("");
+  const filteredStaff = useMemo(() => {
+    const staff = data?.staff ?? [];
+    const needle = search.trim().toLowerCase();
+    if (!needle) return staff;
+    return staff.filter((member) => member.name.toLowerCase().includes(needle) || member.role.toLowerCase().includes(needle));
+  }, [data, search]);
+  // Ticked-but-unsaved cells live in `selected` here (not in the cards), so they survive paging and searching.
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filteredStaff);
 
   const toggleCell = (key: string) => {
     setSelected((current) => {
@@ -340,8 +352,32 @@ export function StaffRosterManager() {
               Save whole grid
             </Button>
           </div>
+          <div className="relative max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+            <label htmlFor="roster-search" className="sr-only">
+              Search staff by name or role
+            </label>
+            <input
+              id="roster-search"
+              type="search"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              placeholder="Search staff by name or role…"
+              className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+            />
+          </div>
+          {filteredStaff.length === 0 ? (
+            <EmptyState
+              icon={<Search className="h-5 w-5" aria-hidden="true" />}
+              title="No matching staff"
+              description="Try a different name or role."
+            />
+          ) : null}
           <div className="flex flex-col gap-4">
-            {data.staff.map((member) => (
+            {pageItems.map((member) => (
               <StaffRosterCard
                 key={member.id}
                 member={member}
@@ -353,6 +389,7 @@ export function StaffRosterManager() {
               />
             ))}
           </div>
+          <ListPagination noun="staff member" {...paginationProps} />
         </>
       )}
     </div>

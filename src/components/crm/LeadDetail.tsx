@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { PurgedFileTag } from "./PurgedFileTag";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -12,6 +12,10 @@ import { LeadAssignmentControl } from "./LeadAssignmentControl";
 import { LeadTemperatureControl } from "./LeadTemperatureControl";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { BookingStatusBadge } from "./BookingStatusBadge";
+import { PaymentStatusBadge } from "./PaymentStatusBadge";
+import { ListPagination } from "./ListPagination";
+import { useClientPagination } from "./usePagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { DocumentStatusBadge } from "./DocumentStatusBadge";
 import { PassportExtractionReview } from "./PassportExtractionReview";
 import { VisaExtensionEligibilityPanel } from "./VisaExtensionEligibilityPanel";
@@ -31,6 +35,21 @@ import { ApplicantsTable } from "./ApplicantsTable";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { urgentDeadlineFromDetails } from "@/lib/visa-extension/rules";
 import { VisaChangeA2ADetailsPanel } from "./VisaChangeA2ADetailsPanel";
+
+/**
+ * Client-side pagination for a lead-detail list that can grow without bound
+ * (the customer's other requests, all their passengers, the timeline): the
+ * first 10 entries, plus a pager once there is more than one default page.
+ */
+function Paged<T>({ items, noun, children }: { items: readonly T[]; noun: string; children: (pageItems: T[]) => ReactNode }) {
+  const { pageItems, paginationProps } = useClientPagination(items);
+  return (
+    <>
+      {children(pageItems)}
+      {items.length > DEFAULT_PAGE_SIZE ? <ListPagination className="mt-3" noun={noun} {...paginationProps} /> : null}
+    </>
+  );
+}
 
 interface QuotationSummary {
   id: string;
@@ -111,6 +130,10 @@ interface LeadDetailResponse {
 }
 
 type FetchState = "loading" | "success" | "error";
+
+type OtherRequest =
+  | { kind: "lead"; lead: LeadDetailResponse["customer"]["otherLeads"][number] }
+  | { kind: "booking"; booking: LeadDetailResponse["customer"]["otherBookings"][number] };
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -196,6 +219,11 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
   const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
   const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
   const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED");
+  // The customer's other leads then other bookings, as one list so it paginates together.
+  const otherRequests: OtherRequest[] = [
+    ...lead.customer.otherLeads.map((otherLead) => ({ kind: "lead" as const, lead: otherLead })),
+    ...lead.customer.otherBookings.map((booking) => ({ kind: "booking" as const, booking })),
+  ];
 
   const handleCreateBooking = async () => {
     if (!selectedQuotation) return;
@@ -459,7 +487,7 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
                               <span>
                                 ₹{payment.amount} + GST ₹{payment.gstAmount} + fee ₹{payment.gatewayFee}
                               </span>
-                              <span>{payment.status}</span>
+                              <PaymentStatusBadge status={payment.status} />
                             </div>
                           ))}
                         </div>
@@ -492,14 +520,18 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               {lead.customer.passengers.length === 0 ? (
                 <p className="text-xs text-ink-tertiary">None yet.</p>
               ) : (
-                <ul className="flex flex-col gap-1">
-                  {lead.customer.passengers.map((passenger) => (
-                    <li key={passenger.id} className="text-sm text-ink-secondary">
-                      {passenger.fullName}{" "}
-                      <span className="text-xs text-ink-tertiary">({PAX_TYPE_LABELS[passenger.paxType]})</span>
-                    </li>
-                  ))}
-                </ul>
+                <Paged items={lead.customer.passengers} noun="passenger">
+                  {(rows) => (
+                    <ul className="flex flex-col gap-1">
+                      {rows.map((passenger) => (
+                        <li key={passenger.id} className="text-sm text-ink-secondary">
+                          {passenger.fullName}{" "}
+                          <span className="text-xs text-ink-tertiary">({PAX_TYPE_LABELS[passenger.paxType]})</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Paged>
               )}
             </div>
 
@@ -508,28 +540,33 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
               {lead.customer.otherLeads.length === 0 && lead.customer.otherBookings.length === 0 ? (
                 <p className="text-xs text-ink-tertiary">No other services yet.</p>
               ) : (
-                <ul className="flex flex-col gap-1.5">
-                  {lead.customer.otherLeads.map((otherLead) => (
-                    <li key={otherLead.id}>
-                      <Link href={`/crm/leads/${otherLead.id}`} className="text-sm text-ink-accent hover:underline">
-                        {otherLead.referenceId}
-                      </Link>{" "}
-                      <span className="inline-flex items-center gap-1 text-xs text-ink-tertiary">
-                        {SERVICE_TYPE_LABELS[otherLead.serviceType]} · <LeadStatusBadge status={otherLead.status} />
-                      </span>
-                    </li>
-                  ))}
-                  {lead.customer.otherBookings.map((booking) => (
-                    <li key={booking.id}>
-                      <Link href={`/crm/bookings/${booking.id}`} className="text-sm text-ink-accent hover:underline">
-                        {booking.bookingId}
-                      </Link>{" "}
-                      <span className="inline-flex items-center gap-1 text-xs text-ink-tertiary">
-                        <BookingStatusBadge status={booking.status} />
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <Paged items={otherRequests} noun="other request">
+                  {(rows) => (
+                    <ul className="flex flex-col gap-1.5">
+                      {rows.map((entry) =>
+                        entry.kind === "lead" ? (
+                          <li key={`lead-${entry.lead.id}`}>
+                            <Link href={`/crm/leads/${entry.lead.id}`} className="text-sm text-ink-accent hover:underline">
+                              {entry.lead.referenceId}
+                            </Link>{" "}
+                            <span className="inline-flex items-center gap-1 text-xs text-ink-tertiary">
+                              {SERVICE_TYPE_LABELS[entry.lead.serviceType]} · <LeadStatusBadge status={entry.lead.status} />
+                            </span>
+                          </li>
+                        ) : (
+                          <li key={`booking-${entry.booking.id}`}>
+                            <Link href={`/crm/bookings/${entry.booking.id}`} className="text-sm text-ink-accent hover:underline">
+                              {entry.booking.bookingId}
+                            </Link>{" "}
+                            <span className="inline-flex items-center gap-1 text-xs text-ink-tertiary">
+                              <BookingStatusBadge status={entry.booking.status} />
+                            </span>
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  )}
+                </Paged>
               )}
             </div>
           </section>
@@ -538,7 +575,9 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink-heading">Activity Timeline</h2>
-            <LeadTimeline entries={lead.timeline} />
+            <Paged items={lead.timeline} noun="timeline event">
+              {(rows) => <LeadTimeline entries={rows} />}
+            </Paged>
           </section>
         </div>
       </div>

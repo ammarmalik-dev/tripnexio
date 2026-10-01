@@ -13,6 +13,8 @@ import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { PAYMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { ListPagination } from "./ListPagination";
+import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { PaymentStatus } from "../../generated/prisma/enums";
@@ -65,6 +67,7 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
+  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
 
   function buildFilterParams() {
     const params = new URLSearchParams();
@@ -77,9 +80,12 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
   }
 
   useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const timer = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +99,8 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
         if (dateFrom) params.set("dateFrom", dateFrom);
         if (dateTo) params.set("dateTo", dateTo);
         params.set("sort", sort);
+        params.set("page", String(page));
+        params.set("pageSize", String(pageSize));
 
         const result = await getJson<ExtraPaymentListResponse>(`/api/payments/extra?${params.toString()}`);
         if (cancelled) return;
@@ -110,7 +118,7 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
     return () => {
       cancelled = true;
     };
-  }, [status, search, dateFrom, dateTo, sort, refreshNonce, refreshSignal]);
+  }, [status, search, dateFrom, dateTo, sort, page, pageSize, refreshNonce, refreshSignal]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -136,7 +144,10 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
         <select
           id="filter-extra-payment-status"
           value={status}
-          onChange={(event) => setStatus(event.target.value)}
+          onChange={(event) => {
+            setStatus(event.target.value);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
         >
           <option value="">All statuses</option>
@@ -153,7 +164,10 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
         <select
           id="sort-extra-payments"
           value={sort}
-          onChange={(event) => setSort(event.target.value as SortOption)}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            resetPage();
+          }}
           className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
         >
           <option value="createdAt_desc">Newest first</option>
@@ -178,10 +192,22 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
         idPrefix="extra-payment"
         dateFrom={dateFrom}
         dateTo={dateTo}
-        onPreset={applyPreset}
-        onCustomFrom={applyCustomFrom}
-        onCustomTo={applyCustomTo}
-        onClear={clearDates}
+        onPreset={(days) => {
+          applyPreset(days);
+          resetPage();
+        }}
+        onCustomFrom={(dateOnly) => {
+          applyCustomFrom(dateOnly);
+          resetPage();
+        }}
+        onCustomTo={(dateOnly) => {
+          applyCustomTo(dateOnly);
+          resetPage();
+        }}
+        onClear={() => {
+          clearDates();
+          resetPage();
+        }}
       />
 
       {state === "loading" ? (
@@ -254,9 +280,14 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
       ) : null}
 
       {state === "success" ? (
-        <p className="text-xs text-ink-tertiary">
-          Showing {items.length} of {total} extra payment{total === 1 ? "" : "s"}
-        </p>
+        <ListPagination
+          noun="extra payment"
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          itemCount={items.length}
+          {...paginationHandlers}
+        />
       ) : null}
     </div>
   );

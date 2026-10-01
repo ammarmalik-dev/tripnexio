@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -12,6 +12,8 @@ import { COUPON_TYPE_OPTIONS, COUPON_CATEGORY_OPTIONS } from "@/lib/crm/labels";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { AbandonedCouponConfigCard } from "./AbandonedCouponConfigCard";
 import type { CouponType, CouponCategory } from "../../generated/prisma/enums";
 
@@ -31,6 +33,7 @@ interface CouponData {
 }
 
 type FetchState = "loading" | "success" | "error";
+type StatusFilter = "all" | "active" | "disabled";
 
 interface FormState {
   code: string;
@@ -230,27 +233,42 @@ function CouponCard({ coupon, onSaved }: { coupon: CouponData; onSaved: (coupon:
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={cn("rounded-full px-2.5 py-1 text-xs font-medium", coupon.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}
-        >
-          {coupon.active ? "Active" : "Disabled"}
-        </span>
-        <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-1 text-xs font-medium text-ink-secondary">
-          {COUPON_CATEGORY_OPTIONS.find((o) => o.value === coupon.category)?.label}
-        </span>
-        {coupon.leadId ? (
-          <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-1 text-xs font-medium text-ink-accent" title={`Only redeemable on lead ${coupon.leadId}`}>
-            Single lead only
-          </span>
-        ) : null}
-        <span className="text-xs text-ink-tertiary">
-          Used {coupon.usageCount} time{coupon.usageCount === 1 ? "" : "s"}
-          {coupon.usageLimit != null ? ` of ${coupon.usageLimit}` : " · unlimited"}
-        </span>
-        <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
-          {coupon.active ? "Disable" : "Enable"}
-        </Button>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-hairline pb-4">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-mono text-base font-semibold text-ink-heading">{coupon.code}</h3>
+            <span
+              className={cn(
+                "rounded-full px-2.5 py-0.5 text-xs font-medium",
+                coupon.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
+              )}
+            >
+              {coupon.active ? "Active" : "Disabled"}
+            </span>
+            <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-0.5 text-xs font-medium text-ink-secondary">
+              {COUPON_CATEGORY_OPTIONS.find((o) => o.value === coupon.category)?.label}
+            </span>
+            {coupon.leadId ? (
+              <span
+                className="rounded-full bg-ink-primary/[0.06] px-2.5 py-0.5 text-xs font-medium text-ink-accent"
+                title={`Only redeemable on lead ${coupon.leadId}`}
+              >
+                Single lead only
+              </span>
+            ) : null}
+          </div>
+          <p className="mt-1 text-xs text-ink-tertiary">
+            {coupon.type === "PERCENTAGE" ? `${coupon.value}% off` : `₹${coupon.value} off`} · Valid{" "}
+            {toDateInputValue(coupon.validFrom)} to {toDateInputValue(coupon.validUntil)} · Used {coupon.usageCount} time
+            {coupon.usageCount === 1 ? "" : "s"}
+            {coupon.usageLimit != null ? ` of ${coupon.usageLimit}` : " · unlimited"}
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
+            {coupon.active ? "Disable" : "Enable"}
+          </Button>
+        </div>
       </div>
       <CouponFields form={form} onChange={setForm} errors={errors} disabled={saving} />
       <div className="flex justify-end">
@@ -286,8 +304,7 @@ function NewCouponForm({ onCreated }: { onCreated: (coupon: CouponData) => void 
   const canSubmit = form.code.trim() && form.type && form.category && form.value.trim() !== "" && form.validFrom && form.validUntil;
 
   return (
-    <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">New Coupon</h2>
+    <div className="flex flex-col gap-4">
       <CouponFields form={form} onChange={setForm} errors={errors} disabled={creating} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!canSubmit}>
@@ -361,6 +378,22 @@ export function CouponsManager() {
   const [coupons, setCoupons] = useState<CouponData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CouponCategory | "">("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [showCreate, setShowCreate] = useState(false);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return coupons.filter((coupon) => {
+      if (categoryFilter && coupon.category !== categoryFilter) return false;
+      if (statusFilter === "active" && !coupon.active) return false;
+      if (statusFilter === "disabled" && coupon.active) return false;
+      if (!term) return true;
+      return [coupon.code, coupon.leadId ?? ""].some((value) => value.toLowerCase().includes(term));
+    });
+  }, [coupons, search, categoryFilter, statusFilter]);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
     let cancelled = false;
@@ -409,22 +442,128 @@ export function CouponsManager() {
     );
   }
 
+  const clearFilters = () => {
+    setSearch("");
+    setCategoryFilter("");
+    setStatusFilter("all");
+    resetPage();
+  };
+  const createOpen = showCreate || coupons.length === 0;
+  const trimmedSearch = search.trim();
+
   return (
     <div className="flex flex-col gap-4">
       <EmployeeCouponCapCard />
       <AbandonedCouponConfigCard />
-      {coupons.length === 0 ? (
-        <EmptyState title="No coupons yet" description="Add the first one using the form below." />
-      ) : (
-        coupons.map((coupon) => (
-          <CouponCard
-            key={coupon.id}
-            coupon={coupon}
-            onSaved={(updated) => setCoupons((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+
+      <section className="rounded-xl border border-hairline bg-surface-1">
+        <button
+          type="button"
+          onClick={() => setShowCreate((current) => !current)}
+          aria-expanded={createOpen}
+          aria-controls="new-coupon-panel"
+          className="flex w-full items-center justify-between gap-3 rounded-xl px-5 py-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        >
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <Plus className="h-4 w-4 text-accent-on-light" aria-hidden="true" />
+            Add new coupon
+          </span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-ink-tertiary transition-transform duration-200", createOpen && "rotate-180")}
+            aria-hidden="true"
           />
-        ))
+        </button>
+        {createOpen ? (
+          <div id="new-coupon-panel" className="border-t border-hairline p-5">
+            <NewCouponForm
+              onCreated={(created) => {
+                setCoupons((current) => [created, ...current]);
+                clearFilters();
+              }}
+            />
+          </div>
+        ) : null}
+      </section>
+
+      {coupons.length > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
+          <div className="relative flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              aria-label="Search coupons"
+              placeholder="Search coupon code or lead"
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
+            />
+          </div>
+          <select
+            aria-label="Filter by category"
+            value={categoryFilter}
+            onChange={(event) => {
+              setCategoryFilter(event.target.value as CouponCategory | "");
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-48")}
+          >
+            <option value="">All categories</option>
+            {COUPON_CATEGORY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value as StatusFilter);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+          >
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
+            {filtered.length} coupon{filtered.length === 1 ? "" : "s"}
+          </p>
+        </div>
+      ) : null}
+
+      {coupons.length === 0 ? (
+        <EmptyState title="No coupons yet" description="Add the first one using the form above." />
+      ) : filtered.length === 0 ? (
+        <EmptyState
+          title={trimmedSearch ? `No coupons match "${trimmedSearch}"` : "No coupons match these filters"}
+          description="Try a different search or filter."
+          action={
+            <Button type="button" size="sm" variant="ghost" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {pageItems.map((coupon) => (
+            <CouponCard
+              key={coupon.id}
+              coupon={coupon}
+              onSaved={(updated) => setCoupons((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+            />
+          ))}
+        </div>
       )}
-      <NewCouponForm onCreated={(created) => setCoupons((current) => [...current, created])} />
+
+      <ListPagination noun="coupon" {...paginationProps} />
     </div>
   );
 }

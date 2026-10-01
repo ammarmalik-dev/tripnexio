@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { LeaveStatusBadge } from "@/components/crm/LeaveStatusBadge";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { LEAVE_TYPE_OPTIONS, LEAVE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -147,6 +149,7 @@ export function MyLeavePanel() {
   const [leaves, setLeaves] = useState<MyLeaveData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  const { pageItems, paginationProps } = useClientPagination(leaves);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,8 +203,13 @@ export function MyLeavePanel() {
       {leaves.length === 0 ? (
         <EmptyState title="No leave requested yet" description="Submit your first request using the form below." />
       ) : (
-        leaves.map((leave) => <LeaveRow key={leave.id} leave={leave} />)
+        <div className="flex flex-col gap-3">
+          {pageItems.map((leave) => (
+            <LeaveRow key={leave.id} leave={leave} />
+          ))}
+        </div>
       )}
+      <ListPagination noun="leave request" {...paginationProps} />
       <RequestLeaveForm onCreated={(created) => setLeaves((current) => [created, ...current])} />
     </div>
   );
