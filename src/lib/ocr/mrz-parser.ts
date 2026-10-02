@@ -74,6 +74,35 @@ export interface MrzParseResult {
   errors: string[];
 }
 
+const TD3_LINE_LENGTH = 44;
+
+/**
+ * Vision models often miscount long runs of "<" filler (e.g. 20 instead of
+ * 19 after the name). Line 1 ends with the name field's filler and carries
+ * no check digit, so its trailing "<" run is trimmed/padded to 44; any
+ * letter beyond position 44 is left alone (then the line is rejected).
+ */
+function normalizeLine1Fillers(line: string): string {
+  if (line.length === TD3_LINE_LENGTH) return line;
+  const core = line.replace(/<+$/, "");
+  return core.length <= TD3_LINE_LENGTH ? core.padEnd(TD3_LINE_LENGTH, "<") : line;
+}
+
+/**
+ * Line 2 layout: 28 fixed characters, a 14-character optional/personal
+ * number field (positions 28-41), then its check digit and the composite
+ * check digit. Only the optional field's trailing "<" run is adjusted; the
+ * check digits still validate the result, so a wrong adjustment can never
+ * produce a "valid" MRZ.
+ */
+function normalizeLine2Fillers(line: string): string {
+  if (line.length === TD3_LINE_LENGTH || line.length < 30) return line;
+  const fixed = line.slice(0, 28);
+  const checkDigits = line.slice(-2);
+  const optional = line.slice(28, -2).replace(/<+$/, "");
+  return optional.length <= 14 ? `${fixed}${optional.padEnd(14, "<")}${checkDigits}` : line;
+}
+
 /**
  * Parses a raw two-line MRZ block. Returns null if the input isn't
  * shaped like a TD3 MRZ at all (wrong line count/length, not a passport
@@ -88,7 +117,7 @@ export function parseMrz(rawInput: string): MrzParseResult | null {
     .filter((line) => line.length > 0);
   if (lines.length < 2) return null;
 
-  const [line1, line2] = lines.slice(-2);
+  const [line1, line2] = lines.slice(-2).map((line, index) => (index === 0 ? normalizeLine1Fillers(line) : normalizeLine2Fillers(line)));
   if (line1.length !== 44 || line2.length !== 44) return null;
   if (line1[0] !== "P") return null;
 

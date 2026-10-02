@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { isPlaceholder } from "@/lib/env-placeholder";
 import { runSequentially } from "@/lib/db-sequential";
+import { isOcrConfigured, ocrProviderLabel } from "@/lib/ocr/get-provider";
 
 export interface IntegrationEvent {
   at: string;
@@ -36,7 +37,7 @@ export async function getIntegrationsHealth(): Promise<IntegrationHealth[]> {
     !isPlaceholder(process.env.WHATSAPP_ACCESS_TOKEN) &&
     !isPlaceholder(process.env.WHATSAPP_PHONE_NUMBER_ID) &&
     !isPlaceholder(process.env.WHATSAPP_APP_SECRET);
-  const ocrConfigured = !isPlaceholder(process.env.ANTHROPIC_API_KEY);
+  const ocrConfigured = isOcrConfigured();
 
   const [lastSuccessfulPayment, lastGatewayError, lastEmailSent, lastEmailFailed, lastWhatsappSent, lastWhatsappFailed, lastExtraction, lastOcrError] =
     await runSequentially([
@@ -76,7 +77,7 @@ export async function getIntegrationsHealth(): Promise<IntegrationHealth[]> {
     },
     {
       key: "ocr",
-      label: "OCR (Anthropic)",
+      label: `OCR (${ocrProviderLabel()})`,
       configured: ocrConfigured,
       lastSuccess: lastExtraction
         ? { at: lastExtraction.createdAt.toISOString(), detail: `${lastExtraction.extractionType} extraction via ${lastExtraction.provider}` }

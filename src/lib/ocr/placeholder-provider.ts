@@ -22,7 +22,7 @@ import type { PassportOcrResult, TicketOcrResult, VisaOcrResult } from "./types"
  * wasn't read from the customer's own document.
  */
 export class PlaceholderOcrProvider implements OcrProvider {
-  readonly providerName = "placeholder (no ANTHROPIC_API_KEY configured — SAMPLE data, not read from the uploaded document)";
+  readonly providerName = "placeholder (no GEMINI_API_KEY or ANTHROPIC_API_KEY configured — SAMPLE data, not read from the uploaded document)";
 
   async extractPassport(_input: ExtractDocumentInput): Promise<PassportOcrResult> {
     return {

@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { isPlaceholder } from "@/lib/env-placeholder";
 import { runSequentially } from "@/lib/db-sequential";
 import { TAX_FEE_CONFIG_ID } from "@/lib/settings/tax-fee-config";
+import { isOcrConfigured, ocrProviderLabel } from "@/lib/ocr/get-provider";
 
 export const SYSTEM_CONFIG_ID = "singleton";
 
@@ -85,7 +86,15 @@ export async function getGoLiveChecks(): Promise<GoLiveCheck[]> {
     envCheck("whatsapp-phone-number-id", "WhatsApp", "WhatsApp phone number id", "WHATSAPP_PHONE_NUMBER_ID", "Copy the Phone Number ID from Meta → WhatsApp → API Setup into WHATSAPP_PHONE_NUMBER_ID."),
     envCheck("whatsapp-webhook-verify-token", "WhatsApp", "WhatsApp webhook verify token", "WHATSAPP_WEBHOOK_VERIFY_TOKEN", "Set WHATSAPP_WEBHOOK_VERIFY_TOKEN to a random value and enter the same value when registering /api/webhooks/whatsapp in Meta."),
     envCheck("whatsapp-app-secret", "WhatsApp", "WhatsApp app secret", "WHATSAPP_APP_SECRET", "Copy the App Secret from Meta → App Settings → Basic into WHATSAPP_APP_SECRET (used to verify webhook signatures)."),
-    envCheck("anthropic-api-key", "AI / OCR", "AI / OCR key (Anthropic)", "ANTHROPIC_API_KEY", "Create an API key in the Anthropic Console and set ANTHROPIC_API_KEY — used for passport OCR and the WhatsApp bot."),
+    {
+      key: "ocr-api-key",
+      group: "AI / OCR",
+      label: "OCR key (Gemini or Anthropic)",
+      ok: isOcrConfigured(),
+      detail: isOcrConfigured() ? `Passport/ticket/visa OCR uses ${ocrProviderLabel()}` : "Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is set",
+      fixHint:
+        "Set GEMINI_API_KEY (Google AI Studio) or ANTHROPIC_API_KEY (Anthropic Console). Without ANTHROPIC_API_KEY the WhatsApp bot and Ask AI use their keyword/FAQ fallback.",
+    },
   ];
 
   const automationOk = !isPlaceholder(process.env.AUTOMATION_API_KEY) || !isPlaceholder(process.env.CRON_SECRET);
