@@ -9,7 +9,10 @@ export async function GET() {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
 
-  const faqs = await db.faq.findMany({ orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }] });
+  const faqs = await db.faq.findMany({
+    orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+    include: { country: { select: { name: true } } },
+  });
   return jsonSuccess(faqs);
 }
 
@@ -31,7 +34,7 @@ export async function POST(request: NextRequest) {
   }
 
   const faq = await db.$transaction(async (tx) => {
-    const created = await tx.faq.create({ data: parsed.data });
+    const created = await tx.faq.create({ data: parsed.data, include: { country: { select: { name: true } } } });
     await writeAudit(tx, {
       entityType: "Faq",
       entityId: created.id,

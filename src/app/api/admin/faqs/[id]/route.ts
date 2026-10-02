@@ -34,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!existing) return jsonError(404, "FAQ not found.");
 
   const updated = await db.$transaction(async (tx) => {
-    const result = await tx.faq.update({ where: { id }, data: parsed.data });
+    const result = await tx.faq.update({ where: { id }, data: parsed.data, include: { country: { select: { name: true } } } });
     await writeAudit(tx, {
       entityType: "Faq",
       entityId: id,

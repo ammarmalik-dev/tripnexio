@@ -5,10 +5,17 @@ import { db } from "@/lib/db";
 import type { ServiceType } from "../../generated/prisma/enums";
 import { ServiceFaqAccordion, type ServiceFaqItem } from "./ServiceFaqAccordion";
 
-async function loadServiceFaqs(serviceType: ServiceType): Promise<ServiceFaqItem[]> {
+async function loadServiceFaqs(serviceType: ServiceType, countryId?: string): Promise<ServiceFaqItem[]> {
   try {
     const faqs = await db.faq.findMany({
-      where: { serviceType, active: true, published: true },
+      // A country page shows that country's FAQs plus the service's general
+      // ones (no country); a plain service page shows only the general ones.
+      where: {
+        serviceType,
+        active: true,
+        published: true,
+        ...(countryId ? { OR: [{ countryId }, { countryId: null }] } : { countryId: null }),
+      },
       orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, question: true, answer: true },
     });
@@ -25,8 +32,17 @@ async function loadServiceFaqs(serviceType: ServiceType): Promise<ServiceFaqItem
  * managed Faq rows for that service (active + published, Admin order).
  * Renders nothing when a service has no published FAQ yet.
  */
-export async function ServiceFaqSection({ serviceType, title = "Frequently asked questions" }: { serviceType: ServiceType; title?: string }) {
-  const items = await loadServiceFaqs(serviceType);
+export async function ServiceFaqSection({
+  serviceType,
+  countryId,
+  title = "Frequently asked questions",
+}: {
+  serviceType: ServiceType;
+  /** New Visa country pages: include FAQs tied to this country. */
+  countryId?: string;
+  title?: string;
+}) {
+  const items = await loadServiceFaqs(serviceType, countryId);
   if (items.length === 0) return null;
   return (
     <section className="py-16 sm:py-20">

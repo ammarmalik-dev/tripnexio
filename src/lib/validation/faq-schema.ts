@@ -9,6 +9,8 @@ export const createFaqSchema = z.object({
   answer: z.string().trim().min(4, "Enter an answer"),
   /** null/omitted = a general FAQ not tied to one service. */
   serviceType: z.enum(serviceTypeValues).nullable().optional(),
+  /** New Visa only: show this FAQ on one country's page. null = every New Visa page. */
+  countryId: z.string().min(1).nullable().optional(),
   category: z.string().trim().min(1).optional(),
   keywords: z.array(z.string().trim().min(1)).default([]),
   displayOrder: z.number().int().default(0),

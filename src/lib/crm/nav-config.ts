@@ -228,6 +228,7 @@ export const adminNavGroups: CrmNavGroup[] = [
       // Protection Plan / New Visa Countries / Return Ticket Destinations /
       // OTB Prices items (their old URLs redirect into the hub's matching tab).
       { label: "Service Configuration", href: "/admin/service-configuration", icon: SlidersHorizontal, permission: "masters.manage" },
+      { label: "New Visa Country Pages", href: "/admin/new-visa-pages", icon: Globe2, permission: "masters.manage" },
       { label: "Pricing Dashboard", href: "/admin/pricing-dashboard", icon: Gauge, permission: "masters.manage" },
       { label: "Holidays", href: "/admin/holidays", icon: CalendarDays, permission: "masters.manage" },
       { label: "FAQs", href: "/admin/faqs", icon: HelpCircle, permission: "masters.manage" },

@@ -19,11 +19,41 @@ import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 import type { ServiceType } from "../../generated/prisma/enums";
 
+interface CountryOption {
+  id: string;
+  name: string;
+}
+
+let countriesRequest: Promise<CountryOption[]> | null = null;
+
+/** Active countries for the New Visa "Country page" picker; fetched once per page load. */
+function useCountryOptions(): CountryOption[] {
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      countriesRequest ??= getJson<CountryOption[]>("/api/countries").catch(() => {
+        countriesRequest = null;
+        return [];
+      });
+      const list = await countriesRequest;
+      if (!cancelled) setCountries(list);
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return countries;
+}
+
 interface FaqData {
   id: string;
   question: string;
   answer: string;
   serviceType: ServiceType | null;
+  countryId: string | null;
+  country?: { name: string } | null;
   category: string | null;
   keywords: string[];
   displayOrder: number;
@@ -45,18 +75,20 @@ interface FormState {
   question: string;
   answer: string;
   serviceType: ServiceType | "";
+  countryId: string;
   category: string;
   keywords: string;
   displayOrder: string;
 }
 
-const EMPTY_FORM: FormState = { question: "", answer: "", serviceType: "", category: "", keywords: "", displayOrder: "0" };
+const EMPTY_FORM: FormState = { question: "", answer: "", serviceType: "", countryId: "", category: "", keywords: "", displayOrder: "0" };
 
 function toFormState(faq: FaqData): FormState {
   return {
     question: faq.question,
     answer: faq.answer,
     serviceType: faq.serviceType ?? "",
+    countryId: faq.countryId ?? "",
     category: faq.category ?? "",
     keywords: faq.keywords.join(", "),
     displayOrder: String(faq.displayOrder),
@@ -68,6 +100,8 @@ function buildPayload(form: FormState) {
     question: form.question.trim(),
     answer: form.answer.trim(),
     serviceType: form.serviceType === "" ? null : form.serviceType,
+    // Only New Visa FAQs belong to a country page.
+    countryId: form.serviceType === "NEW_VISA" && form.countryId !== "" ? form.countryId : null,
     category: form.category.trim() === "" ? undefined : form.category.trim(),
     keywords: form.keywords
       .split(",")
@@ -88,6 +122,7 @@ function FaqFields({
   errors: Record<string, string[] | undefined>;
   disabled: boolean;
 }) {
+  const countries = useCountryOptions();
   return (
     <div className="flex flex-col gap-4">
       <Textarea
@@ -125,6 +160,29 @@ function FaqFields({
             ))}
           </select>
         </FormField>
+        {form.serviceType === "NEW_VISA" ? (
+          <FormField
+            label="Country page"
+            htmlFor="faqCountry"
+            hint="Pick a country to show this FAQ only on that country's New Visa page."
+            error={errors.countryId?.[0]}
+          >
+            <select
+              id="faqCountry"
+              value={form.countryId}
+              disabled={disabled}
+              onChange={(event) => onChange({ ...form, countryId: event.target.value })}
+              className={cn(fieldControlClass, fieldBorderClass(!!errors.countryId))}
+            >
+              <option value="">All New Visa pages</option>
+              {countries.map((country) => (
+                <option key={country.id} value={country.id}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+        ) : null}
         <TextField
           label="Category"
           name="category"
@@ -252,7 +310,7 @@ function FaqCard({ faq, onSaved, onDeleted }: { faq: FaqData; onSaved: (faq: Faq
           <h3 className="mt-2 line-clamp-2 text-base font-semibold text-ink-heading">{faq.question}</h3>
           <p className="mt-1 text-xs text-ink-tertiary">
             {[
-              serviceLabel(faq.serviceType),
+              faq.country ? `${serviceLabel(faq.serviceType)} · ${faq.country.name}` : serviceLabel(faq.serviceType),
               faq.category,
               `Order ${faq.displayOrder}`,
               faq.keywords.length > 0 ? `${faq.keywords.length} keyword${faq.keywords.length === 1 ? "" : "s"}` : null,

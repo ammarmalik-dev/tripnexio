@@ -1198,6 +1198,8 @@ model Country {
   pricingRules            PricingRule[]
   documentRequirements    DocumentRequirement[]
   newVisaCountryConfigs   NewVisaCountryConfig[]
+  newVisaCountryPage      NewVisaCountryPage?
+  faqs                    Faq[]
   visaTypes               VisaType[]
   nationalities           Nationality[]
   serviceTerms            ServiceTerms[]
@@ -1586,10 +1588,16 @@ model Faq {
   displayOrder Int          @default(0)
   active       Boolean      @default(true)
   published    Boolean      @default(false)
+  /// New Visa country pages: an FAQ tied to one destination shows only on that
+  /// country's page (/services/new-visa/<slug>). null = not country-specific.
+  countryId    String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
+  country Country? @relation(fields: [countryId], references: [id])
+
   @@index([serviceType])
+  @@index([countryId])
   @@index([category])
   @@index([active])
   @@index([published])
@@ -2031,6 +2039,48 @@ model NewVisaCountryConfig {
 
   @@index([active])
   @@index([countryId])
+}
+
+/// The public page for one New Visa destination: a card on /services/new-visa
+/// and the page /services/new-visa/<slug>. Content only: the visa products and
+/// prices come from NewVisaCountryConfig/PricingRule, processing time from the
+/// service timelines, FAQs from Faq rows with this countryId. Unpublished = no
+/// card and the page 404s. Image fields hold a FileBlob id served publicly by
+/// /api/new-visa-pages/image/<id> (only ids referenced here are served).
+model NewVisaCountryPage {
+  id                String   @id @default(cuid())
+  countryId         String   @unique
+  /// URL part, e.g. "uae" for /services/new-visa/uae. Lowercase a-z, 0-9, "-".
+  slug              String   @unique
+  published         Boolean  @default(false)
+  displayOrder      Int      @default(0)
+  cardTagline       String?
+  cardImageFileId   String?
+  heroImageFileId   String?
+  heroEyebrow       String?
+  heroTitle         String
+  heroSubtitle      String   @db.Text
+  introHeading      String?
+  introBody         String?  @db.Text
+  applicantsHeading String?
+  applicantsBody    String?  @db.Text
+  whatYouNeed       String[]
+  documents         String[]
+  documentsNote     String?  @db.Text
+  childrenNote      String?  @db.Text
+  validityText      String?  @db.Text
+  stayText          String?  @db.Text
+  beforeYouApply    String[]
+  ctaHeading        String?
+  ctaBody           String?  @db.Text
+  seoTitle          String?
+  seoDescription    String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id])
+
+  @@index([published])
 }
 
 enum NewVisaEntryKind {

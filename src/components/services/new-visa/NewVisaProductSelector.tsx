@@ -68,9 +68,10 @@ function Counter({ label, value, onChange, min = 0 }: { label: string; value: nu
  * `computeNewVisaPrice()` the real request uses (`GET /api/new-visa-price`).
  * "Apply Now" hands the chosen product and options to the request form.
  * Only active, Admin-configured products are shown; an empty/failed fetch
- * hides the section rather than showing a broken card.
+ * hides the section rather than showing a broken card. On a country page
+ * `countryCode` locks it to that country (no Destination dropdown).
  */
-export function NewVisaProductSelector() {
+export function NewVisaProductSelector({ countryCode: lockedCountryCode }: { countryCode?: string } = {}) {
   const [products, setProducts] = useState<Product[] | null>(null);
   const [countryCode, setCountryCode] = useState("");
   const [productId, setProductId] = useState("");
@@ -104,10 +105,11 @@ export function NewVisaProductSelector() {
         if (!res.ok) return;
         const json = (await res.json()) as { data: Product[] };
         if (cancelled) return;
-        setProducts(json.data);
-        if (json.data.length > 0) {
-          setCountryCode(json.data[0].countryCode);
-          setProductId(json.data[0].id);
+        const available = lockedCountryCode ? json.data.filter((product) => product.countryCode === lockedCountryCode) : json.data;
+        setProducts(available);
+        if (available.length > 0) {
+          setCountryCode(available[0].countryCode);
+          setProductId(available[0].id);
         }
       } catch {
         if (!cancelled) setProducts([]);
@@ -117,7 +119,7 @@ export function NewVisaProductSelector() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [lockedCountryCode]);
 
   const countryProducts = useMemo(() => (products ?? []).filter((p) => p.countryCode === countryCode), [products, countryCode]);
   const selected = countryProducts.find((p) => p.id === productId) ?? countryProducts[0] ?? null;
