@@ -1,66 +1,55 @@
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import { InfoPage } from "./InfoPage";
-import { siteConfig } from "@/lib/site-config";
+import { LegalMarkup } from "@/components/legal/LegalMarkup";
+import { getSiteContact } from "@/lib/settings/system-config";
+import { getLegalPage } from "@/lib/legal/get-legal-page";
+import { LEGAL_PAGE_META, type LegalPageSlug } from "@/lib/legal/pages";
 
-export interface LegalSection {
-  heading: string;
-  paragraphs: string[];
+/** Page metadata from the live copy (title + intro). */
+export async function legalPageMetadata(slug: LegalPageSlug): Promise<Metadata> {
+  const page = await getLegalPage(slug);
+  const title = slug === "about" ? "About Us" : page.title;
+  const description = page.intro.length > 160 ? `${page.intro.slice(0, 157).trimEnd()}…` : page.intro;
+  return { title, description, alternates: { canonical: LEGAL_PAGE_META[slug].path } };
 }
 
 /**
- * Legal pages carry a visible review notice: this is TripNexio's own locked
- * content (TripNexio_Website_Final_Company_Support_Legal_General_FAQ_23_Sep_2026.docx),
- * not developer-written placeholder text, but that same source document's own
- * "Publication gate" section says it still needs qualified legal counsel
- * review and the [TO BE ADDED] contact/entity fields filled in before this is
- * truly binding — so the notice reflects that, not "pending developer draft."
+ * An About/legal page: heading, effective date, optional review notice and
+ * the body from Admin → Legal Pages (or the original locked copy). The
+ * review notice is the source document's own "Publication gate" wording;
+ * Admin can switch it off per page once counsel has signed off. Contact
+ * details are not repeated at the bottom (client request 2026-10-03); they
+ * live on the Contact page and in the footer.
  */
-export function LegalDocument({
-  eyebrow = "Legal",
-  title,
-  intro,
-  effectiveDate,
-  sections,
+export async function LegalDocument({
+  slug,
+  tokens,
+  children,
 }: {
-  eyebrow?: string;
-  title: string;
-  intro: string;
-  effectiveDate?: string;
-  sections: LegalSection[];
+  slug: LegalPageSlug;
+  tokens?: Record<string, ReactNode>;
+  /** Extra content below the body (e.g. About's buttons). */
+  children?: ReactNode;
 }) {
+  const page = await getLegalPage(slug);
+  const contact = page.showReviewNotice ? await getSiteContact() : null;
+
   return (
-    <InfoPage eyebrow={eyebrow} title={title} description={intro}>
-      {effectiveDate ? (
-        <p className="text-sm text-ink-tertiary">Effective Date: {effectiveDate}</p>
+    <InfoPage eyebrow={page.eyebrow ?? undefined} title={page.title} description={page.intro}>
+      {page.effectiveDate || contact ? (
+        <div className="-mt-4 flex flex-col gap-3">
+          {page.effectiveDate ? <p className="text-sm text-ink-tertiary">Effective Date: {page.effectiveDate}</p> : null}
+          {contact ? (
+            <p className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-ink-secondary">
+              Pending final legal counsel review and confirmation of {contact.legalName}&rsquo;s registered entity details before
+              publication. Please contact us if you have questions about how this applies to your request.
+            </p>
+          ) : null}
+        </div>
       ) : null}
-      <p className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-ink-secondary">
-        Pending final legal counsel review and confirmation of {siteConfig.legalName}&rsquo;s registered entity details
-        before publication. Please contact us if you have questions about how this applies to your request.
-      </p>
-      <div className="flex flex-col gap-8">
-        {sections.map((section) => (
-          <section key={section.heading} className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold text-ink-heading">{section.heading}</h2>
-            {section.paragraphs.map((paragraph, index) => (
-              <p key={index} className="text-sm leading-relaxed text-ink-secondary">
-                {paragraph}
-              </p>
-            ))}
-          </section>
-        ))}
-        <section className="flex flex-col gap-2">
-          <h2 className="text-lg font-semibold text-ink-heading">Contact</h2>
-          <p className="text-sm text-ink-secondary">
-            {siteConfig.legalName}, {siteConfig.contact.address} ·{" "}
-            <a className="text-ink-accent underline" href={siteConfig.contact.emailHref}>
-              {siteConfig.contact.email}
-            </a>{" "}
-            ·{" "}
-            <a className="text-ink-accent underline" href={siteConfig.contact.phoneHref}>
-              {siteConfig.contact.phone}
-            </a>
-          </p>
-        </section>
-      </div>
+      <LegalMarkup body={page.body} tokens={tokens} />
+      {children}
     </InfoPage>
   );
 }

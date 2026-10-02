@@ -2461,6 +2461,22 @@ model InvoiceCounter {
   updatedAt     DateTime @updatedAt
 }
 
+/// Admin-edited copy of the About Us and legal pages (Admin → Legal Pages).
+/// No row = the page shows its original locked copy from
+/// src/lib/legal/default-pages.ts; deleting the row is "Reset to original".
+/// `body` uses the small markup in src/lib/legal/markup.ts.
+model LegalPage {
+  slug             String   @id
+  title            String
+  eyebrow          String?
+  intro            String   @db.Text
+  effectiveDate    String?
+  showReviewNotice Boolean  @default(true)
+  body             String   @db.Text
+  updatedById      String?
+  updatedAt        DateTime @updatedAt
+}
+
 /// P09 — per-service Terms & Conditions the customer must accept before
 /// paying. Versioned: editing means adding a new version; the active
 /// highest version for the service (country-specific first) applies.

@@ -1,4 +1,5 @@
 import {
+  Scale,
   LayoutDashboard,
   ListChecks,
   Users,
@@ -290,6 +291,7 @@ export const adminNavGroups: CrmNavGroup[] = [
     items: [
       { label: "Notification Templates", href: "/admin/notification-templates", icon: MessageSquareText, permission: "masters.manage" },
       { label: "System Configuration", href: "/admin/system-config", icon: Settings, permission: "masters.manage" },
+      { label: "Legal Pages", href: "/admin/legal-pages", icon: Scale, permission: "masters.manage" },
     ],
   },
 ];
