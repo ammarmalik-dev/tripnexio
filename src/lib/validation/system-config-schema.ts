@@ -21,6 +21,8 @@ export const updateSystemConfigSchema = z.object({
   companyEmail: z.string().trim().max(120, "Too long").optional(),
   /** Blank = use the site default (stored as null). */
   companyWhatsapp: optionalDetail(30).refine((value) => !value || value.replace(/\D/g, "").length >= 8, "Enter the number with country code, e.g. +91 92381 84005"),
+  /** Blank = the default "automatically generated, please do not reply" disclaimer. */
+  emailFooterText: optionalDetail(600),
   socialInstagram: optionalSocialUrl,
   socialFacebook: optionalSocialUrl,
   socialLinkedin: optionalSocialUrl,

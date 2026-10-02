@@ -12,6 +12,7 @@ export interface SystemConfigValues {
   companyPhone: string | null;
   companyEmail: string | null;
   companyWhatsapp: string | null;
+  emailFooterText: string | null;
   socialInstagram: string | null;
   socialFacebook: string | null;
   socialLinkedin: string | null;
@@ -43,6 +44,7 @@ const DEFAULTS: SystemConfigValues = {
   companyPhone: null,
   companyEmail: null,
   companyWhatsapp: null,
+  emailFooterText: null,
   socialInstagram: null,
   socialFacebook: null,
   socialLinkedin: null,
@@ -98,6 +100,7 @@ export const getSystemConfig = cache(async (): Promise<SystemConfigValues> => {
     companyPhone: config.companyPhone,
     companyEmail: config.companyEmail,
     companyWhatsapp: config.companyWhatsapp,
+    emailFooterText: config.emailFooterText,
     socialInstagram: config.socialInstagram,
     socialFacebook: config.socialFacebook,
     socialLinkedin: config.socialLinkedin,

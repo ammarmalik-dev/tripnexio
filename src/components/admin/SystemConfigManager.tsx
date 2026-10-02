@@ -18,6 +18,7 @@ interface ConfigData {
   companyPhone: string | null;
   companyEmail: string | null;
   companyWhatsapp: string | null;
+  emailFooterText: string | null;
   socialInstagram: string | null;
   socialFacebook: string | null;
   socialLinkedin: string | null;
@@ -55,6 +56,7 @@ interface FormState {
   companyPhone: string;
   companyEmail: string;
   companyWhatsapp: string;
+  emailFooterText: string;
   socialInstagram: string;
   socialFacebook: string;
   socialLinkedin: string;
@@ -90,6 +92,7 @@ function toFormState(c: ConfigData): FormState {
     companyPhone: c.companyPhone ?? "",
     companyEmail: c.companyEmail ?? "",
     companyWhatsapp: c.companyWhatsapp ?? "",
+    emailFooterText: c.emailFooterText ?? "",
     socialInstagram: c.socialInstagram ?? "",
     socialFacebook: c.socialFacebook ?? "",
     socialLinkedin: c.socialLinkedin ?? "",
@@ -127,6 +130,7 @@ function buildPayload(form: FormState) {
     companyPhone: form.companyPhone,
     companyEmail: form.companyEmail,
     companyWhatsapp: form.companyWhatsapp,
+    emailFooterText: form.emailFooterText,
     socialInstagram: form.socialInstagram,
     socialFacebook: form.socialFacebook,
     socialLinkedin: form.socialLinkedin,
@@ -273,6 +277,19 @@ export function SystemConfigManager() {
           <TextField label="X (Twitter)" name="socialX" placeholder="Uses site default" value={form.socialX} onChange={(e) => setForm({ ...form, socialX: e.target.value })} error={errors.socialX?.[0]} disabled={saving} />
           <TextField label="Threads" name="socialThreads" placeholder="Uses site default" value={form.socialThreads} onChange={(e) => setForm({ ...form, socialThreads: e.target.value })} error={errors.socialThreads?.[0]} disabled={saving} />
         </div>
+      </Section>
+      <Section title="Email Footer" description="Added to the bottom of every email the system sends (customer notifications, OTP, password reset, staff messages, system alerts).">
+        <Textarea
+          label="Disclaimer text"
+          name="emailFooterText"
+          rows={3}
+          placeholder="This is an automatically generated email. Please do not reply to this message. For any queries, feedback or suggestions, please contact our support team at support@tripnexio.com or call (the phone number above)."
+          hint="Leave blank to use the default text shown here, with the phone number above."
+          value={form.emailFooterText}
+          onChange={(e) => setForm({ ...form, emailFooterText: e.target.value })}
+          error={errors.emailFooterText?.[0]}
+          disabled={saving}
+        />
       </Section>
       <Section title="Currency & Timezone">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -1801,6 +1801,9 @@ model SystemConfig {
   /// WhatsApp number shown on the site (any format; digits are used for the
   /// wa.me link). null = the static default in site-config.ts.
   companyWhatsapp         String?
+  /// Disclaimer added to the bottom of every email the system sends.
+  /// null = the default "automatically generated, please do not reply" text.
+  emailFooterText         String?   @db.Text
   /// Social profile URLs for the footer/menu icons. null = static default.
   socialInstagram         String?
   socialFacebook          String?
