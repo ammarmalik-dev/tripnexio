@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { db } from "../db";
 import { siteConfig } from "../site-config";
+import { STATIC_SITE_CONTACT, phoneHrefFor, whatsappHrefFor, type SiteContact } from "../site-contact";
 
 const SYSTEM_CONFIG_ID = "singleton";
 
@@ -10,6 +11,12 @@ export interface SystemConfigValues {
   companyAddress: string | null;
   companyPhone: string | null;
   companyEmail: string | null;
+  companyWhatsapp: string | null;
+  socialInstagram: string | null;
+  socialFacebook: string | null;
+  socialLinkedin: string | null;
+  socialX: string | null;
+  socialThreads: string | null;
   currencyCode: string;
   timezoneOffsetMinutes: number;
   documentRetentionDays: number;
@@ -35,6 +42,12 @@ const DEFAULTS: SystemConfigValues = {
   companyAddress: null,
   companyPhone: null,
   companyEmail: null,
+  companyWhatsapp: null,
+  socialInstagram: null,
+  socialFacebook: null,
+  socialLinkedin: null,
+  socialX: null,
+  socialThreads: null,
   currencyCode: "INR",
   timezoneOffsetMinutes: 330,
   documentRetentionDays: 90,
@@ -84,6 +97,12 @@ export const getSystemConfig = cache(async (): Promise<SystemConfigValues> => {
     companyAddress: config.companyAddress,
     companyPhone: config.companyPhone,
     companyEmail: config.companyEmail,
+    companyWhatsapp: config.companyWhatsapp,
+    socialInstagram: config.socialInstagram,
+    socialFacebook: config.socialFacebook,
+    socialLinkedin: config.socialLinkedin,
+    socialX: config.socialX,
+    socialThreads: config.socialThreads,
     currencyCode: config.currencyCode,
     timezoneOffsetMinutes: config.timezoneOffsetMinutes,
     documentRetentionDays: config.documentRetentionDays,
@@ -160,4 +179,38 @@ export async function getEffectiveSiteConfig(): Promise<EffectiveSiteConfig> {
 export async function getDefaultPaymentLinkHours(client: Pick<typeof db, "systemConfig"> = db): Promise<number | null> {
   const row = await client.systemConfig.findUnique({ where: { id: SYSTEM_CONFIG_ID }, select: { defaultPaymentLinkHours: true } });
   return row?.defaultPaymentLinkHours ?? null;
+}
+
+/**
+ * Every public contact detail (phone, email, address, WhatsApp, socials) with
+ * Admin → System Configuration values over the site-config.ts defaults. The
+ * root layout passes this to SiteContactProvider for client components;
+ * server components call it directly.
+ */
+export async function getSiteContact(): Promise<SiteContact> {
+  const config = await getSystemConfig();
+  const pick = (value: string | null, fallback: string) => (value?.trim() ? value.trim() : fallback);
+  const phone = pick(config.companyPhone, STATIC_SITE_CONTACT.phone);
+  const email = pick(config.companyEmail, STATIC_SITE_CONTACT.email);
+  // WhatsApp: its own number if set, else the phone number if that was changed in Admin, else the static default.
+  const whatsappSource = config.companyWhatsapp?.trim() || config.companyPhone?.trim() || "";
+  return {
+    name: pick(config.companyName, STATIC_SITE_CONTACT.name),
+    legalName: pick(config.legalEntityName, pick(config.companyName, STATIC_SITE_CONTACT.legalName)),
+    tagline: pick(config.companyTagline, STATIC_SITE_CONTACT.tagline),
+    address: pick(config.companyAddress, STATIC_SITE_CONTACT.address),
+    phone,
+    phoneHref: config.companyPhone?.trim() ? phoneHrefFor(phone) : STATIC_SITE_CONTACT.phoneHref,
+    email,
+    emailHref: `mailto:${email}`,
+    whatsapp: whatsappSource || STATIC_SITE_CONTACT.whatsapp,
+    whatsappHref: whatsappSource ? whatsappHrefFor(whatsappSource) : STATIC_SITE_CONTACT.whatsappHref,
+    socials: {
+      instagram: pick(config.socialInstagram, STATIC_SITE_CONTACT.socials.instagram),
+      facebook: pick(config.socialFacebook, STATIC_SITE_CONTACT.socials.facebook),
+      linkedin: pick(config.socialLinkedin, STATIC_SITE_CONTACT.socials.linkedin),
+      x: pick(config.socialX, STATIC_SITE_CONTACT.socials.x),
+      threads: pick(config.socialThreads, STATIC_SITE_CONTACT.socials.threads),
+    },
+  };
 }

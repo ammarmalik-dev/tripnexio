@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ServiceHeroBackdrop } from "@/components/services/ServiceHeroBackdrop";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
-import { siteConfig } from "@/lib/site-config";
+import { getSiteContact } from "@/lib/settings/system-config";
 import { NewVisaCountryGrid } from "@/components/services/new-visa/NewVisaCountryGrid";
 import { getPublishedCountryCards, type CountryPageCard } from "@/lib/new-visa/country-pages";
 
@@ -32,6 +32,7 @@ async function loadCards(): Promise<CountryPageCard[] | null> {
 /** /services/new-visa â€” a card per destination with a published page (Admin â†’ New Visa Country Pages). */
 export default async function NewVisaDestinationsPage() {
   const cards = await loadCards();
+  const contact = await getSiteContact();
 
   return (
     <>
@@ -74,7 +75,7 @@ export default async function NewVisaDestinationsPage() {
               title="Destinations couldn't load"
               description="Please refresh the page in a moment, or message us on WhatsApp and we'll help you apply."
               action={
-                <ButtonLink href={siteConfig.contact.whatsappHref} variant="primary" size="sm">
+                <ButtonLink href={contact.whatsappHref} variant="primary" size="sm">
                   <MessageCircle className="h-4 w-4" aria-hidden="true" />
                   WhatsApp Support
                 </ButtonLink>
@@ -85,7 +86,7 @@ export default async function NewVisaDestinationsPage() {
               title="Destinations coming soon"
               description="We're adding visa destinations. Message us on WhatsApp and we'll help with your visa in the meantime."
               action={
-                <ButtonLink href={siteConfig.contact.whatsappHref} variant="primary" size="sm">
+                <ButtonLink href={contact.whatsappHref} variant="primary" size="sm">
                   <MessageCircle className="h-4 w-4" aria-hidden="true" />
                   WhatsApp Support
                 </ButtonLink>

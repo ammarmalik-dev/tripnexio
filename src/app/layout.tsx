@@ -7,7 +7,8 @@ import { MaintenanceBanner } from "@/components/layout/MaintenanceBanner";
 import { Toaster } from "@/components/ui/Toaster";
 import { CookieConsent } from "@/components/cookies/CookieConsent";
 import { siteConfig } from "@/lib/site-config";
-import { getEffectiveSiteConfig, getSystemConfig } from "@/lib/settings/system-config";
+import { getEffectiveSiteConfig, getSiteContact, getSystemConfig } from "@/lib/settings/system-config";
+import { SiteContactProvider } from "@/components/layout/SiteContactProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -55,10 +56,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const { maintenanceModeEnabled, maintenanceMessage } = await getSystemConfig();
+  const contact = await getSiteContact();
 
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col bg-surface-base text-ink-primary">
+        <SiteContactProvider value={contact}>
         {maintenanceModeEnabled ? (
           <HideOnCrm>
             <MaintenanceBanner message={maintenanceMessage || "We're performing scheduled maintenance — some features may be temporarily slow."} />
@@ -73,6 +76,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <CookieConsent />
         </HideOnCrm>
         <Toaster />
+        </SiteContactProvider>
       </body>
     </html>
   );

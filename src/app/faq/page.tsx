@@ -3,7 +3,7 @@ import { InfoPage } from "@/components/layout/InfoPage";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { db } from "@/lib/db";
-import { siteConfig } from "@/lib/site-config";
+import { getSiteContact } from "@/lib/settings/system-config";
 
 export const metadata: Metadata = {
   title: "FAQ",
@@ -14,6 +14,7 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function FaqPage() {
+  const contact = await getSiteContact();
   // P20 — a DB hiccup shows the friendly empty state rather than an error page.
   const faqs = await db.faq
     .findMany({
@@ -38,7 +39,7 @@ export default async function FaqPage() {
         <EmptyState
           title="No FAQs published yet"
           description="We're still putting these together. In the meantime our team is happy to help on WhatsApp."
-          action={<ButtonLink href={siteConfig.contact.whatsappHref}>WhatsApp Support</ButtonLink>}
+          action={<ButtonLink href={contact.whatsappHref}>WhatsApp Support</ButtonLink>}
         />
       ) : (
         Array.from(groups.entries()).map(([category, items]) => (

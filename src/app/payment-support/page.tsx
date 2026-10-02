@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { InfoPage } from "@/components/layout/InfoPage";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { siteConfig } from "@/lib/site-config";
+import { getSiteContact } from "@/lib/settings/system-config";
 
 export const metadata: Metadata = {
   title: "Payment Support",
@@ -23,7 +23,11 @@ const steps = [
   },
 ];
 
-export default function PaymentSupportPage() {
+// Contact details follow Admin → System Configuration.
+export const revalidate = 300;
+
+export default async function PaymentSupportPage() {
+  const contact = await getSiteContact();
   return (
     <InfoPage eyebrow="Help" title="Payment support" description="How paying with TripNexio works, and what to do if something goes wrong.">
       <ol className="flex flex-col gap-4">
@@ -50,9 +54,9 @@ export default function PaymentSupportPage() {
           .
         </p>
         <div className="flex flex-wrap gap-3">
-          <ButtonLink href={siteConfig.contact.whatsappHref}>WhatsApp Support</ButtonLink>
-          <ButtonLink href={siteConfig.contact.emailHref} variant="glass">
-            {siteConfig.contact.email}
+          <ButtonLink href={contact.whatsappHref}>WhatsApp Support</ButtonLink>
+          <ButtonLink href={contact.emailHref} variant="glass">
+            {contact.email}
           </ButtonLink>
         </div>
       </div>

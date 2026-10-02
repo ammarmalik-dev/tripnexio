@@ -20,9 +20,3 @@ export const headerActions = {
   getStarted: { label: "Get Started", href: "/services" },
 };
 
-export const headerContact = {
-  phoneDisplay: "+91 92381 84005",
-  phoneHref: "tel:+919238184005",
-  emailDisplay: "info@tripnexio.com",
-  emailHref: "mailto:info@tripnexio.com",
-};

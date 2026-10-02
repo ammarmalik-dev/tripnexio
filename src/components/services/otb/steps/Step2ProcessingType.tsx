@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
 import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
 import { formatOtbRupees, otbApplicantPrice, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
-import { siteConfig } from "@/lib/site-config";
+import { useSiteContact } from "@/components/layout/SiteContactProvider";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 
@@ -21,6 +21,7 @@ import { useProcessingTypes } from "@/lib/processing-types/use-processing-types"
  * Admin disabled isn't offered (and the server rejects it).
  */
 export function Step2ProcessingType() {
+  const contact = useSiteContact();
   const {
     register,
     control,
@@ -83,7 +84,7 @@ export function Step2ProcessingType() {
       ) : null}
 
       {outcome.status === "BLOCKED" ? (
-        <ButtonLink href={siteConfig.contact.whatsappHref}>WhatsApp Support</ButtonLink>
+        <ButtonLink href={contact.whatsappHref}>WhatsApp Support</ButtonLink>
       ) : (
         <>
           <RadioCardGroup<OtbRequestValues>

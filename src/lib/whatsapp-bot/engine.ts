@@ -9,6 +9,7 @@ import { getNextField, buildLeadDetails, buildLeadPassengers, newVisaRequestLink
 import { createAutoCheckout } from "../checkout/create-auto-checkout";
 import { siteConfig } from "../site-config";
 import * as messages from "./messages";
+import { getSiteContact } from "../settings/system-config";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 const SERVICE_TYPES = ["NEW_VISA", "VISA_EXTENSION", "VISA_CHANGE", "FLIGHT_SPECIAL_FARE", "RETURN_TICKET", "OTB"] as const;
@@ -54,6 +55,7 @@ export async function handleInboundMessage(
   profileName: string | null
 ): Promise<EngineResult> {
   const trimmed = messageText.trim();
+  messages.setContactDetails(await getSiteContact());
 
   try {
     // Universal escape hatch — works from any state, including mid-collection or handed-off

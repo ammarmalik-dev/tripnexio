@@ -15,7 +15,7 @@ import { StatusTimeline } from "./StatusTimeline";
 import type { TrackResult } from "@/lib/track/types";
 import { postJson, ApiError } from "@/lib/api/client";
 import { trackSchema, type TrackValues } from "@/lib/validation/track-schema";
-import { siteConfig } from "@/lib/site-config";
+import { useSiteContact } from "@/components/layout/SiteContactProvider";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -26,6 +26,7 @@ interface TrackStatusExplorerProps {
 }
 
 export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerProps) {
+  const contact = useSiteContact();
   const {
     register,
     handleSubmit,
@@ -125,7 +126,7 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
               description="Double-check the reference ID and the mobile digits or email you used on the request, or reach out and our team will look into it."
               action={
                 <a
-                  href={siteConfig.contact.whatsappHref}
+                  href={contact.whatsappHref}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={cn(buttonBaseClass, buttonVariantClass.glass, buttonSizeClass.sm)}

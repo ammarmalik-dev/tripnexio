@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { InfoPage } from "@/components/layout/InfoPage";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { siteConfig } from "@/lib/site-config";
+import { getSiteContact } from "@/lib/settings/system-config";
 
 export const metadata: Metadata = {
   title: "About Us",
@@ -9,7 +9,11 @@ export const metadata: Metadata = {
 };
 
 // Locked content — TripNexio_Website_Final_Company_Support_Legal_General_FAQ_23_Sep_2026.docx §2.
-export default function AboutPage() {
+// The WhatsApp link follows Admin → System Configuration.
+export const revalidate = 300;
+
+export default async function AboutPage() {
+  const contact = await getSiteContact();
   return (
     <InfoPage
       eyebrow="About TripNexio"
@@ -58,7 +62,7 @@ export default function AboutPage() {
       </div>
       <div className="flex flex-wrap gap-3">
         <ButtonLink href="/services">Explore Services</ButtonLink>
-        <ButtonLink href={siteConfig.contact.whatsappHref} variant="glass">
+        <ButtonLink href={contact.whatsappHref} variant="glass">
           WhatsApp Support
         </ButtonLink>
       </div>

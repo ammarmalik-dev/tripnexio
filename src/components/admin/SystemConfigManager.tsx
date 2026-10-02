@@ -17,6 +17,12 @@ interface ConfigData {
   companyAddress: string | null;
   companyPhone: string | null;
   companyEmail: string | null;
+  companyWhatsapp: string | null;
+  socialInstagram: string | null;
+  socialFacebook: string | null;
+  socialLinkedin: string | null;
+  socialX: string | null;
+  socialThreads: string | null;
   currencyCode: string;
   timezoneOffsetMinutes: number;
   documentRetentionDays: number;
@@ -48,6 +54,12 @@ interface FormState {
   companyAddress: string;
   companyPhone: string;
   companyEmail: string;
+  companyWhatsapp: string;
+  socialInstagram: string;
+  socialFacebook: string;
+  socialLinkedin: string;
+  socialX: string;
+  socialThreads: string;
   currencyCode: string;
   timezoneOffsetMinutes: string;
   weekendDaysIndia: string;
@@ -77,6 +89,12 @@ function toFormState(c: ConfigData): FormState {
     companyAddress: c.companyAddress ?? "",
     companyPhone: c.companyPhone ?? "",
     companyEmail: c.companyEmail ?? "",
+    companyWhatsapp: c.companyWhatsapp ?? "",
+    socialInstagram: c.socialInstagram ?? "",
+    socialFacebook: c.socialFacebook ?? "",
+    socialLinkedin: c.socialLinkedin ?? "",
+    socialX: c.socialX ?? "",
+    socialThreads: c.socialThreads ?? "",
     currencyCode: c.currencyCode,
     timezoneOffsetMinutes: String(c.timezoneOffsetMinutes),
     weekendDaysIndia: c.weekendDaysIndia,
@@ -108,6 +126,12 @@ function buildPayload(form: FormState) {
     companyAddress: form.companyAddress,
     companyPhone: form.companyPhone,
     companyEmail: form.companyEmail,
+    companyWhatsapp: form.companyWhatsapp,
+    socialInstagram: form.socialInstagram,
+    socialFacebook: form.socialFacebook,
+    socialLinkedin: form.socialLinkedin,
+    socialX: form.socialX,
+    socialThreads: form.socialThreads,
     currencyCode: form.currencyCode,
     timezoneOffsetMinutes: Number(form.timezoneOffsetMinutes),
     weekendDaysIndia: form.weekendDaysIndia.trim(),
@@ -227,7 +251,7 @@ export function SystemConfigManager() {
 
   return (
     <div className="flex flex-col gap-8 rounded-xl border border-hairline bg-surface-1 p-5">
-      <Section title="Company Information & Branding" description="Leave a field blank to keep using the site's default. Affects the site's page title/description and every invoice PDF.">
+      <Section title="Company Information & Branding" description="Leave a field blank to keep using the site's default. Used across the website (header, footer, Contact and support pages), page titles and every invoice PDF.">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <TextField label="Company Name" name="companyName" placeholder="Uses site default" value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} error={errors.companyName?.[0]} disabled={saving} />
           <TextField label="Tagline" name="companyTagline" placeholder="Uses site default" value={form.companyTagline} onChange={(e) => setForm({ ...form, companyTagline: e.target.value })} error={errors.companyTagline?.[0]} disabled={saving} />
@@ -237,6 +261,19 @@ export function SystemConfigManager() {
         </div>
       </Section>
 
+      <Section
+        title="WhatsApp & Social Links"
+        description="Shown in the navbar, mobile menu, footer, Contact and support pages, and in WhatsApp bot replies. Leave blank to keep the site's default."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TextField label="WhatsApp Number" name="companyWhatsapp" placeholder="Uses the phone number above" hint="With country code, e.g. +91 92381 84005" value={form.companyWhatsapp} onChange={(e) => setForm({ ...form, companyWhatsapp: e.target.value })} error={errors.companyWhatsapp?.[0]} disabled={saving} />
+          <TextField label="Instagram" name="socialInstagram" placeholder="Uses site default" value={form.socialInstagram} onChange={(e) => setForm({ ...form, socialInstagram: e.target.value })} error={errors.socialInstagram?.[0]} disabled={saving} />
+          <TextField label="Facebook" name="socialFacebook" placeholder="Uses site default" value={form.socialFacebook} onChange={(e) => setForm({ ...form, socialFacebook: e.target.value })} error={errors.socialFacebook?.[0]} disabled={saving} />
+          <TextField label="LinkedIn" name="socialLinkedin" placeholder="Uses site default" value={form.socialLinkedin} onChange={(e) => setForm({ ...form, socialLinkedin: e.target.value })} error={errors.socialLinkedin?.[0]} disabled={saving} />
+          <TextField label="X (Twitter)" name="socialX" placeholder="Uses site default" value={form.socialX} onChange={(e) => setForm({ ...form, socialX: e.target.value })} error={errors.socialX?.[0]} disabled={saving} />
+          <TextField label="Threads" name="socialThreads" placeholder="Uses site default" value={form.socialThreads} onChange={(e) => setForm({ ...form, socialThreads: e.target.value })} error={errors.socialThreads?.[0]} disabled={saving} />
+        </div>
+      </Section>
       <Section title="Currency & Timezone">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <TextField

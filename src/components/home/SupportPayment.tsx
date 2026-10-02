@@ -3,7 +3,7 @@ import { Container } from "@/components/ui/Container";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { SocialIcon } from "@/components/ui/SocialIcon";
 import { MotionReveal } from "@/components/motion/MotionReveal";
-import { siteConfig } from "@/lib/site-config";
+import { getSiteContact } from "@/lib/settings/system-config";
 
 // Locked copy — Homepage_FINAL_Locked_1of1.docx §10.
 const badges = [
@@ -12,7 +12,8 @@ const badges = [
   { label: "Safe & Reliable", icon: BadgeCheck },
 ];
 
-export function SupportPayment() {
+export async function SupportPayment() {
+  const contact = await getSiteContact();
   return (
     <section id="support" className="py-20 sm:py-28">
       <Container className="flex flex-col gap-10">
@@ -27,7 +28,7 @@ export function SupportPayment() {
                 Get quick assistance through TripNexio WhatsApp support.
               </p>
               <a
-                href={siteConfig.contact.whatsappHref}
+                href={contact.whatsappHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex w-fit items-center gap-2 rounded-md bg-success/15 px-4 py-2.5 text-sm font-medium text-success transition-colors duration-200 hover:bg-success/25"

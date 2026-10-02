@@ -9,6 +9,9 @@ const optionalDetail = (max: number) =>
     .transform((value) => (value === "" ? null : value))
     .optional();
 
+/** A social profile link: blank clears it (back to the site default); otherwise a full https:// URL. */
+const optionalSocialUrl = optionalDetail(300).refine((value) => !value || /^https:\/\/[^\s]+\.[^\s]+$/i.test(value), "Enter the full link starting with https://");
+
 /** Always partial (PATCH-only, singleton pre-created by seed — no create schema, same pattern as tax-fee-config-schema.ts / invoice-config-schema.ts). */
 export const updateSystemConfigSchema = z.object({
   companyName: z.string().trim().max(120, "Too long").optional(),
@@ -16,6 +19,13 @@ export const updateSystemConfigSchema = z.object({
   companyAddress: z.string().trim().max(200, "Too long").optional(),
   companyPhone: z.string().trim().max(30, "Too long").optional(),
   companyEmail: z.string().trim().max(120, "Too long").optional(),
+  /** Blank = use the site default (stored as null). */
+  companyWhatsapp: optionalDetail(30).refine((value) => !value || value.replace(/\D/g, "").length >= 8, "Enter the number with country code, e.g. +91 92381 84005"),
+  socialInstagram: optionalSocialUrl,
+  socialFacebook: optionalSocialUrl,
+  socialLinkedin: optionalSocialUrl,
+  socialX: optionalSocialUrl,
+  socialThreads: optionalSocialUrl,
   currencyCode: z
     .string()
     .trim()

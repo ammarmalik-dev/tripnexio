@@ -10,11 +10,12 @@ import { Container } from "@/components/ui/Container";
 import { SocialIcon } from "@/components/ui/SocialIcon";
 import { cn } from "@/lib/cn";
 import { mainNav } from "@/lib/nav-config";
-import { siteConfig } from "@/lib/site-config";
+import { useSiteContact } from "@/components/layout/SiteContactProvider";
 
 const SCROLL_THRESHOLD = 32;
 
 export function Navbar() {
+  const contact = useSiteContact();
   const [scrolled, setScrolled] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
@@ -62,7 +63,7 @@ export function Navbar() {
 
           <div className="hidden lg:flex">
             <a
-              href={siteConfig.contact.whatsappHref}
+              href={contact.whatsappHref}
               target="_blank"
               rel="noopener noreferrer"
               className="glass-2 flex items-center gap-2 rounded-pill px-4 py-2 text-sm font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border-strong"

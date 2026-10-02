@@ -11,7 +11,7 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { toast } from "@/components/ui/Toaster";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { formatRupees } from "@/lib/return-ticket/use-return-ticket-destinations";
-import { siteConfig } from "@/lib/site-config";
+import { useSiteContact } from "@/components/layout/SiteContactProvider";
 import { TermsCheckbox, type TermsView } from "@/components/terms/TermsAgreement";
 import { formatDeadlineDay, type UrgentDeadline } from "@/lib/visa-extension/rules";
 import type { StoredItinerarySegment } from "@/lib/quotations/itinerary";
@@ -280,6 +280,7 @@ function QuoteCard({
 
 /** Guest customer page: review one or more staff-prepared quotes for a request and approve one to proceed to payment. */
 export function QuoteReviewPanel({ token }: { token: string }) {
+  const contact = useSiteContact();
   const router = useRouter();
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [view, setView] = useState<ReviewView | null>(null);
@@ -374,7 +375,7 @@ export function QuoteReviewPanel({ token }: { token: string }) {
         <EmptyState
           title="No quote yet"
           description="Our team is preparing your quote. We'll notify you by email/WhatsApp as soon as it's ready."
-          action={<ButtonLink href={siteConfig.contact.whatsappHref}>WhatsApp Support</ButtonLink>}
+          action={<ButtonLink href={contact.whatsappHref}>WhatsApp Support</ButtonLink>}
         />
       ) : (
         <>

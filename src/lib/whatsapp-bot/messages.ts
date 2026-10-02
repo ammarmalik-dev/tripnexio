@@ -1,6 +1,18 @@
-import { siteConfig } from "@/lib/site-config";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { siteConfig } from "@/lib/site-config";
+import { STATIC_SITE_CONTACT, type SiteContact } from "@/lib/site-contact";
 import type { ServiceType } from "../../generated/prisma/enums";
+
+/**
+ * Contact details quoted in bot replies. The engine refreshes this from
+ * Admin → System Configuration (getSiteContact) at the start of every
+ * inbound message; the value is the same for every conversation.
+ */
+let contact: SiteContact = STATIC_SITE_CONTACT;
+
+export function setContactDetails(next: SiteContact): void {
+  contact = next;
+}
 
 const MENU_LINES = [
   "1. New Visa",
@@ -28,7 +40,7 @@ export function startingService(serviceType: ServiceType, firstFieldPrompt: stri
 export function leadCreated(referenceId: string, serviceLabel: string): string {
   return (
     `All set! Your ${serviceLabel} request is submitted — reference *${referenceId}*.\n\n` +
-    `Our team will review it and reach out shortly. You can also reach us anytime at ${siteConfig.contact.phone} or ${siteConfig.contact.email}.\n\n` +
+    `Our team will review it and reach out shortly. You can also reach us anytime at ${contact.phone} or ${contact.email}.\n\n` +
     `Type "menu" if you'd like to start another request.`
   );
 }
@@ -53,7 +65,7 @@ export function handoff(reason: string): string {
   return (
     `${reason} Let me connect you with our support team — ` +
     `they'll follow up shortly. You can also reach us directly:\n` +
-    `📞 ${siteConfig.contact.phone}\n✉️ ${siteConfig.contact.email}\n💬 ${siteConfig.contact.whatsappHref}`
+    `📞 ${contact.phone}\n✉️ ${contact.email}\n💬 ${contact.whatsappHref}`
   );
 }
 

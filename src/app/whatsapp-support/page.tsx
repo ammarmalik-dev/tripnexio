@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { ShieldAlert } from "lucide-react";
 import { InfoPage } from "@/components/layout/InfoPage";
-import { getSystemConfig } from "@/lib/settings/system-config";
-import { siteConfig } from "@/lib/site-config";
+import { getSiteContact } from "@/lib/settings/system-config";
 
 export const metadata: Metadata = {
   title: "WhatsApp Support",
@@ -15,10 +14,9 @@ export const revalidate = 300;
 
 /** P20 — Company/Support/Legal doc §6 WhatsApp Support (locked copy). */
 export default async function WhatsAppSupportPage() {
-  const config = await getSystemConfig();
-  const configured = config.companyPhone?.trim();
-  const phone = configured || siteConfig.contact.phone;
-  const href = configured ? `https://wa.me/${configured.replace(/\D/g, "")}` : siteConfig.contact.whatsappHref;
+  const contact = await getSiteContact();
+  const phone = contact.whatsapp;
+  const href = contact.whatsappHref;
 
   return (
     <InfoPage

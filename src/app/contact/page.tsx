@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { InfoPage } from "@/components/layout/InfoPage";
 import { ContactForm } from "@/components/contact/ContactForm";
-import { getEffectiveSiteConfig, getSystemConfig } from "@/lib/settings/system-config";
-import { siteConfig } from "@/lib/site-config";
+import { getSiteContact, getSystemConfig } from "@/lib/settings/system-config";
 
 export const metadata: Metadata = {
   title: "Contact",
@@ -21,13 +20,12 @@ export const revalidate = 300;
  * placeholder on the live site.
  */
 export default async function ContactPage() {
-  const [site, config] = await Promise.all([getEffectiveSiteConfig(), getSystemConfig()]);
-  const configuredPhone = config.companyPhone?.trim();
-  const whatsappHref = configuredPhone ? `https://wa.me/${configuredPhone.replace(/\D/g, "")}` : siteConfig.contact.whatsappHref;
+  const site = await getSiteContact();
+  const config = await getSystemConfig();
   const channels = [
-    site.email ? { icon: Mail, label: "Customer Support Email", value: site.email, href: `mailto:${site.email}` } : null,
-    site.phone ? { icon: Phone, label: "Customer Support Phone", value: site.phone, href: `tel:${site.phone.replace(/\s+/g, "")}` } : null,
-    site.phone ? { icon: MessageCircle, label: "WhatsApp", value: site.phone, href: whatsappHref } : null,
+    site.email ? { icon: Mail, label: "Customer Support Email", value: site.email, href: site.emailHref } : null,
+    site.phone ? { icon: Phone, label: "Customer Support Phone", value: site.phone, href: site.phoneHref } : null,
+    site.whatsapp ? { icon: MessageCircle, label: "WhatsApp", value: site.whatsapp, href: site.whatsappHref } : null,
     site.address ? { icon: MapPin, label: "Registered Office Address", value: site.address, href: null } : null,
   ].filter((channel) => channel !== null);
   const legal = [

@@ -6,7 +6,7 @@ import { Sparkles, ArrowUp } from "lucide-react";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ChatBubble } from "./ChatBubble";
-import { siteConfig } from "@/lib/site-config";
+import { useSiteContact } from "@/components/layout/SiteContactProvider";
 import { postJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { buttonBaseClass, buttonVariantClass, buttonSizeClass } from "@/components/ui/Button";
@@ -51,6 +51,7 @@ interface AiChatShellProps {
  * FAQ content.
  */
 export function AiChatShell({ initialQuery }: AiChatShellProps) {
+  const contact = useSiteContact();
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     initialQuery ? [GREETING, createMessage("user", initialQuery)] : [GREETING]
   );
@@ -152,7 +153,7 @@ export function AiChatShell({ initialQuery }: AiChatShellProps) {
                   {message.showHandoffCta ? (
                     <div className="flex flex-wrap gap-2 pt-1">
                       <a
-                        href={siteConfig.contact.whatsappHref}
+                        href={contact.whatsappHref}
                         target="_blank"
                         rel="noopener noreferrer"
                         className={cn(buttonBaseClass, buttonVariantClass.glass, buttonSizeClass.sm, "!text-xs")}

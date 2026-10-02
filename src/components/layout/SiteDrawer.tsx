@@ -6,17 +6,9 @@ import { X, Phone, Mail } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { SocialIcon, SOCIAL_HOVER_CLASS, type SocialPlatform } from "@/components/ui/SocialIcon";
-import { siteConfig } from "@/lib/site-config";
-import { mainNav, headerActions, headerContact } from "@/lib/nav-config";
-
-const socialLinks: { platform: SocialPlatform; href: string; label: string }[] = [
-  { platform: "instagram", href: siteConfig.socials.instagram, label: "Instagram" },
-  { platform: "facebook", href: siteConfig.socials.facebook, label: "Facebook" },
-  { platform: "linkedin", href: siteConfig.socials.linkedin, label: "LinkedIn" },
-  { platform: "x", href: siteConfig.socials.x, label: "X" },
-  { platform: "threads", href: siteConfig.socials.threads, label: "Threads" },
-  { platform: "whatsapp", href: siteConfig.contact.whatsappHref, label: "WhatsApp" },
-];
+import { mainNav, headerActions } from "@/lib/nav-config";
+import { socialLinksFor } from "@/lib/site-contact";
+import { useSiteContact } from "./SiteContactProvider";
 
 interface SiteDrawerProps {
   open: boolean;
@@ -25,6 +17,8 @@ interface SiteDrawerProps {
 
 /** Slide-in site menu — triggered from the hamburger on smaller screens. */
 export function SiteDrawer({ open, onClose }: SiteDrawerProps) {
+  const contact = useSiteContact();
+  const socialLinks: { platform: SocialPlatform; href: string; label: string }[] = socialLinksFor(contact);
   const panelRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const shouldReduceMotion = useReducedMotion();
@@ -126,13 +120,13 @@ export function SiteDrawer({ open, onClose }: SiteDrawerProps) {
 
             <div className="mt-auto flex flex-col gap-4 border-t border-hairline px-5 py-5">
               <div className="flex flex-col gap-2 text-sm text-ink-secondary">
-                <a href={headerContact.phoneHref} className="flex items-center gap-2 hover:text-ink-primary">
+                <a href={contact.phoneHref} className="flex items-center gap-2 hover:text-ink-primary">
                   <Phone className="h-4 w-4" aria-hidden="true" />
-                  {headerContact.phoneDisplay}
+                  {contact.phone}
                 </a>
-                <a href={headerContact.emailHref} className="flex items-center gap-2 hover:text-ink-primary">
+                <a href={contact.emailHref} className="flex items-center gap-2 hover:text-ink-primary">
                   <Mail className="h-4 w-4" aria-hidden="true" />
-                  {headerContact.emailDisplay}
+                  {contact.email}
                 </a>
               </div>
 

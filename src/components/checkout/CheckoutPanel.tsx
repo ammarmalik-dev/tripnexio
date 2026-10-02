@@ -9,7 +9,7 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { toast } from "@/components/ui/Toaster";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { formatRupees } from "@/lib/return-ticket/use-return-ticket-destinations";
-import { siteConfig } from "@/lib/site-config";
+import { useSiteContact } from "@/components/layout/SiteContactProvider";
 import { utilityLinks } from "@/lib/nav-config";
 import { TermsAgreement } from "@/components/terms/TermsAgreement";
 import { PostTicketOfferCard } from "@/components/cross-sell/PostTicketOfferCard";
@@ -141,6 +141,7 @@ function fileToBase64(file: File): Promise<string> {
 
 /** Guest customer page: pay for a Return Ticket / OTB request, then upload the documents it needs. */
 export function CheckoutPanel({ token }: { token: string }) {
+  const contact = useSiteContact();
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [view, setView] = useState<CheckoutView | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -271,7 +272,7 @@ export function CheckoutPanel({ token }: { token: string }) {
         <ErrorState
           title="No payment is set up for this request"
           description={`Our team will contact you with a payment link. You can also message us on WhatsApp.`}
-          action={<ButtonLink href={siteConfig.contact.whatsappHref}>WhatsApp Support</ButtonLink>}
+          action={<ButtonLink href={contact.whatsappHref}>WhatsApp Support</ButtonLink>}
         />
       ) : (
         <div className="rounded-xl border border-hairline bg-surface-1 px-5">
@@ -335,7 +336,7 @@ export function CheckoutPanel({ token }: { token: string }) {
           </p>
           <p className="text-sm text-ink-secondary">Message us with your reference number and we&apos;ll send you an updated quotation.</p>
           <div>
-            <ButtonLink href={siteConfig.contact.whatsappHref}>WhatsApp Support</ButtonLink>
+            <ButtonLink href={contact.whatsappHref}>WhatsApp Support</ButtonLink>
           </div>
         </div>
       ) : null}
@@ -386,7 +387,7 @@ export function CheckoutPanel({ token }: { token: string }) {
           </p>
           <p className="text-sm text-ink-secondary">Message us with your reference number and we&apos;ll send a fresh payment link.</p>
           <div>
-            <ButtonLink href={siteConfig.contact.whatsappHref}>WhatsApp Support</ButtonLink>
+            <ButtonLink href={contact.whatsappHref}>WhatsApp Support</ButtonLink>
           </div>
         </div>
       ) : null}
