@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { LeadStatusControl } from "./LeadStatusControl";
 import { LeadAssignmentControl } from "./LeadAssignmentControl";
 import { LeadTemperatureControl } from "./LeadTemperatureControl";
+import { LeadServiceTypeControl } from "./LeadServiceTypeControl";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { BookingStatusBadge } from "./BookingStatusBadge";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
@@ -253,9 +254,14 @@ export function LeadDetail({ leadId, canReassignLeads }: { leadId: string; canRe
 
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
         <div className="flex flex-col gap-1">
-          <p className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">
-            {SERVICE_TYPE_LABELS[lead.serviceType]} · {lead.referenceId}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <p className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">
+              {SERVICE_TYPE_LABELS[lead.serviceType]} · {lead.referenceId}
+            </p>
+            {lead.quotations.length === 0 && lead.bookings.length === 0 ? (
+              <LeadServiceTypeControl leadId={lead.id} serviceType={lead.serviceType} onChanged={() => setReloadNonce((current) => current + 1)} />
+            ) : null}
+          </div>
           <h1 className="text-xl font-semibold text-ink-heading">{lead.customer.name}</h1>
           <p className="text-xs text-ink-tertiary">Submitted {formatDate(lead.createdAt)}</p>
         </div>

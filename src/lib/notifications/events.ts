@@ -29,6 +29,8 @@ export const NOTIFICATION_EVENTS = {
   OUTPUT_DELIVERED: "OUTPUT_DELIVERED",
   OTB_APPROVED: "OTB_APPROVED",
   ABANDONED_QUOTE_COUPON: "ABANDONED_QUOTE_COUPON",
+  ENQUIRY_RECEIVED: "ENQUIRY_RECEIVED",
+  COMPLAINT_RECEIVED: "COMPLAINT_RECEIVED",
 } as const;
 
 export type NotificationEvent = (typeof NOTIFICATION_EVENTS)[keyof typeof NOTIFICATION_EVENTS];
@@ -184,5 +186,19 @@ export const NOTIFICATION_EVENT_CATALOG: {
       couponValue: "10% (up to Rs. 500.00)",
       validUntil: "7 Oct 2026",
     },
+  },
+  {
+    event: NOTIFICATION_EVENTS.ENQUIRY_RECEIVED,
+    label: "Contact form: enquiry received",
+    variables: ["customerName", "enquiryReference", "subject", "category"],
+    wired: true,
+    sampleVariables: { customerName: "Sample Customer", enquiryReference: "ENQ-SAMPLE", subject: "Question about visa documents", category: "General Enquiry" },
+  },
+  {
+    event: NOTIFICATION_EVENTS.COMPLAINT_RECEIVED,
+    label: "Contact form: complaint registered",
+    variables: ["customerName", "enquiryReference", "subject"],
+    wired: true,
+    sampleVariables: { customerName: "Sample Customer", enquiryReference: "CMP-SAMPLE", subject: "Delay in my application" },
   },
 ];

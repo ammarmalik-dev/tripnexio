@@ -1,4 +1,5 @@
 import {
+  Inbox,
   Scale,
   LayoutDashboard,
   ListChecks,
@@ -95,6 +96,8 @@ export const crmNavGroups: CrmNavGroup[] = [
     items: [
       { label: "Leads", href: "/crm/leads", icon: ListChecks, permission: "leads.view" },
       { label: "Customers", href: "/crm/customers", icon: Users, permission: "leads.view" },
+      // Contact-form messages (client request 2026-10-03); complaints are a tab on the same screen.
+      { label: "Enquiries & Complaints", href: "/crm/enquiries", icon: Inbox, permission: "leads.view" },
       { label: "Quotations", href: "/crm/quotations", icon: FileText, permission: "quotations.view" },
     ],
   },

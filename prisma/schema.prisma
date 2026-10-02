@@ -183,6 +183,7 @@ model Customer {
   bookings            Booking[]
   otps                CustomerOtp[]
   passwordResetTokens CustomerPasswordResetToken[]
+  enquiries           Enquiry[]
 }
 
 /// P09 — customer "forgot password" links: only the sha256 hash is stored,
@@ -299,6 +300,8 @@ model Lead {
   quotations    Quotation[]
   bookings      Booking[]
   tasks         Task[]
+  /// The Contact-form enquiry this lead was converted from, if any.
+  fromEnquiry   Enquiry?
 
   @@index([customerId])
   @@index([serviceType])
@@ -1473,30 +1476,30 @@ enum CouponCategory {
 }
 
 model Coupon {
-  id         String         @id @default(cuid())
-  code       String         @unique
-  type       CouponType
+  id          String         @id @default(cuid())
+  code        String         @unique
+  type        CouponType
   /// A percentage (0-100) when type=PERCENTAGE, or a flat rupee amount when type=FIXED_AMOUNT.
-  value      Decimal        @db.Decimal(10, 2)
+  value       Decimal        @db.Decimal(10, 2)
   /// ADMIN.md §25 / CRM.md §8: "Support: Employee coupon, External coupon
   /// where configured, Abandoned quotation coupon." Only EMPLOYEE is
   /// actually enforced differently today (the ₹500 cap, see
   /// CouponConfig) — EXTERNAL/ABANDONED_QUOTATION exist as real,
   /// selectable categories for Admin's own reporting/organization, with no
   /// extra business rule layered on them yet since none is specified.
-  category   CouponCategory @default(EXTERNAL)
-  validFrom  DateTime
-  validUntil DateTime
+  category    CouponCategory @default(EXTERNAL)
+  validFrom   DateTime
+  validUntil  DateTime
   /// null = unlimited uses.
-  usageLimit Int?
-  usageCount Int            @default(0)
+  usageLimit  Int?
+  usageCount  Int            @default(0)
   /// P24 - cap on the discount a PERCENTAGE coupon can give (null = no cap).
-  maxDiscount Decimal?      @db.Decimal(10, 2)
+  maxDiscount Decimal?       @db.Decimal(10, 2)
   /// P24 - set on a single-use coupon auto-generated for an abandoned quotation.
-  leadId     String?
-  active     Boolean        @default(true)
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  leadId      String?
+  active      Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
   quotations Quotation[]
   payments   Payment[]
@@ -1513,8 +1516,8 @@ model Coupon {
 /// value — a percentage-type Employee coupon could otherwise compute a
 /// discount over the cap depending on the quote total.
 model CouponConfig {
-  id                String   @id
-  employeeCouponCap Decimal  @db.Decimal(10, 2)
+  id                         String      @id
+  employeeCouponCap          Decimal     @db.Decimal(10, 2)
   /// P24 - abandoned-quotation coupon automation (Admin toggle). Every value
   /// is Admin-set; the job does nothing until it is enabled AND configured.
   abandonedCouponEnabled     Boolean     @default(false)
@@ -1523,8 +1526,8 @@ model CouponConfig {
   abandonedCouponValue       Decimal?    @db.Decimal(10, 2)
   abandonedCouponMaxDiscount Decimal?    @db.Decimal(10, 2)
   abandonedCouponValidDays   Int?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt                  DateTime    @default(now())
+  updatedAt                  DateTime    @updatedAt
 }
 
 /// Step 28 (audit §4.8) — ADMIN.md §28: "Expense categories should use
@@ -1789,56 +1792,56 @@ model InvoiceConfig {
 ///   (any of the 5 n8n-triggered jobs) emails this address, distinct from
 ///   the customer-facing NotificationTemplate/notifyCustomer() system.
 model SystemConfig {
-  id                     String   @id
-  companyName            String?
-  companyTagline         String?
-  companyAddress         String?
-  companyPhone           String?
-  companyEmail           String?
+  id                      String    @id
+  companyName             String?
+  companyTagline          String?
+  companyAddress          String?
+  companyPhone            String?
+  companyEmail            String?
   /// WhatsApp number shown on the site (any format; digits are used for the
   /// wa.me link). null = the static default in site-config.ts.
-  companyWhatsapp        String?
+  companyWhatsapp         String?
   /// Social profile URLs for the footer/menu icons. null = static default.
-  socialInstagram        String?
-  socialFacebook         String?
-  socialLinkedin         String?
-  socialX                String?
-  socialThreads          String?
-  currencyCode           String   @default("INR")
-  timezoneOffsetMinutes  Int      @default(330)
-  documentRetentionDays  Int      @default(90)
-  auditRetentionDays     Int?
-  backupRetentionDays    Int?
-  backupScheduleNote     String?
-  maintenanceModeEnabled Boolean  @default(false)
+  socialInstagram         String?
+  socialFacebook          String?
+  socialLinkedin          String?
+  socialX                 String?
+  socialThreads           String?
+  currencyCode            String    @default("INR")
+  timezoneOffsetMinutes   Int       @default(330)
+  documentRetentionDays   Int       @default(90)
+  auditRetentionDays      Int?
+  backupRetentionDays     Int?
+  backupScheduleNote      String?
+  maintenanceModeEnabled  Boolean   @default(false)
   /// P09 working calendar — weekend days per country as JS weekday numbers
   /// ("0,6" = Sunday + Saturday), and the business-hours window.
-  weekendDaysIndia       String   @default("0,6")
-  weekendDaysUae         String   @default("0,6")
-  workdayStartHour       Int      @default(9)
-  workdayEndHour         Int      @default(18)
-  maintenanceMessage     String?
-  systemAlertEmail       String?
+  weekendDaysIndia        String    @default("0,6")
+  weekendDaysUae          String    @default("0,6")
+  workdayStartHour        Int       @default(9)
+  workdayEndHour          Int       @default(18)
+  maintenanceMessage      String?
+  systemAlertEmail        String?
   /// P22 — auto-assign new leads to the eligible rostered staff member with the lowest PAX workload.
-  autoAssignLeads        Boolean  @default(false)
+  autoAssignLeads         Boolean   @default(false)
   /// P24 - default payment-link validity (hours) when a service has no Timelines value; null = 24.
   defaultPaymentLinkHours Int?
   /// P26 - "Go-live ready" flag: Admin can set it only while every Integrations Health check passes.
-  goLiveReady            Boolean  @default(false)
-  goLiveMarkedAt         DateTime?
-  goLiveMarkedById       String?
+  goLiveReady             Boolean   @default(false)
+  goLiveMarkedAt          DateTime?
+  goLiveMarkedById        String?
   /// P20 — Company/Support/Legal doc §3 + §9.16 + §14: legal details kept as
   /// configuration until the client supplies them (never hard-coded). The
   /// legal pages render only what's filled in.
-  legalEntityName        String?
-  gstin                  String?
-  jurisdiction           String?
-  grievanceOfficerName   String?
-  grievanceEmail         String?
-  grievancePhone         String?
-  grievanceAddress       String?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  legalEntityName         String?
+  gstin                   String?
+  jurisdiction            String?
+  grievanceOfficerName    String?
+  grievanceEmail          String?
+  grievancePhone          String?
+  grievanceAddress        String?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 }
 
 // ---------------------------------------------------------------------------
@@ -2154,6 +2157,7 @@ model User {
   passwordResetTokens         PasswordResetToken[]
   staffNotifications          StaffNotification[]
   rosterEntries               StaffRoster[]
+  assignedEnquiries           Enquiry[]            @relation("EnquiryAssignee")
 
   @@index([roleId])
   @@index([active])
@@ -2461,6 +2465,61 @@ model InvoiceCounter {
   updatedAt     DateTime @updatedAt
 }
 
+enum EnquiryCategory {
+  GENERAL
+  BOOKING
+  PAYMENT
+  DOCUMENTS
+  FEEDBACK
+  COMPLAINT
+}
+
+enum EnquiryStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+  CONVERTED
+}
+
+/// A Contact-form message (client request 2026-10-03): handled in CRM →
+/// Enquiries instead of becoming an "Other" lead. A genuine business enquiry
+/// can be converted to a lead (convertedLeadId); a COMPLAINT is escalated
+/// (escalatedAt, managers notified) and is never converted. Notes and every
+/// change are AuditTrail rows on entityType "Enquiry".
+model Enquiry {
+  id               String          @id @default(cuid())
+  /// Customer-facing reference: ENQ-XXXXXX, or CMP-XXXXXX for a complaint (from the id).
+  reference        String          @unique
+  category         EnquiryCategory @default(GENERAL)
+  status           EnquiryStatus   @default(NEW)
+  fullName         String
+  mobile           String
+  email            String
+  bookingReference String?
+  subject          String
+  message          String          @db.Text
+  /// Set when the sender matches an existing customer (mobile, then email).
+  customerId       String?
+  assignedStaffId  String?
+  escalatedAt      DateTime?
+  resolutionNote   String?         @db.Text
+  resolvedAt       DateTime?
+  convertedLeadId  String?         @unique
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  assignedStaff User?     @relation("EnquiryAssignee", fields: [assignedStaffId], references: [id])
+  convertedLead Lead?     @relation(fields: [convertedLeadId], references: [id])
+
+  @@index([category])
+  @@index([status])
+  @@index([createdAt])
+  @@index([assignedStaffId])
+  @@index([customerId])
+}
+
 /// Admin-edited copy of the About Us and legal pages (Admin → Legal Pages).
 /// No row = the page shows its original locked copy from
 /// src/lib/legal/default-pages.ts; deleting the row is "Reset to original".
@@ -2521,15 +2580,15 @@ model Holiday {
 /// airline's own normal/urgent price applies. urgentPrice null = Urgent
 /// isn't offered at this row's price (the airline price is used instead).
 model OtbPrice {
-  id           String   @id @default(cuid())
-  airlineId    String
-  countryId    String
-  paxType      PaxType
-  normalPrice  Decimal  @db.Decimal(10, 2)
-  urgentPrice  Decimal? @db.Decimal(10, 2)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  airlineId   String
+  countryId   String
+  paxType     PaxType
+  normalPrice Decimal  @db.Decimal(10, 2)
+  urgentPrice Decimal? @db.Decimal(10, 2)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   airline Airline @relation(fields: [airlineId], references: [id])
   country Country @relation(fields: [countryId], references: [id])

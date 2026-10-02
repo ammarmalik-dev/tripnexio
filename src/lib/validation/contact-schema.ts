@@ -1,9 +1,13 @@
 import { z } from "zod";
 import { honeypotShape } from "./honeypot";
 
-/** P20 — the /contact form; submitting it creates an OTHER lead for the team. */
+/** What the customer is writing about — picked on the /contact form. */
+export const CONTACT_CATEGORIES = ["GENERAL", "BOOKING", "PAYMENT", "DOCUMENTS", "FEEDBACK", "COMPLAINT"] as const;
+
+/** The /contact form; submitting it creates an Enquiry (CRM → Enquiries), or an escalated complaint. */
 export const contactRequestSchema = z.object({
   ...honeypotShape,
+  category: z.enum(CONTACT_CATEGORIES, { error: "Choose what your message is about" }),
   fullName: z.string().trim().min(2, "Enter your full name").max(80, "Full name is too long"),
   mobile: z
     .string()

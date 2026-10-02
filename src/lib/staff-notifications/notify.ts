@@ -21,7 +21,9 @@ export type StaffNotificationType =
   | "DOCUMENT_REJECTED"
   | "REFUND_RAISED"
   | "FOLLOW_UP_DUE"
-  | "DELAY";
+  | "DELAY"
+  | "NEW_ENQUIRY"
+  | "COMPLAINT";
 
 export interface NotifyStaffInput {
   type: StaffNotificationType;
