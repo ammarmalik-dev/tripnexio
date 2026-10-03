@@ -15,6 +15,11 @@ export interface HeroSlide {
 // deliberately no single GCC-only image in this set. No location captions or
 // landmark names in alt text (P05).
 export const heroSlides: HeroSlide[] = [
+  // The client's own homepage photo (2026-10-03), shown first; the stock slides follow.
+  {
+    src: "/images/hero/home.jpg",
+    alt: "Two travellers walking along a palm-lined tropical beach",
+  },
   {
     src: "https://images.unsplash.com/photo-1525625293386-3f8f99389edd?auto=format&fit=crop&w=2000&q=80",
     alt: "A city skyline at sunset",

@@ -7,6 +7,9 @@
  * string values as Service.code so ServicesGrid can merge live Admin
  * metadata with these fixed facts.
  *
+ * New Visa, Visa Extension, Visa Change, Return Ticket and OTB use the client's own photos (public/images/services/,
+ * supplied 2026-10-03, resized for the web). Special Fare still uses Unsplash.
+ *
  * Photography sourced from Unsplash (free to use under the Unsplash
  * License, no attribution required) — high-resolution (2400px) stock shots, also used full-bleed behind each service page's hero (ServiceHeroBackdrop);
  * swap for TripNexio's own branded photography when the client provides it.
@@ -20,18 +23,18 @@ export interface ServiceRouteInfo {
 export const SERVICE_ROUTE_INFO: Record<string, ServiceRouteInfo> = {
   NEW_VISA: {
     href: "/services/new-visa",
-    image: "https://images.unsplash.com/photo-1517400508447-f8dd518b86db?auto=format&fit=crop&w=2400&q=85",
-    imageAlt: "A traveller reading the departures board in an airport terminal",
+    image: "/images/services/new-visa.jpg",
+    imageAlt: "A passport and reading glasses on an open world atlas",
   },
   VISA_EXTENSION: {
     href: "/services/visa-extension",
-    image: "https://images.unsplash.com/photo-1530521954074-e64f6810b32d?auto=format&fit=crop&w=2400&q=85",
-    imageAlt: "A relaxed traveller waiting in an airport lounge as a plane takes off",
+    image: "/images/services/visa-extension.jpg",
+    imageAlt: "A traveller completing an online application on a laptop, passport beside it",
   },
   VISA_CHANGE: {
     href: "/services/visa-change",
-    image: "https://images.unsplash.com/photo-1556388158-158ea5ccacbd?auto=format&fit=crop&w=2400&q=85",
-    imageAlt: "An airliner coming in to land over a runway",
+    image: "/images/services/visa-change.jpg",
+    imageAlt: "Stamped passports, a watch and coins on a travel map",
   },
   FLIGHT_SPECIAL_FARE: {
     href: "/services/flight-special-fare",
@@ -40,12 +43,12 @@ export const SERVICE_ROUTE_INFO: Record<string, ServiceRouteInfo> = {
   },
   RETURN_TICKET: {
     href: "/services/return-ticket",
-    image: "https://images.unsplash.com/photo-1544016768-982d1554f0b9?auto=format&fit=crop&w=2400&q=85",
-    imageAlt: "An airliner flying overhead against a soft evening sky",
+    image: "/images/services/return-ticket.jpg",
+    imageAlt: "A traveller checking her phone outside an airport terminal",
   },
   OTB: {
     href: "/services/otb",
-    image: "https://images.unsplash.com/photo-1542296332-2e4473faf563?auto=format&fit=crop&w=2400&q=85",
-    imageAlt: "An airliner parked at the gate at sunrise, ready for boarding",
+    image: "/images/services/otb.jpg",
+    imageAlt: "A departures board in a busy airport terminal",
   },
 };
