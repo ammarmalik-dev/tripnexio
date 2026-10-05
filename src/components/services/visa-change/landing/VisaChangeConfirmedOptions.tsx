@@ -10,7 +10,7 @@ const options = [
   {
     title: "A2A",
     Icon: Plane,
-    items: ["Entry Airport", "Exit Airport", "Airline", "Flight", "Date", "Time", "Reporting Time", "Package details"],
+    items: ["Exit & Re-entry Airport", "Airline", "Flight", "Date", "Time", "Reporting Time", "Package details"],
   },
   {
     title: "Border Exit",

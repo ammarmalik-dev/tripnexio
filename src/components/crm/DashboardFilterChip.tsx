@@ -40,7 +40,7 @@ export function DashboardFilterChip({
 
   return (
     <div className="flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent-on-light">
-      <span>Filtered from Command Centre: {resolvedLabel}</span>
+      <span>Filtered from Overview: {resolvedLabel}</span>
       <Link href={clearHref} className="inline-flex items-center gap-0.5 hover:underline">
         <X className="h-3 w-3" aria-hidden="true" />
         Clear

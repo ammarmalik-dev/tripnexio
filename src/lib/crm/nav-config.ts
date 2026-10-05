@@ -90,14 +90,14 @@ export interface CrmNavGroup {
  * reorganizes existing navigation, it doesn't invent new destinations.
  */
 export const crmNavGroups: CrmNavGroup[] = [
-  { label: null, items: [{ label: "Command Centre", href: "/crm", icon: LayoutDashboard }] },
+  // Client corrections 2026-10-05: Overview / Sales / Operations / Escalation /
+  // Analytics / Profile / Resources / Help, then Admin Panel (CrmSidebar, permitted users only).
+  { label: null, items: [{ label: "Overview", href: "/crm", icon: LayoutDashboard }] },
   {
     label: "Sales",
     items: [
       { label: "Leads", href: "/crm/leads", icon: ListChecks, permission: "leads.view" },
       { label: "Customers", href: "/crm/customers", icon: Users, permission: "leads.view" },
-      // Contact-form messages (client request 2026-10-03); complaints are a tab on the same screen.
-      { label: "Enquiries & Complaints", href: "/crm/enquiries", icon: Inbox, permission: "leads.view" },
       { label: "Quotations", href: "/crm/quotations", icon: FileText, permission: "quotations.view" },
     ],
   },
@@ -110,8 +110,16 @@ export const crmNavGroups: CrmNavGroup[] = [
       { label: "Refunds", href: "/crm/refunds", icon: RotateCcw, permission: "refunds.view" },
       { label: "Documents", href: "/crm/documents", icon: FolderOpen, permission: "documents.view" },
       { label: "Tasks", href: "/crm/tasks", icon: ListTodo, permission: "tasks.view" },
+      { label: "Follow-ups", href: "/crm/follow-ups", icon: Repeat, permission: "leads.view" },
       // P21 item 9 — CRM.md §3/§30 "Delay Analysis" (Operations group).
       { label: "Delay Analysis", href: "/crm/delays", icon: AlarmClock, permission: "bookings.view" },
+    ],
+  },
+  {
+    label: "Escalation",
+    items: [
+      // Contact-form messages (client request 2026-10-03); complaints are a tab on the same screen.
+      { label: "Enquiries & Complaints", href: "/crm/enquiries", icon: Inbox, permission: "leads.view" },
     ],
   },
   {

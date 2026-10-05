@@ -27,6 +27,11 @@ export const leadListQuerySchema = z.object({
    * PAYMENT_FAILED_STATUSES in src/lib/crm/payment-failed.ts).
    */
   paymentFailed: z.enum(["1"]).optional(),
+  /** Client corrections 2026-10-05 — POC (assigned staff id, or "unassigned"), country and travel-date filters. */
+  assignedStaffId: z.string().trim().min(1).optional(),
+  countryId: z.string().trim().min(1).optional(),
+  travelFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  travelTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   sort: z.enum(["createdAt_asc", "createdAt_desc"]).default("createdAt_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),

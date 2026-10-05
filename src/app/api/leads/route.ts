@@ -7,6 +7,8 @@ import { serviceTypeCondition } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { isAbandonedDraftDetails } from "@/lib/leads/abandoned-draft";
 import { isUrgentRequest } from "@/lib/crm/urgency";
+import { leadListWhere } from "@/lib/leads/list-where";
+import { subServiceLabel } from "@/lib/leads/sub-service-label";
 import { PAYMENT_FAILED_STATUSES, latestBookingPaymentSelect, latestPaymentFailedStatus } from "@/lib/crm/payment-failed";
 
 export async function GET(request: NextRequest) {
@@ -19,7 +21,7 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
 
-  const { serviceType, status, temperature, search, dateFrom, dateTo, paymentFailed, sort, page, pageSize } = parsed.data;
+  const { serviceType, paymentFailed, sort, page, pageSize } = parsed.data;
 
   // P21 item 2 — "latest booking's latest payment" can't be expressed as a
   // Prisma where clause, so narrow to leads with ANY failed/expired payment
@@ -37,31 +39,14 @@ export async function GET(request: NextRequest) {
     paymentFailedLeadIds = candidates.filter((lead) => latestPaymentFailedStatus(lead.bookings) !== null).map((lead) => lead.id);
   }
 
-  const where = {
-    ...serviceTypeCondition(auth.session, serviceType),
-    ...(status ? { status } : {}),
-    ...(temperature ? { temperature } : {}),
-    ...(paymentFailedLeadIds ? { id: { in: paymentFailedLeadIds } } : {}),
-    ...(dateFrom || dateTo
-      ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
-      : {}),
-    ...(search
-      ? {
-          customer: {
-            OR: [
-              { name: { contains: search, mode: "insensitive" as const } },
-              { mobile: { contains: search, mode: "insensitive" as const } },
-            ],
-          },
-        }
-      : {}),
-  };
+  const where = leadListWhere(auth.session, parsed.data, paymentFailedLeadIds ? { id: { in: paymentFailedLeadIds } } : {});
+
 
   const [total, leads] = await Promise.all([
     db.lead.count({ where }),
     db.lead.findMany({
       where,
-      include: { customer: true, assignedStaff: true, bookings: latestBookingPaymentSelect },
+      include: { customer: true, assignedStaff: true, country: { select: { name: true } }, bookings: latestBookingPaymentSelect },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -76,6 +61,10 @@ export async function GET(request: NextRequest) {
     temperature: lead.temperature,
     source: lead.source,
     createdAt: lead.createdAt,
+    countryName: lead.country?.name ?? null,
+    travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
+    paxCount: lead.paxCount,
+    subService: subServiceLabel(lead.details),
     urgent: isUrgentRequest(lead.serviceType, lead.details),
     /** P21 item 3 — a step-1-only draft from an abandoned website form. */
     abandoned: isAbandonedDraftDetails(lead.details),

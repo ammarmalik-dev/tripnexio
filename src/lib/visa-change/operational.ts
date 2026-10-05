@@ -93,9 +93,16 @@ export function formatFlightDate(date: string): string {
 /** The customer-safe rows of a block — shown on the quote page and printed on the package PDF. Never vendor, cost or price. */
 export function customerBlockRows(block: OperationalBlock): { label: string; value: string }[] {
   if (block.kind === "A2A") {
+    // Client correction 2026-10-05: a round trip from and back to one airport shows it once.
+    const airportRows =
+      block.entryAirportId === block.exitAirportId
+        ? [{ label: "Exit & Re-entry Airport", value: block.exitAirport }]
+        : [
+            { label: "Exit Airport", value: block.exitAirport },
+            { label: "Re-entry Airport", value: block.entryAirport },
+          ];
     return [
-      { label: "Entry Airport", value: block.entryAirport },
-      { label: "Exit Airport", value: block.exitAirport },
+      ...airportRows,
       { label: "Airline", value: block.airline },
       { label: "Flight", value: block.flightNumber },
       { label: "Date", value: formatFlightDate(block.flightDate) },

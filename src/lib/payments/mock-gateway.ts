@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayWebhookEvent, PaymentGateway } from "./gateway";
+import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayLinkStatus, GatewayWebhookEvent, PaymentGateway } from "./gateway";
 
 /**
  * Selected automatically by getPaymentGateway() when RAZORPAY_KEY_ID is
@@ -20,6 +20,11 @@ export class MockPaymentGateway implements PaymentGateway {
   async createPaymentLink(_input: CreatePaymentLinkInput): Promise<CreatePaymentLinkResult> {
     const id = `mock_plink_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
     return { gatewayRef: id, paymentLink: `https://mock-gateway.tripnexio.local/pay/${id}` };
+  }
+
+  /** The mock keeps no link state: a mock payment completes only through its signed webhook (/api/pay/[token]/mock-pay). */
+  async fetchPaymentLinkStatus(_gatewayRef: string): Promise<GatewayLinkStatus> {
+    return { paid: false, gatewayPaymentId: null, amountInPaise: null, currency: null };
   }
 
   verifyAndParseWebhook(rawBody: string, signatureHeader: string | null): GatewayWebhookEvent | null {

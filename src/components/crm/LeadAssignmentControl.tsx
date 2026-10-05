@@ -40,9 +40,11 @@ interface LeadAssignmentControlProps {
    * /api/leads/[id]/assign), this is just the matching UI state.
    */
   canReassign: boolean;
+  /** Staff without leads.reassign may only take an unassigned lead themselves (client corrections 2026-10-05). */
+  currentStaffId: string;
 }
 
-export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onChanged, canReassign }: LeadAssignmentControlProps) {
+export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onChanged, canReassign, currentStaffId }: LeadAssignmentControlProps) {
   const [staffOptions, setStaffOptions] = useState<StaffOption[]>([]);
   const [pending, setPending] = useState(false);
   const [suggestion, setSuggestion] = useState<AssignmentSuggestion | null>(null);
@@ -151,6 +153,7 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
     pendingStaffId === null ? null : pendingStaffId === "" ? "Unassigned" : (staffOptions.find((option) => option.id === pendingStaffId)?.name ?? "the selected staff member");
 
   const canEditThisAssignment = effectivelyUnassigned || canReassign;
+  const pickableStaff = canReassign ? staffOptions : staffOptions.filter((option) => option.id === currentStaffId);
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -167,7 +170,7 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
             className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[180px] text-sm")}
           >
             <option value="">Unassigned</option>
-            {staffOptions.map((option) => (
+            {pickableStaff.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
               </option>
@@ -224,7 +227,7 @@ export function LeadAssignmentControl({ leadId, serviceType, assignedStaff, onCh
         </div>
       ) : null}
 
-      {effectivelyUnassigned && suggestion && pendingStaffId === null ? (
+      {effectivelyUnassigned && suggestion && pendingStaffId === null && (canReassign || suggestion.staffId === currentStaffId) ? (
         <div className="flex items-center gap-2 text-xs text-ink-tertiary">
           <Sparkles className="h-3.5 w-3.5 shrink-0 text-ink-accent" aria-hidden="true" />
           <span>

@@ -86,20 +86,21 @@ export function PaymentPanel({
   const couponDiscount = Number(payment.couponDiscount ?? 0);
   const total = Number(payment.amount) - couponDiscount + Number(payment.gstAmount) + Number(payment.gatewayFee);
 
-  const handleMarkSuccess = async () => {
-    const reason = await confirm({
-      title: `Mark ${money(total)} payment successful manually?`,
-      description: "Only use this when the gateway webhook never arrived or the customer paid outside the gateway. The booking is confirmed and the customer is notified.",
-      confirmLabel: "Mark Success",
-    });
-    if (!reason) return;
+  // Client corrections 2026-10-05: online success is fetched from the gateway, never marked by hand.
+  const handleCheckStatus = async () => {
     setMarkingSuccess(true);
     try {
-      await postJson(`/api/payments/${payment.id}/mark-success`, { reason });
-      toast.success("Payment marked successful.");
-      onChanged();
+      const result = await postJson<{ outcome: string }>(`/api/payments/${payment.id}/check-status`, {});
+      if (result.outcome === "COMPLETED") {
+        toast.success("The gateway confirms this payment. It is now recorded as successful.");
+        onChanged();
+      } else if (result.outcome === "NOT_PAID") {
+        toast.info("The gateway shows this link as not paid yet.");
+      } else {
+        onChanged();
+      }
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Couldn't mark this payment successful. Please try again.");
+      toast.error(error instanceof ApiError ? error.message : "Couldn't check this payment. Please try again.");
     } finally {
       setMarkingSuccess(false);
     }
@@ -263,9 +264,9 @@ export function PaymentPanel({
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        {payment.status === "PENDING" && payment.method !== "BANK_TRANSFER" ? (
-          <Button type="button" size="sm" onClick={() => void handleMarkSuccess()} isLoading={markingSuccess}>
-            Mark Success Manually
+        {payment.status === "PENDING" && payment.method === "GATEWAY" && payment.gatewayRef ? (
+          <Button type="button" size="sm" variant="glass" onClick={() => void handleCheckStatus()} isLoading={markingSuccess}>
+            Check Payment Status
           </Button>
         ) : null}
         {payment.status === "SUCCESS" && payment.refundRule?.allowed && !showRefundForm ? (

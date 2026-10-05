@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, RotateCw } from "lucide-react";
+import { Search, RotateCw, ArrowRight } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -17,6 +17,7 @@ import { LeadTemperatureBadge } from "./LeadTemperatureBadge";
 import { UrgentBadge } from "./UrgentBadge";
 import { ListPagination } from "./ListPagination";
 import { usePaginationState } from "./usePagination";
+import { useListFilterOptions } from "./useListFilterOptions";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TEMPERATURE_OPTIONS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -30,6 +31,10 @@ interface LeadListItem {
   temperature: LeadTemperature | null;
   source: string | null;
   createdAt: string;
+  countryName: string | null;
+  travelDate: string | null;
+  paxCount: number | null;
+  subService: string | null;
   urgent: boolean;
   abandoned: boolean;
   paymentFailedStatus: PaymentStatus | null;
@@ -52,12 +57,25 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function LeadsTable() {
+function formatTravelDate(value: string | null): string {
+  return value
+    ? new Date(`${value}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    : "—";
+}
+
+/** `defaultStatus` pre-filters the list (e.g. the Follow-ups screen). */
+export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = {}) {
   // Step 53 — read once on mount, so a Command Centre KPI card's link
   // (e.g. /crm/leads?status=NEW&dateFrom=...&dateTo=...) lands pre-filtered.
   const searchParams = useSearchParams();
   const [serviceType, setServiceType] = useState(() => searchParams.get("serviceType") ?? "");
-  const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? defaultStatus);
+  // Client corrections 2026-10-05 — POC, country and travel-date filters.
+  const [assignedStaffId, setAssignedStaffId] = useState(() => searchParams.get("assignedStaffId") ?? "");
+  const [countryId, setCountryId] = useState(() => searchParams.get("countryId") ?? "");
+  const [travelFrom, setTravelFrom] = useState(() => searchParams.get("travelFrom") ?? "");
+  const [travelTo, setTravelTo] = useState(() => searchParams.get("travelTo") ?? "");
+  const filterOptions = useListFilterOptions();
   const [temperature, setTemperature] = useState(() => searchParams.get("temperature") ?? "");
   const [paymentFailed, setPaymentFailed] = useState(() => searchParams.get("paymentFailed") === "1");
   const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
@@ -72,8 +90,9 @@ export function LeadsTable() {
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
   );
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  // One global 360 search in the top bar (client corrections 2026-10-05), so
+  // no search box here; a ?search= link still lands pre-filtered.
+  const [search] = useState(() => searchParams.get("search") ?? "");
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<LeadListItem[]>([]);
@@ -107,21 +126,14 @@ export function LeadsTable() {
     if (temperature) params.set("temperature", temperature);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
+    if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
+    if (countryId) params.set("countryId", countryId);
+    if (travelFrom) params.set("travelFrom", travelFrom);
+    if (travelTo) params.set("travelTo", travelTo);
     if (search) params.set("search", search);
     params.set("sort", sort);
     return params;
   }
-
-  useEffect(() => {
-    // Only fires after searchInput actually changes (plus once on mount,
-    // when page is already 1), so resetting the page here never undoes a
-    // Prev/Next click.
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,15 +141,8 @@ export function LeadsTable() {
     async function loadLeads() {
       setState("loading");
       try {
-        const params = new URLSearchParams();
-        if (serviceType) params.set("serviceType", serviceType);
-        if (status) params.set("status", status);
-        if (temperature) params.set("temperature", temperature);
-        if (dateFrom) params.set("dateFrom", dateFrom);
-        if (dateTo) params.set("dateTo", dateTo);
-        if (search) params.set("search", search);
+        const params = buildFilterParams();
         if (paymentFailed) params.set("paymentFailed", "1");
-        params.set("sort", sort);
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
 
@@ -157,26 +162,13 @@ export function LeadsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, status, temperature, paymentFailed, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+    // buildFilterParams reads exactly the state listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceType, status, temperature, paymentFailed, assignedStaffId, countryId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
-          <label htmlFor="lead-search" className="sr-only">
-            Search by customer name or mobile
-          </label>
-          <input
-            id="lead-search"
-            type="text"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by customer name or mobile…"
-            className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
-          />
-        </div>
-
         <label htmlFor="filter-service" className="sr-only">
           Filter by service
         </label>
@@ -253,6 +245,75 @@ export function LeadsTable() {
           <option value="1">Payment failed</option>
         </select>
 
+        <label htmlFor="filter-poc" className="sr-only">
+          Filter by POC
+        </label>
+        <select
+          id="filter-poc"
+          value={assignedStaffId}
+          onChange={(event) => {
+            setAssignedStaffId(event.target.value);
+            setPage(1);
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+        >
+          <option value="">All POCs</option>
+          <option value="unassigned">Unassigned</option>
+          {filterOptions.staff.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor="filter-country" className="sr-only">
+          Filter by country
+        </label>
+        <select
+          id="filter-country"
+          value={countryId}
+          onChange={(event) => {
+            setCountryId(event.target.value);
+            setPage(1);
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+        >
+          <option value="">All countries</option>
+          {filterOptions.countries.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="filter-travel-from" className="text-xs text-ink-tertiary">
+            Travel
+          </label>
+          <input
+            id="filter-travel-from"
+            type="date"
+            aria-label="Travel date from"
+            value={travelFrom}
+            onChange={(event) => {
+              setTravelFrom(event.target.value);
+              setPage(1);
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+          />
+          <span className="text-xs text-ink-tertiary">to</span>
+          <input
+            type="date"
+            aria-label="Travel date to"
+            value={travelTo}
+            onChange={(event) => {
+              setTravelTo(event.target.value);
+              setPage(1);
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+          />
+        </div>
+
         <label htmlFor="sort-leads" className="sr-only">
           Sort by created date
         </label>
@@ -317,22 +378,26 @@ export function LeadsTable() {
         <EmptyState
           icon={<Search className="h-5 w-5" aria-hidden="true" />}
           title="No leads match these filters"
-          description="Try a different search term or clear the filters."
+          description="Try different filters, or clear them."
         />
       ) : null}
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
+          <table className="w-full min-w-[1100px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
-                <th className="px-4 py-3">Reference</th>
+                <th className="px-4 py-3">Lead ID</th>
                 <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Service</th>
+                <th className="px-4 py-3">Service / Sub-service</th>
+                <th className="px-4 py-3">PAX</th>
+                <th className="px-4 py-3">Country</th>
+                <th className="px-4 py-3">Travel Date</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Temperature</th>
-                <th className="px-4 py-3">Assigned</th>
+                <th className="px-4 py-3">POC</th>
                 <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -374,7 +439,15 @@ export function LeadsTable() {
                       <span className="text-xs text-ink-tertiary">{lead.customer.mobile}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">{SERVICE_TYPE_LABELS[lead.serviceType]}</td>
+                  <td className="px-4 py-3 text-ink-secondary">
+                    <div className="flex flex-col">
+                      <span>{SERVICE_TYPE_LABELS[lead.serviceType]}</span>
+                      {lead.subService ? <span className="text-xs text-ink-tertiary">{lead.subService}</span> : null}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-ink-secondary">{lead.paxCount ?? "—"}</td>
+                  <td className="px-4 py-3 text-ink-secondary">{lead.countryName ?? "—"}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">{formatTravelDate(lead.travelDate)}</td>
                   <td className="px-4 py-3">
                     <LeadStatusBadge status={lead.status} />
                   </td>
@@ -392,7 +465,16 @@ export function LeadsTable() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-ink-tertiary">{formatDate(lead.createdAt)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-ink-tertiary">{formatDate(lead.createdAt)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link
+                      href={`/crm/leads/${lead.id}`}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-ink-accent hover:underline"
+                    >
+                      Open
+                      <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>

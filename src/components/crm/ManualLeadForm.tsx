@@ -8,7 +8,7 @@ import { FormField, fieldControlClass, fieldBorderClass } from "@/components/for
 import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
 import { Button } from "@/components/ui/Button";
-import { manualLeadSchema, type ManualLeadValues } from "@/lib/validation/manual-lead-schema";
+import { MANUAL_LEAD_SOURCES, manualLeadSchema, type ManualLeadValues } from "@/lib/validation/manual-lead-schema";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { PaymentLinkAction } from "./PaymentLinkAction";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
@@ -145,14 +145,23 @@ export function ManualLeadForm() {
         <TextField {...register("fullName")} name="fullName" label="Name" error={errors.fullName?.message} required />
         <TextField {...register("mobile")} name="mobile" label="Mobile" error={errors.mobile?.message} required />
         <TextField {...optionalField("email")} name="email" label="Email" error={errors.email?.message} />
-        <TextField
-          {...register("source")}
-          name="source"
-          label="Source"
-          placeholder="e.g. Phone call, Walk-in, Referral"
-          error={errors.source?.message}
-          required
-        />
+        <FormField label="Source" htmlFor="source" error={errors.source?.message} required>
+          <select
+            id="source"
+            defaultValue=""
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.source))}
+            {...register("source")}
+          >
+            <option value="" disabled>
+              Select the source
+            </option>
+            {MANUAL_LEAD_SOURCES.map((source) => (
+              <option key={source} value={source}>
+                {source}
+              </option>
+            ))}
+          </select>
+        </FormField>
       </div>
 
       <FormField label="Service" htmlFor="serviceType" error={errors.serviceType?.message} required>

@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
     gstAmount: payment.gstAmount,
     gatewayFee: payment.gatewayFee,
     status: payment.status,
+    method: payment.method,
     gatewayRef: payment.gatewayRef,
     createdAt: payment.createdAt,
     bookingId: payment.bookingId,

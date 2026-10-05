@@ -3,7 +3,7 @@ import { leadListQuerySchema } from "@/lib/validation/lead-query-schema";
 import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { serviceTypeCondition } from "@/lib/auth/service-scope";
+import { leadListWhere } from "@/lib/leads/list-where";
 import { leadReference } from "@/lib/leads/reference";
 import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { SERVICE_TYPE_LABELS, LEAD_STATUS_LABELS } from "@/lib/crm/labels";
@@ -24,31 +24,12 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
 
-  const { serviceType, status, temperature, search, dateFrom, dateTo } = parsed.data;
-
-  const where = {
-    ...serviceTypeCondition(auth.session, serviceType),
-    ...(status ? { status } : {}),
-    ...(temperature ? { temperature } : {}),
-    ...(dateFrom || dateTo
-      ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
-      : {}),
-    ...(search
-      ? {
-          customer: {
-            OR: [
-              { name: { contains: search, mode: "insensitive" as const } },
-              { mobile: { contains: search, mode: "insensitive" as const } },
-            ],
-          },
-        }
-      : {}),
-  };
+  const where = leadListWhere(auth.session, parsed.data);
 
   const leads = await db.lead.findMany({
     take: EXPORT_QUERY_TAKE,
     where,
-    include: { customer: true, assignedStaff: true },
+    include: { customer: true, assignedStaff: true, country: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
 
@@ -64,7 +45,11 @@ export async function GET(request: NextRequest) {
       { key: "status", header: "Status", value: (row) => LEAD_STATUS_LABELS[row.status] },
       { key: "customerName", header: "Customer Name", value: (row) => row.customer.name },
       { key: "customerMobile", header: "Customer Mobile", value: (row) => row.customer.mobile },
-      { key: "assignedStaff", header: "Assigned Staff", value: (row) => row.assignedStaff?.name ?? "" },
+      { key: "country", header: "Country", value: (row) => row.country?.name ?? "" },
+      { key: "travelDate", header: "Travel Date", value: (row) => (row.travelDate ? row.travelDate.toISOString().slice(0, 10) : "") },
+      { key: "pax", header: "PAX", value: (row) => (row.paxCount === null ? "" : String(row.paxCount)) },
+      { key: "temperature", header: "Temperature", value: (row) => row.temperature ?? "" },
+      { key: "assignedStaff", header: "POC", value: (row) => row.assignedStaff?.name ?? "" },
       { key: "createdAt", header: "Created At", value: (row) => row.createdAt.toISOString() },
     ],
   });

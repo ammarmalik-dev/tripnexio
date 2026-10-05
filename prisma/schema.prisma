@@ -291,10 +291,18 @@ model Lead {
   /// Border Exit choice + selected option for VISA_CHANGE). Shape varies by
   /// serviceType — validated at the API layer, not by the DB.
   details         Json
+  /// Client corrections 2026-10-05 — list/filter facts copied out of `details`
+  /// at intake (src/lib/leads/list-facts.ts) so Leads, Quotations and Bookings
+  /// can show and filter Country, Travel Date and PAX. null = not applicable
+  /// to the service or not provided.
+  countryId       String?
+  travelDate      DateTime?        @db.Date
+  paxCount        Int?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
   customer      Customer       @relation(fields: [customerId], references: [id])
+  country       Country?       @relation(fields: [countryId], references: [id])
   assignedStaff User?          @relation(fields: [assignedStaffId], references: [id])
   serviceStatus ServiceStatus? @relation(fields: [serviceStatusId], references: [id])
   quotations    Quotation[]
@@ -310,6 +318,8 @@ model Lead {
   @@index([assignedStaffId])
   @@index([serviceStatusId])
   @@index([reference])
+  @@index([countryId])
+  @@index([travelDate])
 }
 
 model Quotation {
@@ -1203,6 +1213,7 @@ model Country {
   newVisaCountryConfigs   NewVisaCountryConfig[]
   newVisaCountryPage      NewVisaCountryPage?
   faqs                    Faq[]
+  leads                   Lead[]
   visaTypes               VisaType[]
   nationalities           Nationality[]
   serviceTerms            ServiceTerms[]

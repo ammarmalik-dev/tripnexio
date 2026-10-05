@@ -13,5 +13,5 @@ export default async function CrmLeadDetailPage({ params }: LeadDetailPageProps)
   const { id } = await params;
   const session = await getStaffSession();
   const canReassignLeads = hasPermission(session, "leads.reassign");
-  return <LeadDetail leadId={id} canReassignLeads={canReassignLeads} />;
+  return <LeadDetail leadId={id} canReassignLeads={canReassignLeads} currentStaffId={session?.id ?? ""} />;
 }

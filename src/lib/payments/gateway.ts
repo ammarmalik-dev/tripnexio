@@ -44,9 +44,19 @@ export interface GatewayWebhookEvent {
   eventId: string | null;
 }
 
+/** What the gateway currently says about one payment link (the "Check status" action). */
+export interface GatewayLinkStatus {
+  paid: boolean;
+  gatewayPaymentId: string | null;
+  amountInPaise: number | null;
+  currency: string | null;
+}
+
 export interface PaymentGateway {
   readonly providerName: string;
   createPaymentLink(input: CreatePaymentLinkInput): Promise<CreatePaymentLinkResult>;
+  /** Asks the gateway for a link's current state, so a missed webhook can be recovered without a manual override. */
+  fetchPaymentLinkStatus(gatewayRef: string): Promise<GatewayLinkStatus>;
   /** Returns null if the signature is invalid or the payload isn't a recognized event — callers must reject the webhook request in that case. */
   verifyAndParseWebhook(rawBody: string, signatureHeader: string | null): GatewayWebhookEvent | null;
 }

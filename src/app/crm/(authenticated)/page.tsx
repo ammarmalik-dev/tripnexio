@@ -5,7 +5,7 @@ import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { CommandCentre } from "@/components/crm/CommandCentre";
 
-export const metadata: Metadata = { title: "Command Centre | Internal Dashboard" };
+export const metadata: Metadata = { title: "Overview | Internal Dashboard" };
 
 export default async function CrmIndexPage() {
   const session = await getStaffSession();

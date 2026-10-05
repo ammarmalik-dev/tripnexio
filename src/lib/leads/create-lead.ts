@@ -1,3 +1,4 @@
+import { leadListFacts } from "./list-facts";
 import { db } from "../db";
 import { Prisma, type Lead, type ServiceType } from "../../generated/prisma/client";
 import { nextLeadReference } from "./reference";
@@ -46,6 +47,11 @@ export interface CreateLeadInput {
   passengers?: LeadPassengerInput[];
   /** Service-specific fields already validated by that service's own zod schema. */
   details: Record<string, unknown>;
+  /**
+   * Staff-created leads (Manual Lead): the creating staff member becomes the
+   * POC, so automatic assignment never replaces them (client corrections 2026-10-05).
+   */
+  createdBy?: { id: string; name: string };
 }
 
 export interface CreateLeadResult {
@@ -174,6 +180,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
           source: source ?? "Website",
           reference,
           details: { ...safeDetails, passengerIds, completedFromDraft: true } as Prisma.InputJsonValue,
+          ...(await leadListFacts(tx, { ...safeDetails, passengerIds })),
           customerToken: draft.customerToken ?? customerToken,
           serviceStatusId: draft.serviceStatusId ?? (await getInitialServiceStatusId(tx, serviceType, "LEAD")),
         },
@@ -196,7 +203,9 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
           reference,
           serviceStatusId: await getInitialServiceStatusId(tx, serviceType, "LEAD"),
           details: { ...safeDetails, passengerIds } as Prisma.InputJsonValue,
+          ...(await leadListFacts(tx, { ...safeDetails, passengerIds })),
           customerToken,
+          ...(input.createdBy ? { assignedStaffId: input.createdBy.id } : {}),
         },
       });
 
@@ -204,7 +213,10 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
         entityType: "Lead",
         entityId: lead.id,
         action: "CREATE",
-        note: `${serviceType} lead created via ${source ?? "Website"} for customer ${customer.id}`,
+        byUserId: input.createdBy?.id,
+        note: input.createdBy
+          ? `${serviceType} lead created via ${source ?? "Website"} for customer ${customer.id}; POC ${input.createdBy.name} (by ${input.createdBy.name})`
+          : `${serviceType} lead created via ${source ?? "Website"} for customer ${customer.id}`,
       });
     }
 

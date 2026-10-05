@@ -7,7 +7,7 @@ import { leadReference, parseLeadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 
 interface SearchResultItem {
-  type: "lead" | "booking";
+  type: "customer" | "lead" | "booking";
   id: string;
   title: string;
   subtitle: string;
@@ -100,54 +100,38 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // --- Customer name/mobile — see this function's own doc comment for why
-  // this surfaces as Lead/Booking results rather than a third type. ---
-  const matchingCustomers = await db.customer.findMany({
-    where: {
-      OR: [{ name: { contains: query, mode: "insensitive" } }, { mobile: { contains: query, mode: "insensitive" } }],
-    },
-    select: { id: true },
-    take: RESULT_LIMIT_PER_QUERY_DIMENSION,
-  });
-  const customerIds = matchingCustomers.map((customer) => customer.id);
-
-  if (customerIds.length > 0) {
-    if (canViewLeads) {
-      const leads = await db.lead.findMany({
-        where: { customerId: { in: customerIds } },
-        include: { customer: true },
-        orderBy: { createdAt: "desc" },
-        take: RESULT_LIMIT_PER_QUERY_DIMENSION,
+  // --- Client corrections 2026-10-05: one global 360 search. A customer
+  // matched by name, mobile, email or any passenger's passport number is a
+  // Customer result that opens the separate Customer 360 page (all their
+  // leads, bookings, PAX, documents and payments); Lead ID / Booking ID
+  // matches above open that record directly. Same permission as the
+  // Customers screen (leads.view). ---
+  const customerResults = new Map<string, SearchResultItem>();
+  if (canViewLeads) {
+    const customers = await db.customer.findMany({
+      where: {
+        OR: [
+          { name: { contains: query, mode: "insensitive" } },
+          { mobile: { contains: query, mode: "insensitive" } },
+          { email: { contains: query, mode: "insensitive" } },
+          { passengers: { some: { passportNumber: { contains: query, mode: "insensitive" } } } },
+        ],
+      },
+      select: { id: true, name: true, mobile: true, email: true },
+      orderBy: { createdAt: "desc" },
+      take: RESULT_LIMIT_PER_QUERY_DIMENSION,
+    });
+    for (const customer of customers) {
+      customerResults.set(customer.id, {
+        type: "customer",
+        id: customer.id,
+        title: customer.name,
+        subtitle: [customer.mobile, customer.email].filter(Boolean).join(" · "),
+        href: `/crm/customers/${customer.id}`,
       });
-      for (const lead of leads) {
-        leadResults.set(lead.id, {
-          type: "lead",
-          id: lead.id,
-          title: leadReference(lead),
-          subtitle: `${lead.customer.name} · ${lead.customer.mobile}`,
-          href: `/crm/leads/${lead.id}`,
-        });
-      }
-    }
-    if (canViewBookings) {
-      const bookings = await db.booking.findMany({
-        where: { customerId: { in: customerIds } },
-        include: { customer: true, lead: true },
-        orderBy: { createdAt: "desc" },
-        take: RESULT_LIMIT_PER_QUERY_DIMENSION,
-      });
-      for (const booking of bookings) {
-        bookingResults.set(booking.id, {
-          type: "booking",
-          id: booking.id,
-          title: booking.bookingId,
-          subtitle: `${booking.customer.name} · ${booking.customer.mobile}`,
-          href: `/crm/bookings/${booking.id}`,
-        });
-      }
     }
   }
 
-  const results = [...leadResults.values(), ...bookingResults.values()].slice(0, TOTAL_RESULT_LIMIT);
+  const results = [...customerResults.values(), ...leadResults.values(), ...bookingResults.values()].slice(0, TOTAL_RESULT_LIMIT);
   return jsonSuccess({ query, results });
 }

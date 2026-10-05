@@ -56,6 +56,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (isReassignment && !hasPermission(session, "leads.reassign")) {
     return jsonError(403, "This lead is already assigned — only an Admin can reassign it.");
   }
+  // Client corrections 2026-10-05: staff without leads.reassign can only take an unassigned lead themselves.
+  if (!hasPermission(session, "leads.reassign") && parsed.data.staffId !== session.id) {
+    return jsonError(403, "You can assign an unassigned lead to yourself only. Ask an Admin to assign it to someone else.");
+  }
 
   // P22 item 8 — ADMIN.md §13: "Manual reassignment should record a
   // reason." Required (min 5 chars) whenever the lead already had an

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayWebhookEvent, PaymentGateway } from "./gateway";
+import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayLinkStatus, GatewayWebhookEvent, PaymentGateway } from "./gateway";
 
 /**
  * Real Razorpay integration via their Payment Links API (POST
@@ -43,6 +43,22 @@ export class RazorpayGateway implements PaymentGateway {
     });
 
     return { gatewayRef: link.id, paymentLink: link.short_url };
+  }
+
+  async fetchPaymentLinkStatus(gatewayRef: string): Promise<GatewayLinkStatus> {
+    // GET /v1/payment_links/:id — status "paid" once the customer has paid in full.
+    const link = (await this.client.paymentLink.fetch(gatewayRef)) as unknown as {
+      status?: string;
+      amount_paid?: number;
+      currency?: string;
+      payments?: { payment_id?: string }[] | null;
+    };
+    return {
+      paid: link.status === "paid",
+      gatewayPaymentId: link.payments?.[0]?.payment_id ?? null,
+      amountInPaise: typeof link.amount_paid === "number" ? link.amount_paid : null,
+      currency: link.currency ?? null,
+    };
   }
 
   verifyAndParseWebhook(rawBody: string, signatureHeader: string | null): GatewayWebhookEvent | null {

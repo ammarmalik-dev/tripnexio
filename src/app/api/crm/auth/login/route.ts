@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { authenticateStaff } from "@/lib/auth/staff";
 import { createStaffSessionToken, SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "@/lib/auth/session";
 import { isRateLimited } from "@/lib/auth/rate-limit";
+import { canAccessAdminSection } from "@/lib/auth/permissions";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -37,7 +38,14 @@ export async function POST(request: NextRequest) {
     sessionVersion: staff.sessionVersion,
   });
 
-  const response = jsonSuccess({ id: staff.id, name: staff.name, email: staff.email, role: staff.role });
+  // adminAccess only picks where the login screen lands; /admin still checks permissions on every request.
+  const response = jsonSuccess({
+    id: staff.id,
+    name: staff.name,
+    email: staff.email,
+    role: staff.role,
+    adminAccess: canAccessAdminSection(staff),
+  });
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

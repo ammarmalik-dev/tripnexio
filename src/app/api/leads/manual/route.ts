@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
   const result = await createLeadFromSubmission({
     serviceType: data.serviceType,
     source: data.source,
+    createdBy: { id: session.id, name: session.name },
     contact: { fullName: data.fullName, mobile: data.mobile, email: data.email ?? "" },
     passengers,
     details: {

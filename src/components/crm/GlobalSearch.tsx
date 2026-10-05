@@ -7,7 +7,7 @@ import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 
 interface SearchResultItem {
-  type: "lead" | "booking";
+  type: "customer" | "lead" | "booking";
   id: string;
   title: string;
   subtitle: string;
@@ -15,6 +15,7 @@ interface SearchResultItem {
 }
 
 const RESULT_TYPE_LABELS: Record<SearchResultItem["type"], string> = {
+  customer: "Customer 360",
   lead: "Lead",
   booking: "Booking",
 };
@@ -103,7 +104,7 @@ export function GlobalSearch() {
           onKeyDown={(event) => {
             if (event.key === "Escape") setOpen(false);
           }}
-          placeholder="Search lead reference, booking ID, customer name or mobile…"
+          placeholder="Search name, mobile, email, passport, Lead ID or Booking ID…"
           className="h-9 w-full rounded-md border border-hairline bg-surface-2 pr-3 pl-9 text-sm text-ink-primary placeholder:text-ink-tertiary focus:border-ink-accent focus:outline-none"
           aria-label="Global search"
         />
@@ -128,7 +129,11 @@ export function GlobalSearch() {
                   <span
                     className={cn(
                       "rounded-full px-2 py-0.5 text-[10px] font-medium tracking-wide uppercase",
-                      result.type === "lead" ? "bg-ink-accent/10 text-ink-accent" : "bg-success/10 text-success"
+                      result.type === "customer"
+                        ? "bg-warning/10 text-warning"
+                        : result.type === "lead"
+                          ? "bg-ink-accent/10 text-ink-accent"
+                          : "bg-success/10 text-success"
                     )}
                   >
                     {RESULT_TYPE_LABELS[result.type]}

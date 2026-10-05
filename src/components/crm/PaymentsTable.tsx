@@ -28,6 +28,7 @@ interface PaymentListItem {
   gstAmount: string;
   gatewayFee: string;
   status: PaymentStatus;
+  method: "GATEWAY" | "BANK_TRANSFER";
   gatewayRef: string | null;
   createdAt: string;
   bookingId: string;
@@ -123,20 +124,16 @@ export function PaymentsTable() {
     };
   }, [status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
-  const handleMarkSuccess = async (id: string) => {
-    const reason = await confirm({
-      title: "Mark this payment successful manually?",
-      description: "Only use this when the gateway webhook never arrived or the customer paid outside the gateway. The booking is confirmed and the customer is notified.",
-      confirmLabel: "Mark Success",
-    });
-    if (!reason) return;
+  // Client corrections 2026-10-05: online success is fetched from the gateway, never marked by hand.
+  const handleCheckStatus = async (id: string) => {
     setMarkingId(id);
     try {
-      await postJson(`/api/payments/${id}/mark-success`, { reason });
-      toast.success("Payment marked successful.");
+      const result = await postJson<{ outcome: string }>(`/api/payments/${id}/check-status`, {});
+      if (result.outcome === "NOT_PAID") toast.info("The gateway shows this link as not paid yet.");
+      else if (result.outcome === "COMPLETED") toast.success("The gateway confirms this payment. It is now recorded as successful.");
       setRefreshNonce((current) => current + 1);
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Couldn't mark this payment successful. Please try again.");
+      toast.error(error instanceof ApiError ? error.message : "Couldn't check this payment. Please try again.");
     } finally {
       setMarkingId(null);
     }
@@ -298,15 +295,15 @@ export function PaymentsTable() {
                   </td>
                   <td className="px-4 py-3 text-ink-tertiary">{formatDate(payment.createdAt)}</td>
                   <td className="px-4 py-3">
-                    {payment.status === "PENDING" ? (
+                    {payment.status === "PENDING" && payment.method === "GATEWAY" ? (
                       <Button
                         type="button"
                         size="sm"
                         variant="ghost"
-                        onClick={() => void handleMarkSuccess(payment.id)}
+                        onClick={() => void handleCheckStatus(payment.id)}
                         isLoading={markingId === payment.id}
                       >
-                        Mark Success
+                        Check Status
                       </Button>
                     ) : null}
                   </td>

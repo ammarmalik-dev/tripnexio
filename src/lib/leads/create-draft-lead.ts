@@ -1,3 +1,4 @@
+import { leadListFacts } from "./list-facts";
 import { db } from "../db";
 import type { Prisma, ServiceType } from "../../generated/prisma/client";
 import { findOrCreateCustomer, type LeadContact } from "./create-lead";
@@ -33,7 +34,7 @@ export async function createOrRefreshDraftLead(serviceType: ServiceType, contact
     const existing = await findOpenDraftLead(tx, customer.id, serviceType);
     if (existing) {
       // Refreshed silently (no audit row per "Next" click) — the CREATE row already records the draft.
-      await tx.lead.update({ where: { id: existing.id }, data: { details: draftDetails } });
+      await tx.lead.update({ where: { id: existing.id }, data: { details: draftDetails, ...(await leadListFacts(tx, draftDetails)) } });
       return { leadId: existing.id, outcome: "updated" as const };
     }
 
@@ -45,6 +46,7 @@ export async function createOrRefreshDraftLead(serviceType: ServiceType, contact
         reference: await nextLeadReference(tx, serviceType),
         serviceStatusId: await getInitialServiceStatusId(tx, serviceType, "LEAD"),
         details: draftDetails,
+        ...(await leadListFacts(tx, draftDetails)),
       },
     });
     await writeAudit(tx, {

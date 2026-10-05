@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { getTimezoneOffsetMinutes } from "@/lib/settings/system-config";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
-import { getStaffIdsOnApprovedLeave, isRosterEligible } from "./eligible-for-assignment";
+import { getStaffIdsOnApprovedLeave, isAutoAssignable } from "./eligible-for-assignment";
 import { getStaffWorkloads } from "./workload";
 import type { ServiceType } from "../../generated/prisma/enums";
 
@@ -144,7 +144,7 @@ export async function autoAssignLead(leadId: string, serviceType: ServiceType): 
     const rostered = rosterRows.filter((row) => {
       if (seen.has(row.userId)) return false;
       seen.add(row.userId);
-      return !onLeave.has(row.userId) && isRosterEligible(row.user, serviceType);
+      return !onLeave.has(row.userId) && isAutoAssignable(row.user, serviceType);
     });
     if (rostered.length === 0) return null;
 

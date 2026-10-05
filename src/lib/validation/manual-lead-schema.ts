@@ -1,4 +1,19 @@
 import { z } from "zod";
+
+/** Client corrections 2026-10-05 — the Manual Lead "Source" options (required). */
+export const MANUAL_LEAD_SOURCES = [
+  "Facebook",
+  "Instagram",
+  "Website",
+  "Meta Ads",
+  "Google Ads",
+  "Walk-in",
+  "Callback",
+  "Toll Free",
+  "Email",
+  "Offline",
+  "Referral",
+] as const;
 import { ServiceType, type ServiceType as ServiceTypeT } from "../../generated/prisma/enums";
 
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeT, ...ServiceTypeT[]];
@@ -24,7 +39,7 @@ export const manualLeadSchema = z
     fullName: z.string().trim().min(1, "Enter a name").max(120, "Name is too long"),
     mobile: z.string().trim().min(5, "Enter a valid mobile number").max(20, "Mobile number is too long"),
     email: z.string().trim().max(160).optional(),
-    source: z.string().trim().min(1, "Enter how the customer contacted us").max(80, "Keep it under 80 characters"),
+    source: z.enum(MANUAL_LEAD_SOURCES, { error: "Select the lead source" }),
     serviceType: z.enum(serviceTypeValues, { error: "Select a service" }),
     /** Required only when serviceType === "OTHER" — enforced below, not by the field's own optionality. */
     otherServiceDescription: z.string().trim().max(200, "Keep it under 200 characters").optional(),

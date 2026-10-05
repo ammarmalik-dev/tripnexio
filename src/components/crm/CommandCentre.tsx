@@ -78,9 +78,9 @@ function defaultRange() {
 }
 
 const PRESETS = [
-  { label: "Last 7 days", days: 7 },
-  { label: "Last 30 days", days: 30 },
-  { label: "Last 90 days", days: 90 },
+  { label: "Last 7 Days", days: 7 },
+  { label: "Last 30 Days", days: 30 },
+  { label: "Last 90 Days", days: 90 },
 ];
 
 /** Formats a value that's a plain number, or "—" for the KPIs that aren't buildable yet (see src/lib/crm/dashboard.ts). */
@@ -125,7 +125,7 @@ function KpiCard({ label, value, icon: Icon, tint, comingSoonHint, href, notClic
         <Icon className="h-4 w-4" aria-hidden="true" />
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className="truncate text-xs font-medium text-ink-tertiary">{label}</span>
+        <span className="text-xs leading-snug font-medium text-ink-tertiary">{label}</span>
         <span className={cn("text-xl leading-tight font-bold tracking-tight", comingSoon ? "text-ink-tertiary" : "text-ink-heading")}>
           {statValue(value)}
         </span>
@@ -163,10 +163,10 @@ function ActionQueueRow({ item }: { item: ActionQueueItem }) {
     >
       <div className="flex min-w-0 flex-col">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium text-ink-primary">{item.label}</span>
+          <span className="text-sm font-medium break-words text-ink-primary">{item.label}</span>
           {item.urgent ? <UrgentBadge serviceType={item.serviceType} /> : null}
         </span>
-        <span className="truncate text-xs text-ink-tertiary">{item.detail}</span>
+        <span className="text-xs break-words text-ink-tertiary">{item.detail}</span>
       </div>
       <span className="shrink-0 text-xs text-ink-tertiary">
         {new Date(item.occurredAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
@@ -272,11 +272,24 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
     router.replace(`/crm?${params.toString()}`);
   }
 
-  function applyPreset(days: number) {
+  function presetRange(days: number) {
     const end = new Date();
     const start = new Date(end.getTime() - days * 24 * 60 * 60 * 1000);
-    updateRange(isoDate(start), isoDate(end));
+    return { start: isoDate(start), end: isoDate(end) };
   }
+
+  function applyPreset(days: number) {
+    const range = presetRange(days);
+    setCustomOpen(false);
+    updateRange(range.start, range.end);
+  }
+
+  const activePreset = PRESETS.find((preset) => {
+    const range = presetRange(preset.days);
+    return range.start === startDate && range.end === endDate;
+  });
+  const [customOpen, setCustomOpen] = useState(false);
+  const showCustom = customOpen || !activePreset;
 
   const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
@@ -300,37 +313,55 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight text-ink-heading">Welcome back, {staffName}</h1>
-          <p className="text-sm text-ink-tertiary">{todayLabel}</p>
-        </div>
+      {/* Client corrections 2026-10-05: Overview → Date Range → Sales → Operations → Most Action Required → Insights. */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-tight text-ink-heading">Overview</h1>
+        <p className="text-sm text-ink-tertiary">
+          Welcome back, {staffName} · {todayLabel}
+        </p>
+      </div>
 
-        <div className="flex flex-wrap items-end gap-3">
-          <DateField
-            name="startDate"
-            label="From"
-            min={MIN_FILTER_DATE}
-            max={endDate}
-            value={startDate}
-            onChange={(e) => updateRange(e.target.value, endDate)}
-          />
-          <DateField
-            name="endDate"
-            label="To"
-            min={startDate}
-            max={isoDate(new Date())}
-            value={endDate}
-            onChange={(e) => updateRange(startDate, e.target.value)}
-          />
-          <div className="flex gap-2">
-            {PRESETS.map((preset) => (
-              <Button key={preset.label} type="button" variant="ghost" size="sm" onClick={() => applyPreset(preset.days)}>
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-hairline bg-surface-1 p-3">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Date range">
+          {PRESETS.map((preset) => {
+            const active = activePreset?.days === preset.days && !customOpen;
+            return (
+              <Button
+                key={preset.label}
+                type="button"
+                variant={active ? "primary" : "ghost"}
+                size="sm"
+                aria-pressed={active}
+                onClick={() => applyPreset(preset.days)}
+              >
                 {preset.label}
               </Button>
-            ))}
-          </div>
+            );
+          })}
+          <Button type="button" variant={showCustom ? "primary" : "ghost"} size="sm" aria-pressed={showCustom} onClick={() => setCustomOpen(true)}>
+            Custom Date Range
+          </Button>
         </div>
+        {showCustom ? (
+          <div className="flex flex-wrap items-end gap-3">
+            <DateField
+              name="startDate"
+              label="From"
+              min={MIN_FILTER_DATE}
+              max={endDate}
+              value={startDate}
+              onChange={(e) => updateRange(e.target.value, endDate)}
+            />
+            <DateField
+              name="endDate"
+              label="To"
+              min={startDate}
+              max={isoDate(new Date())}
+              value={endDate}
+              onChange={(e) => updateRange(startDate, e.target.value)}
+            />
+          </div>
+        ) : null}
       </div>
 
       <QuickActionsBar canManageMasters={canManageMasters} />
@@ -389,6 +420,48 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
             </div>
           </section>
 
+          <section className="flex flex-col gap-3">
+            <h2 className="text-base font-semibold text-ink-heading">Most Action Required</h2>
+
+            {data.actionQueue.expiringSoon.length === 0 && data.actionQueue.needsAttention.length === 0 ? (
+              <EmptyState title="Nothing needs attention right now" description="New action items will show up here as they come in." />
+            ) : (
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <div className="rounded-xl border border-hairline bg-surface-1">
+                  <div className="flex items-center gap-2 border-b border-hairline px-4 py-3">
+                    <Clock className="h-4 w-4 text-warning" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-ink-heading">Expiring Soon</p>
+                  </div>
+                  {data.actionQueue.expiringSoon.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-sm text-ink-tertiary">Nothing expiring soon.</p>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-hairline px-1 py-1">
+                      {data.actionQueue.expiringSoon.map((item, i) => (
+                        <ActionQueueRow key={`${item.type}-${i}`} item={item} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-hairline bg-surface-1">
+                  <div className="flex items-center gap-2 border-b border-hairline px-4 py-3">
+                    <AlertCircle className="h-4 w-4 text-error" aria-hidden="true" />
+                    <p className="text-sm font-semibold text-ink-heading">Needs Attention</p>
+                  </div>
+                  {data.actionQueue.needsAttention.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-sm text-ink-tertiary">Nothing in the backlog.</p>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-hairline px-1 py-1">
+                      {data.actionQueue.needsAttention.map((item, i) => (
+                        <ActionQueueRow key={`${item.type}-${i}`} item={item} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </section>
+
           <section className="flex flex-col gap-4">
             <h2 className="text-sm font-semibold text-ink-heading">Insights</h2>
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-[2fr_1fr]">
@@ -434,47 +507,6 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
             </div>
           </section>
 
-          <section className="flex flex-col gap-3">
-            <h2 className="text-sm font-semibold text-ink-heading">Most Action Required</h2>
-
-            {data.actionQueue.expiringSoon.length === 0 && data.actionQueue.needsAttention.length === 0 ? (
-              <EmptyState title="Nothing needs attention right now" description="New action items will show up here as they come in." />
-            ) : (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="rounded-xl border border-hairline bg-surface-1">
-                  <div className="flex items-center gap-2 border-b border-hairline px-4 py-3">
-                    <Clock className="h-4 w-4 text-warning" aria-hidden="true" />
-                    <p className="text-sm font-semibold text-ink-heading">Expiring Soon</p>
-                  </div>
-                  {data.actionQueue.expiringSoon.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-ink-tertiary">Nothing expiring soon.</p>
-                  ) : (
-                    <div className="flex flex-col divide-y divide-hairline px-1 py-1">
-                      {data.actionQueue.expiringSoon.map((item, i) => (
-                        <ActionQueueRow key={`${item.type}-${i}`} item={item} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="rounded-xl border border-hairline bg-surface-1">
-                  <div className="flex items-center gap-2 border-b border-hairline px-4 py-3">
-                    <AlertCircle className="h-4 w-4 text-error" aria-hidden="true" />
-                    <p className="text-sm font-semibold text-ink-heading">Needs Attention</p>
-                  </div>
-                  {data.actionQueue.needsAttention.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-ink-tertiary">Nothing in the backlog.</p>
-                  ) : (
-                    <div className="flex flex-col divide-y divide-hairline px-1 py-1">
-                      {data.actionQueue.needsAttention.map((item, i) => (
-                        <ActionQueueRow key={`${item.type}-${i}`} item={item} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </section>
         </>
       ) : null}
     </div>

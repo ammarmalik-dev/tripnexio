@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { hasPermission } from "@/lib/auth/permissions";
+import { ADMIN_FULL_PERMISSION, hasPermission } from "@/lib/auth/permissions";
 import { hasServiceAccess } from "@/lib/auth/service-scope";
 import type { ServiceType } from "../../generated/prisma/enums";
 
@@ -60,6 +60,16 @@ export function isRosterEligible(member: StaffWithRole, serviceType?: ServiceTyp
 }
 
 /**
+ * Client corrections 2026-10-05: "Never auto-assign bookings to Super Admin."
+ * An `admin.full` account can still be picked by hand, but never by the
+ * automatic assignment or its suggestion.
+ */
+export function isAutoAssignable(member: StaffWithRole, serviceType?: ServiceType): boolean {
+  if (member.role.permissions.some((permission) => permission.name === ADMIN_FULL_PERMISSION)) return false;
+  return isRosterEligible(member, serviceType);
+}
+
+/**
  * Step 26 Unit 2 (audit §3.11/§4.7) — who's a valid candidate for
  * auto-assignment at all, before workload even enters into it. ADMIN.md
  * §13 also lists service/country/capability matching as possible
@@ -76,6 +86,6 @@ export async function getEligibleStaffForAssignment(serviceType?: ServiceType): 
 
   return staff
     .filter((member) => !staffIdsOnLeave.has(member.id))
-    .filter((member) => isRosterEligible(member, serviceType))
+    .filter((member) => isAutoAssignable(member, serviceType))
     .map((member) => ({ id: member.id, name: member.name }));
 }

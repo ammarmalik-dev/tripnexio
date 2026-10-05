@@ -8,19 +8,22 @@ export const metadata: Metadata = {
   description: "How payments work at TripNexio and where to get help with a payment.",
 };
 
-const steps = [
-  {
-    title: "Nothing is charged when you submit a request",
-    body: "Our team reviews it first and sends you a quotation.",
-  },
-  {
-    title: "You approve, then pay by secure link",
-    body: "After you approve the quotation we send a secure payment link. Payments are processed by our payment provider; we don't see or store your card details.",
-  },
-  {
-    title: "You get a confirmation and invoice",
-    body: "Once the payment succeeds you receive a confirmation and your invoice, and your booking reference is created.",
-  },
+// Client copy, corrections document 2026-10-05 ("Payment Support").
+const detailsToShare = [
+  "Booking ID or reference ID",
+  "Payment date and time",
+  "Amount",
+  "Payment method",
+  "Payment gateway transaction / reference number, where available",
+];
+
+const paymentIssues = [
+  "Payment debited but not reflected in the booking",
+  "Failed or reversed payment",
+  "Duplicate payment",
+  "Invoice mismatch",
+  "Refund-status query",
+  "Other checkout issue",
 ];
 
 // Contact details follow Admin → System Configuration.
@@ -30,19 +33,25 @@ export default async function PaymentSupportPage() {
   const contact = await getSiteContact();
   return (
     <InfoPage eyebrow="Help" title="Payment support" description="How paying with TripNexio works, and what to do if something goes wrong.">
-      <ol className="flex flex-col gap-4">
-        {steps.map((step, index) => (
-          <li key={step.title} className="flex gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-sm font-semibold text-white">
-              {index + 1}
-            </span>
-            <div className="flex flex-col gap-1">
-              <h2 className="text-sm font-semibold text-ink-heading">{step.title}</h2>
-              <p className="text-sm text-ink-secondary">{step.body}</p>
-            </div>
-          </li>
-        ))}
-      </ol>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <section className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
+          <h2 className="text-sm font-semibold text-ink-heading">What to share with us</h2>
+          <p className="text-sm text-ink-secondary">For a payment issue, contact support with:</p>
+          <ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm text-ink-secondary">
+            {detailsToShare.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+        <section className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
+          <h2 className="text-sm font-semibold text-ink-heading">Payment issues we can help with</h2>
+          <ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm text-ink-secondary">
+            {paymentIssues.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      </div>
       <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-2 p-5">
         <h2 className="text-sm font-semibold text-ink-heading">Payment failed, expired or deducted twice?</h2>
         <p className="text-sm text-ink-secondary">
@@ -60,6 +69,10 @@ export default async function PaymentSupportPage() {
           </ButtonLink>
         </div>
       </div>
+      <p className="rounded-xl border border-warning/40 bg-warning/10 p-4 text-sm text-ink-primary">
+        Never share card PINs, CVVs, passwords or OTPs with TripNexio support. Payment processing may involve a
+        third-party payment gateway, bank or card network, and resolution timing may depend on that provider.
+      </p>
     </InfoPage>
   );
 }
