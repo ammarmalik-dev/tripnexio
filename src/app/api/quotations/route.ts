@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { hasPermission } from "@/lib/auth/permissions";
 import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { computeSellingPrice, isFlightQuote, supportsItinerary } from "@/lib/quotations/pricing";
 import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
@@ -68,7 +69,22 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
-  const { serviceType, status, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
+  const { serviceType, status, search, dateFrom, dateTo, assignedStaffId, countryId, travelFrom, travelTo, sort, page, pageSize } = parsed.data;
+  const leadFilter: Prisma.LeadWhereInput = {
+    ...(assignedStaffId ? { assignedStaffId: assignedStaffId === "unassigned" ? null : assignedStaffId } : {}),
+    ...(countryId ? { countryId } : {}),
+    ...(travelFrom || travelTo
+      ? {
+          travelDate: {
+            ...(travelFrom ? { gte: new Date(`${travelFrom}T00:00:00Z`) } : {}),
+            ...(travelTo ? { lte: new Date(`${travelTo}T00:00:00Z`) } : {}),
+          },
+        }
+      : {}),
+  };
+  const hasLeadFilter = Object.keys(leadFilter).length > 0;
+  // Vendor cost and margin are internal: only staff with vendors.viewCost or finance.manage see them (CLAUDE.md).
+  const canViewMargin = hasPermission(auth.session, "vendors.viewCost") || hasPermission(auth.session, "finance.manage");
   const now = new Date();
 
   // "EXPIRED"/"PENDING" filter live against validityExpiresAt (not just the
@@ -93,10 +109,11 @@ export async function GET(request: NextRequest) {
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),
-    ...(serviceType || search || !isServiceScopeUnrestricted(auth.session)
+    ...(serviceType || search || hasLeadFilter || !isServiceScopeUnrestricted(auth.session)
       ? {
           lead: {
             ...serviceTypeCondition(auth.session, serviceType),
+            ...leadFilter,
             ...(search
               ? {
                   customer: {
@@ -116,7 +133,15 @@ export async function GET(request: NextRequest) {
     db.quotation.count({ where }),
     db.quotation.findMany({
       where,
-      include: { lead: { include: { customer: true } } },
+      include: {
+        lead: {
+          include: {
+            customer: true,
+            country: { select: { name: true } },
+            assignedStaff: { select: { name: true, active: true } },
+          },
+        },
+      },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -130,12 +155,12 @@ export async function GET(request: NextRequest) {
     serviceType: quotation.lead.serviceType,
     status: quotationStatus(quotation, now),
     sellingPrice: quotation.sellingPrice,
-    // Internal-only — never sent to a customer-facing view (same rule
-    // QuoteCard.tsx already follows). Included here because this whole
-    // screen is staff-only (quotations.view-gated); the UI marks it
-    // "(internal)" per the roadmap prompt's explicit ask.
-    margin: quotation.margin,
+    // Internal-only — omitted (not just hidden) unless the viewer may see costs.
+    margin: canViewMargin ? quotation.margin : null,
     customer: { name: quotation.lead.customer.name, mobile: quotation.lead.customer.mobile },
+    countryName: quotation.lead.country?.name ?? null,
+    travelDate: quotation.lead.travelDate ? quotation.lead.travelDate.toISOString().slice(0, 10) : null,
+    poc: quotation.lead.assignedStaff ? { name: quotation.lead.assignedStaff.name, active: quotation.lead.assignedStaff.active } : null,
     createdAt: quotation.createdAt,
   }));
 

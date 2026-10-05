@@ -403,7 +403,7 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
             <h2 className="text-sm font-semibold text-ink-heading">Operations Overview</h2>
             <p className="text-xs text-ink-tertiary">Current live state — not affected by the period filter above.</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-              <KpiCard label="Active Bookings" value={data.operations.activeBookings} icon={Briefcase} tint="neutral" href="/crm/bookings?status=PENDING,CONFIRMED,PROCESSING" />
+              <KpiCard label="Active Bookings" value={data.operations.activeBookings} icon={Briefcase} tint="neutral" href="/crm/bookings?status=CONFIRMED,PROCESSING" />
               <KpiCard label="Documents Pending" value={data.operations.documentsPending} icon={FileWarning} tint="warning" href="/crm/documents?status=REQUIRED,MISSING" />
               <KpiCard label="Customer Action Required" value={data.operations.customerActionRequired} icon={UserCog} tint="error" href="/crm/documents?status=MISSING" />
               <KpiCard
@@ -411,7 +411,7 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
                 value={data.operations.staffActionRequired}
                 icon={Users2}
                 tint="neutral"
-                notClickableHint="Documents awaiting validation + new bookings awaiting processing + bookings past their completion SLA — see Documents/Bookings/Delay Analysis separately, no single list shows this combined count."
+                notClickableHint="Documents awaiting validation + bookings past their completion SLA — see Documents/Bookings/Delay Analysis separately, no single list shows this combined count."
               />
               <KpiCard label="External Processing" value={data.operations.externalProcessing} icon={Send} tint="accent" href="/crm/bookings?status=PROCESSING" />
               <KpiCard label="Delayed" value={data.operations.delayed} icon={Clock} tint="error" href="/crm/delays" />

@@ -15,6 +15,7 @@ import { ExportCsvButton } from "./ExportCsvButton";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { ListPagination } from "./ListPagination";
 import { usePaginationState } from "./usePagination";
+import { useListFilterOptions } from "./useListFilterOptions";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
@@ -44,8 +45,11 @@ interface QuotationListItem {
   serviceType: ServiceType;
   status: QuotationStatus;
   sellingPrice: string;
-  margin: string;
+  margin: string | null;
   customer: { name: string; mobile: string };
+  countryName: string | null;
+  travelDate: string | null;
+  poc: { name: string; active: boolean } | null;
   createdAt: string;
 }
 
@@ -63,6 +67,12 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function formatDay(day: string | null): string {
+  return day
+    ? new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+    : "—";
+}
+
 function money(value: string): string {
   return `₹${Number(value).toLocaleString("en-IN")}`;
 }
@@ -76,15 +86,20 @@ export function QuotationsTable() {
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
   );
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  // Client corrections 2026-10-05 — POC, country and travel-date filters; no page search box (global 360 search).
+  const [assignedStaffId, setAssignedStaffId] = useState(() => searchParams.get("assignedStaffId") ?? "");
+  const [countryId, setCountryId] = useState(() => searchParams.get("countryId") ?? "");
+  const [travelFrom, setTravelFrom] = useState(() => searchParams.get("travelFrom") ?? "");
+  const [travelTo, setTravelTo] = useState(() => searchParams.get("travelTo") ?? "");
+  const [search] = useState(() => searchParams.get("search") ?? "");
+  const filterOptions = useListFilterOptions();
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<QuotationListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
+  const { page, pageSize, resetPage, paginationHandlers } = usePaginationState();
 
   function buildFilterParams() {
     const params = new URLSearchParams();
@@ -92,18 +107,14 @@ export function QuotationsTable() {
     if (status) params.set("status", status);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
+    if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
+    if (countryId) params.set("countryId", countryId);
+    if (travelFrom) params.set("travelFrom", travelFrom);
+    if (travelTo) params.set("travelTo", travelTo);
     if (search) params.set("search", search);
     params.set("sort", sort);
     return params;
   }
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,13 +122,7 @@ export function QuotationsTable() {
     async function loadQuotations() {
       setState("loading");
       try {
-        const params = new URLSearchParams();
-        if (serviceType) params.set("serviceType", serviceType);
-        if (status) params.set("status", status);
-        if (dateFrom) params.set("dateFrom", dateFrom);
-        if (dateTo) params.set("dateTo", dateTo);
-        if (search) params.set("search", search);
-        params.set("sort", sort);
+        const params = buildFilterParams();
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
 
@@ -137,23 +142,79 @@ export function QuotationsTable() {
     return () => {
       cancelled = true;
     };
-  }, [serviceType, status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+    // buildFilterParams reads exactly the state listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serviceType, status, assignedStaffId, countryId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
-          <label htmlFor="quotation-search" className="sr-only">
-            Search by customer name or mobile
+        <label htmlFor="filter-quote-poc" className="sr-only">
+          Filter by POC
+        </label>
+        <select
+          id="filter-quote-poc"
+          value={assignedStaffId}
+          onChange={(event) => {
+            setAssignedStaffId(event.target.value);
+            resetPage();
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+        >
+          <option value="">All POCs</option>
+          <option value="unassigned">Unassigned</option>
+          {filterOptions.staff.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <label htmlFor="filter-quote-country" className="sr-only">
+          Filter by country
+        </label>
+        <select
+          id="filter-quote-country"
+          value={countryId}
+          onChange={(event) => {
+            setCountryId(event.target.value);
+            resetPage();
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+        >
+          <option value="">All countries</option>
+          {filterOptions.countries.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="filter-quote-travel-from" className="text-xs text-ink-tertiary">
+            Travel
           </label>
           <input
-            id="quotation-search"
-            type="text"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by customer name or mobile…"
-            className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
+            id="filter-quote-travel-from"
+            type="date"
+            aria-label="Travel date from"
+            value={travelFrom}
+            onChange={(event) => {
+              setTravelFrom(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+          />
+          <span className="text-xs text-ink-tertiary">to</span>
+          <input
+            type="date"
+            aria-label="Travel date to"
+            value={travelTo}
+            onChange={(event) => {
+              setTravelTo(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
           />
         </div>
 
@@ -273,24 +334,30 @@ export function QuotationsTable() {
         <EmptyState
           icon={<Search className="h-5 w-5" aria-hidden="true" />}
           title="No quotations match these filters"
-          description="Try a different search term or clear the filters."
+          description="Try different filters, or clear them."
         />
       ) : null}
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[840px] border-collapse text-sm">
+          <table className="w-full min-w-[1100px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
-                <th className="px-4 py-3">Lead</th>
+                <th className="px-4 py-3">Lead ID</th>
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Service</th>
+                <th className="px-4 py-3">Country</th>
+                <th className="px-4 py-3">Travel Date</th>
+                <th className="px-4 py-3">POC</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Selling Price</th>
-                <th className="px-4 py-3">
-                  Margin <span className="text-[10px] normal-case text-ink-tertiary">(internal)</span>
-                </th>
+                {items.some((item) => item.margin !== null) ? (
+                  <th className="px-4 py-3">
+                    Margin <span className="text-[10px] normal-case text-ink-tertiary">(internal)</span>
+                  </th>
+                ) : null}
                 <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -308,6 +375,11 @@ export function QuotationsTable() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">{SERVICE_TYPE_LABELS[quotation.serviceType]}</td>
+                  <td className="px-4 py-3 text-ink-secondary">{quotation.countryName ?? "—"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{formatDay(quotation.travelDate)}</td>
+                  <td className="px-4 py-3 text-ink-secondary">
+                    {quotation.poc ? (quotation.poc.active ? quotation.poc.name : `Unassigned (was ${quotation.poc.name})`) : "Unassigned"}
+                  </td>
                   <td className="px-4 py-3">
                     <span
                       className={cn(
@@ -319,15 +391,19 @@ export function QuotationsTable() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">{money(quotation.sellingPrice)}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      title="Internal — never shown to the customer"
-                      className="text-ink-tertiary decoration-dotted underline-offset-2"
-                    >
-                      {money(quotation.margin)} (internal)
-                    </span>
+                  {quotation.margin !== null ? (
+                    <td className="px-4 py-3">
+                      <span title="Internal — never shown to the customer" className="text-ink-tertiary decoration-dotted underline-offset-2">
+                        {money(quotation.margin)} (internal)
+                      </span>
+                    </td>
+                  ) : null}
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(quotation.createdAt)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link href={`/crm/leads/${quotation.leadId}`} className="font-medium text-ink-accent hover:underline">
+                      Open
+                    </Link>
                   </td>
-                  <td className="px-4 py-3 text-ink-tertiary">{formatDate(quotation.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

@@ -376,7 +376,8 @@ export async function getOperationsOverview(allowedServiceTypes?: ServiceScope):
   const delayKpis = await getDelayKpis(allowedServiceTypes);
 
   return {
-    activeBookings: bookingCount("PENDING") + bookingCount("CONFIRMED") + bookingCount("PROCESSING"),
+    // Client corrections 2026-10-05: an unpaid (PENDING) booking stays with its Lead, not in Bookings.
+    activeBookings: bookingCount("CONFIRMED") + bookingCount("PROCESSING"),
     documentsPending: documentCount("REQUIRED") + documentCount("MISSING"),
     // Customer must act: a flagged-missing document needs a re-upload.
     customerActionRequired: documentCount("MISSING"),
@@ -385,7 +386,7 @@ export async function getOperationsOverview(allowedServiceTypes?: ServiceScope):
     // P21 item 9 — plus bookings past their completion SLA that aren't
     // PENDING (PENDING ones and RECEIVED documents, the document-SLA case,
     // are already in the first two terms — never double-counted).
-    staffActionRequired: documentCount("RECEIVED") + bookingCount("PENDING") + delayKpis.completionDelayedBeyondPending,
+    staffActionRequired: documentCount("RECEIVED") + delayKpis.completionDelayedBeyondPending,
     // Sent to an external party (vendor/airline/embassy) — the existing
     // BookingStatus.PROCESSING state.
     externalProcessing: bookingCount("PROCESSING"),

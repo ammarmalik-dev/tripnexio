@@ -85,7 +85,16 @@ export function ServiceStatusControl<TCoarse extends string>({
         <Skeleton className="h-9 w-44" />
       ) : (
         <>
-          {state.current ? <span className="text-sm font-medium text-ink-primary">{state.current.name}</span> : null}
+          {/* Client corrections 2026-10-05: internal and customer-facing status shown separately, in one place. */}
+          {state.current ? (
+            <span className="flex flex-col text-right leading-tight">
+              <span className="text-xs text-ink-tertiary">Internal status</span>
+              <span className="text-sm font-medium text-ink-primary">{state.current.name}</span>
+              <span className="mt-1 text-xs text-ink-tertiary">
+                Customer sees: <span className="font-medium text-ink-secondary">{state.current.customerLabel ?? "—"}</span>
+              </span>
+            </span>
+          ) : null}
           {state.allowed.length > 0 ? (
             <>
               <label htmlFor={selectId} className="sr-only">

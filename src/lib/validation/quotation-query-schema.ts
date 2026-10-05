@@ -15,6 +15,11 @@ export const quotationListQuerySchema = z.object({
   /** Step 53 — Command Centre's Sales Overview cards are period-scoped by createdAt; a card's link needs this to make the linked list's count actually match. */
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
+  /** Client corrections 2026-10-05 — POC (staff id or "unassigned"), country and travel-date filters, through the lead. */
+  assignedStaffId: z.string().trim().min(1).optional(),
+  countryId: z.string().trim().min(1).optional(),
+  travelFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  travelTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   sort: z.enum(["createdAt_asc", "createdAt_desc"]).default("createdAt_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),

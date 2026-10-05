@@ -6,9 +6,11 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { isUrgentRequest } from "@/lib/crm/urgency";
+import { bookingListWhere } from "@/lib/bookings/list-where";
+import { subServiceLabel } from "@/lib/leads/sub-service-label";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("bookings.view");
@@ -20,26 +22,8 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
 
-  const { status, serviceType, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
-
-  const where = {
-    ...(status ? { status: { in: status } } : {}),
-    // P21 item 4 — serviceType filter goes through the same scope helper, so
-    // an out-of-scope request yields an empty list rather than leaking rows.
-    ...(serviceType || !isServiceScopeUnrestricted(auth.session) ? { lead: serviceTypeCondition(auth.session, serviceType) } : {}),
-    ...(dateFrom || dateTo
-      ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
-      : {}),
-    ...(search
-      ? {
-          OR: [
-            { bookingId: { contains: search, mode: "insensitive" as const } },
-            { customer: { name: { contains: search, mode: "insensitive" as const } } },
-            { customer: { mobile: { contains: search, mode: "insensitive" as const } } },
-          ],
-        }
-      : {}),
-  };
+  const { sort, page, pageSize } = parsed.data;
+  const where = bookingListWhere(auth.session, parsed.data);
 
   const [total, bookingsRaw] = await Promise.all([
     db.booking.count({ where }),
@@ -47,8 +31,16 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         customer: true,
-        lead: true,
+        lead: {
+          include: {
+            country: { select: { name: true } },
+            assignedStaff: { select: { name: true, active: true } },
+            quotations: { where: { isSelected: true }, take: 1, select: { vendor: { select: { name: true } } } },
+          },
+        },
+        serviceStatus: { select: { name: true, customerLabel: true } },
         payments: { orderBy: { createdAt: "desc" }, take: 1 },
+        _count: { select: { passengers: true } },
       },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,
@@ -60,16 +52,27 @@ export async function GET(request: NextRequest) {
   // feedback_audit_all_readers_of_lazily_synced_state in memory.
   const bookings = await syncExpiredReservations(bookingsRaw);
 
+  // Client corrections 2026-10-05 — the full operational table.
   const items = bookings.map((booking) => ({
     id: booking.id,
     bookingId: booking.bookingId,
     status: booking.status,
     createdAt: booking.createdAt,
     serviceType: booking.lead.serviceType,
+    subService: subServiceLabel(booking.lead.details),
     urgent: isUrgentRequest(booking.lead.serviceType, booking.lead.details),
     leadId: booking.leadId,
     leadReferenceId: leadReference(booking.lead),
     customer: { name: booking.customer.name, mobile: booking.customer.mobile },
+    paxCount: booking._count.passengers || booking.lead.paxCount,
+    countryName: booking.lead.country?.name ?? null,
+    travelDate: booking.lead.travelDate ? booking.lead.travelDate.toISOString().slice(0, 10) : null,
+    customerStatus: booking.serviceStatus?.customerLabel ?? null,
+    internalStatus: booking.serviceStatus?.name ?? null,
+    poc: booking.lead.assignedStaff ? { name: booking.lead.assignedStaff.name, active: booking.lead.assignedStaff.active } : null,
+    vendorName: booking.lead.quotations[0]?.vendor.name ?? null,
+    source: booking.lead.source,
+    appliedAt: booking.appliedToEmbassyAt,
     latestPayment: booking.payments[0] ? { id: booking.payments[0].id, status: booking.payments[0].status } : null,
   }));
 

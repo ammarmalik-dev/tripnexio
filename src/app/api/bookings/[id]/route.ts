@@ -31,7 +31,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     include: {
       payments: { include: { refunds: true }, orderBy: { createdAt: "desc" } },
       documents: { orderBy: { createdAt: "desc" } },
-      lead: { include: { quotations: { where: { isSelected: true } } } },
+      lead: { include: { quotations: { where: { isSelected: true } }, assignedStaff: { select: { name: true, active: true } } } },
       customer: { include: { passengers: true } },
       // CRM.md §12 (Step 14) — this booking's own passengers, each with an
       // independently visible status, distinct from customer.passengers
@@ -101,6 +101,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     bookingId: synced.bookingId,
     customerToken: synced.customerToken,
     status: synced.status,
+    // Client corrections 2026-10-05 — POC shown with the status in the header.
+    poc: booking.lead.assignedStaff ? { name: booking.lead.assignedStaff.name, active: booking.lead.assignedStaff.active } : null,
+    paxCount: booking.passengers.length,
     extensionOutcome: synced.extensionOutcome,
     createdAt: synced.createdAt,
     reservationIssuedAt: synced.reservationIssuedAt,

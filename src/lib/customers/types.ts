@@ -29,6 +29,8 @@ export interface CustomerListItem {
   email: string | null;
   leadCount: number;
   bookingCount: number;
+  /** Source of the customer's first lead (client corrections 2026-10-05: Source column). */
+  source: string | null;
   createdAt: string;
 }
 

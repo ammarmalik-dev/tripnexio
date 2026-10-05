@@ -9,6 +9,18 @@ interface RouteParams {
 
 const NOT_FOUND = () => new Response("Not found", { status: 404 });
 
+const EXTENSIONS: Record<string, string> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/gif": ".gif",
+  "image/webp": ".webp",
+  "application/pdf": ".pdf",
+};
+
+function extensionFor(mimeType: string): string {
+  return EXTENSIONS[mimeType] ?? "";
+}
+
 /**
  * Serves a stored upload (private disk or FileBlob). Access is granted only
  * to a staff user with the right permission and service scope, the customer
@@ -19,6 +31,8 @@ const NOT_FOUND = () => new Response("Not found", { status: 404 });
 export async function GET(request: NextRequest, { params }: RouteParams) {
   const { id } = await params;
   const token = request.nextUrl.searchParams.get("token");
+  // ?download=1 saves the file instead of opening it (Booking documents "Download").
+  const forceDownload = request.nextUrl.searchParams.get("download") === "1";
 
   if (!(await canAccessStoredFile(`${FILE_URL_PREFIX}${id}`, token))) return NOT_FOUND();
 
@@ -31,7 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   return new Response(new Uint8Array(stored.data), {
     headers: {
       "Content-Type": mimeType,
-      "Content-Disposition": isImage ? "inline" : "attachment",
+      "Content-Disposition": isImage && !forceDownload ? "inline" : `attachment; filename="${id}${extensionFor(mimeType)}"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

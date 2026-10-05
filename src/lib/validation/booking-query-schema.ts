@@ -4,10 +4,14 @@ import {
   type BookingStatus as BookingStatusType,
   ServiceType,
   type ServiceType as ServiceTypeType,
+  PaymentStatus,
+  type PaymentStatus as PaymentStatusType,
 } from "../../generated/prisma/enums";
 
 const bookingStatusValues = Object.values(BookingStatus) as [BookingStatusType, ...BookingStatusType[]];
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeType, ...ServiceTypeType[]];
+const paymentStatusValues = Object.values(PaymentStatus) as [PaymentStatusType, ...PaymentStatusType[]];
+const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /**
  * Step 53 — Command Centre's "Active Bookings" KPI is PENDING+CONFIRMED+
@@ -29,6 +33,14 @@ export const bookingListQuerySchema = z.object({
   /** Step 54 — standardized date-range filter, matching Leads/Quotations/Payments. */
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
+  /** Client corrections 2026-10-05 — POC (staff id or "unassigned"), country, travel date, payment, vendor and internal-status filters. */
+  assignedStaffId: z.string().trim().min(1).optional(),
+  countryId: z.string().trim().min(1).optional(),
+  travelFrom: isoDay.optional(),
+  travelTo: isoDay.optional(),
+  paymentStatus: z.enum(paymentStatusValues).optional(),
+  vendorId: z.string().trim().min(1).optional(),
+  serviceStatusId: z.string().trim().min(1).optional(),
   sort: z.enum(["createdAt_asc", "createdAt_desc"]).default("createdAt_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),

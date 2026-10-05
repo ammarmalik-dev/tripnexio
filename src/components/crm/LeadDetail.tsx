@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { PurgedFileTag } from "./PurgedFileTag";
+import { DocumentFileLinks } from "./DocumentFileLinks";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -11,7 +12,6 @@ import { LeadStatusControl } from "./LeadStatusControl";
 import { LeadAssignmentControl } from "./LeadAssignmentControl";
 import { LeadTemperatureControl } from "./LeadTemperatureControl";
 import { LeadServiceTypeControl } from "./LeadServiceTypeControl";
-import { LeadStatusBadge } from "./LeadStatusBadge";
 import { BookingStatusBadge } from "./BookingStatusBadge";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { ListPagination } from "./ListPagination";
@@ -111,9 +111,6 @@ interface LeadDetailResponse {
     mobile: string;
     email: string | null;
     createdAt: string;
-    passengers: { id: string; fullName: string; paxType: PaxType; nationality: string | null }[];
-    otherLeads: { id: string; referenceId: string; serviceType: ServiceType; status: LeadStatus; createdAt: string }[];
-    otherBookings: { id: string; bookingId: string; status: BookingStatus; createdAt: string }[];
   };
   passengers: LeadPassenger[];
   priorVisaMatches: PriorVisaMatchItem[];
@@ -131,10 +128,6 @@ interface LeadDetailResponse {
 }
 
 type FetchState = "loading" | "success" | "error";
-
-type OtherRequest =
-  | { kind: "lead"; lead: LeadDetailResponse["customer"]["otherLeads"][number] }
-  | { kind: "booking"; booking: LeadDetailResponse["customer"]["otherBookings"][number] };
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -228,11 +221,6 @@ export function LeadDetail({
   const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
   const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
   const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED");
-  // The customer's other leads then other bookings, as one list so it paginates together.
-  const otherRequests: OtherRequest[] = [
-    ...lead.customer.otherLeads.map((otherLead) => ({ kind: "lead" as const, lead: otherLead })),
-    ...lead.customer.otherBookings.map((booking) => ({ kind: "booking" as const, booking })),
-  ];
 
   const handleCreateBooking = async () => {
     if (!selectedQuotation) return;
@@ -452,6 +440,7 @@ export function LeadDetail({
                             <span className="flex flex-wrap items-center gap-2 text-xs text-ink-tertiary">
                               {document.type}
                               <PurgedFileTag purgedAt={document.purgedAt} />
+                              <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
                             </span>
                             <DocumentStatusBadge status={document.status} />
                           </div>
@@ -521,69 +510,19 @@ export function LeadDetail({
         </div>
 
         <div className="flex flex-col gap-6">
+          {/* Client corrections 2026-10-05: a Lead shows only its own records; the
+              customer's other leads/bookings live in the separate Customer 360 page. */}
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Customer 360</h2>
-            <div className="flex flex-col gap-1 border-b border-hairline pb-3">
+            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Customer</h2>
+            <div className="flex flex-col gap-1">
               <p className="text-sm font-medium text-ink-primary">{lead.customer.name}</p>
               <p className="text-xs text-ink-tertiary">{lead.customer.mobile}</p>
               {lead.customer.email ? <p className="text-xs text-ink-tertiary">{lead.customer.email}</p> : null}
               <p className="text-xs text-ink-tertiary">Customer since {formatDate(lead.customer.createdAt)}</p>
             </div>
-
-            <div className="border-b border-hairline py-3">
-              <p className="mb-1.5 text-xs font-medium text-ink-tertiary uppercase">All Passengers</p>
-              {lead.customer.passengers.length === 0 ? (
-                <p className="text-xs text-ink-tertiary">None yet.</p>
-              ) : (
-                <Paged items={lead.customer.passengers} noun="passenger">
-                  {(rows) => (
-                    <ul className="flex flex-col gap-1">
-                      {rows.map((passenger) => (
-                        <li key={passenger.id} className="text-sm text-ink-secondary">
-                          {passenger.fullName}{" "}
-                          <span className="text-xs text-ink-tertiary">({PAX_TYPE_LABELS[passenger.paxType]})</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Paged>
-              )}
-            </div>
-
-            <div className="py-3">
-              <p className="mb-1.5 text-xs font-medium text-ink-tertiary uppercase">Other Requests</p>
-              {lead.customer.otherLeads.length === 0 && lead.customer.otherBookings.length === 0 ? (
-                <p className="text-xs text-ink-tertiary">No other services yet.</p>
-              ) : (
-                <Paged items={otherRequests} noun="other request">
-                  {(rows) => (
-                    <ul className="flex flex-col gap-1.5">
-                      {rows.map((entry) =>
-                        entry.kind === "lead" ? (
-                          <li key={`lead-${entry.lead.id}`}>
-                            <Link href={`/crm/leads/${entry.lead.id}`} className="text-sm text-ink-accent hover:underline">
-                              {entry.lead.referenceId}
-                            </Link>{" "}
-                            <span className="inline-flex items-center gap-1 text-xs text-ink-tertiary">
-                              {SERVICE_TYPE_LABELS[entry.lead.serviceType]} · <LeadStatusBadge status={entry.lead.status} />
-                            </span>
-                          </li>
-                        ) : (
-                          <li key={`booking-${entry.booking.id}`}>
-                            <Link href={`/crm/bookings/${entry.booking.id}`} className="text-sm text-ink-accent hover:underline">
-                              {entry.booking.bookingId}
-                            </Link>{" "}
-                            <span className="inline-flex items-center gap-1 text-xs text-ink-tertiary">
-                              <BookingStatusBadge status={entry.booking.status} />
-                            </span>
-                          </li>
-                        )
-                      )}
-                    </ul>
-                  )}
-                </Paged>
-              )}
-            </div>
+            <Link href={`/crm/customers/${lead.customer.id}`} className="mt-3 inline-flex text-sm font-medium text-ink-accent hover:underline">
+              Open Customer 360
+            </Link>
           </section>
 
           <AddTaskPanel leadId={lead.id} />

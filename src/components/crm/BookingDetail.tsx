@@ -16,6 +16,7 @@ import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { DeliverOutputSection } from "./DeliverOutputSection";
+import { DocumentFileLinks } from "./DocumentFileLinks";
 import { PurgedFileTag } from "./PurgedFileTag";
 import { ApplicantsTable } from "./ApplicantsTable";
 import { EmbassyActionsPanel } from "./EmbassyActionsPanel";
@@ -89,6 +90,8 @@ interface BookingDetailResponse {
   createdAt: string;
   leadId: string;
   leadReferenceId: string;
+  poc: { name: string; active: boolean } | null;
+  paxCount: number;
   serviceType: ServiceType;
   selectedQuotation: { id: string; sellingPrice: string; margin: string; cancellationCharge?: string | null } | null;
   customer: {
@@ -152,8 +155,11 @@ export function BookingDetail({
   bookingId,
   canApproveRefunds,
   canApproveBankTransfer,
+  basePath = "/crm/bookings",
 }: {
   bookingId: string;
+  /** "/admin/bookings" when opened from Admin, so links keep the Admin context (client corrections 2026-10-05). */
+  basePath?: string;
   canApproveRefunds: boolean;
   canApproveBankTransfer: boolean;
 }) {
@@ -269,7 +275,7 @@ export function BookingDetail({
     <div className="flex flex-col gap-6">
       <div>
         <Link
-          href="/crm/bookings"
+          href={basePath}
           className="inline-flex items-center gap-1.5 text-sm text-ink-secondary transition-colors duration-150 hover:text-ink-primary"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -287,13 +293,19 @@ export function BookingDetail({
           </p>
           <h1 className="text-xl font-semibold text-ink-heading">{booking.bookingId}</h1>
           <p className="text-xs text-ink-tertiary">
-            {booking.customer.name} · {booking.customer.mobile}
+            {booking.customer.name} · {booking.customer.mobile} · {SERVICE_TYPE_LABELS[booking.serviceType]} · {booking.paxCount} PAX
+          </p>
+          <p className="text-xs text-ink-secondary">
+            POC:{" "}
+            <span className="font-medium">
+              {booking.poc ? (booking.poc.active ? booking.poc.name : `Unassigned (was ${booking.poc.name})`) : "Unassigned"}
+            </span>
           </p>
           <BookingDatesRow items={booking.bookingDates} />
           {booking.originalBooking ? (
             <p className="text-xs text-ink-secondary">
               Extends original New Visa booking{" "}
-              <Link href={`/crm/bookings/${booking.originalBooking.id}`} className="font-medium text-ink-accent hover:underline">
+              <Link href={`${basePath}/${booking.originalBooking.id}`} className="font-medium text-ink-accent hover:underline">
                 {booking.originalBooking.bookingId}
               </Link>
             </p>
@@ -306,7 +318,7 @@ export function BookingDetail({
               {booking.extensions.map((extension, index) => (
                 <span key={extension.id}>
                   {index > 0 ? ", " : ""}
-                  <Link href={`/crm/bookings/${extension.id}`} className="font-medium text-ink-accent hover:underline">
+                  <Link href={`${basePath}/${extension.id}`} className="font-medium text-ink-accent hover:underline">
                     {extension.bookingId}
                   </Link>
                 </span>
@@ -517,9 +529,19 @@ export function BookingDetail({
           />
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-sm font-semibold text-ink-heading">Passengers</h2>
-              <span className="text-xs text-ink-tertiary">Each passenger has its own status and documents.</span>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-semibold text-ink-heading">Booking Documents</h2>
+                <span className="text-xs text-ink-tertiary">All travellers&rsquo; documents for this booking, each traveller with its own status.</span>
+              </div>
+              {booking.documents.some((document) => document.fileUrl && !document.purgedAt) ? (
+                <a
+                  href={`/api/bookings/${booking.id}/documents-zip`}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-hairline px-3 py-1.5 text-xs font-medium text-ink-accent hover:bg-ink-primary/[0.03]"
+                >
+                  Download all (ZIP)
+                </a>
+              ) : null}
             </div>
             <div className="mb-4">
               <AddDocumentForm
@@ -604,6 +626,7 @@ export function BookingDetail({
                                   <span className="flex flex-wrap items-center gap-2 text-ink-primary">
                                     {document.type}
                                     <PurgedFileTag purgedAt={document.purgedAt} />
+                                    <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
                                   </span>
                                   <DocumentStatusControl
                                     documentId={document.id}
@@ -657,6 +680,7 @@ export function BookingDetail({
                           <span className="flex flex-wrap items-center gap-2 font-medium text-ink-primary">
                             {document.type}
                             <PurgedFileTag purgedAt={document.purgedAt} />
+                            <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
                           </span>
                           <DocumentStatusControl
                             documentId={document.id}

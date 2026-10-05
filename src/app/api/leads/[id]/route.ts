@@ -24,9 +24,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     include: {
       customer: {
         include: {
+          // Only this lead's own passengers are shown (client corrections 2026-10-05:
+          // the customer's other leads/bookings belong to Customer 360, not here).
           passengers: { include: { documents: true } },
-          leads: { orderBy: { createdAt: "desc" } },
-          bookings: { orderBy: { createdAt: "desc" } },
         },
       },
       assignedStaff: true,
@@ -97,30 +97,6 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       mobile: lead.customer.mobile,
       email: lead.customer.email,
       createdAt: lead.customer.createdAt,
-      passengers: lead.customer.passengers.map((passenger) => ({
-        id: passenger.id,
-        fullName: passenger.fullName,
-        paxType: passenger.paxType,
-        nationality: passenger.nationality,
-        passportNumber: passenger.passportNumber,
-      })),
-      otherLeads: lead.customer.leads
-        .filter((otherLead) => otherLead.id !== lead.id)
-        .map((otherLead) => ({
-          id: otherLead.id,
-          referenceId: leadReference(otherLead),
-          serviceType: otherLead.serviceType,
-          status: otherLead.status,
-          createdAt: otherLead.createdAt,
-        })),
-      otherBookings: lead.customer.bookings
-        .filter((booking) => booking.leadId !== lead.id)
-        .map((booking) => ({
-          id: booking.id,
-          bookingId: booking.bookingId,
-          status: booking.status,
-          createdAt: booking.createdAt,
-        })),
     },
     passengers: leadPassengers.map((passenger) => ({
       id: passenger.id,

@@ -63,6 +63,7 @@ export async function GET(request: NextRequest) {
           mobile: true,
           email: true,
           createdAt: true,
+          leads: { where: leadScope, select: { source: true }, orderBy: { createdAt: "asc" }, take: 1 },
           _count: {
             select: {
               leads: { where: leadScope },
@@ -83,6 +84,7 @@ export async function GET(request: NextRequest) {
       email: customer.email,
       leadCount: customer._count.leads,
       bookingCount: customer._count.bookings,
+      source: customer.leads[0]?.source ?? null,
       createdAt: customer.createdAt.toISOString(),
     }));
 

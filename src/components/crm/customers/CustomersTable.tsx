@@ -136,7 +136,9 @@ export function CustomersTable() {
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3 text-right">Leads</th>
                 <th className="px-4 py-3 text-right">Bookings</th>
+                <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
@@ -151,7 +153,13 @@ export function CustomersTable() {
                   <td className="px-4 py-3 text-ink-secondary">{customer.email ?? "—"}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-ink-secondary">{customer.leadCount}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-ink-secondary">{customer.bookingCount}</td>
+                  <td className="px-4 py-3 text-ink-secondary">{customer.source ?? "—"}</td>
                   <td className="px-4 py-3 text-ink-tertiary">{formatCrmDate(customer.createdAt)}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link href={`/crm/customers/${customer.id}`} className="font-medium text-ink-accent hover:underline">
+                      Open 360
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
