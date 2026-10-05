@@ -30,8 +30,8 @@ export function ExtensionDetailsSection({ paymentLinkHours }: { paymentLinkHours
   ];
 
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="flex flex-col gap-10">
+    <section className="py-10 sm:py-14">
+      <Container className="flex flex-col gap-8">
         <MotionReveal>
           <SectionHeading align="center" eyebrow="At a glance" title="UAE Visa Extension details" className="mx-auto" />
         </MotionReveal>

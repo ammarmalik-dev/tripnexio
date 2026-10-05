@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { countryPagePublishBlockers, publishBlockedMessage } from "@/lib/new-visa/publish-requirements";
 import { createCountryPageSchema } from "@/lib/new-visa/country-page-schema";
 
 /** Every country page (published or not) plus the countries that don't have one yet. */
@@ -66,6 +67,11 @@ export async function POST(request: NextRequest) {
     }
     if (await db.newVisaCountryPage.findUnique({ where: { slug: data.slug } })) {
       return jsonError(400, "Please check the highlighted fields.", { slug: ["Another page already uses this URL name"] });
+    }
+
+    if (data.published) {
+      const missing = await countryPagePublishBlockers({ countryId: data.countryId, whatYouNeed: data.whatYouNeed, documents: data.documents });
+      if (missing.length > 0) return jsonError(400, publishBlockedMessage(missing));
     }
 
     const page = await db.$transaction(async (tx) => {

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { updateCountryPageSchema } from "@/lib/new-visa/country-page-schema";
+import { countryPagePublishBlockers, publishBlockedMessage } from "@/lib/new-visa/publish-requirements";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -32,6 +33,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!existing) return jsonError(404, "Page not found.");
     if (data.slug && data.slug !== existing.slug && (await db.newVisaCountryPage.findUnique({ where: { slug: data.slug } }))) {
       return jsonError(400, "Please check the highlighted fields.", { slug: ["Another page already uses this URL name"] });
+    }
+
+    if (data.published ?? existing.published) {
+      const missing = await countryPagePublishBlockers({
+        countryId: existing.countryId,
+        whatYouNeed: data.whatYouNeed ?? existing.whatYouNeed,
+        documents: data.documents ?? existing.documents,
+      });
+      if (missing.length > 0) return jsonError(400, publishBlockedMessage(missing));
     }
 
     const changed = Object.keys(data).filter((key) => key !== "published");

@@ -14,11 +14,9 @@ interface ServiceCardProps {
   imageAlt: string;
   icon: ReactNode;
   ctaLabel: string;
-  /** P18 — e.g. "Starting from ₹500", from Admin prices; omitted when none is configured. */
-  startingFrom?: string;
 }
 
-export function ServiceCard({ title, description, href, image, imageAlt, icon, ctaLabel, startingFrom }: ServiceCardProps) {
+export function ServiceCard({ title, description, href, image, imageAlt, icon, ctaLabel }: ServiceCardProps) {
   const shouldReduceMotion = useReducedMotion();
 
   return (
@@ -51,7 +49,6 @@ export function ServiceCard({ title, description, href, image, imageAlt, icon, c
       <div className="flex flex-1 flex-col gap-2 px-5 pb-5 pt-4">
         <h3 className="text-base font-semibold tracking-tight text-ink-heading">{title}</h3>
         <p className="flex-1 text-sm text-ink-secondary">{description}</p>
-        {startingFrom ? <p className="text-sm font-semibold text-ink-accent">{startingFrom}</p> : null}
         <ButtonLink href={href} variant="ghost" size="sm" className="mt-2 w-fit gap-1.5">
           {ctaLabel}
           <ArrowRight className="h-4 w-4" aria-hidden="true" />

@@ -86,11 +86,11 @@ export async function Footer() {
 
   return (
     <footer className="surface-dark-block">
-      <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-5">
+      <Container className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
         <div className="flex flex-col gap-4 sm:col-span-2 lg:col-span-1">
           <Logo variant="onDark" />
-          <p className="max-w-xs text-sm text-ink-on-dark-secondary">{contact.tagline}</p>
-          <div className="flex flex-wrap items-center gap-3 pt-1">
+          <p className="text-sm text-ink-on-dark-secondary sm:whitespace-nowrap">{contact.tagline}</p>
+          <div className="flex flex-nowrap items-center gap-2 pt-1">
             {socialLinksFor(contact).map(({ platform, href, label }) => (
               <a
                 key={platform}
@@ -98,7 +98,7 @@ export async function Footer() {
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={label}
-                className={`flex h-9 w-9 items-center justify-center rounded-full border border-hairline-on-dark text-ink-on-dark-secondary transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${SOCIAL_HOVER_CLASS[platform]}`}
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-hairline-on-dark text-ink-on-dark-secondary transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 ${SOCIAL_HOVER_CLASS[platform]}`}
               >
                 <SocialIcon platform={platform} className="h-4 w-4" />
               </a>

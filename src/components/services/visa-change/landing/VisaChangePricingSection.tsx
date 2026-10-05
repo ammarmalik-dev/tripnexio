@@ -87,8 +87,8 @@ export async function VisaChangePricingSection() {
   const hasSpecificNationality = groups.some((group) => group.nationality !== null);
 
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="flex flex-col gap-10">
+    <section className="py-10 sm:py-14">
+      <Container className="flex flex-col gap-8">
         <MotionReveal>
           <SectionHeading
             align="center"

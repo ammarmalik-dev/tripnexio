@@ -24,8 +24,8 @@ const paymentStages = [
 export function VisaChangeAfterBooking() {
   return (
     <>
-      <section className="py-16 sm:py-20">
-        <Container className="flex flex-col gap-10">
+      <section className="py-10 sm:py-14">
+        <Container className="flex flex-col gap-8">
           <MotionReveal>
             <SectionHeading align="center" title="Before payment / After payment" className="mx-auto" />
           </MotionReveal>
@@ -42,15 +42,10 @@ export function VisaChangeAfterBooking() {
               </MotionReveal>
             ))}
           </div>
-          <MotionReveal>
-            <p className="text-center text-sm text-ink-tertiary">
-              Example Booking ID: <span className="font-mono font-semibold text-ink-secondary">TNX-VC-XXXXXX</span>
-            </p>
-          </MotionReveal>
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
+      <section className="py-10 sm:py-14">
         <Container>
           <MotionReveal>
             <GlassCard tier={1} className="flex flex-col items-center gap-4 p-8 text-center sm:p-12">

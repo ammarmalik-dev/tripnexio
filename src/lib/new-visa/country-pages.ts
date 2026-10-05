@@ -33,6 +33,15 @@ async function fromPriceForCountry(countryCode: string, countryId: string): Prom
   return lowest;
 }
 
+async function processingTextForCountry(countryId: string): Promise<string | null> {
+  const config = await db.newVisaCountryConfig.findFirst({
+    where: { countryId, active: true },
+    orderBy: { displayOrder: "asc" },
+    select: { processingType: true },
+  });
+  return config?.processingType.trim() || null;
+}
+
 export interface CountryPageCard {
   slug: string;
   countryCode: string;
@@ -41,6 +50,8 @@ export interface CountryPageCard {
   tagline: string | null;
   imageUrl: string | null;
   fromPrice: number | null;
+  /** Admin-entered processing time of the country's first active product (e.g. "3–5 working days"). */
+  processingText: string | null;
 }
 
 /** Published pages of active countries, for the /services/new-visa listing. */
@@ -61,6 +72,7 @@ export async function getPublishedCountryCards(): Promise<CountryPageCard[]> {
       tagline: page.cardTagline,
       imageUrl: countryPageImageUrl(page.cardImageFileId ?? page.heroImageFileId),
       fromPrice: await fromPriceForCountry(page.country.code, page.country.id),
+      processingText: await processingTextForCountry(page.country.id),
     });
   }
   return cards;

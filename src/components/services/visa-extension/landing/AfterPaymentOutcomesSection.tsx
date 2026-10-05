@@ -30,8 +30,8 @@ const outcomes: Stage[] = [
 
 export function AfterPaymentOutcomesSection() {
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="flex flex-col gap-16">
+    <section className="py-10 sm:py-14">
+      <Container className="flex flex-col gap-8">
         <div className="flex flex-col gap-10">
           <MotionReveal>
             <SectionHeading align="center" eyebrow="What happens next" title="After payment" className="mx-auto" />

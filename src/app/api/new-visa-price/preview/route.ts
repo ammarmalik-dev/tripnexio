@@ -3,7 +3,7 @@ import { z } from "zod";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { rateLimitByIp } from "@/lib/auth/rate-limit";
 import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
-import { computePaxType } from "@/lib/leads/pax-type";
+import { computeNewVisaPaxType } from "@/lib/leads/pax-type";
 import { getTaxFeeRates } from "@/lib/settings/tax-fee-config";
 import type { PaxType } from "@/generated/prisma/enums";
 
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   const parsed = previewSchema.safeParse(body);
   if (!parsed.success) return jsonError(400, "Please check the details.", parsed.error.flatten().fieldErrors);
 
-  const paxTypes: PaxType[] = parsed.data.travellers.map((traveller) => computePaxType(traveller.dob, parsed.data.travelDate));
+  const paxTypes: PaxType[] = parsed.data.travellers.map((traveller) => computeNewVisaPaxType(traveller.dob, parsed.data.travelDate));
   const breakdown = await computeNewVisaPrice({
     countryCode: parsed.data.countryCode,
     newVisaConfigId: parsed.data.newVisaConfigId ?? null,

@@ -15,7 +15,7 @@ import { getPublishedCountryCards, type CountryPageCard } from "@/lib/new-visa/c
 export const revalidate = 300;
 
 export const metadata: Metadata = {
-  title: "New Visa â€” Choose your destination",
+  title: "New Visa — Choose your destination",
   description:
     "Apply for a new visa online with TripNexio. Choose your destination, see the price, and let us guide you from application to completion.",
 };
@@ -29,7 +29,7 @@ async function loadCards(): Promise<CountryPageCard[] | null> {
   }
 }
 
-/** /services/new-visa â€” a card per destination with a published page (Admin â†’ New Visa Country Pages). */
+/** /services/new-visa — a card per destination with a published page (Admin → New Visa Country Pages). */
 export default async function NewVisaDestinationsPage() {
   const cards = await loadCards();
   const contact = await getSiteContact();
@@ -38,7 +38,7 @@ export default async function NewVisaDestinationsPage() {
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="NEW_VISA" />
-        <Container className="relative flex flex-col items-center gap-6 py-20 text-center sm:py-24">
+        <Container className="relative flex flex-col items-center gap-5 py-12 text-center sm:py-16">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
               <FileText className="h-6 w-6" aria-hidden="true" />
@@ -57,15 +57,20 @@ export default async function NewVisaDestinationsPage() {
             </p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
-            <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-              Track Application
-            </ButtonLink>
+            <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
+              <ButtonLink href="#destinations" variant="primary" size="lg">
+                Explore Destinations
+              </ButtonLink>
+              <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
+                Track Status
+              </ButtonLink>
+            </div>
           </MotionReveal>
         </Container>
       </section>
 
-      <section className="pb-20 pt-4 sm:pb-28">
-        <Container className="flex flex-col gap-10">
+      <section id="destinations" className="scroll-mt-20 pb-14 pt-2 sm:pb-20">
+        <Container className="flex flex-col gap-6">
           <MotionReveal>
             <SectionHeading align="center" eyebrow="Destinations" title="Pick a country to get started" className="mx-auto" />
           </MotionReveal>

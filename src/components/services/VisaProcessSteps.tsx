@@ -1,3 +1,4 @@
+import type { LucideIcon } from "lucide-react";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { cn } from "@/lib/cn";
 
@@ -5,6 +6,8 @@ export interface VisaProcessStep {
   step: string;
   headline: string;
   supportingCopy: string;
+  /** Client correction 2026-10-05: every service's "How It Works" shows an icon per step. */
+  icon?: LucideIcon;
 }
 
 interface VisaProcessStepsProps {
@@ -65,9 +68,12 @@ export function VisaProcessSteps({ steps, sampleStatusText }: VisaProcessStepsPr
           <MotionReveal key={item.step} delay={index * 0.08}>
             <div className="relative flex gap-4 sm:flex-col sm:items-center sm:gap-3 sm:text-center">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[image:var(--gradient-accent)] text-sm font-bold text-white shadow-[0_6px_16px_rgb(62_111_219/0.3)]">
-                {item.step}
+                {item.icon ? <item.icon className="h-5 w-5" aria-hidden="true" /> : item.step}
               </span>
               <div className="flex flex-col gap-1 pt-1 sm:pt-0">
+                {item.icon ? (
+                  <span className="text-xs font-semibold tracking-wide text-ink-accent">Step {item.step}</span>
+                ) : null}
                 <p className="text-base font-semibold text-ink-heading">{item.headline}</p>
                 <p className="max-w-xs text-sm text-ink-tertiary">{item.supportingCopy}</p>
               </div>

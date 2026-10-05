@@ -56,7 +56,7 @@ export const visaChangePassengerSchema = z.object({
     .transform((value) => value.toUpperCase()),
   visaLastDate: z
     .string()
-    .min(1, "Select the visa last date")
+    .min(1, "Select the visa expiry date")
     .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid date"),
   /** Nationality master id (P06) — the API resolves and stores its name. */
   nationalityId: z.string().min(1, "Select a nationality").max(40),
@@ -80,7 +80,7 @@ export const visaChangeStep2Schema = z.object({
     .transform((value) => value.toUpperCase()),
   visaLastDate: z
     .string()
-    .min(1, "Select your visa last date")
+    .min(1, "Select your visa expiry date")
     .refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter a valid date"),
   mobile: z
     .string()

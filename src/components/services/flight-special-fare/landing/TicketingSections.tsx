@@ -1,4 +1,4 @@
-import { Luggage, ReceiptText, TicketCheck, CheckCircle2, BellRing } from "lucide-react";
+import { Luggage, ReceiptText, TicketCheck, CheckCircle2 } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
@@ -7,7 +7,7 @@ import { MotionReveal } from "@/components/motion/MotionReveal";
 /** Doc §12 Baggage + §13 Cancellation & Refund, side by side (doc order kept left→right). */
 export function BaggageAndRefundSection() {
   return (
-    <section className="py-16 sm:py-20">
+    <section className="py-10 sm:py-14">
       <Container className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <MotionReveal className="h-full">
           <GlassCard tier={2} as="article" className="flex h-full flex-col gap-4 p-6 sm:p-8">
@@ -63,8 +63,8 @@ const ticketContents = [
 /** Doc §14 — what an issued ticket includes and how it's delivered. */
 export function TicketDeliverySection() {
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+    <section className="py-10 sm:py-14">
+      <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <div className="flex flex-col gap-4">
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
@@ -90,36 +90,6 @@ export function TicketDeliverySection() {
                 </li>
               ))}
             </ul>
-          </GlassCard>
-        </MotionReveal>
-      </Container>
-    </section>
-  );
-}
-
-interface FareFollowUpNoteProps {
-  /** Follow-up interval in days — Admin Timeline config, falling back to the doc's 7. */
-  intervalDays: number;
-}
-
-/** Doc §15 — periodic follow-up until the customer books, stops or opts out. */
-export function FareFollowUpNote({ intervalDays }: FareFollowUpNoteProps) {
-  const intervalLabel = intervalDays === 1 ? "every day" : `every ${intervalDays} days`;
-  return (
-    <section className="py-8 sm:py-10">
-      <Container>
-        <MotionReveal>
-          <GlassCard tier={1} className="mx-auto flex max-w-3xl items-start gap-4 p-6">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-              <BellRing className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div className="flex flex-col gap-1">
-              <h2 className="text-base font-semibold text-ink-heading">Fare follow-up</h2>
-              <p className="text-sm text-ink-secondary">
-                If a customer has not booked, the configured follow-up workflow can send reminders {intervalLabel} until
-                the customer books, explicitly stops or opts out.
-              </p>
-            </div>
           </GlassCard>
         </MotionReveal>
       </Container>

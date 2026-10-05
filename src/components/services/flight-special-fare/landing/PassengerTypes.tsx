@@ -21,8 +21,8 @@ const passengerTypes: PassengerType[] = [
 /** Doc §6 — Adult / Child / Infant, classified from DOB and age on the travel date. */
 export function PassengerTypes() {
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
+    <section className="py-10 sm:py-14">
+      <Container className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <SectionHeading
             eyebrow="Passenger types"

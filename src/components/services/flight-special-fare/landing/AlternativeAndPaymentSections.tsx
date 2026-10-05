@@ -35,8 +35,8 @@ function RoutePill({ label, from, to, highlight = false }: RoutePillProps) {
 /** Doc §10 — an alternative route, always clearly labelled as different from the request. */
 export function AlternativeRouteSection() {
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="grid grid-cols-1 items-center gap-10 lg:grid-cols-2 lg:gap-16">
+    <section className="py-10 sm:py-14">
+      <Container className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <div className="flex flex-col gap-5">
             <SectionHeading
@@ -82,8 +82,8 @@ const alternativeOutcomes: OutcomeCard[] = [
 /** Doc §11 — payment starts final seat/fare confirmation; ticket is not automatic. */
 export function AfterPaymentSection() {
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="flex flex-col gap-10">
+    <section className="py-10 sm:py-14">
+      <Container className="flex flex-col gap-8">
         <MotionReveal>
           <SectionHeading
             align="center"

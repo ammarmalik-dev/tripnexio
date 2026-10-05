@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import {
   PlaneTakeoff,
-  ShieldCheck,
   Clock,
   FileCheck2,
-  CheckCircle2,
   BadgeCheck,
   Stamp,
   Network,
@@ -20,10 +18,9 @@ import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
-import { OtbPricingSection } from "@/components/services/otb/landing/OtbPricingSection";
-import { OtbCancellationRefundSection } from "@/components/services/otb/landing/OtbCancellationRefundSection";
+import { ServiceRequirementsSection } from "@/components/services/ServiceRequirementsSection";
 
-// Pricing (Admin Airline master) and FAQs (Admin Faq rows) are DB-backed.
+// FAQs (Admin Faq rows) are DB-backed. No prices on this page (client correction 2026-10-05).
 export const revalidate = 300;
 
 export const metadata: Metadata = {
@@ -43,14 +40,15 @@ const whatYoullNeed = [
   "Destination country",
   "Airline",
   "Travel date",
-];
+].map((label) => ({ label }));
 
+// Client correction 2026-10-05 — the OTB document list.
 const documentsNeeded = [
-  "Passport front page",
-  "Passport last page",
-  "Valid destination visa",
-  "Flight ticket (where not already available)",
-  "Return ticket (where applicable)",
+  { name: "Passport Front Page", required: true },
+  { name: "Passport Last Page", required: true },
+  { name: "Valid Visa Copy", required: true },
+  { name: "Onward Ticket", required: true },
+  { name: "Return Ticket", required: true },
 ];
 
 // Locked content — doc §5 "ECR & ECNR — OTB Service".
@@ -67,22 +65,12 @@ const ecrEcnrSupport = [
   },
 ];
 
-// Locked content — doc §10 "How It Works".
+// Client correction 2026-10-05 — exactly 4 steps.
 const otbProcessSteps = [
-  { step: "01", headline: "Share your flight details", supportingCopy: "Enter your airline, travel date and contact details." },
-  { step: "02", headline: "Submit your documents", supportingCopy: "Provide the required passport, destination visa, flight and return-ticket documents." },
-  { step: "03", headline: "We process your OTB", supportingCopy: "TripNexio coordinates the request through the relevant airline/process channel." },
-  { step: "04", headline: "Get your OTB confirmation", supportingCopy: "Once approved, your OTB PNR/reference is shared with you." },
-];
-
-// Locked content — doc §14 "Why TripNexio?".
-const whyTripNexio = [
-  { title: "India-Based Processing", description: "Submit and coordinate your OTB application from India before travel." },
-  { title: "Airline Network Support", description: "We coordinate with the relevant airline/process channel." },
-  { title: "Airline-Specific Timelines", description: "Processing time and availability can differ by airline." },
-  { title: "Document Assistance", description: "Know what is required and receive requests when something is missing." },
-  { title: "Status Updates", description: "Receive application and approval updates through configured TripNexio channels." },
-  { title: "Return Ticket Support", description: "Need a return ticket? TripNexio can provide the separate Return Verified Ticket service where applicable." },
+  { step: "01", icon: PlaneTakeoff, headline: "Share Your Flight Details", supportingCopy: "Enter your airline, travel date and contact details." },
+  { step: "02", icon: FileCheck2, headline: "Submit Your Documents & Pay", supportingCopy: "Provide the required documents, review the applicable service details and complete payment." },
+  { step: "03", icon: Network, headline: "We Process Your OTB", supportingCopy: "TripNexio coordinates the request through the relevant airline/process channel." },
+  { step: "04", icon: BadgeCheck, headline: "Get Your OTB Confirmation", supportingCopy: "Once the airline confirms the OTB, we share the confirmation/reference with you and update your status via WhatsApp and email." },
 ];
 
 export default function OtbLandingPage() {
@@ -90,7 +78,7 @@ export default function OtbLandingPage() {
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="OTB" />
-        <Container className="relative flex flex-col items-center gap-6 py-20 text-center sm:py-28">
+        <Container className="relative flex flex-col items-center gap-6 py-14 text-center sm:py-20">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
               <PlaneTakeoff className="h-6 w-6" aria-hidden="true" />
@@ -122,7 +110,7 @@ export default function OtbLandingPage() {
             <p className="text-sm font-medium text-ink-tertiary">India-Based Processing · Airline-Specific Timelines · Status Updates</p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/otb/request" variant="primary" size="lg">
                 Request OTB
               </ButtonLink>
@@ -134,8 +122,8 @@ export default function OtbLandingPage() {
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+      <section className="py-10 sm:py-14">
+        <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
           <MotionReveal>
             <div className="flex flex-col gap-4">
               <SectionHeading eyebrow="What is OK to Board?" title="Your airline clearance, handled for you" />
@@ -175,8 +163,8 @@ export default function OtbLandingPage() {
       </section>
 
       {/* Doc §5 — ECR & ECNR OTB service. */}
-      <section className="py-16 sm:py-20">
-        <Container className="flex flex-col gap-10">
+      <section className="py-10 sm:py-14">
+        <Container className="flex flex-col gap-8">
           <MotionReveal>
             <SectionHeading
               align="center"
@@ -206,8 +194,8 @@ export default function OtbLandingPage() {
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+      <section className="py-10 sm:py-14">
+        <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
           <MotionReveal className="h-full">
             <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6 sm:p-8">
               <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">India departure</span>
@@ -255,69 +243,25 @@ export default function OtbLandingPage() {
         </Container>
       </section>
 
-      {/* Doc §8 — What You'll Need. */}
-      <section className="py-16 sm:py-20">
-        <Container>
-          <MotionReveal>
-            <GlassCard tier={2} className="flex flex-col gap-4 p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                  <FileCheck2 className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <h2 className="text-base font-semibold text-ink-heading">What you&rsquo;ll need</h2>
-              </div>
-              <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-                {whatYoullNeed.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-ink-tertiary">No separate nationality field is required.</p>
-            </GlassCard>
-          </MotionReveal>
-        </Container>
-      </section>
+      <ServiceRequirementsSection
+        whatYouNeed={whatYoullNeed}
+        documents={documentsNeeded}
+        notes={[
+          "OTB is not a separate document. It is a confirmation/update made by the airline on your booking. Once the airline confirms it, we notify you by WhatsApp and email and update your status on Track Status.",
+          "Additional documents may be requested if the airline asks for them during processing.",
+        ]}
+      />
 
-      <section className="py-16 sm:py-20">
-        <Container>
+      <section className="py-10 sm:py-14">
+        <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <GlassCard tier={1} className="flex flex-col gap-4 p-6 sm:p-8">
-              <h2 className="text-base font-semibold text-ink-heading">OTB is an update, not a separate document</h2>
-              <p className="text-sm text-ink-secondary">
-                OTB is a clearance added to the applicable flight booking or ticket record &mdash; it isn&rsquo;t a
-                separate visa, ticket or immigration document. The supporting details TripNexio needs are:
-              </p>
-              <ul className="flex flex-wrap gap-2.5">
-                {documentsNeeded.map((item) => (
-                  <li
-                    key={item}
-                    className="rounded-full border border-hairline bg-surface-1 px-3.5 py-1.5 text-xs font-medium text-ink-secondary"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-sm text-ink-secondary">
-                After the OTB is updated, you can ask the airline&rsquo;s customer support to confirm the status,
-                and airline check-in staff can also check the airline&rsquo;s system at the time of travel.
-              </p>
-            </GlassCard>
-          </MotionReveal>
-        </Container>
-      </section>
-
-      <section className="py-16 sm:py-20">
-        <Container className="flex flex-col gap-12">
-          <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="Get your OTB in simple steps" className="mx-auto" />
+            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={otbProcessSteps} />
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
+      <section className="py-10 sm:py-14">
         <Container>
           <MotionReveal>
             <div className="surface-dark-block flex flex-col gap-3 rounded-xl p-6 text-center sm:p-10">
@@ -335,60 +279,8 @@ export default function OtbLandingPage() {
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container>
-          <MotionReveal>
-            <GlassCard tier={2} className="flex flex-col gap-3 p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                  <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <h2 className="text-base font-semibold text-ink-heading">Get your OTB updated before travel</h2>
-              </div>
-              <p className="text-sm text-ink-secondary">
-                TripNexio processes OTB updates before travel when the passenger is departing from India.
-              </p>
-              <p className="text-sm text-ink-secondary">
-                OTB should be updated before the customer reaches the airport. Once updated, the airline&rsquo;s
-                customer support can be contacted to confirm the status, and airline check-in staff can check the
-                airline system at the time of travel.
-              </p>
-              <p className="text-sm text-ink-secondary">
-                If the passenger is travelling from another country, TripNexio cannot update the OTB through this
-                service, even if the airline is an India- or Gulf-based airline.
-              </p>
-              <p className="text-sm font-medium text-ink-primary">
-                TripNexio does not guarantee boarding or immigration clearance. Final boarding and immigration
-                decisions remain with the airline and relevant authorities.
-              </p>
-            </GlassCard>
-          </MotionReveal>
-        </Container>
-      </section>
-
-      {/* Doc §13 — prices from the Admin Airline master, never hard-coded. */}
-      <OtbPricingSection />
-
-      <section className="py-16 sm:py-20">
-        <Container className="flex flex-col gap-10">
-          <MotionReveal>
-            <SectionHeading align="center" eyebrow="Why TripNexio?" title="Simple, guided OTB processing" className="mx-auto" />
-          </MotionReveal>
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {whyTripNexio.map((item, index) => (
-              <MotionReveal key={item.title} delay={index * 0.05}>
-                <div className="flex flex-col gap-1.5">
-                  <h3 className="text-sm font-semibold text-ink-heading">{item.title}</h3>
-                  <p className="text-xs text-ink-tertiary">{item.description}</p>
-                </div>
-              </MotionReveal>
-            ))}
-          </div>
-        </Container>
-      </section>
-
       {/* Doc §15 Return Ticket + §16 OTB Approval / status confirmation. */}
-      <section className="py-16 sm:py-20">
+      <section className="py-10 sm:py-14">
         <Container className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <MotionReveal className="h-full">
             <GlassCard tier={2} className="flex h-full flex-col gap-4 p-6 sm:p-8">
@@ -418,8 +310,8 @@ export default function OtbLandingPage() {
                 <h2 className="text-lg font-semibold text-ink-heading">OTB Approval</h2>
               </div>
               <p className="text-sm text-ink-secondary">
-                Your OTB PNR/reference is shared through the available TripNexio channels and updated in your
-                customer portal.
+                Once the airline confirms your OTB, we share the confirmation/reference with you by WhatsApp and email
+                and update the status on Track Status.
               </p>
               <div role="note" className="flex gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4">
                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
@@ -435,11 +327,9 @@ export default function OtbLandingPage() {
         </Container>
       </section>
 
-      <OtbCancellationRefundSection />
-
       <ServiceFaqSection serviceType="OTB" />
 
-      <section className="pb-20 sm:pb-28">
+      <section className="pb-14 sm:pb-20">
         <Container>
           <MotionReveal>
             <div className="surface-dark-block flex flex-col items-center gap-6 rounded-xl p-8 text-center sm:p-12">
@@ -449,7 +339,7 @@ export default function OtbLandingPage() {
               <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
                 Ready to request your OTB?
               </h2>
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <ButtonLink href="/services/otb/request" variant="primary" size="lg">
                   Request OTB
                 </ButtonLink>

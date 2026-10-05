@@ -92,4 +92,4 @@ export const flightSpecialFareStepFields: Record<number, (keyof FlightSpecialFar
   2: [],
 };
 
-export const flightSpecialFareStepLabels = ["Trip Details", "Passengers", "Summary"];
+export const flightSpecialFareStepLabels = ["Trip Details", "Add Passengers", "Summary"];

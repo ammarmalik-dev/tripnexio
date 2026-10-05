@@ -28,7 +28,10 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     metadataBase: new URL(siteConfig.url),
     title: {
-      default: `${effective.name} — ${effective.tagline}`,
+      // "Travel Made Easy with TripNexio." already names the brand.
+      default: effective.tagline.includes(effective.name)
+        ? effective.tagline.replace(/\.$/, "")
+        : `${effective.name} — ${effective.tagline}`,
       template: `%s | ${effective.name}`,
     },
     description: effective.description,

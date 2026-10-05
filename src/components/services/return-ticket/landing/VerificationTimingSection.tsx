@@ -14,8 +14,8 @@ const verificationDetails = [
 
 export function VerificationTimingSection() {
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+    <section className="py-10 sm:py-14">
+      <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <div className="flex flex-col gap-5">
             <SectionHeading eyebrow="Verifiable reservation" title="Check your reservation using the PNR" />

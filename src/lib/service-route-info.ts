@@ -7,8 +7,9 @@
  * string values as Service.code so ServicesGrid can merge live Admin
  * metadata with these fixed facts.
  *
- * New Visa, Visa Extension, Visa Change, Return Ticket and OTB use the client's own photos (public/images/services/,
- * supplied 2026-10-03, resized for the web). Special Fare still uses Unsplash.
+ * New Visa, Visa Extension, Return Ticket and OTB use the client's own photos (public/images/services/,
+ * supplied 2026-10-03, resized for the web). Client correction 2026-10-05: Visa Change uses the Special
+ * Fare airliner photo, and Special Fare takes the client's passport-and-map photo in its place.
  *
  * Photography sourced from Unsplash (free to use under the Unsplash
  * License, no attribution required) — high-resolution (2400px) stock shots, also used full-bleed behind each service page's hero (ServiceHeroBackdrop);
@@ -33,13 +34,13 @@ export const SERVICE_ROUTE_INFO: Record<string, ServiceRouteInfo> = {
   },
   VISA_CHANGE: {
     href: "/services/visa-change",
-    image: "/images/services/visa-change.jpg",
-    imageAlt: "Stamped passports, a watch and coins on a travel map",
+    image: "https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?auto=format&fit=crop&w=2400&q=85",
+    imageAlt: "An airliner climbing through bright clouds",
   },
   FLIGHT_SPECIAL_FARE: {
     href: "/services/flight-special-fare",
-    image: "https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?auto=format&fit=crop&w=2400&q=85",
-    imageAlt: "An airliner climbing through bright clouds",
+    image: "/images/services/flight-special-fare.jpg",
+    imageAlt: "Stamped passports, a watch and coins on a travel map",
   },
   RETURN_TICKET: {
     href: "/services/return-ticket",

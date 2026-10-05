@@ -3,7 +3,7 @@ export const siteConfig = {
   legalName: "TripNexio Travel Studio",
   // Worldwide positioning (client-locked, Homepage_FINAL_Locked_1of1.docx §1/§11)
   // — do not reintroduce UAE/GCC-only wording here.
-  tagline: "Visa and travel services made simple, with guided support from start to finish.",
+  tagline: "Travel Made Easy with TripNexio.",
   description:
     "TripNexio brings visa and travel services together in one simple experience. Submit a request and our team handles it with airlines and partners, from start to finish.",
   // TODO(client): confirm production domain before launch.

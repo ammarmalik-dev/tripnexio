@@ -40,7 +40,7 @@ export async function NewVisaProcessingTimeSection() {
   ];
 
   return (
-    <section className="py-16 sm:py-20">
+    <section className="py-10 sm:py-14">
       <Container className="flex flex-col gap-8">
         <MotionReveal>
           <SectionHeading align="center" title="Processing time" className="mx-auto" />

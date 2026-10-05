@@ -45,6 +45,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  // Ask TripNexio AI was removed from the customer website (client correction 2026-10-05).
+  async redirects() {
+    return [{ source: "/ai", destination: "/", permanent: true }];
+  },
 };
 
 export default nextConfig;

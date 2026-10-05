@@ -15,7 +15,7 @@ const badges = [
 export async function SupportPayment() {
   const contact = await getSiteContact();
   return (
-    <section id="support" className="py-20 sm:py-28">
+    <section id="support" className="py-14 sm:py-20">
       <Container className="flex flex-col gap-10">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <MotionReveal>

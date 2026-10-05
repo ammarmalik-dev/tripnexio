@@ -6,7 +6,7 @@ import { MotionReveal } from "@/components/motion/MotionReveal";
 /** P19 — RVT Page Content v3 §12 "Travel & Immigration Disclaimer" and §13 "After Travel" (locked copy). */
 export function DisclaimerAfterTravelSection() {
   return (
-    <section className="py-16 sm:py-20">
+    <section className="py-10 sm:py-14">
       <Container className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <MotionReveal className="h-full">
           <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6 sm:p-8">

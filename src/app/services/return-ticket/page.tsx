@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { TicketCheck, Clock, ClipboardList, CheckCircle2 } from "lucide-react";
+import { TicketCheck, Clock, CheckCircle2, MapPinned, CreditCard, Settings2, Send } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { GlassCard } from "@/components/ui/GlassCard";
 import { ServiceHeroBackdrop } from "@/components/services/ServiceHeroBackdrop";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
 import {
-  DocumentsRequiredSection,
+  returnTicketDocumentsForDisplay,
   type ReturnTicketLandingDocument,
 } from "@/components/services/return-ticket/landing/DocumentsRequiredSection";
+import { ServiceRequirementsSection } from "@/components/services/ServiceRequirementsSection";
 import { VerificationTimingSection } from "@/components/services/return-ticket/landing/VerificationTimingSection";
 import {
   CancellationRefundSection,
@@ -30,18 +30,23 @@ export const metadata: Metadata = {
     "A verifiable return ticket reservation for international travel. Share your destination and travel date — we take care of the rest.",
 };
 
-const whatYoullNeed = ["Full name", "Mobile number", "Email address", "Destination country", "Number of passengers", "Travel date"];
+const whatYoullNeed = [
+  "Full name",
+  "Mobile number",
+  "Email address",
+  "Destination country",
+  "Number of passengers",
+  "Travel date",
+  "Expected return / onward date",
+].map((label) => ({ label }));
 
-// Locked content — doc §8 "How It Works — final customer copy" (5 steps).
-// "airline/vendor" in the source doc kept as "airline/partner" — the
-// client's own site-wide Sep 24 wording instruction (Vendor -> Partner)
-// takes precedence over this doc's literal wording.
+// Client correction 2026-10-05 — exactly 4 short steps. "airline/partner"
+// follows the client's site-wide Vendor -> Partner wording.
 const visaProcessSteps = [
-  { step: "01", headline: "Share your travel details", supportingCopy: "Tell us your destination, number of passengers and travel date." },
-  { step: "02", headline: "We work out the return date", supportingCopy: "We arrange an approximate return date based on available ticket options and your travel schedule." },
-  { step: "03", headline: "Complete payment", supportingCopy: "Review the summary and applicable terms, then complete payment." },
-  { step: "04", headline: "We arrange your return ticket reservation", supportingCopy: "Our team processes the return ticket through the configured airline/partner process based on current availability." },
-  { step: "05", headline: "Receive your return ticket", supportingCopy: "Once issued, your return ticket is delivered to you." },
+  { step: "01", icon: MapPinned, headline: "Share Your Travel Details", supportingCopy: "Enter your destination, passenger count and travel date." },
+  { step: "02", icon: CreditCard, headline: "Review Your Booking & Pay", supportingCopy: "Check the return date, applicable price and terms, then complete payment." },
+  { step: "03", icon: Settings2, headline: "We Arrange Your Return Ticket", supportingCopy: "After payment, our team processes the reservation through the configured airline/partner process and completes the required verification." },
+  { step: "04", icon: Send, headline: "Receive Your Ticket", supportingCopy: "Once issued, your return ticket is delivered to you." },
 ];
 
 /**
@@ -97,7 +102,7 @@ export default async function ReturnTicketLandingPage() {
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="RETURN_TICKET" />
-        <Container className="relative flex flex-col items-center gap-6 py-20 text-center sm:py-28">
+        <Container className="relative flex flex-col items-center gap-6 py-14 text-center sm:py-20">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
               <TicketCheck className="h-6 w-6" aria-hidden="true" />
@@ -118,7 +123,7 @@ export default async function ReturnTicketLandingPage() {
             </p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/return-ticket/request" variant="primary" size="lg">
                 Reserve Your Ticket
               </ButtonLink>
@@ -130,7 +135,7 @@ export default async function ReturnTicketLandingPage() {
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
+      <section className="py-10 sm:py-14">
         <Container className="flex flex-col items-center gap-4 text-center">
           <MotionReveal>
             <SectionHeading
@@ -150,10 +155,10 @@ export default async function ReturnTicketLandingPage() {
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+      <section className="py-10 sm:py-14">
+        <Container>
           <MotionReveal>
-            <div className="flex flex-col gap-4">
+            <div className="flex max-w-3xl flex-col gap-4">
               <SectionHeading eyebrow="How the return date works" title="Tell us your expected return date" />
               <p className="text-sm text-ink-secondary sm:text-base">
                 You select your destination country, travel date and expected return date. TripNexio looks for a
@@ -175,33 +180,21 @@ export default async function ReturnTicketLandingPage() {
             </div>
           </MotionReveal>
 
-          <MotionReveal delay={0.08}>
-            <GlassCard tier={2} className="flex flex-col gap-4 p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                  <ClipboardList className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <p className="text-base font-semibold text-ink-heading">What you&rsquo;ll need</p>
-              </div>
-              <ul className="flex flex-col gap-2.5">
-                {whatYoullNeed.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </GlassCard>
-          </MotionReveal>
         </Container>
       </section>
 
-      <DocumentsRequiredSection documents={documents} />
+      <ServiceRequirementsSection
+        whatYouNeed={whatYoullNeed}
+        documents={returnTicketDocumentsForDisplay(documents)}
+        notes={[
+          "Additional information or documents may be requested when necessary for the selected destination, airline/partner or reservation process.",
+        ]}
+      />
 
-      <section className="py-16 sm:py-20">
-        <Container className="flex flex-col gap-12">
+      <section className="py-10 sm:py-14">
+        <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How it works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={visaProcessSteps} />
         </Container>
@@ -215,7 +208,7 @@ export default async function ReturnTicketLandingPage() {
 
       <ServiceFaqSection serviceType="RETURN_TICKET" />
 
-      <section className="pb-20 sm:pb-28">
+      <section className="pb-14 sm:pb-20">
         <Container>
           <MotionReveal>
             <div className="surface-dark-block flex flex-col items-center gap-6 rounded-xl p-8 text-center sm:p-12">

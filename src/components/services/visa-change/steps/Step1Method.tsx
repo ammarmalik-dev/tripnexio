@@ -30,7 +30,7 @@ export function Step1Method() {
         {
           value: "AIRPORT_TO_AIRPORT",
           label: "Airport to Airport",
-          description: "Exit and re-enter via a UAE/GCC airport confirmed by our team.",
+          description: "Exit and re-enter via an airport confirmed by our team.",
         },
         {
           value: "BORDER_EXIT",

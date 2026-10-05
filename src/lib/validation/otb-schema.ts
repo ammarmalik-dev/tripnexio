@@ -132,4 +132,4 @@ export const otbStepFields: Record<number, (keyof OtbRequestValues)[]> = {
   3: ["hasReturnTicket", "addReturnTicket", "returnDestinationCountryId", "expectedReturnDate"],
 };
 
-export const otbStepLabels = ["Basic Details", "Other Applicants", "Processing Type", "Summary"];
+export const otbStepLabels = ["Basic Details", "Add Passengers", "Processing Type", "Summary"];

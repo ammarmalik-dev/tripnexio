@@ -6,7 +6,7 @@ import { MotionReveal } from "@/components/motion/MotionReveal";
 
 export function AboutSection() {
   return (
-    <section className="py-20 sm:py-28">
+    <section className="py-14 sm:py-20">
       <Container>
         <MotionReveal>
           <div className="flex flex-col overflow-hidden rounded-xl border border-hairline bg-surface-1 shadow-[0_8px_24px_-12px_rgb(17_19_24_/_10%)] sm:flex-row">

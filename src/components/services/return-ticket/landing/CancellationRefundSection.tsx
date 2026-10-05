@@ -3,7 +3,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
-import { formatCurrency } from "@/lib/format-currency";
+import { DestinationPriceLookup } from "./DestinationPriceLookup";
 
 export interface ReturnTicketLandingDestination {
   countryName: string;
@@ -14,7 +14,8 @@ export interface ReturnTicketLandingDestination {
 /**
  * P19 — RVT Page Content v3 §11 "Cancellation & Refund". The refund rules
  * are locked business rules (fixed copy); the per-destination rate and
- * cancellation fee come from Admin's ReturnTicketDestination rows. When
+ * cancellation fee come from Admin's ReturnTicketDestination rows, shown for
+ * the one destination the customer selects (no price table, 2026-10-05). When
  * those can't be read (null) or none are active, only the wording is shown
  * — no amount is ever stated from code.
  */
@@ -22,8 +23,8 @@ export function CancellationRefundSection({ destinations }: { destinations: Retu
   const rows = destinations ?? [];
   const hasDestinations = rows.length > 0;
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+    <section className="py-10 sm:py-14">
+      <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <div className="flex flex-col gap-4">
             <SectionHeading eyebrow="Cancellation" title="Cancellation charges may apply" />
@@ -48,33 +49,10 @@ export function CancellationRefundSection({ destinations }: { destinations: Retu
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                 <ReceiptText className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h3 className="text-base font-semibold text-ink-heading">Price and cancellation fee by destination</h3>
+              <h3 className="text-base font-semibold text-ink-heading">Price for your destination</h3>
             </div>
             {hasDestinations ? (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[20rem] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-hairline text-xs text-ink-tertiary uppercase">
-                      <th scope="col" className="py-2 pr-3 font-medium">Destination</th>
-                      <th scope="col" className="py-2 pr-3 font-medium">Per passenger</th>
-                      <th scope="col" className="py-2 font-medium">Cancellation fee</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((destination) => (
-                      <tr key={destination.countryName} className="border-b border-hairline last:border-b-0">
-                        <th scope="row" className="py-2.5 pr-3 font-medium text-ink-heading">
-                          {destination.countryName}
-                        </th>
-                        <td className="py-2.5 pr-3 text-ink-secondary">{formatCurrency(destination.ratePerApplicant)}</td>
-                        <td className="py-2.5 text-ink-secondary">
-                          {destination.cancellationFee === null ? "None" : formatCurrency(destination.cancellationFee)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <DestinationPriceLookup destinations={rows} />
             ) : (
               <p className="text-sm text-ink-secondary">
                 The applicable price and cancellation fee for your destination are shown clearly before payment.

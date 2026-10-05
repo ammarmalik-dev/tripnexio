@@ -261,3 +261,20 @@ body {
     color-mix(in srgb, var(--surface-base) 45%, transparent) 100%
   );
 }
+
+/* Client correction 2026-10-05: justified body copy on the service pages
+   (src/app/services/layout.tsx). In the base layer so any text-* utility on
+   the paragraph itself still wins; centred blocks and forms keep their own
+   alignment. */
+@layer base {
+  .tn-justify p {
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
+  }
+  .tn-justify [class*="text-center"] p,
+  .tn-justify form p {
+    text-align: inherit;
+    hyphens: manual;
+  }
+}

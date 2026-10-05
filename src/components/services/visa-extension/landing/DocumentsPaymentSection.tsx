@@ -16,7 +16,7 @@ export function DocumentsPaymentSection({ paymentLinkHours }: { paymentLinkHours
   const hoursLabel = `${paymentLinkHours} ${paymentLinkHours === 1 ? "hour" : "hours"}`;
 
   return (
-    <section className="py-16 sm:py-20">
+    <section className="py-10 sm:py-14">
       <Container className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
         <MotionReveal className="h-full">
           <GlassCard tier={2} className="flex h-full flex-col gap-4 p-6 sm:p-8">

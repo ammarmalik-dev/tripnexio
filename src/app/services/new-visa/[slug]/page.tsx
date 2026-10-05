@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { FileText, Clock, MapPin, Briefcase, GraduationCap, Users, Baby, ChevronLeft } from "lucide-react";
+import { FileText, Clock, MapPin, Briefcase, GraduationCap, Users, Baby, ChevronLeft, ClipboardList, Upload, Settings2, BadgeCheck } from "lucide-react";
 import Link from "next/link";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -12,7 +12,7 @@ import { utilityLinks } from "@/lib/nav-config";
 import { NewVisaProductSelector } from "@/components/services/new-visa/NewVisaProductSelector";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
-import { NewVisaRequirementsSection } from "@/components/services/new-visa/landing/NewVisaRequirementsSection";
+import { ServiceRequirementsSection } from "@/components/services/ServiceRequirementsSection";
 import { NewVisaProcessingTimeSection } from "@/components/services/new-visa/landing/NewVisaProcessingTimeSection";
 import { NewVisaValiditySection, NewVisaBeforeYouApplySection } from "@/components/services/new-visa/landing/NewVisaValidityAndNotesSections";
 import { countryPageImageUrl, getPublishedCountryPage, newVisaApplyHref, type PublishedCountryPage } from "@/lib/new-visa/country-pages";
@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   return { title, description, openGraph: { title, description }, alternates: { canonical: `/services/new-visa/${page.slug}` } };
 }
 
-// Doc Â§5 "Visa Applications From Across India" â€” "minimal applicant icons," not a long occupation list.
+// Doc §5 "Visa Applications From Across India" — "minimal applicant icons," not a long occupation list.
 const applicantProfileIcons = [MapPin, Briefcase, GraduationCap, Users];
 
 export default async function NewVisaCountryPage({ params }: PageProps) {
@@ -52,17 +52,17 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
   const applyHref = newVisaApplyHref(page.country.code);
   const applyLabel = `Apply for ${name} Visa`;
   const processSteps = [
-    { step: "01", headline: "Apply online", supportingCopy: `Choose your ${name} visa option and submit your traveller details.` },
-    { step: "02", headline: "Upload documents", supportingCopy: "Complete payment and upload the required documents." },
-    { step: "03", headline: "We process your application", supportingCopy: "We coordinate the next steps and keep you updated." },
-    { step: "04", headline: "Visa delivered", supportingCopy: "Receive your issued visa digitally once approved and issued." },
+    { step: "01", icon: ClipboardList, headline: "Apply online", supportingCopy: `Choose your ${name} visa option and submit your traveller details.` },
+    { step: "02", icon: Upload, headline: "Upload documents", supportingCopy: "Complete payment and upload the required documents." },
+    { step: "03", icon: Settings2, headline: "We process your application", supportingCopy: "We coordinate the next steps and keep you updated." },
+    { step: "04", icon: BadgeCheck, headline: "Visa delivered", supportingCopy: "Receive your issued visa digitally once approved and issued." },
   ];
 
   return (
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="NEW_VISA" imageSrc={countryPageImageUrl(page.heroImageFileId)} />
-        <Container className="relative flex flex-col items-center gap-6 py-20 text-center sm:py-28">
+        <Container className="relative flex flex-col items-center gap-6 py-14 text-center sm:py-20">
           <MotionReveal>
             <Link
               href="/services/new-visa"
@@ -89,12 +89,12 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">{page.heroSubtitle}</p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href={applyHref} variant="primary" size="lg">
                 {applyLabel}
               </ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-                Track Application
+                Track Status
               </ButtonLink>
             </div>
           </MotionReveal>
@@ -102,7 +102,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
       </section>
 
       {page.introHeading || page.introBody ? (
-        <section className="py-16 sm:py-20">
+        <section className="py-10 sm:py-14">
           <Container>
             <MotionReveal>
               <div className="mx-auto flex max-w-3xl flex-col gap-4">
@@ -114,7 +114,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      <section className="py-16 sm:py-20">
+      <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-6">
           <MotionReveal>
             <SectionHeading align="center" eyebrow={`${name} visa options`} title="Choose your visa and see the price instantly" className="mx-auto" />
@@ -128,7 +128,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
       </section>
 
       {page.applicantsHeading || page.applicantsBody ? (
-        <section className="py-16 sm:py-20">
+        <section className="py-10 sm:py-14">
           <Container className="flex flex-col items-center gap-5 text-center">
             <MotionReveal>
               <SectionHeading align="center" title={page.applicantsHeading ?? `${name} Visa Applications From Across India`} className="mx-auto" />
@@ -151,10 +151,18 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      <NewVisaRequirementsSection whatYouNeed={page.whatYouNeed} documents={page.documents} documentsNote={page.documentsNote} />
+      <ServiceRequirementsSection
+        whatYouNeed={page.whatYouNeed.map((label) => ({ label }))}
+        documents={page.documents.map((name) => ({ name, required: true }))}
+        notes={[
+          ...(page.documentsNote ? [page.documentsNote] : []),
+          "Additional documents may be required during processing if requested by the relevant authority.",
+          "After successful payment, your Booking ID is created and the document-upload stage becomes available.",
+        ]}
+      />
 
       {page.childrenNote ? (
-        <section className="py-16 sm:py-20">
+        <section className="py-10 sm:py-14">
           <Container>
             <MotionReveal>
               <GlassCard tier={2} className="mx-auto flex max-w-3xl flex-col items-start gap-4 p-6 sm:flex-row sm:p-8">
@@ -173,10 +181,10 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
 
       <NewVisaProcessingTimeSection />
 
-      <section className="py-16 sm:py-20">
-        <Container className="flex flex-col gap-12">
+      <section className="py-10 sm:py-14">
+        <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="The visa process" title="How it works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow="The visa process" title="How It Works" className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={processSteps} sampleStatusText="Your visa application is being processed." />
         </Container>
@@ -188,7 +196,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
 
       <ServiceFaqSection serviceType="NEW_VISA" countryId={page.country.id} />
 
-      <section className="pb-20 sm:pb-28">
+      <section className="pb-14 sm:pb-20">
         <Container>
           <MotionReveal>
             <div className="surface-dark-block flex flex-col items-center gap-6 rounded-xl p-8 text-center sm:p-12">
@@ -201,7 +209,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
               <p className="max-w-xl text-sm text-ink-on-dark-secondary sm:text-base">
                 {page.ctaBody ?? "Choose your visa option, enter your traveller details and complete your application online."}
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <ButtonLink href={applyHref} variant="primary" size="lg">
                   {applyLabel}
                 </ButtonLink>

@@ -12,7 +12,6 @@ export const mainNav: NavLinkItem[] = [
 
 export const utilityLinks = {
   trackStatus: { label: "Track Status", href: "/track" },
-  askAi: { label: "Ask TripNexio AI", href: "/ai" },
 };
 
 export const headerActions = {

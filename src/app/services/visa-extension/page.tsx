@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { CalendarClock, Clock, ClipboardList, CheckCircle2 } from "lucide-react";
+import { CalendarClock, Clock, ClipboardCheck, ShieldCheck, CreditCard, Send } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
-import { GlassCard } from "@/components/ui/GlassCard";
+import { ServiceRequirementsSection } from "@/components/services/ServiceRequirementsSection";
 import { ServiceHeroBackdrop } from "@/components/services/ServiceHeroBackdrop";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
@@ -26,14 +26,15 @@ export const metadata: Metadata = {
 };
 
 // Locked — P05: exactly these five, nothing else.
-const whatYoullNeed = ["Name", "Mobile Number", "Email Address", "Passport Number", "Visa Expiry Date"];
+const whatYoullNeed = ["Name", "Mobile Number", "Email Address", "Passport Number", "Visa Expiry Date"].map((label) => ({ label }));
 
-// Locked content — doc §5 "How It Works — reference-style 4-step journey".
+// Client correction 2026-10-05 — compact 4 steps. Step 2 checks the visa and
+// documents, not the passengers.
 const visaProcessSteps = [
-  { step: "01", headline: "Share your visa details", supportingCopy: "Enter your name, mobile number, email address, passport number and visa expiry date." },
-  { step: "02", headline: "We check your eligibility", supportingCopy: "We review your existing TripNexio visa and extension eligibility." },
-  { step: "03", headline: "Review your extension", supportingCopy: "See the verified visa details, extension fee, applicable fine/overstay amount and payment deadline." },
-  { step: "04", headline: "Get your extended visa", supportingCopy: "Complete payment and receive your extended visa once processing is completed." },
+  { step: "01", icon: ClipboardCheck, headline: "Start Your Extension Request", supportingCopy: "Confirm your UAE entry date and required extension details." },
+  { step: "02", icon: ShieldCheck, headline: "We Verify Your Visa & Documents", supportingCopy: "Our team checks your TripNexio-issued visa, actual expiry and required documents for eligibility." },
+  { step: "03", icon: CreditCard, headline: "Review & Pay", supportingCopy: "Once verification is complete, review the quotation and complete payment." },
+  { step: "04", icon: Send, headline: "Receive Your Extended Visa", supportingCopy: "We process the extension and send the extended visa copy by WhatsApp and email." },
 ];
 
 // Locked default from the page doc §6/§9 ("Payment Link — Valid for 24 hours"),
@@ -66,7 +67,7 @@ export default async function VisaExtensionLandingPage() {
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="VISA_EXTENSION" />
-        <Container className="relative flex flex-col items-center gap-6 py-20 text-center sm:py-28">
+        <Container className="relative flex flex-col items-center gap-6 py-14 text-center sm:py-20">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
               <CalendarClock className="h-6 w-6" aria-hidden="true" />
@@ -90,7 +91,7 @@ export default async function VisaExtensionLandingPage() {
             <p className="text-sm font-medium text-ink-tertiary">30-Day Extension • Online Request • Guided Process</p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">
                 Apply for Visa Extension
               </ButtonLink>
@@ -102,10 +103,10 @@ export default async function VisaExtensionLandingPage() {
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+      <section className="py-10 sm:py-14">
+        <Container>
           <MotionReveal>
-            <div className="flex flex-col gap-4">
+            <div className="flex max-w-3xl flex-col gap-4">
               <SectionHeading eyebrow="Who is this for?" title="Only for TripNexio-issued visas" />
               <p className="text-sm text-ink-secondary sm:text-base">
                 We currently offer Visa Extension only for visas originally issued through TripNexio. If we can&apos;t
@@ -114,31 +115,15 @@ export default async function VisaExtensionLandingPage() {
             </div>
           </MotionReveal>
 
-          <MotionReveal delay={0.08}>
-            <GlassCard tier={2} className="flex flex-col gap-4 p-6 sm:p-8">
-              <div className="flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
-                  <ClipboardList className="h-5 w-5" aria-hidden="true" />
-                </span>
-                <p className="text-base font-semibold text-ink-heading">What you&rsquo;ll need</p>
-              </div>
-              <ul className="flex flex-col gap-2.5">
-                {whatYoullNeed.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </GlassCard>
-          </MotionReveal>
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
-        <Container className="flex flex-col gap-12">
+      <ServiceRequirementsSection whatYouNeed={whatYoullNeed} documents={[]} />
+
+      <section className="py-10 sm:py-14">
+        <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How it works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={visaProcessSteps} />
         </Container>
@@ -150,7 +135,7 @@ export default async function VisaExtensionLandingPage() {
       <AfterPaymentOutcomesSection />
       <ServiceFaqSection serviceType="VISA_EXTENSION" />
 
-      <section className="pb-20 sm:pb-28">
+      <section className="pb-14 sm:pb-20">
         <Container>
           <MotionReveal>
             <div className="surface-dark-block flex flex-col items-center gap-6 rounded-xl p-8 text-center sm:p-12">
@@ -163,7 +148,7 @@ export default async function VisaExtensionLandingPage() {
               <p className="max-w-xl text-sm text-ink-on-dark-secondary sm:text-base">
                 Check your extension eligibility and submit your request online.
               </p>
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">
                   Check Extension Eligibility
                 </ButtonLink>

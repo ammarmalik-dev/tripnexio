@@ -102,4 +102,4 @@ export const visaExtensionStepFields: Record<number, (keyof VisaExtensionRequest
   2: [],
 };
 
-export const visaExtensionStepLabels = ["Your Details", "Other Applicants", "Summary"];
+export const visaExtensionStepLabels = ["Your Details", "Add Applicants", "Summary"];

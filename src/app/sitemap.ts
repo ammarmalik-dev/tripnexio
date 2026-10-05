@@ -15,7 +15,6 @@ const PUBLIC_PATHS = [
   "/services/return-ticket",
   "/services/otb",
   "/track",
-  "/ai",
   "/about",
   "/faq",
   "/blog",

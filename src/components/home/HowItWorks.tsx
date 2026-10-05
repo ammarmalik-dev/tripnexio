@@ -38,8 +38,8 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-20 sm:py-28">
-      <Container className="flex flex-col gap-12">
+    <section id="how-it-works" className="py-14 sm:py-20">
+      <Container className="flex flex-col gap-10">
         <MotionReveal>
           <SectionHeading
             align="center"

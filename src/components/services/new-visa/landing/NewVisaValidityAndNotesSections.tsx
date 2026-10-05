@@ -17,7 +17,7 @@ export function NewVisaValiditySection({ validityText, stayText }: { validityTex
   if (cards.length === 0) return null;
 
   return (
-    <section className="py-16 sm:py-20">
+    <section className="py-10 sm:py-14">
       <Container className="flex flex-col gap-8">
         <MotionReveal>
           <SectionHeading align="center" title="Visa validity & stay" className="mx-auto" />
@@ -46,7 +46,7 @@ export function NewVisaValiditySection({ validityText, stayText }: { validityTex
 export function NewVisaBeforeYouApplySection({ items }: { items: string[] }) {
   if (items.length === 0) return null;
   return (
-    <section className="py-16 sm:py-20">
+    <section className="py-10 sm:py-14">
       <Container>
         <MotionReveal>
           <GlassCard tier={2} className="mx-auto flex max-w-3xl flex-col gap-5 p-6 sm:p-8">

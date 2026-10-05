@@ -49,7 +49,7 @@ export function Step2Details() {
           {...register("passportNumber")}
         />
         <DateField
-          label="Visa Last Date"
+          label="Visa Expiry Date"
           required
           min={MIN_VISA_LAST_DATE}
           hint="The expiry date on your current visa."
@@ -128,7 +128,7 @@ export function Step2Details() {
                   {...register(`additionalPassengers.${index}.passportNumber` as const)}
                 />
                 <DateField
-                  label="Visa Last Date"
+                  label="Visa Expiry Date"
                   required
                   min={MIN_VISA_LAST_DATE}
                   error={errors.additionalPassengers?.[index]?.visaLastDate?.message}

@@ -1,4 +1,4 @@
-import { HeroCarousel } from "@/components/motion/HeroCarousel";
+import { HeroImage } from "@/components/home/HeroImage";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { Container } from "@/components/ui/Container";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -15,8 +15,8 @@ export default function Home() {
   return (
     <>
       <section className="relative overflow-hidden">
-        <HeroCarousel />
-        <Container className="relative flex flex-col items-center gap-8 py-28 text-center sm:pb-20 sm:pt-36">
+        <HeroImage />
+        <Container className="relative flex flex-col items-center gap-8 pb-16 pt-20 text-center sm:pb-24 sm:pt-28">
           <MotionReveal>
             <span className="text-xs font-semibold tracking-wide text-ink-accent">
               Visa &middot; Flights &middot; OTB
@@ -25,7 +25,7 @@ export default function Home() {
 
           <MotionReveal delay={0.08}>
             <h1 className="max-w-3xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-6xl">
-              Travel Made Simple with{" "}
+              Travel Made Easy with{" "}
               <span className="text-gradient-accent">TripNexio</span>
             </h1>
           </MotionReveal>

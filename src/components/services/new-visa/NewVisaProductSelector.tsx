@@ -88,9 +88,7 @@ export function NewVisaProductSelector({ countryCode: lockedCountryCode }: { cou
   const processingLabel = processingOptions.find((option) => option.code === processingType)?.label ?? processingType;
   const [adults, setAdults] = useState(1);
   const [children, setChildren] = useState(0);
-  // Infants are priced separately at checkout (age on the travel date), so
-  // the preview counts them too — otherwise it undercuts the charged total.
-  const [infants, setInfants] = useState(0);
+  // New Visa has Adult and Child only (client correction 2026-10-05); a child under 2 is priced as a Child.
   const [price, setPrice] = useState<{ loading: boolean; configured: boolean; total: number | null }>({
     loading: false,
     configured: false,
@@ -152,7 +150,6 @@ export function NewVisaProductSelector({ countryCode: lockedCountryCode }: { cou
           processingType,
           adults: String(adults),
           children: String(children),
-          infants: String(infants),
         });
         const res = await fetch(`/api/new-visa-price?${params.toString()}`);
         if (!res.ok || cancelled) return;
@@ -168,7 +165,7 @@ export function NewVisaProductSelector({ countryCode: lockedCountryCode }: { cou
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [countryCode, selectedId, processingType, adults, children, infants]);
+  }, [countryCode, selectedId, processingType, adults, children]);
 
   if (products === null) {
     return <Skeleton className="h-96 w-full" />;
@@ -177,7 +174,7 @@ export function NewVisaProductSelector({ countryCode: lockedCountryCode }: { cou
     return null;
   }
 
-  const applyHref = `/services/new-visa/request?country=${encodeURIComponent(countryCode)}&config=${encodeURIComponent(selected.id)}&processingType=${processingType}&travelers=${adults + children + infants}`;
+  const applyHref = `/services/new-visa/request?country=${encodeURIComponent(countryCode)}&config=${encodeURIComponent(selected.id)}&processingType=${processingType}&travelers=${adults + children}`;
   const optionClass = (active: boolean) =>
     cn(
       "flex flex-1 flex-col items-center rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors duration-150",
@@ -242,10 +239,9 @@ export function NewVisaProductSelector({ countryCode: lockedCountryCode }: { cou
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Counter label="Adults" value={adults} onChange={setAdults} min={1} />
         <Counter label="Children" value={children} onChange={setChildren} min={0} />
-        <Counter label="Infants (under 2)" value={infants} onChange={setInfants} min={0} />
       </div>
 
       <div className="flex flex-col gap-2">

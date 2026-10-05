@@ -90,4 +90,4 @@ export const returnTicketStepFields: Record<number, (keyof ReturnTicketRequestVa
   2: [],
 };
 
-export const returnTicketStepLabels = ["Trip Details", "Other Applicants", "Summary"];
+export const returnTicketStepLabels = ["Trip Details", "Add Passengers", "Summary"];

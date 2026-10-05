@@ -24,8 +24,8 @@ const quoteOptionDetails = [
 /** Doc §8 — more than one flight option may be sent for the same request. */
 export function MultipleOptionsSection() {
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
+    <section className="py-10 sm:py-14">
+      <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <SectionHeading
             eyebrow="Compare available options"
@@ -60,8 +60,8 @@ interface QuoteValiditySectionProps {
 export function QuoteValiditySection({ validityMinutes }: QuoteValiditySectionProps) {
   const minutesLabel = `${validityMinutes} ${validityMinutes === 1 ? "minute" : "minutes"}`;
   return (
-    <section className="py-16 sm:py-20">
-      <Container className="grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-16">
+    <section className="py-10 sm:py-14">
+      <Container className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <div className="flex flex-col gap-5">
             <SectionHeading eyebrow="Limited-time quote" title="Your fare is available for a limited time" />

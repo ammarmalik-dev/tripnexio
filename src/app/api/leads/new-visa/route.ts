@@ -15,7 +15,7 @@ import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { findNewVisaTravellerIssues } from "@/lib/validation/new-visa-schema";
-import { computePaxType } from "@/lib/leads/pax-type";
+import { computeNewVisaPaxType } from "@/lib/leads/pax-type";
 import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { describeError } from "@/lib/api/describe-error";
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const paxTypes = travellers.map((t) => computePaxType(t.dob, travelDate));
+  const paxTypes = travellers.map((t) => computeNewVisaPaxType(t.dob, travelDate));
 
   try {
     const result = await createLeadFromSubmission({

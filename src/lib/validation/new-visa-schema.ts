@@ -193,10 +193,11 @@ export type NewVisaStep2Values = z.infer<typeof newVisaStep2Schema>;
 export type NewVisaRequestValues = z.infer<typeof newVisaRequestSchema>;
 
 export const newVisaStepFields: Record<number, (keyof NewVisaRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "destinationCountry", "newVisaConfigId", "visaType", "travelDate"],
-  1: ["passportNumber", "dob", "occupation", "additionalTravellers"],
+  0: ["fullName", "mobile", "email", "destinationCountry", "newVisaConfigId", "visaType"],
+  1: ["travelDate", "passportNumber", "dob", "occupation", "additionalTravellers"],
   2: ["processingType"],
   3: [],
 };
 
-export const newVisaStepLabels = ["Travel Details", "Travellers", "Processing Type", "Summary"];
+// Client correction 2026-10-05: Basic Details -> Applicant Details (with the expected travel date) -> Normal/Express -> Summary.
+export const newVisaStepLabels = ["Basic Details", "Applicant Details", "Processing Type", "Summary"];

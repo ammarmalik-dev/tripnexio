@@ -59,22 +59,3 @@ export async function resolveOtbApplicantPrices(input: {
     return price === null || price === undefined ? fallback : Number(price);
   });
 }
-
-/** P18 — the OTB service card's "Starting from": the lowest active normal price (OtbPrice rows or airline prices). */
-export async function lowestOtbStartingPrice(): Promise<number | null> {
-  const [priceRow, airlineRow] = await Promise.all([
-    db.otbPrice.findFirst({
-      where: { active: true, airline: { active: true, otbRequired: true } },
-      orderBy: { normalPrice: "asc" },
-      select: { normalPrice: true },
-    }),
-    db.airline.findFirst({
-      where: { active: true, otbRequired: true, normalPrice: { not: null } },
-      orderBy: { normalPrice: "asc" },
-      select: { normalPrice: true },
-    }),
-  ]);
-  const candidates = [priceRow?.normalPrice, airlineRow?.normalPrice].filter((value) => value !== null && value !== undefined).map(Number);
-  const positive = candidates.filter((value) => value > 0);
-  return positive.length ? Math.min(...positive) : null;
-}

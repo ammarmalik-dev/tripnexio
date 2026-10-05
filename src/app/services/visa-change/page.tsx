@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { ArrowLeftRight, Clock } from "lucide-react";
+import { ArrowLeftRight, Clock, ClipboardList, SearchCheck, CreditCard, BadgeCheck } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { ButtonLink } from "@/components/ui/ButtonLink";
@@ -24,18 +24,12 @@ export const metadata: Metadata = {
     "Change your UAE visa status — Airport-to-Airport or Border Exit, confirmed by our team. Submit your details online and we handle the rest.",
 };
 
-// Locked content — doc §11 "How It Works — final reference-style copy" (7 steps).
-// "sponsor/vendor" in the source doc's step 02 kept as "sponsor/partner" — the
-// client's own site-wide Sep 24 wording instruction (Vendor -> Partner)
-// takes precedence over this doc's literal wording.
+// Client correction 2026-10-05 — exactly 4 steps.
 const visaProcessSteps = [
-  { step: "01", headline: "Start your application", supportingCopy: "Choose A2A or Border Exit and enter your traveller details." },
-  { step: "02", headline: "We check availability", supportingCopy: "Our team checks the available sponsor/partner arrangements." },
-  { step: "03", headline: "Choose your confirmed option", supportingCopy: "Once availability is confirmed, you can select the available date, time and package." },
-  { step: "04", headline: "Complete payment", supportingCopy: "Review the package, terms and final price, then make payment." },
-  { step: "05", headline: "Complete your Visa Change", supportingCopy: "Receive the confirmed travel/exit details and follow the instructions provided." },
-  { step: "06", headline: "Exit completed", supportingCopy: "Our team records the completed exit and starts the next stage." },
-  { step: "07", headline: "New Visa Processing", supportingCopy: "The new visa application proceeds and the visa is delivered once approved." },
+  { step: "01", icon: ClipboardList, headline: "Start Your Application", supportingCopy: "Choose A2A or Border Exit and enter your traveller details." },
+  { step: "02", icon: SearchCheck, headline: "We Check & Confirm Availability", supportingCopy: "Our team checks availability and shares the available option." },
+  { step: "03", icon: CreditCard, headline: "Choose Your Option & Pay", supportingCopy: "Select your confirmed date, time and package, then review and complete payment." },
+  { step: "04", icon: BadgeCheck, headline: "We Complete Your Visa Change", supportingCopy: "Follow the exit instructions. After exit completion, the new visa process starts and the approved visa is delivered." },
 ];
 
 export default function VisaChangeLandingPage() {
@@ -43,7 +37,7 @@ export default function VisaChangeLandingPage() {
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="VISA_CHANGE" />
-        <Container className="relative flex flex-col items-center gap-6 py-20 text-center sm:py-28">
+        <Container className="relative flex flex-col items-center gap-6 py-14 text-center sm:py-20">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
               <ArrowLeftRight className="h-6 w-6" aria-hidden="true" />
@@ -64,7 +58,7 @@ export default function VisaChangeLandingPage() {
             </p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/visa-change/request" variant="primary" size="lg">
                 Start Visa Change
               </ButtonLink>
@@ -81,10 +75,10 @@ export default function VisaChangeLandingPage() {
       <VisaChangeRequirements />
       <VisaChangePricingSection />
 
-      <section className="py-16 sm:py-20">
-        <Container className="flex flex-col gap-12">
+      <section className="py-10 sm:py-14">
+        <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How it works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={visaProcessSteps} />
         </Container>
@@ -95,7 +89,7 @@ export default function VisaChangeLandingPage() {
 
       <ServiceFaqSection serviceType="VISA_CHANGE" />
 
-      <section className="pb-20 sm:pb-28">
+      <section className="pb-14 sm:pb-20">
         <Container>
           <MotionReveal>
             <div className="surface-dark-block flex flex-col items-center gap-6 rounded-xl p-8 text-center sm:p-12">
@@ -105,7 +99,7 @@ export default function VisaChangeLandingPage() {
               <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
                 Ready to change your visa?
               </h2>
-              <div className="flex flex-wrap items-center justify-center gap-3">
+              <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <ButtonLink href="/services/visa-change/request" variant="primary" size="lg">
                   Start Visa Change
                 </ButtonLink>

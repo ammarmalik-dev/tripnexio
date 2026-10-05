@@ -45,7 +45,7 @@ export async function ServiceFaqSection({
   const items = await loadServiceFaqs(serviceType, countryId);
   if (items.length === 0) return null;
   return (
-    <section className="py-16 sm:py-20">
+    <section className="py-10 sm:py-14">
       <Container className="flex flex-col gap-8">
         <MotionReveal>
           <SectionHeading align="center" eyebrow="FAQ" title={title} className="mx-auto" />

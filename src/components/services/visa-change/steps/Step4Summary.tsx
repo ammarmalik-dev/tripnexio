@@ -34,7 +34,7 @@ export function Step4Summary() {
         <SummaryRow label="Method" value={CHANGE_TYPE_LABEL[values.changeType]} />
         <SummaryRow label="Full Name" value={values.fullName} />
         <SummaryRow label="Passport Number" value={values.passportNumber} />
-        <SummaryRow label="Visa Last Date" value={formatDate(values.visaLastDate)} />
+        <SummaryRow label="Visa Expiry Date" value={formatDate(values.visaLastDate)} />
         <SummaryRow label="Mobile Number" value={values.mobile} />
         <SummaryRow label="Email" value={values.email} />
         <SummaryRow label="Nationality" value={nationality} />

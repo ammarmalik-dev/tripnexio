@@ -8,7 +8,6 @@ import { getActiveServices } from "@/lib/services/active-services";
 import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
 import { SERVICE_ICON_MAP } from "@/lib/service-icons";
 import { headerActions } from "@/lib/nav-config";
-import { lowestOtbStartingPrice } from "@/lib/otb/pricing";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 
 const FALLBACK_ICONS: Record<string, string> = {
@@ -42,16 +41,6 @@ async function loadServicesSafely() {
   }
 }
 
-/** P18 — the OTB card's "Starting from" (lowest active Admin price); never blocks the grid if it can't be read. */
-async function otbStartingFrom(): Promise<string | undefined> {
-  try {
-    const price = await lowestOtbStartingPrice();
-    return price === null ? undefined : `Starting from ₹${price.toLocaleString("en-IN")}`;
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * Server Component querying the Service table directly (not via the public
  * /api/services route — same server, no reason to round-trip HTTP) so an
@@ -62,11 +51,12 @@ async function otbStartingFrom(): Promise<string | undefined> {
  * row must never crash the homepage).
  */
 export async function ServicesGrid() {
-  const [services, otbFrom] = await Promise.all([loadServicesSafely(), otbStartingFrom()]);
+  // No prices on the service cards (client correction 2026-10-05).
+  const services = await loadServicesSafely();
 
   return (
-    <section className="py-20 sm:py-28">
-      <Container className="flex flex-col gap-12">
+    <section className="py-14 sm:py-20">
+      <Container className="flex flex-col gap-10">
         <MotionReveal>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
@@ -99,7 +89,6 @@ export async function ServicesGrid() {
                   image={routeInfo.image}
                   imageAlt={routeInfo.imageAlt}
                   icon={<Icon className="h-5 w-5" aria-hidden="true" />}
-                  startingFrom={service.code === "OTB" ? otbFrom : undefined}
                 />
               </MotionReveal>
             );

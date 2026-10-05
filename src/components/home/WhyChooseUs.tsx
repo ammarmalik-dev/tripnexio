@@ -40,8 +40,8 @@ const reasons = [
 
 export function WhyChooseUs() {
   return (
-    <section className="py-20 sm:py-28">
-      <Container className="flex flex-col gap-12">
+    <section className="py-14 sm:py-20">
+      <Container className="flex flex-col gap-10">
         <MotionReveal>
           <SectionHeading eyebrow="Why TripNexio" title="A Simpler Way to Travel" />
         </MotionReveal>

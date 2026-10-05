@@ -12,7 +12,7 @@ import { MotionReveal } from "@/components/motion/MotionReveal";
 export function VisaChangeOverview() {
   return (
     <>
-      <section className="py-16 sm:py-20">
+      <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-4">
           <MotionReveal>
             <SectionHeading
@@ -34,7 +34,7 @@ export function VisaChangeOverview() {
         </Container>
       </section>
 
-      <section className="py-16 sm:py-20">
+      <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
           <MotionReveal>
             <SectionHeading

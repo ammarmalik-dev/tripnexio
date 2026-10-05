@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Globe2, Search } from "lucide-react";
+import { ArrowRight, Clock, Globe2, Search } from "lucide-react";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
 import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
@@ -45,7 +45,7 @@ export function NewVisaCountryGrid({ cards }: { cards: CountryPageCard[] }) {
           No destination matches &ldquo;{query.trim()}&rdquo;. Ask us on WhatsApp if you can&rsquo;t find your country.
         </p>
       ) : (
-        <ul className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {visible.map((card, index) => (
             <li key={card.slug}>
               <MotionReveal delay={Math.min(index, 6) * 0.05} className="h-full">
@@ -60,7 +60,7 @@ export function NewVisaCountryGrid({ cards }: { cards: CountryPageCard[] }) {
                         alt=""
                         fill
                         unoptimized
-                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
                       />
                     ) : (
@@ -68,7 +68,7 @@ export function NewVisaCountryGrid({ cards }: { cards: CountryPageCard[] }) {
                         src={SERVICE_ROUTE_INFO.NEW_VISA.image}
                         alt=""
                         fill
-                        sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                        sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
                         className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none"
                       />
                     )}
@@ -84,21 +84,25 @@ export function NewVisaCountryGrid({ cards }: { cards: CountryPageCard[] }) {
                       <h3 className="text-lg font-semibold drop-shadow">{card.countryName}</h3>
                     </div>
                   </div>
-                  <div className="flex flex-1 flex-col gap-4 p-5">
+                  <div className="flex flex-1 flex-col gap-3 p-4">
                     {card.tagline ? <p className="text-sm text-ink-secondary">{card.tagline}</p> : null}
-                    <div className="mt-auto flex items-end justify-between gap-3">
-                      <div>
-                        {card.fromPrice !== null ? (
-                          <>
-                            <p className="text-xs text-ink-tertiary">Starting from</p>
-                            <p className="text-lg font-semibold text-ink-heading">{RUPEE_FORMATTER.format(card.fromPrice)}</p>
-                          </>
-                        ) : (
-                          <p className="text-sm text-ink-tertiary">Price on request</p>
-                        )}
-                      </div>
-                      <span className="inline-flex items-center gap-1 text-sm font-semibold text-accent-on-light">
-                        View details
+                    {card.processingText ? (
+                      <p className="flex items-center gap-1.5 text-xs text-ink-tertiary">
+                        <Clock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                        Processing: {card.processingText}
+                      </p>
+                    ) : null}
+                    <div className="mt-auto flex flex-col gap-3">
+                      {card.fromPrice !== null ? (
+                        <p className="text-sm text-ink-tertiary">
+                          Starting from{" "}
+                          <span className="text-lg font-semibold text-ink-heading">{RUPEE_FORMATTER.format(card.fromPrice)}</span>
+                        </p>
+                      ) : (
+                        <p className="text-sm text-ink-tertiary">Price on request</p>
+                      )}
+                      <span className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[image:var(--gradient-accent)] px-4 py-2 text-sm font-semibold text-white transition-shadow duration-200 group-hover:shadow-md">
+                        Apply Now
                         <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />
                       </span>
                     </div>
