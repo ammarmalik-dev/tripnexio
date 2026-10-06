@@ -9,6 +9,7 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { RecordHeader, RecordSection, RecordTabs } from "./detail/RecordDetail";
+import { LeadDirectPaymentButton } from "./LeadDirectPaymentButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
@@ -136,6 +137,9 @@ interface LeadDetailResponse {
 }
 
 type FetchState = "loading" | "success" | "error";
+
+/** Fixed-price services: paid via a direct payment link from the lead, no quotation. */
+const DIRECT_PAYMENT_SERVICES = new Set<ServiceType>(["NEW_VISA", "OTB", "RETURN_TICKET"]);
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -326,6 +330,9 @@ export function LeadDetail({
               <Plus className="h-4 w-4" aria-hidden="true" />
               Create Booking
             </Button>
+          ) : DIRECT_PAYMENT_SERVICES.has(lead.serviceType) && !hasActiveBooking && !selectedQuotation ? (
+            // Client corrections 2026-10-05 §16 — Lead → Direct Payment Link → Booking for fixed-price services.
+            <LeadDirectPaymentButton leadId={lead.id} onCreated={refresh} />
           ) : null
         }
       />

@@ -49,6 +49,8 @@ export async function createAutoCheckout(input: {
   skipAutoPayment?: boolean;
   /** Client corrections 2026-10-05 — invoice lines (per passenger type, government/airline fee apart); their total must equal totalPrice. */
   invoiceLines?: InvoiceLine[];
+  /** Who raised the payment link (audit wording); defaults to the website checkout. */
+  actorLabel?: string;
 }): Promise<{ token: string; bookingId: string } | null> {
   const { leadId, serviceType, totalPrice, vendorCost = 0, extraCharges = 0, couponCode, skipAutoPayment = false, invoiceLines } = input;
   if (!(totalPrice > 0)) return null;
@@ -165,7 +167,7 @@ export async function createAutoCheckout(input: {
     await createPendingPayment({
       booking: { ...booking, customer: lead.customer, lead },
       quotation,
-      actor: { label: "automatic website checkout" },
+      actor: { label: input.actorLabel ?? "automatic website checkout" },
     });
   }
 
