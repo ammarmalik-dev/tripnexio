@@ -18,6 +18,9 @@ export const updateServiceTimelineConfigSchema = z.object({
   /** P10 — New Visa minimum working days before travel (Normal / Express). */
   minTravelDaysNormal: z.number().int("Enter whole days").min(0, "Can't be negative").max(90, "At most 90 days").nullable().optional(),
   minTravelDaysExpress: z.number().int("Enter whole days").min(0, "Can't be negative").max(90, "At most 90 days").nullable().optional(),
+  /** Client corrections 2026-10-05 — New Visa processing working days (Expected Approval Date). */
+  processingDaysNormal: z.number().int("Enter whole days").min(0, "Can't be negative").max(90, "At most 90 days").nullable().optional(),
+  processingDaysExpress: z.number().int("Enter whole days").min(0, "Can't be negative").max(90, "At most 90 days").nullable().optional(),
   /** P17 — Return Ticket auto-complete delay after the travel date. */
   autoCompleteAfterDays: z.number().int("Enter whole days").min(0, "Can't be negative").max(90, "At most 90 days").nullable().optional(),
   active: z.boolean().optional(),

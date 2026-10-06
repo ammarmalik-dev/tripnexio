@@ -10,6 +10,7 @@ import { workingDaysBetween } from "@/lib/calendar/working-calendar";
 import { allowedProcessingTypes, DEFAULT_MIN_TRAVEL_DAYS, type NewVisaTravelRules } from "@/lib/new-visa/products";
 import type { NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
+import { ExpectedApprovalDate } from "../ExpectedApprovalDate";
 
 /**
  * P10 — Normal needs the travel date at least N UAE working days away,
@@ -95,6 +96,13 @@ export function Step2ProcessingType() {
           };
         })}
       />
+      {processingType && allowed.includes(processingType) ? (
+        <ExpectedApprovalDate
+          label={labelFor(processingType)}
+          workingDays={processingType === "urgent" ? rules.processingDaysExpress : rules.processingDaysNormal}
+          calendar={calendar}
+        />
+      ) : null}
       {allowed.length === 0 ? (
         <p role="alert" className="rounded-lg bg-error/10 px-4 py-3 text-sm text-error">
           Your travel date is too close for us to process a visa in time. Please choose a later travel date, or message

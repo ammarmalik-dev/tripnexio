@@ -7,5 +7,7 @@ export async function getNewVisaTravelRules(): Promise<NewVisaTravelRules> {
   return {
     minTravelDaysNormal: timeline.minTravelDaysNormal ?? DEFAULT_MIN_TRAVEL_DAYS.normal,
     minTravelDaysExpress: timeline.minTravelDaysExpress ?? DEFAULT_MIN_TRAVEL_DAYS.urgent,
+    processingDaysNormal: timeline.processingDaysNormal,
+    processingDaysExpress: timeline.processingDaysExpress,
   };
 }

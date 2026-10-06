@@ -2485,6 +2485,11 @@ model ServiceTimelineConfig {
   /// P10 — New Visa: minimum working days before travel for Normal / Express (defaults 7 / 3 when unset).
   minTravelDaysNormal       Int?
   minTravelDaysExpress      Int?
+  /// Client corrections 2026-10-05 — New Visa processing time in working days
+  /// (Normal / Express); the form shows the Expected Approval Date from these.
+  /// Null = no date shown (never guessed).
+  processingDaysNormal      Int?
+  processingDaysExpress     Int?
   /// P17 — Return Ticket: days after the travel date before a delivered booking auto-completes (null = 0).
   autoCompleteAfterDays     Int?
 

@@ -9,6 +9,9 @@ export interface ServiceTimelineRules {
   followUpIntervalDays: number | null;
   minTravelDaysNormal: number | null;
   minTravelDaysExpress: number | null;
+  /** Client corrections 2026-10-05 — New Visa processing working days (Expected Approval Date). */
+  processingDaysNormal: number | null;
+  processingDaysExpress: number | null;
   /** P17 — Return Ticket: days after travel before a delivered booking auto-completes. */
   autoCompleteAfterDays: number | null;
 }
@@ -21,6 +24,8 @@ const EMPTY_RULES: ServiceTimelineRules = {
   followUpIntervalDays: null,
   minTravelDaysNormal: null,
   minTravelDaysExpress: null,
+  processingDaysNormal: null,
+  processingDaysExpress: null,
   autoCompleteAfterDays: null,
 };
 
@@ -41,6 +46,8 @@ export async function getServiceTimelineRules(serviceType: ServiceType): Promise
     followUpIntervalDays: config.followUpIntervalDays,
     minTravelDaysNormal: config.minTravelDaysNormal,
     minTravelDaysExpress: config.minTravelDaysExpress,
+    processingDaysNormal: config.processingDaysNormal,
+    processingDaysExpress: config.processingDaysExpress,
     autoCompleteAfterDays: config.autoCompleteAfterDays,
   };
 }

@@ -28,6 +28,9 @@ export const DEFAULT_MIN_TRAVEL_DAYS = { normal: 7, urgent: 3 } as const;
 export interface NewVisaTravelRules {
   minTravelDaysNormal: number;
   minTravelDaysExpress: number;
+  /** Client corrections 2026-10-05 — processing working days for the Expected Approval Date; null = not configured (no date shown). */
+  processingDaysNormal?: number | null;
+  processingDaysExpress?: number | null;
 }
 
 /** Which processing types can still meet the travel date, given the working days until it. */

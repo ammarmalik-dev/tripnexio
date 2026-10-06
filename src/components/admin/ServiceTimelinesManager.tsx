@@ -22,6 +22,8 @@ interface TimelineData {
   followUpIntervalDays: number | null;
   minTravelDaysNormal: number | null;
   minTravelDaysExpress: number | null;
+  processingDaysNormal: number | null;
+  processingDaysExpress: number | null;
   autoCompleteAfterDays: number | null;
   active: boolean;
 }
@@ -36,6 +38,8 @@ interface FormState {
   followUpIntervalDays: string;
   minTravelDaysNormal: string;
   minTravelDaysExpress: string;
+  processingDaysNormal: string;
+  processingDaysExpress: string;
   autoCompleteAfterDays: string;
 }
 
@@ -48,6 +52,8 @@ function toFormState(item: TimelineData): FormState {
     followUpIntervalDays: item.followUpIntervalDays === null ? "" : String(item.followUpIntervalDays),
     minTravelDaysNormal: item.minTravelDaysNormal === null ? "" : String(item.minTravelDaysNormal),
     minTravelDaysExpress: item.minTravelDaysExpress === null ? "" : String(item.minTravelDaysExpress),
+    processingDaysNormal: item.processingDaysNormal === null ? "" : String(item.processingDaysNormal),
+    processingDaysExpress: item.processingDaysExpress === null ? "" : String(item.processingDaysExpress),
     autoCompleteAfterDays: item.autoCompleteAfterDays === null ? "" : String(item.autoCompleteAfterDays),
   };
 }
@@ -62,6 +68,8 @@ function buildPayload(form: FormState) {
     followUpIntervalDays: toNullableInt(form.followUpIntervalDays),
     minTravelDaysNormal: toNullableInt(form.minTravelDaysNormal),
     minTravelDaysExpress: toNullableInt(form.minTravelDaysExpress),
+    processingDaysNormal: toNullableInt(form.processingDaysNormal),
+    processingDaysExpress: toNullableInt(form.processingDaysExpress),
     autoCompleteAfterDays: toNullableInt(form.autoCompleteAfterDays),
   };
 }
@@ -202,6 +210,30 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
               value={form.minTravelDaysExpress}
               onChange={(event) => setForm({ ...form, minTravelDaysExpress: event.target.value })}
               error={errors.minTravelDaysExpress?.[0]}
+              disabled={saving}
+            />
+            <TextField
+              label="Normal: processing time (working days)"
+              name={`proc-normal-${item.id}`}
+              type="number"
+              min={0}
+              placeholder="Not set"
+              hint="Shows the Expected Approval Date on the New Visa form. Leave empty to hide it."
+              value={form.processingDaysNormal}
+              onChange={(event) => setForm({ ...form, processingDaysNormal: event.target.value })}
+              error={errors.processingDaysNormal?.[0]}
+              disabled={saving}
+            />
+            <TextField
+              label="Express: processing time (working days)"
+              name={`proc-express-${item.id}`}
+              type="number"
+              min={0}
+              placeholder="Not set"
+              hint="Expected Approval Date for Express."
+              value={form.processingDaysExpress}
+              onChange={(event) => setForm({ ...form, processingDaysExpress: event.target.value })}
+              error={errors.processingDaysExpress?.[0]}
               disabled={saving}
             />
           </>
