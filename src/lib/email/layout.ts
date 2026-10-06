@@ -15,6 +15,8 @@ export interface EmailHero {
   /** Short status shown in the green pill (e.g. "Approved"); omitted when null. */
   badge?: string | null;
   illustration: EmailIllustration;
+  /** Client corrections 2026-10-05 §9 — flight emails show the airline's logo + name under the heading. */
+  airline?: { name: string; logoUrl: string | null } | null;
 }
 
 export interface EmailLayoutInput {
@@ -57,6 +59,15 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
         ${
           input.hero.badge
             ? `<span style="${FONT}display:inline-block;margin-top:10px;padding:6px 18px;border-radius:999px;background:#DFF5E6;color:#14783A;font-size:14px;font-weight:700">${esc(input.hero.badge)}</span>`
+            : ""
+        }
+        ${
+          input.hero.airline
+            ? `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:12px auto 0"><tr>${
+                input.hero.airline.logoUrl && /^https:\/\//.test(input.hero.airline.logoUrl)
+                  ? `<td valign="middle" style="padding-right:8px"><img src="${esc(input.hero.airline.logoUrl)}" width="28" height="28" alt="" style="display:block;width:28px;height:28px;border:0;border-radius:6px"></td>`
+                  : ""
+              }<td valign="middle" style="${FONT}font-size:14px;font-weight:600;color:${INK}">${esc(input.hero.airline.name)}</td></tr></table>`
             : ""
         }
       </td></tr>`

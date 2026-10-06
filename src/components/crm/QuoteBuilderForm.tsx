@@ -86,6 +86,13 @@ interface AirlineOption {
   name: string;
 }
 
+interface AirportOption {
+  code: string;
+  name: string;
+  city: string;
+  country: string;
+}
+
 interface AlternativeOption {
   id: string;
   label: string;
@@ -104,6 +111,8 @@ interface QuoteBuilderFormProps {
   isExtension?: boolean;
   vendors: VendorOption[];
   airlines: AirlineOption[];
+  /** Client corrections 2026-10-05 — Airport master (Special Fare route, itinerary sectors); no free-text airports. */
+  airports?: AirportOption[];
   alternativeOptions: AlternativeOption[];
   /** P22 — Visa Change / Special Fare: show the multi-sector itinerary builder. */
   multiSectorItinerary?: boolean;
@@ -133,6 +142,7 @@ export function QuoteBuilderForm({
   isExtension = false,
   vendors,
   airlines,
+  airports = [],
   alternativeOptions,
   multiSectorItinerary = false,
   mode = "create",
@@ -238,6 +248,34 @@ export function QuoteBuilderForm({
   const sectorErrors = errors.itinerary;
   const sectorListError = sectorErrors?.message;
 
+  const airportsByCountry = [...new Map(airports.map((airport) => [airport.country, airports.filter((a) => a.country === airport.country)])).entries()];
+  const airportOptions = (placeholder: string) => (
+    <>
+      <option value="">{airports.length === 0 ? "No active airports in the master" : placeholder}</option>
+      {airportsByCountry.map(([country, list]) => (
+        <optgroup key={country} label={country}>
+          {list.map((airport) => (
+            <option key={airport.code} value={airport.code}>
+              {airport.city} — {airport.name} ({airport.code})
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
+  );
+  const routeAirportSelect = (name: "fromAirportCode" | "toAirportCode", label: string) => (
+    <FormField label={label} htmlFor={name} error={errors[name]?.message} required>
+      <select
+        id={name}
+        defaultValue={initialValues?.[name] ?? ""}
+        className={cn(fieldControlClass, fieldBorderClass(!!errors[name]))}
+        {...register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) })}
+      >
+        {airportOptions(name === "fromAirportCode" ? "Select departure airport" : "Select arrival airport")}
+      </select>
+    </FormField>
+  );
+
   return (
     <form
       onSubmit={(event) => event.preventDefault()}
@@ -280,7 +318,13 @@ export function QuoteBuilderForm({
             {airlineSelect("Airline", false)}
             <TextField label="Flight Number" {...optionalField("flightNumber")} error={errors.flightNumber?.message} />
           </div>
-          <TextField label="Route" placeholder="e.g. BOM → DXB" {...optionalField("route")} error={errors.route?.message} />
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {routeAirportSelect("fromAirportCode", "From (airport)")}
+            {routeAirportSelect("toAirportCode", "To (airport)")}
+          </div>
+          <p className="-mt-2 text-xs text-ink-tertiary">
+            Same-country airports = Domestic, otherwise International — the matching Terms &amp; Conditions are applied automatically.
+          </p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextField
               label="Departure"
@@ -559,20 +603,24 @@ export function QuoteBuilderForm({
                     </div>
                   </div>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <TextField
-                      label="From"
-                      placeholder="e.g. DXB"
-                      required
-                      {...register(`itinerary.${index}.from` as const)}
-                      error={rowErrors?.from?.message}
-                    />
-                    <TextField
-                      label="To"
-                      placeholder="e.g. MCT"
-                      required
-                      {...register(`itinerary.${index}.to` as const)}
-                      error={rowErrors?.to?.message}
-                    />
+                    <FormField label="From" htmlFor={`itinerary-${index}-from`} error={rowErrors?.from?.message} required>
+                      <select
+                        id={`itinerary-${index}-from`}
+                        className={cn(fieldControlClass, fieldBorderClass(!!rowErrors?.from))}
+                        {...register(`itinerary.${index}.from` as const)}
+                      >
+                        {airportOptions("Select airport")}
+                      </select>
+                    </FormField>
+                    <FormField label="To" htmlFor={`itinerary-${index}-to`} error={rowErrors?.to?.message} required>
+                      <select
+                        id={`itinerary-${index}-to`}
+                        className={cn(fieldControlClass, fieldBorderClass(!!rowErrors?.to))}
+                        {...register(`itinerary.${index}.to` as const)}
+                      >
+                        {airportOptions("Select airport")}
+                      </select>
+                    </FormField>
                     <TextField
                       label="Departure"
                       type="datetime-local"
@@ -585,12 +633,20 @@ export function QuoteBuilderForm({
                       {...register(`itinerary.${index}.arriveAt` as const)}
                       error={rowErrors?.arriveAt?.message}
                     />
-                    <TextField
-                      label="Airline"
-                      placeholder="e.g. Air Arabia"
-                      {...register(`itinerary.${index}.airline` as const)}
-                      error={rowErrors?.airline?.message}
-                    />
+                    <FormField label="Airline" htmlFor={`itinerary-${index}-airline`} error={rowErrors?.airline?.message}>
+                      <select
+                        id={`itinerary-${index}-airline`}
+                        className={cn(fieldControlClass, fieldBorderClass(!!rowErrors?.airline))}
+                        {...register(`itinerary.${index}.airline` as const)}
+                      >
+                        <option value="">{airlines.length === 0 ? "No active airlines configured" : "Select an airline"}</option>
+                        {airlines.map((airline) => (
+                          <option key={airline.id} value={airline.code}>
+                            {airline.name} ({airline.code})
+                          </option>
+                        ))}
+                      </select>
+                    </FormField>
                     <TextField
                       label="Flight Number"
                       placeholder="e.g. G9 123"

@@ -1,3 +1,4 @@
+import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
 import type { NextRequest } from "next/server";
 import { updateQuotationSchema } from "@/lib/validation/quotation-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -178,6 +179,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
+  // Client corrections 2026-10-05 §9 — airports from the Airport master; route + Domestic/International derived here.
+  let routeFields: { route: string; flightScope: "DOMESTIC" | "INTERNATIONAL"; fromAirportCode: string; toAirportCode: string } | undefined;
+  if (lead.serviceType === "FLIGHT_SPECIAL_FARE" && (parsed.data.fromAirportCode !== undefined || parsed.data.toAirportCode !== undefined)) {
+    const fromCode = parsed.data.fromAirportCode ?? existing.fromAirportCode;
+    const toCode = parsed.data.toAirportCode ?? existing.toAirportCode;
+    if (!fromCode || !toCode) {
+      return jsonError(400, "Select the departure and arrival airports.", {
+        ...(fromCode ? {} : { fromAirportCode: ["Select the departure airport."] }),
+        ...(toCode ? {} : { toAirportCode: ["Select the arrival airport."] }),
+      });
+    }
+    const resolved = await resolveFlightRoute(fromCode, toCode);
+    if (!resolved.ok) return jsonError(400, resolved.error, { [resolved.field]: [resolved.error] });
+    routeFields = { route: resolved.route, flightScope: resolved.flightScope, fromAirportCode: resolved.fromAirportCode, toAirportCode: resolved.toAirportCode };
+  }
+
   if (parsed.data.airline) {
     const airlineRecord = await findActiveAirlineByCode(parsed.data.airline);
     if (!airlineRecord) {
@@ -240,6 +257,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       where: { id },
       data: {
         ...restOfPatch,
+        ...routeFields,
         vendorCost,
         sellingPrice,
         margin,

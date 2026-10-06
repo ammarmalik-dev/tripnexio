@@ -3,7 +3,7 @@ import { isMockGatewayActive } from "../payments/get-gateway";
 import { assertQuotationPayable } from "../payments/quotation-payable";
 import { leadReference } from "../leads/reference";
 import { resolveCheckoutDocumentTypes } from "./required-documents";
-import { getEffectiveTerms, resolveLeadCountryId } from "../terms/service-terms";
+import { getEffectiveTerms, leadFlightScope, resolveLeadCountryId } from "../terms/service-terms";
 import { findReusableDocuments } from "./reusable-documents";
 import { showPostTicketOffer } from "../cross-sell/post-ticket";
 import { customerAlternativeOffer, parseAlternativeOffer } from "../special-fare/post-payment";
@@ -81,7 +81,13 @@ export async function loadCheckoutByToken(token: string) {
   // P09 — the customer must agree to the service's Terms before any payment
   // option (gateway link or demo button) is offered.
   const termsAccepted = Boolean(booking.termsAcceptedAt);
-  const terms = termsAccepted ? null : await getEffectiveTerms(booking.lead.serviceType, await resolveLeadCountryId(booking.lead.details));
+  const terms = termsAccepted
+    ? null
+    : await getEffectiveTerms(
+        booking.lead.serviceType,
+        await resolveLeadCountryId(booking.lead.details),
+        await leadFlightScope({ id: booking.leadId, serviceType: booking.lead.serviceType })
+      );
 
   return {
     booking,

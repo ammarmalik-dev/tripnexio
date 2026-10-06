@@ -28,6 +28,15 @@ interface AirlineRecord {
   id: string;
   code: string;
   name: string;
+  logoUrl?: string | null;
+}
+
+/** Client corrections 2026-10-05 — Airport master entries for the route / itinerary pickers. */
+export interface AirportRecord {
+  code: string;
+  name: string;
+  city: string;
+  country: string;
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -64,6 +73,8 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
     airline: toText(quotation.airline),
     flightNumber: toText(quotation.flightNumber),
     route: toText(quotation.route),
+    fromAirportCode: toText(quotation.fromAirportCode),
+    toAirportCode: toText(quotation.toAirportCode),
     flightDateTime: toLocalInput(quotation.flightDateTime),
     arrivalDateTime: toLocalInput(quotation.arrivalDateTime),
     baggageAllowance: toText(quotation.baggageAllowance),
@@ -133,6 +144,10 @@ export function QuoteBuilder({
   const [quotations, setQuotations] = useState<QuoteCardData[]>([]);
   const [vendors, setVendors] = useState<VendorRecord[]>([]);
   const [airlines, setAirlines] = useState<AirlineRecord[]>([]);
+  const [airports, setAirports] = useState<AirportRecord[]>([]);
+  const airlineDisplay = Object.fromEntries(
+    airlines.map((airline) => [airline.code.toUpperCase(), { name: airline.name, logoUrl: airline.logoUrl ?? null }])
+  );
   const [errorMessage, setErrorMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -155,15 +170,19 @@ export function QuoteBuilder({
     async function load() {
       setState("loading");
       try {
-        const [quotationList, vendorList, airlineList] = await Promise.all([
+        const [quotationList, vendorList, airlineList, airportList] = await Promise.all([
           getJson<QuoteCardData[]>(`/api/quotations?leadId=${leadId}`),
           getJson<VendorRecord[]>(`/api/vendors?service=${serviceType}`),
           airlineCapable ? getJson<AirlineRecord[]>("/api/airlines") : Promise.resolve<AirlineRecord[]>([]),
+          serviceType === "FLIGHT_SPECIAL_FARE" || serviceType === "VISA_CHANGE"
+            ? getJson<AirportRecord[]>("/api/crm/airports")
+            : Promise.resolve<AirportRecord[]>([]),
         ]);
         if (cancelled) return;
         setQuotations(quotationList);
         setVendors(vendorList);
         setAirlines(airlineList);
+        setAirports(airportList);
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -311,6 +330,7 @@ export function QuoteBuilder({
             isExtension={serviceType === "VISA_EXTENSION"}
             vendors={vendors}
             airlines={airlines}
+            airports={airports}
             alternativeOptions={flightQuote ? alternativeOptions : []}
             multiSectorItinerary={multiSector}
             onSubmit={handleCreate}
@@ -336,6 +356,7 @@ export function QuoteBuilder({
             isExtension={serviceType === "VISA_EXTENSION"}
             vendors={vendors}
             airlines={airlines}
+            airports={airports}
             alternativeOptions={flightQuote ? alternativeOptions : []}
             multiSectorItinerary={multiSector}
             mode={editing.mode}
@@ -377,6 +398,7 @@ export function QuoteBuilder({
           {quotations.map((quotation) => (
             <QuoteCard
               key={quotation.id}
+              airlines={airlineDisplay}
               quotation={quotation}
               isFlightQuote={flightQuote}
               hasItinerary={hasItinerary}

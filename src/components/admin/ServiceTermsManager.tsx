@@ -30,6 +30,7 @@ interface TermsData {
   serviceType: ServiceType;
   countryId: string | null;
   country: CountryOption | null;
+  flightScope: "DOMESTIC" | "INTERNATIONAL" | null;
   version: number;
   title: string;
   body: string;
@@ -62,7 +63,8 @@ function TermsRow({ terms, onSaved }: { terms: TermsData; onSaved: (t: TermsData
             v{terms.version} · {terms.title}
           </p>
           <p className="text-xs text-ink-tertiary">
-            {terms.country ? terms.country.name : "All countries"} · published {new Date(terms.createdAt).toLocaleDateString("en-IN")}
+            {terms.country ? terms.country.name : "All countries"}
+            {terms.flightScope ? ` · ${terms.flightScope === "DOMESTIC" ? "Domestic" : "International"} routes` : ""} · published {new Date(terms.createdAt).toLocaleDateString("en-IN")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -94,6 +96,7 @@ function NewTermsForm({
   defaultCountryId?: string;
 }) {
   const [countryId, setCountryId] = useState(defaultCountryId ?? "");
+  const [flightScope, setFlightScope] = useState<"" | "DOMESTIC" | "INTERNATIONAL">("");
   const [title, setTitle] = useState("Terms & Conditions");
   const [body, setBody] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -103,7 +106,13 @@ function NewTermsForm({
     setSaving(true);
     setErrors({});
     try {
-      const created = await postJson<TermsData>("/api/admin/service-terms", { serviceType, countryId: countryId || null, title: title.trim(), body: body.trim() });
+      const created = await postJson<TermsData>("/api/admin/service-terms", {
+        serviceType,
+        countryId: countryId || null,
+        ...(serviceType === "FLIGHT_SPECIAL_FARE" ? { flightScope: flightScope || null } : {}),
+        title: title.trim(),
+        body: body.trim(),
+      });
       toast.success(`Version ${created.version} published.`);
       onCreated(created);
       setBody("");
@@ -135,6 +144,21 @@ function NewTermsForm({
             ))}
           </select>
         </FormField>
+        {serviceType === "FLIGHT_SPECIAL_FARE" ? (
+          <FormField label="Route type" htmlFor="terms-flight-scope" hint="Applied automatically from the quote's airports.">
+            <select
+              id="terms-flight-scope"
+              value={flightScope}
+              disabled={saving}
+              onChange={(e) => setFlightScope(e.target.value as "" | "DOMESTIC" | "INTERNATIONAL")}
+              className={cn(fieldControlClass, fieldBorderClass(false))}
+            >
+              <option value="">All routes</option>
+              <option value="DOMESTIC">Domestic (same-country airports)</option>
+              <option value="INTERNATIONAL">International</option>
+            </select>
+          </FormField>
+        ) : null}
         <TextField label="Title" name="terms-title" value={title} onChange={(e) => setTitle(e.target.value)} error={errors.title?.[0]} disabled={saving} />
       </div>
       <Textarea label="Terms text" name="terms-body" rows={10} value={body} onChange={(e) => setBody(e.target.value)} error={errors.body?.[0]} disabled={saving} />

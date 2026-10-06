@@ -52,6 +52,43 @@ async function serviceTypeFor(target: { entityType: string; entityId: string }):
   }
 }
 
+/**
+ * The airline on a flight booking/quote email: the quotation's own airline
+ * (a Quotation target), else the lead's selected — or latest sent — quote.
+ */
+async function airlineFor(target: { entityType: string; entityId: string }): Promise<{ name: string; logoUrl: string | null } | null> {
+  try {
+    let code: string | null = null;
+    if (target.entityType === "Quotation") {
+      code = (await db.quotation.findUnique({ where: { id: target.entityId }, select: { airline: true } }))?.airline ?? null;
+    } else {
+      const leadId =
+        target.entityType === "Lead"
+          ? target.entityId
+          : target.entityType === "Booking"
+            ? (await db.booking.findUnique({ where: { id: target.entityId }, select: { leadId: true } }))?.leadId
+            : target.entityType === "Payment"
+              ? (await db.payment.findUnique({ where: { id: target.entityId }, select: { booking: { select: { leadId: true } } } }))?.booking.leadId
+              : target.entityType === "Document"
+                ? (await db.document.findUnique({ where: { id: target.entityId }, select: { booking: { select: { leadId: true } } } }))?.booking?.leadId
+                : null;
+      if (leadId) {
+        const quote = await db.quotation.findFirst({
+          where: { leadId, isDraft: false, airline: { not: null } },
+          orderBy: [{ isSelected: "desc" }, { updatedAt: "desc" }],
+          select: { airline: true },
+        });
+        code = quote?.airline ?? null;
+      }
+    }
+    if (!code) return null;
+    const airline = await db.airline.findUnique({ where: { code }, select: { name: true, logoUrl: true } });
+    return airline ? { name: airline.name, logoUrl: airline.logoUrl } : { name: code, logoUrl: null };
+  } catch {
+    return null;
+  }
+}
+
 export async function emailHeroFor(event: string, target: { entityType: string; entityId: string }, variables: Record<string, string>): Promise<EmailHero | null> {
   const serviceType = await serviceTypeFor(target);
   const isFlight = serviceType !== null && FLIGHT_SERVICES.has(serviceType);
@@ -63,14 +100,16 @@ export async function emailHeroFor(event: string, target: { entityType: string; 
         ? "flight"
         : "visa";
   const serviceLabel = serviceType ? SERVICE_TYPE_LABELS[serviceType] : null;
+  const airline = isFlight ? await airlineFor(target) : null;
 
   if (STATUS_EVENTS.has(event) || (!EVENT_HEADINGS[event] && serviceLabel)) {
     return {
       heading: serviceLabel ? `${serviceLabel} ${isFlight ? "Booking" : "Application"} Status` : "Status Update",
       badge: variables.status || (event === "OUTPUT_DELIVERED" ? variables.documentName || "Delivered" : null),
       illustration,
+      airline,
     };
   }
   const heading = EVENT_HEADINGS[event];
-  return heading ? { heading, badge: event === "OTB_APPROVED" ? "Approved" : null, illustration } : null;
+  return heading ? { heading, badge: event === "OTB_APPROVED" ? "Approved" : null, illustration, airline } : null;
 }

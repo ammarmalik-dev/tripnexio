@@ -329,6 +329,12 @@ model Quotation {
   airline                    String?
   flightNumber               String?
   route                      String?
+  /// Client corrections 2026-10-05 — Special Fare route from the Airport
+  /// master (no free text): the IATA codes, and DOMESTIC when both airports
+  /// are in the same country, else INTERNATIONAL (picks the T&C version).
+  fromAirportCode            String?
+  toAirportCode              String?
+  flightScope                FlightScope?
   /// Departure date/time for a flight quote.
   flightDateTime             DateTime?
   arrivalDateTime            DateTime?
@@ -2193,6 +2199,11 @@ model NewVisaCountryPage {
   @@index([published])
 }
 
+enum FlightScope {
+  DOMESTIC
+  INTERNATIONAL
+}
+
 enum NewVisaEntryKind {
   SINGLE
   MULTIPLE
@@ -2652,6 +2663,9 @@ model ServiceTerms {
   serviceType ServiceType
   /// null = every destination country; set = overrides for that country.
   countryId   String?
+  /// Client corrections 2026-10-05 — Flight Special Fare only: terms for
+  /// DOMESTIC or INTERNATIONAL routes; null = every route.
+  flightScope FlightScope?
   version     Int
   title       String
   body        String

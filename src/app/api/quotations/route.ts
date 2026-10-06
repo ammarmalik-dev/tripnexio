@@ -1,3 +1,4 @@
+import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
 import { defaultVisaChangeInclusions, VISA_CHANGE_EXCLUSIONS } from "@/lib/visa-change/inclusions";
 import type { NextRequest } from "next/server";
 import { createQuotationSchema } from "@/lib/validation/quotation-schema";
@@ -191,6 +192,8 @@ export async function POST(request: NextRequest) {
     airline,
     flightNumber,
     route,
+    fromAirportCode,
+    toAirportCode,
     flightDateTime,
     arrivalDateTime,
     baggageAllowance,
@@ -257,6 +260,20 @@ export async function POST(request: NextRequest) {
   }
 
   const flightQuote = isFlightQuote(lead.serviceType);
+  // Client corrections 2026-10-05 §9 — Special Fare airports come from the Airport master (a draft may leave them empty).
+  let flightRoute: { route: string; flightScope: "DOMESTIC" | "INTERNATIONAL"; fromAirportCode: string; toAirportCode: string } | null = null;
+  if (lead.serviceType === "FLIGHT_SPECIAL_FARE") {
+    if (fromAirportCode && toAirportCode) {
+      const resolved = await resolveFlightRoute(fromAirportCode, toAirportCode);
+      if (!resolved.ok) return jsonError(400, resolved.error, { [resolved.field]: [resolved.error] });
+      flightRoute = resolved;
+    } else if (!isDraft) {
+      return jsonError(400, "Select the departure and arrival airports.", {
+        ...(fromAirportCode ? {} : { fromAirportCode: ["Select the departure airport."] }),
+        ...(toAirportCode ? {} : { toAirportCode: ["Select the arrival airport."] }),
+      });
+    }
+  }
   if (flightQuote && sellingPrice == null) {
     return jsonError(400, "Please check the highlighted fields.", { sellingPrice: ["Enter the selling price."] });
   }
@@ -315,7 +332,10 @@ export async function POST(request: NextRequest) {
         vendorId,
         airline,
         flightNumber,
-        route,
+        route: flightRoute?.route ?? route,
+        fromAirportCode: flightRoute?.fromAirportCode,
+        toAirportCode: flightRoute?.toAirportCode,
+        flightScope: flightRoute?.flightScope,
         flightDateTime: flightDateTime ? new Date(flightDateTime) : undefined,
         arrivalDateTime: arrivalDateTime ? new Date(arrivalDateTime) : undefined,
         baggageAllowance,

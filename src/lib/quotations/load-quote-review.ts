@@ -1,12 +1,13 @@
 import { db } from "../db";
 import { leadReference } from "../leads/reference";
-import { getEffectiveTerms, resolveLeadCountryId } from "../terms/service-terms";
+import { getEffectiveTerms, leadFlightScope, resolveLeadCountryId } from "../terms/service-terms";
 import { isExpiredNow } from "./sync-expiry";
 import { isFlightQuote, supportsItinerary } from "./pricing";
 import { resolvePaymentLinkValidityHours } from "../payments/create-payment";
 import { EXTENSION_DURATION_DAYS, urgentDeadlineFromDetails } from "../visa-extension/rules";
 import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "../visa-change/operational";
 import { alternativeRouteLabel, requestedRouteFromDetails } from "./flight-quote";
+import { loadAirlineDisplay } from "../airlines/display";
 import { parseStoredItinerary, supportsMultiSectorItinerary } from "./itinerary";
 
 const money = (value: unknown) => (value === null || value === undefined ? null : Number(value));
@@ -43,6 +44,11 @@ export async function loadQuoteReviewByToken(token: string) {
   // The requested-route options first; alternatives after them.
   const ordered = [...shown].sort((a, b) => Number(Boolean(a.alternativeOfId)) - Number(Boolean(b.alternativeOfId)));
 
+  // Client corrections 2026-10-05 §9 — airline name + logo for every flight shown (quote + itinerary sectors).
+  const airlineDisplay = await loadAirlineDisplay(
+    ordered.flatMap((quotation) => [quotation.airline, ...parseStoredItinerary(quotation.itinerary).map((segment) => segment.airline)])
+  );
+
   const quotations = ordered
     .map((quotation) => ({
       id: quotation.id,
@@ -55,7 +61,10 @@ export async function loadQuoteReviewByToken(token: string) {
       couponDiscount: quotation.couponDiscount === null ? null : Number(quotation.couponDiscount),
       ...(isFlightQuote(lead.serviceType) || supportsItinerary(lead.serviceType)
         ? {
-            airline: quotation.airline,
+            airline: quotation.airline ? (airlineDisplay[quotation.airline.toUpperCase()]?.name ?? quotation.airline) : null,
+            airlineLogoUrl: quotation.airline ? (airlineDisplay[quotation.airline.toUpperCase()]?.logoUrl ?? null) : null,
+            airlines: airlineDisplay,
+            flightScope: quotation.flightScope,
             flightNumber: quotation.flightNumber,
             route: quotation.route,
             flightDateTime: quotation.flightDateTime,
@@ -143,7 +152,7 @@ export async function loadQuoteReviewByToken(token: string) {
   }
   const details = (lead.details ?? {}) as Record<string, unknown>;
 
-  const terms = await getEffectiveTerms(lead.serviceType, await resolveLeadCountryId(lead.details));
+  const terms = await getEffectiveTerms(lead.serviceType, await resolveLeadCountryId(lead.details), await leadFlightScope(lead));
 
   return {
     serviceType: lead.serviceType,

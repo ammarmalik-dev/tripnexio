@@ -1,5 +1,9 @@
 import { Plane } from "lucide-react";
 import type { StoredItinerarySegment } from "@/lib/quotations/itinerary";
+import { AirlineLogo } from "@/components/ui/AirlineLogo";
+
+/** Airline name + logo per IATA code (Airline master). */
+type AirlineDisplayMap = Record<string, { name: string; logoUrl: string | null }>;
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
@@ -10,7 +14,15 @@ function formatDateTime(iso: string): string {
  * and the customer quote page. Every field rendered here is customer-safe by
  * design (itinerarySegmentSchema carries no cost/vendor data).
  */
-export function ItinerarySectors({ segments, title = "Itinerary" }: { segments: StoredItinerarySegment[]; title?: string }) {
+export function ItinerarySectors({
+  segments,
+  title = "Itinerary",
+  airlines = {},
+}: {
+  segments: StoredItinerarySegment[];
+  title?: string;
+  airlines?: AirlineDisplayMap;
+}) {
   if (segments.length === 0) return null;
   return (
     <div className="flex flex-col gap-2">
@@ -33,8 +45,17 @@ export function ItinerarySectors({ segments, title = "Itinerary" }: { segments: 
                 {segment.to}
               </span>
               {segment.airline || segment.flightNumber ? (
-                <span className="text-ink-secondary">
-                  {[segment.airline, segment.flightNumber].filter(Boolean).join(" ")}
+                <span className="flex items-center gap-1.5 text-ink-secondary">
+                  {segment.airline ? (
+                    <AirlineLogo
+                      src={airlines[segment.airline.toUpperCase()]?.logoUrl}
+                      name={airlines[segment.airline.toUpperCase()]?.name ?? segment.airline}
+                      className="h-5 w-5"
+                    />
+                  ) : null}
+                  {[segment.airline ? (airlines[segment.airline.toUpperCase()]?.name ?? segment.airline) : null, segment.flightNumber]
+                    .filter(Boolean)
+                    .join(" ")}
                 </span>
               ) : null}
               {segment.departAt || segment.arriveAt ? (

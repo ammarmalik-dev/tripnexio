@@ -15,6 +15,7 @@ import { useSiteContact } from "@/components/layout/SiteContactProvider";
 import { TermsCheckbox, type TermsView } from "@/components/terms/TermsAgreement";
 import { formatDeadlineDay, type UrgentDeadline } from "@/lib/visa-extension/rules";
 import type { StoredItinerarySegment } from "@/lib/quotations/itinerary";
+import { AirlineLogo } from "@/components/ui/AirlineLogo";
 import { ItinerarySectors } from "@/components/quotations/ItinerarySectors";
 
 interface QuoteOption {
@@ -26,6 +27,10 @@ interface QuoteOption {
   couponCode: string | null;
   couponDiscount: number | null;
   airline?: string | null;
+  /** Client corrections 2026-10-05 — airline logo + Domestic/International. */
+  airlineLogoUrl?: string | null;
+  airlines?: Record<string, { name: string; logoUrl: string | null }>;
+  flightScope?: "DOMESTIC" | "INTERNATIONAL" | null;
   flightNumber?: string | null;
   route?: string | null;
   flightDateTime?: string | null;
@@ -143,11 +148,21 @@ function QuoteCard({
       ) : null}
       {quote.airline || quote.route ? (
         <div className="flex flex-col gap-1">
-          <span className="text-sm font-semibold text-ink-heading">
+          <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+            <AirlineLogo src={quote.airlineLogoUrl} name={quote.airline ?? "Airline"} />
             {quote.airline ?? "Option"}
             {quote.flightNumber ? ` ${quote.flightNumber}` : ""}
           </span>
-          {quote.route ? <span className="text-sm text-ink-secondary">{quote.route}</span> : null}
+          {quote.route ? (
+            <span className="flex flex-wrap items-center gap-2 text-sm text-ink-secondary">
+              {quote.route}
+              {quote.flightScope ? (
+                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-ink-accent">
+                  {quote.flightScope === "DOMESTIC" ? "Domestic" : "International"}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
           {quote.flightDateTime ? (
             <span className="text-xs text-ink-tertiary">
               Departs {formatDateTime(quote.flightDateTime)}
@@ -162,7 +177,7 @@ function QuoteCard({
         </div>
       ) : null}
 
-      {quote.itinerary && quote.itinerary.length > 0 ? <ItinerarySectors segments={quote.itinerary} title="Your itinerary" /> : null}
+      {quote.itinerary && quote.itinerary.length > 0 ? <ItinerarySectors segments={quote.itinerary} title="Your itinerary" airlines={quote.airlines} /> : null}
 
       {specialFare && counts ? (
         <div className="flex flex-col gap-2">

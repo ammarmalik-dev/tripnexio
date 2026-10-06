@@ -14,6 +14,9 @@ export const createQuotationSchema = z.object({
   airline: z.string().trim().min(1).optional(),
   flightNumber: z.string().trim().min(1).optional(),
   route: z.string().trim().min(1).optional(),
+  /** Client corrections 2026-10-05 — Special Fare route from the Airport master (IATA codes); the server derives route + Domestic/International. */
+  fromAirportCode: z.string().trim().min(3).max(4).optional(),
+  toAirportCode: z.string().trim().min(3).max(4).optional(),
   flightDateTime: isoDate("Enter a valid departure date/time").optional(),
   arrivalDateTime: isoDate("Enter a valid arrival date/time").optional(),
   baggageAllowance: z.string().trim().min(1).optional(),
@@ -91,6 +94,15 @@ export const sendQuotationSchema = z.object({
  */
 export function buildQuoteFormSchema(isFlightQuote: boolean) {
   return quoteFormSchema.superRefine((data, ctx) => {
+    if (isFlightQuote && !data.fromAirportCode) {
+      ctx.addIssue({ code: "custom", message: "Select the departure airport.", path: ["fromAirportCode"] });
+    }
+    if (isFlightQuote && !data.toAirportCode) {
+      ctx.addIssue({ code: "custom", message: "Select the arrival airport.", path: ["toAirportCode"] });
+    }
+    if (isFlightQuote && data.fromAirportCode && data.fromAirportCode === data.toAirportCode) {
+      ctx.addIssue({ code: "custom", message: "Arrival must be a different airport.", path: ["toAirportCode"] });
+    }
     if (isFlightQuote && data.sellingPrice == null) {
       ctx.addIssue({ code: "custom", message: "Enter the selling price.", path: ["sellingPrice"] });
     }

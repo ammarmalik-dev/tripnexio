@@ -41,18 +41,20 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
   const countryId = parsed.data.countryId ?? null;
+  // Domestic / International terms only exist for Special Fare; ignored for every other service.
+  const flightScope = parsed.data.serviceType === "FLIGHT_SPECIAL_FARE" ? (parsed.data.flightScope ?? null) : null;
   if (countryId && !(await db.country.findUnique({ where: { id: countryId } }))) {
     return jsonError(400, "Select a valid country.", { countryId: ["Select a valid country."] });
   }
 
   const created = await db.$transaction(async (tx) => {
     const latest = await tx.serviceTerms.findFirst({
-      where: { serviceType: parsed.data.serviceType, countryId },
+      where: { serviceType: parsed.data.serviceType, countryId, flightScope },
       orderBy: { version: "desc" },
       select: { version: true },
     });
     const row = await tx.serviceTerms.create({
-      data: { serviceType: parsed.data.serviceType, countryId, title: parsed.data.title, body: parsed.data.body, version: (latest?.version ?? 0) + 1 },
+      data: { serviceType: parsed.data.serviceType, countryId, flightScope, title: parsed.data.title, body: parsed.data.body, version: (latest?.version ?? 0) + 1 },
       include,
     });
     await writeAudit(tx, {
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
       entityId: row.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Terms v${row.version} published for ${row.serviceType}${row.country ? ` / ${row.country.name}` : ""} (by ${session.name})`,
+      note: `Terms v${row.version} published for ${row.serviceType}${row.country ? ` / ${row.country.name}` : ""}${row.flightScope ? ` / ${row.flightScope.toLowerCase()} routes` : ""} (by ${session.name})`,
     });
     return row;
   });

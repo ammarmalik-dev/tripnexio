@@ -5,6 +5,7 @@ import { Textarea } from "@/components/forms/Textarea";
 import { QuoteCountdown } from "./QuoteCountdown";
 import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "@/lib/visa-change/operational";
 import { parseStoredItinerary } from "@/lib/quotations/itinerary";
+import { AirlineLogo } from "@/components/ui/AirlineLogo";
 import { ItinerarySectors } from "@/components/quotations/ItinerarySectors";
 
 export interface QuoteCardData {
@@ -12,6 +13,10 @@ export interface QuoteCardData {
   airline: string | null;
   flightNumber: string | null;
   route: string | null;
+  fromAirportCode?: string | null;
+  toAirportCode?: string | null;
+  /** Client corrections 2026-10-05 — Domestic / International (picks the T&C). */
+  flightScope?: "DOMESTIC" | "INTERNATIONAL" | null;
   flightDateTime: string | null;
   arrivalDateTime: string | null;
   baggageAllowance: string | null;
@@ -85,7 +90,10 @@ export function QuoteCard({
   onSend,
   sending = false,
   onRevise,
+  airlines = {},
 }: {
+  /** Client corrections 2026-10-05 — airline name + logo per IATA code. */
+  airlines?: Record<string, { name: string; logoUrl: string | null }>;
   quotation: QuoteCardData;
   isFlightQuote: boolean;
   /** Visa Change itinerary option: simple fee pricing plus flight details. */
@@ -138,6 +146,12 @@ export function QuoteCard({
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex flex-col gap-1">
           <div className="flex flex-wrap items-center gap-2">
+            {quotation.airline && (isFlightQuote || hasItinerary) ? (
+              <AirlineLogo
+                src={airlines[quotation.airline.toUpperCase()]?.logoUrl}
+                name={airlines[quotation.airline.toUpperCase()]?.name ?? quotation.airline}
+              />
+            ) : null}
             <span className="text-sm font-medium text-ink-primary">
               {isFlightQuote || hasItinerary
                 ? `${quotation.airline ?? (hasItinerary ? "Itinerary option" : "Quotation")}${quotation.flightNumber ? ` ${quotation.flightNumber}` : ""}`
@@ -159,7 +173,16 @@ export function QuoteCard({
               <span className="rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">Alternative Route</span>
             ) : null}
           </div>
-          {(isFlightQuote || hasItinerary) && quotation.route ? <span className="text-sm text-ink-secondary">{quotation.route}</span> : null}
+          {(isFlightQuote || hasItinerary) && quotation.route ? (
+            <span className="flex flex-wrap items-center gap-2 text-sm text-ink-secondary">
+              {quotation.route}
+              {quotation.flightScope ? (
+                <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-ink-accent">
+                  {quotation.flightScope === "DOMESTIC" ? "Domestic T&C" : "International T&C"}
+                </span>
+              ) : null}
+            </span>
+          ) : null}
         </div>
         {isDraft ? (
           <span className="text-xs text-ink-tertiary">Not sent — invisible to the customer</span>
@@ -328,7 +351,7 @@ export function QuoteCard({
         </>
       )}
 
-      {itinerary.length > 0 ? <ItinerarySectors segments={itinerary} /> : null}
+      {itinerary.length > 0 ? <ItinerarySectors segments={itinerary} airlines={airlines} /> : null}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline pt-3">
         <div className="flex flex-col gap-0.5">
