@@ -128,6 +128,7 @@ export async function POST(request: NextRequest) {
           nationalityId: row.nationalityId,
           paxType: row.paxType,
           documentName: row.documentName,
+          documentTypeId: row.documentTypeId,
           required: row.required,
           active: row.active,
         })),

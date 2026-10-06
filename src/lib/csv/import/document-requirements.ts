@@ -1,3 +1,4 @@
+import { resolveDocumentType } from "../../documents/document-master";
 import { db } from "../../db";
 import { createDocumentRequirementSchema, updateDocumentRequirementSchema } from "../../validation/document-requirement-schema";
 import {
@@ -94,7 +95,8 @@ export const documentRequirementsImporter: EntityImporter = {
         countryId: data.countryId ?? null,
         nationality: nationality?.name ?? null,
         paxType: data.paxType ?? null,
-        documentName: data.documentName,
+        // The CSV always has document_name (MAPPING); the schema only makes it optional for the Admin screen.
+        documentName: data.documentName ?? "",
       });
       const duplicate = checkDuplicate(key, record.line);
       if (duplicate) {
@@ -131,6 +133,8 @@ export const documentRequirementsImporter: EntityImporter = {
         ops.push({
           kind: "create",
           run: async (tx) => {
+            // Client corrections 2026-10-05 — linked to (or added to) the Document Master.
+            const document = await resolveDocumentType({ documentName: data.documentName }, tx);
             await tx.documentRequirement.create({
               data: {
                 serviceType: data.serviceType,
@@ -138,7 +142,8 @@ export const documentRequirementsImporter: EntityImporter = {
                 nationalityId: nationality?.id ?? null,
                 nationality: nationality?.name ?? null,
                 paxType: data.paxType ?? null,
-                documentName: data.documentName,
+                documentName: document?.documentName ?? data.documentName ?? "",
+                documentTypeId: document?.documentTypeId ?? null,
                 required: data.required,
                 active: data.active,
               },

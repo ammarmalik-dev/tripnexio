@@ -1,6 +1,7 @@
 import {
   Inbox,
   Newspaper,
+  FileStack,
   Scale,
   LayoutDashboard,
   ListChecks,
@@ -267,6 +268,7 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Airports", href: "/admin/airports", icon: Building2, permission: "masters.manage" },
       { label: "Airlines", href: "/admin/airlines", icon: Plane, permission: "masters.manage" },
       { label: "Borders", href: "/admin/borders", icon: Fence, permission: "masters.manage" },
+      { label: "Document Master", href: "/admin/document-master", icon: FileStack, permission: "masters.manage" },
     ],
   },
   {

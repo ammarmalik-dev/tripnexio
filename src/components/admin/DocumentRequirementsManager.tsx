@@ -36,6 +36,7 @@ interface DocumentRequirementData {
   nationalityId: string | null;
   paxType: PaxType | null;
   documentName: string;
+  documentTypeId: string | null;
   required: boolean;
   active: boolean;
 }
@@ -51,11 +52,40 @@ interface FormState {
   countryId: string;
   nationality: string;
   paxType: PaxType | "";
-  documentName: string;
+  /** Client corrections 2026-10-05 — picked from the Document Master. */
+  documentTypeId: string;
   required: boolean;
 }
 
-const EMPTY_FORM: FormState = { serviceType: "", countryId: "", nationality: "", paxType: "", documentName: "", required: true };
+const EMPTY_FORM: FormState = { serviceType: "", countryId: "", nationality: "", paxType: "", documentTypeId: "", required: true };
+
+interface DocumentTypeOption {
+  id: string;
+  name: string;
+  defaultMandatory: boolean;
+  active: boolean;
+}
+
+/** The Document Master list (Admin → Document Master), loaded once per screen. */
+function useDocumentTypes(): DocumentTypeOption[] {
+  const [types, setTypes] = useState<DocumentTypeOption[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const rows = await getJson<DocumentTypeOption[]>("/api/admin/document-types");
+        if (!cancelled) setTypes(rows);
+      } catch {
+        // The select stays empty; the save then reports the missing document.
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return types;
+}
 
 function toFormState(item: DocumentRequirementData): FormState {
   return {
@@ -63,7 +93,7 @@ function toFormState(item: DocumentRequirementData): FormState {
     countryId: item.countryId ?? "",
     nationality: nationalityFormValue(item),
     paxType: item.paxType ?? "",
-    documentName: item.documentName,
+    documentTypeId: item.documentTypeId ?? "",
     required: item.required,
   };
 }
@@ -87,6 +117,7 @@ function RequirementFields({
   currentNationalityName?: string | null;
 }) {
   const id = (field: string) => `${idPrefix}-${field}`;
+  const documentTypes = useDocumentTypes();
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <FormField label="Service" htmlFor={id("serviceType")} error={errors.serviceType?.[0]}>
@@ -143,14 +174,21 @@ function RequirementFields({
           ))}
         </select>
       </FormField>
-      <TextField
-        label="Document Name"
-        name={id("documentName")}
-        placeholder="e.g. Passport Copy"
-        value={form.documentName}
-        onChange={(event) => onChange({ ...form, documentName: event.target.value })}
-        error={errors.documentName?.[0]}
+      <SelectField
+        label="Document"
+        name={id("documentTypeId")}
+        placeholder="Select from the Document Master"
+        options={documentTypes
+          .filter((type) => type.active || type.id === form.documentTypeId)
+          .map((type) => ({ value: type.id, label: type.name }))}
+        value={form.documentTypeId}
+        onChange={(event) => {
+          const picked = documentTypes.find((type) => type.id === event.target.value);
+          onChange({ ...form, documentTypeId: event.target.value, required: picked ? picked.defaultMandatory : form.required });
+        }}
+        error={errors.documentTypeId?.[0] ?? errors.documentName?.[0]}
         disabled={disabled}
+        hint="Missing a document? Add it in Admin → Document Master."
       />
       <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input
@@ -159,7 +197,7 @@ function RequirementFields({
           disabled={disabled}
           onChange={(event) => onChange({ ...form, required: event.target.checked })}
         />
-        Required (unchecked = optional)
+        Mandatory (unchecked = optional)
       </label>
     </div>
   );
@@ -171,7 +209,7 @@ function buildPayload(form: FormState) {
     countryId: form.countryId === "" ? undefined : form.countryId,
     nationalityId: nationalityPayload(form.nationality),
     paxType: form.paxType === "" ? undefined : form.paxType,
-    documentName: form.documentName.trim(),
+    documentTypeId: form.documentTypeId || undefined,
     required: form.required,
   };
 }
@@ -282,7 +320,7 @@ function NewRequirementForm({
 
   const handleCreate = async () => {
     const reason = await confirm({
-      title: `Add document requirement "${form.documentName.trim()}"?`,
+      title: "Add this document requirement?",
       description: "This adds a document to the checklist customers and staff see for new requests.",
       confirmLabel: "Add Requirement",
     });
@@ -302,7 +340,7 @@ function NewRequirementForm({
     }
   };
 
-  const canSubmit = form.serviceType && form.documentName.trim();
+  const canSubmit = form.serviceType && form.documentTypeId;
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">

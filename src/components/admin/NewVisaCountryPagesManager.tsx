@@ -14,6 +14,7 @@ import { FormField, fieldBorderClass, fieldControlClass } from "@/components/for
 import { ApiError, deleteJson, getJson, patchJson, postJson } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { DocumentMasterPicker } from "./DocumentMasterPicker";
 
 interface CountryOption {
   id: string;
@@ -509,7 +510,14 @@ function PageEditor({
       <Section title="Requirements" description="One item per line. An empty list hides its part of the section.">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {area("whatYouNeed", "What you'll need", { rows: 6 })}
-          {area("documents", "Documents required", { rows: 6 })}
+          <div className="flex flex-col gap-2">
+            {area("documents", "Documents required", { rows: 6 })}
+            <DocumentMasterPicker
+              current={form.documents.split("\n")}
+              disabled={saving}
+              onPick={(name) => set("documents", (form.documents.trim() ? `${form.documents.trim()}\n${name}` : name) as never)}
+            />
+          </div>
         </div>
         {area("documentsNote", "Documents note", { rows: 2 })}
         {area("childrenNote", "Travelling with children", { rows: 2, hint: "Leave empty to hide this card." })}

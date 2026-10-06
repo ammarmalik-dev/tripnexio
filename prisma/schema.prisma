@@ -1384,14 +1384,18 @@ model DocumentRequirement {
   nationality   String?
   nationalityId String?
   paxType       PaxType?
+  /// Copied from the Document Master row (documentTypeId) so every reader keeps working; renaming the master renames it here too.
   documentName  String
+  /// Client corrections 2026-10-05 — the Document Master entry this requirement uses.
+  documentTypeId String?
   required      Boolean     @default(true)
   active        Boolean     @default(true)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
-  country        Country?     @relation(fields: [countryId], references: [id])
-  nationalityRef Nationality? @relation(fields: [nationalityId], references: [id])
+  country        Country?      @relation(fields: [countryId], references: [id])
+  nationalityRef Nationality?  @relation(fields: [nationalityId], references: [id])
+  documentType   DocumentType? @relation(fields: [documentTypeId], references: [id])
 
   @@index([nationality])
   @@index([nationalityId])
@@ -1399,6 +1403,26 @@ model DocumentRequirement {
   @@index([active])
   @@index([countryId])
   @@index([serviceType, countryId, nationality])
+  @@index([documentTypeId])
+}
+
+/// Client corrections 2026-10-05 — Document Master: every document
+/// definition once (e.g. "Passport Front Page"), with whether it is
+/// mandatory by default. Countries and services pick from this list
+/// (DocumentRequirement.documentTypeId) instead of retyping names.
+model DocumentType {
+  id               String   @id @default(cuid())
+  name             String   @unique
+  description      String?
+  defaultMandatory Boolean  @default(true)
+  active           Boolean  @default(true)
+  displayOrder     Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  requirements DocumentRequirement[]
+
+  @@index([active])
 }
 
 /// Step 40 (Admin FINAL handover §4 — "Use the existing Pricing module as

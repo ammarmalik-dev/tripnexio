@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { resolveNationalityInput } from "@/lib/nationalities/resolve";
 import { writeAudit } from "@/lib/audit/log";
+import { resolveDocumentType } from "@/lib/documents/document-master";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
@@ -44,13 +45,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const nationalityInput = await resolveNationalityInput(parsed.data);
   if (nationalityInput.error) return nationalityInput.error;
-  const patchData = { ...parsed.data, ...nationalityInput.data };
+  let document: { documentTypeId: string; documentName: string } | null = null;
+  if (parsed.data.documentTypeId || parsed.data.documentName) {
+    document = await resolveDocumentType(parsed.data);
+    if (!document) return jsonError(400, "Select an active document from the Document Master.", { documentTypeId: ["Pick a document."] });
+  }
+  const patchData = { ...parsed.data, ...nationalityInput.data, ...(document ?? {}) };
 
   const nextServiceType = parsed.data.serviceType ?? existing.serviceType;
   const nextCountryId = parsed.data.countryId !== undefined ? parsed.data.countryId : existing.countryId;
   const nextNationality = patchData.nationality !== undefined ? patchData.nationality : existing.nationality;
   const nextPaxType = parsed.data.paxType !== undefined ? parsed.data.paxType : existing.paxType;
-  const nextDocumentName = parsed.data.documentName ?? existing.documentName;
+  const nextDocumentName = document?.documentName ?? existing.documentName;
 
   const identityChanged =
     nextServiceType !== existing.serviceType ||

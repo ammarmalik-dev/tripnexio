@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { resolveNationalityInput } from "@/lib/nationalities/resolve";
 import { writeAudit } from "@/lib/audit/log";
+import { resolveDocumentType } from "@/lib/documents/document-master";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
@@ -45,7 +46,9 @@ export async function POST(request: NextRequest) {
   }
   const nationalityInput = await resolveNationalityInput(parsed.data);
   if (nationalityInput.error) return nationalityInput.error;
-  const requirementData = { ...parsed.data, ...nationalityInput.data };
+  const document = await resolveDocumentType(parsed.data);
+  if (!document) return jsonError(400, "Select an active document from the Document Master.", { documentTypeId: ["Pick a document."] });
+  const requirementData = { ...parsed.data, ...nationalityInput.data, ...document };
 
   // No DB-level uniqueness on this combination (see the model's own doc
   // comment — nullable-column uniqueness semantics get messy in Postgres),
@@ -58,7 +61,7 @@ export async function POST(request: NextRequest) {
       nationalityId: requirementData.nationalityId ?? null,
       nationality: requirementData.nationality ?? null,
       paxType: parsed.data.paxType ?? null,
-      documentName: parsed.data.documentName,
+      documentName: document.documentName,
     },
   });
   if (existing) {
