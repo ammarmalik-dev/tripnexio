@@ -95,7 +95,12 @@ export async function loadQuoteReviewByToken(token: string) {
       ...(lead.serviceType === "VISA_CHANGE"
         ? (() => {
             const block = parseOperationalBlock(quotation.operationalBlock);
-            return block ? { operational: { title: OPERATIONAL_BLOCK_TITLE[block.kind], rows: customerBlockRows(block) } } : {};
+            return {
+              ...(block ? { operational: { title: OPERATIONAL_BLOCK_TITLE[block.kind], rows: customerBlockRows(block) } } : {}),
+              // Client corrections 2026-10-05 — package inclusions / exclusions on the quote.
+              inclusions: quotation.inclusions,
+              exclusions: quotation.exclusions,
+            };
           })()
         : {}),
       // P13 — Visa Extension: the customer sees the fee / fine / other charges breakdown.

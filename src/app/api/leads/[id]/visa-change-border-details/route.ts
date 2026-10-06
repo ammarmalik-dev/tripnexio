@@ -27,6 +27,8 @@ const optionalText = (max: number) =>
 const borderDetailsSchema = z.object({
   borderId: z.string().min(1, "Select a border crossing"),
   pickupLocation: z.string().trim().min(2, "Enter the pickup location").max(200),
+  pickupAddress: optionalText(300),
+  vehicleNumber: optionalText(40),
   reportingTime: z.string().trim().min(1, "Enter the reporting time").max(40),
   travelTime: z.string().trim().min(1, "Enter the departure/travel time").max(40),
   pickupPersonName: z.string().trim().min(2, "Enter the pickup person's name").max(80),
@@ -69,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(409, "This action only applies to Visa Change leads.");
   }
 
-  const border = await db.border.findUnique({ where: { id: parsed.data.borderId } });
+  const border = await db.border.findUnique({ where: { id: parsed.data.borderId }, include: { country: { select: { name: true } } } });
   if (!border || !border.active) {
     return jsonError(400, "Select a valid border crossing.", { borderId: ["This border crossing isn't available for Visa Change."] });
   }
@@ -82,7 +84,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     kind: "BORDER",
     borderId: border.id,
     borderName: border.name,
+    borderCountryName: border.country.name,
     pickupLocation: parsed.data.pickupLocation,
+    pickupAddress: parsed.data.pickupAddress,
+    vehicleNumber: parsed.data.vehicleNumber,
     pickupPersonName: parsed.data.pickupPersonName,
     pickupPersonContact: parsed.data.pickupPersonContact,
     customerContactNumber: parsed.data.customerContactNumber,

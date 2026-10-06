@@ -467,6 +467,7 @@ export function LeadDetail({
           <QuoteBuilder
             leadId={lead.id}
             serviceType={lead.serviceType}
+            visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
             leadStatus={lead.status}
             onLeadChanged={() => setReloadNonce((current) => current + 1)}
           />

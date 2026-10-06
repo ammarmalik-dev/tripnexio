@@ -49,6 +49,9 @@ export const createQuotationSchema = z.object({
   flightTicketPrice: z.number().nonnegative("Flight ticket price can't be negative").optional(),
   /** Client corrections 2026-10-05 — government / airline fee inside the total, shown apart on the invoice (no GST). */
   governmentFee: z.number().nonnegative("Government / airline fee can't be negative").optional(),
+  /** Client corrections 2026-10-05 — Visa Change package inclusions / exclusions (ignored for other services). */
+  inclusions: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
+  exclusions: z.array(z.string().trim().min(1).max(120)).max(20).optional(),
 
   /** CRM.md §10 (Step 22) — resolved and validated server-side; rejected outright for a flight quote. Empty string clears an already-applied coupon. */
   couponCode: z.string().trim().optional(),

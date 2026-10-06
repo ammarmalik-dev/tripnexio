@@ -31,6 +31,16 @@ const EMPTY_SEGMENT: ItinerarySegment = { from: "", to: "", departAt: "", arrive
 const DATE_TIME_KEYS = ["flightDateTime", "arrivalDateTime", "validityExpiresAt", "bookingDeadline"] as const;
 
 /** datetime-local values are local wall-clock time — convert to an absolute ISO instant in the browser, never on the server. */
+/** Textarea "one item per line" → array (Visa Change inclusions / exclusions). */
+function splitLines(value: unknown): unknown {
+  return typeof value === "string"
+    ? value
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean)
+    : value;
+}
+
 function toIsoOrUndefined(value: string | undefined): string | undefined {
   if (!value) return undefined;
   const date = new Date(value);
@@ -86,6 +96,8 @@ interface QuoteBuilderFormProps {
   isFlightQuote: boolean;
   /** Visa Change: this quote is one itinerary option (flight details + ticket price on top of the visa fee). */
   hasItinerary?: boolean;
+  /** Client corrections 2026-10-05 — false for a Border Exit quote: no itinerary / flight ticket fields. */
+  showFlightDetails?: boolean;
   /** Return Ticket: no flight-quote/itinerary shape, but staff can still optionally record which airline it's for. */
   showAirlineField?: boolean;
   /** P13 — Visa Extension: extension fee / fine / other charges breakdown. */
@@ -116,6 +128,7 @@ export function QuoteBuilderForm({
   leadId,
   isFlightQuote,
   hasItinerary = false,
+  showFlightDetails = true,
   showAirlineField = false,
   isExtension = false,
   vendors,
@@ -425,7 +438,7 @@ export function QuoteBuilderForm({
               error={errors.otherCharges?.message}
             />
           ) : null}
-          {hasItinerary ? (
+          {hasItinerary && showFlightDetails ? (
             <TextField
               label="Flight Ticket (₹)"
               type="number"
@@ -451,7 +464,26 @@ export function QuoteBuilderForm({
         </div>
       )}
 
-      {hasItinerary ? (
+      {hasItinerary && !isFlightQuote ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Textarea
+            label="What's included"
+            rows={4}
+            hint="One per line. Leave empty for the standard list for this method."
+            {...register("inclusions", { setValueAs: splitLines })}
+            error={errors.inclusions?.message}
+          />
+          <Textarea
+            label="Not included"
+            rows={4}
+            hint="One per line. Leave empty for: Fines, Border / immigration fees, Meals."
+            {...register("exclusions", { setValueAs: splitLines })}
+            error={errors.exclusions?.message}
+          />
+        </div>
+      ) : null}
+
+      {hasItinerary && showFlightDetails ? (
         <fieldset className="flex flex-col gap-4 rounded-lg border border-dashed border-hairline p-4">
           <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-accent">
             Itinerary (optional)

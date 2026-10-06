@@ -37,6 +37,8 @@ const REVISION_TRACKED_FIELDS = [
   "fineOrCharges",
   "otherCharges",
   "governmentFee",
+  "inclusions",
+  "exclusions",
   "flightTicketPrice",
   "vendorCost",
   "sellingPrice",

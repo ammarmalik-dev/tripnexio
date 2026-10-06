@@ -36,6 +36,8 @@ interface QuoteOption {
   breakdown?: { extensionFee: number; fine: number; otherCharges: number };
   /** P14 — Visa Change only: this option's Airport-to-Airport or Border Exit details. */
   operational?: { title: string; rows: { label: string; value: string }[] };
+  inclusions?: string[];
+  exclusions?: string[];
   /** P15 — Special Fare only. */
   expired?: boolean;
   adultFare?: number | null;
@@ -206,6 +208,30 @@ function QuoteCard({
         </div>
       ) : null}
 
+      {(quote.inclusions?.length ?? 0) > 0 || (quote.exclusions?.length ?? 0) > 0 ? (
+        <div className="grid grid-cols-1 gap-3 rounded-lg border border-hairline bg-surface-2 p-3 sm:grid-cols-2">
+          {quote.inclusions?.length ? (
+            <div>
+              <p className="text-xs font-semibold text-ink-heading">What&rsquo;s included</p>
+              <ul className="mt-1 flex flex-col gap-0.5 text-xs text-ink-secondary">
+                {quote.inclusions.map((item) => (
+                  <li key={item}>✓ {item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {quote.exclusions?.length ? (
+            <div>
+              <p className="text-xs font-semibold text-ink-heading">Not included</p>
+              <ul className="mt-1 flex flex-col gap-0.5 text-xs text-ink-tertiary">
+                {quote.exclusions.map((item) => (
+                  <li key={item}>✕ {item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       {quote.operational ? (
         <div className="flex flex-col gap-2">
           <span className="text-sm font-semibold text-ink-heading">{quote.operational.title}</span>

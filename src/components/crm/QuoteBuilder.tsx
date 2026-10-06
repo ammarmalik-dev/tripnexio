@@ -90,6 +90,9 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
     fineOrCharges: toNumber(quotation.fineOrCharges),
     otherCharges: toNumber(quotation.otherCharges),
     governmentFee: toNumber(quotation.governmentFee),
+    // The form edits these as one item per line; register() splits them back into arrays.
+    inclusions: quotation.inclusions?.length ? (quotation.inclusions.join("\n") as unknown as string[]) : undefined,
+    exclusions: quotation.exclusions?.length ? (quotation.exclusions.join("\n") as unknown as string[]) : undefined,
     flightTicketPrice: toNumber(quotation.flightTicketPrice),
     // Always sent back on a non-flight edit so the server re-validates it
     // against the (possibly changed) total; "" clears it.
@@ -111,14 +114,19 @@ export function QuoteBuilder({
   serviceType,
   leadStatus,
   onLeadChanged,
+  visaChangeMethod = null,
 }: {
   leadId: string;
   serviceType: ServiceType;
   leadStatus: LeadStatus;
   onLeadChanged: () => void;
+  /** Visa Change: "AIRPORT_TO_AIRPORT" / "BORDER_EXIT" (Lead.details.changeType). */
+  visaChangeMethod?: string | null;
 }) {
   const flightQuote = isFlightQuote(serviceType);
   const hasItinerary = supportsItinerary(serviceType);
+  // Client corrections 2026-10-05 — a Border Exit quote never shows flight details.
+  const showFlightDetails = hasItinerary && visaChangeMethod !== "BORDER_EXIT";
   const airlineCapable = capturesAirline(serviceType);
   const multiSector = supportsMultiSectorItinerary(serviceType);
   const [state, setState] = useState<FetchState>("loading");
@@ -298,6 +306,7 @@ export function QuoteBuilder({
             leadId={leadId}
             isFlightQuote={flightQuote}
             hasItinerary={hasItinerary}
+            showFlightDetails={showFlightDetails}
             showAirlineField={serviceType === "RETURN_TICKET"}
             isExtension={serviceType === "VISA_EXTENSION"}
             vendors={vendors}
@@ -322,6 +331,7 @@ export function QuoteBuilder({
             leadId={leadId}
             isFlightQuote={flightQuote}
             hasItinerary={hasItinerary}
+            showFlightDetails={showFlightDetails}
             showAirlineField={serviceType === "RETURN_TICKET"}
             isExtension={serviceType === "VISA_EXTENSION"}
             vendors={vendors}

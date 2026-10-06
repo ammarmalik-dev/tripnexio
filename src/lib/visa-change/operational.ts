@@ -33,7 +33,12 @@ export interface BorderBlock {
   kind: "BORDER";
   borderId: string;
   borderName: string;
+  /** Client corrections 2026-10-05 — the non-UAE side country (from the Border master; mandatory). */
+  borderCountryName?: string | null;
   pickupLocation: string;
+  /** Client corrections 2026-10-05 — full pickup address and the vehicle number. */
+  pickupAddress?: string | null;
+  vehicleNumber?: string | null;
   pickupPersonName: string;
   pickupPersonContact?: string | null;
   customerContactNumber: string;
@@ -112,7 +117,10 @@ export function customerBlockRows(block: OperationalBlock): { label: string; val
   }
   const rows: { label: string; value: string | null | undefined }[] = [
     { label: "Border", value: block.borderName },
+    { label: "Country (non-UAE side)", value: block.borderCountryName },
     { label: "Pickup Location", value: block.pickupLocation },
+    { label: "Pickup Address", value: block.pickupAddress },
+    { label: "Vehicle Number", value: block.vehicleNumber },
     { label: "Pickup Person", value: block.pickupPersonName },
     { label: "Pickup Contact Number", value: block.pickupPersonContact },
     { label: "Reporting Time", value: block.reportingTime },

@@ -1,3 +1,4 @@
+import { defaultVisaChangeInclusions, VISA_CHANGE_EXCLUSIONS } from "@/lib/visa-change/inclusions";
 import type { NextRequest } from "next/server";
 import { createQuotationSchema } from "@/lib/validation/quotation-schema";
 import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schema";
@@ -201,6 +202,8 @@ export async function POST(request: NextRequest) {
     fineOrCharges,
     otherCharges,
     governmentFee,
+    inclusions,
+    exclusions,
     flightTicketPrice,
     vendorCost,
     sellingPrice,
@@ -324,6 +327,13 @@ export async function POST(request: NextRequest) {
         fineOrCharges,
         otherCharges,
         governmentFee,
+        // Visa Change: the package's inclusions / exclusions (defaults from the method when staff left them empty).
+        ...(lead.serviceType === "VISA_CHANGE"
+          ? {
+              inclusions: inclusions && inclusions.length > 0 ? inclusions : defaultVisaChangeInclusions((lead.details as Record<string, unknown> | null)?.changeType),
+              exclusions: exclusions && exclusions.length > 0 ? exclusions : [...VISA_CHANGE_EXCLUSIONS],
+            }
+          : {}),
         operationalBlock: operationalBlock ? (operationalBlock as unknown as Prisma.InputJsonValue) : undefined,
         // P15 — flight quote details / cancellation terms (flight quotes only).
         ...(flightQuote

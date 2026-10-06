@@ -391,6 +391,9 @@ model Quotation {
   /// part of the price, shown apart from TripNexio's service fee on the
   /// invoice and excluded from GST. Null/0 = all service fee.
   governmentFee              Decimal?  @db.Decimal(10, 2)
+  /// Client corrections 2026-10-05 — Visa Change package inclusions / exclusions shown on the quote (staff-editable).
+  inclusions                 String[]  @default([])
+  exclusions                 String[]  @default([])
   /// Invoice lines snapshotted when the price is set (one per passenger type:
   /// [{ description, quantity, governmentFee, serviceFee }], unit amounts).
   /// Null = one line for the whole price (staff quotes, older rows).

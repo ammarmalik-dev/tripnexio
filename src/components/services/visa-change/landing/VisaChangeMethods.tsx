@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import { VISA_CHANGE_EXCLUSIONS, VISA_CHANGE_INCLUSIONS } from "@/lib/visa-change/inclusions";
 
 // Locked content — doc §6 "Choose Your Visa Change Method", with the
 // inclusions from the client correction of 2026-10-05.
@@ -12,18 +13,18 @@ const methods = [
     description:
       "Exit the UAE by air through a confirmed airport-to-airport arrangement. We confirm the available airport, airline, flight and timing before you choose.",
     Icon: Plane,
-    included: ["Round-trip flight ticket", "New UAE visa"],
+    included: VISA_CHANGE_INCLUSIONS.AIRPORT_TO_AIRPORT,
   },
   {
     title: "Border Exit",
     description:
       "Exit the UAE through a confirmed land-border arrangement. We confirm the border, pickup and reporting details before you choose.",
     Icon: Bus,
-    included: ["Round-trip border transportation", "Stay, if applicable", "New UAE visa", "Oman visa"],
+    included: VISA_CHANGE_INCLUSIONS.BORDER_EXIT,
   },
 ] as const;
 
-const notIncluded = ["Fines", "Border / immigration fees", "Meals"];
+const notIncluded = VISA_CHANGE_EXCLUSIONS;
 
 /** Doc §6 method cards + §6A "How Airports and Borders Work". */
 export function VisaChangeMethods() {
