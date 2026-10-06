@@ -93,6 +93,8 @@ interface BookingDetailResponse {
   leadReferenceId: string;
   poc: { name: string; active: boolean } | null;
   paxCount: number;
+  /** Client corrections 2026-10-05 — bank transfer only for leads created by staff. */
+  offlinePaymentAllowed: boolean;
   serviceType: ServiceType;
   selectedQuotation: { id: string; sellingPrice: string; margin: string; cancellationCharge?: string | null } | null;
   customer: {
@@ -364,10 +366,12 @@ export function BookingDetail({
                     <Plus className="h-4 w-4" aria-hidden="true" />
                     Payment Link
                   </Button>
-                  <Button type="button" size="sm" variant="ghost" onClick={() => void handleCreatePayment("bank-transfer")} isLoading={creatingPayment}>
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Bank Transfer
-                  </Button>
+                  {booking.offlinePaymentAllowed ? (
+                    <Button type="button" size="sm" variant="ghost" onClick={() => void handleCreatePayment("bank-transfer")} isLoading={creatingPayment}>
+                      <Plus className="h-4 w-4" aria-hidden="true" />
+                      Bank Transfer
+                    </Button>
+                  ) : null}
                 </div>
               ) : null}
               {/* Step 52 — Extra Payment Collection: only once the booking has a real, active lifecycle (not still awaiting its primary payment, and not dead), and no other payment is already pending. */}

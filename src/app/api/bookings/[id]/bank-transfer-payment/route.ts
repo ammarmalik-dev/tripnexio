@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { isInternallyCreatedLead } from "@/lib/leads/internal-lead";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
@@ -33,6 +34,9 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  if (!(await isInternallyCreatedLead(booking.lead))) {
+    return jsonError(409, "Offline payment is only for leads created by staff. Send the customer the online payment link instead.");
+  }
   if (booking.status !== "PENDING") {
     return jsonError(409, "This booking is no longer pending — a payment can't be created for it.");
   }

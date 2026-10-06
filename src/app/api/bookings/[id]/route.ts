@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { isInternallyCreatedLead } from "@/lib/leads/internal-lead";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
@@ -103,6 +104,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     status: synced.status,
     // Client corrections 2026-10-05 — POC shown with the status in the header.
     poc: booking.lead.assignedStaff ? { name: booking.lead.assignedStaff.name, active: booking.lead.assignedStaff.active } : null,
+    // Client corrections 2026-10-05 — bank transfer only for leads created by staff.
+    offlinePaymentAllowed: await isInternallyCreatedLead(booking.lead),
     paxCount: booking.passengers.length,
     extensionOutcome: synced.extensionOutcome,
     createdAt: synced.createdAt,
