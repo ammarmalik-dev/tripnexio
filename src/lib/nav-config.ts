@@ -15,7 +15,7 @@ export const utilityLinks = {
 };
 
 export const headerActions = {
-  login: { label: "Login", href: "/login" },
+  login: { label: "Customer Login", href: "/login" },
   getStarted: { label: "Get Started", href: "/services" },
 };
 

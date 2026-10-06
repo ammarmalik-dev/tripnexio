@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Logo } from "./Logo";
 import { SiteDrawer } from "./SiteDrawer";
+import { CustomerAccountLink } from "./CustomerAccountLink";
 import { Container } from "@/components/ui/Container";
 import { SocialIcon } from "@/components/ui/SocialIcon";
 import { cn } from "@/lib/cn";
@@ -61,7 +62,8 @@ export function Navbar() {
             ))}
           </nav>
 
-          <div className="hidden lg:flex">
+          <div className="hidden items-center gap-5 lg:flex">
+            <CustomerAccountLink />
             <a
               href={contact.whatsappHref}
               target="_blank"
