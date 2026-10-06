@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PricingDashboard } from "@/components/admin/PricingDashboard";
+import { PricingDashboardViews } from "@/components/admin/PricingDashboardViews";
 
 export const metadata: Metadata = { title: "Pricing Dashboard | Admin" };
 
@@ -9,12 +9,12 @@ export default function AdminPricingDashboardPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Pricing Dashboard</h1>
         <p className="text-sm text-ink-tertiary">
-          Every pricing rule at a glance — filter by country, service, sub-service, visa type and processing type, see
-          which rates are in effect on a given date and which are about to expire. Vendor cost and margin are internal
-          and shown here for Admin only. Edit a rule under Admin → Pricing.
+          Every configured price by country — open a price to Edit → Save it (a reason is required and every change is
+          audited; existing bookings keep their booked price). The table view filters by service, validity and expiry.
+          Vendor cost and margin are internal and shown here for Admin only.
         </p>
       </div>
-      <PricingDashboard />
+      <PricingDashboardViews />
     </div>
   );
 }
