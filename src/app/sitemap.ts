@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { siteConfig } from "@/lib/site-config";
 import { getPublishedCountrySlugs } from "@/lib/new-visa/country-pages";
+import { getPublishedPosts } from "@/lib/blog/queries";
 
 // Picks up newly published New Visa country pages without a redeploy.
 export const revalidate = 3600;
@@ -39,5 +40,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error("[sitemap] couldn't load New Visa country pages", error);
   }
   const paths = [...PUBLIC_PATHS, ...countrySlugs.map((slug) => `/services/new-visa/${slug}`)];
-  return paths.map((path) => ({ url: `${siteConfig.url}${path}`, lastModified: new Date() }));
+  // Published blog posts (client request 2026-10-06) — getPublishedPosts never throws.
+  const posts = await getPublishedPosts();
+  return [
+    ...paths.map((path) => ({ url: `${siteConfig.url}${path}`, lastModified: new Date() })),
+    ...posts.map((post) => ({ url: `${siteConfig.url}/blog/${post.slug}`, lastModified: post.updatedAt })),
+  ];
 }

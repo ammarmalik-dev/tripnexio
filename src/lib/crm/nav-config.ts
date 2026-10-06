@@ -1,5 +1,6 @@
 import {
   Inbox,
+  Newspaper,
   Scale,
   LayoutDashboard,
   ListChecks,
@@ -253,6 +254,7 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Pricing Dashboard", href: "/admin/pricing-dashboard", icon: Gauge, permission: "masters.manage" },
       { label: "Holidays", href: "/admin/holidays", icon: CalendarDays, permission: "masters.manage" },
       { label: "FAQs", href: "/admin/faqs", icon: HelpCircle, permission: "masters.manage" },
+      { label: "Blog", href: "/admin/blog", icon: Newspaper, permission: "masters.manage" },
     ],
   },
   {

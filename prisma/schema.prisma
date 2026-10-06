@@ -2191,6 +2191,7 @@ model User {
   staffNotifications          StaffNotification[]
   rosterEntries               StaffRoster[]
   assignedEnquiries           Enquiry[]            @relation("EnquiryAssignee")
+  blogPosts                   BlogPost[]           @relation("BlogPostAuthor")
 
   @@index([roleId])
   @@index([active])
@@ -2780,4 +2781,40 @@ model EscalationRule {
   updatedAt       DateTime     @updatedAt
 
   @@index([active])
+}
+
+/// Client request 2026-10-06 — the website blog (/blog), managed in
+/// Admin → Blog. Body uses the same small text format as Legal Pages
+/// (src/lib/legal/markup.ts), never raw HTML.
+enum BlogPostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model BlogPost {
+  id              String         @id @default(cuid())
+  slug            String         @unique
+  title           String
+  excerpt         String
+  body            String         @db.Text
+  category        String
+  tags            String[]
+  /// A built-in site photo path (e.g. /images/services/otb.jpg); ignored when coverFileUrl is set.
+  coverImageUrl   String?
+  /// An uploaded cover (private storage, /api/files/...) — served publicly by /api/blog/cover/[id] only while the post is published.
+  coverFileUrl    String?
+  coverImageAlt   String?
+  authorName      String         @default("TripNexio Team")
+  seoTitle        String?
+  seoDescription  String?
+  status          BlogPostStatus @default(DRAFT)
+  publishedAt     DateTime?
+  createdByUserId String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  createdBy User? @relation("BlogPostAuthor", fields: [createdByUserId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([category])
 }
