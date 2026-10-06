@@ -14,18 +14,22 @@ import { cn } from "@/lib/cn";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 
-type HolidayCountry = "INDIA" | "UAE";
 type StatusFilter = "all" | "active" | "disabled";
 
 interface HolidayData {
   id: string;
   date: string;
-  country: HolidayCountry;
+  /** Client corrections 2026-10-05: holidays per Country master row (older rows also carry INDIA/UAE). */
+  countryId: string | null;
+  countryName: string;
   name: string;
   active: boolean;
 }
 
-const COUNTRY_LABELS: Record<HolidayCountry, string> = { INDIA: "India", UAE: "UAE" };
+interface CountryOption {
+  id: string;
+  name: string;
+}
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
@@ -39,7 +43,7 @@ function HolidayRow({ holiday, onSaved }: { holiday: HolidayData; onSaved: (h: H
     try {
       const updated = await patchJson<HolidayData>(`/api/admin/holidays/${holiday.id}`, { active: !holiday.active });
       toast.success(`"${updated.name}" ${updated.active ? "enabled" : "disabled"}.`);
-      onSaved(updated);
+      onSaved({ ...updated, countryName: holiday.countryName });
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Couldn't update this holiday. Please try again.");
     } finally {
@@ -53,7 +57,7 @@ function HolidayRow({ holiday, onSaved }: { holiday: HolidayData; onSaved: (h: H
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-sm font-semibold text-ink-heading">{holiday.name}</h3>
           <span className="rounded-md bg-ink-primary/[0.05] px-1.5 py-0.5 text-xs font-medium text-ink-secondary">
-            {COUNTRY_LABELS[holiday.country]}
+            {holiday.countryName}
           </span>
           <span
             className={cn(
@@ -75,9 +79,9 @@ function HolidayRow({ holiday, onSaved }: { holiday: HolidayData; onSaved: (h: H
   );
 }
 
-function NewHolidayForm({ onCreated }: { onCreated: (h: HolidayData) => void }) {
+function NewHolidayForm({ onCreated, countries }: { onCreated: (h: HolidayData) => void; countries: CountryOption[] }) {
   const [date, setDate] = useState("");
-  const [country, setCountry] = useState<HolidayCountry>("INDIA");
+  const [countryId, setCountryId] = useState("");
   const [name, setName] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
@@ -86,7 +90,7 @@ function NewHolidayForm({ onCreated }: { onCreated: (h: HolidayData) => void }) 
     setCreating(true);
     setErrors({});
     try {
-      const created = await postJson<HolidayData>("/api/admin/holidays", { date, country, name: name.trim() });
+      const created = await postJson<HolidayData>("/api/admin/holidays", { date, countryId, name: name.trim() });
       toast.success(`"${created.name}" added.`);
       onCreated(created);
       setName("");
@@ -102,21 +106,27 @@ function NewHolidayForm({ onCreated }: { onCreated: (h: HolidayData) => void }) 
     <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
       <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
         <TextField label="Date" name="holiday-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} error={errors.date?.[0]} disabled={creating} />
-        <FormField label="Country" htmlFor="holiday-country" error={errors.country?.[0]}>
+        <FormField label="Country" htmlFor="holiday-country" error={errors.countryId?.[0]}>
           <select
             id="holiday-country"
-            value={country}
+            value={countryId}
             disabled={creating}
-            onChange={(e) => setCountry(e.target.value as HolidayCountry)}
-            className={cn(fieldControlClass, fieldBorderClass(!!errors.country))}
+            onChange={(e) => setCountryId(e.target.value)}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.countryId))}
           >
-            <option value="INDIA">India</option>
-            <option value="UAE">UAE</option>
+            <option value="" disabled>
+              Select a country
+            </option>
+            {countries.map((country) => (
+              <option key={country.id} value={country.id}>
+                {country.name}
+              </option>
+            ))}
           </select>
         </FormField>
         <TextField label="Holiday name" name="holiday-name" value={name} onChange={(e) => setName(e.target.value)} error={errors.name?.[0]} disabled={creating} />
       </div>
-      <Button type="button" size="sm" onClick={() => void create()} isLoading={creating} disabled={!date || name.trim().length < 2}>
+      <Button type="button" size="sm" onClick={() => void create()} isLoading={creating} disabled={!date || !countryId || name.trim().length < 2}>
         <Plus className="h-4 w-4" aria-hidden="true" />
         Add
       </Button>
@@ -131,18 +141,35 @@ export function HolidaysManager() {
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [search, setSearch] = useState("");
-  const [countryFilter, setCountryFilter] = useState<HolidayCountry | "">("");
+  const [countryFilter, setCountryFilter] = useState("");
+  // Every enabled Country master row (client corrections 2026-10-05) — a newly enabled country appears automatically.
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCountries() {
+      try {
+        const rows = await getJson<CountryOption[]>("/api/countries");
+        if (!cancelled) setCountries(rows);
+      } catch {
+        // The country pickers just stay empty.
+      }
+    }
+    void loadCountries();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [showCreate, setShowCreate] = useState(false);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return items.filter((holiday) => {
-      if (countryFilter && holiday.country !== countryFilter) return false;
+      if (countryFilter && holiday.countryName !== countryFilter) return false;
       if (statusFilter === "active" && !holiday.active) return false;
       if (statusFilter === "disabled" && holiday.active) return false;
       if (!term) return true;
-      return [holiday.name, COUNTRY_LABELS[holiday.country], formatDate(holiday.date)].some((value) =>
+      return [holiday.name, holiday.countryName, formatDate(holiday.date)].some((value) =>
         value.toLowerCase().includes(term)
       );
     });
@@ -205,6 +232,7 @@ export function HolidaysManager() {
         {createOpen ? (
           <div id="new-holiday-panel" className="border-t border-hairline p-5">
             <NewHolidayForm
+              countries={countries}
               onCreated={(created) => {
                 if (new Date(created.date).getUTCFullYear() === year) {
                   setItems((current) => [created, ...current]);
@@ -249,14 +277,17 @@ export function HolidaysManager() {
           aria-label="Filter by country"
           value={countryFilter}
           onChange={(event) => {
-            setCountryFilter(event.target.value as HolidayCountry | "");
+            setCountryFilter(event.target.value);
             resetPage();
           }}
           className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-40")}
         >
           <option value="">All countries</option>
-          <option value="INDIA">India</option>
-          <option value="UAE">UAE</option>
+          {[...new Set([...countries.map((country) => country.name), ...items.map((holiday) => holiday.countryName)])].map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
         </select>
         <select
           aria-label="Filter by status"

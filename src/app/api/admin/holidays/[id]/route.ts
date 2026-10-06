@@ -27,7 +27,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const existing = await db.holiday.findUnique({ where: { id } });
+  const existing = await db.holiday.findUnique({ where: { id }, include: { countryRecord: { select: { name: true } } } });
   if (!existing) return jsonError(404, "Holiday not found.");
 
   const updated = await db.$transaction(async (tx) => {
@@ -37,7 +37,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "UPDATE",
       byUserId: session.id,
-      note: `Holiday "${row.name}" (${row.country}) ${parsed.data.active === undefined ? "renamed" : row.active ? "enabled" : "disabled"} (by ${session.name})`,
+      note: `Holiday "${row.name}" (${existing.countryRecord?.name ?? row.country ?? "—"}) ${parsed.data.active === undefined ? "renamed" : row.active ? "enabled" : "disabled"} (by ${session.name})`,
     });
     return row;
   });

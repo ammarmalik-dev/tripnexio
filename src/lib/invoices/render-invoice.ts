@@ -57,6 +57,8 @@ export interface InvoicePdfInput {
   gatewayFee: number;
   total: number;
   company: InvoiceCompanyDetails;
+  /** Client corrections 2026-10-05 — the service's own SAC code; falls back to the company default. */
+  sacCode?: string | null;
 }
 
 function drawBankDetails(doc: PDFKit.PDFDocument, company: InvoiceCompanyDetails) {
@@ -102,6 +104,16 @@ function drawSignatory(doc: PDFKit.PDFDocument, company: InvoiceCompanyDetails) 
  * fetches anything itself — company.logoBuffer/signatureBuffer are already
  * resolved bytes by the time they reach here (see company-config.ts).
  */
+/** The Admin-set SAC code of a service (Admin → Services), or null to use the Invoice Settings default. */
+export async function serviceSacCode(serviceType: string): Promise<string | null> {
+  try {
+    const service = await db.service.findUnique({ where: { code: serviceType }, select: { sacCode: true } });
+    return service?.sacCode?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> {
   const doc = new PDFDocument({ size: "A4", margin: 50 });
   const chunks: Buffer[] = [];
@@ -171,7 +183,7 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   const itemY = doc.y;
   doc.fontSize(9).fillColor("#333333");
   doc.text(input.description, col1, itemY, { width: 240 });
-  doc.text(input.company.sacCode ?? "—", col2, itemY);
+  doc.text(input.sacCode ?? input.company.sacCode ?? "—", col2, itemY);
   doc.text("1", col3, itemY);
   doc.text(fmt(input.baseFare), col4, itemY, { align: "right", width: 75 });
   doc.moveDown(1);
@@ -180,7 +192,7 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
   if (protectionPlanAmount > 0) {
     const planY = doc.y;
     doc.text("Protection Plan", col1, planY, { width: 240 });
-    doc.text(input.company.sacCode ?? "—", col2, planY);
+    doc.text(input.sacCode ?? input.company.sacCode ?? "—", col2, planY);
     doc.text("1", col3, planY);
     doc.text(fmt(protectionPlanAmount), col4, planY, { align: "right", width: 75 });
     doc.moveDown(1);
@@ -276,6 +288,7 @@ export async function buildInvoicePdfForPayment(paymentId: string): Promise<Paym
     ...amounts,
     couponCode: payment.couponCode,
     company,
+    sacCode: await serviceSacCode(payment.booking.lead.serviceType),
   });
 
   return { pdf, invoiceNumber, bookingId: payment.booking.bookingId, total: amounts.total };
@@ -361,6 +374,7 @@ export async function buildInvoicePdfForQuotation(quotationId: string): Promise<
     customerMobile: quotation.lead.customer.mobile,
     customerEmail: quotation.lead.customer.email,
     description: `${quotation.lead.serviceType.replaceAll("_", " ")} — Service Fee (Estimate)`,
+    sacCode: await serviceSacCode(quotation.lead.serviceType),
     baseFare: sellingPrice,
     couponCode: quotation.couponCode,
     couponDiscount,

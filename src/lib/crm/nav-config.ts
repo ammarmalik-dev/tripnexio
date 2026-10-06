@@ -200,12 +200,21 @@ export const crmNavGroups: CrmNavGroup[] = [
  *   Bulk Reassignment (both decide who works which lead).
  */
 export const adminNavGroups: CrmNavGroup[] = [
-  { label: null, items: [{ label: "AI Command Center", href: "/admin/command-center", icon: Sparkles, permission: "ai.assist" }] },
+  // Client corrections 2026-10-05: Command Centre holds the Overview (the Admin
+  // home, opened by default) with the AI Command Center as a tool below it.
+  {
+    label: "Command Centre",
+    items: [
+      { label: "Overview", href: "/admin/overview", icon: LayoutDashboard },
+      { label: "AI Command Center", href: "/admin/command-center", icon: Sparkles, permission: "ai.assist" },
+    ],
+  },
   {
     // P24 — read-only cross-service booking search + SLA escalation rules.
     label: "Operations",
     items: [
       { label: "Bookings", href: "/admin/bookings", icon: CalendarCheck, permission: "bookings.view" },
+      { label: "Enquiries & Escalation", href: "/admin/enquiries", icon: Inbox, permission: "leads.view" },
       { label: "SLA Escalation", href: "/admin/escalations", icon: Siren, permission: "staff.manage" },
     ],
   },

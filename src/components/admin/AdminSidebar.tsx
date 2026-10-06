@@ -89,7 +89,7 @@ export function AdminSidebar({ permissions }: { permissions: string[] }) {
         })}
       </nav>
       <Link
-        href="/crm/leads"
+        href="/crm"
         className="mt-3 flex items-center gap-2.5 rounded-md border border-hairline-on-dark px-3 py-2 text-sm font-medium text-ink-on-dark-secondary transition-colors duration-150 hover:bg-white/[0.06] hover:text-ink-on-dark-primary"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />

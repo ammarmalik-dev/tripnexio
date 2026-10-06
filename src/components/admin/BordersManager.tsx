@@ -125,15 +125,6 @@ function BorderFields({
         error={errors.displayOrder?.[0]}
         disabled={disabled}
       />
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input
-          type="checkbox"
-          checked={form.activeForVisaChange}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...form, activeForVisaChange: event.target.checked })}
-        />
-        Available for Visa Change (Border Exit)
-      </label>
     </div>
   );
 }
@@ -215,7 +206,7 @@ function BorderCard({
           </div>
           <p className="mt-1 text-xs text-ink-tertiary">
             {border.uaeLocation} → {border.destinationLocation} ·{" "}
-            {border.activeForVisaChange ? "Available for Visa Change" : "Not offered for Visa Change"} · Order{" "}
+            Order{" "}
             {border.displayOrder}
           </p>
         </div>

@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
-import { paymentInvoiceAmounts, renderInvoicePdf } from "@/lib/invoices/render-invoice";
+import { paymentInvoiceAmounts, renderInvoicePdf, serviceSacCode } from "@/lib/invoices/render-invoice";
 import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
 import { ensureInvoiceNumber } from "@/lib/invoices/invoice-number";
 
@@ -46,6 +46,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     ...paymentInvoiceAmounts(payment),
     couponCode: payment.couponCode,
     company,
+    sacCode: await serviceSacCode(payment.booking.lead.serviceType),
   });
 
   const disposition = new URL(request.url).searchParams.get("inline") === "1" ? "inline" : "attachment";

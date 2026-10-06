@@ -118,7 +118,7 @@ function AirportFields({
         error={errors.city?.[0]}
         disabled={disabled}
       />
-      <FormField label="GCC Classification" htmlFor="countryId" error={errors.countryId?.[0]}>
+      <FormField label="Country Classification" htmlFor="countryId" error={errors.countryId?.[0]}>
         <select
           id="countryId"
           value={form.countryId}
@@ -145,24 +145,6 @@ function AirportFields({
         error={errors.displayOrder?.[0]}
         disabled={disabled}
       />
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input
-          type="checkbox"
-          checked={form.activeForA2AEntry}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...form, activeForA2AEntry: event.target.checked })}
-        />
-        Active for Airport-to-Airport Entry
-      </label>
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input
-          type="checkbox"
-          checked={form.activeForA2AExit}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...form, activeForA2AExit: event.target.checked })}
-        />
-        Active for Airport-to-Airport Exit
-      </label>
     </div>
   );
 }

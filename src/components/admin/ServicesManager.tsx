@@ -24,6 +24,7 @@ interface ServiceData {
   name: string;
   shortDescription: string;
   ctaLabel: string;
+  sacCode: string | null;
   referenceCode: string;
   iconName: string;
   displayOrder: number;
@@ -37,6 +38,7 @@ interface ServiceFormState {
   name: string;
   shortDescription: string;
   ctaLabel: string;
+  sacCode: string;
   referenceCode: string;
   iconName: string;
   displayOrder: string;
@@ -47,6 +49,7 @@ const EMPTY_FORM: ServiceFormState = {
   name: "",
   shortDescription: "",
   ctaLabel: "",
+  sacCode: "",
   referenceCode: "",
   iconName: SERVICE_ICON_OPTIONS[0],
   displayOrder: "0",
@@ -58,6 +61,7 @@ function toFormState(service: ServiceData): ServiceFormState {
     name: service.name,
     shortDescription: service.shortDescription,
     ctaLabel: service.ctaLabel,
+    sacCode: service.sacCode ?? "",
     referenceCode: service.referenceCode,
     iconName: service.iconName,
     displayOrder: String(service.displayOrder),
@@ -135,6 +139,15 @@ function ServiceFields({
         disabled={disabled}
       />
       <TextField
+        label="SAC Code (invoices)"
+        name={id("sacCode")}
+        value={form.sacCode}
+        placeholder="Blank = default SAC"
+        onChange={(event) => onChange({ ...form, sacCode: event.target.value })}
+        error={errors.sacCode?.[0]}
+        disabled={disabled}
+      />
+      <TextField
         label="Reference Code"
         name={id("referenceCode")}
         maxLength={2}
@@ -181,6 +194,7 @@ function buildPayload(form: ServiceFormState) {
     name: form.name.trim(),
     shortDescription: form.shortDescription.trim(),
     ctaLabel: form.ctaLabel.trim(),
+    sacCode: form.sacCode.trim(),
     referenceCode: form.referenceCode.trim().toUpperCase(),
     iconName: form.iconName,
     displayOrder: Number(form.displayOrder) || 0,

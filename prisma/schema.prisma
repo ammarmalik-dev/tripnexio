@@ -1178,6 +1178,10 @@ model Service {
   referenceCode    String   @unique
   /// Homepage card button text (Homepage_FINAL_Locked_1of1.docx §4) — Admin-editable.
   ctaLabel         String   @default("")
+  /// Client corrections 2026-10-05 — SAC code printed on this service's
+  /// invoices (blank = Invoice Settings' default SAC). Admin-editable; never
+  /// guessed — hard rule #1.
+  sacCode          String?
   iconName         String
   active           Boolean  @default(true)
   displayOrder     Int      @default(0)
@@ -1214,6 +1218,7 @@ model Country {
   newVisaCountryPage      NewVisaCountryPage?
   faqs                    Faq[]
   leads                   Lead[]
+  holidays                Holiday[]
   visaTypes               VisaType[]
   nationalities           Nationality[]
   serviceTerms            ServiceTerms[]
@@ -2577,16 +2582,24 @@ enum HolidayCountry {
 
 /// P09 — public holidays, Admin-managed; working-day rules skip them.
 model Holiday {
-  id        String         @id @default(cuid())
-  date      DateTime       @db.Date
-  country   HolidayCountry
+  id        String          @id @default(cuid())
+  date      DateTime        @db.Date
+  /// Legacy India/UAE value (older rows). Client corrections 2026-10-05: new
+  /// holidays are set per Country master row (`countryId`) so every enabled
+  /// country has its own calendar; the working calendar reads both.
+  country   HolidayCountry?
+  countryId String?
   name      String
-  active    Boolean        @default(true)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  active    Boolean         @default(true)
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  countryRecord Country? @relation(fields: [countryId], references: [id])
 
   @@unique([date, country])
+  @@unique([date, countryId])
   @@index([country, active])
+  @@index([countryId, active])
 }
 
 /// P18 — OTB price per airline + destination country + passenger type

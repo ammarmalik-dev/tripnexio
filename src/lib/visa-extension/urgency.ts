@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { getWorkingCalendar } from "../calendar/get-working-calendar";
+import { getWorkingCalendar, holidayCountryWhere } from "../calendar/get-working-calendar";
 import { isWorkingDay, localDate, nextWorkingDay } from "../calendar/working-calendar";
 import { DAY_MS, URGENT_DEADLINE_HOUR, type UrgentDeadline } from "./rules";
 
@@ -22,11 +22,20 @@ export async function computeUrgentDeadline(now = new Date()): Promise<UrgentDea
   const at = new Date(Date.parse(`${day}T${String(URGENT_DEADLINE_HOUR).padStart(2, "0")}:00:00Z`) - calendar.offsetMs).toISOString();
 
   const nextDay = new Date(Date.parse(`${day}T00:00:00Z`) + DAY_MS);
+  // Only the India and UAE calendars matter for the extension deadline.
   const holidays = await db.holiday.findMany({
-    where: { date: nextDay, active: true },
-    select: { country: true, name: true },
+    where: { date: nextDay, active: true, OR: [holidayCountryWhere("UAE"), holidayCountryWhere("INDIA")] },
+    select: { country: true, name: true, countryRecord: { select: { code: true } } },
     orderBy: { country: "asc" },
   });
-  return { day, at, nextDayHolidays: holidays.map((holiday) => ({ country: holiday.country, name: holiday.name })) };
+  return {
+    day,
+    at,
+    nextDayHolidays: holidays.map((holiday) => ({
+      country: holiday.country ?? (["AE", "ARE", "UAE"].includes(holiday.countryRecord?.code.toUpperCase() ?? "") ? ("UAE" as const) : ("INDIA" as const)),
+      name: holiday.name,
+    })),
+  };
+
 }
 

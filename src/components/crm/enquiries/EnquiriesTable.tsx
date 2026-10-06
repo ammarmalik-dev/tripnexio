@@ -45,7 +45,8 @@ function formatDate(iso: string): string {
 }
 
 /** CRM → Enquiries: Contact-form messages, with a separate Complaints (escalation) tab. */
-export function EnquiriesTable() {
+/** `basePath` "/admin/enquiries" when listed in Admin, so an enquiry opens inside Admin. */
+export function EnquiriesTable({ basePath = "/crm/enquiries" }: { basePath?: string } = {}) {
   const searchParams = useSearchParams();
   const [view, setView] = useState<View>(() => (searchParams.get("view") === "complaints" ? "complaints" : "enquiries"));
   const [status, setStatus] = useState<string>("open");
@@ -216,7 +217,7 @@ export function EnquiriesTable() {
                 {data.items.map((item) => (
                   <tr key={item.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
                     <td className="px-4 py-3 font-medium">
-                      <Link href={`/crm/enquiries/${item.id}`} className="text-accent-on-light hover:underline">
+                      <Link href={`${basePath}/${item.id}`} className="text-accent-on-light hover:underline">
                         {item.reference}
                       </Link>
                     </td>

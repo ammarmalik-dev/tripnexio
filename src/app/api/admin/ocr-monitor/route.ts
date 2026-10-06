@@ -161,6 +161,8 @@ export async function GET(request: NextRequest) {
       reviewedAt: job.reviewedAt,
       documentId: job.documentId,
       documentType: job.document.type,
+      // Client corrections 2026-10-05 — open the document straight from the monitor for manual review.
+      documentFileUrl: job.document.fileUrl,
       ...linkFor(job.bookingId ?? job.document.bookingId, job.passengerId ?? job.document.passengerId),
       retryable: job.status === "REJECTED" && canRetryPassportOcr(job.document),
     }));
@@ -172,6 +174,7 @@ export async function GET(request: NextRequest) {
         id: row.id,
         documentId: row.entityId,
         documentType: document?.type ?? null,
+        documentFileUrl: document?.fileUrl ?? null,
         note: row.note,
         timestamp: row.timestamp,
         resolved: Boolean(lastSuccessAt && lastSuccessAt > row.timestamp),

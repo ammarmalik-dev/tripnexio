@@ -4,6 +4,15 @@ import { getEmailSender } from "../email/get-sender";
 import { renderTemplate, withRequiredLines } from "./render-template";
 import type { EmailAttachment } from "../email/sender";
 
+/**
+ * Client corrections 2026-10-05: every email that delivers a service output
+ * (visa approval, ticket issued, extended visa, reservation, package, OTB
+ * confirmation) carries this note, in the client's wording (corrected).
+ */
+export const OUTPUT_DISCREPANCY_NOTE =
+  "Please cross-check your details against your ID proof. If you notice any discrepancy, let us know within 24 hours. Corrections after that may be chargeable.";
+const OUTPUT_EVENTS = new Set<string>(["OUTPUT_DELIVERED", "OTB_APPROVED"]);
+
 export interface NotificationAuditTarget {
   entityType: string;
   entityId: string;
@@ -64,7 +73,8 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
     }
 
     const subject = renderTemplate(template.subject ?? event, variables, { escape: false });
-    const html = renderTemplate(withRequiredLines(template.body, variables), variables).replace(/\n/g, "<br>");
+    const body = renderTemplate(withRequiredLines(template.body, variables), variables).replace(/\n/g, "<br>");
+    const html = OUTPUT_EVENTS.has(event) ? `${body}<p style="margin-top:16px"><strong>${OUTPUT_DISCREPANCY_NOTE}</strong></p>` : body;
 
     const sender = getEmailSender();
     const result = await sender.send({ to, subject, html, attachments });

@@ -69,7 +69,7 @@ function formatDateTime(iso: string): string {
 
 const LEAD_SERVICE_OPTIONS = SERVICE_TYPE_OPTIONS.filter((option) => option.value !== "OTHER");
 
-export function EnquiryDetail({ enquiryId, canEdit }: { enquiryId: string; canEdit: boolean }) {
+export function EnquiryDetail({ enquiryId, canEdit, basePath = "/crm/enquiries" }: { enquiryId: string; canEdit: boolean; basePath?: string }) {
   const [state, setState] = useState<FetchState>("loading");
   const [enquiry, setEnquiry] = useState<EnquiryData | null>(null);
   const [staff, setStaff] = useState<StaffOption[]>([]);
@@ -193,7 +193,7 @@ export function EnquiryDetail({ enquiryId, canEdit }: { enquiryId: string; canEd
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Link href={isComplaint ? "/crm/enquiries?view=complaints" : "/crm/enquiries"} className="inline-flex w-fit items-center gap-1 text-sm text-ink-tertiary hover:text-ink-primary">
+        <Link href={isComplaint ? `${basePath}?view=complaints` : basePath} className="inline-flex w-fit items-center gap-1 text-sm text-ink-tertiary hover:text-ink-primary">
           <ArrowLeft className="h-4 w-4" aria-hidden="true" />
           {isComplaint ? "All complaints" : "All enquiries"}
         </Link>

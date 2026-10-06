@@ -13,6 +13,15 @@ export const createServiceSchema = z.object({
   name: z.string().trim().min(2, "Enter a service name").max(80, "Name is too long"),
   shortDescription: z.string().trim().min(2, "Enter a short description").max(300, "Description is too long"),
   ctaLabel: z.string().trim().max(40, "Button text is too long").default(""),
+  /** Client corrections 2026-10-05 — this service's SAC code on invoices; blank = the Invoice Settings default. */
+  sacCode: z
+    .string()
+    .trim()
+    .max(12, "SAC code is too long")
+    .regex(/^[0-9A-Za-z]*$/, "Use digits/letters only")
+    .transform((value) => (value === "" ? null : value))
+    .nullable()
+    .optional(),
   /** The two letters inside every reference, e.g. "VI" in 10626VI001 (Locked Business Rules v2.0 §4). */
   referenceCode: z
     .string()

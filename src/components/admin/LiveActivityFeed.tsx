@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Pause, Play, RotateCw, ListChecks, CalendarCheck, CreditCard, MessageCircle, ScanText } from "lucide-react";
+import { Pause, Play, RotateCw, ListChecks, CalendarCheck, CreditCard, MessageCircle, ScanText, Mail } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ListPagination } from "@/components/crm/ListPagination";
@@ -49,6 +49,7 @@ interface LiveActivityResponse {
     updatedAt: string;
     latestMessage: { direction: WhatsAppMessageDirection; preview: string | null; createdAt: string } | null;
   }[];
+  emails: { id: string; action: "EMAIL_SENT" | "EMAIL_FAILED" | "EMAIL_SKIPPED"; entityType: string; entityId: string; note: string | null; timestamp: string }[];
   ocrJobs: {
     id: string;
     extractionType: DocumentExtractionType;
@@ -220,7 +221,7 @@ export function LiveActivityFeed() {
                   <div className="min-w-0">
                     <div className="font-medium text-ink-primary">{formatCurrency(payment.total)}</div>
                     <div className="truncate text-xs text-ink-tertiary">
-                      <Link href={`/crm/bookings/${payment.booking.id}`} className="text-ink-accent hover:underline">
+                      <Link href={`/admin/bookings/${payment.booking.id}`} className="text-ink-accent hover:underline">
                         {payment.booking.bookingId}
                       </Link>
                       {payment.method === "BANK_TRANSFER" ? " · Bank transfer" : " · Gateway"}
@@ -242,7 +243,7 @@ export function LiveActivityFeed() {
               renderItem={(booking) => (
                 <>
                   <div className="min-w-0">
-                    <Link href={`/crm/bookings/${booking.id}`} className="font-medium text-ink-accent hover:underline">
+                    <Link href={`/admin/bookings/${booking.id}`} className="font-medium text-ink-accent hover:underline">
                       {booking.bookingId}
                     </Link>
                     <div className="truncate text-xs text-ink-tertiary">
@@ -317,7 +318,7 @@ export function LiveActivityFeed() {
                       {job.bookingId ? (
                         <>
                           {" · "}
-                          <Link href={`/crm/bookings/${job.bookingId}`} className="text-ink-accent hover:underline">
+                          <Link href={`/admin/bookings/${job.bookingId}`} className="text-ink-accent hover:underline">
                             Booking
                           </Link>
                         </>
@@ -327,6 +328,32 @@ export function LiveActivityFeed() {
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-xs font-medium text-ink-secondary">{OCR_STATUS_LABELS[job.status]}</span>
                     <span className="text-xs text-ink-tertiary">{formatDateTime(job.createdAt)}</span>
+                  </div>
+                </>
+              )}
+            />
+
+            <ActivityCard
+              title="Emails"
+              noun="email"
+              icon={<Mail className="h-4 w-4" aria-hidden="true" />}
+              items={data.emails}
+              renderItem={(email) => (
+                <>
+                  <div className="min-w-0">
+                    <div className="font-medium text-ink-primary">{email.entityType}</div>
+                    <p className="line-clamp-2 text-xs text-ink-secondary">{email.note ?? ""}</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        email.action === "EMAIL_SENT" ? "text-success" : email.action === "EMAIL_FAILED" ? "text-error" : "text-ink-tertiary"
+                      )}
+                    >
+                      {email.action === "EMAIL_SENT" ? "Sent" : email.action === "EMAIL_FAILED" ? "Failed" : "Skipped"}
+                    </span>
+                    <span className="text-xs text-ink-tertiary">{formatDateTime(email.timestamp)}</span>
                   </div>
                 </>
               )}

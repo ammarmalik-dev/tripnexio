@@ -4,6 +4,27 @@ import { getSystemConfig } from "../settings/system-config";
 import { DEFAULT_WORKING_CALENDAR, parseWeekendDays, type WorkingCalendar } from "./working-calendar";
 
 const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Country master codes/names that mean the legacy INDIA / UAE calendars. */
+const LEGACY_COUNTRY_MATCH: Record<HolidayCountry, { codes: string[]; names: string[] }> = {
+  INDIA: { codes: ["IN", "IND"], names: ["India"] },
+  UAE: { codes: ["AE", "ARE", "UAE"], names: ["United Arab Emirates", "UAE"] },
+};
+
+/** Holidays of one legacy calendar: the old enum value, or a Country-linked row for that country (client corrections 2026-10-05). */
+export function holidayCountryWhere(country: HolidayCountry) {
+  const match = LEGACY_COUNTRY_MATCH[country];
+  return {
+    OR: [
+      { country },
+      {
+        countryRecord: {
+          OR: [{ code: { in: match.codes, mode: "insensitive" as const } }, { name: { in: match.names, mode: "insensitive" as const } }],
+        },
+      },
+    ],
+  };
+}
 const LOOKAHEAD_MS = 400 * 24 * 60 * 60 * 1000;
 
 /**
@@ -21,7 +42,7 @@ export async function getWorkingCalendar(country: HolidayCountry): Promise<Worki
     });
     const now = Date.now();
     const holidays = await db.holiday.findMany({
-      where: { country, active: true, date: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) } },
+      where: { ...holidayCountryWhere(country), active: true, date: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) } },
       select: { date: true },
     });
     const weekend = raw ? parseWeekendDays(country === "UAE" ? raw.weekendDaysUae : raw.weekendDaysIndia) : DEFAULT_WORKING_CALENDAR.weekendDays;

@@ -70,7 +70,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const border = await db.border.findUnique({ where: { id: parsed.data.borderId } });
-  if (!border || !border.active || !border.activeForVisaChange) {
+  if (!border || !border.active) {
     return jsonError(400, "Select a valid border crossing.", { borderId: ["This border crossing isn't available for Visa Change."] });
   }
   const vendor = parsed.data.vendorId ? await db.vendor.findUnique({ where: { id: parsed.data.vendorId } }) : null;

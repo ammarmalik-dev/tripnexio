@@ -73,10 +73,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     findActiveAirlineByCode(input.airlineCode),
     db.vendor.findUnique({ where: { id: input.vendorId } }),
   ]);
-  if (!entry || !entry.active || !entry.activeForA2AEntry) {
+  if (!entry || !entry.active) {
     return jsonError(400, "Select a valid entry airport.", { entryAirportId: ["This airport isn't enabled for A2A entry."] });
   }
-  if (!exit || !exit.active || !exit.activeForA2AExit) {
+  if (!exit || !exit.active) {
     return jsonError(400, "Select a valid exit airport.", { exitAirportId: ["This airport isn't enabled for A2A exit."] });
   }
   if (!airline) return jsonError(400, "Select a valid, active airline.", { airlineCode: ["This airline isn't available."] });

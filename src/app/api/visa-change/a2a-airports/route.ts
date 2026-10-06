@@ -10,8 +10,9 @@ export async function GET() {
     const select = { id: true, name: true, code: true } as const;
     const orderBy = [{ displayOrder: "asc" as const }, { name: "asc" as const }];
     const [entry, exit] = await Promise.all([
-      db.airport.findMany({ where: { active: true, activeForA2AEntry: true }, select, orderBy }),
-      db.airport.findMany({ where: { active: true, activeForA2AExit: true }, select, orderBy }),
+      // Client corrections 2026-10-05: A2A uses the single Airport Master (every active airport).
+      db.airport.findMany({ where: { active: true }, select, orderBy }),
+      db.airport.findMany({ where: { active: true }, select, orderBy }),
     ]);
     return jsonSuccess({ entry, exit });
   } catch (error) {

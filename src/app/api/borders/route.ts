@@ -13,7 +13,8 @@ export async function GET() {
   if (!session) return jsonError(401, "Sign in required.");
 
   const borders = await db.border.findMany({
-    where: { active: true, activeForVisaChange: true },
+    // Client corrections 2026-10-05: every active border is available for Border Exit (no separate tick box).
+    where: { active: true },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
   });
 

@@ -10,6 +10,7 @@ import { useClientPagination, usePaginationState } from "@/components/crm/usePag
 import { FilterSelect, ListStateView, type FetchState } from "./MonitoringControls";
 import { formatDateTime } from "@/lib/admin/monitoring";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
+import { DocumentFileLinks } from "@/components/crm/DocumentFileLinks";
 import { cn } from "@/lib/cn";
 import type { OcrExtractionStatus, DocumentExtractionType } from "../../generated/prisma/enums";
 
@@ -36,6 +37,7 @@ interface OcrJob extends LinkedRecords {
   reviewedAt: string | null;
   documentId: string;
   documentType: string;
+  documentFileUrl: string | null;
   retryable: boolean;
 }
 
@@ -43,6 +45,7 @@ interface OcrFailure extends LinkedRecords {
   id: string;
   documentId: string;
   documentType: string | null;
+  documentFileUrl: string | null;
   note: string | null;
   timestamp: string;
   resolved: boolean;
@@ -89,7 +92,7 @@ function LinkedCell({ booking, passenger }: LinkedRecords) {
   return (
     <div className="flex flex-col gap-0.5 text-xs">
       {booking ? (
-        <Link href={`/crm/bookings/${booking.id}`} className="font-medium text-ink-accent hover:underline">
+        <Link href={`/admin/bookings/${booking.id}`} className="font-medium text-ink-accent hover:underline">
           {booking.reference}
         </Link>
       ) : null}
@@ -181,7 +184,7 @@ export function OcrMonitor() {
     return (
       <span className="text-xs text-ink-tertiary">
         {booking ? (
-          <Link href={`/crm/bookings/${booking.id}`} className="text-ink-accent hover:underline">
+          <Link href={`/admin/bookings/${booking.id}`} className="text-ink-accent hover:underline">
             Re-upload on booking
           </Link>
         ) : (
@@ -292,6 +295,7 @@ export function OcrMonitor() {
                       <td className="whitespace-nowrap px-4 py-3 text-ink-tertiary">{formatDateTime(failure.timestamp)}</td>
                       <td className="px-4 py-3">
                         <div className="font-medium text-ink-primary">{failure.documentType ?? "Deleted document"}</div>
+                        <DocumentFileLinks fileUrl={failure.documentFileUrl} />
                         {failure.resolved ? <div className="text-xs text-success">Resolved by a later run</div> : null}
                       </td>
                       <td className="px-4 py-3">
@@ -372,6 +376,7 @@ export function OcrMonitor() {
                     <td className="px-4 py-3">
                       <div className="font-medium text-ink-primary">{TYPE_LABELS[job.extractionType]}</div>
                       <div className="text-xs text-ink-tertiary">{job.documentType}</div>
+                      <DocumentFileLinks fileUrl={job.documentFileUrl} />
                     </td>
                     <td className="max-w-[200px] break-words px-4 py-3 text-xs text-ink-secondary">{job.provider}</td>
                     <td className="px-4 py-3">

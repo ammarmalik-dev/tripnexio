@@ -11,7 +11,7 @@ const MESSAGE_PREVIEW_LENGTH = 140;
 
 /**
  * P24 item 8 — Admin → Live Activity: the 20 most recent leads, payments,
- * bookings, WhatsApp conversations and OCR jobs, polled by the page every
+ * bookings, WhatsApp conversations, OCR jobs and emails, polled by the page every
  * 30 seconds. Each list is one small, flat, `take: 20` query (plus one
  * extra lookup for each conversation's latest message) — no deep includes.
  * WhatsApp numbers are masked server-side; the raw number never leaves the
@@ -22,7 +22,7 @@ export async function GET() {
   if (auth.error) return auth.error;
 
   try {
-    const [leads, payments, bookings, conversations, ocrJobs] = await runSequentially([
+    const [leads, payments, bookings, conversations, ocrJobs, emails] = await runSequentially([
       () => (db.lead.findMany({
         orderBy: { createdAt: "desc" },
         take: LIST_SIZE,
@@ -43,7 +43,9 @@ export async function GET() {
           booking: { select: { id: true, bookingId: true } },
         },
       })),
+      // Client corrections 2026-10-05: an unpaid booking stays with its Lead, so it isn't listed again here.
       () => (db.booking.findMany({
+        where: { status: { not: "PENDING" } },
         orderBy: { createdAt: "desc" },
         take: LIST_SIZE,
         select: { id: true, bookingId: true, status: true, createdAt: true, lead: { select: { serviceType: true } }, customer: { select: { name: true } } },
@@ -57,6 +59,13 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
         take: LIST_SIZE,
         select: { id: true, extractionType: true, status: true, provider: true, mrzValid: true, bookingId: true, createdAt: true },
+      })),
+      // Client corrections 2026-10-05 — Email activity: the per-send audit rows notifyCustomer() writes (recipient already masked).
+      () => (db.auditTrail.findMany({
+        where: { action: { in: ["EMAIL_SENT", "EMAIL_FAILED", "EMAIL_SKIPPED"] } },
+        orderBy: { timestamp: "desc" },
+        take: LIST_SIZE,
+        select: { id: true, action: true, entityType: true, entityId: true, note: true, timestamp: true },
       }))]);
 
     const waIds = conversations.map((conversation) => conversation.waId);
@@ -122,6 +131,7 @@ export async function GET() {
         };
       }),
       ocrJobs,
+      emails,
     });
   } catch (error) {
     console.error("[api/admin/live-activity]", error);

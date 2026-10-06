@@ -9,7 +9,7 @@ import { exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { invoiceQuerySchema } from "@/lib/invoices/invoice-query";
 import { fetchInvoicePayments, loadInvoiceSet } from "@/lib/invoices/invoice-register";
 import { MAX_INVOICE_ZIP } from "@/lib/invoices/invoice-filters";
-import { paymentInvoiceAmounts, renderInvoicePdf } from "@/lib/invoices/render-invoice";
+import { paymentInvoiceAmounts, renderInvoicePdf, serviceSacCode } from "@/lib/invoices/render-invoice";
 import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
 import { ensureInvoiceNumber } from "@/lib/invoices/invoice-number";
 
@@ -60,6 +60,7 @@ export async function GET(request: NextRequest) {
         ...paymentInvoiceAmounts(payment),
         couponCode: payment.couponCode,
         company,
+        sacCode: await serviceSacCode(payment.booking.lead.serviceType),
       });
       let name = `${invoiceNumber.replace(/[^A-Za-z0-9._-]/g, "_")}.pdf`;
       for (let suffix = 2; files[name]; suffix++) name = `${invoiceNumber.replace(/[^A-Za-z0-9._-]/g, "_")}-${suffix}.pdf`;
