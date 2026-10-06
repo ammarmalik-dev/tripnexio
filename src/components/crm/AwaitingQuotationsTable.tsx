@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, RotateCw, Inbox } from "lucide-react";
+import { RotateCw, Inbox } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -50,22 +50,15 @@ function formatDateTime(iso: string): string {
  */
 export function AwaitingQuotationsTable() {
   const [serviceType, setServiceType] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
+  const search = "";
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<AwaitingQuotationItem[]>([]);
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
+  const { page, pageSize, resetPage, paginationHandlers } = usePaginationState();
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -99,20 +92,6 @@ export function AwaitingQuotationsTable() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
-          <label htmlFor="awaiting-search" className="sr-only">
-            Search by reference, customer name or mobile
-          </label>
-          <input
-            id="awaiting-search"
-            type="text"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by reference, name or mobile…"
-            className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
-          />
-        </div>
 
         <label htmlFor="filter-awaiting-service" className="sr-only">
           Filter by service

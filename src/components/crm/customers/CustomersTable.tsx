@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { RotateCw, Search, Users } from "lucide-react";
-import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -19,9 +18,9 @@ type FetchState = "loading" | "success" | "error";
 
 /** CRM.md §23 — Customers list: server-side search + pagination. */
 export function CustomersTable() {
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
+  // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
+  const search = "";
+  const { page, pageSize, paginationHandlers } = usePaginationState();
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -29,13 +28,6 @@ export function CustomersTable() {
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   // Debounce typing; a new search always starts back on page 1.
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,20 +60,6 @@ export function CustomersTable() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[240px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
-          <label htmlFor="customer-search" className="sr-only">
-            Search customers by name, mobile, email, passport number, or lead/booking reference
-          </label>
-          <input
-            id="customer-search"
-            type="text"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search name, mobile, email, passport no., lead/booking reference…"
-            className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
-          />
-        </div>
         <Button
           type="button"
           variant="ghost"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, Inbox, Search } from "lucide-react";
+import { AlertTriangle, Inbox } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -51,22 +51,14 @@ export function EnquiriesTable({ basePath = "/crm/enquiries" }: { basePath?: str
   const [view, setView] = useState<View>(() => (searchParams.get("view") === "complaints" ? "complaints" : "enquiries"));
   const [status, setStatus] = useState<string>("open");
   const [category, setCategory] = useState<EnquiryCategory | "">("");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
+  const search = searchParams.get("search") ?? "";
   const { page, pageSize, resetPage, paginationHandlers } = usePaginationState();
   const [state, setState] = useState<FetchState>("loading");
   const [data, setData] = useState<EnquiryListResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
-      resetPage();
-    }, 300);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- resetPage is a stable setter wrapper
-  }, [searchInput]);
 
   useEffect(() => {
     let cancelled = false;
@@ -129,17 +121,6 @@ export function EnquiriesTable({ basePath = "/crm/enquiries" }: { basePath?: str
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" aria-hidden="true" />
-          <input
-            type="search"
-            aria-label="Search enquiries"
-            placeholder="Search reference, name, mobile, email or subject"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-9")}
-          />
-        </div>
         {view === "enquiries" ? (
           <select
             aria-label="Filter by category"

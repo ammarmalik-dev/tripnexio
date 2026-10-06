@@ -144,8 +144,8 @@ function FilterSelect({ id, label, value, onChange, children }: { id: string; la
 export function InvoiceHistory() {
   const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
+  const search = "";
   const [serviceType, setServiceType] = useState("");
   const [method, setMethod] = useState("");
   const [purpose, setPurpose] = useState("");
@@ -176,12 +176,8 @@ export function InvoiceHistory() {
     return params.toString();
   }, [search, serviceType, method, purpose, refundState, financialYear, dateFrom, dateTo, sort]);
 
-  const hasFilters = Boolean(searchInput || serviceType || method || purpose || refundState || financialYear || dateFrom || dateTo);
+  const hasFilters = Boolean(serviceType || method || purpose || refundState || financialYear || dateFrom || dateTo);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
 
   useEffect(() => {
     let cancelled = false;
@@ -215,8 +211,6 @@ export function InvoiceHistory() {
   }
 
   function clearFilters() {
-    setSearchInput("");
-    setSearch("");
     setServiceType("");
     setMethod("");
     setPurpose("");
@@ -295,23 +289,6 @@ export function InvoiceHistory() {
 
       <section aria-label="Invoice filters" className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-          <div className="relative min-w-0 flex-1 sm:min-w-[260px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
-            <label htmlFor="invoice-search" className="sr-only">
-              Search by invoice number, booking id, lead reference, customer name, mobile or email
-            </label>
-            <input
-              id="invoice-search"
-              type="search"
-              value={searchInput}
-              onChange={(event) => {
-                setSearchInput(event.target.value);
-                resetPage();
-              }}
-              placeholder="Invoice no., booking, reference, customer…"
-              className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
-            />
-          </div>
 
           <FilterSelect id="invoice-service" label="Filter by service" value={serviceType} onChange={onFilter(setServiceType)}>
             <option value="">All services</option>

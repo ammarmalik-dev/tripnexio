@@ -59,15 +59,15 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
   );
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
+  // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
+  const search = searchParams.get("search") ?? "";
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<RefundListItem[]>([]);
   const [total, setTotal] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [refreshNonce, setRefreshNonce] = useState(0);
-  const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
+  const { page, pageSize, resetPage, paginationHandlers } = usePaginationState();
   const [statusOverrides, setStatusOverrides] = useState<Record<string, RefundStatus>>({});
 
   function buildFilterParams() {
@@ -80,13 +80,6 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
     return params;
   }
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearch(searchInput.trim());
-      setPage(1);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchInput, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,20 +118,6 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
-          <label htmlFor="refund-search" className="sr-only">
-            Search by booking id, customer name, or mobile
-          </label>
-          <input
-            id="refund-search"
-            type="text"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search by booking id, customer name, or mobile…"
-            className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
-          />
-        </div>
 
         <label htmlFor="filter-refund-status" className="sr-only">
           Filter by status
