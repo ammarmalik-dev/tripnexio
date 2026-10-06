@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { MasterTable } from "./MasterTable";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -313,6 +315,7 @@ function NewServiceForm({ onCreated }: { onCreated: (service: ServiceData) => vo
 }
 
 export function ServicesManager() {
+  const [createOpen, setCreateOpen] = useState(false);
   const [state, setState] = useState<FetchState>("loading");
   const [services, setServices] = useState<ServiceData[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
@@ -366,23 +369,51 @@ export function ServicesManager() {
     );
   }
 
+  // Client corrections 2026-10-05 — table-first: one Create Service button, a summary row per service,
+  // Edit opens the service; its TAT/documents/pricing/refund/statuses live in Service Configuration.
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex justify-end">
+        <Button type="button" size="sm" onClick={() => setCreateOpen((current) => !current)}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {createOpen ? "Close" : "Create Service"}
+        </Button>
+      </div>
+      {createOpen || services.length === 0 ? (
+        <NewServiceForm
+          onCreated={(created) => {
+            setServices((current) => [...current, created]);
+            setCreateOpen(false);
+          }}
+        />
+      ) : null}
       {services.length === 0 ? (
-        <EmptyState title="No service metadata yet" description="Add the first one using the form below." />
+        <EmptyState title="No service metadata yet" description="Add the first one using the form above." />
       ) : (
         <>
-          {pageItems.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              onSaved={(updated) => setServices((current) => current.map((s) => (s.id === updated.id ? updated : s)))}
-            />
-          ))}
+          <MasterTable
+            rows={pageItems}
+            minWidth={760}
+            columns={[
+              { header: "Service", cell: (row) => <span className="font-medium text-ink-primary">{row.name}</span> },
+              { header: "Reference Code", cell: (row) => <span className="font-mono text-xs">{row.referenceCode}</span> },
+              { header: "SAC", cell: (row) => row.sacCode || <span className="text-ink-tertiary">Default</span> },
+              {
+                header: "Configuration",
+                cell: (row) => (
+                  <Link href={`/admin/service-configuration?service=${row.code}`} className="font-medium text-ink-accent hover:underline">
+                    TAT, documents, pricing, refund, statuses →
+                  </Link>
+                ),
+              },
+            ]}
+            renderEditor={(service) => (
+              <ServiceCard service={service} onSaved={(updated) => setServices((current) => current.map((s) => (s.id === updated.id ? updated : s)))} />
+            )}
+          />
           <ListPagination noun="service" {...paginationProps} />
         </>
       )}
-      <NewServiceForm onCreated={(created) => setServices((current) => [...current, created])} />
     </div>
   );
 }
