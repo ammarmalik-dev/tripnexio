@@ -9,7 +9,8 @@ import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
 interface AddDocumentFormProps {
-  bookingId: string;
+  /** Omitted on a Lead (client corrections 2026-10-05): the document then belongs to the chosen passenger. */
+  bookingId?: string;
   passengers: { id: string; fullName: string }[];
   onAdded: () => void;
 }
@@ -25,7 +26,7 @@ export function AddDocumentForm({ bookingId, passengers, onAdded }: AddDocumentF
     if (!type.trim()) return;
     setSubmitting(true);
     try {
-      await postJson("/api/documents", { bookingId, passengerId: passengerId || undefined, type: type.trim() });
+      await postJson("/api/documents", { bookingId, passengerId: (passengerId || (bookingId ? "" : passengers[0]?.id)) || undefined, type: type.trim() });
       toast.success("Document requirement added.");
       setType("");
       setPassengerId("");
@@ -50,7 +51,7 @@ export function AddDocumentForm({ bookingId, passengers, onAdded }: AddDocumentF
       {passengers.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           <label htmlFor="add-doc-passenger" className="text-sm font-medium text-ink-heading">
-            Passenger (optional)
+            {bookingId ? "Passenger (optional)" : "Passenger"}
           </label>
           <select
             id="add-doc-passenger"
@@ -58,7 +59,7 @@ export function AddDocumentForm({ bookingId, passengers, onAdded }: AddDocumentF
             onChange={(event) => setPassengerId(event.target.value)}
             className={cn(fieldControlClass, fieldBorderClass(false), "h-11 w-48")}
           >
-            <option value="">None</option>
+            {bookingId ? <option value="">None</option> : null}
             {passengers.map((passenger) => (
               <option key={passenger.id} value={passenger.id}>
                 {passenger.fullName}

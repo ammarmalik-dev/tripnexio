@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { PurgedFileTag } from "./PurgedFileTag";
 import { DocumentFileLinks } from "./DocumentFileLinks";
+import { DocumentUploadButton } from "./DocumentUploadButton";
+import { AddDocumentForm } from "./AddDocumentForm";
 import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -417,6 +419,11 @@ export function LeadDetail({
 
           <section className="rounded-xl border border-hairline bg-surface-1 p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink-heading">Passengers &amp; Documents</h2>
+            {lead.passengers.length > 0 ? (
+              <div className="mb-4">
+                <AddDocumentForm passengers={lead.passengers} onAdded={() => setReloadNonce((current) => current + 1)} />
+              </div>
+            ) : null}
             {lead.passengers.length === 0 ? (
               <p className="text-sm text-ink-tertiary">No passengers linked to this request.</p>
             ) : (
@@ -443,6 +450,9 @@ export function LeadDetail({
                               <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
                             </span>
                             <DocumentStatusBadge status={document.status} />
+                            {!document.purgedAt ? (
+                              <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={() => setReloadNonce((current) => current + 1)} />
+                            ) : null}
                           </div>
                         ))
                       )}

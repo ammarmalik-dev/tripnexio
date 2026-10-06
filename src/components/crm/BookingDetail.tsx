@@ -17,6 +17,7 @@ import { DocumentExtractionReview } from "./DocumentExtractionReview";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { DeliverOutputSection } from "./DeliverOutputSection";
 import { DocumentFileLinks } from "./DocumentFileLinks";
+import { DocumentUploadButton } from "./DocumentUploadButton";
 import { PurgedFileTag } from "./PurgedFileTag";
 import { ApplicantsTable } from "./ApplicantsTable";
 import { EmbassyActionsPanel } from "./EmbassyActionsPanel";
@@ -348,7 +349,7 @@ export function BookingDetail({
 
       {missingDocuments.length > 0 ? (
         <div className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-          {missingDocuments.length} document{missingDocuments.length === 1 ? "" : "s"} flagged missing.
+          Additional documents required: {missingDocuments.length} document{missingDocuments.length === 1 ? "" : "s"} waiting for the customer.
         </div>
       ) : null}
 
@@ -627,6 +628,9 @@ export function BookingDetail({
                                     {document.type}
                                     <PurgedFileTag purgedAt={document.purgedAt} />
                                     <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
+                                    {!document.purgedAt ? (
+                                      <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={() => setReloadNonce((current) => current + 1)} />
+                                    ) : null}
                                   </span>
                                   <DocumentStatusControl
                                     documentId={document.id}
@@ -681,6 +685,9 @@ export function BookingDetail({
                             {document.type}
                             <PurgedFileTag purgedAt={document.purgedAt} />
                             <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
+                                    {!document.purgedAt ? (
+                                      <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={() => setReloadNonce((current) => current + 1)} />
+                                    ) : null}
                           </span>
                           <DocumentStatusControl
                             documentId={document.id}

@@ -26,7 +26,7 @@ const requestSchema = z.object({
 
 /**
  * P11 — staff ask a passenger for one extra document (e.g. the embassy wants
- * a bank statement). Creates a REQUIRED document with the reason, a staff
+ * a bank statement). Creates a MISSING ("Additional Documents Required") document with the reason, a staff
  * Task to collect it, and sends DOCUMENTS_REQUIRED with a secure upload link
  * (the booking's own payment/documents page, which accepts this slot).
  */
@@ -59,7 +59,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   let statusNotifications: StatusNotification[] = [];
   const document = await db.$transaction(async (tx) => {
     const created = await tx.document.create({
-      data: { bookingId: booking.id, passengerId, type: documentName, status: "REQUIRED", requestReason: reason },
+      // Client corrections 2026-10-05: a later request shows as "Additional Documents Required".
+      data: { bookingId: booking.id, passengerId, type: documentName, status: "MISSING", requestReason: reason },
     });
     await writeAudit(tx, {
       entityType: "Document",
