@@ -103,6 +103,7 @@ export const crmNavGroups: CrmNavGroup[] = [
       { label: "Leads", href: "/crm/leads", icon: ListChecks, permission: "leads.view" },
       { label: "Customers", href: "/crm/customers", icon: Users, permission: "leads.view" },
       { label: "Quotations", href: "/crm/quotations", icon: FileText, permission: "quotations.view" },
+      { label: "Coupons", href: "/crm/coupons", icon: Ticket, permission: "quotations.view" },
     ],
   },
   {

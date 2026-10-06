@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ProfileCardGrid } from "./ProfileCardGrid";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -552,15 +553,35 @@ export function CouponsManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((coupon) => (
+        <ProfileCardGrid
+          rows={pageItems}
+          openLabel="Edit"
+          renderSummary={(coupon) => (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="rounded-lg border border-dashed border-ink-accent/40 bg-ink-accent/[0.05] px-2.5 py-1 font-mono text-sm font-semibold text-ink-accent">{coupon.code}</span>
+                <span className="text-lg font-bold text-ink-heading">
+                  {coupon.type === "PERCENTAGE" ? `${Number(coupon.value)}%` : `₹${Number(coupon.value).toLocaleString("en-IN")}`}
+                </span>
+              </div>
+              <p className="text-xs text-ink-secondary">
+                {COUPON_CATEGORY_OPTIONS.find((option) => option.value === coupon.category)?.label ?? coupon.category}
+                {coupon.maxDiscount ? ` · max ₹${Number(coupon.maxDiscount).toLocaleString("en-IN")}` : ""}
+              </p>
+              <p className="text-xs text-ink-tertiary">
+                Valid {new Date(coupon.validFrom).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} –{" "}
+                {new Date(coupon.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · Used {coupon.usageCount}
+                {coupon.usageLimit ? ` / ${coupon.usageLimit}` : ""}
+              </p>
+            </div>
+          )}
+          renderEditor={(coupon) => (
             <CouponCard
-              key={coupon.id}
               coupon={coupon}
               onSaved={(updated) => setCoupons((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="coupon" {...paginationProps} />

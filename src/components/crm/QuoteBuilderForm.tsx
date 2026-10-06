@@ -5,6 +5,7 @@ import { useFieldArray, useForm } from "react-hook-form";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { CouponCodeOptions } from "./CouponCodeOptions";
 import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { Button } from "@/components/ui/Button";
@@ -437,14 +438,16 @@ export function QuoteBuilderForm({
           {showAirlineField ? airlineSelect("Airline", false) : null}
           <TextField
             label="Coupon Code"
+            list="crm-coupon-codes"
             hint={
               mode === "create"
-                ? "Optional — validated on save (active, within date range, under usage limit)."
+                ? "Optional — pick an available code or type one; validated on save."
                 : "Optional — re-validated on save; clear it to remove the coupon."
             }
             {...register("couponCode")}
             error={errors.couponCode?.message}
           />
+          <CouponCodeOptions id="crm-coupon-codes" />
         </div>
       )}
 

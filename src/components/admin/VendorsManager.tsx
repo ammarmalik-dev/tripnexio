@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ProfileCardGrid } from "./ProfileCardGrid";
 import { ChevronDown, History, Plus, Search } from "lucide-react";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
@@ -692,6 +693,7 @@ export function VendorsManager() {
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "">("");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "disabled">("all");
 
@@ -768,6 +770,23 @@ export function VendorsManager() {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Client corrections 2026-10-05 — one Create Vendor button above the profiles. */}
+      <div className="flex justify-end">
+        <Button type="button" size="sm" onClick={() => setCreateOpen((current) => !current)}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          {createOpen ? "Close" : "Create Vendor"}
+        </Button>
+      </div>
+      {createOpen || vendors.length === 0 ? (
+        <NewVendorForm
+          onCreated={(created) => {
+            setVendors((current) => [created, ...current]);
+            clearFilters();
+            setPage(1);
+            setCreateOpen(false);
+          }}
+        />
+      ) : null}
       {vendors.length > 0 ? (
         <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">
           <div className="relative flex-1">
@@ -832,25 +851,47 @@ export function VendorsManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((vendor) => (
+        <ProfileCardGrid
+          rows={pageItems}
+          renderSummary={(vendor) => (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[image:var(--gradient-accent)] text-sm font-semibold text-white">
+                  {vendor.name
+                    .split(/\s+/)
+                    .slice(0, 2)
+                    .map((part) => part[0]?.toUpperCase() ?? "")
+                    .join("")}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-ink-heading" title={vendor.name}>{vendor.name}</p>
+                  <p className="text-xs text-ink-tertiary">{vendor.pocName ? `POC: ${vendor.pocName}` : "No POC set"}</p>
+                </div>
+              </div>
+              <p className="text-xs break-all text-ink-secondary">{[vendor.mobile, vendor.email].filter(Boolean).join(" · ") || "No contact details"}</p>
+              <div className="flex flex-wrap gap-1">
+                {vendor.services.length === 0 ? (
+                  <span className="text-xs text-ink-tertiary">No services</span>
+                ) : (
+                  vendor.services.map((entry) => (
+                    <span key={entry.service} className="rounded-full bg-ink-accent/10 px-2 py-0.5 text-[11px] font-medium text-ink-accent">
+                      {SERVICE_TYPE_LABELS[entry.service]}
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+          renderEditor={(vendor) => (
             <VendorCard
-              key={vendor.id}
               vendor={vendor}
               weights={weights}
               onSaved={(updated) => setVendors((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
       <ListPagination noun="vendor" {...paginationProps} />
-      <NewVendorForm
-        onCreated={(created) => {
-          setVendors((current) => [created, ...current]);
-          clearFilters();
-          setPage(1);
-        }}
-      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MasterTable } from "./MasterTable";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -258,15 +259,20 @@ export function ExpenseCategoriesManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((category) => (
+        <MasterTable
+          rows={pageItems}
+          minWidth={560}
+          columns={[
+            { header: "Expense Category", cell: (row) => <span className="font-medium text-ink-primary">{row.name}</span> },
+            { header: "Order", cell: (row) => row.displayOrder },
+          ]}
+          renderEditor={(category) => (
             <CategoryRow
-              key={category.id}
               category={category}
               onSaved={(updated) => setCategories((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="category record" {...paginationProps} />
