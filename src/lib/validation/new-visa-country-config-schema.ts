@@ -4,7 +4,10 @@ import { partialUpdateSchema } from "./partial-update";
 export const createNewVisaCountryConfigSchema = z.object({
   countryId: z.string().min(1, "Select a country"),
   /** P10 — the product: stay duration + entry type (one row per country + combination). */
-  stayDays: z.union([z.literal(30), z.literal(60)], { error: "Select 30 or 60 days" }),
+  /** Client corrections 2026-10-05 — any active Visa Stay Type (checked by the API). */
+  stayDays: z.number({ error: "Select the stay duration" }).int().min(1, "Select the stay duration"),
+  /** Optional Visa Validity Type master entry. */
+  validityTypeId: z.string().min(1).nullable().optional(),
   entryKind: z.enum(["SINGLE", "MULTIPLE"], { error: "Select Single or Multiple entry" }),
   displayOrder: z.number().int().default(0),
   visaCategory: z.string().trim().min(1, "Enter the visa category").max(120, "Visa category is too long"),

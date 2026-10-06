@@ -1,3 +1,4 @@
+import { checkProductMasters } from "@/lib/visa-masters/check-product-masters";
 import type { NextRequest } from "next/server";
 import { createNewVisaCountryConfigSchema } from "@/lib/validation/new-visa-country-config-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -34,6 +35,8 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
+  const masterErrors = await checkProductMasters(parsed.data);
+  if (masterErrors) return jsonError(400, "Please check the highlighted fields.", masterErrors);
   const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
   if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
 

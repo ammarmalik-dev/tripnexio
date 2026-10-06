@@ -1,3 +1,4 @@
+import { checkProductMasters } from "@/lib/visa-masters/check-product-masters";
 import type { NextRequest } from "next/server";
 import { updateNewVisaCountryConfigSchema } from "@/lib/validation/new-visa-country-config-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -30,6 +31,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
   // The country is fixed once added — to change it, remove this row and add another.
   const data = { ...parsed.data };
+  const masterErrors = await checkProductMasters({ stayDays: data.stayDays, validityTypeId: data.validityTypeId });
+  if (masterErrors) return jsonError(400, "Please check the highlighted fields.", masterErrors);
   delete data.countryId;
 
   const existing = await db.newVisaCountryConfig.findUnique({ where: { id } });

@@ -34,6 +34,7 @@ interface ConfigData {
   entryType: string;
   stayDays: number | null;
   entryKind: "SINGLE" | "MULTIPLE" | null;
+  validityTypeId: string | null;
   displayOrder: number;
   processingType: string;
   description: string;
@@ -68,6 +69,40 @@ interface ReferenceData {
   newVisaTimeline: TimelineData | null;
 }
 
+interface VisaMasterOption {
+  id: string;
+  name: string;
+  active: boolean;
+  days?: number;
+}
+
+/** Client corrections 2026-10-05 — Visa Stay Types and Visa Validity Types for the product form. */
+function useVisaMasters(): { stayTypes: VisaMasterOption[]; validityTypes: VisaMasterOption[] } {
+  const [stayTypes, setStayTypes] = useState<VisaMasterOption[]>([]);
+  const [validityTypes, setValidityTypes] = useState<VisaMasterOption[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [stays, validities] = await Promise.all([
+          getJson<VisaMasterOption[]>("/api/admin/visa-masters/stay-types"),
+          getJson<VisaMasterOption[]>("/api/admin/visa-masters/validity-types"),
+        ]);
+        if (cancelled) return;
+        setStayTypes(stays);
+        setValidityTypes(validities);
+      } catch {
+        // Selects stay empty; saving then reports the missing stay.
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  return { stayTypes, validityTypes };
+}
+
 type FetchState = "loading" | "success" | "error";
 type FieldErrors = Record<string, string[] | undefined>;
 type ActiveFilter = "all" | "active" | "inactive";
@@ -77,6 +112,8 @@ interface FormState {
   /** P10 — the product: "30" / "60" and "SINGLE" / "MULTIPLE" ("" = not set, pre-P10 row). */
   stayDays: string;
   entryKind: string;
+  /** Client corrections 2026-10-05 — Visa Validity Type master id ("" = none). */
+  validityTypeId: string;
   displayOrder: string;
   duration: string;
   entryType: string;
@@ -90,6 +127,7 @@ function toFormState(c: ConfigData): FormState {
     visaCategory: c.visaCategory,
     stayDays: c.stayDays ? String(c.stayDays) : "",
     entryKind: c.entryKind ?? "",
+    validityTypeId: c.validityTypeId ?? "",
     displayOrder: String(c.displayOrder),
     duration: c.duration,
     entryType: c.entryType,
@@ -103,6 +141,7 @@ const EMPTY_FORM: FormState = {
   visaCategory: "",
   stayDays: "30",
   entryKind: "SINGLE",
+  validityTypeId: "",
   displayOrder: "0",
   duration: "",
   entryType: "",
@@ -117,6 +156,7 @@ function toPayload(form: FormState) {
     visaCategory: form.visaCategory,
     ...(form.stayDays ? { stayDays: Number(form.stayDays) } : {}),
     ...(form.entryKind ? { entryKind: form.entryKind } : {}),
+    validityTypeId: form.validityTypeId || null,
     displayOrder: Number(form.displayOrder) || 0,
     duration: form.duration.trim(),
     entryType: form.entryType.trim(),
@@ -141,9 +181,10 @@ function ConfigFields({
   disabled: boolean;
 }) {
   const id = (field: string) => `${idPrefix}-${field}`;
+  const { stayTypes, validityTypes } = useVisaMasters();
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <FormField label="Stay Duration" htmlFor={id("stayDays")} error={errors.stayDays?.[0]} required>
           <select
             id={id("stayDays")}
@@ -155,8 +196,31 @@ function ConfigFields({
             <option value="" disabled>
               Select
             </option>
-            <option value="30">30 Days</option>
-            <option value="60">60 Days</option>
+            {stayTypes
+              .filter((type) => type.active || String(type.days) === form.stayDays)
+              .map((type) => (
+                <option key={type.id} value={String(type.days)}>
+                  {type.name}
+                </option>
+              ))}
+          </select>
+        </FormField>
+        <FormField label="Visa Validity" htmlFor={id("validityTypeId")} error={errors.validityTypeId?.[0]}>
+          <select
+            id={id("validityTypeId")}
+            value={form.validityTypeId}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...form, validityTypeId: event.target.value })}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.validityTypeId))}
+          >
+            <option value="">Not set</option>
+            {validityTypes
+              .filter((type) => type.active || type.id === form.validityTypeId)
+              .map((type) => (
+                <option key={type.id} value={type.id}>
+                  {type.name}
+                </option>
+              ))}
           </select>
         </FormField>
         <FormField label="Entry Type" htmlFor={id("entryKind")} error={errors.entryKind?.[0]} required>

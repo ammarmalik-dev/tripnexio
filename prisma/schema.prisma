@@ -2086,10 +2086,12 @@ model NewVisaCountryConfig {
   id                 String            @id @default(cuid())
   /// P10 — no longer unique: one row per country + stay duration + entry type.
   countryId          String
-  /// P10 — the product's stay duration in days (30 / 60); null on a pre-P10 row.
+  /// P10 — the product's stay duration in days; one of the Visa Stay Type master values (client corrections 2026-10-05). Null on a pre-P10 row.
   stayDays           Int?
   /// P10 — Single or Multiple entry; null on a pre-P10 row.
   entryKind          NewVisaEntryKind?
+  /// Client corrections 2026-10-05 — optional Visa Validity Type master entry.
+  validityTypeId     String?
   displayOrder       Int               @default(0)
   visaCategory       String
   duration           String
@@ -2108,11 +2110,38 @@ model NewVisaCountryConfig {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
 
-  country      Country       @relation(fields: [countryId], references: [id])
+  country      Country           @relation(fields: [countryId], references: [id])
+  validityType VisaValidityType? @relation(fields: [validityTypeId], references: [id])
   pricingRules PricingRule[]
 
   @@index([active])
   @@index([countryId])
+}
+
+/// Client corrections 2026-10-05 — reusable Visa Stay Type master (e.g.
+/// "30 Days"). New Visa products choose their stay from the active rows.
+model VisaStayType {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  days         Int      @unique
+  active       Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Client corrections 2026-10-05 — reusable Visa Validity Type master
+/// (e.g. how long the visa stays valid for entry), chosen on New Visa products.
+model VisaValidityType {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  description  String?
+  active       Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  products NewVisaCountryConfig[]
 }
 
 /// The public page for one New Visa destination: a card on /services/new-visa
