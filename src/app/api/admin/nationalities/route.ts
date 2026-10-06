@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 
-const include = { country: { select: { id: true, name: true } } } as const;
+const include = { country: { select: { id: true, name: true, code: true, flagOverride: true } } } as const;
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");

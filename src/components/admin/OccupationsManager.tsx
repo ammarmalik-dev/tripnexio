@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MasterTable } from "./MasterTable";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -315,16 +316,21 @@ export function OccupationsManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((item) => (
+        <MasterTable
+          rows={pageItems}
+          minWidth={560}
+          columns={[
+            { header: "Occupation", cell: (row) => <span className="font-medium text-ink-primary">{row.name}</span> },
+            { header: "Order", cell: (row) => row.displayOrder },
+          ]}
+          renderEditor={(row) => (
             <OccupationRow
-              key={item.id}
-              occupation={item}
+              occupation={row}
               onSaved={(updated) => setItems((current) => current.map((o) => (o.id === updated.id ? updated : o)))}
               onDeleted={(id) => setItems((current) => current.filter((o) => o.id !== id))}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="occupation" {...paginationProps} />

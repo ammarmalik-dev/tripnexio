@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MasterTable } from "./MasterTable";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -394,17 +395,23 @@ export function VisaTypesManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((item) => (
+        <MasterTable
+          rows={pageItems}
+          minWidth={640}
+          columns={[
+            { header: "Visa Type", cell: (row) => <span className="font-medium text-ink-primary">{row.name}</span> },
+            { header: "Country", cell: (row) => row.country?.name ?? "All countries" },
+            { header: "Order", cell: (row) => row.displayOrder },
+          ]}
+          renderEditor={(row) => (
             <VisaTypeRow
-              key={item.id}
-              visaType={item}
+              visaType={row}
               countries={countries}
               onSaved={(updated) => setItems((current) => current.map((v) => (v.id === updated.id ? updated : v)))}
               onDeleted={(id) => setItems((current) => current.filter((v) => v.id !== id))}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="visa type" {...paginationProps} />

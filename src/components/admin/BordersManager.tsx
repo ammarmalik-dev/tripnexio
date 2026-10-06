@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MasterTable } from "./MasterTable";
+import { FlagBadge } from "./FlagBadge";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -446,16 +448,30 @@ export function BordersManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((border) => (
+        <MasterTable
+          rows={pageItems}
+          minWidth={720}
+          columns={[
+            { header: "Border", cell: (row) => <span className="font-medium text-ink-primary">{row.name}</span> },
+            {
+              header: "Country (non-UAE side)",
+              cell: (row) => (
+                <span className="inline-flex items-center gap-2">
+                  {row.country?.code ? <FlagBadge code={row.country.code} /> : null}
+                  {row.country?.name ?? "—"}
+                </span>
+              ),
+            },
+            { header: "Order", cell: (row) => row.displayOrder },
+          ]}
+          renderEditor={(row) => (
             <BorderCard
-              key={border.id}
-              border={border}
+              border={row}
               onSaved={(updated) => setBorders((current) => current.map((b) => (b.id === updated.id ? updated : b)))}
               countryOptions={countryOptions}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="border crossing" {...paginationProps} />

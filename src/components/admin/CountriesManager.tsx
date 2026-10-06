@@ -11,9 +11,10 @@ import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormFiel
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
-import { countryFlag } from "@/lib/countries/flag";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
+import { FlagBadge } from "./FlagBadge";
+import { MasterTable } from "./MasterTable";
 
 interface CountryData {
   id: string;
@@ -51,20 +52,6 @@ function toFormState(country: CountryData): CountryFormState {
 }
 
 /** P23 — renders a country's flag: an Admin image override as an <img>, else the emoji. */
-function FlagBadge({ code, flagOverride, className }: { code: string; flagOverride?: string | null; className?: string }) {
-  const flag = countryFlag({ code, flagOverride });
-  if (flag.kind === "image") {
-    // Admin-supplied arbitrary URL (any host), so a plain <img> rather than next/image's domain allow-list.
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={flag.value} alt="" aria-hidden="true" className={cn("inline-block h-5 w-7 rounded-sm object-cover", className)} />;
-  }
-  return (
-    <span aria-hidden="true" className={cn("text-xl leading-none", className)}>
-      {flag.value}
-    </span>
-  );
-}
-
 function CountryFields({
   form,
   onChange,
@@ -405,15 +392,22 @@ export function CountriesManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((country) => (
+        <MasterTable
+          rows={pageItems}
+          minWidth={640}
+          columns={[
+            { header: "Flag", cell: (row) => <FlagBadge code={row.code} flagOverride={row.flagOverride} /> },
+            { header: "Country", cell: (row) => <span className="font-medium text-ink-primary">{row.name}</span> },
+            { header: "Code", cell: (row) => <span className="font-mono text-xs">{row.code}</span> },
+            { header: "Order", cell: (row) => row.displayOrder },
+          ]}
+          renderEditor={(row) => (
             <CountryCard
-              key={country.id}
-              country={country}
+              country={row}
               onSaved={(updated) => setCountries((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="country record" {...paginationProps} />

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MasterTable } from "./MasterTable";
+import { FlagBadge } from "./FlagBadge";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -17,6 +19,8 @@ import { useClientPagination } from "@/components/crm/usePagination";
 interface CountryOption {
   id: string;
   name: string;
+  code?: string;
+  flagOverride?: string | null;
 }
 
 interface NationalityData {
@@ -353,16 +357,29 @@ export function NationalitiesManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((item) => (
+        <MasterTable
+          rows={pageItems}
+          minWidth={640}
+          columns={[
+            {
+              header: "Nationality",
+              cell: (row) => (
+                <span className="inline-flex items-center gap-2 font-medium text-ink-primary">
+                  {row.country.code ? <FlagBadge code={row.country.code} flagOverride={row.country.flagOverride} /> : null}
+                  {row.name}
+                </span>
+              ),
+            },
+            { header: "Country", cell: (row) => row.country.name },
+          ]}
+          renderEditor={(row) => (
             <NationalityRow
-              key={item.id}
-              nationality={item}
+              nationality={row}
               countries={countries}
               onSaved={(updated) => setItems((current) => current.map((n) => (n.id === updated.id ? updated : n)))}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="nationality record" {...paginationProps} />

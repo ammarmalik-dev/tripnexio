@@ -9,7 +9,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-const include = { country: { select: { id: true, name: true } } } as const;
+const include = { country: { select: { id: true, name: true, code: true, flagOverride: true } } } as const;
 
 /**
  * Edit or enable/disable only — no delete: passengers, pricing rules and

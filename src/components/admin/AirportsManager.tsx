@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MasterTable } from "./MasterTable";
+import { FlagBadge } from "./FlagBadge";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -492,17 +494,32 @@ export function AirportsManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((airport) => (
+        <MasterTable
+          rows={pageItems}
+          minWidth={820}
+          columns={[
+            { header: "Code", cell: (row) => <span className="font-mono text-xs font-semibold text-ink-primary">{row.code}</span> },
+            { header: "Airport", cell: (row) => <span className="font-medium text-ink-primary">{row.name}</span> },
+            { header: "City", cell: (row) => row.city || "—" },
+            {
+              header: "Country",
+              cell: (row) => (
+                <span className="inline-flex items-center gap-2">
+                  {row.countryRef?.code ? <FlagBadge code={row.countryRef.code} /> : null}
+                  {row.countryRef?.name ?? row.country}
+                </span>
+              ),
+            },
+          ]}
+          renderEditor={(row) => (
             <AirportCard
-              key={airport.id}
-              airport={airport}
+              airport={row}
               onSaved={(updated) => setAirports((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
               onDeleted={(id) => setAirports((current) => current.filter((a) => a.id !== id))}
               countryOptions={countryOptions}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="airport" {...paginationProps} />

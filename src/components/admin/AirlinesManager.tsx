@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MasterTable } from "./MasterTable";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -485,15 +486,37 @@ export function AirlinesManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((airline) => (
+        <MasterTable
+          rows={pageItems}
+          minWidth={820}
+          columns={[
+            {
+              header: "Airline",
+              cell: (row) => (
+                <span className="inline-flex items-center gap-3">
+                  {row.logoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Admin-set logo URL (any host)
+                    <img src={row.logoUrl} alt="" className="h-8 w-8 rounded-md bg-white object-contain p-0.5 ring-1 ring-hairline" />
+                  ) : (
+                    <span className="flex h-8 w-8 items-center justify-center rounded-md bg-warning/10 text-[10px] font-semibold text-warning" title="Logo missing">
+                      {row.code}
+                    </span>
+                  )}
+                  <span className="font-medium text-ink-primary">{row.name}</span>
+                </span>
+              ),
+            },
+            { header: "Code", cell: (row) => <span className="font-mono text-xs">{row.code}</span> },
+            { header: "Country", cell: (row) => row.country },
+            { header: "Logo", cell: (row) => (row.logoUrl ? "Set" : <span className="font-medium text-warning">Missing</span>) },
+          ]}
+          renderEditor={(row) => (
             <AirlineCard
-              key={airline.id}
-              airline={airline}
+              airline={row}
               onSaved={(updated) => setAirlines((current) => current.map((a) => (a.id === updated.id ? updated : a)))}
             />
-          ))}
-        </div>
+          )}
+        />
       )}
 
       <ListPagination noun="airline" {...paginationProps} />
