@@ -8,7 +8,7 @@ import {
   workingHoursBetween,
   type WorkingCalendar,
 } from "@/lib/calendar/working-calendar";
-import { evaluateOtbTravelDate, type OtbAirlineRules } from "@/lib/otb/processing-rules";
+import { earliestOtbTravelDates, evaluateOtbTravelDate, type OtbAirlineRules } from "@/lib/otb/processing-rules";
 
 /** Sat/Sun weekend, 09:00-18:00 IST, one test holiday on Friday 2026-10-02. */
 const calendar: WorkingCalendar = {
@@ -98,5 +98,20 @@ describe("evaluateOtbTravelDate", () => {
     // Without the holiday, Thu + Fri = 2 working days before Sat 10-03 would be OK.
     expect(evaluateOtbTravelDate("2026-10-03", rules, wed10, { ...calendar, holidays: [] }).status).toBe("OK");
     expect(evaluateOtbTravelDate("2026-10-03", rules, wed10, calendar).status).toBe("URGENT_ONLY");
+  });
+});
+
+describe("earliest OTB travel dates (client corrections 2026-10-05)", () => {
+  const wed10 = new Date("2026-09-30T04:30:00Z");
+  it("never offers a date the rule would block, and offers Express no later than Normal", () => {
+    const rules: OtbAirlineRules = { standardDays: 2, urgentHours: 8, urgentAvailable: true };
+    const earliest = earliestOtbTravelDates(rules, wed10, calendar);
+    expect(earliest.normal).not.toBeNull();
+    expect(evaluateOtbTravelDate(earliest.normal!, rules, wed10, calendar).allowed).toContain("normal");
+    expect(evaluateOtbTravelDate(earliest.urgent!, rules, wed10, calendar).allowed).toContain("urgent");
+    expect(earliest.urgent! <= earliest.normal!).toBe(true);
+  });
+  it("has no Express date when the airline doesn't offer it", () => {
+    expect(earliestOtbTravelDates({ standardDays: 2, urgentHours: 8, urgentAvailable: false }, wed10, calendar).urgent).toBeNull();
   });
 });

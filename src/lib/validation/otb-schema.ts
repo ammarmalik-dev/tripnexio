@@ -126,10 +126,10 @@ export type OtbStep2Values = z.infer<typeof otbStep2Schema>;
 export type OtbRequestValues = z.infer<typeof otbRequestSchema>;
 
 export const otbStepFields: Record<number, (keyof OtbRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "passportNumber", "destinationCountry", "airline", "travelDate"],
+  // Client corrections 2026-10-05 — Normal / Express is chosen on the first page, with the travel date.
+  0: ["fullName", "mobile", "email", "passportNumber", "destinationCountry", "airline", "travelDate", "processingType"],
   1: ["paxType", "additionalApplicants"],
-  2: ["processingType"],
-  3: ["hasReturnTicket", "addReturnTicket", "returnDestinationCountryId", "expectedReturnDate"],
+  2: ["hasReturnTicket", "addReturnTicket", "returnDestinationCountryId", "expectedReturnDate"],
 };
 
-export const otbStepLabels = ["Basic Details", "Add Passengers", "Processing Type", "Summary"];
+export const otbStepLabels = ["Basic Details", "Add Passengers", "Summary"];

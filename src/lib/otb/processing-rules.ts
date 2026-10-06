@@ -95,3 +95,26 @@ export function evaluateOtbTravelDate(
     workingHours,
   };
 }
+
+/**
+ * Client corrections 2026-10-05 — the earliest travel dates the airline's TAT
+ * can still meet: Normal (standard working days) and, when the airline offers
+ * it, Urgent. Walks forward day by day with the same rule the form and the
+ * server apply (evaluateOtbTravelDate). Dates are "YYYY-MM-DD".
+ */
+export function earliestOtbTravelDates(
+  rules: OtbAirlineRules,
+  from: Date = new Date(),
+  calendar: WorkingCalendar = DEFAULT_WORKING_CALENDAR
+): { normal: string | null; urgent: string | null } {
+  let normal: string | null = null;
+  let urgent: string | null = null;
+  const start = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate());
+  for (let offset = 0; offset <= 120 && (normal === null || (rules.urgentAvailable && urgent === null)); offset += 1) {
+    const iso = new Date(start + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const outcome = evaluateOtbTravelDate(iso, rules, from, calendar);
+    if (normal === null && outcome.allowed.includes("normal")) normal = iso;
+    if (urgent === null && outcome.allowed.includes("urgent")) urgent = iso;
+  }
+  return { normal, urgent: rules.urgentAvailable ? urgent : null };
+}
