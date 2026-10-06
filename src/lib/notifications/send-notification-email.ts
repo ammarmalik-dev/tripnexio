@@ -2,6 +2,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { getEmailSender } from "../email/get-sender";
 import { renderTemplate, withRequiredLines } from "./render-template";
+import { emailHeroFor } from "./email-hero";
 import type { EmailAttachment } from "../email/sender";
 
 /**
@@ -77,7 +78,8 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
     const html = OUTPUT_EVENTS.has(event) ? `${body}<p style="margin-top:16px"><strong>${OUTPUT_DISCREPANCY_NOTE}</strong></p>` : body;
 
     const sender = getEmailSender();
-    const result = await sender.send({ to, subject, html, attachments });
+    const hero = await emailHeroFor(event, auditTarget, variables);
+    const result = await sender.send({ to, subject, html, attachments, hero });
 
     await writeAudit(db, {
       entityType: auditTarget.entityType,

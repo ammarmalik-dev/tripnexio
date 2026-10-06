@@ -11,6 +11,7 @@ export function serializeOtbPrice(row: {
   paxType: PaxType;
   normalPrice: { toString(): string };
   urgentPrice: { toString(): string } | null;
+  airlineFee: { toString(): string };
   active: boolean;
   airline: { name: string; code: string };
   country: { name: string; code: string };
@@ -26,6 +27,7 @@ export function serializeOtbPrice(row: {
     paxType: row.paxType,
     normalPrice: Number(row.normalPrice),
     urgentPrice: row.urgentPrice === null ? null : Number(row.urgentPrice),
+    airlineFee: Number(row.airlineFee),
     active: row.active,
   };
 }
@@ -42,20 +44,21 @@ export async function resolveOtbApplicantPrices(input: {
   countryCode: string;
   processingType: OtbProcessingType;
   paxTypes: PaxType[];
-}): Promise<(number | null)[]> {
+}): Promise<{ price: number | null; airlineFee: number }[]> {
   const rows = await db.otbPrice.findMany({
     where: {
       airlineId: input.airline.id,
       active: true,
       country: { code: { equals: input.countryCode, mode: "insensitive" } },
     },
-    select: { paxType: true, normalPrice: true, urgentPrice: true },
+    select: { paxType: true, normalPrice: true, urgentPrice: true, airlineFee: true },
   });
   const airlinePrice = input.processingType === "urgent" ? input.airline.urgentPrice : input.airline.normalPrice;
   const fallback = airlinePrice === null || airlinePrice === undefined ? null : Number(airlinePrice);
   return input.paxTypes.map((paxType) => {
     const row = rows.find((r) => r.paxType === paxType);
     const price = row ? (input.processingType === "urgent" ? row.urgentPrice : row.normalPrice) : null;
-    return price === null || price === undefined ? fallback : Number(price);
+    // Client corrections 2026-10-05 — the airline fee inside the price (0 when only the airline-level fallback price applies).
+    return price === null || price === undefined ? { price: fallback, airlineFee: 0 } : { price: Number(price), airlineFee: Number(row!.airlineFee) };
   });
 }

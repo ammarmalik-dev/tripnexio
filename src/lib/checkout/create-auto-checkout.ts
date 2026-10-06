@@ -8,6 +8,7 @@ import { getProtectionPlanOffer, leadDestinationCountryCode, protectionPlanRowsF
 import { resolveCouponForQuotation } from "../coupons/apply";
 import { notifyNewBooking } from "../staff-notifications/triggers";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { invoiceLinesGovernmentFee, type InvoiceLine } from "../invoices/invoice-lines";
 
 const DIRECT_VENDOR_NAME = "Direct (auto-priced)";
 
@@ -46,8 +47,10 @@ export async function createAutoCheckout(input: {
    * every existing caller (the 3 website intake routes) is unaffected.
    */
   skipAutoPayment?: boolean;
+  /** Client corrections 2026-10-05 — invoice lines (per passenger type, government/airline fee apart); their total must equal totalPrice. */
+  invoiceLines?: InvoiceLine[];
 }): Promise<{ token: string; bookingId: string } | null> {
-  const { leadId, serviceType, totalPrice, vendorCost = 0, extraCharges = 0, couponCode, skipAutoPayment = false } = input;
+  const { leadId, serviceType, totalPrice, vendorCost = 0, extraCharges = 0, couponCode, skipAutoPayment = false, invoiceLines } = input;
   if (!(totalPrice > 0)) return null;
 
   const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
@@ -88,6 +91,9 @@ export async function createAutoCheckout(input: {
         feeAmount: totalPrice,
         fineOrCharges: extraCharges,
         sellingPrice: grossSellingPrice,
+        ...(invoiceLines && invoiceLines.length > 0
+          ? { invoiceLines: invoiceLines.map((line) => ({ ...line })), governmentFee: invoiceLinesGovernmentFee(invoiceLines) }
+          : {}),
         margin: grossSellingPrice - vendorCost,
         couponId: appliedCoupon?.couponId,
         couponCode: appliedCoupon?.couponCode,

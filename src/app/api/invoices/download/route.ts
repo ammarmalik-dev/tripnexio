@@ -4,14 +4,11 @@ import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { writeAudit } from "@/lib/audit/log";
-import { leadReference } from "@/lib/leads/reference";
 import { exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { invoiceQuerySchema } from "@/lib/invoices/invoice-query";
 import { fetchInvoicePayments, loadInvoiceSet } from "@/lib/invoices/invoice-register";
 import { MAX_INVOICE_ZIP } from "@/lib/invoices/invoice-filters";
-import { paymentInvoiceAmounts, renderInvoicePdf, serviceSacCode } from "@/lib/invoices/render-invoice";
-import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
-import { ensureInvoiceNumber } from "@/lib/invoices/invoice-number";
+import { buildInvoicePdfForPayment } from "@/lib/invoices/render-invoice";
 
 /**
  * Invoice History — one ZIP of the invoice PDFs for the current filters,
@@ -44,24 +41,12 @@ export async function GET(request: NextRequest) {
     }
 
     const payments = await fetchInvoicePayments(invoices.map((invoice) => invoice.id));
-    const company = await getInvoiceCompanyDetails();
     const files: Record<string, Uint8Array> = {};
 
     for (const payment of payments) {
-      const invoiceNumber = await ensureInvoiceNumber(payment);
-      const pdf = await renderInvoicePdf({
-        invoiceNumber,
-        issuedAt: payment.updatedAt,
-        bookingId: payment.booking.bookingId,
-        leadReference: leadReference(payment.booking.lead),
-        customerName: payment.booking.customer.name,
-        customerMobile: payment.booking.customer.mobile,
-        customerEmail: payment.booking.customer.email,
-        ...paymentInvoiceAmounts(payment),
-        couponCode: payment.couponCode,
-        company,
-        sacCode: await serviceSacCode(payment.booking.lead.serviceType),
-      });
+      const invoice = await buildInvoicePdfForPayment(payment.id);
+      if (!invoice) continue;
+      const { invoiceNumber, pdf } = invoice;
       let name = `${invoiceNumber.replace(/[^A-Za-z0-9._-]/g, "_")}.pdf`;
       for (let suffix = 2; files[name]; suffix++) name = `${invoiceNumber.replace(/[^A-Za-z0-9._-]/g, "_")}-${suffix}.pdf`;
       files[name] = new Uint8Array(pdf);

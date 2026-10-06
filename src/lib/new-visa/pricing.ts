@@ -1,5 +1,6 @@
 import { db } from "../db";
 import type { PaxType } from "../../generated/prisma/enums";
+import { groupInvoiceLines, PAX_LINE_LABELS, type InvoiceLine } from "../invoices/invoice-lines";
 
 export interface NewVisaPriceBreakdown {
   ratePerType: { adultPrice: number; childPrice: number; infantPrice: number };
@@ -7,6 +8,8 @@ export interface NewVisaPriceBreakdown {
   total: number;
   /** Step 40 — summed from PricingRule.vendorCost across all travellers, so New Visa's auto-checkout can finally record a real margin instead of always defaulting to 0. */
   vendorCost: number;
+  /** Client corrections 2026-10-05 — invoice lines per passenger type, government fee apart from the service fee. */
+  invoiceLines: InvoiceLine[];
 }
 
 /**
@@ -68,5 +71,13 @@ export async function computeNewVisaPrice(input: {
     vendorCost += vendorCostFor(paxType);
   }
 
-  return { ratePerType, travellerCount: input.travellerPaxTypes.length, total, vendorCost };
+  const invoiceLines = groupInvoiceLines(
+    input.travellerPaxTypes.map((paxType) => ({
+      label: `${country.name} Visa — ${PAX_LINE_LABELS[paxType]}`,
+      price: rateFor(paxType),
+      governmentFee: Number(ruleFor(paxType)!.governmentFee),
+    }))
+  );
+
+  return { ratePerType, travellerCount: input.travellerPaxTypes.length, total, vendorCost, invoiceLines };
 }

@@ -75,6 +75,7 @@ interface PricingRuleData {
   vendorCost: string;
   sellingPrice: string;
   additionalCharges: string;
+  governmentFee: string;
   validityFrom: string | null;
   validityUntil: string | null;
   active: boolean;
@@ -122,6 +123,7 @@ interface FormState {
   vendorCost: string;
   sellingPrice: string;
   additionalCharges: string;
+  governmentFee: string;
   validityFrom: string;
   validityUntil: string;
 }
@@ -138,6 +140,7 @@ const EMPTY_FORM: FormState = {
   vendorCost: "0",
   sellingPrice: "",
   additionalCharges: "0",
+  governmentFee: "0",
   validityFrom: "",
   validityUntil: "",
 };
@@ -155,6 +158,7 @@ function toFormState(rule: PricingRuleData): FormState {
     vendorCost: rule.vendorCost,
     sellingPrice: rule.sellingPrice,
     additionalCharges: rule.additionalCharges,
+    governmentFee: rule.governmentFee ?? "0",
     validityFrom: rule.validityFrom ? rule.validityFrom.slice(0, 10) : "",
     validityUntil: rule.validityUntil ? rule.validityUntil.slice(0, 10) : "",
   };
@@ -385,6 +389,17 @@ function PricingFields({
         hint="e.g. service fee, processing charge."
       />
       <TextField
+        label="Government Fee inside price (₹)"
+        name={id("governmentFee")}
+        type="number"
+        step="0.01"
+        value={form.governmentFee}
+        onChange={(event) => onChange({ ...form, governmentFee: event.target.value })}
+        error={errors.governmentFee?.[0]}
+        disabled={disabled}
+        hint="Part of the price that is the government / embassy fee — shown separately on the invoice, no GST."
+      />
+      <TextField
         label="Validity From"
         name={id("validityFrom")}
         type="date"
@@ -421,6 +436,7 @@ function buildPayload(form: FormState) {
     vendorCost: form.vendorCost === "" ? 0 : Number(form.vendorCost),
     sellingPrice: form.sellingPrice === "" ? undefined : Number(form.sellingPrice),
     additionalCharges: form.additionalCharges === "" ? 0 : Number(form.additionalCharges),
+    governmentFee: form.governmentFee === "" ? 0 : Number(form.governmentFee),
     // "" clears a date on update (the API maps an empty string to null) and is ignored on create.
     validityFrom: form.validityFrom,
     validityUntil: form.validityUntil,
@@ -440,6 +456,7 @@ const HISTORY_FIELD_LABELS: Record<string, string> = {
   vendorCost: "Vendor cost (internal)",
   sellingPrice: "Selling price",
   additionalCharges: "Additional charges",
+  governmentFee: "Government fee",
   validityFrom: "Validity from",
   validityUntil: "Validity until",
   active: "Active",

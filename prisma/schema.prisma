@@ -387,6 +387,14 @@ model Quotation {
   couponId                   String?
   couponCode                 String?
   couponDiscount             Decimal?  @db.Decimal(10, 2)
+  /// Client corrections 2026-10-05 — the government / airline (third-party)
+  /// part of the price, shown apart from TripNexio's service fee on the
+  /// invoice and excluded from GST. Null/0 = all service fee.
+  governmentFee              Decimal?  @db.Decimal(10, 2)
+  /// Invoice lines snapshotted when the price is set (one per passenger type:
+  /// [{ description, quantity, governmentFee, serviceFee }], unit amounts).
+  /// Null = one line for the whole price (staff quotes, older rows).
+  invoiceLines               Json?
   validityExpiresAt          DateTime?
   isSelected                 Boolean   @default(false)
   isExpired                  Boolean   @default(false)
@@ -1451,6 +1459,10 @@ model PricingRule {
   vendorCost        Decimal     @default(0) @db.Decimal(10, 2)
   sellingPrice      Decimal     @db.Decimal(10, 2)
   additionalCharges Decimal     @default(0) @db.Decimal(10, 2)
+  /// Client corrections 2026-10-05 — the government / embassy fee inside
+  /// sellingPrice, per passenger. Shown as its own "Government Fee" column on
+  /// invoices and never taxed; the rest of the price is the service fee.
+  governmentFee     Decimal     @default(0) @db.Decimal(10, 2)
   validityFrom      DateTime?
   validityUntil     DateTime?
   active            Boolean     @default(true)
@@ -2000,6 +2012,8 @@ model ReturnTicketDestination {
   id               String   @id @default(cuid())
   countryId        String   @unique
   ratePerApplicant Decimal  @db.Decimal(10, 2)
+  /// Client corrections 2026-10-05 — the airline fee inside ratePerApplicant.
+  airlineFeePerApplicant Decimal @default(0) @db.Decimal(10, 2)
   /// P17 — per-booking cancellation fee for this destination (Admin-set, null = none).
   /// Shown before payment and deducted by the refund engine before forwarding.
   cancellationFee  Decimal? @db.Decimal(10, 2)
@@ -2613,6 +2627,9 @@ model OtbPrice {
   paxType     PaxType
   normalPrice Decimal  @db.Decimal(10, 2)
   urgentPrice Decimal? @db.Decimal(10, 2)
+  /// Client corrections 2026-10-05 — the airline's own OTB fee inside the
+  /// price (per passenger); invoices show it apart from the service fee.
+  airlineFee  Decimal  @default(0) @db.Decimal(10, 2)
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

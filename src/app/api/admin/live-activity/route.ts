@@ -4,6 +4,7 @@ import { runSequentially } from "@/lib/db-sequential";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { leadReference } from "@/lib/leads/reference";
 import { maskPhoneNumber } from "@/lib/admin/monitoring";
+import { maskRecipient } from "@/lib/logging/mask";
 import type { WhatsAppMessageDirection } from "@/generated/prisma/enums";
 
 const LIST_SIZE = 20;
@@ -60,7 +61,7 @@ export async function GET() {
         take: LIST_SIZE,
         select: { id: true, extractionType: true, status: true, provider: true, mrzValid: true, bookingId: true, createdAt: true },
       })),
-      // Client corrections 2026-10-05 — Email activity: the per-send audit rows notifyCustomer() writes (recipient already masked).
+      // Client corrections 2026-10-05 — Email activity: the per-send audit rows notifyCustomer() writes (recipient masked below).
       () => (db.auditTrail.findMany({
         where: { action: { in: ["EMAIL_SENT", "EMAIL_FAILED", "EMAIL_SKIPPED"] } },
         orderBy: { timestamp: "desc" },
@@ -131,7 +132,7 @@ export async function GET() {
         };
       }),
       ocrJobs,
-      emails,
+      emails: emails.map((email) => ({ ...email, note: email.note?.replace(/[^\s@]+@[^\s@]+\.[^\s@)]+/g, (address) => maskRecipient(address)) ?? null })),
     });
   } catch (error) {
     console.error("[api/admin/live-activity]", error);

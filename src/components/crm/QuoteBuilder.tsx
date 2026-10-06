@@ -89,6 +89,7 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
     feeAmount: toNumber(quotation.feeAmount),
     fineOrCharges: toNumber(quotation.fineOrCharges),
     otherCharges: toNumber(quotation.otherCharges),
+    governmentFee: toNumber(quotation.governmentFee),
     flightTicketPrice: toNumber(quotation.flightTicketPrice),
     // Always sent back on a non-flight edit so the server re-validates it
     // against the (possibly changed) total; "" clears it.

@@ -33,7 +33,8 @@ export async function createPendingBankTransferPayment(input: {
   const couponDiscount = Number(quotation.couponDiscount ?? 0);
   const netAmount = Math.max(0, amount - couponDiscount);
   const { gstRate } = await getTaxFeeRates();
-  const gstAmount = roundToPaise(netAmount * gstRate);
+  // Client corrections 2026-10-05 — no GST on the government / airline fee.
+  const gstAmount = roundToPaise(Math.max(0, netAmount - Number(quotation.governmentFee ?? 0)) * gstRate);
 
   return db.$transaction(async (tx) => {
     const created = await tx.payment.create({

@@ -23,6 +23,7 @@ interface DestinationData {
   countryCode: string;
   ratePerApplicant: number;
   cancellationFee: number | null;
+  airlineFeePerApplicant: number;
   active: boolean;
   displayOrder: number;
 }
@@ -39,6 +40,7 @@ type ActiveFilter = "all" | "active" | "inactive";
 
 interface FormState {
   rate: string;
+  airlineFee: string;
   cancellationFee: string;
   displayOrder: string;
 }
@@ -46,6 +48,7 @@ interface FormState {
 function toFormState(d: DestinationData): FormState {
   return {
     rate: String(d.ratePerApplicant),
+    airlineFee: String(d.airlineFeePerApplicant ?? 0),
     cancellationFee: d.cancellationFee === null ? "" : String(d.cancellationFee),
     displayOrder: String(d.displayOrder),
   };
@@ -54,6 +57,7 @@ function toFormState(d: DestinationData): FormState {
 function toPayload(form: FormState) {
   return {
     ratePerApplicant: Number(form.rate),
+    airlineFeePerApplicant: form.airlineFee.trim() === "" ? 0 : Number(form.airlineFee),
     cancellationFee: form.cancellationFee.trim() === "" ? null : Number(form.cancellationFee),
     displayOrder: Number(form.displayOrder) || 0,
   };
@@ -74,7 +78,7 @@ function RateFields({
   disabled: boolean;
 }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
       <TextField
         label="Rate per applicant (₹)"
         name={`${idPrefix}-rate`}
@@ -83,6 +87,17 @@ function RateFields({
         value={form.rate}
         onChange={(event) => onChange({ ...form, rate: event.target.value })}
         error={errors.ratePerApplicant?.[0]}
+        disabled={disabled}
+      />
+      <TextField
+        label="Airline fee inside rate (₹)"
+        name={`${idPrefix}-airlineFee`}
+        type="number"
+        min={0}
+        hint="Shown apart on the invoice, no GST."
+        value={form.airlineFee}
+        onChange={(event) => onChange({ ...form, airlineFee: event.target.value })}
+        error={errors.airlineFeePerApplicant?.[0]}
         disabled={disabled}
       />
       <TextField
@@ -206,7 +221,7 @@ function NewDestinationForm({
 }) {
   const { confirm, dialog } = useConfirmAction();
   const [countryId, setCountryId] = useState(defaultCountryId ?? "");
-  const [form, setForm] = useState<FormState>({ rate: "", cancellationFee: "", displayOrder: "0" });
+  const [form, setForm] = useState<FormState>({ rate: "", airlineFee: "", cancellationFee: "", displayOrder: "0" });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
 
@@ -228,7 +243,7 @@ function NewDestinationForm({
       toast.success(`${created.countryName} added.`);
       onCreated(created);
       setCountryId("");
-      setForm({ rate: "", cancellationFee: "", displayOrder: "0" });
+      setForm({ rate: "", airlineFee: "", cancellationFee: "", displayOrder: "0" });
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
       toast.error(error instanceof ApiError ? error.message : "Couldn't add this destination. Please try again.");

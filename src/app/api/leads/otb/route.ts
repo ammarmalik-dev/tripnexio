@@ -10,6 +10,7 @@ import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { db } from "@/lib/db";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { resolveOtbApplicantPrices } from "@/lib/otb/pricing";
+import { groupInvoiceLines, PAX_LINE_LABELS } from "@/lib/invoices/invoice-lines";
 import { createReturnTicketRequest } from "@/lib/return-ticket/create-request";
 import { linkServiceBookings } from "@/lib/return-ticket/operations";
 import { getOtbGlobalRules, resolveAirlineRules } from "@/lib/otb/get-otb-rules";
@@ -108,12 +109,13 @@ export async function POST(request: NextRequest) {
     ];
     // P18 — priced per applicant: Admin OTB price for airline + destination +
     // passenger type, falling back to the airline's own normal/urgent price.
-    const applicantPrices = await resolveOtbApplicantPrices({
+    const applicantQuotes = await resolveOtbApplicantPrices({
       airline: airlineRecord,
       countryCode: destinationCountry,
       processingType,
       paxTypes: applicants.map((a) => a.paxType),
     });
+    const applicantPrices = applicantQuotes.map((quote) => quote.price);
     const priced = applicantPrices.every((price): price is number => price !== null && Number.isFinite(price) && price > 0);
     const totalPrice = priced ? applicantPrices.reduce<number>((sum, price) => sum + (price ?? 0), 0) : 0;
 
@@ -172,6 +174,15 @@ export async function POST(request: NextRequest) {
         leadId: result.leadId,
         serviceType: "OTB",
         totalPrice,
+        invoiceLines: priced
+          ? groupInvoiceLines(
+              applicants.map((applicant, index) => ({
+                label: `OTB — ${PAX_LINE_LABELS[applicant.paxType]}`,
+                price: applicantPrices[index] ?? 0,
+                governmentFee: applicantQuotes[index].airlineFee,
+              }))
+            )
+          : undefined,
       });
       payToken = checkout?.token;
       otbBookingId = checkout?.bookingId;

@@ -1,10 +1,17 @@
+import path from "path";
 import PDFDocument from "pdfkit";
-import type { Payment } from "../../generated/prisma/client";
-import { db } from "../db";
-import { leadReference } from "../leads/reference";
+import QRCode from "qrcode";
 import { formatCurrency } from "../format-currency";
-import { getInvoiceCompanyDetails } from "./company-config";
-import { ensureInvoiceNumber } from "./invoice-number";
+import { siteConfig } from "../site-config";
+import { amountInWords } from "./amount-in-words";
+import {
+  buildPaymentInvoiceDocument,
+  buildQuotationInvoiceDocument,
+  type InvoiceDocument,
+  type InvoiceDocumentLine,
+} from "./invoice-document";
+
+export { serviceSacCode } from "./invoice-document";
 
 /** @deprecated Kept for any external caller expecting the old fixed-INR formatter — renderInvoicePdf itself now uses formatCurrency(value, company.currencyCode) so amounts respect the Admin-configured currency (Step 45). */
 export function money(value: number): string {
@@ -32,90 +39,56 @@ export interface InvoiceCompanyDetails {
   signatureBuffer: Buffer | null;
 }
 
-export interface InvoicePdfInput {
-  /** Step 44 — Quotation-backed invoices are always a Proforma, regardless of the GST rate (a quotation has no computed GST yet). */
-  isProforma?: boolean;
-  invoiceNumber: string;
-  issuedAt: Date;
-  /** Null for a Proforma built from a Quotation — no Booking exists yet at that stage. */
-  bookingId: string | null;
-  leadReference: string;
-  customerName: string;
-  customerMobile: string;
-  customerEmail: string | null;
-  /** Line-item service description — e.g. "New Visa — Service Fee". */
-  description: string;
-  /** The service line's amount — excludes `protectionPlanAmount`. */
-  baseFare: number;
-  /** P12 — per-passenger Protection Plan total, its own "Protection Plan" line; 0/absent renders none. */
-  protectionPlanAmount?: number;
-  /** CRM.md §8: "Coupon discount must remain a separate invoice line" (Step 22, audit §7.8) — null/0 renders no line at all. */
-  couponCode: string | null;
-  couponDiscount: number;
-  gstAmount: number;
-  gstRatePercent: number;
-  gatewayFee: number;
-  total: number;
-  company: InvoiceCompanyDetails;
-  /** Client corrections 2026-10-05 — the service's own SAC code; falls back to the company default. */
-  sacCode?: string | null;
-}
+// ---------------------------------------------------------------------------
+// Client corrections 2026-10-05 — the invoice layout from the client's sample
+// (client-message/new-doc-from-client): wordmark + company block, navy title
+// band, Bill To / Booking Details cards, a line table with Government Fee /
+// Service Fee / Taxable / GST columns, Tax Summary, Total Summary (navy Grand
+// Total bar), Amount in Words, Notes & Terms, "Scan to verify" QR, signatory
+// and a navy footer. Brand colours are the four locked --tn-* values.
+// ---------------------------------------------------------------------------
 
-function drawBankDetails(doc: PDFKit.PDFDocument, company: InvoiceCompanyDetails) {
-  const hasBankDetails = company.bankAccountNumber || company.bankName || company.bankIfscCode;
-  if (!hasBankDetails) return;
+const NAVY = "#182A4D";
+const BLUE = "#3E6FDB";
+const INK = "#111318";
+const MUTED = "#5B6478";
+const PANEL = "#EEF3FC";
+const BORDER = "#D6E0F2";
+const GREEN = "#1E8E3E";
+const PAGE_W = 595.28;
+const M = 28;
+const W = PAGE_W - M * 2;
 
-  doc.fontSize(10).fillColor("#000000").text("Payment Details", { underline: true });
-  doc.fontSize(9).fillColor("#333333");
-  if (company.bankAccountName) doc.text(`Account Name: ${company.bankAccountName}`);
-  if (company.bankAccountNumber) doc.text(`Account Number: ${company.bankAccountNumber}`);
-  if (company.bankIfscCode) doc.text(`IFSC: ${company.bankIfscCode}`);
-  if (company.bankName) doc.text(`Bank: ${company.bankName}${company.bankBranch ? `, ${company.bankBranch}` : ""}`);
-  doc.moveDown(1);
-}
+const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
+const DEFAULT_NOTES = [
+  "Government/authority fees are shown separately where applicable.",
+  "Service fees are subject to applicable GST.",
+  "GST treatment of government/third-party charges is based on the configured tax treatment and applicable law.",
+  "Refunds/cancellations are subject to the applicable service refund policy.",
+  "This is a system-generated invoice and does not require a physical signature where legally permitted.",
+];
 
-function drawSignatory(doc: PDFKit.PDFDocument, company: InvoiceCompanyDetails) {
-  if (!company.signatoryName && !company.signatureBuffer) {
-    doc.fontSize(8).fillColor("#999999").text("This is a computer-generated invoice and does not require a signature.", 50, doc.y, {
-      align: "center",
-      width: 495,
-    });
-    return;
-  }
-
-  doc.fontSize(9).fillColor("#333333").text(`For ${company.legalName}`, { align: "right" });
-  doc.moveDown(2.5);
-  if (company.signatureBuffer) {
-    try {
-      doc.image(company.signatureBuffer, 445, doc.y - 30, { width: 100, height: 40, fit: [100, 40] });
-    } catch (error) {
-      console.error("[render-invoice] couldn't draw signature image", error);
-    }
-  }
-  doc.fontSize(9).fillColor("#000000").text(company.signatoryName ?? "", { align: "right" });
-  if (company.signatoryTitle) doc.fontSize(8).fillColor("#555555").text(company.signatoryTitle, { align: "right" });
-}
-
-/**
- * Pure PDF renderer — shared by the staff-facing download routes
- * (/api/payments/[id]/invoice, /api/quotations/[id]/invoice), and the
- * PAYMENT_RECEIVED email trigger (src/lib/payments/notify-payment-received.ts),
- * which attaches the exact same PDF to the customer's receipt email. Never
- * fetches anything itself — company.logoBuffer/signatureBuffer are already
- * resolved bytes by the time they reach here (see company-config.ts).
- */
-/** The Admin-set SAC code of a service (Admin → Services), or null to use the Invoice Settings default. */
-export async function serviceSacCode(serviceType: string): Promise<string | null> {
+function registerFonts(doc: PDFKit.PDFDocument): { regular: string; semi: string; bold: string } {
   try {
-    const service = await db.service.findUnique({ where: { code: serviceType }, select: { sacCode: true } });
-    return service?.sacCode?.trim() || null;
-  } catch {
-    return null;
+    doc.registerFont("TN-Regular", path.join(FONT_DIR, "NotoSans-Regular.ttf"));
+    doc.registerFont("TN-Semi", path.join(FONT_DIR, "NotoSans-SemiBold.ttf"));
+    doc.registerFont("TN-Bold", path.join(FONT_DIR, "NotoSans-Bold.ttf"));
+    return { regular: "TN-Regular", semi: "TN-Semi", bold: "TN-Bold" };
+  } catch (error) {
+    // Without the font files "₹" can't be drawn; amounts then fall back to the currency code.
+    console.error("[render-invoice] couldn't load invoice fonts", error);
+    return { regular: "Helvetica", semi: "Helvetica-Bold", bold: "Helvetica-Bold" };
   }
 }
 
-export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> {
-  const doc = new PDFDocument({ size: "A4", margin: 50 });
+function fmtDate(value: Date | string | null): string {
+  if (!value) return "—";
+  const date = typeof value === "string" ? new Date(`${value.slice(0, 10)}T00:00:00Z`) : value;
+  return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
+export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer> {
+  const doc = new PDFDocument({ size: "A4", margin: M, info: { Title: `${invoice.title} ${invoice.invoiceNumber}`, Author: invoice.company.legalName } });
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
   const done = new Promise<Buffer>((resolve, reject) => {
@@ -123,128 +96,301 @@ export async function renderInvoicePdf(input: InvoicePdfInput): Promise<Buffer> 
     doc.on("error", reject);
   });
 
-  const headerTop = doc.y;
-  if (input.company.logoBuffer) {
+  const F = registerFonts(doc);
+  const hasRupee = F.regular !== "Helvetica";
+  const currency = invoice.company.currencyCode;
+  const num = (value: number) => value.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const money = (value: number) => (hasRupee ? formatCurrency(value, currency) : `${currency} ${num(value)}`);
+  const text = (value: string, x: number, y: number, opts: PDFKit.Mixins.TextOptions & { font?: string; size?: number; color?: string } = {}) => {
+    const { font = F.regular, size = 8.5, color = INK, ...rest } = opts;
+    doc.font(font).fontSize(size).fillColor(color).text(value, x, y, { lineBreak: rest.width !== undefined, ...rest });
+  };
+
+  // ---- Header: logo / wordmark + company block
+  let y = M;
+  if (invoice.company.logoBuffer) {
     try {
-      doc.image(input.company.logoBuffer, 50, headerTop, { width: 90, height: 60, fit: [90, 60] });
-      doc.x = 150;
-      doc.y = headerTop;
+      doc.image(invoice.company.logoBuffer, M, y, { fit: [200, 46] });
     } catch (error) {
       console.error("[render-invoice] couldn't draw company logo", error);
     }
+  } else {
+    doc.font(F.bold).fontSize(30).fillColor(NAVY).text("Trip", M, y - 4, { continued: true, lineBreak: false }).fillColor(BLUE).text("Nexio", { lineBreak: false });
   }
+  text("Travel Made Easy with TripNexio.", M, y + 50, { font: F.semi, size: 10, color: NAVY });
 
-  doc.fontSize(20).fillColor("#000000").text(input.company.legalName, { continued: false });
-  doc.fontSize(10).fillColor("#555555");
-  doc.text(input.company.address);
-  doc.text(`${input.company.phone} · ${input.company.email}`);
-  if (input.company.gstNumber) doc.text(`GSTIN: ${input.company.gstNumber}`);
-  doc.x = 50;
-  doc.moveDown(1.5);
-
-  // Never hardcode "TAX INVOICE" — a Proforma is always labeled as such
-  // regardless of GST, and a real invoice only calls itself "TAX INVOICE"
-  // when GST actually applies (client's own locked "GST OFF -> non-GST
-  // invoice" rule, see tax-fee-config.ts) — fixes a real bug where every
-  // invoice used to say "TAX INVOICE" even at 0% GST.
-  const heading = input.isProforma ? "PROFORMA INVOICE" : input.gstAmount > 0 ? "TAX INVOICE" : "INVOICE";
-  doc.fillColor("#000000").fontSize(16).text(heading, { align: "right" });
-  doc.fontSize(10).fillColor("#555555");
-  doc.text(`Invoice #: ${input.invoiceNumber}`, { align: "right" });
-  doc.text(`Date: ${input.issuedAt.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`, { align: "right" });
-  doc.moveDown(1.5);
-
-  doc.fillColor("#000000").fontSize(11).text("Billed To", { underline: true });
-  doc.fontSize(10).fillColor("#333333");
-  doc.text(input.customerName);
-  doc.text(input.customerMobile);
-  if (input.customerEmail) doc.text(input.customerEmail);
-  doc.moveDown(0.5);
-  if (input.bookingId) doc.text(`Booking: ${input.bookingId}`);
-  doc.text(`Lead Reference: ${input.leadReference}`);
-  doc.moveDown(1.5);
-
-  const tableTop = doc.y;
-  const col1 = 50;
-  const col2 = 300;
-  const col3 = 370;
-  const col4 = 420;
-  doc.font("Helvetica-Bold").fontSize(9).fillColor("#000000");
-  doc.text("Description", col1, tableTop);
-  doc.text("SAC", col2, tableTop);
-  doc.text("Qty", col3, tableTop);
-  doc.text("Rate", col4, tableTop, { align: "right", width: 75 });
-  doc.font("Helvetica");
-  doc.moveTo(50, doc.y + 14).lineTo(545, doc.y + 14).strokeColor("#cccccc").stroke();
-  doc.moveDown(1.2);
-
-  const fmt = (value: number) => formatCurrency(value, input.company.currencyCode);
-
-  const itemY = doc.y;
-  doc.fontSize(9).fillColor("#333333");
-  doc.text(input.description, col1, itemY, { width: 240 });
-  doc.text(input.sacCode ?? input.company.sacCode ?? "—", col2, itemY);
-  doc.text("1", col3, itemY);
-  doc.text(fmt(input.baseFare), col4, itemY, { align: "right", width: 75 });
-  doc.moveDown(1);
-
-  const protectionPlanAmount = input.protectionPlanAmount ?? 0;
-  if (protectionPlanAmount > 0) {
-    const planY = doc.y;
-    doc.text("Protection Plan", col1, planY, { width: 240 });
-    doc.text(input.sacCode ?? input.company.sacCode ?? "—", col2, planY);
-    doc.text("1", col3, planY);
-    doc.text(fmt(protectionPlanAmount), col4, planY, { align: "right", width: 75 });
-    doc.moveDown(1);
+  const companyX = M + 262;
+  doc.moveTo(companyX - 14, y + 2).lineTo(companyX - 14, y + 70).strokeColor(BORDER).lineWidth(1).stroke();
+  text(invoice.company.legalName, companyX, y, { font: F.bold, size: 11, color: NAVY });
+  let cy = y + 16;
+  if (invoice.company.address) {
+    text(invoice.company.address, companyX, cy, { size: 8, color: MUTED, width: W - (companyX - M) });
+    cy = doc.y + 3;
   }
+  for (const [label, value] of [
+    ["GSTIN", invoice.company.gstNumber],
+    ["Email", invoice.company.email],
+    ["Phone", invoice.company.phone],
+  ] as const) {
+    if (!value) continue;
+    text(`${label}:`, companyX, cy, { font: F.semi, size: 8 });
+    text(value, companyX + 40, cy, { size: 8 });
+    cy += 12;
+  }
+  y = Math.max(y + 78, cy + 6);
 
-  doc.moveTo(50, doc.y + 4).lineTo(545, doc.y + 4).strokeColor("#cccccc").stroke();
-  doc.moveDown(0.8);
-
-  const amountCol = 420;
-  const row = (label: string, value: string) => {
-    const y = doc.y;
-    doc.fontSize(10).fillColor("#333333").text(label, col1, y);
-    doc.text(value, amountCol, y, { align: "right", width: 75 });
-    doc.moveDown(0.6);
+  // ---- Title band
+  const bandH = 64;
+  doc.roundedRect(M, y, W, bandH, 6).fill(NAVY);
+  text(invoice.title, M + 16, y + (invoice.title.length > 12 ? 22 : 18), { font: F.bold, size: invoice.title.length > 12 ? 17 : 24, color: "#FFFFFF" });
+  const midX = M + 236;
+  const rightX = M + 392;
+  const bandRow = (label: string, value: string, x: number, rowY: number, valueX: number) => {
+    text(label, x, rowY, { font: F.semi, size: 8.5, color: "#FFFFFF" });
+    text(value, valueX, rowY, { size: 8.5, color: "#FFFFFF", width: PAGE_W - M - valueX - 8, ellipsis: true });
   };
+  bandRow("Invoice No.:", invoice.invoiceNumber, midX, y + 18, midX + 66);
+  bandRow("Invoice Date:", fmtDate(invoice.issuedAt), midX, y + 34, midX + 66);
+  doc.moveTo(rightX - 10, y + 12).lineTo(rightX - 10, y + bandH - 12).strokeColor("#3A4D73").stroke();
+  bandRow(invoice.bookingId ? "Booking ID:" : "Reference:", invoice.bookingId ?? invoice.leadReference, rightX, y + 12, rightX + 66);
+  bandRow("Service:", invoice.serviceLabel, rightX, y + 26, rightX + 66);
+  bandRow("Status:", invoice.paymentStatus, rightX, y + 40, rightX + 66);
+  y += bandH + 12;
 
-  if (input.couponDiscount > 0) {
-    row(`Discount (${input.couponCode ?? "coupon"})`, `- ${fmt(input.couponDiscount)}`);
+  // ---- Bill To / Booking Details cards
+  const cardW = (W - 12) / 2;
+  const drawCard = (x: number, title: string, rows: [string, string][]) => {
+    const h = 26 + rows.length * 13 + 8;
+    doc.roundedRect(x, y, cardW, h, 6).lineWidth(0.8).strokeColor(BORDER).stroke();
+    doc.roundedRect(x, y, cardW, 22, 6).fill(PANEL);
+    doc.rect(x, y + 14, cardW, 8).fill(PANEL);
+    doc.roundedRect(x + 8, y + 5, 12, 12, 3).fill(BLUE);
+    text(title, x + 26, y + 6, { font: F.bold, size: 9.5, color: NAVY });
+    rows.forEach(([label, value], index) => {
+      const rowY = y + 28 + index * 13;
+      text(label, x + 10, rowY, { size: 8.5, color: MUTED });
+      text(":", x + 92, rowY, { size: 8.5, color: MUTED });
+      text(value || "—", x + 100, rowY, { size: 8.5, width: cardW - 108, ellipsis: true });
+    });
+    return h;
+  };
+  const billRows: [string, string][] = [
+    ["Customer Name", invoice.customer.name],
+    ["Mobile", invoice.customer.mobile],
+    ...(invoice.customer.email ? ([["Email", invoice.customer.email]] as [string, string][]) : []),
+    ["Customer Type", "Individual"],
+  ];
+  const bookingRows: [string, string][] = [
+    ...(invoice.bookingId ? ([["Booking ID", invoice.bookingId]] as [string, string][]) : ([["Reference", invoice.leadReference]] as [string, string][])),
+    ["Service", invoice.serviceLabel],
+    ...(invoice.subService ? ([["Sub Service", invoice.subService]] as [string, string][]) : []),
+    ...(invoice.paxCount ? ([["Pax Count", String(invoice.paxCount)]] as [string, string][]) : []),
+    ...(invoice.bookingDate ? ([["Booking Date", fmtDate(invoice.bookingDate)]] as [string, string][]) : []),
+    ...(invoice.travelDate ? ([["Travel Date", fmtDate(invoice.travelDate)]] as [string, string][]) : []),
+  ];
+  const cardH = Math.max(drawCard(M, "Bill To (Customer Details)", billRows), drawCard(M + cardW + 12, "Booking Details", bookingRows));
+  y += cardH + 12;
+
+  // ---- Line table
+  const cols = [
+    { key: "#", w: 18, align: "center" as const },
+    { key: "Description", w: 128, align: "left" as const },
+    { key: "SAC", w: 44, align: "center" as const },
+    { key: "Qty", w: 26, align: "center" as const },
+    { key: `Government Fee`, w: 56, align: "right" as const },
+    { key: `Service Fee`, w: 52, align: "right" as const },
+    { key: `Taxable Value`, w: 56, align: "right" as const },
+    { key: "GST %", w: 32, align: "right" as const },
+    { key: "GST Amount", w: 52, align: "right" as const },
+    { key: "Total Amount", w: W - 464, align: "right" as const },
+  ];
+  const headH = 26;
+  doc.roundedRect(M, y, W, headH, 5).fill(PANEL);
+  let x = M;
+  for (const col of cols) {
+    text(col.key, x + 3, y + 5, { font: F.bold, size: 7.5, color: NAVY, width: col.w - 6, align: col.align });
+    x += col.w;
   }
-  const taxableValue = input.baseFare + protectionPlanAmount - input.couponDiscount;
-  row("Taxable Value", fmt(taxableValue));
-  if (input.gstAmount > 0) {
-    row(`GST @ ${input.gstRatePercent.toFixed(2)}%`, fmt(input.gstAmount));
-  }
-  if (input.gatewayFee > 0) {
-    row("Payment Gateway Fee", fmt(input.gatewayFee));
+  y += headH;
+  const lineGst = (line: InvoiceDocumentLine) => (line.serviceFee > 0 ? (line.gstAmount / line.serviceFee) * 100 : 0);
+  invoice.lines.forEach((line, index) => {
+    const cells = [
+      String(index + 1),
+      line.description,
+      line.sac ?? "—",
+      String(line.quantity),
+      line.governmentFee > 0 ? num(line.governmentFee) : "-",
+      num(line.serviceFee),
+      num(line.serviceFee),
+      `${Math.round(lineGst(line) * 100) / 100}%`,
+      num(line.gstAmount),
+      num(line.governmentFee + line.serviceFee + line.gstAmount),
+    ];
+    doc.font(F.regular).fontSize(8);
+    const rowH = Math.max(22, doc.heightOfString(line.description, { width: cols[1].w - 6 }) + 10);
+    if (y + rowH > 780) {
+      doc.addPage();
+      y = M;
+    }
+    let cx = M;
+    cells.forEach((cell, cellIndex) => {
+      text(cell, cx + 3, y + 6, { font: cellIndex === 9 ? F.semi : F.regular, size: 8, width: cols[cellIndex].w - 6, align: cols[cellIndex].align });
+      cx += cols[cellIndex].w;
+    });
+    y += rowH;
+    doc.moveTo(M, y).lineTo(M + W, y).strokeColor(BORDER).lineWidth(0.6).stroke();
+  });
+  y += 12;
+  if (y > 560) {
+    doc.addPage();
+    y = M;
   }
 
-  doc.moveTo(50, doc.y + 2).lineTo(545, doc.y + 2).strokeColor("#cccccc").stroke();
-  doc.moveDown(0.6);
-  const totalY = doc.y;
-  doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000").text("Total", col1, totalY);
-  doc.text(fmt(input.total), amountCol, totalY, { align: "right", width: 75 });
-  doc.font("Helvetica");
-  doc.moveDown(2);
+  // ---- Tax Summary + Amount in Words (left), Total Summary (right)
+  const leftW = 300;
+  const rightCol = M + leftW + 12;
+  const rightW = W - leftW - 12;
+  const sectionTop = y;
 
-  if (input.isProforma) {
-    doc.fontSize(8).fillColor("#999999").text(
-      "This is a Proforma Invoice for reference only — not a demand for payment or a valid Tax Invoice. GST (if applicable) is computed at the time of actual payment.",
-      50,
-      doc.y,
-      { align: "center", width: 495 }
+  doc.roundedRect(M, y, leftW, 22, 5).fill(PANEL);
+  text("Tax Summary", M + 26, y + 6, { font: F.bold, size: 9.5, color: NAVY });
+  doc.roundedRect(M + 8, y + 5, 12, 12, 3).fill(BLUE);
+  y += 28;
+  const taxable = Math.max(0, invoice.lines.reduce((sum, line) => sum + line.serviceFee, 0) - invoice.couponDiscount);
+  if (invoice.gstAmount > 0) {
+    text("Tax Type", M + 8, y, { font: F.semi, size: 8, color: MUTED });
+    text("Taxable Value", M + 90, y, { font: F.semi, size: 8, color: MUTED });
+    text("Rate", M + 180, y, { font: F.semi, size: 8, color: MUTED });
+    text("Amount", M + 220, y, { font: F.semi, size: 8, color: MUTED, width: 72, align: "right" });
+    y += 14;
+    text("GST", M + 8, y, { size: 8.5 });
+    text(num(taxable), M + 90, y, { size: 8.5 });
+    text(`${invoice.gstRatePercent}%`, M + 180, y, { size: 8.5 });
+    text(num(invoice.gstAmount), M + 220, y, { size: 8.5, width: 72, align: "right" });
+    y += 14;
+    doc.rect(M, y, leftW, 18).fill(PANEL);
+    text("Total GST", M + 8, y + 4, { font: F.bold, size: 8.5, color: NAVY });
+    text(num(invoice.gstAmount), M + 220, y + 4, { font: F.bold, size: 8.5, color: NAVY, width: 72, align: "right" });
+    y += 26;
+  } else {
+    text(
+      invoice.title === "PROFORMA INVOICE" ? "GST, if applicable, is added when the payment is made." : "No GST is charged on this invoice.",
+      M + 8,
+      y,
+      { size: 8.5, color: MUTED, width: leftW - 16 }
     );
-    doc.moveDown(1);
+    y = doc.y + 10;
+  }
+  doc.roundedRect(M, y, leftW, 40, 5).fill(PANEL);
+  text("Amount in Words:", M + 10, y + 6, { font: F.semi, size: 8, color: BLUE });
+  text(amountInWords(invoice.grandTotal, currency), M + 10, y + 19, { size: 8.5, width: leftW - 20 });
+  y += 48;
+  const bank = invoice.company;
+  if (bank.bankAccountNumber || bank.bankName) {
+    text("Bank Details", M, y, { font: F.semi, size: 8, color: NAVY });
+    y += 11;
+    const bankLines = [
+      bank.bankAccountName ? `Account Name: ${bank.bankAccountName}` : null,
+      bank.bankAccountNumber ? `Account No.: ${bank.bankAccountNumber}` : null,
+      bank.bankIfscCode ? `IFSC: ${bank.bankIfscCode}` : null,
+      bank.bankName ? `Bank: ${bank.bankName}${bank.bankBranch ? `, ${bank.bankBranch}` : ""}` : null,
+    ].filter((line): line is string => line !== null);
+    for (const line of bankLines) {
+      text(line, M, y, { size: 8, color: MUTED });
+      y += 11;
+    }
+    y += 4;
+  }
+  const leftBottom = y;
+
+  // Total summary
+  let ry = sectionTop;
+  doc.roundedRect(rightCol, ry, rightW, 22, 5).fill(PANEL);
+  doc.roundedRect(rightCol + 8, ry + 5, 12, 12, 3).fill(BLUE);
+  text("Total Summary", rightCol + 26, ry + 6, { font: F.bold, size: 9.5, color: NAVY });
+  ry += 28;
+  const governmentTotal = invoice.lines.reduce((sum, line) => sum + line.governmentFee, 0);
+  const serviceTotal = invoice.lines.reduce((sum, line) => sum + line.serviceFee, 0);
+  const summaryRow = (label: string, value: string, color = INK) => {
+    text(label, rightCol + 8, ry, { size: 8.5, color: MUTED });
+    text(value, rightCol + 8, ry, { size: 8.5, color, width: rightW - 16, align: "right" });
+    ry += 13;
+    doc.moveTo(rightCol, ry - 2).lineTo(rightCol + rightW, ry - 2).strokeColor(BORDER).lineWidth(0.4).stroke();
+  };
+  summaryRow("Total Government Fee", money(governmentTotal));
+  summaryRow("Total Service Fee", money(serviceTotal));
+  summaryRow(`Discount${invoice.couponCode ? ` (${invoice.couponCode})` : ""}`, `- ${money(invoice.couponDiscount)}`, GREEN);
+  summaryRow("Taxable Value", money(taxable));
+  summaryRow("Total GST", money(invoice.gstAmount));
+  if (invoice.gatewayFee > 0) summaryRow("Payment Gateway Fee", money(invoice.gatewayFee));
+  ry += 2;
+  doc.roundedRect(rightCol, ry, rightW, 24, 4).fill(NAVY);
+  text("Grand Total", rightCol + 10, ry + 6, { font: F.bold, size: 11, color: "#FFFFFF" });
+  text(money(invoice.grandTotal), rightCol + 10, ry + 6, { font: F.bold, size: 11, color: "#FFFFFF", width: rightW - 20, align: "right" });
+  ry += 30;
+  summaryRow("Amount Paid", money(invoice.amountPaid), GREEN);
+  summaryRow("Balance Due", money(invoice.balanceDue));
+  y = Math.max(leftBottom, ry) + 8;
+  if (y > 640) {
+    doc.addPage();
+    y = M;
   }
 
-  drawBankDetails(doc, input.company);
-  if (input.company.termsAndNotes) {
-    doc.fontSize(8).fillColor("#777777").text(input.company.termsAndNotes, 50, doc.y, { width: 495 });
-    doc.moveDown(1);
+  // ---- Notes & Terms | QR | Signatory
+  const notesW = 300;
+  const notes = invoice.company.termsAndNotes?.trim()
+    ? invoice.company.termsAndNotes
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    : DEFAULT_NOTES;
+  const notesTop = y;
+  doc.font(F.regular).fontSize(7.5);
+  const notesBodyH = notes.reduce((sum, note, index) => sum + doc.heightOfString(`${index + 1}. ${note}`, { width: notesW - 20 }) + 2, 0);
+  doc.roundedRect(M, y, notesW, 22 + notesBodyH + 8, 5).fill(PANEL);
+  text("Notes & Terms", M + 10, y + 6, { font: F.bold, size: 9, color: NAVY });
+  let ny = y + 22;
+  notes.forEach((note, index) => {
+    text(`${index + 1}. ${note}`, M + 10, ny, { size: 7.5, color: INK, width: notesW - 20 });
+    ny = doc.y + 2;
+  });
+  const notesBottom = notesTop + 22 + notesBodyH + 8;
+
+  const qrX = M + notesW + 12;
+  if (invoice.verifyUrl) {
+    try {
+      const qr = await QRCode.toBuffer(invoice.verifyUrl, { margin: 0, width: 160, color: { dark: INK, light: "#FFFFFF" } });
+      doc.roundedRect(qrX, notesTop, 118, 64, 5).fill(PANEL);
+      doc.image(qr, qrX + 6, notesTop + 6, { width: 52, height: 52 });
+      text("Scan to verify", qrX + 62, notesTop + 8, { font: F.bold, size: 7, color: NAVY, width: 54 });
+      text(invoice.invoiceNumber, qrX + 62, notesTop + 22, { size: 6, color: MUTED, width: 54 });
+      text(fmtDate(invoice.issuedAt), qrX + 62, notesTop + 46, { size: 6, color: MUTED, width: 54 });
+    } catch (error) {
+      console.error("[render-invoice] couldn't draw the verify QR", error);
+    }
   }
-  drawSignatory(doc, input.company);
+
+  const signX = M + W - 100;
+  text(`For ${invoice.company.legalName}`, signX, notesTop, { font: F.bold, size: 8, color: NAVY, width: 100, align: "center" });
+  if (invoice.company.signatureBuffer) {
+    try {
+      doc.image(invoice.company.signatureBuffer, signX + 12, notesTop + 16, { fit: [76, 34], align: "center" });
+    } catch (error) {
+      console.error("[render-invoice] couldn't draw signature image", error);
+    }
+  }
+  doc.moveTo(signX + 6, notesTop + 52).lineTo(signX + 96, notesTop + 52).strokeColor(INK).lineWidth(0.6).stroke();
+  text(invoice.company.signatoryName ?? "Authorized Signatory", signX, notesTop + 56, { size: 8, width: 100, align: "center" });
+  if (invoice.company.signatoryName) {
+    text(invoice.company.signatoryTitle ?? "Authorized Signatory", signX, notesTop + 67, { size: 7, color: MUTED, width: 100, align: "center" });
+  }
+
+  // ---- Footer
+  const footerY = Math.max(notesBottom + 14, 772);
+  const contact = [siteConfig.url.replace(/^https?:\/\//, ""), invoice.company.email, invoice.company.phone].filter(Boolean).join("   |   ");
+  text(contact, M, footerY - 18, { size: 8.5, color: NAVY, width: W, align: "center" });
+  doc.rect(0, footerY, PAGE_W, 842 - footerY).fill(NAVY);
+  text("Travel Made Easy with TripNexio.", 0, footerY + 10, { font: F.semi, size: 8.5, color: "#FFFFFF", width: PAGE_W, align: "center" });
 
   doc.end();
   return done;
@@ -257,80 +403,11 @@ export interface PaymentInvoice {
   total: number;
 }
 
-/**
- * Fetches a SUCCESS payment's full context and renders its invoice (TAX or
- * plain INVOICE depending on whether GST was actually charged — see
- * renderInvoicePdf's heading logic). Returns null for a missing or
- * non-SUCCESS payment — callers that need to tell those two cases apart
- * (the download route returns 404 vs. 409) fetch the payment themselves
- * first; this is for callers (the email trigger) that already know the
- * payment just succeeded.
- */
+/** The PDF for a successful payment (download routes and the PAYMENT_RECEIVED email attachment). Null unless the payment succeeded. */
 export async function buildInvoicePdfForPayment(paymentId: string): Promise<PaymentInvoice | null> {
-  const payment = await db.payment.findUnique({
-    where: { id: paymentId },
-    include: { booking: { include: { customer: true, lead: true } } },
-  });
-  if (!payment || payment.status !== "SUCCESS") return null;
-
-  const invoiceNumber = await ensureInvoiceNumber(payment);
-  const company = await getInvoiceCompanyDetails();
-  const amounts = paymentInvoiceAmounts(payment);
-
-  const pdf = await renderInvoicePdf({
-    invoiceNumber,
-    issuedAt: payment.updatedAt,
-    bookingId: payment.booking.bookingId,
-    leadReference: leadReference(payment.booking.lead),
-    customerName: payment.booking.customer.name,
-    customerMobile: payment.booking.customer.mobile,
-    customerEmail: payment.booking.customer.email,
-    ...amounts,
-    couponCode: payment.couponCode,
-    company,
-    sacCode: await serviceSacCode(payment.booking.lead.serviceType),
-  });
-
-  return { pdf, invoiceNumber, bookingId: payment.booking.bookingId, total: amounts.total };
-}
-
-/**
- * The line/amount part of a payment's invoice, shared by the email trigger
- * and the staff download route. `amount` includes any Protection Plan
- * (P12), split out here into its own line; a payment that only charges
- * Protection Plan (a later staff purchase) shows just that line.
- */
-export function paymentInvoiceAmounts(
-  payment: Pick<Payment, "amount" | "couponDiscount" | "gstAmount" | "gatewayFee" | "protectionPlanAmount" | "purpose" | "description"> & {
-    booking: { lead: { serviceType: string } };
-  }
-) {
-  const amount = Number(payment.amount);
-  const planAmount = Number(payment.protectionPlanAmount ?? 0);
-  const serviceAmount = Math.max(0, amount - planAmount);
-  const onlyPlan = planAmount > 0 && serviceAmount < 0.005;
-  const couponDiscount = Number(payment.couponDiscount ?? 0);
-  const netAmount = amount - couponDiscount;
-  const gstAmount = Number(payment.gstAmount);
-  const gatewayFee = Number(payment.gatewayFee);
-  return {
-    // Step 52 — an EXTRA payment's invoice line is its own staff-entered
-    // reason, not the generic service-fee description a PRIMARY payment gets.
-    description: onlyPlan
-      ? "Protection Plan"
-      : payment.purpose === "EXTRA"
-        ? (payment.description ?? "Extra Payment")
-        : `${payment.booking.lead.serviceType.replaceAll("_", " ")} — Service Fee`,
-    baseFare: onlyPlan ? planAmount : serviceAmount,
-    protectionPlanAmount: onlyPlan ? 0 : planAmount,
-    couponDiscount,
-    gstAmount,
-    // GST rate is reconstructed against netAmount (what it was actually computed on), not the gross — otherwise a coupon would make the displayed rate look lower than it really was.
-    gstRatePercent: netAmount > 0 ? (gstAmount / netAmount) * 100 : 0,
-    gatewayFee,
-    // Total reflects what was actually charged: base minus the coupon, plus GST/gateway (both already computed on the discounted amount at payment-creation time).
-    total: netAmount + gstAmount + gatewayFee,
-  };
+  const invoice = await buildPaymentInvoiceDocument(paymentId);
+  if (!invoice) return null;
+  return { pdf: await renderInvoicePdf(invoice), invoiceNumber: invoice.invoiceNumber, bookingId: invoice.bookingId ?? "", total: invoice.grandTotal };
 }
 
 export interface QuotationInvoice {
@@ -339,51 +416,9 @@ export interface QuotationInvoice {
   total: number;
 }
 
-/**
- * Builds a Proforma Invoice from a Quotation — a pre-payment estimate, not
- * a record of money actually collected. No GST/gateway-fee line: a
- * Quotation has no computed GST today (that only happens at Payment
- * creation via getTaxFeeRates()), so a Proforma shows the selling price
- * and coupon discount only. Never exposes vendorCost/margin (same
- * never-trust/never-show-the-customer rule as everywhere else this pair
- * appears). Returns null only if the quotation itself doesn't exist — an
- * unselected/expired quotation can still get a Proforma (it's just an
- * estimate), unlike a Payment invoice which requires SUCCESS.
- */
+/** A quotation's Proforma Invoice (same layout; never shows vendor cost or margin). */
 export async function buildInvoicePdfForQuotation(quotationId: string): Promise<QuotationInvoice | null> {
-  const quotation = await db.quotation.findUnique({
-    where: { id: quotationId },
-    include: { lead: { include: { customer: true } } },
-  });
-  if (!quotation) return null;
-
-  const sellingPrice = Number(quotation.sellingPrice);
-  const couponDiscount = Number(quotation.couponDiscount ?? 0);
-  const total = sellingPrice - couponDiscount;
-  const invoiceNumber = `PF-${quotation.id.slice(-8).toUpperCase()}`;
-
-  const company = await getInvoiceCompanyDetails();
-
-  const pdf = await renderInvoicePdf({
-    isProforma: true,
-    invoiceNumber,
-    issuedAt: quotation.createdAt,
-    bookingId: null,
-    leadReference: leadReference(quotation.lead),
-    customerName: quotation.lead.customer.name,
-    customerMobile: quotation.lead.customer.mobile,
-    customerEmail: quotation.lead.customer.email,
-    description: `${quotation.lead.serviceType.replaceAll("_", " ")} — Service Fee (Estimate)`,
-    sacCode: await serviceSacCode(quotation.lead.serviceType),
-    baseFare: sellingPrice,
-    couponCode: quotation.couponCode,
-    couponDiscount,
-    gstAmount: 0,
-    gstRatePercent: 0,
-    gatewayFee: 0,
-    total,
-    company,
-  });
-
-  return { pdf, invoiceNumber, total };
+  const invoice = await buildQuotationInvoiceDocument(quotationId);
+  if (!invoice) return null;
+  return { pdf: await renderInvoicePdf(invoice), invoiceNumber: invoice.invoiceNumber, total: invoice.grandTotal };
 }

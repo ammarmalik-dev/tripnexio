@@ -200,6 +200,7 @@ export async function POST(request: NextRequest) {
     feeAmount,
     fineOrCharges,
     otherCharges,
+    governmentFee,
     flightTicketPrice,
     vendorCost,
     sellingPrice,
@@ -287,6 +288,9 @@ export async function POST(request: NextRequest) {
   // Selling price and margin are always computed/resolved server-side — never trust a client-sent value.
   const resolvedSellingPrice = computeSellingPrice(lead.serviceType, { sellingPrice, feeAmount, fineOrCharges, otherCharges, flightTicketPrice });
   const margin = resolvedSellingPrice - vendorCost;
+  if (governmentFee !== undefined && governmentFee > resolvedSellingPrice) {
+    return jsonError(400, "The government / airline fee can't be more than the total price.", { governmentFee: ["Can't exceed the total price."] });
+  }
 
   // Step 22 (audit §3.2/§4.2/§7.8) — resolved and validated here, not
   // trusted from the client; rejected outright for a flight quote (see
@@ -319,6 +323,7 @@ export async function POST(request: NextRequest) {
         feeAmount,
         fineOrCharges,
         otherCharges,
+        governmentFee,
         operationalBlock: operationalBlock ? (operationalBlock as unknown as Prisma.InputJsonValue) : undefined,
         // P15 — flight quote details / cancellation terms (flight quotes only).
         ...(flightQuote

@@ -255,6 +255,7 @@ export async function POST(request: NextRequest) {
           serviceType: "NEW_VISA",
           totalPrice: price.total,
           vendorCost: price.vendorCost,
+          invoiceLines: price.invoiceLines,
         });
         payToken = checkout?.token;
       } else {

@@ -36,6 +36,7 @@ const REVISION_TRACKED_FIELDS = [
   "feeAmount",
   "fineOrCharges",
   "otherCharges",
+  "governmentFee",
   "flightTicketPrice",
   "vendorCost",
   "sellingPrice",
@@ -198,6 +199,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       parsed.data.flightTicketPrice ?? (existing.flightTicketPrice ? Number(existing.flightTicketPrice) : undefined),
   });
   const margin = sellingPrice - vendorCost;
+  const governmentFee = parsed.data.governmentFee ?? (existing.governmentFee === null ? undefined : Number(existing.governmentFee));
+  if (governmentFee !== undefined && governmentFee > sellingPrice) {
+    return jsonError(400, "The government / airline fee can't be more than the total price.", { governmentFee: ["Can't exceed the total price."] });
+  }
 
   // Step 22 (audit §3.2/§4.2/§7.8) — pulled out of the raw spread below and
   // re-resolved server-side rather than trusting `couponCode` as a plain

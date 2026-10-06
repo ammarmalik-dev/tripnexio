@@ -179,7 +179,7 @@ export function QuoteBuilderForm({
     };
   }, [hasItinerary, leadId]);
 
-  const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "otherCharges" | "flightTicketPrice" | "cancellationCharge" | "noShowCharge" | "estimatedRefund") =>
+  const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "otherCharges" | "governmentFee" | "flightTicketPrice" | "cancellationCharge" | "noShowCharge" | "estimatedRefund") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
 
   const optionalField = (
@@ -609,6 +609,14 @@ export function QuoteBuilderForm({
             error={errors.sellingPrice?.message}
           />
         ) : null}
+        <TextField
+          label={isFlightQuote ? "Airline fare inside price (₹)" : "Government / airline fee inside total (₹)"}
+          type="number"
+          step="0.01"
+          hint="Optional — shown separately on the invoice; GST is never charged on it."
+          {...numberField("governmentFee")}
+          error={errors.governmentFee?.message}
+        />
       </div>
 
       <TextField

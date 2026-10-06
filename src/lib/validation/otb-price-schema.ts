@@ -10,8 +10,10 @@ export const createOtbPriceSchema = z.object({
   paxType: z.enum(["ADULT", "CHILD", "INFANT"], { error: "Select a passenger type" }),
   normalPrice: price("normal price"),
   urgentPrice: price("urgent price").nullable().default(null),
+  /** Client corrections 2026-10-05 — the airline's OTB fee inside the price, shown apart on invoices. */
+  airlineFee: price("airline fee").default(0),
   active: z.boolean().default(true),
 });
 
 /** Airline, country and passenger type are fixed once created — disable the row and add another to change them. */
-export const updateOtbPriceSchema = partialUpdateSchema(createOtbPriceSchema.pick({ normalPrice: true, urgentPrice: true, active: true }));
+export const updateOtbPriceSchema = partialUpdateSchema(createOtbPriceSchema.pick({ normalPrice: true, urgentPrice: true, airlineFee: true, active: true }));

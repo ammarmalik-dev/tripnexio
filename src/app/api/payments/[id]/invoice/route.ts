@@ -2,10 +2,7 @@ import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { leadReference } from "@/lib/leads/reference";
-import { paymentInvoiceAmounts, renderInvoicePdf, serviceSacCode } from "@/lib/invoices/render-invoice";
-import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
-import { ensureInvoiceNumber } from "@/lib/invoices/invoice-number";
+import { buildInvoicePdfForPayment } from "@/lib/invoices/render-invoice";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -20,7 +17,7 @@ export async function GET(request: Request, { params }: RouteParams) {
 
   const payment = await db.payment.findUnique({
     where: { id },
-    include: { booking: { include: { customer: true, lead: true } } },
+    include: { booking: { include: { lead: true } } },
   });
   if (!payment) return jsonError(404, "Payment not found.");
   const scopeError = assertServiceAccess(auth.session, payment.booking.lead.serviceType);
@@ -29,25 +26,9 @@ export async function GET(request: Request, { params }: RouteParams) {
     return jsonError(409, "An invoice is only available for a successful payment.");
   }
 
-  // Same line/amount computation as buildInvoicePdfForPayment (this route
-  // fetches the payment itself so it can tell a 404 apart from a 409).
-  // Derived from what was actually charged on this payment, not today's
-  // config — a rate change later shouldn't rewrite a historical invoice.
-  const company = await getInvoiceCompanyDetails();
-
-  const pdf = await renderInvoicePdf({
-    invoiceNumber: await ensureInvoiceNumber(payment),
-    issuedAt: payment.updatedAt,
-    bookingId: payment.booking.bookingId,
-    leadReference: leadReference(payment.booking.lead),
-    customerName: payment.booking.customer.name,
-    customerMobile: payment.booking.customer.mobile,
-    customerEmail: payment.booking.customer.email,
-    ...paymentInvoiceAmounts(payment),
-    couponCode: payment.couponCode,
-    company,
-    sacCode: await serviceSacCode(payment.booking.lead.serviceType),
-  });
+  const invoice = await buildInvoicePdfForPayment(payment.id);
+  if (!invoice) return jsonError(409, "An invoice is only available for a successful payment.");
+  const pdf = invoice.pdf;
 
   const disposition = new URL(request.url).searchParams.get("inline") === "1" ? "inline" : "attachment";
 

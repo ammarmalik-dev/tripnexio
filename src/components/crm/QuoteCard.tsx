@@ -22,6 +22,8 @@ export interface QuoteCardData {
   feeAmount: string | null;
   fineOrCharges: string | null;
   otherCharges?: string | null;
+  /** Client corrections 2026-10-05 — government / airline fee inside the total (shown apart on the invoice). */
+  governmentFee?: string | null;
   /** P14 — Visa Change: the A2A / Border block snapshot this option carries. */
   operationalBlock?: unknown;
   /** P15 — Flight Special Fare quote details / cancellation terms. */

@@ -38,6 +38,8 @@ export const createPricingRuleSchema = z.object({
   vendorCost: z.number().nonnegative("Vendor cost can't be negative").default(0),
   sellingPrice: z.number({ error: "Enter the selling price" }).nonnegative("Selling price can't be negative"),
   additionalCharges: z.number().nonnegative("Additional charges can't be negative").default(0),
+  /** Client corrections 2026-10-05 — government / embassy fee inside the price (per passenger), shown apart on invoices. */
+  governmentFee: z.number().nonnegative("Government fee can't be negative").default(0),
   validityFrom: z.string().optional(),
   validityUntil: z.string().optional(),
   active: z.boolean().default(true),

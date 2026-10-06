@@ -30,6 +30,7 @@ interface OtbPriceData {
   paxType: PaxType;
   normalPrice: number;
   urgentPrice: number | null;
+  airlineFee: number;
   active: boolean;
 }
 
@@ -50,11 +51,11 @@ const toNullableNumber = (value: string) => (value.trim() === "" ? null : Number
 
 function PriceRow({ row, onSaved }: { row: OtbPriceData; onSaved: (row: OtbPriceData) => void }) {
   const { confirm, dialog } = useConfirmAction();
-  const initial = { normal: String(row.normalPrice), urgent: row.urgentPrice === null ? "" : String(row.urgentPrice) };
+  const initial = { normal: String(row.normalPrice), urgent: row.urgentPrice === null ? "" : String(row.urgentPrice), fee: String(row.airlineFee) };
   const [form, setForm] = useState(initial);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
-  const dirty = form.normal !== initial.normal || form.urgent !== initial.urgent;
+  const dirty = form.normal !== initial.normal || form.urgent !== initial.urgent || form.fee !== initial.fee;
 
   const save = async (body: Record<string, unknown>, message: string) => {
     const reason = await confirm({
@@ -95,9 +96,10 @@ function PriceRow({ row, onSaved }: { row: OtbPriceData; onSaved: (row: OtbPrice
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <TextField label="Normal price (₹)" name={`normal-${row.id}`} type="number" min={0} value={form.normal} onChange={(e) => setForm({ ...form, normal: e.target.value })} error={errors.normalPrice?.[0]} disabled={saving} />
         <TextField label="Urgent price (₹)" name={`urgent-${row.id}`} type="number" min={0} placeholder="Airline price" value={form.urgent} onChange={(e) => setForm({ ...form, urgent: e.target.value })} error={errors.urgentPrice?.[0]} disabled={saving} />
+        <TextField label="Airline fee inside price (₹)" name={`fee-${row.id}`} type="number" min={0} value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} error={errors.airlineFee?.[0]} disabled={saving} />
       </div>
       <div className="flex justify-end">
-        <Button type="button" size="sm" disabled={!dirty} isLoading={saving} onClick={() => void save({ normalPrice: toNumber(form.normal), urgentPrice: toNullableNumber(form.urgent) }, "Price updated.")}>
+        <Button type="button" size="sm" disabled={!dirty} isLoading={saving} onClick={() => void save({ normalPrice: toNumber(form.normal), urgentPrice: toNullableNumber(form.urgent), airlineFee: toNullableNumber(form.fee) ?? 0 }, "Price updated.")}>
           Save Changes
         </Button>
       </div>
@@ -118,7 +120,7 @@ function NewPriceForm({
   defaultCountryId?: string;
 }) {
   const { confirm, dialog } = useConfirmAction();
-  const empty = { airlineId: "", countryId: defaultCountryId ?? "", paxType: "ADULT", normal: "", urgent: "" };
+  const empty = { airlineId: "", countryId: defaultCountryId ?? "", paxType: "ADULT", normal: "", urgent: "", fee: "" };
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [creating, setCreating] = useState(false);
@@ -139,6 +141,7 @@ function NewPriceForm({
         paxType: form.paxType,
         normalPrice: toNumber(form.normal),
         urgentPrice: toNullableNumber(form.urgent),
+        airlineFee: toNullableNumber(form.fee) ?? 0,
         reason,
       });
       toast.success("OTB price added.");
@@ -161,6 +164,7 @@ function NewPriceForm({
         <SelectField label="Passenger type" name="otb-price-pax" options={(Object.keys(PAX_LABELS) as PaxType[]).map((p) => ({ value: p, label: PAX_LABELS[p] }))} value={form.paxType} onChange={(e) => setForm({ ...form, paxType: e.target.value })} error={errors.paxType?.[0]} disabled={creating} />
         <TextField label="Normal price (₹)" name="otb-price-normal" type="number" min={0} value={form.normal} onChange={(e) => setForm({ ...form, normal: e.target.value })} error={errors.normalPrice?.[0]} disabled={creating} />
         <TextField label="Urgent price (₹)" name="otb-price-urgent" type="number" min={0} placeholder="Airline price" value={form.urgent} onChange={(e) => setForm({ ...form, urgent: e.target.value })} error={errors.urgentPrice?.[0]} disabled={creating} />
+        <TextField label="Airline fee inside price (₹)" name="otb-price-fee" type="number" min={0} placeholder="0" hint="Shown apart on the invoice, no GST." value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} error={errors.airlineFee?.[0]} disabled={creating} />
       </div>
       <div className="flex justify-end">
         <Button type="button" size="sm" isLoading={creating} disabled={!form.airlineId || !form.countryId || form.normal === ""} onClick={() => void create()}>

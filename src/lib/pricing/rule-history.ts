@@ -18,6 +18,7 @@ export const PRICING_RULE_HISTORY_FIELDS = [
   "vendorCost",
   "sellingPrice",
   "additionalCharges",
+  "governmentFee",
   "validityFrom",
   "validityUntil",
   "active",

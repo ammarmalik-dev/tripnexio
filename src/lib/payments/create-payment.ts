@@ -40,6 +40,8 @@ interface CreateGatewayPaymentInput {
   description?: string;
   /** P12 — Protection Plans this payment charges for; their prices are already part of `baseAmount`. */
   protectionPlans?: { ids: string[]; amount: number };
+  /** Client corrections 2026-10-05 — the government / airline fee inside `baseAmount`; GST is charged on the rest only. */
+  nonTaxableAmount?: number;
 }
 
 /**
@@ -57,7 +59,8 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   // gateway fee are computed on the amount AFTER the coupon discount.
   const netAmount = Math.max(0, baseAmount - couponDiscount);
   const { gstRate, gatewayFeeRate } = await getTaxFeeRates();
-  const gstAmount = roundToPaise(netAmount * gstRate);
+  const taxableAmount = Math.max(0, netAmount - (input.nonTaxableAmount ?? 0));
+  const gstAmount = roundToPaise(taxableAmount * gstRate);
   const gatewayFee = roundToPaise(netAmount * gatewayFeeRate);
   const totalAmount = roundToPaise(netAmount + gstAmount + gatewayFee);
 
@@ -162,6 +165,7 @@ export async function createPendingPayment(input: {
     couponDiscount: Number(quotation.couponDiscount ?? 0),
     purpose: "PRIMARY",
     protectionPlans,
+    nonTaxableAmount: Number(quotation.governmentFee ?? 0),
   });
 }
 

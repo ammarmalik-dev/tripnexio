@@ -61,6 +61,14 @@ export async function createReturnTicketRequest(input: {
       leadId: lead.leadId,
       serviceType: "RETURN_TICKET",
       totalPrice: ratePerApplicant * input.applicants.length,
+      invoiceLines: [
+        {
+          description: `Return Verified Ticket — ${destination.country.name}`,
+          quantity: input.applicants.length,
+          governmentFee: Math.min(Number(destination.airlineFeePerApplicant), ratePerApplicant),
+          serviceFee: Math.max(0, ratePerApplicant - Number(destination.airlineFeePerApplicant)),
+        },
+      ],
     });
     payToken = checkout?.token;
     bookingId = checkout?.bookingId;
