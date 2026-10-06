@@ -146,7 +146,10 @@ export function CheckoutPanel({ token }: { token: string }) {
   const [view, setView] = useState<CheckoutView | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [paying, setPaying] = useState(false);
-  const [awaitingGateway, setAwaitingGateway] = useState(false);
+  // Back from the gateway (same tab): keep checking until the payment is confirmed.
+  const [awaitingGateway, setAwaitingGateway] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("razorpay_payment_link_status")
+  );
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -359,10 +362,9 @@ export function CheckoutPanel({ token }: { token: string }) {
             </>
           ) : payment.paymentLink ? (
             <>
+              {/* Client corrections 2026-10-05 — same tab: the gateway brings the customer back to this page after paying. */}
               <a
                 href={payment.paymentLink}
-                target="_blank"
-                rel="noopener noreferrer"
                 onClick={() => setAwaitingGateway(true)}
                 className="inline-flex h-12 items-center justify-center rounded-md bg-accent px-6 text-sm font-medium text-white hover:bg-accent-dark"
               >

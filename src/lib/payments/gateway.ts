@@ -17,6 +17,8 @@ export interface CreatePaymentLinkInput {
   /** Arbitrary key-value metadata attached to the gateway's order/link (e.g. bookingId, paymentId) for reconciliation. */
   notes: Record<string, string>;
   expiresAt: Date;
+  /** Client corrections 2026-10-05 — where the customer returns after paying (their /pay/<token> page), so checkout stays in one tab. */
+  callbackUrl?: string;
 }
 
 export interface CreatePaymentLinkResult {

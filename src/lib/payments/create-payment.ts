@@ -7,6 +7,7 @@ import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { getDefaultPaymentLinkHours } from "../settings/system-config";
 import { getPaymentGateway } from "./get-gateway";
 import { leadReference } from "../leads/reference";
+import { siteConfig } from "../site-config";
 
 /** Fallback when the service has no configured `paymentDeadlineHours` (Step 42) — the original hardcoded value, unchanged for every service until an Admin opts in. */
 export const DEFAULT_PAYMENT_LINK_VALIDITY_HOURS = 24;
@@ -88,6 +89,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
       customerEmail: booking.customer.email,
       notes: { bookingId: booking.id, leadId: booking.leadId, purpose },
       expiresAt: linkExpiresAt,
+      ...(booking.customerToken ? { callbackUrl: `${siteConfig.url}/pay/${booking.customerToken}` } : {}),
     });
     gatewayRef = linkResult.gatewayRef;
     paymentLink = linkResult.paymentLink;
