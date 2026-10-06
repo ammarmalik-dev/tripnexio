@@ -1,7 +1,7 @@
 import type { AiProvider } from "./ai-provider";
-import { ClaudeAiProvider } from "./claude-ai-provider";
+import { LlmAiProvider } from "./llm-ai-provider";
 import { KeywordAiProvider } from "./keyword-ai-provider";
-import { isPlaceholder } from "@/lib/env-placeholder";
+import { getTextCompleter } from "@/lib/ai/text-completion";
 
 let cached: AiProvider | null = null;
 
@@ -14,7 +14,7 @@ let cached: AiProvider | null = null;
 export function getAiProvider(): AiProvider {
   if (cached) return cached;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  cached = isPlaceholder(apiKey) ? new KeywordAiProvider() : new ClaudeAiProvider(apiKey!);
+  const model = getTextCompleter();
+  cached = model ? new LlmAiProvider(model) : new KeywordAiProvider();
   return cached;
 }

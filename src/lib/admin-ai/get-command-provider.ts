@@ -1,13 +1,14 @@
 import type { AdminCommandProvider } from "./command-provider";
-import { ClaudeCommandProvider } from "./claude-command-provider";
+import { LlmCommandProvider } from "./llm-command-provider";
 import { KeywordCommandProvider } from "./keyword-command-provider";
-import { isPlaceholder } from "@/lib/env-placeholder";
+import { getTextCompleter } from "@/lib/ai/text-completion";
 
 let cached: AdminCommandProvider | null = null;
 
 /**
- * Selects the real Claude-backed classifier once ANTHROPIC_API_KEY is
- * filled in, falling back to KeywordCommandProvider until then — same
+ * Selects the AI classifier once a text model is configured (Gemini or
+ * Claude — src/lib/ai/text-completion.ts), falling back to
+ * KeywordCommandProvider until then — same
  * swappable-service pattern as every other integration in this app
  * (getPaymentGateway, getEmailSender, getWhatsAppGateway, getAiProvider,
  * getOcrProvider).
@@ -15,7 +16,7 @@ let cached: AdminCommandProvider | null = null;
 export function getCommandProvider(): AdminCommandProvider {
   if (cached) return cached;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  cached = isPlaceholder(apiKey) ? new KeywordCommandProvider() : new ClaudeCommandProvider(apiKey!);
+  const model = getTextCompleter();
+  cached = model ? new LlmCommandProvider(model) : new KeywordCommandProvider();
   return cached;
 }

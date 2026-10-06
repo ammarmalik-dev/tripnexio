@@ -15,7 +15,7 @@ export interface FaqAnswer {
  * Swappable AI layer for the two genuinely "AI" jobs the bot journey needs:
  * free-text intent classification (handles phrasing like "mera visa extend
  * karna hai", not just exact keywords) and FAQ answering CONSTRAINED to the
- * Admin FAQ knowledge base only. See ClaudeAiProvider (real) and
+ * Admin FAQ knowledge base only. See LlmAiProvider (real) and
  * KeywordAiProvider (mock/fallback) — selected by getAiProvider() the same
  * way every other external-service factory in this app works.
  */

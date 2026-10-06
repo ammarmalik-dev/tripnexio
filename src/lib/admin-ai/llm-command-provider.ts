@@ -1,9 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type { TextCompleter } from "@/lib/ai/text-completion";
 import type { AdminCommandProvider, CommandClassification } from "./command-provider";
 import { COMMAND_TYPES, COMMAND_TYPE_KEYS, type CommandTypeKey } from "./command-types";
-
-/** Same model choice as every other AI feature in this project (see claude-ai-provider.ts, claude-ocr-provider.ts). */
-const MODEL = "claude-sonnet-5";
 
 function buildSystemPrompt(): string {
   const catalog = COMMAND_TYPE_KEYS.map((key) => `- ${key}: ${COMMAND_TYPES[key].description}`).join("\n");
@@ -18,31 +15,21 @@ Respond with ONLY a JSON object, no other text: {"commandType": "<ONE_OF_THE_ABO
 }
 
 /**
- * Real implementation, selected by get-command-provider.ts once
- * ANTHROPIC_API_KEY is a real (non-placeholder) value — reuses the exact
- * same credential already wired up for the WhatsApp bot and OCR (Phase
- * 5C/5D's own precedent), not a second account the client would need.
+ * Real implementation over the shared text model (Gemini or Claude, see
+ * src/lib/ai/text-completion.ts), selected by get-command-provider.ts.
  */
-export class ClaudeCommandProvider implements AdminCommandProvider {
-  readonly providerName = "claude";
-  private readonly client: Anthropic;
+export class LlmCommandProvider implements AdminCommandProvider {
+  readonly providerName: string;
   private readonly systemPrompt: string;
 
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
+  constructor(private readonly model: TextCompleter) {
+    this.providerName = model.providerName;
     this.systemPrompt = buildSystemPrompt();
   }
 
   async classifyCommand(question: string): Promise<CommandClassification> {
     try {
-      const response = await this.client.messages.create({
-        model: MODEL,
-        max_tokens: 150,
-        system: this.systemPrompt,
-        messages: [{ role: "user", content: question }],
-      });
-      const textBlock = response.content.find((block) => block.type === "text");
-      const raw = textBlock && "text" in textBlock ? textBlock.text.trim() : "";
+      const raw = await this.model.complete(this.systemPrompt, question, 150);
       const jsonMatch = raw.match(/\{[\s\S]*\}/);
       if (!jsonMatch) return { commandType: "NOT_AVAILABLE", param: null, confidence: 0 };
 

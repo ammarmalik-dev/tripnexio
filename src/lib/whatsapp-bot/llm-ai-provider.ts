@@ -1,10 +1,7 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type { TextCompleter } from "@/lib/ai/text-completion";
 import type { AiProvider, FaqAnswer, FaqContextEntry } from "./ai-provider";
 import type { IntentClassification } from "./intents";
 import { BOT_INTENTS } from "./intents";
-
-/** Per this project's own instructions to default to the latest, most capable Claude model for AI features. Change here if a newer model should be used. */
-const MODEL = "claude-sonnet-5";
 
 const INTENT_SYSTEM_PROMPT = `You are an intent classifier for TripNexio, a travel/visa service for India-to-UAE/GCC customers messaging on WhatsApp. Customers write in English, Hindi, or Hinglish (romanized Hindi mixed with English), e.g. "mera visa extend karna hai" means "I need to extend my visa".
 
@@ -29,30 +26,22 @@ If the FAQ content clearly answers the question, reply with a short, direct, Wha
 If the FAQ content does NOT clearly cover the question, respond with EXACTLY this and nothing else: NOT_FOUND`;
 
 /**
- * Real implementation, selected by getAiProvider() once ANTHROPIC_API_KEY is
- * a real (non-placeholder) value — see get-ai-provider.ts. Both jobs use
+ * Real implementation over the shared text model (Gemini or Claude, see
+ * src/lib/ai/text-completion.ts), selected by getAiProvider(). Both jobs use
  * plain prompted completions (no tool-calling needed for either), with the
  * FAQ prompt's hallucination guard being the load-bearing part of the
  * "must NOT invent an answer" requirement — everything downstream just
  * checks for the literal NOT_FOUND sentinel and hands off if seen.
  */
-export class ClaudeAiProvider implements AiProvider {
-  readonly providerName = "claude";
-  private readonly client: Anthropic;
+export class LlmAiProvider implements AiProvider {
+  readonly providerName: string;
 
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
+  constructor(private readonly model: TextCompleter) {
+    this.providerName = model.providerName;
   }
 
-  private async complete(system: string, userMessage: string, maxTokens: number): Promise<string> {
-    const response = await this.client.messages.create({
-      model: MODEL,
-      max_tokens: maxTokens,
-      system,
-      messages: [{ role: "user", content: userMessage }],
-    });
-    const textBlock = response.content.find((block) => block.type === "text");
-    return textBlock && "text" in textBlock ? textBlock.text.trim() : "";
+  private complete(system: string, userMessage: string, maxTokens: number): Promise<string> {
+    return this.model.complete(system, userMessage, maxTokens);
   }
 
   async classifyIntent(message: string): Promise<IntentClassification> {

@@ -9,7 +9,7 @@ import type { AdminCommandProvider, CommandClassification } from "./command-prov
  * directly to a real handler — it never fabricates a match.
  */
 export class KeywordCommandProvider implements AdminCommandProvider {
-  readonly providerName = "keyword (no ANTHROPIC_API_KEY configured)";
+  readonly providerName = "keyword (no GEMINI_API_KEY or ANTHROPIC_API_KEY configured)";
 
   async classifyCommand(question: string): Promise<CommandClassification> {
     const text = question.toLowerCase().trim();

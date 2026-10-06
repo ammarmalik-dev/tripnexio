@@ -13,7 +13,7 @@ import { BOT_INTENTS } from "./intents";
  * the FAQ-answering requirement, just a different one.
  */
 export class KeywordAiProvider implements AiProvider {
-  readonly providerName = "keyword (no ANTHROPIC_API_KEY configured)";
+  readonly providerName = "keyword (no GEMINI_API_KEY or ANTHROPIC_API_KEY configured)";
 
   async classifyIntent(message: string): Promise<IntentClassification> {
     const text = message.toLowerCase().trim();

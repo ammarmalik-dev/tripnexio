@@ -1,15 +1,15 @@
 import type { DraftProvider } from "./draft-provider";
-import { ClaudeDraftProvider } from "./claude-draft-provider";
+import { LlmDraftProvider } from "./llm-draft-provider";
 import { TemplateDraftProvider } from "./template-draft-provider";
-import { isPlaceholder } from "@/lib/env-placeholder";
+import { getTextCompleter } from "@/lib/ai/text-completion";
 
 let cached: DraftProvider | null = null;
 
-/** Same swappable-service pattern as getAiProvider/getPaymentGateway/getEmailSender — reuses ANTHROPIC_API_KEY, already wired up for the WhatsApp bot and OCR. */
+/** Same swappable-service pattern as getAiProvider/getPaymentGateway/getEmailSender — uses the shared text model (Gemini or Claude). */
 export function getDraftProvider(): DraftProvider {
   if (cached) return cached;
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  cached = isPlaceholder(apiKey) ? new TemplateDraftProvider() : new ClaudeDraftProvider(apiKey!);
+  const model = getTextCompleter();
+  cached = model ? new LlmDraftProvider(model) : new TemplateDraftProvider();
   return cached;
 }

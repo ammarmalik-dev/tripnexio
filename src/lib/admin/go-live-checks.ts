@@ -93,7 +93,7 @@ export async function getGoLiveChecks(): Promise<GoLiveCheck[]> {
       ok: isOcrConfigured(),
       detail: isOcrConfigured() ? `Passport/ticket/visa OCR uses ${ocrProviderLabel()}` : "Neither GEMINI_API_KEY nor ANTHROPIC_API_KEY is set",
       fixHint:
-        "Set GEMINI_API_KEY (Google AI Studio) or ANTHROPIC_API_KEY (Anthropic Console). Without ANTHROPIC_API_KEY the WhatsApp bot and Ask AI use their keyword/FAQ fallback.",
+        "Set GEMINI_API_KEY (Google AI Studio) or ANTHROPIC_API_KEY (Anthropic Console). The same key also powers the Admin AI Command Center, the WhatsApp bot and drafting; with neither they use their keyword/template fallback.",
     },
   ];
 

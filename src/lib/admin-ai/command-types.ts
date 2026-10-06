@@ -15,6 +15,8 @@
  * execution pipeline can require confirmation for those without changing
  * this file's shape — see route.ts's own doc comment for the pipeline.
  */
+import { REPORT_KEYS_FOR_PROMPT } from "./report-catalog";
+
 export const COMMAND_TYPES = {
   PENDING_REFUNDS: {
     description: "List refunds currently pending approval. No parameters.",
@@ -65,6 +67,41 @@ export const COMMAND_TYPES = {
       "Show lead-status and quotation-conversion counts for one service, to spot the biggest drop-off point. Requires a `serviceType` parameter: the service name mentioned (e.g. 'New Visa', 'OTB', 'Flight Special Fare'). Matches 'why are customers not purchasing this service', 'why are customers abandoning this quotation'.",
     riskLevel: "read",
     requiresParam: "serviceType",
+  },
+  PERIOD_SUMMARY: {
+    description:
+      "Business summary for a period: number of leads and paid bookings (by source and service), and revenue / profit / refunds. Matches 'how many bookings last week', 'leads this month', 'kal kitni bookings hui', 'revenue last 7 days'. `period` parameter: the period words from the question (e.g. 'last week', 'today'), or null.",
+    riskLevel: "read",
+    requiresParam: "period",
+  },
+  BOOKING_LOG: {
+    description:
+      "The full activity log / history / timeline of ONE booking or lead (every status change, payment, document and note with who did it). Matches 'show the log of booking X', 'history of lead X', 'who changed booking X'. Requires a `reference` parameter: the booking id or lead id.",
+    riskLevel: "read",
+    requiresParam: "reference",
+  },
+  AUDIT_LOG: {
+    description:
+      "Recent audit-log entries across the platform (who did what), optionally for one staff member. Matches 'show today's audit log', 'what did Rahul do yesterday'. `staffName` parameter: the staff member's name if one is mentioned, else null.",
+    riskLevel: "read",
+    requiresParam: "staffName",
+  },
+  SYSTEM_LOGS: {
+    description:
+      "System error logs: failed emails, WhatsApp messages, OCR jobs, payment mismatches and failed automation runs for a period. Matches 'show system errors', 'any failures today', 'email failures this week'. `period` parameter: the period words or null.",
+    riskLevel: "read",
+    requiresParam: "period",
+  },
+  RUN_REPORT: {
+    description: `Run one Finance or MIS report for a period. Requires a "report" parameter: the matching report key from this list: ${REPORT_KEYS_FOR_PROMPT}. Matches 'show the profit per service report for last month', 'collection report this week'.`,
+    riskLevel: "read",
+    requiresParam: "report",
+  },
+  LEAD_LIST: {
+    description:
+      "List leads filtered by what the question mentions: service, temperature (hot/warm/cold), lead status, unassigned (no POC) and a period. Matches 'show hot leads', 'unassigned OTB leads this week', 'new visa leads today'. `filters` parameter: the filter words from the question, or null.",
+    riskLevel: "read",
+    requiresParam: "filters",
   },
   NOT_AVAILABLE: {
     description:

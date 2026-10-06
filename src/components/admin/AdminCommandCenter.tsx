@@ -18,12 +18,104 @@ interface CommandResponse {
 }
 
 const EXAMPLE_QUESTIONS = [
+  "How many bookings last week?",
+  "Show hot leads this month",
+  "Show the log of booking …",
+  "Any system errors in the last 7 days?",
+  "Profit per service report for last month",
   "Show all pending refunds",
-  "Show me today's failed automations",
-  "Check WhatsApp",
   "Show staff workload",
-  "Show me today's price changes",
+  "Check WhatsApp",
 ];
+
+type Row = Record<string, unknown>;
+
+function isRowArray(value: unknown): value is Row[] {
+  return Array.isArray(value) && value.length > 0 && value.every((item) => item !== null && typeof item === "object" && !Array.isArray(item));
+}
+
+function cellText(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value)) {
+    return new Date(value).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
+function humanize(key: string): string {
+  return key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+}
+
+/** Client corrections 2026-10-05 — answers as readable tables, not raw JSON. */
+function FactsTable({ rows, columns }: { rows: Row[]; columns?: string[] }) {
+  const keys = Object.keys(rows[0] ?? {});
+  return (
+    <div className="overflow-x-auto rounded-lg border border-hairline">
+      <table className="w-full border-collapse text-xs">
+        <thead>
+          <tr className="border-b border-hairline bg-surface-2 text-left text-ink-tertiary">
+            {keys.map((key, index) => (
+              <th key={key} className="px-3 py-2 font-medium whitespace-nowrap">
+                {columns?.[index] ?? humanize(key)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, rowIndex) => (
+            <tr key={rowIndex} className="border-b border-hairline last:border-b-0">
+              {keys.map((key) => (
+                <td key={key} className="px-3 py-2 align-top text-ink-secondary">
+                  {cellText(row[key])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FactsView({ facts }: { facts: unknown }) {
+  if (isRowArray(facts)) return <FactsTable rows={facts} />;
+  if (facts && typeof facts === "object" && !Array.isArray(facts)) {
+    const record = facts as Row;
+    if (isRowArray(record.rows)) {
+      return <FactsTable rows={record.rows} columns={Array.isArray(record.columns) ? (record.columns as string[]) : undefined} />;
+    }
+    const scalars = Object.entries(record).filter(([, value]) => value === null || typeof value !== "object");
+    const nested = Object.entries(record).filter(([, value]) => value !== null && typeof value === "object");
+    return (
+      <div className="flex flex-col gap-3">
+        {scalars.length > 0 ? (
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-1 text-xs sm:grid-cols-2">
+            {scalars.map(([key, value]) => (
+              <div key={key} className="flex justify-between gap-3 border-b border-hairline py-1">
+                <dt className="text-ink-tertiary">{humanize(key)}</dt>
+                <dd className="font-medium text-ink-primary">{cellText(value)}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {nested.map(([key, value]) => (
+          <div key={key} className="flex flex-col gap-1.5">
+            <p className="text-xs font-semibold text-ink-heading">{humanize(key)}</p>
+            {isRowArray(value) ? (
+              <FactsTable rows={value} />
+            ) : Array.isArray(value) && value.length === 0 ? (
+              <p className="text-xs text-ink-tertiary">None.</p>
+            ) : (
+              <FactsView facts={value} />
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return <pre className="max-h-80 overflow-auto rounded-md bg-surface-2 p-3 text-[11px] whitespace-pre-wrap text-ink-secondary">{JSON.stringify(facts, null, 2)}</pre>;
+}
 
 function ResultCard({ result }: { result: CommandResponse }) {
   const hasFacts = result.facts !== null && result.facts !== undefined && !(Array.isArray(result.facts) && result.facts.length === 0);
@@ -43,14 +135,7 @@ function ResultCard({ result }: { result: CommandResponse }) {
         )}
         <span>{result.summary}</span>
       </div>
-      {hasFacts ? (
-        <details className="text-xs text-ink-tertiary">
-          <summary className="cursor-pointer select-none">Underlying data</summary>
-          <pre className="mt-2 max-h-80 overflow-auto rounded-md bg-surface-2 p-3 text-[11px] whitespace-pre-wrap text-ink-secondary">
-            {JSON.stringify(result.facts, null, 2)}
-          </pre>
-        </details>
-      ) : null}
+      {hasFacts ? <FactsView facts={result.facts} /> : null}
       <span className="text-[11px] tracking-wide text-ink-tertiary uppercase">{result.commandType.replaceAll("_", " ")}</span>
     </div>
   );

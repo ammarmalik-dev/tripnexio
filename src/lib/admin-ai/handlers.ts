@@ -5,6 +5,7 @@ import { parseLeadReference, leadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS, LEAD_STATUS_LABELS } from "@/lib/crm/labels";
 import type { ServiceType, BookingStatus } from "@/generated/prisma/enums";
 import type { CommandTypeKey } from "./command-types";
+import { auditLog, bookingLog, leadList, periodSummary, runReport, systemLogs, type CommandContext } from "./extra-handlers";
 
 const TERMINAL_BOOKING_STATUSES: BookingStatus[] = ["COMPLETED", "CANCELLED", "REFUNDED"];
 const CONFIG_ENTITY_TYPES = [
@@ -369,12 +370,12 @@ async function serviceFunnel(param: string | null): Promise<HandlerResult> {
 function notAvailable(): HandlerResult {
   return {
     summary:
-      "That isn't available in this version. This includes: website/visitor analytics, Meta/Google ad tracking, TAT/SLA records, automated vendor-recommendation reasoning (every vendor choice here is staff-entered manually), and any action that would create, change, or disable something — mutating commands aren't wired up yet, only read-only queries.",
+      "That isn't available yet. I can answer read-only questions about leads, bookings, payments, refunds, staff workload, booking/lead logs, the audit log, system errors, integration health and the Finance & MIS reports. Website/visitor analytics, ad tracking and any action that creates, changes or disables something aren't available here.",
     facts: null,
   };
 }
 
-const HANDLERS: Record<CommandTypeKey, (param: string | null) => Promise<HandlerResult>> = {
+const HANDLERS: Record<CommandTypeKey, (param: string | null, ctx: CommandContext) => Promise<HandlerResult>> = {
   PENDING_REFUNDS: pendingRefunds,
   FAILED_AUTOMATIONS_TODAY: failedAutomationsToday,
   INTEGRATION_HEALTH: integrationHealth,
@@ -385,6 +386,12 @@ const HANDLERS: Record<CommandTypeKey, (param: string | null) => Promise<Handler
   TODAY_PAYMENTS_SUMMARY: todayPaymentsSummary,
   TODAY_CONFIG_CHANGES: todayConfigChanges,
   SERVICE_FUNNEL: serviceFunnel,
+  PERIOD_SUMMARY: periodSummary,
+  BOOKING_LOG: bookingLog,
+  AUDIT_LOG: auditLog,
+  SYSTEM_LOGS: systemLogs,
+  RUN_REPORT: runReport,
+  LEAD_LIST: leadList,
   NOT_AVAILABLE: async () => notAvailable(),
 };
 
@@ -394,6 +401,6 @@ const HANDLERS: Record<CommandTypeKey, (param: string | null) => Promise<Handler
  * the AI only ever picks a key from this fixed dispatch table, it never
  * generates or runs its own queries.
  */
-export async function executeCommand(commandType: CommandTypeKey, param: string | null): Promise<HandlerResult> {
-  return HANDLERS[commandType](param);
+export async function executeCommand(commandType: CommandTypeKey, param: string | null, ctx: CommandContext): Promise<HandlerResult> {
+  return HANDLERS[commandType](param, ctx);
 }

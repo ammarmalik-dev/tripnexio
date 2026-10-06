@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   const provider = getCommandProvider();
   const classification = await provider.classifyCommand(parsed.data.question);
-  const result = await executeCommand(classification.commandType, classification.param);
+  const result = await executeCommand(classification.commandType, classification.param, { question: parsed.data.question, session });
 
   await writeAudit(db, {
     entityType: "AdminAiCommand",

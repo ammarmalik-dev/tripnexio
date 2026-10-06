@@ -13,7 +13,7 @@ import {
   parseOcrJson,
 } from "./ocr-prompts";
 
-/** Reuses the model already chosen for the WhatsApp bot's AI provider — see src/lib/whatsapp-bot/claude-ai-provider.ts. */
+/** Reuses the model already chosen for the WhatsApp bot's AI provider — see src/lib/ai/text-completion.ts. */
 const MODEL = "claude-sonnet-5";
 
 type AllowedImageType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";

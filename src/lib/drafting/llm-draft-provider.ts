@@ -1,9 +1,6 @@
-import Anthropic from "@anthropic-ai/sdk";
+import type { TextCompleter } from "@/lib/ai/text-completion";
 import type { DraftProvider, DraftRequest, DraftResult } from "./draft-provider";
 import { DRAFT_TYPE_PURPOSE } from "./draft-types";
-
-/** Reuses the model already chosen for the WhatsApp bot's AI provider and OCR — this project's own instructions say to default to the latest, most capable Claude model for AI features. */
-const MODEL = "claude-sonnet-5";
 
 function buildSystemPrompt(request: DraftRequest): string {
   const { draftType, channel, instructions } = request;
@@ -27,18 +24,12 @@ function buildSystemPrompt(request: DraftRequest): string {
     .join("\n");
 }
 
-/**
- * Real implementation, selected by getDraftProvider() once ANTHROPIC_API_KEY
- * is a real (non-placeholder) value. Same plain-prompted-completion pattern
- * as ClaudeAiProvider (whatsapp-bot) and ClaudeOcrProvider — no tool-calling
- * needed here either.
- */
-export class ClaudeDraftProvider implements DraftProvider {
-  readonly providerName = "claude";
-  private readonly client: Anthropic;
+/** Real implementation over the shared text model (Gemini or Claude, see src/lib/ai/text-completion.ts), selected by getDraftProvider(). */
+export class LlmDraftProvider implements DraftProvider {
+  readonly providerName: string;
 
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
+  constructor(private readonly model: TextCompleter) {
+    this.providerName = model.providerName;
   }
 
   async draft(request: DraftRequest): Promise<DraftResult> {
@@ -47,14 +38,7 @@ export class ClaudeDraftProvider implements DraftProvider {
       ? `The staff member has already started writing this message — revise, improve, or correct it while keeping their intent and following the rules above:\n"""\n${request.existingBody}\n"""\n\nRECORD DATA:\n${request.recordContext}`
       : `RECORD DATA:\n${request.recordContext}`;
 
-    const response = await this.client.messages.create({
-      model: MODEL,
-      max_tokens: 600,
-      system,
-      messages: [{ role: "user", content: userMessage }],
-    });
-    const textBlock = response.content.find((block) => block.type === "text");
-    const raw = textBlock && "text" in textBlock ? textBlock.text.trim() : "";
+    const raw = await this.model.complete(system, userMessage, 600);
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) throw new Error("The AI draft didn't come back in the expected format.");
