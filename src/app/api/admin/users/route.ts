@@ -7,6 +7,8 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { normalizeCountriesHandled } from "@/lib/staff/rule-refs";
+import { generateTemporaryPassword, sendStaffWelcomeEmail } from "@/lib/staff/welcome-email";
+import { siteConfig } from "@/lib/site-config";
 
 export async function GET() {
   const auth = await requirePermission("staff.manage");
@@ -25,6 +27,9 @@ export async function GET() {
       allowedServiceTypes: user.allowedServiceTypes,
       /** P24 — Country ids; empty = every country. */
       countriesHandled: user.countriesHandled,
+      mobile: user.mobile,
+      officialId: user.officialId,
+      personalDetails: user.personalDetails,
     }))
   );
 }
@@ -62,7 +67,9 @@ export async function POST(request: NextRequest) {
   const countries = await normalizeCountriesHandled(parsed.data.countriesHandled ?? []);
   if ("errors" in countries) return jsonError(400, "Please check the highlighted fields.", countries.errors);
 
-  const passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  // Client corrections 2026-10-05 — no password typed: generate a temporary one and email the login details.
+  const temporaryPassword = parsed.data.password ? null : generateTemporaryPassword();
+  const passwordHash = await bcrypt.hash(parsed.data.password ?? temporaryPassword!, 10);
 
   const user = await db.$transaction(async (tx) => {
     const created = await tx.user.create({
@@ -74,6 +81,9 @@ export async function POST(request: NextRequest) {
         active: true,
         allowedServiceTypes: parsed.data.allowedServiceTypes ?? [],
         countriesHandled: countries.ids,
+        mobile: parsed.data.mobile,
+        officialId: parsed.data.officialId || null,
+        personalDetails: parsed.data.personalDetails || null,
       },
       include: { role: true },
     });
@@ -89,6 +99,30 @@ export async function POST(request: NextRequest) {
     return created;
   });
 
+  let credentialsEmailed = false;
+  if (temporaryPassword) {
+    try {
+      await sendStaffWelcomeEmail({ to: user.email, name: user.name, roleName: user.role.name, temporaryPassword, loginUrl: `${siteConfig.url}/crm/login` });
+      credentialsEmailed = true;
+      await writeAudit(db, {
+        entityType: "User",
+        entityId: user.id,
+        action: "CREDENTIALS_EMAILED",
+        byUserId: session.id,
+        note: `Login details emailed to ${user.email} (by ${session.name})`,
+      });
+    } catch (error) {
+      console.error("[api/admin/users] welcome email failed", error);
+      await writeAudit(db, {
+        entityType: "User",
+        entityId: user.id,
+        action: "CREDENTIALS_EMAIL_FAILED",
+        byUserId: session.id,
+        note: `Couldn't email login details to ${user.email} — use "Send password reset" (by ${session.name})`,
+      });
+    }
+  }
+
   return jsonSuccess(
     {
       id: user.id,
@@ -98,6 +132,11 @@ export async function POST(request: NextRequest) {
       role: { id: user.role.id, name: user.role.name },
       allowedServiceTypes: user.allowedServiceTypes,
       countriesHandled: user.countriesHandled,
+      mobile: user.mobile,
+      officialId: user.officialId,
+      personalDetails: user.personalDetails,
+      createdAt: user.createdAt,
+      credentialsEmailed,
     },
     201
   );

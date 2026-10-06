@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Plus, KeyRound, Search, Users } from "lucide-react";
+import { ArrowLeft, KeyRound, Mail, Phone, Plus, Search, UserRound, Users, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -11,6 +11,7 @@ import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
+import { Textarea } from "@/components/forms/Textarea";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { createStaffUserSchema, type CreateStaffUserValues } from "@/lib/validation/staff-user-schema";
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
@@ -35,6 +36,10 @@ interface StaffUser {
   allowedServiceTypes: ServiceType[];
   /** P24 — Country ids this staff member handles; empty = every country. */
   countriesHandled: string[];
+  /** Client corrections 2026-10-05 — profile details from the Create Staff form. */
+  mobile: string | null;
+  officialId: string | null;
+  personalDetails: string | null;
 }
 
 interface CountryOption {
@@ -198,15 +203,13 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-function NewStaffForm({
-  roles,
-  countries,
-  onCreated,
-}: {
-  roles: RoleOption[];
-  countries: CountryOption[];
-  onCreated: (user: StaffUser) => void;
-}) {
+/**
+ * Client corrections 2026-10-05 — the simple Create Staff form: Name, Role,
+ * Official Email (login), Mobile, Official ID and Personal Details. The login
+ * details are emailed automatically; service scope and countries are set
+ * afterwards in the staff profile.
+ */
+function NewStaffForm({ roles, onCreated, onClose }: { roles: RoleOption[]; onCreated: (user: StaffUser) => void; onClose: () => void }) {
   const {
     register,
     handleSubmit,
@@ -214,26 +217,23 @@ function NewStaffForm({
     formState: { errors },
   } = useForm<CreateStaffUserValues>({ resolver: zodResolver(createStaffUserSchema) });
   const [submitting, setSubmitting] = useState(false);
-  const [allowedServiceTypes, setAllowedServiceTypes] = useState<ServiceType[]>([]);
-  const [countriesHandled, setCountriesHandled] = useState<string[]>([]);
-
-  const toggleService = (service: ServiceType) => {
-    setAllowedServiceTypes((current) => (current.includes(service) ? current.filter((s) => s !== service) : [...current, service]));
-  };
 
   const onSubmit = async (values: CreateStaffUserValues) => {
     setSubmitting(true);
     try {
-      const created = await postJson<Omit<StaffUser, "createdAt">>("/api/admin/users", {
+      const created = await postJson<StaffUser & { credentialsEmailed: boolean }>("/api/admin/users", {
         ...values,
-        allowedServiceTypes,
-        countriesHandled,
+        officialId: values.officialId || undefined,
+        personalDetails: values.personalDetails || undefined,
       });
-      toast.success(`Staff account "${created.name}" created.`);
-      onCreated({ ...created, createdAt: new Date().toISOString() });
+      toast.success(
+        created.credentialsEmailed
+          ? `Staff account created — login details emailed to ${created.email}.`
+          : `Staff account created, but the login email couldn't be sent. Use "Send password reset" from the profile.`
+      );
+      onCreated(created);
       reset();
-      setAllowedServiceTypes([]);
-      setCountriesHandled([]);
+      onClose();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't create this staff account. Please try again.");
     } finally {
@@ -242,22 +242,17 @@ function NewStaffForm({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit(onSubmit)}
-      className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5"
-    >
-      <h2 className="text-sm font-semibold text-ink-heading">New Staff Account</h2>
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-ink-heading">Create Staff</h2>
+        <Button type="button" size="sm" variant="ghost" onClick={onClose} aria-label="Close">
+          <X className="h-4 w-4" aria-hidden="true" />
+        </Button>
+      </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <TextField label="Name" {...register("name")} error={errors.name?.message} />
-        <TextField label="Email" type="email" {...register("email")} error={errors.email?.message} />
-        <TextField label="Password" type="password" {...register("password")} error={errors.password?.message} />
-        <FormField label="Role" htmlFor="new-staff-role" error={errors.roleId?.message}>
-          <select
-            id="new-staff-role"
-            defaultValue=""
-            className={cn(fieldControlClass, fieldBorderClass(!!errors.roleId))}
-            {...register("roleId")}
-          >
+        <TextField label="Name" required {...register("name")} error={errors.name?.message} />
+        <FormField label="Role" htmlFor="new-staff-role" error={errors.roleId?.message} required>
+          <select id="new-staff-role" defaultValue="" className={cn(fieldControlClass, fieldBorderClass(!!errors.roleId))} {...register("roleId")}>
             <option value="" disabled>
               Select a role
             </option>
@@ -268,26 +263,118 @@ function NewStaffForm({
             ))}
           </select>
         </FormField>
+        <TextField label="Official Email (login)" type="email" required hint="Login details are sent here." {...register("email")} error={errors.email?.message} />
+        <TextField label="Mobile Number" type="tel" required {...register("mobile")} error={errors.mobile?.message} />
+        <TextField label="Official ID" hint="Employee / staff ID (optional)." {...register("officialId")} error={errors.officialId?.message} />
       </div>
-      <div>
-        <span className="mb-1.5 block text-sm font-medium text-ink-primary">Service Scope</span>
-        <ServiceScopeChecklist selected={allowedServiceTypes} onToggle={toggleService} disabled={submitting} />
-        <p className="mt-1 text-xs text-ink-tertiary">Leave every box unchecked for unrestricted access to every service.</p>
-      </div>
-      <div>
-        <span className="mb-1.5 block text-sm font-medium text-ink-primary">Countries Handled</span>
-        <CountryMultiSelect idPrefix="new-staff" countries={countries} selected={countriesHandled} onChange={setCountriesHandled} disabled={submitting} />
-        <p className="mt-1 text-xs text-ink-tertiary">
-          Leave empty to handle every country. When set, auto-assign only gives this person leads for these destination countries.
-        </p>
-      </div>
-      <div className="flex justify-end">
+      <Textarea label="Personal Details" rows={3} hint="Address, personal email, emergency contact… (optional)" {...register("personalDetails")} error={errors.personalDetails?.message} />
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+          Cancel
+        </Button>
         <Button type="submit" size="sm" isLoading={submitting}>
           <Plus className="h-4 w-4" aria-hidden="true" />
-          Create Staff Account
+          Create Staff &amp; Email Login
         </Button>
       </div>
     </form>
+  );
+}
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
+function StaffCard({ user, onOpen }: { user: StaffUser; onOpen: () => void }) {
+  return (
+    <article className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface-1 p-5 shadow-[0_6px_18px_rgb(24_42_77/0.05)]">
+      <div className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-semibold text-white",
+            user.active ? "bg-[image:var(--gradient-accent)]" : "bg-ink-tertiary"
+          )}
+        >
+          {initials(user.name)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold text-ink-heading" title={user.name}>
+            {user.name}
+          </p>
+          <p className="text-sm text-ink-secondary">{user.role.name}</p>
+        </div>
+        <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", user.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
+          {user.active ? "Active" : "Deactivated"}
+        </span>
+      </div>
+      <div className="flex flex-col gap-1 text-xs text-ink-tertiary">
+        <span className="inline-flex items-center gap-1.5 break-all">
+          <Mail className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          {user.email}
+        </span>
+        {user.mobile ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Phone className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            {user.mobile}
+          </span>
+        ) : null}
+      </div>
+      <p className="text-xs text-ink-secondary">
+        <span className="font-medium">Service scope:</span>{" "}
+        {user.allowedServiceTypes.length === 0
+          ? "All services"
+          : user.allowedServiceTypes.map((type) => SERVICE_TYPE_OPTIONS.find((option) => option.value === type)?.label ?? type).join(", ")}
+      </p>
+      <Button type="button" size="sm" variant="ghost" className="mt-auto self-start" onClick={onOpen}>
+        <UserRound className="h-4 w-4" aria-hidden="true" />
+        View Profile
+      </Button>
+    </article>
+  );
+}
+
+function ProfileDetailsForm({ user, onSaved }: { user: StaffUser; onSaved: (user: StaffUser) => void }) {
+  const [mobile, setMobile] = useState(user.mobile ?? "");
+  const [officialId, setOfficialId] = useState(user.officialId ?? "");
+  const [personalDetails, setPersonalDetails] = useState(user.personalDetails ?? "");
+  const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
+  const [saving, setSaving] = useState(false);
+  const dirty = mobile !== (user.mobile ?? "") || officialId !== (user.officialId ?? "") || personalDetails !== (user.personalDetails ?? "");
+
+  const save = async () => {
+    setSaving(true);
+    setErrors({});
+    try {
+      const updated = await patchJson<StaffUser>(`/api/admin/users/${user.id}`, { mobile, officialId, personalDetails });
+      toast.success("Profile details saved.");
+      onSaved(updated);
+    } catch (error) {
+      if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
+      toast.error(error instanceof ApiError ? error.message : "Couldn't save the details.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <TextField label="Mobile Number" name={`mobile-${user.id}`} value={mobile} onChange={(event) => setMobile(event.target.value)} error={errors.mobile?.[0]} disabled={saving} />
+        <TextField label="Official ID" name={`official-${user.id}`} value={officialId} onChange={(event) => setOfficialId(event.target.value)} error={errors.officialId?.[0]} disabled={saving} />
+      </div>
+      <Textarea label="Personal Details" name={`personal-${user.id}`} rows={3} value={personalDetails} onChange={(event) => setPersonalDetails(event.target.value)} error={errors.personalDetails?.[0]} disabled={saving} />
+      <div className="flex justify-end">
+        <Button type="button" size="sm" onClick={() => void save()} isLoading={saving} disabled={!dirty}>
+          Save details
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -339,6 +426,8 @@ export function StaffUsersManager() {
   const [reloadNonce, setReloadNonce] = useState(0);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [openUserId, setOpenUserId] = useState<string | null>(null);
 
   const filteredUsers = useMemo(() => {
     const needle = search.trim().toLowerCase();
@@ -347,6 +436,7 @@ export function StaffUsersManager() {
       (user) =>
         user.name.toLowerCase().includes(needle) ||
         user.email.toLowerCase().includes(needle) ||
+        (user.mobile ?? "").includes(needle) ||
         user.role.name.toLowerCase().includes(needle)
     );
   }, [users, search]);
@@ -450,6 +540,77 @@ export function StaffUsersManager() {
     );
   }
 
+  const openUser = users.find((user) => user.id === openUserId) ?? null;
+
+  if (openUser) {
+    return (
+      <div className="flex flex-col gap-5">
+        <Button type="button" variant="ghost" size="sm" className="self-start" onClick={() => setOpenUserId(null)}>
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          All staff
+        </Button>
+        <section className="flex flex-wrap items-center gap-4 rounded-2xl border border-hairline bg-surface-1 p-6">
+          <span
+            aria-hidden="true"
+            className={cn(
+              "flex h-16 w-16 items-center justify-center rounded-full text-xl font-semibold text-white",
+              openUser.active ? "bg-[image:var(--gradient-accent)]" : "bg-ink-tertiary"
+            )}
+          >
+            {initials(openUser.name)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-semibold text-ink-heading">{openUser.name}</h2>
+            <p className="text-sm text-ink-secondary">
+              {openUser.email} · joined {formatDate(openUser.createdAt)}
+            </p>
+          </div>
+          <span className={cn("rounded-full px-3 py-1 text-sm font-medium", openUser.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
+            {openUser.active ? "Active" : "Deactivated"}
+          </span>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Button type="button" size="sm" variant={openUser.active ? "ghost" : "primary"} onClick={() => void handleToggleActive(openUser)} isLoading={savingId === openUser.id}>
+              {openUser.active ? "Deactivate" : "Activate"}
+            </Button>
+            {openUser.active ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => void handlePasswordReset(openUser)} isLoading={resettingId === openUser.id}>
+                <KeyRound className="h-4 w-4" aria-hidden="true" />
+                Send password reset
+              </Button>
+            ) : null}
+          </div>
+        </section>
+
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface-1 p-6">
+            <h3 className="text-sm font-semibold text-ink-heading">Role</h3>
+            <select
+              aria-label="Role"
+              value={openUser.role.id}
+              disabled={savingId === openUser.id}
+              onChange={(event) => void handleRoleChange(openUser.id, event.target.value)}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-10 text-sm")}
+            >
+              {roles.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+            <h3 className="mt-2 text-sm font-semibold text-ink-heading">Service Scope</h3>
+            <ServiceScopeCell user={openUser} onSaved={replaceUser} />
+            <h3 className="mt-2 text-sm font-semibold text-ink-heading">Countries Handled</h3>
+            <CountriesCell user={openUser} countries={countries} onSaved={replaceUser} />
+          </section>
+          <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface-1 p-6">
+            <h3 className="text-sm font-semibold text-ink-heading">Profile Details</h3>
+            <ProfileDetailsForm key={openUser.id} user={openUser} onSaved={replaceUser} />
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -470,101 +631,33 @@ export function StaffUsersManager() {
             className={cn(fieldControlClass, fieldBorderClass(false), "pl-9")}
           />
         </div>
-        <p className="text-xs text-ink-tertiary">
-          {users.length} staff account{users.length === 1 ? "" : "s"} · {users.filter((user) => user.active).length} active
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="text-xs text-ink-tertiary">
+            {users.length} staff · {users.filter((user) => user.active).length} active
+          </p>
+          <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" aria-hidden="true" />
+            Create Staff
+          </Button>
+        </div>
       </div>
+      {createOpen ? (
+        <NewStaffForm roles={roles} onClose={() => setCreateOpen(false)} onCreated={(user) => setUsers((current) => [...current, user])} />
+      ) : null}
       {filteredUsers.length === 0 ? (
         <EmptyState
           icon={search ? <Search className="h-5 w-5" aria-hidden="true" /> : <Users className="h-5 w-5" aria-hidden="true" />}
           title={search ? "No matching staff" : "No staff accounts yet"}
-          description={search ? "Try a different name, email or role." : "Create the first staff account below."}
+          description={search ? "Try a different name, email or role." : "Use Create Staff to add the first account."}
         />
       ) : (
-      <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-        <table className="w-full min-w-[1140px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
-              <th className="px-4 py-3">Name</th>
-              <th className="px-4 py-3">Email</th>
-              <th className="px-4 py-3">Role</th>
-              <th className="px-4 py-3">Service Scope</th>
-              <th className="px-4 py-3">Countries</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Created</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody>
-            {pageItems.map((user) => (
-              <tr key={user.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
-                <td className="px-4 py-3 font-medium text-ink-primary">{user.name}</td>
-                <td className="px-4 py-3 text-ink-secondary">{user.email}</td>
-                <td className="px-4 py-3">
-                  <select
-                    value={user.role.id}
-                    disabled={savingId === user.id}
-                    onChange={(event) => void handleRoleChange(user.id, event.target.value)}
-                    className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[160px] text-sm")}
-                  >
-                    {roles.map((role) => (
-                      <option key={role.id} value={role.id}>
-                        {role.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-4 py-3 min-w-[220px]">
-                  <ServiceScopeCell user={user} onSaved={replaceUser} />
-                </td>
-                <td className="px-4 py-3 min-w-[220px]">
-                  <CountriesCell user={user} countries={countries} onSaved={replaceUser} />
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-xs font-medium",
-                      user.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
-                    )}
-                  >
-                    {user.active ? "Active" : "Deactivated"}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-ink-tertiary">{formatDate(user.createdAt)}</td>
-                <td className="px-4 py-3">
-                  <div className="flex flex-col items-start gap-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void handleToggleActive(user)}
-                      isLoading={savingId === user.id}
-                    >
-                      {user.active ? "Deactivate" : "Reactivate"}
-                    </Button>
-                    {user.active ? (
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => void handlePasswordReset(user)}
-                        isLoading={resettingId === user.id}
-                        aria-label={`Send password reset email to ${user.name}`}
-                      >
-                        <KeyRound className="h-4 w-4" aria-hidden="true" />
-                        Send password reset
-                      </Button>
-                    ) : null}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {pageItems.map((user) => (
+          <StaffCard key={user.id} user={user} onOpen={() => setOpenUserId(user.id)} />
+        ))}
       </div>
       )}
       <ListPagination noun="staff account" {...paginationProps} />
-      <NewStaffForm roles={roles} countries={countries} onCreated={(user) => setUsers((current) => [...current, user])} />
     </div>
   );
 }

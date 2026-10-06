@@ -76,6 +76,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(parsed.data.active !== undefined ? { active: parsed.data.active } : {}),
         ...(parsed.data.allowedServiceTypes !== undefined ? { allowedServiceTypes: parsed.data.allowedServiceTypes } : {}),
         ...(countriesHandled !== undefined ? { countriesHandled } : {}),
+        ...(parsed.data.mobile !== undefined ? { mobile: parsed.data.mobile || null } : {}),
+        ...(parsed.data.officialId !== undefined ? { officialId: parsed.data.officialId || null } : {}),
+        ...(parsed.data.personalDetails !== undefined ? { personalDetails: parsed.data.personalDetails || null } : {}),
       },
       include: { role: true },
     });
@@ -92,6 +95,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    if (parsed.data.mobile !== undefined || parsed.data.officialId !== undefined || parsed.data.personalDetails !== undefined) {
+      changeNotes.push("profile details edited");
+    }
     if (countriesHandled !== undefined) {
       changeNotes.push(countriesHandled.length > 0 ? `countries handled set to ${countriesHandled.join(", ")}` : "countries unrestricted");
     }
@@ -115,5 +121,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     role: { id: updated.role.id, name: updated.role.name },
     allowedServiceTypes: updated.allowedServiceTypes,
     countriesHandled: updated.countriesHandled,
+    mobile: updated.mobile,
+    officialId: updated.officialId,
+    personalDetails: updated.personalDetails,
+    createdAt: updated.createdAt,
   });
 }

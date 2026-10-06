@@ -2179,6 +2179,10 @@ model User {
   notificationSound   Boolean       @default(false)
   /// P24 - Country ids this staff member handles (empty = all countries).
   countriesHandled    String[]      @default([])
+  /// Client corrections 2026-10-05 — Create Staff form: mobile number, official (employee) ID and personal details.
+  mobile              String?
+  officialId          String?
+  personalDetails     String?       @db.Text
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
