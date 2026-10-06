@@ -6,7 +6,9 @@ import { DocumentFileLinks } from "./DocumentFileLinks";
 import { DocumentUploadButton } from "./DocumentUploadButton";
 import { AddDocumentForm } from "./AddDocumentForm";
 import Link from "next/link";
-import { ArrowLeft, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { cn } from "@/lib/cn";
+import { RecordHeader, RecordSection, RecordTabs } from "./detail/RecordDetail";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
@@ -106,6 +108,10 @@ interface LeadDetailResponse {
   source: string | null;
   details: Record<string, unknown>;
   createdAt: string;
+  countryName: string | null;
+  travelDate: string | null;
+  paxCount: number | null;
+  subService: string | null;
   assignedStaff: { id: string; name: string; email: string; active: boolean } | null;
   customer: {
     id: string;
@@ -238,314 +244,350 @@ export function LeadDetail({
     }
   };
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Link
-          href="/crm/leads"
-          className="inline-flex items-center gap-1.5 text-sm text-ink-secondary transition-colors duration-150 hover:text-ink-primary"
-        >
-          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-          Back to Leads
-        </Link>
-      </div>
+  const refresh = () => setReloadNonce((current) => current + 1);
+  const documentCount = lead.passengers.reduce((sum, passenger) => sum + passenger.documents.length, 0);
 
-      <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-        <div className="flex flex-col gap-1">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <p className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">
+  return (
+    <div className="flex flex-col gap-5">
+      <RecordHeader
+        backHref="/crm/leads"
+        backLabel="Back to Leads"
+        eyebrow={
+          <>
+            <span>
               {SERVICE_TYPE_LABELS[lead.serviceType]} · {lead.referenceId}
-            </p>
+            </span>
             {lead.quotations.length === 0 && lead.bookings.length === 0 ? (
-              <LeadServiceTypeControl leadId={lead.id} serviceType={lead.serviceType} onChanged={() => setReloadNonce((current) => current + 1)} />
+              <span className="normal-case">
+                <LeadServiceTypeControl leadId={lead.id} serviceType={lead.serviceType} onChanged={refresh} />
+              </span>
             ) : null}
-          </div>
-          <h1 className="text-xl font-semibold text-ink-heading">{lead.customer.name}</h1>
-          <p className="text-xs text-ink-tertiary">Submitted {formatDate(lead.createdAt)}</p>
-        </div>
-        <div className="flex flex-col items-end gap-3">
+          </>
+        }
+        title={lead.customer.name}
+        subtitle={
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>{lead.customer.mobile}</span>
+            {lead.customer.email ? <span>{lead.customer.email}</span> : null}
+            <span>Customer since {formatDate(lead.customer.createdAt)}</span>
+            <Link href={`/crm/customers/${lead.customer.id}`} className="font-medium text-ink-accent hover:underline">
+              Open Customer 360
+            </Link>
+          </span>
+        }
+        facts={[
+          {
+            label: "Service",
+            value: lead.subService ? `${SERVICE_TYPE_LABELS[lead.serviceType]} · ${lead.subService}` : SERVICE_TYPE_LABELS[lead.serviceType],
+          },
+          { label: "PAX", value: lead.paxCount ?? lead.passengers.length },
+          { label: "Country", value: lead.countryName ?? "—" },
+          { label: "Travel date", value: lead.travelDate ? formatDate(lead.travelDate) : "—" },
+          { label: "Source", value: lead.source ?? "—" },
+          { label: "Created", value: formatDate(lead.createdAt) },
+        ]}
+        status={
           <LeadStatusControl
             leadId={lead.id}
             status={lead.status}
             onChanged={(status) => setLead((current) => (current ? { ...current, status } : current))}
           />
-          <LeadAssignmentControl
-            leadId={lead.id}
-            serviceType={lead.serviceType}
-            assignedStaff={lead.assignedStaff}
-            canReassign={canReassignLeads}
-            currentStaffId={currentStaffId}
-            onChanged={(assignedStaff) =>
-              setLead((current) =>
-                current
-                  ? { ...current, assignedStaff: assignedStaff ? { ...assignedStaff, email: "" } : null }
-                  : current
-              )
-            }
-          />
-          <LeadTemperatureControl
-            leadId={lead.id}
-            temperature={lead.temperature}
-            onChanged={(temperature) => setLead((current) => (current ? { ...current, temperature } : current))}
-          />
-        </div>
-      </div>
+        }
+        controls={
+          <>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">POC</span>
+              <LeadAssignmentControl
+                leadId={lead.id}
+                serviceType={lead.serviceType}
+                assignedStaff={lead.assignedStaff}
+                canReassign={canReassignLeads}
+                currentStaffId={currentStaffId}
+                onChanged={(assignedStaff) =>
+                  setLead((current) =>
+                    current ? { ...current, assignedStaff: assignedStaff ? { ...assignedStaff, email: "" } : null } : current
+                  )
+                }
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">Temperature</span>
+              <LeadTemperatureControl
+                leadId={lead.id}
+                temperature={lead.temperature}
+                onChanged={(temperature) => setLead((current) => (current ? { ...current, temperature } : current))}
+              />
+            </div>
+          </>
+        }
+        actions={
+          selectedQuotation && !hasActiveBooking ? (
+            <Button type="button" size="sm" onClick={() => void handleCreateBooking()} isLoading={creatingBooking}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Create Booking
+            </Button>
+          ) : null
+        }
+      />
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="flex flex-col gap-6 lg:col-span-2">
-          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Service Details</h2>
-            {detailEntries.length === 0 ? (
-              <p className="text-sm text-ink-tertiary">No captured details.</p>
-            ) : (
-              <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-                {detailEntries.map(([key, value]) => (
-                  <div key={key} className="flex items-center justify-between gap-4 border-b border-hairline py-2 sm:justify-start">
-                    <dt className="text-xs text-ink-tertiary">{humanizeKey(key)}</dt>
-                    <dd className="text-sm font-medium text-ink-primary">{formatDetailValue(lead.serviceType, key, value, processingTypeOptions)}</dd>
+      <RecordTabs
+        label="Lead sections"
+        tabs={[
+          {
+            id: "overview",
+            label: "Overview",
+            content: (
+              <div className="flex flex-col gap-5">
+                <RecordSection title="Service Details">
+                  {detailEntries.length === 0 ? (
+                    <p className="text-sm text-ink-tertiary">No captured details.</p>
+                  ) : (
+                    <dl className="grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 xl:grid-cols-3">
+                      {detailEntries.map(([key, value]) => (
+                        <div key={key} className="flex items-center justify-between gap-4 border-b border-hairline py-2 sm:flex-col sm:items-start sm:gap-0.5">
+                          <dt className="text-xs text-ink-tertiary">{humanizeKey(key)}</dt>
+                          <dd className="text-sm font-medium break-words text-ink-primary">
+                            {formatDetailValue(lead.serviceType, key, value, processingTypeOptions)}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                </RecordSection>
+
+                {lead.serviceType === "FLIGHT_SPECIAL_FARE" && typeof lead.details.newQuoteRequestedAt === "string" ? (
+                  <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                    <span className="font-semibold">New quote requested</span> by the customer on{" "}
+                    {new Date(lead.details.newQuoteRequestedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{" "}
+                    after the Special Fare quotation expired. Reconfirm availability, then revalidate the quote or build a new one.
                   </div>
-                ))}
-              </dl>
-            )}
-          </section>
+                ) : null}
 
-          {lead.serviceType === "FLIGHT_SPECIAL_FARE" && typeof lead.details.newQuoteRequestedAt === "string" ? (
-            <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-              <span className="font-semibold">New quote requested</span> by the customer on{" "}
-              {new Date(lead.details.newQuoteRequestedAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{" "}
-              after the Special Fare quotation expired. Reconfirm availability, then revalidate the quote or build a new one.
-            </div>
-          ) : null}
+                {Array.isArray(lead.details.passengerReuse) && lead.details.passengerReuse.length > 0 ? (
+                  <RecordSection title="Returning passengers">
+                    <ul className="flex flex-col gap-0.5 text-sm text-ink-secondary">
+                      {(lead.details.passengerReuse as { fullName?: string; reusePassport?: string | null }[]).map((row, index) => (
+                        <li key={index}>
+                          {row.fullName ?? "Passenger"} — reuse passport details:{" "}
+                          {row.reusePassport === "yes" ? "Yes" : row.reusePassport === "no" ? "No (updated passport needed)" : "—"}
+                        </li>
+                      ))}
+                    </ul>
+                  </RecordSection>
+                ) : null}
 
-          {Array.isArray(lead.details.passengerReuse) && lead.details.passengerReuse.length > 0 ? (
-            <div className="rounded-lg border border-hairline bg-surface-1 px-4 py-3 text-sm">
-              <p className="mb-1 font-semibold text-ink-heading">Returning passengers</p>
-              <ul className="flex flex-col gap-0.5 text-ink-secondary">
-                {(lead.details.passengerReuse as { fullName?: string; reusePassport?: string | null }[]).map((row, index) => (
-                  <li key={index}>
-                    {row.fullName ?? "Passenger"} — reuse passport details:{" "}
-                    {row.reusePassport === "yes" ? "Yes" : row.reusePassport === "no" ? "No (updated passport needed)" : "—"}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+                {lead.serviceType === "VISA_EXTENSION" && lead.details.noPriorVisa === true ? (
+                  <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+                    <span className="font-semibold">No prior TripNexio visa</span>
+                    {Array.isArray(lead.details.noPriorVisaApplicants) && lead.details.noPriorVisaApplicants.length > 0
+                      ? ` for ${(lead.details.noPriorVisaApplicants as unknown[]).filter((name): name is string => typeof name === "string").join(", ")}`
+                      : ""}
+                    . The customer was shown the Visa Change (inside the UAE) / New Visa (outside the UAE) options.
+                  </div>
+                ) : null}
 
-          {lead.serviceType === "VISA_EXTENSION" && lead.details.noPriorVisa === true ? (
-            <div role="status" className="rounded-lg border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
-              <span className="font-semibold">No prior TripNexio visa</span>
-              {Array.isArray(lead.details.noPriorVisaApplicants) && lead.details.noPriorVisaApplicants.length > 0
-                ? ` for ${(lead.details.noPriorVisaApplicants as unknown[]).filter((name): name is string => typeof name === "string").join(", ")}`
-                : ""}
-              . The customer was shown the Visa Change (inside the UAE) / New Visa (outside the UAE) options.
-            </div>
-          ) : null}
-
-          {lead.serviceType === "VISA_EXTENSION" ? (
-            <VisaExtensionPriorVisaPanel
-              items={lead.priorVisaMatches}
-              visaExpiryByPassport={Object.fromEntries(
-                (Array.isArray(lead.details.applicants) ? (lead.details.applicants as { passportNumber?: string; visaExpiryDate?: string }[]) : [])
-                  .filter((a) => a.passportNumber && a.visaExpiryDate)
-                  .map((a) => [a.passportNumber as string, a.visaExpiryDate as string])
-              )}
-            />
-          ) : null}
-
-          {lead.serviceType === "VISA_EXTENSION" ? (
-            <VisaExtensionEligibilityPanel
-              leadId={lead.id}
-              verifiedExpiryDate={typeof lead.details.verifiedExpiryDate === "string" ? lead.details.verifiedExpiryDate : undefined}
-              eligibilityOutcome={
-                lead.details.eligibilityOutcome === "ELIGIBLE" ||
-                lead.details.eligibilityOutcome === "URGENT_TODAY" ||
-                lead.details.eligibilityOutcome === "NOT_ELIGIBLE"
-                  ? lead.details.eligibilityOutcome
-                  : undefined
-              }
-              urgentDeadline={urgentDeadlineFromDetails(lead.details)}
-              onVerified={(result) =>
-                setLead((current) =>
-                  current
-                    ? {
-                        ...current,
-                        details: {
-                          ...current.details,
-                          verifiedExpiryDate: result.verifiedExpiryDate,
-                          eligibilityOutcome: result.outcome,
-                          urgentDeadline: result.urgentDeadline ?? undefined,
-                        },
-                      }
-                    : current
-                )
-              }
-            />
-          ) : null}
-
-          {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "BORDER_EXIT" ? (
-            <VisaChangeBorderDetailsPanel
-              leadId={lead.id}
-              existing={
-                lead.details.borderOperationalDetails && typeof lead.details.borderOperationalDetails === "object"
-                  ? (lead.details.borderOperationalDetails as Record<string, unknown>)
-                  : undefined
-              }
-              onSaved={(details) =>
-                setLead((current) =>
-                  current ? { ...current, details: { ...current.details, borderOperationalDetails: details } } : current
-                )
-              }
-            />
-          ) : null}
-
-          {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "AIRPORT_TO_AIRPORT" ? (
-            <VisaChangeA2ADetailsPanel
-              leadId={lead.id}
-              existing={
-                lead.details.a2aOperationalDetails && typeof lead.details.a2aOperationalDetails === "object"
-                  ? (lead.details.a2aOperationalDetails as Record<string, unknown>)
-                  : undefined
-              }
-              onSaved={(details) =>
-                setLead((current) => (current ? { ...current, details: { ...current.details, a2aOperationalDetails: details } } : current))
-              }
-            />
-          ) : null}
-
-          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Applicants</h2>
-            <ApplicantsTable applicants={lead.applicants} />
-          </section>
-
-          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Passengers &amp; Documents</h2>
-            {lead.passengers.length > 0 ? (
-              <div className="mb-4">
-                <AddDocumentForm passengers={lead.passengers} onAdded={() => setReloadNonce((current) => current + 1)} />
-              </div>
-            ) : null}
-            {lead.passengers.length === 0 ? (
-              <p className="text-sm text-ink-tertiary">No passengers linked to this request.</p>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {lead.passengers.map((passenger) => (
-                  <div key={passenger.id} className="rounded-lg border border-hairline p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="text-sm font-medium text-ink-primary">{passenger.fullName}</p>
-                      <span className="text-xs text-ink-tertiary">
-                        {PAX_TYPE_LABELS[passenger.paxType]}
-                        {passenger.nationality ? ` · ${passenger.nationality}` : ""}
-                        {passenger.passportNumber ? ` · ${passenger.passportNumber}` : ""}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {passenger.documents.length === 0 ? (
-                        <span className="text-xs text-ink-tertiary">No documents yet.</span>
-                      ) : (
-                        passenger.documents.map((document) => (
-                          <div key={document.id} className="flex items-center gap-1.5">
-                            <span className="flex flex-wrap items-center gap-2 text-xs text-ink-tertiary">
-                              {document.type}
-                              <PurgedFileTag purgedAt={document.purgedAt} />
-                              <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
-                            </span>
-                            <DocumentStatusBadge status={document.status} />
-                            {!document.purgedAt ? (
-                              <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={() => setReloadNonce((current) => current + 1)} />
-                            ) : null}
-                          </div>
-                        ))
+                {lead.serviceType === "VISA_EXTENSION" ? (
+                  <div className="grid grid-cols-1 gap-5 xl:grid-cols-2">
+                    <VisaExtensionPriorVisaPanel
+                      items={lead.priorVisaMatches}
+                      visaExpiryByPassport={Object.fromEntries(
+                        (Array.isArray(lead.details.applicants) ? (lead.details.applicants as { passportNumber?: string; visaExpiryDate?: string }[]) : [])
+                          .filter((a) => a.passportNumber && a.visaExpiryDate)
+                          .map((a) => [a.passportNumber as string, a.visaExpiryDate as string])
                       )}
-                    </div>
-                    <PassportExtractionReview passengerId={passenger.id} />
+                    />
+                    <VisaExtensionEligibilityPanel
+                      leadId={lead.id}
+                      verifiedExpiryDate={typeof lead.details.verifiedExpiryDate === "string" ? lead.details.verifiedExpiryDate : undefined}
+                      eligibilityOutcome={
+                        lead.details.eligibilityOutcome === "ELIGIBLE" ||
+                        lead.details.eligibilityOutcome === "URGENT_TODAY" ||
+                        lead.details.eligibilityOutcome === "NOT_ELIGIBLE"
+                          ? lead.details.eligibilityOutcome
+                          : undefined
+                      }
+                      urgentDeadline={urgentDeadlineFromDetails(lead.details)}
+                      onVerified={(result) =>
+                        setLead((current) =>
+                          current
+                            ? {
+                                ...current,
+                                details: {
+                                  ...current.details,
+                                  verifiedExpiryDate: result.verifiedExpiryDate,
+                                  eligibilityOutcome: result.outcome,
+                                  urgentDeadline: result.urgentDeadline ?? undefined,
+                                },
+                              }
+                            : current
+                        )
+                      }
+                    />
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
+                ) : null}
 
-          <QuoteBuilder
-            leadId={lead.id}
-            serviceType={lead.serviceType}
-            visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
-            leadStatus={lead.status}
-            onLeadChanged={() => setReloadNonce((current) => current + 1)}
-          />
+                {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "BORDER_EXIT" ? (
+                  <VisaChangeBorderDetailsPanel
+                    leadId={lead.id}
+                    existing={
+                      lead.details.borderOperationalDetails && typeof lead.details.borderOperationalDetails === "object"
+                        ? (lead.details.borderOperationalDetails as Record<string, unknown>)
+                        : undefined
+                    }
+                    onSaved={(details) =>
+                      setLead((current) => (current ? { ...current, details: { ...current.details, borderOperationalDetails: details } } : current))
+                    }
+                  />
+                ) : null}
 
-          {lead.bookings.length > 0 || selectedQuotation ? (
-            <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-sm font-semibold text-ink-heading">Bookings &amp; Payments</h2>
-                {selectedQuotation && !hasActiveBooking ? (
-                  <Button type="button" size="sm" variant="ghost" onClick={() => void handleCreateBooking()} isLoading={creatingBooking}>
-                    <Plus className="h-4 w-4" aria-hidden="true" />
-                    Create Booking
-                  </Button>
+                {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "AIRPORT_TO_AIRPORT" ? (
+                  <VisaChangeA2ADetailsPanel
+                    leadId={lead.id}
+                    existing={
+                      lead.details.a2aOperationalDetails && typeof lead.details.a2aOperationalDetails === "object"
+                        ? (lead.details.a2aOperationalDetails as Record<string, unknown>)
+                        : undefined
+                    }
+                    onSaved={(details) =>
+                      setLead((current) => (current ? { ...current, details: { ...current.details, a2aOperationalDetails: details } } : current))
+                    }
+                  />
                 ) : null}
               </div>
-              {lead.bookings.length === 0 ? (
-                <p className="text-sm text-ink-tertiary">No booking yet — create one from the selected quotation above.</p>
-              ) : (
-                <div className="flex flex-col gap-3">
-                  {lead.bookings.map((booking) => (
-                    <div key={booking.id} className="rounded-lg border border-hairline p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Link href={`/crm/bookings/${booking.id}`} className="text-sm font-medium text-ink-accent hover:underline">
-                          {booking.bookingId}
-                        </Link>
-                        <BookingStatusBadge status={booking.status} />
-                      </div>
-                      {booking.payments.length > 0 ? (
-                        <div className="mt-2 flex flex-col gap-1">
-                          {booking.payments.map((payment) => (
-                            <div key={payment.id} className="flex items-center justify-between text-xs text-ink-tertiary">
-                              <span>
-                                ₹{payment.amount} + GST ₹{payment.gstAmount} + fee ₹{payment.gatewayFee}
-                              </span>
-                              <PaymentStatusBadge status={payment.status} />
+            ),
+          },
+          {
+            id: "quotation",
+            label: "Quotation & Payment",
+            count: lead.bookings.length > 0 ? lead.bookings.length : undefined,
+            content: (
+              <div className="flex flex-col gap-5">
+                <QuoteBuilder
+                  leadId={lead.id}
+                  serviceType={lead.serviceType}
+                  visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
+                  leadStatus={lead.status}
+                  onLeadChanged={refresh}
+                />
+
+                {lead.bookings.length > 0 || selectedQuotation ? (
+                  <RecordSection title="Bookings & Payments">
+                    {lead.bookings.length === 0 ? (
+                      <p className="text-sm text-ink-tertiary">No booking yet — use Create Booking at the top for the selected quotation.</p>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        {lead.bookings.map((booking) => (
+                          <div key={booking.id} className="rounded-lg border border-hairline bg-surface-1 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <Link href={`/crm/bookings/${booking.id}`} className="text-sm font-medium text-ink-accent hover:underline">
+                                {booking.bookingId}
+                              </Link>
+                              <BookingStatusBadge status={booking.status} />
                             </div>
-                          ))}
-                        </div>
-                      ) : null}
+                            {booking.payments.length > 0 ? (
+                              <div className="mt-2 flex flex-col gap-1">
+                                {booking.payments.map((payment) => (
+                                  <div key={payment.id} className="flex items-center justify-between text-xs text-ink-tertiary">
+                                    <span>
+                                      ₹{payment.amount} + GST ₹{payment.gstAmount} + fee ₹{payment.gatewayFee}
+                                    </span>
+                                    <PaymentStatusBadge status={payment.status} />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </RecordSection>
+                ) : null}
+              </div>
+            ),
+          },
+          {
+            id: "documents",
+            label: "Documents & PAX",
+            count: documentCount,
+            content: (
+              <div className="flex flex-col gap-5">
+                <RecordSection title="Applicants">
+                  <ApplicantsTable applicants={lead.applicants} />
+                </RecordSection>
+                <RecordSection title="Passengers & Documents">
+                  {lead.passengers.length > 0 ? (
+                    <div className="mb-4">
+                      <AddDocumentForm passengers={lead.passengers} onAdded={refresh} />
                     </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          ) : null}
-
-          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Communications</h2>
-            <CommunicationsPanel leadId={lead.id} />
-          </section>
-        </div>
-
-        <div className="flex flex-col gap-6">
-          {/* Client corrections 2026-10-05: a Lead shows only its own records; the
-              customer's other leads/bookings live in the separate Customer 360 page. */}
-          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Customer</h2>
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-ink-primary">{lead.customer.name}</p>
-              <p className="text-xs text-ink-tertiary">{lead.customer.mobile}</p>
-              {lead.customer.email ? <p className="text-xs text-ink-tertiary">{lead.customer.email}</p> : null}
-              <p className="text-xs text-ink-tertiary">Customer since {formatDate(lead.customer.createdAt)}</p>
-            </div>
-            <Link href={`/crm/customers/${lead.customer.id}`} className="mt-3 inline-flex text-sm font-medium text-ink-accent hover:underline">
-              Open Customer 360
-            </Link>
-          </section>
-
-          <AddTaskPanel leadId={lead.id} />
-
-          <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-            <h2 className="mb-3 text-sm font-semibold text-ink-heading">Activity Timeline</h2>
-            <Paged items={lead.timeline} noun="timeline event">
-              {(rows) => <LeadTimeline entries={rows} />}
-            </Paged>
-          </section>
-        </div>
-      </div>
+                  ) : null}
+                  {lead.passengers.length === 0 ? (
+                    <p className="text-sm text-ink-tertiary">No passengers linked to this request.</p>
+                  ) : (
+                    <div className={cn("grid grid-cols-1 gap-3", lead.passengers.length > 1 && "xl:grid-cols-2")}>
+                      {lead.passengers.map((passenger) => (
+                        <div key={passenger.id} className="rounded-lg border border-hairline bg-surface-1 p-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-sm font-medium text-ink-primary">{passenger.fullName}</p>
+                            <span className="text-xs text-ink-tertiary">
+                              {PAX_TYPE_LABELS[passenger.paxType]}
+                              {passenger.nationality ? ` · ${passenger.nationality}` : ""}
+                              {passenger.passportNumber ? ` · ${passenger.passportNumber}` : ""}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex flex-col gap-1.5">
+                            {passenger.documents.length === 0 ? (
+                              <span className="text-xs text-ink-tertiary">No documents yet.</span>
+                            ) : (
+                              passenger.documents.map((document) => (
+                                <div key={document.id} className="flex flex-wrap items-center gap-1.5">
+                                  <span className="flex flex-wrap items-center gap-2 text-xs text-ink-tertiary">
+                                    {document.type}
+                                    <PurgedFileTag purgedAt={document.purgedAt} />
+                                    <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
+                                  </span>
+                                  <DocumentStatusBadge status={document.status} />
+                                  {!document.purgedAt ? (
+                                    <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={refresh} />
+                                  ) : null}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                          <PassportExtractionReview passengerId={passenger.id} />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </RecordSection>
+              </div>
+            ),
+          },
+          {
+            id: "communication",
+            label: "Communication & Tasks",
+            content: (
+              <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-3">
+                <RecordSection title="Communications" className="xl:col-span-2">
+                  <CommunicationsPanel leadId={lead.id} />
+                </RecordSection>
+                <AddTaskPanel leadId={lead.id} />
+              </div>
+            ),
+          },
+          {
+            id: "timeline",
+            label: "Timeline",
+            count: lead.timeline.length,
+            content: (
+              <RecordSection title="Activity Timeline">
+                <Paged items={lead.timeline} noun="timeline event">
+                  {(rows) => <LeadTimeline entries={rows} />}
+                </Paged>
+              </RecordSection>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

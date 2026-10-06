@@ -1,3 +1,4 @@
+import { subServiceLabel } from "@/lib/leads/sub-service-label";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -30,6 +31,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         },
       },
       assignedStaff: true,
+      country: { select: { name: true } },
       quotations: { orderBy: { createdAt: "desc" } },
       bookings: { include: { payments: true }, orderBy: { createdAt: "desc" } },
     },
@@ -85,6 +87,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     source: lead.source,
     details: lead.details,
     createdAt: lead.createdAt,
+    // Client corrections 2026-10-05 §18 — the record header's key summary.
+    countryName: lead.country?.name ?? null,
+    travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
+    paxCount: lead.paxCount,
+    subService: subServiceLabel(lead.details),
     // Step 50 — `active` lets the UI show "Unassigned (was: Name)" for a
     // record whose assignee has since been deactivated, instead of quietly
     // rendering a name that no longer means the lead has an active owner.

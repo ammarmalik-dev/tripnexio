@@ -203,6 +203,18 @@ body {
     box-shadow: var(--shadow-glass-3);
   }
 
+  /* CRM/Admin "glassy + liquid" record header (client corrections 2026-10-05):
+     frosted white with a faint electric-blue wash — text stays on near-white. */
+  .glass-liquid {
+    background:
+      radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 55%),
+      radial-gradient(90% 120% at 100% 100%, color-mix(in srgb, var(--accent-dark) 6%, transparent) 0%, transparent 60%),
+      var(--surface-glass-3);
+    backdrop-filter: blur(var(--blur-glass-2));
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-glass-2);
+  }
+
   /*
    * Overlay tier — mobile drawer, modals. Near-opaque by design: legibility
    * over the glass aesthetic. Translucency lives ONLY in the

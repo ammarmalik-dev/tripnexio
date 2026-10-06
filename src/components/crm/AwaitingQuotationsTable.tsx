@@ -164,7 +164,7 @@ export function AwaitingQuotationsTable() {
               {items.map((item) => (
                 <tr key={item.leadId} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
                   <td className="px-4 py-3 font-medium">
-                    <Link href={`/crm/leads/${item.leadId}`} className="text-ink-accent hover:underline">
+                    <Link href={`/crm/leads/${item.leadId}#tab-quotation`} className="text-ink-accent hover:underline">
                       {item.leadReferenceId}
                     </Link>
                   </td>

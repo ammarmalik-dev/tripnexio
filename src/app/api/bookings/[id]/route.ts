@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { subServiceLabel } from "@/lib/leads/sub-service-label";
 import { isInternallyCreatedLead } from "@/lib/leads/internal-lead";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -32,7 +33,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     include: {
       payments: { include: { refunds: true }, orderBy: { createdAt: "desc" } },
       documents: { orderBy: { createdAt: "desc" } },
-      lead: { include: { quotations: { where: { isSelected: true } }, assignedStaff: { select: { name: true, active: true } } } },
+      lead: { include: { quotations: { where: { isSelected: true } }, assignedStaff: { select: { name: true, active: true } }, country: { select: { name: true } } } },
       customer: { include: { passengers: true } },
       // CRM.md §12 (Step 14) — this booking's own passengers, each with an
       // independently visible status, distinct from customer.passengers
@@ -107,6 +108,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     // Client corrections 2026-10-05 — bank transfer only for leads created by staff.
     offlinePaymentAllowed: await isInternallyCreatedLead(booking.lead),
     paxCount: booking.passengers.length,
+    // Client corrections 2026-10-05 §11 — header summary.
+    subService: subServiceLabel(booking.lead.details),
+    countryName: booking.lead.country?.name ?? null,
     extensionOutcome: synced.extensionOutcome,
     createdAt: synced.createdAt,
     reservationIssuedAt: synced.reservationIssuedAt,

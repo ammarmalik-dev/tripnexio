@@ -364,7 +364,7 @@ export function QuotationsTable() {
               {items.map((quotation) => (
                 <tr key={quotation.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
                   <td className="px-4 py-3 font-medium">
-                    <Link href={`/crm/leads/${quotation.leadId}`} className="text-ink-accent hover:underline">
+                    <Link href={`/crm/leads/${quotation.leadId}#tab-quotation`} className="text-ink-accent hover:underline">
                       {quotation.leadReferenceId}
                     </Link>
                   </td>
@@ -400,7 +400,7 @@ export function QuotationsTable() {
                   ) : null}
                   <td className="px-4 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(quotation.createdAt)}</td>
                   <td className="px-4 py-3 text-right">
-                    <Link href={`/crm/leads/${quotation.leadId}`} className="font-medium text-ink-accent hover:underline">
+                    <Link href={`/crm/leads/${quotation.leadId}#tab-quotation`} className="font-medium text-ink-accent hover:underline">
                       Open
                     </Link>
                   </td>
