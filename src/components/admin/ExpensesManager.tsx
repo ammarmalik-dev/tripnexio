@@ -26,6 +26,8 @@ interface ExpenseData {
   id: string;
   categoryId: string;
   amount: string;
+  gstAmount: string;
+  reference: string | null;
   date: string;
   note: string | null;
   category: { id: string; name: string };
@@ -34,8 +36,13 @@ interface ExpenseData {
 
 type FetchState = "loading" | "success" | "error";
 
-function money(value: string): string {
-  return `₹${Number(value).toLocaleString("en-IN")}`;
+function money(value: string | number): string {
+  return `₹${Number(value).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** Client corrections 2026-10-05 — Total Amount = amount + GST. */
+function expenseTotal(expense: Pick<ExpenseData, "amount" | "gstAmount">): number {
+  return Number(expense.amount) + Number(expense.gstAmount ?? 0);
 }
 
 function formatDate(iso: string): string {
@@ -46,6 +53,8 @@ function NewExpenseForm({ categories, onCreated }: { categories: CategoryOption[
   const { confirm, dialog } = useConfirmAction();
   const [categoryId, setCategoryId] = useState("");
   const [amount, setAmount] = useState("");
+  const [gstAmount, setGstAmount] = useState("");
+  const [reference, setReference] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -55,7 +64,7 @@ function NewExpenseForm({ categories, onCreated }: { categories: CategoryOption[
 
   const handleCreate = async () => {
     const reason = await confirm({
-      title: `Record a ₹${amount} expense?`,
+      title: `Record a ${money(Number(amount || 0) + Number(gstAmount || 0))} expense?`,
       description: "Expenses are a financial adjustment — this changes the P&L report totals.",
       confirmLabel: "Record Expense",
     });
@@ -66,14 +75,18 @@ function NewExpenseForm({ categories, onCreated }: { categories: CategoryOption[
       const created = await postJson<ExpenseData>("/api/admin/expenses", {
         categoryId,
         amount: Number(amount),
+        gstAmount: gstAmount === "" ? 0 : Number(gstAmount),
+        reference: reference.trim() || undefined,
         date,
         note: note.trim() || undefined,
         reason,
       });
-      toast.success(`${money(created.amount)} expense recorded.`);
+      toast.success(`${money(expenseTotal(created))} expense recorded.`);
       onCreated(created);
       setCategoryId("");
       setAmount("");
+      setGstAmount("");
+      setReference("");
       setNote("");
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
@@ -107,13 +120,34 @@ function NewExpenseForm({ categories, onCreated }: { categories: CategoryOption[
           </select>
         </FormField>
         <TextField
-          label="Amount (₹)"
+          label="Amount before GST (₹)"
           name="amount"
           type="number"
           step="0.01"
           value={amount}
           onChange={(event) => setAmount(event.target.value)}
           error={errors.amount?.[0]}
+          disabled={creating}
+        />
+        <TextField
+          label="GST Amount (₹)"
+          name="gstAmount"
+          type="number"
+          step="0.01"
+          placeholder="0"
+          value={gstAmount}
+          onChange={(event) => setGstAmount(event.target.value)}
+          error={errors.gstAmount?.[0]}
+          disabled={creating}
+          hint={`Total Amount: ${money(Number(amount || 0) + Number(gstAmount || 0))}`}
+        />
+        <TextField
+          label="Bill / Invoice Reference"
+          name="reference"
+          placeholder="Optional"
+          value={reference}
+          onChange={(event) => setReference(event.target.value)}
+          error={errors.reference?.[0]}
           disabled={creating}
         />
         <TextField
@@ -168,23 +202,23 @@ function ExpenseRow({ expense, onDeleted }: { expense: ExpenseData; onDeleted: (
   };
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-1 px-5 py-4">
-      <div className="flex min-w-0 flex-col gap-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-base font-semibold text-ink-heading">{money(expense.amount)}</span>
-          <span className="rounded-full bg-ink-primary/[0.06] px-2 py-0.5 text-xs text-ink-tertiary">{expense.category.name}</span>
-        </div>
-        <span className="text-xs text-ink-tertiary">
-          {formatDate(expense.date)} · recorded by {expense.recordedBy.name}
-          {expense.note ? ` · ${expense.note}` : ""}
-        </span>
-      </div>
-      <Button type="button" size="sm" variant="ghost" onClick={() => void handleDelete()} isLoading={deleting}>
-        <Trash2 className="h-4 w-4" aria-hidden="true" />
-        Remove
-      </Button>
-      {dialog}
-    </div>
+    <tr className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
+      <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{formatDate(expense.date)}</td>
+      <td className="px-4 py-3 font-medium text-ink-primary">{expense.category.name}</td>
+      <td className="px-4 py-3 text-ink-secondary">{expense.reference ?? "—"}</td>
+      <td className="px-4 py-3 text-right tabular-nums text-ink-secondary">{money(expense.amount)}</td>
+      <td className="px-4 py-3 text-right tabular-nums text-ink-secondary">{money(expense.gstAmount ?? 0)}</td>
+      <td className="px-4 py-3 text-right font-semibold tabular-nums text-ink-heading">{money(expenseTotal(expense))}</td>
+      <td className="max-w-[220px] px-4 py-3 break-words text-ink-tertiary">{expense.note ?? "—"}</td>
+      <td className="px-4 py-3 text-ink-tertiary">{expense.recordedBy.name}</td>
+      <td className="px-4 py-3 text-right">
+        <Button type="button" size="sm" variant="ghost" onClick={() => void handleDelete()} isLoading={deleting}>
+          <Trash2 className="h-4 w-4" aria-hidden="true" />
+          Remove
+        </Button>
+        {dialog}
+      </td>
+    </tr>
   );
 }
 
@@ -204,7 +238,7 @@ export function ExpensesManager() {
     return expenses.filter((expense) => {
       if (categoryFilter && expense.categoryId !== categoryFilter) return false;
       if (!term) return true;
-      return [expense.category.name, expense.note ?? "", expense.recordedBy.name, expense.amount].some((value) =>
+      return [expense.category.name, expense.note ?? "", expense.reference ?? "", expense.recordedBy.name, expense.amount].some((value) =>
         value.toLowerCase().includes(term)
       );
     });
@@ -269,7 +303,7 @@ export function ExpensesManager() {
   };
   const createOpen = showCreate || expenses.length === 0;
   const trimmedSearch = search.trim();
-  const filteredTotal = filtered.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const filteredTotal = filtered.reduce((sum, expense) => sum + expenseTotal(expense), 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -339,7 +373,7 @@ export function ExpensesManager() {
             ))}
           </select>
           <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
-            {filtered.length} expense{filtered.length === 1 ? "" : "s"} · {money(String(filteredTotal))}
+            {filtered.length} expense{filtered.length === 1 ? "" : "s"} · {money(filteredTotal)}
           </p>
         </div>
       ) : null}
@@ -357,14 +391,31 @@ export function ExpensesManager() {
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
-          {pageItems.map((expense) => (
-            <ExpenseRow
-              key={expense.id}
-              expense={expense}
-              onDeleted={(id) => setExpenses((current) => current.filter((entry) => entry.id !== id))}
-            />
-          ))}
+        <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
+          <table className="w-full min-w-[960px] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-hairline text-left text-xs font-medium tracking-wide text-ink-tertiary uppercase">
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Expense Category</th>
+                <th className="px-4 py-3">Reference</th>
+                <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3 text-right">GST Amount</th>
+                <th className="px-4 py-3 text-right">Total Amount</th>
+                <th className="px-4 py-3">Note</th>
+                <th className="px-4 py-3">Recorded By</th>
+                <th className="px-4 py-3 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.map((expense) => (
+                <ExpenseRow
+                  key={expense.id}
+                  expense={expense}
+                  onDeleted={(id) => setExpenses((current) => current.filter((entry) => entry.id !== id))}
+                />
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

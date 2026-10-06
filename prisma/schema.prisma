@@ -1588,7 +1588,12 @@ model ExpenseCategory {
 model Expense {
   id           String   @id @default(cuid())
   categoryId   String
+  /// Amount before GST.
   amount       Decimal  @db.Decimal(10, 2)
+  /// Client corrections 2026-10-05 — GST paid on this expense; Total Amount = amount + gstAmount.
+  gstAmount    Decimal  @default(0) @db.Decimal(10, 2)
+  /// Bill / invoice number from the supplier, if any.
+  reference    String?
   date         DateTime @db.Date
   note         String?
   recordedById String

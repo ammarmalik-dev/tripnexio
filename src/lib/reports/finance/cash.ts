@@ -55,14 +55,14 @@ export const expensesReport: ReportDefinition = {
     const offset = await businessOffsetMinutes();
     const expenses = await db.expense.findMany({
       where: { date: dateOnlyRange(filters, offset) },
-      select: { date: true, amount: true, note: true, categoryId: true, recordedById: true },
+      select: { date: true, amount: true, gstAmount: true, reference: true, note: true, categoryId: true, recordedById: true },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
       take: EXPENSE_ROW_LIMIT,
     });
     let truncatedTotal: number | null = null;
     if (expenses.length >= EXPENSE_ROW_LIMIT) {
-      const all = await db.expense.aggregate({ where: { date: dateOnlyRange(filters, offset) }, _sum: { amount: true } });
-      truncatedTotal = num(all._sum.amount);
+      const all = await db.expense.aggregate({ where: { date: dateOnlyRange(filters, offset) }, _sum: { amount: true, gstAmount: true } });
+      truncatedTotal = num(all._sum.amount) + num(all._sum.gstAmount);
       notes.push(`Only the first ${EXPENSE_ROW_LIMIT.toLocaleString("en-IN")} expenses are listed (subtotals cover those); the footer total covers every matching expense.`);
     }
 
@@ -93,17 +93,21 @@ export const expensesReport: ReportDefinition = {
       let subtotal = 0;
       for (const expense of list) {
         const amount = num(expense.amount);
-        subtotal += amount;
+        const gst = num(expense.gstAmount);
+        subtotal += amount + gst;
         rows.push({
           date: expense.date.toISOString().slice(0, 10),
           category: name,
+          reference: expense.reference ?? "",
           amount: round2(amount),
+          gstAmount: round2(gst),
+          total: round2(amount + gst),
           note: expense.note ?? "",
           recordedBy: users.get(expense.recordedById) ?? null,
         });
       }
       total += subtotal;
-      rows.push({ date: null, category: `${name} - subtotal`, amount: round2(subtotal), note: `${list.length} expense${list.length === 1 ? "" : "s"}`, recordedBy: null });
+      rows.push({ date: null, category: `${name} - subtotal`, reference: null, amount: null, gstAmount: null, total: round2(subtotal), note: `${list.length} expense${list.length === 1 ? "" : "s"}`, recordedBy: null });
     }
 
     notes.push(
@@ -114,12 +118,15 @@ export const expensesReport: ReportDefinition = {
       columns: [
         { key: "date", label: "Date", kind: "date" },
         { key: "category", label: "Category", kind: "text" },
+        { key: "reference", label: "Reference", kind: "text" },
         { key: "amount", label: "Amount", kind: "money" },
+        { key: "gstAmount", label: "GST Amount", kind: "money" },
+        { key: "total", label: "Total Amount", kind: "money" },
         { key: "note", label: "Note", kind: "text" },
         { key: "recordedBy", label: "Recorded by", kind: "text" },
       ],
       rows,
-      totals: { amount: round2(truncatedTotal ?? total) },
+      totals: { total: round2(truncatedTotal ?? total) },
       notes,
     };
   },
@@ -355,7 +362,7 @@ export const financialSummaryReport: ReportDefinition = {
     sourceLimitNote(refunds.length, notes);
     const expenses = await db.expense.findMany({
       where: { date: dateOnlyRange(filters, offset) },
-      select: { date: true, amount: true },
+      select: { date: true, amount: true, gstAmount: true },
       take: SOURCE_LIMIT,
     });
     sourceLimitNote(expenses.length, notes);
@@ -377,7 +384,7 @@ export const financialSummaryReport: ReportDefinition = {
     }
     for (const expense of expenses) {
       const entry = perBucket.get(buckets.keyOfDateOnly(expense.date));
-      if (entry) entry.expenses += num(expense.amount);
+      if (entry) entry.expenses += num(expense.amount) + num(expense.gstAmount);
     }
 
     const rows: Record<string, ReportCell>[] = buckets.keys.map((key) => {

@@ -69,6 +69,8 @@ export async function POST(request: NextRequest) {
       data: {
         categoryId: parsed.data.categoryId,
         amount: parsed.data.amount,
+        gstAmount: parsed.data.gstAmount,
+        reference: parsed.data.reference || null,
         date: new Date(parsed.data.date),
         note: parsed.data.note,
         recordedById: session.id,

@@ -213,7 +213,7 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
         <EmptyState
           icon={<Search className="h-5 w-5" aria-hidden="true" />}
           title="No extra payments match these filters"
-          description="Try a different search term or clear the filters."
+          description="Try different filters, or clear them."
         />
       ) : null}
 

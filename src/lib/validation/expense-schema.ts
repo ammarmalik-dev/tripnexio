@@ -4,6 +4,9 @@ import { partialUpdateSchema } from "./partial-update";
 export const createExpenseSchema = z.object({
   categoryId: z.string().min(1, "Select a category"),
   amount: z.number({ error: "Enter an amount" }).positive("Amount must be greater than 0"),
+  /** Client corrections 2026-10-05 — GST paid on the expense (0 when none). */
+  gstAmount: z.number().nonnegative("GST can't be negative").default(0),
+  reference: z.string().trim().max(80, "Reference is too long").optional(),
   date: z.string().min(1, "Select a date"),
   note: z.string().trim().max(300, "Note is too long").optional(),
 });

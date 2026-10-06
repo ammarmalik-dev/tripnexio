@@ -436,7 +436,7 @@ export function InvoiceHistory() {
           <EmptyState
             icon={<Search className="h-5 w-5" aria-hidden="true" />}
             title="No invoices match these filters"
-            description="Try a different search term or clear the filters."
+            description="Try different filters, or clear them."
             action={
               <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>
                 Clear filters

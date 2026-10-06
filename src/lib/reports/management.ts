@@ -141,8 +141,9 @@ async function computePeriod(filters: ReportFilters): Promise<PeriodFigures> {
   const refunds = refundRows.reduce((sum, refund) => sum + num(refund.refundAmount), 0);
 
   // Expenses — dated in range. Service/country/staff/vendor filters never apply (expenses aren't tied to a lead).
-  const expenseRows = await db.expense.findMany({ where: { date: range }, select: { amount: true } });
-  const expenses = expenseRows.reduce((sum, expense) => sum + num(expense.amount), 0);
+  // Client corrections 2026-10-05 — an expense costs its total, GST included.
+  const expenseRows = await db.expense.findMany({ where: { date: range }, select: { amount: true, gstAmount: true } });
+  const expenses = expenseRows.reduce((sum, expense) => sum + num(expense.amount) + num(expense.gstAmount), 0);
 
   const grossProfit = revenue - cost;
   const netProfit = grossProfit - refunds - expenses;

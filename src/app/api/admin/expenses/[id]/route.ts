@@ -49,6 +49,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data: {
         ...(parsed.data.categoryId ? { categoryId: parsed.data.categoryId } : {}),
         ...(parsed.data.amount !== undefined ? { amount: parsed.data.amount } : {}),
+        ...(parsed.data.gstAmount !== undefined ? { gstAmount: parsed.data.gstAmount } : {}),
+        ...(parsed.data.reference !== undefined ? { reference: parsed.data.reference || null } : {}),
         ...(parsed.data.date ? { date: new Date(parsed.data.date) } : {}),
         ...(parsed.data.note !== undefined ? { note: parsed.data.note } : {}),
       },

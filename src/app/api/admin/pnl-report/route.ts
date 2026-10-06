@@ -90,7 +90,8 @@ export async function GET(request: NextRequest) {
   const expensesByCategory = new Map<string, { categoryId: string; categoryName: string; total: number }>();
   for (const expense of expenses) {
     const existing = expensesByCategory.get(expense.categoryId);
-    const amount = toNumber(expense.amount);
+    // Client corrections 2026-10-05 — an expense costs its total, GST included.
+    const amount = toNumber(expense.amount) + toNumber(expense.gstAmount);
     if (existing) existing.total += amount;
     else expensesByCategory.set(expense.categoryId, { categoryId: expense.categoryId, categoryName: expense.category.name, total: amount });
   }

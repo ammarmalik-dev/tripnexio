@@ -177,7 +177,7 @@ export function EnquiriesTable({ basePath = "/crm/enquiries" }: { basePath?: str
       ) : data && data.items.length === 0 ? (
         <EmptyState
           title={view === "complaints" ? "No complaints here" : "No enquiries here"}
-          description={search || category || status ? "Try a different search or filter." : "Messages from the Contact page will appear here."}
+          description={search || category || status ? "Try different filters, or clear them." : "Messages from the Contact page will appear here."}
         />
       ) : data ? (
         <>
