@@ -23,6 +23,14 @@ export const createCountrySchema = z.object({
     ),
   displayOrder: z.number().int().default(0),
   active: z.boolean().default(true),
+  /** Client corrections 2026-10-05 — weekend day numbers (0 = Sunday … 6 = Saturday), e.g. "5,6"; null = System Configuration default. */
+  weekendDays: z
+    .string()
+    .trim()
+    .regex(/^([0-6](,[0-6])*)?$/, "Pick the weekend days")
+    .nullable()
+    .optional()
+    .transform((value) => (value ? value : null)),
 });
 
 export const updateCountrySchema = partialUpdateSchema(createCountrySchema);

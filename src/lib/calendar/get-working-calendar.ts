@@ -45,7 +45,17 @@ export async function getWorkingCalendar(country: HolidayCountry): Promise<Worki
       where: { ...holidayCountryWhere(country), active: true, date: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) } },
       select: { date: true },
     });
-    const weekend = raw ? parseWeekendDays(country === "UAE" ? raw.weekendDaysUae : raw.weekendDaysIndia) : DEFAULT_WORKING_CALENDAR.weekendDays;
+    // Client corrections 2026-10-05 — the country's own weekend (Admin → Holidays) wins over the System Configuration default.
+    const match = LEGACY_COUNTRY_MATCH[country];
+    const countryRow = await db.country.findFirst({
+      where: { OR: [{ code: { in: match.codes, mode: "insensitive" } }, { name: { in: match.names, mode: "insensitive" } }], weekendDays: { not: null } },
+      select: { weekendDays: true },
+    });
+    const weekend = countryRow?.weekendDays
+      ? parseWeekendDays(countryRow.weekendDays)
+      : raw
+        ? parseWeekendDays(country === "UAE" ? raw.weekendDaysUae : raw.weekendDaysIndia)
+        : DEFAULT_WORKING_CALENDAR.weekendDays;
     return {
       weekendDays: weekend.length > 0 ? weekend : DEFAULT_WORKING_CALENDAR.weekendDays,
       holidays: holidays.map((holiday) => holiday.date.toISOString().slice(0, 10)),

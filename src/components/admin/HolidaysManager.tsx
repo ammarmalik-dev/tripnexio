@@ -11,6 +11,7 @@ import { FormField, fieldControlClass, fieldBorderClass } from "@/components/for
 import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { CountryWorkingDays } from "./CountryWorkingDays";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 
@@ -212,6 +213,7 @@ export function HolidaysManager() {
 
   return (
     <div className="flex flex-col gap-4">
+      <CountryWorkingDays />
       <section className="rounded-xl border border-hairline bg-surface-1">
         <button
           type="button"

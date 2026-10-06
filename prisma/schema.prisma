@@ -1211,6 +1211,10 @@ model Country {
   name         String
   /// P23 — manual flag override (an emoji or an image URL); null = auto from the ISO code.
   flagOverride String?
+  /// Client corrections 2026-10-05 — this country's weekend as day numbers
+  /// (0 = Sunday … 6 = Saturday), e.g. "0" or "5,6". Null = the System
+  /// Configuration default. Admin → Holidays sets it per country.
+  weekendDays  String?
   active       Boolean  @default(true)
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
