@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { BarChart3, Plane, ShieldCheck, UsersRound } from "lucide-react";
-import { GradientMesh } from "@/components/motion/GradientMesh";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Container } from "@/components/ui/Container";
 import { Logo } from "@/components/layout/Logo";
@@ -28,9 +28,18 @@ export default async function StaffLoginPage({ searchParams }: StaffLoginPagePro
   const { from, google } = await searchParams;
 
   return (
-    <section className="relative min-h-dvh overflow-hidden py-10 sm:py-16">
-      <GradientMesh />
-      <Container className="relative grid items-center gap-10 lg:grid-cols-[1fr_minmax(0,28rem)] lg:gap-16">
+    <section className="crm-login-wash relative flex min-h-dvh items-center overflow-hidden py-10 sm:py-16">
+      {/* Client login reference: globe + network visual on the right (wide screens only). */}
+      <Image
+        src="/brand/login-globe.webp"
+        alt=""
+        aria-hidden="true"
+        width={477}
+        height={1024}
+        priority
+        className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-auto object-cover [mask-image:linear-gradient(to_right,transparent,black_22%)] xl:block"
+      />
+      <Container className="relative grid w-full items-center gap-10 lg:grid-cols-[1fr_minmax(0,30rem)] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_minmax(0,30rem)_14rem]">
         <div className="hidden flex-col gap-6 lg:flex">
           <h1 className="max-w-md text-5xl font-bold tracking-tight text-ink-heading">Travel Operations Made Simple</h1>
           <p className="max-w-sm text-lg text-ink-secondary">
@@ -40,7 +49,7 @@ export default async function StaffLoginPage({ searchParams }: StaffLoginPagePro
           <ul className="flex flex-col gap-5">
             {highlights.map(({ title, detail, Icon }) => (
               <li key={title} className="flex items-center gap-4">
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent-on-light">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-surface-1/80 text-accent-on-light shadow-[var(--shadow-glass-1)] ring-1 ring-glass-border">
                   <Icon className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <span className="flex flex-col">
@@ -52,7 +61,7 @@ export default async function StaffLoginPage({ searchParams }: StaffLoginPagePro
           </ul>
         </div>
 
-        <GlassCard tier={2} className="mx-auto flex w-full max-w-md flex-col gap-5 p-6 sm:p-8">
+        <GlassCard tier={3} className="mx-auto flex w-full max-w-[30rem] flex-col gap-5 rounded-3xl p-6 sm:p-9">
           <div className="flex flex-col items-center gap-3 text-center">
             <Logo />
             <p className="text-lg font-medium text-ink-heading">TripNexio Internal Dashboard</p>

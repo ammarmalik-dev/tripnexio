@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useState, type InputHTMLAttributes } from "react";
+import { forwardRef, useState, type InputHTMLAttributes, type ReactNode } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { FormField, fieldControlClass, fieldBorderClass } from "./FormField";
 import { cn } from "@/lib/cn";
@@ -10,15 +10,22 @@ export interface PasswordFieldProps extends Omit<InputHTMLAttributes<HTMLInputEl
   label: string;
   error?: string;
   hint?: string;
+  /** Optional icon shown inside the field, on the left. */
+  leadingIcon?: ReactNode;
 }
 
 export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
-  ({ name, label, error, hint, required, className, ...props }, ref) => {
+  ({ name, label, error, hint, required, className, leadingIcon, ...props }, ref) => {
     const [visible, setVisible] = useState(false);
 
     return (
       <FormField label={label} htmlFor={name} error={error} hint={hint} required={required}>
         <div className="relative">
+          {leadingIcon ? (
+            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-tertiary" aria-hidden="true">
+              {leadingIcon}
+            </span>
+          ) : null}
           <input
             ref={ref}
             id={name}
@@ -26,7 +33,7 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(
             type={visible ? "text" : "password"}
             aria-invalid={!!error}
             aria-describedby={error ? `${name}-error` : hint ? `${name}-hint` : undefined}
-            className={cn(fieldControlClass, fieldBorderClass(!!error), "pr-11", className)}
+            className={cn(fieldControlClass, fieldBorderClass(!!error), "pr-11", leadingIcon ? "pl-10" : null, className)}
             {...props}
           />
           <button

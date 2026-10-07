@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight, Lock, Mail } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
@@ -103,6 +104,8 @@ export function StaffLoginForm({ redirectTo, googleEnabled = false }: StaffLogin
         label="Email"
         type="email"
         autoComplete="email"
+        placeholder="Enter your email address"
+        leadingIcon={<Mail className="h-4 w-4" />}
         required
         error={errors.email?.message}
         {...register("email")}
@@ -110,6 +113,8 @@ export function StaffLoginForm({ redirectTo, googleEnabled = false }: StaffLogin
       <PasswordField
         label="Password"
         autoComplete="current-password"
+        placeholder="Enter your password"
+        leadingIcon={<Lock className="h-4 w-4" />}
         required
         error={errors.password?.message}
         {...register("password")}
@@ -121,6 +126,7 @@ export function StaffLoginForm({ redirectTo, googleEnabled = false }: StaffLogin
       </div>
       <Button type="submit" className="w-full" isLoading={isSubmitting}>
         Sign In
+        <ArrowRight className="h-4 w-4" aria-hidden="true" />
       </Button>
       {googleEnabled ? (
         <>
