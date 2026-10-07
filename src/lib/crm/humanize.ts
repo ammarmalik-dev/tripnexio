@@ -24,5 +24,9 @@ export function formatDetailValue(
   if (key === "processingType" && typeof value === "string") {
     return processingTypeLabel(serviceType, value, processingTypes);
   }
+  if (key === "changeType" && typeof value === "string") {
+    return value === "AIRPORT_TO_AIRPORT" ? "Airport-to-Airport" : value === "BORDER_EXIT" ? "Border Exit" : value;
+  }
+  if (typeof value === "boolean") return value ? "Yes" : "No";
   return String(value);
 }

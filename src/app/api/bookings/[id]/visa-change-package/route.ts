@@ -79,6 +79,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       customerMobile: booking.customer.mobile,
       passengers: booking.passengers.map((row) => ({ fullName: row.passenger.fullName, passportNumber: row.passenger.passportNumber })),
       block,
+      pnr: booking.pnr,
       company: await getInvoiceCompanyDetails(),
       generatedAt: new Date(),
     });

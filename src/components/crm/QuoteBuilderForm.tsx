@@ -528,30 +528,11 @@ export function QuoteBuilderForm({
       ) : null}
 
       {hasItinerary && showFlightDetails ? (
-        <fieldset className="flex flex-col gap-4 rounded-lg border border-dashed border-hairline p-4">
-          <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-accent">
-            Itinerary (optional)
-          </legend>
-          <p className="text-xs text-ink-tertiary">
-            Add one quote per itinerary option (e.g. morning / afternoon / evening flight) so the customer can pick
-            the timing that suits them.
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {airlineSelect("Airline", false)}
-            <TextField label="Flight Number" {...optionalField("flightNumber")} error={errors.flightNumber?.message} />
-          </div>
-          <TextField label="Route" placeholder="e.g. DXB → MCT" {...optionalField("route")} error={errors.route?.message} />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField label="Departure" type="datetime-local" {...dateTimeField("flightDateTime")} error={errors.flightDateTime?.message} />
-            <TextField label="Arrival" type="datetime-local" {...dateTimeField("arrivalDateTime")} error={errors.arrivalDateTime?.message} />
-          </div>
-          <TextField
-            label="Baggage Allowance"
-            placeholder="e.g. 30kg checked"
-            {...optionalField("baggageAllowance")}
-            error={errors.baggageAllowance?.message}
-          />
-        </fieldset>
+        // Client corrections 2026-10-05 §8 — no second, free-text itinerary on an A2A quote: the
+        // lead's round-trip itinerary is the operational record and is attached to every option.
+        <p className="rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-xs text-ink-secondary">
+          Flights come from the lead&rsquo;s confirmed round-trip itinerary (Overview tab) and are attached to this option automatically.
+        </p>
       ) : null}
 
       {multiSectorItinerary ? (

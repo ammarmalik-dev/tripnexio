@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, PlaneLanding, PlaneTakeoff } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
 import { Textarea } from "@/components/forms/Textarea";
 import { DateField } from "@/components/forms/DateField";
@@ -30,16 +30,33 @@ interface VisaChangeA2ADetailsPanelProps {
   onSaved: (details: Record<string, unknown>) => void;
 }
 
-const TEXT_FIELDS = ["entryAirportId", "exitAirportId", "airlineCode", "flightNumber", "flightDate", "flightTime", "reportingTime", "vendorId", "cost", "sellingPrice", "instructions"] as const;
+const TEXT_FIELDS = [
+  "exitAirportId",
+  "airlineCode",
+  "flightNumber",
+  "flightDate",
+  "flightTime",
+  "entryAirportId",
+  "returnAirlineCode",
+  "returnFlightNumber",
+  "returnFlightDate",
+  "returnFlightTime",
+  "reportingTime",
+  "vendorId",
+  "cost",
+  "sellingPrice",
+  "instructions",
+] as const;
 type FieldName = (typeof TEXT_FIELDS)[number];
-const REQUIRED: FieldName[] = ["entryAirportId", "exitAirportId", "airlineCode", "flightNumber", "flightDate", "flightTime", "reportingTime", "vendorId", "cost", "sellingPrice"];
+const REQUIRED: FieldName[] = TEXT_FIELDS.filter((field) => field !== "instructions");
 
 /**
- * Visa_Change.md §5/§6/§13 (P14) — the Airport-to-Airport operational
- * details staff enter on the lead (mirrors the Border panel). Airports come
- * from the common Airport master, filtered to those enabled for A2A entry /
- * exit; airline from the Airline master. Required before quoting; vendor,
- * cost and selling price stay internal (never shown to the customer).
+ * Client corrections 2026-10-05 §8 — the Airport-to-Airport round-trip
+ * itinerary is the A2A operational record: onward flight out of the exit
+ * airport, return flight back to the re-entry airport, both from the
+ * Airport / Airline masters (no free text). Required before quoting; every
+ * quotation option carries it, and it prints on the package PDF. Vendor,
+ * cost and selling price stay internal.
  */
 export function VisaChangeA2ADetailsPanel({ leadId, existing, onSaved }: VisaChangeA2ADetailsPanelProps) {
   const [entryAirports, setEntryAirports] = useState<AirportOption[]>([]);
@@ -83,7 +100,14 @@ export function VisaChangeA2ADetailsPanel({ leadId, existing, onSaved }: VisaCha
     };
   }, []);
 
-  const set = (field: FieldName, value: string) => setForm((current) => ({ ...current, [field]: value }));
+  const set = (field: FieldName, value: string) =>
+    setForm((current) => {
+      const next = { ...current, [field]: value };
+      // A round trip usually comes back to the airport it left from, on the same airline — prefill, still editable.
+      if (field === "exitAirportId" && !current.entryAirportId) next.entryAirportId = value;
+      if (field === "airlineCode" && !current.returnAirlineCode) next.returnAirlineCode = value;
+      return next;
+    });
 
   const handleSave = async () => {
     setSaving(true);
@@ -94,11 +118,11 @@ export function VisaChangeA2ADetailsPanel({ leadId, existing, onSaved }: VisaCha
         cost: Number(form.cost),
         sellingPrice: Number(form.sellingPrice),
       });
-      toast.success("Airport-to-Airport details confirmed.");
+      toast.success("Round-trip itinerary confirmed.");
       onSaved(result.a2aOperationalDetails);
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
-      toast.error(error instanceof ApiError ? error.message : "Couldn't save these details. Please try again.");
+      toast.error(error instanceof ApiError ? error.message : "Couldn't save the itinerary. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -125,32 +149,82 @@ export function VisaChangeA2ADetailsPanel({ leadId, existing, onSaved }: VisaCha
       </select>
     </FormField>
   );
+  const airlineOptions = airlines.map((a) => ({ value: a.code ?? a.id, label: `${a.name}${a.code ? ` (${a.code})` : ""}` }));
+  const text = (field: FieldName, label: string, props: { type?: string; placeholder?: string; step?: string } = {}) => (
+    <TextField
+      label={label}
+      name={field}
+      value={form[field]}
+      onChange={(e) => set(field, e.target.value)}
+      error={errors[field]?.[0]}
+      disabled={saving}
+      required
+      {...props}
+    />
+  );
 
   return (
-    <section className="rounded-xl border border-hairline bg-surface-1 p-5">
-      <h2 className="mb-1 text-sm font-semibold text-ink-heading">Airport-to-Airport Operational Details</h2>
+    <section className="glass-2 rounded-xl p-4 sm:p-5">
+      <h2 className="mb-1 text-sm font-semibold text-ink-heading">Round-trip Itinerary (Airport-to-Airport)</h2>
       <p className="mb-4 text-xs text-ink-tertiary">
-        Required before this lead can be quoted, and printed on the customer&apos;s package PDF. Vendor, cost and selling price stay internal.
+        The A2A operational record: required before quoting, shown on every quotation option and printed on the package PDF. Vendor, cost and
+        selling price stay internal.
       </p>
 
-      {complete ? (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
-          <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />
-          Confirmed: {complete.kind === "A2A" ? `${complete.entryAirport} → ${complete.exitAirport}, ${complete.airline} ${complete.flightNumber}` : ""}
+      {complete && complete.kind === "A2A" ? (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-success/30 bg-success/10 px-3 py-2 text-sm text-success">
+          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+          <span>
+            Confirmed: out {complete.exitAirport}, {complete.airline} {complete.flightNumber} on {complete.flightDate}
+            {complete.returnFlightNumber
+              ? ` · back to ${complete.entryAirport}, ${complete.returnAirline ?? complete.airline} ${complete.returnFlightNumber} on ${complete.returnFlightDate}`
+              : " · return flight not recorded yet"}
+          </span>
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {select("entryAirportId", "Entry Airport", entryAirports.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })), "Select the entry airport")}
-        {select("exitAirportId", "Exit Airport", exitAirports.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })), "Select the exit airport")}
-        {select("airlineCode", "Airline", airlines.map((a) => ({ value: a.code ?? a.id, label: `${a.name}${a.code ? ` (${a.code})` : ""}` })), "Select the airline")}
-        <TextField label="Flight Number" name="flightNumber" value={form.flightNumber} onChange={(e) => set("flightNumber", e.target.value)} error={errors.flightNumber?.[0]} disabled={saving} required />
-        <DateField label="Flight Date" name="flightDate" value={form.flightDate} onChange={(e) => set("flightDate", e.target.value)} error={errors.flightDate?.[0]} disabled={saving} />
-        <TextField label="Flight Time" name="flightTime" type="time" value={form.flightTime} onChange={(e) => set("flightTime", e.target.value)} error={errors.flightTime?.[0]} disabled={saving} required />
-        <TextField label="Reporting Time" name="reportingTime" placeholder="e.g. 3 hours before departure" value={form.reportingTime} onChange={(e) => set("reportingTime", e.target.value)} error={errors.reportingTime?.[0]} disabled={saving} required />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-hairline bg-surface-1 p-3">
+          <legend className="flex items-center gap-1.5 px-1 text-xs font-semibold tracking-wide text-ink-accent uppercase">
+            <PlaneTakeoff className="h-3.5 w-3.5" aria-hidden="true" />
+            Onward (exit)
+          </legend>
+          {select("exitAirportId", "Exit Airport", exitAirports.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })), "Select the exit airport")}
+          {select("airlineCode", "Airline", airlineOptions, "Select the airline")}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {text("flightNumber", "Flight Number")}
+            <DateField label="Date" name="flightDate" value={form.flightDate} onChange={(e) => set("flightDate", e.target.value)} error={errors.flightDate?.[0]} disabled={saving} />
+            {text("flightTime", "Time", { type: "time" })}
+          </div>
+        </fieldset>
+
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-hairline bg-surface-1 p-3">
+          <legend className="flex items-center gap-1.5 px-1 text-xs font-semibold tracking-wide text-ink-accent uppercase">
+            <PlaneLanding className="h-3.5 w-3.5" aria-hidden="true" />
+            Return (re-entry)
+          </legend>
+          {select("entryAirportId", "Re-entry Airport", entryAirports.map((a) => ({ value: a.id, label: `${a.name} (${a.code})` })), "Select the re-entry airport")}
+          {select("returnAirlineCode", "Airline", airlineOptions, "Select the airline")}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {text("returnFlightNumber", "Flight Number")}
+            <DateField
+              label="Date"
+              name="returnFlightDate"
+              value={form.returnFlightDate}
+              onChange={(e) => set("returnFlightDate", e.target.value)}
+              error={errors.returnFlightDate?.[0]}
+              disabled={saving}
+            />
+            {text("returnFlightTime", "Time", { type: "time" })}
+          </div>
+        </fieldset>
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {text("reportingTime", "Reporting Time", { placeholder: "e.g. 3 hours before departure" })}
         {select("vendorId", "Vendor / Sponsor", vendors.map((v) => ({ value: v.id, label: v.name })), "Select the vendor")}
-        <TextField label="Cost (₹, internal)" name="cost" type="number" step="0.01" value={form.cost} onChange={(e) => set("cost", e.target.value)} error={errors.cost?.[0]} disabled={saving} required />
-        <TextField label="Selling Price (₹, internal)" name="sellingPrice" type="number" step="0.01" value={form.sellingPrice} onChange={(e) => set("sellingPrice", e.target.value)} error={errors.sellingPrice?.[0]} disabled={saving} required />
+        {text("cost", "Cost (₹, internal)", { type: "number", step: "0.01" })}
+        {text("sellingPrice", "Selling Price (₹, internal)", { type: "number", step: "0.01" })}
       </div>
       <div className="mt-4">
         <Textarea
@@ -166,7 +240,7 @@ export function VisaChangeA2ADetailsPanel({ leadId, existing, onSaved }: VisaCha
       </div>
       <div className="mt-4 flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!allFilled}>
-          {existing ? "Update A2A Details" : "Confirm A2A Details"}
+          {existing ? "Update Itinerary" : "Confirm Itinerary"}
         </Button>
       </div>
     </section>

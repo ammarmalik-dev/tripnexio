@@ -19,6 +19,8 @@ export interface VisaChangeBookingView {
   defaultExitLocation: string | null;
   exitCompletedAt: string | null;
   exitDetails: { method: ExitMethod; location: string; notes: string | null; staffName: string } | null;
+  /** Client corrections 2026-10-05 §8 — A2A flight PNR, recorded after confirmation. */
+  pnr?: string | null;
 }
 
 function nowLocalInput(): string {
@@ -50,6 +52,21 @@ export function VisaChangeActionsPanel({
   const [pending, setPending] = useState<VisaChangeAction | "PACKAGE" | null>(null);
   const [confirmingReject, setConfirmingReject] = useState(false);
   const [showExitForm, setShowExitForm] = useState(false);
+  const [pnr, setPnr] = useState(view.pnr ?? "");
+  const [savingPnr, setSavingPnr] = useState(false);
+
+  const savePnr = async () => {
+    setSavingPnr(true);
+    try {
+      await postJson(`/api/bookings/${bookingId}/visa-change-pnr`, { pnr: pnr.trim() });
+      toast.success("PNR saved.");
+      onChanged();
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't save the PNR. Please try again.");
+    } finally {
+      setSavingPnr(false);
+    }
+  };
   const [exit, setExit] = useState({
     exitAt: nowLocalInput(),
     method: (view.changeType ?? "AIRPORT_TO_AIRPORT") as ExitMethod,
@@ -101,6 +118,25 @@ export function VisaChangeActionsPanel({
         </Button>
         <span className="text-xs text-ink-tertiary">Needs payment received, complete operational details and every document verified.</span>
       </div>
+
+      {view.changeType === "AIRPORT_TO_AIRPORT" ? (
+        <div className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-hairline bg-surface-2 p-3">
+          <label className="flex flex-col gap-1 text-xs text-ink-secondary">
+            <span className="font-medium">Flight PNR</span>
+            <input
+              value={pnr}
+              onChange={(event) => setPnr(event.target.value.toUpperCase())}
+              maxLength={8}
+              placeholder="e.g. ABC123"
+              className="h-9 w-40 rounded-md border border-hairline bg-surface-1 px-3 text-sm uppercase"
+            />
+          </label>
+          <Button type="button" size="sm" variant="ghost" onClick={() => void savePnr()} isLoading={savingPnr} disabled={pnr.trim().length < 5 || pnr.trim() === (view.pnr ?? "")}>
+            {view.pnr ? "Update PNR" : "Save PNR"}
+          </Button>
+          <span className="text-xs text-ink-tertiary">After the booking is confirmed; printed on the package PDF (generate it after saving).</span>
+        </div>
+      ) : null}
 
       {view.exitCompletedAt && view.exitDetails ? (
         <p className="mb-3 rounded-lg bg-success/10 px-4 py-3 text-sm text-success">

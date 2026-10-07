@@ -8,10 +8,19 @@
  * customerBlockRows() never includes them.
  */
 
+/**
+ * Client corrections 2026-10-05 §8 — one complete round-trip itinerary is the
+ * A2A operational record: the onward flight (out of the UAE, from the exit
+ * airport) and the return flight (back in, to the re-entry airport).
+ * `airlineCode`/`flightNumber`/`flightDate`/`flightTime` are the onward leg;
+ * the `return*` fields the return leg (absent on blocks saved before this).
+ */
 export interface A2ABlock {
   kind: "A2A";
+  /** Re-entry airport (where the return flight lands). */
   entryAirportId: string;
   entryAirport: string;
+  /** Exit airport (where the onward flight departs). */
   exitAirportId: string;
   exitAirport: string;
   airlineCode: string;
@@ -21,6 +30,11 @@ export interface A2ABlock {
   flightDate: string;
   /** HH:MM (24h) */
   flightTime: string;
+  returnAirlineCode?: string | null;
+  returnAirline?: string | null;
+  returnFlightNumber?: string | null;
+  returnFlightDate?: string | null;
+  returnFlightTime?: string | null;
   reportingTime: string;
   vendorId: string;
   vendorName: string;
@@ -106,12 +120,19 @@ export function customerBlockRows(block: OperationalBlock): { label: string; val
             { label: "Exit Airport", value: block.exitAirport },
             { label: "Re-entry Airport", value: block.entryAirport },
           ];
+    const returnLeg =
+      block.returnFlightNumber && block.returnFlightDate
+        ? [
+            {
+              label: "Return Flight",
+              value: `${block.returnAirline ?? block.airline} ${block.returnFlightNumber} · ${formatFlightDate(block.returnFlightDate)}${block.returnFlightTime ? ` ${block.returnFlightTime}` : ""}`,
+            },
+          ]
+        : [];
     return [
       ...airportRows,
-      { label: "Airline", value: block.airline },
-      { label: "Flight", value: block.flightNumber },
-      { label: "Date", value: formatFlightDate(block.flightDate) },
-      { label: "Time", value: block.flightTime },
+      { label: returnLeg.length > 0 ? "Onward Flight" : "Flight", value: `${block.airline} ${block.flightNumber} · ${formatFlightDate(block.flightDate)} ${block.flightTime}` },
+      ...returnLeg,
       { label: "Reporting Time", value: block.reportingTime },
     ];
   }

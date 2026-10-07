@@ -10,6 +10,7 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { RecordHeader, RecordSection, RecordTabs } from "./detail/RecordDetail";
 import { LeadDirectPaymentButton } from "./LeadDirectPaymentButton";
+import { VisaChangeMethodControl } from "./VisaChangeMethodControl";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
@@ -226,6 +227,7 @@ export function LeadDetail({
     "newQuoteRequestedAt",
     "borderOperationalDetails",
     "a2aOperationalDetails",
+    "methodHistory",
     "passengers",
     "applicants",
   ]);
@@ -431,6 +433,14 @@ export function LeadDetail({
                       }
                     />
                   </div>
+                ) : null}
+
+                {lead.serviceType === "VISA_CHANGE" && !hasActiveBooking ? (
+                  <VisaChangeMethodControl
+                    leadId={lead.id}
+                    method={lead.details.changeType === "AIRPORT_TO_AIRPORT" || lead.details.changeType === "BORDER_EXIT" ? lead.details.changeType : null}
+                    onChanged={refresh}
+                  />
                 ) : null}
 
                 {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "BORDER_EXIT" ? (

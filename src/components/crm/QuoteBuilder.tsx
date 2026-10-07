@@ -139,7 +139,9 @@ export function QuoteBuilder({
   // Client corrections 2026-10-05 — a Border Exit quote never shows flight details.
   const showFlightDetails = hasItinerary && visaChangeMethod !== "BORDER_EXIT";
   const airlineCapable = capturesAirline(serviceType);
-  const multiSector = supportsMultiSectorItinerary(serviceType);
+  // Client corrections 2026-10-05 §8 — Visa Change flights come from the lead's round-trip
+  // itinerary (the operational record), so its quotes don't carry a second itinerary.
+  const multiSector = supportsMultiSectorItinerary(serviceType) && serviceType !== "VISA_CHANGE";
   const [state, setState] = useState<FetchState>("loading");
   const [quotations, setQuotations] = useState<QuoteCardData[]>([]);
   const [vendors, setVendors] = useState<VendorRecord[]>([]);

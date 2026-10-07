@@ -210,6 +210,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
               defaultExitLocation: block ? (block.kind === "A2A" ? block.exitAirport : block.borderName) : null,
               exitCompletedAt: booking.exitCompletedAt,
               exitDetails: booking.exitDetails,
+              // Client corrections 2026-10-05 §8 — A2A PNR recorded after confirmation.
+              pnr: booking.pnr,
             };
           })()
         : null,

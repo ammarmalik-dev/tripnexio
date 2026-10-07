@@ -11,6 +11,8 @@ export interface VisaChangePackageInput {
   customerMobile: string;
   passengers: { fullName: string; passportNumber: string | null }[];
   block: OperationalBlock;
+  /** Client corrections 2026-10-05 — A2A flight PNR, when recorded. */
+  pnr?: string | null;
   company: InvoiceCompanyDetails;
   generatedAt: Date;
 }
@@ -80,6 +82,7 @@ export async function renderVisaChangePackagePdf(input: VisaChangePackageInput):
 
   section(`${OPERATIONAL_BLOCK_TITLE[input.block.kind]} details`);
   for (const row of customerBlockRows(input.block)) labelValue(row.label, row.value);
+  if (input.pnr) labelValue("PNR", input.pnr);
 
   section("Passengers");
   input.passengers.forEach((passenger, index) => {
