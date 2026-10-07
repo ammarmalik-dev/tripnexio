@@ -1,6 +1,10 @@
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { getWhatsAppGateway } from "../whatsapp/get-gateway";
+import { renderTemplate, withRequiredLines } from "./render-template";
+
+/** Meta lets a business send free-text messages for 24 hours after the customer's last message. */
+const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export interface NotificationAuditTarget {
   entityType: string;
@@ -66,6 +70,27 @@ export async function sendNotificationWhatsApp(input: SendNotificationWhatsAppIn
       });
       return;
     }
+    // Client feedback 2026-10-07 — inside the customer's 24h session window
+    // (they messaged us on WhatsApp in the last 24 hours) Meta allows a normal
+    // free-text message, so send the template body as text even when no
+    // Meta-approved template is set up yet. Outside the window a template is
+    // required (below).
+    const conversation = await db.whatsAppConversation.findUnique({ where: { waId: to }, select: { lastInboundAt: true } });
+    if (conversation?.lastInboundAt && conversation.lastInboundAt.getTime() > Date.now() - SESSION_WINDOW_MS) {
+      const text = renderTemplate(withRequiredLines(template.body, variables), variables, { escape: false })
+        .replace(/<[^>]+>/g, "")
+        .trim();
+      const gateway = getWhatsAppGateway();
+      const result = await gateway.sendSessionText(to, text);
+      await writeAudit(db, {
+        entityType: auditTarget.entityType,
+        entityId: auditTarget.entityId,
+        action: "WHATSAPP_SENT",
+        note: `${event} sent to ${to} via ${gateway.providerName} (24h session message)${result.id ? ` (id ${result.id})` : ""}`,
+      });
+      return;
+    }
+
     if (!template.metaTemplateName || !template.metaTemplateName.trim()) {
       await writeAudit(db, {
         entityType: auditTarget.entityType,

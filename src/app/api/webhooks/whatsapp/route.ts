@@ -1,3 +1,4 @@
+import { captureWhatsAppHandoff, captureWhatsAppNewVisaDraft } from "@/lib/whatsapp-bot/capture-lead";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
@@ -129,6 +130,21 @@ export async function POST(request: NextRequest) {
     // already saved — log and move on rather than throwing, since Meta
     // would otherwise retry-redeliver the ORIGINAL inbound message.
     console.error("[whatsapp-webhook] failed to send reply", describeError(error));
+  }
+
+  // Client feedback 2026-10-07 — staff must see WhatsApp enquiries in the CRM:
+  // an "agent" request becomes (or reuses) a lead + a staff notification, and a
+  // New Visa enquiry (handed over to the website form) becomes a draft lead.
+  // Both helpers never throw, so the webhook still acknowledges Meta.
+  if (result.nextState === "HANDED_OFF" && conversation.state !== "HANDED_OFF") {
+    await captureWhatsAppHandoff({
+      waId,
+      profileName,
+      serviceType: conversation.serviceType ?? result.nextServiceType,
+      collected: (conversation.collectedFields ?? {}) as Record<string, string>,
+    });
+  } else if (result.nextState === "COMPLETED" && result.nextServiceType === "NEW_VISA") {
+    await captureWhatsAppNewVisaDraft({ waId, profileName, collected: result.nextCollectedFields as Record<string, string> });
   }
 
   return new Response("OK", { status: 200 });
