@@ -41,7 +41,15 @@ export interface InvoiceDocument {
   bookingDate: Date | null;
   travelDate: string | null;
   paymentStatus: "Paid" | "Pending" | "Estimate";
-  customer: { name: string; mobile: string; email: string | null };
+  customer: {
+    name: string;
+    mobile: string;
+    email: string | null;
+    /** Client corrections 2026-10-05 — billing details (Customer profile / Customer 360); null when not collected. */
+    address: string | null;
+    stateCode: string | null;
+    gstin: string | null;
+  };
   lines: InvoiceDocumentLine[];
   couponCode: string | null;
   couponDiscount: number;
@@ -56,6 +64,24 @@ export interface InvoiceDocument {
 }
 
 const round2 = (value: number) => Math.round(value * 100) / 100;
+
+function invoiceCustomer(customer: {
+  name: string;
+  mobile: string;
+  email: string | null;
+  billingAddress: string | null;
+  billingStateCode: string | null;
+  gstin: string | null;
+}): InvoiceDocument["customer"] {
+  return {
+    name: customer.name,
+    mobile: customer.mobile,
+    email: customer.email,
+    address: customer.billingAddress,
+    stateCode: customer.billingStateCode,
+    gstin: customer.gstin,
+  };
+}
 
 /** The Admin-set SAC code of a service (Admin → Services), or null to use the Invoice Settings default. */
 export async function serviceSacCode(serviceType: string): Promise<string | null> {
@@ -186,7 +212,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
     bookingDate: booking.createdAt,
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paymentStatus: "Paid",
-    customer: { name: booking.customer.name, mobile: booking.customer.mobile, email: booking.customer.email },
+    customer: invoiceCustomer(booking.customer),
     lines,
     couponCode: payment.couponCode,
     couponDiscount,
@@ -228,7 +254,7 @@ export async function buildQuotationInvoiceDocument(quotationId: string): Promis
     bookingDate: null,
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paymentStatus: "Estimate",
-    customer: { name: lead.customer.name, mobile: lead.customer.mobile, email: lead.customer.email },
+    customer: invoiceCustomer(lead.customer),
     lines,
     couponCode: quotation.couponCode,
     couponDiscount,

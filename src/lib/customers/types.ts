@@ -170,6 +170,10 @@ export interface Customer360Response {
     mobile: string;
     email: string | null;
     hasAccount: boolean;
+    /** Client corrections 2026-10-05 — invoice billing details. */
+    billingAddress: string | null;
+    billingStateCode: string | null;
+    gstin: string | null;
     createdAt: string;
     updatedAt: string;
   };

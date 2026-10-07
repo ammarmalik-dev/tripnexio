@@ -1,5 +1,6 @@
 "use client";
 
+import { BillingDetailsForm } from "@/components/account/BillingDetailsForm";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, Lock, Mail, MessageCircle } from "lucide-react";
@@ -511,6 +512,13 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
               <ProfileRow label="Created" value={formatCrmDate(customer.createdAt)} />
               <ProfileRow label="Last updated" value={formatCrmDate(customer.updatedAt)} />
             </dl>
+          </Section>
+
+          <Section title="Billing details (invoice)">
+            <BillingDetailsForm
+              endpoint={`/api/customers/${customer.id}/billing`}
+              initial={{ billingAddress: customer.billingAddress, billingStateCode: customer.billingStateCode, gstin: customer.gstin }}
+            />
           </Section>
 
           <Section title="Passengers" count={passengers.length}>

@@ -175,6 +175,12 @@ model Customer {
   /// register with the same mobile/email, at which point registration
   /// claims that existing row instead of creating a duplicate.
   passwordHash String?
+  /// Client corrections 2026-10-05 (invoice sample) — optional billing
+  /// details printed on invoices: address, GST state code (place of supply;
+  /// "96" = outside India) and the customer's GSTIN for a business invoice.
+  billingAddress   String?
+  billingStateCode String?
+  gstin            String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

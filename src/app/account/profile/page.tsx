@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { getCustomerSession } from "@/lib/auth/get-customer-session";
 import { db } from "@/lib/db";
+import { BillingDetailsForm } from "@/components/account/BillingDetailsForm";
 
 export const metadata: Metadata = { title: "My Profile", robots: { index: false, follow: false } };
 
@@ -9,7 +10,10 @@ export const metadata: Metadata = { title: "My Profile", robots: { index: false,
 export default async function AccountProfilePage() {
   const session = await getCustomerSession();
   if (!session) return null;
-  const customer = await db.customer.findUnique({ where: { id: session.id }, select: { createdAt: true, passwordHash: true } });
+  const customer = await db.customer.findUnique({
+    where: { id: session.id },
+    select: { createdAt: true, passwordHash: true, billingAddress: true, billingStateCode: true, gstin: true },
+  });
 
   const rows: [string, string][] = [
     ["Name", session.name],
@@ -33,6 +37,18 @@ export default async function AccountProfilePage() {
         <p className="mt-4 text-xs text-ink-tertiary">
           To change your name, mobile or email, please contact our <Link href="/contact" className="text-ink-accent underline">support team</Link> so your bookings stay linked to you.
         </p>
+      </section>
+      <section className="rounded-xl border border-hairline bg-surface-1 p-6">
+        <h2 className="text-lg font-semibold text-ink-heading">Billing details</h2>
+        <p className="mt-1 mb-4 text-sm text-ink-secondary">Printed on your invoices. Add a GSTIN only if you are booking for a business.</p>
+        <BillingDetailsForm
+          endpoint="/api/account/billing"
+          initial={{
+            billingAddress: customer?.billingAddress ?? null,
+            billingStateCode: customer?.billingStateCode ?? null,
+            gstin: customer?.gstin ?? null,
+          }}
+        />
       </section>
       <section className="rounded-xl border border-hairline bg-surface-1 p-6">
         <h2 className="text-lg font-semibold text-ink-heading">Password</h2>

@@ -1,3 +1,4 @@
+import { gstinStateCode, gstStateName } from "../gst/india-states";
 import path from "path";
 import PDFDocument from "pdfkit";
 import QRCode from "qrcode";
@@ -19,6 +20,26 @@ export function money(value: number): string {
 }
 
 /** Resolved InvoiceConfig + effective company identity (Step 45's SystemConfig overrides merged over site-config.ts), with logo/signature already read into Buffers — see company-config.ts. */
+/**
+ * How the invoice GST is split: CGST + SGST (half each) when the place of
+ * supply is the company's own state (the first two digits of its GSTIN),
+ * IGST for another state or outside India, and a single "GST" row when
+ * either state isn't known.
+ */
+export function gstSplit(invoice: { gstAmount: number; gstRatePercent: number; customer: { stateCode: string | null }; company: { gstNumber: string | null } }) {
+  const companyState = gstinStateCode(invoice.company.gstNumber);
+  const customerState = invoice.customer.stateCode;
+  if (!companyState || !customerState) return [{ label: "GST", rate: invoice.gstRatePercent, amount: invoice.gstAmount }];
+  if (companyState === customerState) {
+    const half = Math.round((invoice.gstAmount / 2) * 100) / 100;
+    return [
+      { label: "CGST", rate: invoice.gstRatePercent / 2, amount: half },
+      { label: "SGST", rate: invoice.gstRatePercent / 2, amount: Math.round((invoice.gstAmount - half) * 100) / 100 },
+    ];
+  }
+  return [{ label: "IGST", rate: invoice.gstRatePercent, amount: invoice.gstAmount }];
+}
+
 export interface InvoiceCompanyDetails {
   legalName: string;
   address: string;
@@ -174,11 +195,20 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
     });
     return h;
   };
+  // Client corrections 2026-10-05 (invoice sample) — address, state, state code and GSTIN when collected.
+  const stateName = gstStateName(invoice.customer.stateCode);
   const billRows: [string, string][] = [
     ["Customer Name", invoice.customer.name],
     ["Mobile", invoice.customer.mobile],
     ...(invoice.customer.email ? ([["Email", invoice.customer.email]] as [string, string][]) : []),
-    ["Customer Type", "Individual"],
+    ...(invoice.customer.address ? ([["Address", invoice.customer.address]] as [string, string][]) : []),
+    ...(stateName && invoice.customer.stateCode
+      ? ([
+          ["State", stateName],
+          ["State Code", invoice.customer.stateCode],
+        ] as [string, string][])
+      : []),
+    ["GSTIN", invoice.customer.gstin ?? "NA (Individual)"],
   ];
   const bookingRows: [string, string][] = [
     ...(invoice.bookingId ? ([["Booking ID", invoice.bookingId]] as [string, string][]) : ([["Reference", invoice.leadReference]] as [string, string][])),
@@ -187,6 +217,8 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
     ...(invoice.paxCount ? ([["Pax Count", String(invoice.paxCount)]] as [string, string][]) : []),
     ...(invoice.bookingDate ? ([["Booking Date", fmtDate(invoice.bookingDate)]] as [string, string][]) : []),
     ...(invoice.travelDate ? ([["Travel Date", fmtDate(invoice.travelDate)]] as [string, string][]) : []),
+    ...(stateName ? ([["Place of Supply", `${stateName} (${invoice.customer.stateCode})`]] as [string, string][]) : []),
+    ["Customer Type", invoice.customer.gstin ? "Business" : "Individual"],
   ];
   const cardH = Math.max(drawCard(M, "Bill To (Customer Details)", billRows), drawCard(M + cardW + 12, "Booking Details", bookingRows));
   y += cardH + 12;
@@ -263,11 +295,14 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
     text("Rate", M + 180, y, { font: F.semi, size: 8, color: MUTED });
     text("Amount", M + 220, y, { font: F.semi, size: 8, color: MUTED, width: 72, align: "right" });
     y += 14;
-    text("GST", M + 8, y, { size: 8.5 });
-    text(num(taxable), M + 90, y, { size: 8.5 });
-    text(`${invoice.gstRatePercent}%`, M + 180, y, { size: 8.5 });
-    text(num(invoice.gstAmount), M + 220, y, { size: 8.5, width: 72, align: "right" });
-    y += 14;
+    // Same state as the company (its GSTIN's state code) = CGST + SGST halves; another state or abroad = IGST.
+    for (const row of gstSplit(invoice)) {
+      text(row.label, M + 8, y, { size: 8.5 });
+      text(num(taxable), M + 90, y, { size: 8.5 });
+      text(`${row.rate}%`, M + 180, y, { size: 8.5 });
+      text(num(row.amount), M + 220, y, { size: 8.5, width: 72, align: "right" });
+      y += 14;
+    }
     doc.rect(M, y, leftW, 18).fill(PANEL);
     text("Total GST", M + 8, y + 4, { font: F.bold, size: 8.5, color: NAVY });
     text(num(invoice.gstAmount), M + 220, y + 4, { font: F.bold, size: 8.5, color: NAVY, width: 72, align: "right" });
