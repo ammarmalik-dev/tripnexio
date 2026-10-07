@@ -317,7 +317,7 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
       <div className="flex flex-col gap-1">
         <h1 className="text-2xl font-semibold tracking-tight text-ink-heading">Overview</h1>
         <p className="text-sm text-ink-tertiary">
-          Welcome back, {staffName} · {todayLabel}
+          Welcome back, {staffName} · <span suppressHydrationWarning>{todayLabel}</span>
         </p>
       </div>
 

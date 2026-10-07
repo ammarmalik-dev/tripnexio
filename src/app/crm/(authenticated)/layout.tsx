@@ -12,7 +12,7 @@ export default async function CrmAuthenticatedLayout({ children }: { children: R
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-2">
+    <div className="crm-shell flex min-h-screen">
       <CrmSidebar showAdminLink={canAccessAdminSection(session)} permissions={session.permissions} />
       <div className="flex min-w-0 flex-1 flex-col">
         <CrmTopbar staffName={session.name} staffRole={session.role} />

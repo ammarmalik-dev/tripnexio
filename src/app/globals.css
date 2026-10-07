@@ -299,3 +299,58 @@ body {
     hyphens: manual;
   }
 }
+
+/* Client corrections 2026-10-05 §1 / Admin §10 — CRM + Admin "glassy +
+   liquid" design layer, scoped to the internal-dashboard shell
+   (.crm-shell on the authenticated layouts) so the public site is untouched.
+   Unlayered on purpose: it restyles the shared card / table surfaces every
+   CRM and Admin screen already uses (rounded-xl border bg-surface-1) in one
+   place instead of editing hundreds of files. Only background, border and
+   shadow change; tables stay near-opaque so text keeps full contrast. */
+.crm-shell {
+  background:
+    radial-gradient(60% 45% at 100% 0%, color-mix(in srgb, var(--accent) 10%, transparent) 0%, transparent 70%),
+    radial-gradient(55% 50% at 0% 100%, color-mix(in srgb, var(--accent) 9%, transparent) 0%, transparent 70%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 4%, var(--surface-base)) 0%, var(--surface-base) 100%);
+  background-attachment: fixed;
+}
+
+.crm-shell main :is(.rounded-xl, .rounded-2xl).border:not(input, select, textarea, button, a),
+.crm-shell main .rounded-lg.border.bg-surface-1:not(input, select, textarea, button, a) {
+  background-color: var(--surface-glass-2);
+  border-color: var(--glass-border);
+  box-shadow: var(--shadow-glass-1);
+  backdrop-filter: blur(var(--blur-glass-2));
+}
+
+/* Table cards: near-opaque white so rows read like paper, soft depth around. */
+.crm-shell main .overflow-x-auto.rounded-xl.border:has(> table) {
+  background-color: var(--surface-glass-3);
+  box-shadow: var(--shadow-glass-2);
+}
+
+.crm-shell main table thead tr {
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-1));
+}
+
+.crm-shell main table tbody tr {
+  transition: background-color var(--duration-fast) var(--ease-out-premium);
+}
+
+.crm-shell main table tbody tr:hover {
+  background-color: color-mix(in srgb, var(--accent) 4%, transparent);
+}
+
+/* Sidebar: deep-navy glass with a soft electric-blue glow (dark block). */
+.crm-sidebar-liquid {
+  background:
+    radial-gradient(90% 40% at 0% 0%, color-mix(in srgb, var(--accent) 28%, transparent) 0%, transparent 70%),
+    radial-gradient(80% 35% at 100% 100%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 70%),
+    linear-gradient(180deg, var(--surface-dark) 0%, var(--surface-dark-2) 100%);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .crm-shell main :is(.rounded-xl, .rounded-2xl).border:not(input, select, textarea, button, a) {
+    background-color: var(--surface-1);
+  }
+}

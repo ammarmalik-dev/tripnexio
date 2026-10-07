@@ -29,7 +29,7 @@ export function CrmSidebar({ showAdminLink = false, permissions }: { showAdminLi
   }
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col bg-gradient-to-b from-surface-dark to-surface-dark-2 p-4 pt-5">
+    <aside className="crm-sidebar-liquid flex w-64 shrink-0 flex-col p-4 pt-5">
       <div className="px-2 pb-5">
         <Logo variant="onDark" />
         <p className="mt-1.5 text-[10.5px] font-semibold tracking-wide text-ink-on-dark-muted uppercase">Internal Dashboard</p>
