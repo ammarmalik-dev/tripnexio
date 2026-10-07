@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { getPaymentGateway, PaymentGatewayConfigError } from "@/lib/payments/get-gateway";
+import { gatewayForPayment } from "@/lib/payments/accounts";
+import { PaymentGatewayConfigError } from "@/lib/payments/get-gateway";
 import { completePaymentSuccess } from "@/lib/payments/complete-payment";
 import { notifyPaymentReceived } from "@/lib/payments/notify-payment-received";
 import { paymentTotalInPaise } from "@/lib/payments/totals";
@@ -42,7 +43,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       return jsonSuccess({ outcome: "ALREADY_FINAL", status: payment.status });
     }
 
-    const gateway = getPaymentGateway();
+    const gateway = await gatewayForPayment(payment);
     const linkStatus = await gateway.fetchPaymentLinkStatus(payment.gatewayRef);
     if (!linkStatus.paid) {
       return jsonSuccess({ outcome: "NOT_PAID", status: payment.status });

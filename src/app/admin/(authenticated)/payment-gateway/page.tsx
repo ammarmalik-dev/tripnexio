@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PaymentGatewayManager } from "@/components/admin/PaymentGatewayManager";
+import { GatewayAccountsTable } from "@/components/admin/GatewayAccountsTable";
 
 export const metadata: Metadata = { title: "Payment Gateway | Admin" };
 
@@ -13,6 +14,7 @@ export default function AdminPaymentGatewayPage() {
           links stay valid. Secrets are never displayed.
         </p>
       </div>
+      <GatewayAccountsTable />
       <PaymentGatewayManager />
     </div>
   );

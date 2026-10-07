@@ -5,7 +5,7 @@ import { writeAudit } from "../audit/log";
 import { getTaxFeeRates } from "../settings/tax-fee-config";
 import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { getDefaultPaymentLinkHours } from "../settings/system-config";
-import { getPaymentGateway } from "./get-gateway";
+import { usableGateways, type UsableGateway } from "./accounts";
 import { leadReference } from "../leads/reference";
 import { siteConfig } from "../site-config";
 
@@ -74,34 +74,60 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   const validityHours = await resolvePaymentLinkValidityHours(booking.lead.serviceType);
   const linkExpiresAt = new Date(Date.now() + validityHours * 60 * 60 * 1000);
 
-  const gateway = getPaymentGateway();
   const reference = leadReference(booking.lead);
-  // Gateway failures are audited (so the Admin integrations dashboard can show
-  // a "last error") and then rethrown — callers decide how to surface them.
-  let gatewayRef: string;
-  let paymentLink: string;
-  try {
-    const linkResult = await gateway.createPaymentLink({
-      amountInRupees: totalAmount,
-      description: purpose === "EXTRA" ? `TripNexio ${reference} — ${description ?? "Extra Payment"}` : `TripNexio ${reference}`,
-      customerName: booking.customer.name,
-      customerMobile: booking.customer.mobile,
-      customerEmail: booking.customer.email,
-      notes: { bookingId: booking.id, leadId: booking.leadId, purpose },
-      expiresAt: linkExpiresAt,
-      ...(booking.customerToken ? { callbackUrl: `${siteConfig.url}/pay/${booking.customerToken}` } : {}),
-    });
-    gatewayRef = linkResult.gatewayRef;
-    paymentLink = linkResult.paymentLink;
-  } catch (error) {
-    await writeAudit(db, {
-      entityType: "Booking",
-      entityId: booking.id,
-      action: "PAYMENT_GATEWAY_ERROR",
-      note: `${gateway.providerName} createPaymentLink failed: ${error instanceof Error ? error.message : String(error)}`,
-    });
-    throw error;
+  // Client corrections 2026-10-05 §27 — failover: try each active, configured
+  // gateway account in priority order until one issues the link. Every try is
+  // kept as attempt history on the ONE Payment created below; failures are
+  // audited (Admin integrations dashboard "last error") and, when every
+  // account fails, the last error is rethrown — callers decide how to surface it.
+  const candidates = await usableGateways();
+  const attempts: { accountId: string; succeeded: boolean; errorMessage: string | null }[] = [];
+  let issued: { candidate: UsableGateway; gatewayRef: string; paymentLink: string } | null = null;
+  let lastError: unknown = null;
+  for (const [index, candidate] of candidates.entries()) {
+    const label = candidate.account?.label ?? candidate.gateway.providerName;
+    try {
+      const linkResult = await candidate.gateway.createPaymentLink({
+        amountInRupees: totalAmount,
+        description: purpose === "EXTRA" ? `TripNexio ${reference} — ${description ?? "Extra Payment"}` : `TripNexio ${reference}`,
+        customerName: booking.customer.name,
+        customerMobile: booking.customer.mobile,
+        customerEmail: booking.customer.email,
+        notes: { bookingId: booking.id, leadId: booking.leadId, purpose },
+        expiresAt: linkExpiresAt,
+        ...(booking.customerToken ? { callbackUrl: `${siteConfig.url}/pay/${booking.customerToken}` } : {}),
+      });
+      if (candidate.account) attempts.push({ accountId: candidate.account.id, succeeded: true, errorMessage: null });
+      issued = { candidate, gatewayRef: linkResult.gatewayRef, paymentLink: linkResult.paymentLink };
+      break;
+    } catch (error) {
+      lastError = error;
+      const message = (error instanceof Error ? error.message : String(error)).slice(0, 500);
+      const hasNext = index < candidates.length - 1;
+      if (candidate.account) {
+        attempts.push({ accountId: candidate.account.id, succeeded: false, errorMessage: message });
+        await db.paymentGatewayAccount.update({
+          where: { id: candidate.account.id },
+          data: { lastCheckedAt: new Date(), lastCheckOk: false, lastCheckMessage: `Payment link failed: ${message}`.slice(0, 300) },
+        });
+      }
+      await writeAudit(db, {
+        entityType: "Booking",
+        entityId: booking.id,
+        action: hasNext ? "PAYMENT_GATEWAY_FAILOVER" : "PAYMENT_GATEWAY_ERROR",
+        note: `${label} createPaymentLink failed: ${message}${hasNext ? ` — failing over to ${candidates[index + 1].account?.label ?? "the next gateway"}` : ""}`,
+      });
+    }
   }
+  if (!issued) {
+    if (attempts.length > 0) {
+      await db.paymentGatewayAttempt.createMany({ data: attempts.map((attempt) => ({ ...attempt, bookingId: booking.id })) });
+    }
+    throw lastError ?? new Error("No payment gateway is available.");
+  }
+  const { gatewayRef, paymentLink } = issued;
+  const gateway = issued.candidate.gateway;
+  const gatewayAccount = issued.candidate.account;
 
   return db.$transaction(async (tx) => {
     const created = await tx.payment.create({
@@ -116,12 +142,17 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
         status: "PENDING",
         gatewayRef,
         paymentLink,
+        gatewayAccountId: gatewayAccount?.id ?? null,
         linkExpiresAt,
         purpose,
         description: purpose === "EXTRA" ? description : undefined,
         protectionPlanAmount: protectionPlans?.amount ?? 0,
       },
     });
+
+    if (attempts.length > 0) {
+      await tx.paymentGatewayAttempt.createMany({ data: attempts.map((attempt) => ({ ...attempt, bookingId: booking.id, paymentId: created.id })) });
+    }
 
     // P12 — link the plans; they become PURCHASED when this payment succeeds.
     if (protectionPlans && protectionPlans.ids.length > 0) {
@@ -136,7 +167,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
       note:
         purpose === "EXTRA"
           ? `Extra payment link created for booking ${booking.id} — total ₹${totalAmount} — reason: ${description} (${actor.label})`
-          : `Payment link created for booking ${booking.id} via ${gateway.providerName} — total ₹${totalAmount}${couponId ? ` (coupon ${couponCode} applied, -₹${couponDiscount})` : ""}${protectionPlans?.amount ? ` (includes Protection Plan ₹${protectionPlans.amount})` : ""} (${actor.label})`,
+          : `Payment link created for booking ${booking.id} via ${gatewayAccount?.label ?? gateway.providerName}${attempts.length > 1 ? ` after ${attempts.length - 1} failover(s)` : ""} — total ₹${totalAmount}${couponId ? ` (coupon ${couponCode} applied, -₹${couponDiscount})` : ""}${protectionPlans?.amount ? ` (includes Protection Plan ₹${protectionPlans.amount})` : ""} (${actor.label})`,
     });
 
     return created;

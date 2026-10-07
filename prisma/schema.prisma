@@ -665,13 +665,18 @@ model Payment {
   /// P12 — the part of `amount` that is Protection Plan (per-passenger plan
   /// prices), shown as its own invoice line. 0 when no plan is paid for here.
   protectionPlanAmount Decimal        @default(0) @db.Decimal(10, 2)
+  /// Client corrections 2026-10-05 §27 — the gateway account that issued this
+  /// payment link (null = the original single Razorpay configuration).
+  gatewayAccountId     String?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
-  booking         Booking          @relation(fields: [bookingId], references: [id])
-  coupon          Coupon?          @relation(fields: [couponId], references: [id])
+  booking         Booking                 @relation(fields: [bookingId], references: [id])
+  coupon          Coupon?                 @relation(fields: [couponId], references: [id])
+  gatewayAccount  PaymentGatewayAccount?  @relation(fields: [gatewayAccountId], references: [id])
   refunds         Refund[]
   protectionPlans ProtectionPlan[]
+  gatewayAttempts PaymentGatewayAttempt[]
 
   @@index([bookingId])
   @@index([couponId])
@@ -2911,4 +2916,54 @@ model BlogPost {
 
   @@index([status, publishedAt])
   @@index([category])
+}
+
+/// Client corrections 2026-10-05 §27 — payment gateway accounts in failover
+/// order (lowest priority number = primary). Several accounts per provider are
+/// allowed (Razorpay A, Razorpay B, Cashfree). Credentials are NEVER stored
+/// here: `envPrefix` names the env vars that hold them (e.g. RAZORPAY →
+/// RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET / RAZORPAY_WEBHOOK_SECRET;
+/// CASHFREE → CASHFREE_APP_ID / CASHFREE_SECRET_KEY / CASHFREE_ENV).
+model PaymentGatewayAccount {
+  id               String          @id @default(cuid())
+  provider         GatewayProvider
+  label            String
+  envPrefix        String          @unique
+  priority         Int             @default(100)
+  active           Boolean         @default(true)
+  lastCheckedAt    DateTime?
+  lastCheckOk      Boolean?
+  lastCheckMessage String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  payments Payment[]
+  attempts PaymentGatewayAttempt[]
+
+  @@index([active, priority])
+}
+
+/// One try at creating a payment link on one account (success or the
+/// failure that triggered failover to the next). A payment keeps ONE Payment
+/// row; this is its gateway-attempt history.
+model PaymentGatewayAttempt {
+  id           String   @id @default(cuid())
+  paymentId    String?
+  bookingId    String
+  accountId    String
+  succeeded    Boolean
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  payment Payment?              @relation(fields: [paymentId], references: [id])
+  account PaymentGatewayAccount @relation(fields: [accountId], references: [id])
+
+  @@index([paymentId])
+  @@index([bookingId])
+  @@index([accountId, createdAt])
+}
+
+enum GatewayProvider {
+  RAZORPAY
+  CASHFREE
 }

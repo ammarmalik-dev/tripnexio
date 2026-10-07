@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayLinkStatus, GatewayWebhookEvent, PaymentGateway } from "./gateway";
+import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayHealth, GatewayLinkStatus, GatewayWebhookEvent, PaymentGateway } from "./gateway";
 
 /**
  * Selected automatically by getPaymentGateway() when RAZORPAY_KEY_ID is
@@ -16,6 +16,10 @@ export class MockPaymentGateway implements PaymentGateway {
 
   /** null = no webhook secret configured, so every webhook is rejected. */
   constructor(private readonly webhookSecret: string | null) {}
+
+  async healthCheck(): Promise<GatewayHealth> {
+    return { ok: true, message: "Development mock gateway (no real payments)." };
+  }
 
   async createPaymentLink(_input: CreatePaymentLinkInput): Promise<CreatePaymentLinkResult> {
     const id = `mock_plink_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;

@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayLinkStatus, GatewayWebhookEvent, PaymentGateway } from "./gateway";
+import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayHealth, GatewayLinkStatus, GatewayWebhookEvent, PaymentGateway } from "./gateway";
 
 /**
  * Real Razorpay integration via their Payment Links API (POST
@@ -18,10 +18,26 @@ export class RazorpayGateway implements PaymentGateway {
 
   private readonly client: Razorpay;
   private readonly webhookSecret: string;
+  private readonly basicAuth: string;
 
   constructor(keyId: string, keySecret: string, webhookSecret: string) {
     this.client = new Razorpay({ key_id: keyId, key_secret: keySecret });
     this.webhookSecret = webhookSecret;
+    this.basicAuth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+  }
+
+  /** GET /v1/payment_links?count=1 — authenticated and read-only. */
+  async healthCheck(): Promise<GatewayHealth> {
+    try {
+      const response = await fetch("https://api.razorpay.com/v1/payment_links?count=1", {
+        headers: { Authorization: `Basic ${this.basicAuth}` },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (response.ok) return { ok: true, message: "Razorpay API reachable, credentials accepted." };
+      return { ok: false, message: response.status === 401 ? "Razorpay rejected the API keys (401)." : `Razorpay returned HTTP ${response.status}.` };
+    } catch (error) {
+      return { ok: false, message: `Razorpay unreachable: ${error instanceof Error ? error.name : "error"}.` };
+    }
   }
 
   async createPaymentLink(input: CreatePaymentLinkInput): Promise<CreatePaymentLinkResult> {

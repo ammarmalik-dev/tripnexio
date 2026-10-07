@@ -61,4 +61,11 @@ export interface PaymentGateway {
   fetchPaymentLinkStatus(gatewayRef: string): Promise<GatewayLinkStatus>;
   /** Returns null if the signature is invalid or the payload isn't a recognized event — callers must reject the webhook request in that case. */
   verifyAndParseWebhook(rawBody: string, signatureHeader: string | null): GatewayWebhookEvent | null;
+  /** Client corrections 2026-10-05 §27 — a cheap authenticated call proving the account's credentials work (Admin health check). */
+  healthCheck(): Promise<GatewayHealth>;
+}
+
+export interface GatewayHealth {
+  ok: boolean;
+  message: string;
 }
