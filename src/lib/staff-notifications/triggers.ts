@@ -1,3 +1,4 @@
+import { notifyCustomerRefund } from "../refunds/notify-customer";
 import { db } from "../db";
 import { leadReference } from "../leads/reference";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
@@ -168,6 +169,8 @@ export async function notifyDocumentRejected(documentId: string, actorUserId: st
 /** REFUND_RAISED — a PENDING refund now needs a refunds.approve user. */
 export async function notifyRefundsRaised(refundIds: string[]): Promise<void> {
   for (const refundId of refundIds) {
+    // Client testing 2026-10-09 (E4) — the customer is told too.
+    await notifyCustomerRefund(refundId, "raised");
     await safely("REFUND_RAISED", async () => {
       const refund = await db.refund.findUnique({
         where: { id: refundId },

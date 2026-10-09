@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayHealth, GatewayLinkStatus, GatewayWebhookEvent, PaymentGateway } from "./gateway";
+import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayHealth, GatewayLinkStatus, GatewayRefundResult, GatewayWebhookEvent, PaymentGateway } from "./gateway";
 
 const API_VERSION = "2023-08-01";
 
@@ -118,6 +118,11 @@ export class CashfreeGateway implements PaymentGateway {
     if (data?.link_status === "PAID") return { type: "PAYMENT_SUCCESS", ...details };
     if (data?.link_status === "EXPIRED" || data?.link_status === "CANCELLED") return { type: "PAYMENT_FAILED", ...details };
     return null;
+  }
+
+  /** Link refunds need Cashfree's order id, which a payment link doesn't hand back here — refund from the Cashfree dashboard, then mark it completed. */
+  async refundPayment(): Promise<GatewayRefundResult> {
+    throw new Error("Automatic refunds aren't available for Cashfree payment links yet — refund from the Cashfree dashboard, then mark it completed.");
   }
 
   /** GET of a link id that can't exist: 404 = credentials accepted, 401/403 = rejected. */

@@ -63,6 +63,19 @@ export interface PaymentGateway {
   verifyAndParseWebhook(rawBody: string, signatureHeader: string | null): GatewayWebhookEvent | null;
   /** Client corrections 2026-10-05 §27 — a cheap authenticated call proving the account's credentials work (Admin health check). */
   healthCheck(): Promise<GatewayHealth>;
+  /**
+   * Client testing 2026-10-09 (E5) — refunds an approved refund straight
+   * through the gateway (amount in paise, against the payment made on the
+   * link `gatewayRef`). Throws when the gateway refuses or can't refund
+   * automatically — the caller then leaves the refund for manual processing.
+   */
+  refundPayment(gatewayRef: string, amountInPaise: number, notes: Record<string, string>): Promise<GatewayRefundResult>;
+}
+
+export interface GatewayRefundResult {
+  refundId: string;
+  /** The gateway's own status for the refund (e.g. Razorpay "processed" / "pending"). */
+  status: string;
 }
 
 export interface GatewayHealth {

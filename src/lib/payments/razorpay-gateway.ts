@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import Razorpay from "razorpay";
-import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayHealth, GatewayLinkStatus, GatewayWebhookEvent, PaymentGateway } from "./gateway";
+import type { CreatePaymentLinkInput, CreatePaymentLinkResult, GatewayHealth, GatewayLinkStatus, GatewayRefundResult, GatewayWebhookEvent, PaymentGateway } from "./gateway";
 
 /**
  * Real Razorpay integration via their Payment Links API (POST
@@ -24,6 +24,23 @@ export class RazorpayGateway implements PaymentGateway {
     this.client = new Razorpay({ key_id: keyId, key_secret: keySecret });
     this.webhookSecret = webhookSecret;
     this.basicAuth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+  }
+
+  /** POST /v1/payments/:id/refund for the payment made on this link (normal speed). */
+  async refundPayment(gatewayRef: string, amountInPaise: number, notes: Record<string, string>): Promise<GatewayRefundResult> {
+    const link = await this.fetchPaymentLinkStatus(gatewayRef);
+    if (!link.gatewayPaymentId) throw new Error("No captured payment found on this payment link.");
+    const response = await fetch(`https://api.razorpay.com/v1/payments/${encodeURIComponent(link.gatewayPaymentId)}/refund`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${this.basicAuth}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ amount: amountInPaise, speed: "normal", notes }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const body = (await response.json().catch(() => null)) as { id?: string; status?: string; error?: { description?: string } } | null;
+    if (!response.ok || !body?.id) {
+      throw new Error(`Razorpay refund failed (HTTP ${response.status}${body?.error?.description ? `: ${body.error.description}` : ""})`);
+    }
+    return { refundId: body.id, status: body.status ?? "pending" };
   }
 
   /** GET /v1/payment_links?count=1 — authenticated and read-only. */

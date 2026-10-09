@@ -22,6 +22,8 @@ export const NOTIFICATION_EVENTS = {
   PAYMENT_REMINDER: "PAYMENT_REMINDER",
   /** Client testing 2026-10-09 — a new payment link (website checkout, CRM payment link, extra payment). */
   PAYMENT_LINK_READY: "PAYMENT_LINK_READY",
+  /** Client testing 2026-10-09 — refund raised / approved / completed / rejected. */
+  REFUND_UPDATE: "REFUND_UPDATE",
   DOCUMENTS_REQUIRED: "DOCUMENTS_REQUIRED",
   DOCUMENT_APPROVED: "DOCUMENT_APPROVED",
   DOCUMENT_REJECTED: "DOCUMENT_REJECTED",
@@ -100,6 +102,19 @@ export const NOTIFICATION_EVENT_CATALOG: {
       paymentLink: "https://tripnexio.com/pay/sample-token",
       linkExpiresAt: "10 Oct, 06:30 pm",
       paymentPurpose: "Booking payment",
+    },
+  },
+  {
+    event: NOTIFICATION_EVENTS.REFUND_UPDATE,
+    label: "Refund update",
+    variables: ["customerName", "bookingId", "serviceType", "refundAmount", "refundStatus"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "11026RT043",
+      serviceType: "Return Ticket",
+      refundAmount: "Rs. 3,000.00",
+      refundStatus: "has been approved and sent to the payment gateway",
     },
   },
   {

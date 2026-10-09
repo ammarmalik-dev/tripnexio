@@ -40,7 +40,7 @@ export interface InvoiceDocument {
   paxCount: number | null;
   bookingDate: Date | null;
   travelDate: string | null;
-  paymentStatus: "Paid" | "Pending" | "Estimate";
+  paymentStatus: "Paid" | "Pending" | "Estimate" | "Cancelled";
   customer: {
     name: string;
     mobile: string;
@@ -211,7 +211,8 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
     paxCount: booking._count.passengers || lead.paxCount,
     bookingDate: booking.createdAt,
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
-    paymentStatus: "Paid",
+    // Client testing 2026-10-09 (E5) — a cancelled / fully refunded booking's invoice is cancelled.
+    paymentStatus: booking.status === "CANCELLED" || booking.status === "REFUNDED" ? "Cancelled" : "Paid",
     customer: invoiceCustomer(booking.customer),
     lines,
     couponCode: payment.couponCode,

@@ -34,5 +34,5 @@ export const CUSTOMER_BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   PROCESSING: "Being processed",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
-  REFUNDED: "Refunded",
+  REFUNDED: "Cancelled (Refunded)",
 };

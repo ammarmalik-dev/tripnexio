@@ -111,7 +111,7 @@ function fmtDate(value: Date | string | null): string {
 }
 
 export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer> {
-  const doc = new PDFDocument({ size: "A4", margin: M, info: { Title: `${invoice.title} ${invoice.invoiceNumber}`, Author: invoice.company.legalName } });
+  const doc = new PDFDocument({ size: "A4", margin: M, bufferPages: true, info: { Title: `${invoice.title} ${invoice.invoiceNumber}`, Author: invoice.company.legalName } });
   const chunks: Buffer[] = [];
   doc.on("data", (chunk: Buffer) => chunks.push(chunk));
   const done = new Promise<Buffer>((resolve, reject) => {
@@ -167,6 +167,7 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   const bandH = 64;
   doc.roundedRect(M, y, W, bandH, 6).fill(NAVY);
   text(invoice.title, M + 16, y + (invoice.title.length > 12 ? 22 : 18), { font: F.bold, size: invoice.title.length > 12 ? 17 : 24, color: "#FFFFFF" });
+
   const midX = M + 236;
   const rightX = M + 392;
   const bandRow = (label: string, value: string, x: number, rowY: number, valueX: number) => {
@@ -430,6 +431,15 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   doc.rect(0, footerY, PAGE_W, 842 - footerY).fill(NAVY);
   text("Travel Made Easy with TripNexio.", 0, footerY + 10, { font: F.semi, size: 8.5, color: "#FFFFFF", width: PAGE_W, align: "center" });
 
+  if (invoice.paymentStatus === "Cancelled") {
+    // Client testing 2026-10-09 (E5) — the booking was cancelled / fully refunded: stamp the first page.
+    doc.switchToPage(0);
+    doc.save();
+    doc.opacity(0.22);
+    doc.rotate(-24, { origin: [PAGE_W / 2, 420] });
+    text("CANCELLED", PAGE_W / 2 - 300, 385, { font: F.bold, size: 72, color: "#D1435B", width: 600, align: "center" });
+    doc.restore();
+  }
   doc.end();
   return done;
 }

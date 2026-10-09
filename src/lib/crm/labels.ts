@@ -76,7 +76,7 @@ export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
   PROCESSING: "Processing",
   COMPLETED: "Completed",
   CANCELLED: "Cancelled",
-  REFUNDED: "Refunded",
+  REFUNDED: "Cancelled (Refunded)",
 };
 
 export const BOOKING_STATUS_OPTIONS: { value: BookingStatus; label: string }[] = (
