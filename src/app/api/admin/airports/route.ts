@@ -44,7 +44,8 @@ export async function POST(request: NextRequest) {
   }
 
   const airport = await db.$transaction(async (tx) => {
-    const created = await tx.airport.create({ data: parsed.data });
+    // Client testing 2026-10-09 (F2) — return the country too, so the new row shows its flag at once.
+    const created = await tx.airport.create({ data: parsed.data, include: { countryRef: { select: { id: true, name: true, code: true } } } });
     await writeAudit(tx, {
       entityType: "Airport",
       entityId: created.id,

@@ -74,8 +74,8 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 
 ## F. Admin
 - [ ] F1. AI Command Centre — not go-live ready, fix.
-- [ ] F2. Airports: country flag auto-fetched from the country when creating; searchable airport picker in CRM quotation/lead forms.
-- [ ] F3. Airlines: logo not working — fix.
+- [x] F2. Airports: country flag auto-fetched from the country when creating; searchable airport picker in CRM quotation/lead forms.
+- [x] F3. Airlines: logo not working — fix.
 - [ ] F4. OTB timeline calculated in working hours (verify).
 - [ ] F5. Coupons: Create → table → open/edit → save (check).
 - [ ] F6. Pricing Dashboard reported "not working" — verify on production and fix.

@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const updated = await db.$transaction(async (tx) => {
-    const result = await tx.airport.update({ where: { id }, data: parsed.data });
+    const result = await tx.airport.update({ where: { id }, data: parsed.data, include: { countryRef: { select: { id: true, name: true, code: true } } } });
     await writeAudit(tx, {
       entityType: "Airport",
       entityId: id,

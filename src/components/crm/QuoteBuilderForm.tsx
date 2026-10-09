@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
@@ -170,6 +170,12 @@ export function QuoteBuilderForm({
     name: "itinerary",
   });
   const [pendingAction, setPendingAction] = useState<QuoteFormAction | null>(null);
+  // Client testing 2026-10-09 (F2) — one search box filters every airport dropdown;
+  // airports already chosen always stay in the list.
+  const [airportQuery, setAirportQuery] = useState("");
+  const chosenFrom = useWatch({ control, name: "fromAirportCode" });
+  const chosenTo = useWatch({ control, name: "toAirportCode" });
+  const chosenSectors = useWatch({ control, name: "itinerary" });
 
   // Every button stays type="button" and calls handleSubmit directly (see the
   // multi-step button type-toggle race in CLAUDE.md) — the <form> itself
@@ -248,7 +254,27 @@ export function QuoteBuilderForm({
   const sectorErrors = errors.itinerary;
   const sectorListError = sectorErrors?.message;
 
-  const airportsByCountry = [...new Map(airports.map((airport) => [airport.country, airports.filter((a) => a.country === airport.country)])).entries()];
+  const keepCodes = new Set([chosenFrom, chosenTo, ...(chosenSectors ?? []).flatMap((sector) => [sector?.from, sector?.to])].filter(Boolean));
+  const query = airportQuery.trim().toLowerCase();
+  const visibleAirports = query
+    ? airports.filter(
+        (airport) => keepCodes.has(airport.code) || `${airport.code} ${airport.city} ${airport.name} ${airport.country}`.toLowerCase().includes(query)
+      )
+    : airports;
+  const airportsByCountry = [
+    ...new Map(visibleAirports.map((airport) => [airport.country, visibleAirports.filter((a) => a.country === airport.country)])).entries(),
+  ];
+  const airportSearch =
+    airports.length > 8 ? (
+      <TextField
+        label="Find airport"
+        name="airport-search"
+        placeholder="Type a city, airport or code (e.g. DXB)"
+        value={airportQuery}
+        onChange={(event) => setAirportQuery(event.target.value)}
+        hint="Filters the airport lists below."
+      />
+    ) : null;
   const airportOptions = (placeholder: string) => (
     <>
       <option value="">{airports.length === 0 ? "No active airports in the master" : placeholder}</option>
@@ -318,6 +344,7 @@ export function QuoteBuilderForm({
             {airlineSelect("Airline", false)}
             <TextField label="Flight Number" {...optionalField("flightNumber")} error={errors.flightNumber?.message} />
           </div>
+          {airportSearch}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             {routeAirportSelect("fromAirportCode", "From (airport)")}
             {routeAirportSelect("toAirportCode", "To (airport)")}

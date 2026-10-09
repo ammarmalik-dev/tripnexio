@@ -39,9 +39,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   // Item 12 — the code changing (and staff didn't also paste their own
   // logoUrl in the same request) re-derives the logo for the new code.
+  // Client testing 2026-10-09 (F3) — an airline still without a logo gets one from its code on any save.
   const data =
-    parsed.data.code && parsed.data.code !== existing.code && parsed.data.logoUrl === undefined
-      ? { ...parsed.data, logoUrl: buildAirlineLogoUrl(parsed.data.code) }
+    parsed.data.logoUrl === undefined && ((parsed.data.code && parsed.data.code !== existing.code) || !existing.logoUrl?.trim())
+      ? { ...parsed.data, logoUrl: buildAirlineLogoUrl(parsed.data.code ?? existing.code) }
       : parsed.data;
 
   const updated = await db.$transaction(async (tx) => {
