@@ -86,11 +86,11 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] F11. Login: bigger logo; "Administrative Login" on one line; non-admin choosing Administrative Login gets "not authorised" (stays CRM-only).
 
 ## G. Invoice
-- [ ] G1. Company name + tagline next to the logo (top right).
-- [ ] G2. Service shown with the country (New Visa – UAE, OTB, Return Ticket).
-- [ ] G3. Cancelled booking → invoice auto-cancelled (status in history).
-- [ ] G4. Rename "Government Fee" → "Govt. fee / Airlines / Vendor fee"; no GST on it.
-- [ ] G5. Visa Change fines / status-change charges go into that fee, not our service fee.
+- [x] G1. Company name + tagline next to the logo (top right).
+- [x] G2. Service shown with the country (New Visa – UAE, OTB, Return Ticket).
+- [x] G3. Cancelled booking → invoice auto-cancelled (status in history). (done with E4/E5, cede8b6)
+- [x] G4. Rename "Government Fee" → "Govt. fee / Airlines / Vendor fee"; no GST on it.
+- [x] G5. Visa Change fines / status-change charges go into that fee, not our service fee.
 - [ ] G6. Service fee = total selling − total cost; GST only on the service fee.
 - [ ] G7. Invoice number series per financial year: `TNS26/A01` (1 Apr 2026 – 31 Mar 2027), next year `TNS27/A…` (confirm exact format).
 

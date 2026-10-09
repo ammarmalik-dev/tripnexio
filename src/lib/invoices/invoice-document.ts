@@ -110,13 +110,28 @@ function verifyUrlFor(invoiceNumber: string): string | null {
  * per-passenger lines when they add up to `serviceAmount`, else one line for
  * the whole amount with the quotation's government fee (capped).
  */
+/** Client testing 2026-10-09 (G5) — services whose fines (overstay etc.) are pass-through fees, not our service fee. */
+export const FINE_AS_FEE_SERVICES: readonly ServiceType[] = ["VISA_CHANGE", "VISA_EXTENSION"];
+
+/** The non-taxable part of a quotation: the Govt./Airline/Vendor fee, plus the fine where that is a pass-through fee. */
+export function nonTaxableQuotationAmount(
+  serviceType: ServiceType,
+  quotation: Pick<Quotation, "governmentFee" | "fineOrCharges"> | null
+): number {
+  if (!quotation) return 0;
+  const fine = FINE_AS_FEE_SERVICES.includes(serviceType) ? Number(quotation.fineOrCharges ?? 0) : 0;
+  return round2(Number(quotation.governmentFee ?? 0) + fine);
+}
+
 function priceLines(input: {
+  serviceType: ServiceType;
   quotation: Pick<Quotation, "invoiceLines" | "governmentFee" | "fineOrCharges" | "otherCharges"> | null;
   serviceAmount: number;
   defaultDescription: string;
   sac: string | null;
 }): Omit<InvoiceDocumentLine, "gstAmount">[] {
-  const { quotation, serviceAmount, defaultDescription, sac } = input;
+  const { serviceType, quotation, serviceAmount, defaultDescription, sac } = input;
+  const fineIsFee = FINE_AS_FEE_SERVICES.includes(serviceType);
   const stored = quotation ? parseInvoiceLines(quotation.invoiceLines) : null;
   if (stored) {
     const lines = stored.map((line) => ({
@@ -126,12 +141,15 @@ function priceLines(input: {
       governmentFee: round2(line.governmentFee * line.quantity),
       serviceFee: round2(line.serviceFee * line.quantity),
     }));
-    const extras = round2(Number(quotation?.fineOrCharges ?? 0) + Number(quotation?.otherCharges ?? 0));
+    const fine = round2(Number(quotation?.fineOrCharges ?? 0));
+    const other = round2(Number(quotation?.otherCharges ?? 0));
+    if (fineIsFee && fine > 0) lines.push({ description: "Fine / status-change charges", sac, quantity: 1, governmentFee: fine, serviceFee: 0 });
+    const extras = round2((fineIsFee ? 0 : fine) + other);
     if (extras > 0) lines.push({ description: "Additional charges", sac, quantity: 1, governmentFee: 0, serviceFee: extras });
     const sum = round2(lines.reduce((total, line) => total + line.governmentFee + line.serviceFee, 0));
     if (Math.abs(sum - serviceAmount) < 0.01) return lines;
   }
-  const governmentFee = round2(Math.min(Math.max(Number(quotation?.governmentFee ?? 0), 0), serviceAmount));
+  const governmentFee = round2(Math.min(Math.max(quotation ? nonTaxableQuotationAmount(serviceType, quotation) : 0, 0), serviceAmount));
   return [{ description: defaultDescription, sac, quantity: 1, governmentFee, serviceFee: round2(serviceAmount - governmentFee) }];
 }
 
@@ -146,8 +164,14 @@ function withGst(lines: Omit<InvoiceDocumentLine, "gstAmount">[], gstAmount: num
   });
 }
 
-function describeService(serviceType: ServiceType, details: unknown): { serviceLabel: string; subService: string | null } {
-  return { serviceLabel: SERVICE_TYPE_LABELS[serviceType], subService: subServiceLabel(details) };
+/** Client testing 2026-10-09 (G2) — "New Visa – United Arab Emirates", "OTB – …", "Return Ticket – …". */
+const SERVICES_WITH_COUNTRY: readonly ServiceType[] = ["NEW_VISA", "OTB", "RETURN_TICKET"];
+
+function describeService(serviceType: ServiceType, details: unknown, countryName?: string | null): { serviceLabel: string; subService: string | null } {
+  const data = (details ?? {}) as Record<string, unknown>;
+  const country = countryName ?? (typeof data.destinationCountry === "string" && data.destinationCountry.length > 3 ? data.destinationCountry : null);
+  const label = SERVICE_TYPE_LABELS[serviceType];
+  return { serviceLabel: country && SERVICES_WITH_COUNTRY.includes(serviceType) ? `${label} – ${country}` : label, subService: subServiceLabel(details) };
 }
 
 /** A successful payment's invoice ("TAX INVOICE" once a GSTIN is configured, else "INVOICE"). Null unless the payment succeeded. */
@@ -158,7 +182,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
       booking: {
         include: {
           customer: true,
-          lead: { include: { quotations: { where: { isSelected: true }, take: 1 } } },
+          lead: { include: { quotations: { where: { isSelected: true }, take: 1 }, country: { select: { name: true } } } },
           _count: { select: { passengers: true } },
         },
       },
@@ -171,7 +195,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
   const { booking } = payment;
   const lead = booking.lead;
   const sac = (await serviceSacCode(lead.serviceType)) ?? company.sacCode;
-  const { serviceLabel, subService } = describeService(lead.serviceType, lead.details);
+  const { serviceLabel, subService } = describeService(lead.serviceType, lead.details, lead.country?.name);
 
   const amount = Number(payment.amount);
   const planAmount = Number(payment.protectionPlanAmount ?? 0);
@@ -183,6 +207,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
     } else {
       baseLines.push(
         ...priceLines({
+          serviceType: lead.serviceType,
           quotation: lead.quotations[0] ?? null,
           serviceAmount,
           defaultDescription: subService ? `${serviceLabel} — ${subService}` : serviceLabel,
@@ -230,16 +255,16 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
 
 /** A quotation's Proforma (pre-payment estimate; GST, if any, is added at payment time). */
 export async function buildQuotationInvoiceDocument(quotationId: string): Promise<InvoiceDocument | null> {
-  const quotation = await db.quotation.findUnique({ where: { id: quotationId }, include: { lead: { include: { customer: true } } } });
+  const quotation = await db.quotation.findUnique({ where: { id: quotationId }, include: { lead: { include: { customer: true, country: { select: { name: true } } } } } });
   if (!quotation) return null;
   const company = await getInvoiceCompanyDetails();
   const lead = quotation.lead;
   const sac = (await serviceSacCode(lead.serviceType)) ?? company.sacCode;
-  const { serviceLabel, subService } = describeService(lead.serviceType, lead.details);
+  const { serviceLabel, subService } = describeService(lead.serviceType, lead.details, lead.country?.name);
   const sellingPrice = Number(quotation.sellingPrice);
   const couponDiscount = Number(quotation.couponDiscount ?? 0);
   const lines = withGst(
-    priceLines({ quotation, serviceAmount: sellingPrice, defaultDescription: subService ? `${serviceLabel} — ${subService}` : serviceLabel, sac }),
+    priceLines({ serviceType: lead.serviceType, quotation, serviceAmount: sellingPrice, defaultDescription: subService ? `${serviceLabel} — ${subService}` : serviceLabel, sac }),
     0
   );
   const grandTotal = round2(sellingPrice - couponDiscount);

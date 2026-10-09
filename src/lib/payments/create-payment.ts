@@ -7,6 +7,7 @@ import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { getDefaultPaymentLinkHours } from "../settings/system-config";
 import { usableGateways, type UsableGateway } from "./accounts";
 import { notifyPaymentLinkReady } from "./notify-payment-link";
+import { nonTaxableQuotationAmount } from "../invoices/invoice-document";
 import { leadReference } from "../leads/reference";
 import { siteConfig } from "../site-config";
 
@@ -202,7 +203,7 @@ export async function createPendingPayment(input: {
     couponDiscount: Number(quotation.couponDiscount ?? 0),
     purpose: "PRIMARY",
     protectionPlans,
-    nonTaxableAmount: Number(quotation.governmentFee ?? 0),
+    nonTaxableAmount: nonTaxableQuotationAmount(booking.lead.serviceType, quotation),
   });
 }
 

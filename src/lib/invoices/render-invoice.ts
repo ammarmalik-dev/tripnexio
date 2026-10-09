@@ -84,7 +84,7 @@ const W = PAGE_W - M * 2;
 
 const FONT_DIR = path.join(process.cwd(), "assets", "fonts");
 const DEFAULT_NOTES = [
-  "Government/authority fees are shown separately where applicable.",
+  "Govt./airline/vendor fees are shown separately and are not subject to GST.",
   "Service fees are subject to applicable GST.",
   "GST treatment of government/third-party charges is based on the configured tax treatment and applicable law.",
   "Refunds/cancellations are subject to the applicable service refund policy.",
@@ -132,15 +132,18 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   // ---- Header: logo / wordmark + company block
   let y = M;
   if (invoice.company.logoBuffer) {
+    // Client testing 2026-10-09 (G1) — the uploaded logo, then the name and tagline to its right.
     try {
-      doc.image(invoice.company.logoBuffer, M, y, { fit: [200, 46] });
+      doc.image(invoice.company.logoBuffer, M, y, { fit: [52, 52] });
     } catch (error) {
       console.error("[render-invoice] couldn't draw company logo", error);
     }
+    doc.font(F.bold).fontSize(26).fillColor(NAVY).text("Trip", M + 62, y + 2, { continued: true, lineBreak: false }).fillColor(BLUE).text("Nexio", { lineBreak: false });
   } else {
     doc.font(F.bold).fontSize(30).fillColor(NAVY).text("Trip", M, y - 4, { continued: true, lineBreak: false }).fillColor(BLUE).text("Nexio", { lineBreak: false });
   }
-  text("Travel Made Easy with TripNexio.", M, y + 50, { font: F.semi, size: 10, color: NAVY });
+  if (invoice.company.logoBuffer) text("Travel Made Easy with TripNexio.", M + 62, y + 34, { font: F.semi, size: 10, color: NAVY });
+  else text("Travel Made Easy with TripNexio.", M, y + 50, { font: F.semi, size: 10, color: NAVY });
 
   const companyX = M + 262;
   doc.moveTo(companyX - 14, y + 2).lineTo(companyX - 14, y + 70).strokeColor(BORDER).lineWidth(1).stroke();
@@ -172,13 +175,14 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   const rightX = M + 392;
   const bandRow = (label: string, value: string, x: number, rowY: number, valueX: number) => {
     text(label, x, rowY, { font: F.semi, size: 8.5, color: "#FFFFFF" });
-    text(value, valueX, rowY, { size: 8.5, color: "#FFFFFF", width: PAGE_W - M - valueX - 8, ellipsis: true });
+    // One line only (pdfkit applies the ellipsis only with a height); the full label is in Booking Details.
+    text(value, valueX, rowY, { size: 8.5, color: "#FFFFFF", width: PAGE_W - M - valueX - 8, height: 11, ellipsis: true });
   };
   bandRow("Invoice No.:", invoice.invoiceNumber, midX, y + 18, midX + 66);
   bandRow("Invoice Date:", fmtDate(invoice.issuedAt), midX, y + 34, midX + 66);
   doc.moveTo(rightX - 10, y + 12).lineTo(rightX - 10, y + bandH - 12).strokeColor("#3A4D73").stroke();
   bandRow(invoice.bookingId ? "Booking ID:" : "Reference:", invoice.bookingId ?? invoice.leadReference, rightX, y + 12, rightX + 66);
-  bandRow("Service:", invoice.serviceLabel, rightX, y + 26, rightX + 66);
+  bandRow("Service:", invoice.serviceLabel.split(" – ")[0], rightX, y + 26, rightX + 66);
   bandRow("Status:", invoice.paymentStatus, rightX, y + 40, rightX + 66);
   y += bandH + 12;
 
@@ -233,7 +237,7 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
     { key: "Description", w: 128, align: "left" as const },
     { key: "SAC", w: 44, align: "center" as const },
     { key: "Qty", w: 26, align: "center" as const },
-    { key: `Government Fee`, w: 56, align: "right" as const },
+    { key: `Govt./Airline/ Vendor Fee`, w: 56, align: "right" as const },
     { key: `Service Fee`, w: 52, align: "right" as const },
     { key: `Taxable Value`, w: 56, align: "right" as const },
     { key: "GST %", w: 32, align: "right" as const },
@@ -356,7 +360,7 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
     ry += 13;
     doc.moveTo(rightCol, ry - 2).lineTo(rightCol + rightW, ry - 2).strokeColor(BORDER).lineWidth(0.4).stroke();
   };
-  summaryRow("Total Government Fee", money(governmentTotal));
+  summaryRow("Total Govt./Airline/Vendor Fee", money(governmentTotal));
   summaryRow("Total Service Fee", money(serviceTotal));
   summaryRow(`Discount${invoice.couponCode ? ` (${invoice.couponCode})` : ""}`, `- ${money(invoice.couponDiscount)}`, GREEN);
   summaryRow("Taxable Value", money(taxable));

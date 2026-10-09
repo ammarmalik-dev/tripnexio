@@ -1,3 +1,4 @@
+import { nonTaxableQuotationAmount } from "../invoices/invoice-document";
 import type { Booking, Customer, Lead, Quotation } from "../../generated/prisma/client";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
@@ -33,8 +34,8 @@ export async function createPendingBankTransferPayment(input: {
   const couponDiscount = Number(quotation.couponDiscount ?? 0);
   const netAmount = Math.max(0, amount - couponDiscount);
   const { gstRate } = await getTaxFeeRates();
-  // Client corrections 2026-10-05 — no GST on the government / airline fee.
-  const gstAmount = roundToPaise(Math.max(0, netAmount - Number(quotation.governmentFee ?? 0)) * gstRate);
+  // No GST on the Govt./Airline/Vendor fee (and Visa Change / Extension fines) — same rule as gateway payments.
+  const gstAmount = roundToPaise(Math.max(0, netAmount - nonTaxableQuotationAmount(booking.lead.serviceType, quotation)) * gstRate);
 
   return db.$transaction(async (tx) => {
     const created = await tx.payment.create({
