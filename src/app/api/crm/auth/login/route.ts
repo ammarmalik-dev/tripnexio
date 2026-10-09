@@ -29,6 +29,11 @@ export async function POST(request: NextRequest) {
     // Deliberately generic — never reveal whether the email exists.
     return jsonError(401, "Invalid email or password.");
   }
+  // Client testing 2026-10-09 (F11) — Administrative Login is for Admin accounts only (no session otherwise).
+  const adminAccess = canAccessAdminSection(staff);
+  if (parsed.data.loginType === "admin" && !adminAccess) {
+    return jsonError(403, "You are not authorised for Administrative Login. Please use Team Login.");
+  }
 
   const token = await createStaffSessionToken({
     sub: staff.id,
@@ -44,7 +49,7 @@ export async function POST(request: NextRequest) {
     name: staff.name,
     email: staff.email,
     role: staff.role,
-    adminAccess: canAccessAdminSection(staff),
+    adminAccess,
   });
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,

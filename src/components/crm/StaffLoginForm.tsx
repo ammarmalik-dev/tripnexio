@@ -25,11 +25,10 @@ function safeRedirectTarget(path: string | undefined): string {
 
 /**
  * Client corrections 2026-10-05: one login page with a Team Login /
- * Administrative Login selector. Both use POST /api/crm/auth/login; the
- * choice only decides where the user lands. Administrative Login opens the
- * Admin Panel when the account has Admin access (the response's
- * `adminAccess`, and /admin re-checks permissions on every request);
- * otherwise the user lands in the Internal Dashboard.
+ * Administrative Login selector, both via POST /api/crm/auth/login.
+ * Administrative Login opens the Admin Panel; for an account without Admin
+ * access the server answers "not authorised" and signs nobody in (client
+ * testing 2026-10-09, F11). /admin still re-checks permissions on every request.
  */
 const LOGIN_TYPES: Record<StaffLoginFormValues["loginType"], { label: string; caption: string; Icon: typeof Users }> = {
   team_member: { label: "Team Login", caption: "Sign in to manage daily operations.", Icon: Users },
@@ -50,15 +49,13 @@ export function StaffLoginForm({ redirectTo, googleEnabled = false }: StaffLogin
   const loginType = watch("loginType");
   const selected = LOGIN_TYPES[loginType];
 
-  const onSubmit = handleSubmit(async ({ loginType: chosen, ...credentials }) => {
+  const onSubmit = handleSubmit(async (values) => {
     try {
-      const result = await postJson<{ adminAccess: boolean }>("/api/crm/auth/login", credentials);
-      if (chosen === "admin" && result.adminAccess) {
+      // The server refuses Administrative Login for a non-admin account (403, no session).
+      await postJson<{ adminAccess: boolean }>("/api/crm/auth/login", values);
+      if (values.loginType === "admin") {
         toast.success("Signed in");
         router.push("/admin");
-      } else if (chosen === "admin") {
-        toast.error("This account doesn't have administrative access. Opening the Internal Dashboard.");
-        router.push("/crm");
       } else {
         toast.success("Signed in");
         router.push(safeRedirectTarget(redirectTo));
@@ -81,14 +78,14 @@ export function StaffLoginForm({ redirectTo, googleEnabled = false }: StaffLogin
               <label
                 key={type}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-lg px-3 py-3 transition-colors duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/40",
+                  "flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-3 transition-colors duration-200 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/40",
                   checked ? "bg-[image:var(--gradient-accent)] text-white shadow-md" : "text-ink-primary hover:bg-ink-primary/[0.04]"
                 )}
               >
                 <input type="radio" value={type} className="sr-only" {...register("loginType")} />
                 <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
                 <span className="flex flex-col">
-                  <span className="text-sm font-semibold">{label}</span>
+                  <span className="whitespace-nowrap text-sm font-semibold">{label}</span>
                   <span className={cn("text-xs", checked ? "text-white/85" : "text-ink-tertiary")}>{caption}</span>
                 </span>
               </label>

@@ -63,7 +63,7 @@ export default async function StaffLoginPage({ searchParams }: StaffLoginPagePro
 
         <GlassCard tier={3} className="mx-auto flex w-full max-w-[30rem] flex-col gap-5 rounded-3xl p-6 sm:p-9">
           <div className="flex flex-col items-center gap-3 text-center">
-            <Logo />
+            <Logo size="lg" />
             <p className="text-lg font-medium text-ink-heading">TripNexio Internal Dashboard</p>
           </div>
           {google ? (

@@ -80,10 +80,10 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] F5. Coupons: Create → table → open/edit → save (check).
 - [ ] F6. Pricing Dashboard reported "not working" — verify on production and fix.
 - [ ] F7. Service Configuration: one short view; TAT for all countries; documents from Document Master; summary cards on top.
-- [ ] F8. Admin sidebar: pure-white look; only one accordion open; Overview button fixed.
+- [x] F8. Admin sidebar: pure-white look; only one accordion open; Overview button fixed.
 - [ ] F9. Blog: new photos, categories, search above articles, 4 cards per row centred.
-- [ ] F10. Document Master: search bar.
-- [ ] F11. Login: bigger logo; "Administrative Login" on one line; non-admin choosing Administrative Login gets "not authorised" (stays CRM-only).
+- [x] F10. Document Master: search bar.
+- [x] F11. Login: bigger logo; "Administrative Login" on one line; non-admin choosing Administrative Login gets "not authorised" (stays CRM-only).
 
 ## G. Invoice
 - [x] G1. Company name + tagline next to the logo (top right).

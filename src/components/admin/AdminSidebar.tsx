@@ -41,12 +41,21 @@ export function AdminSidebar({ permissions }: { permissions: string[] }) {
   const isItemActive = (href: string) => href === activeHref;
   const activeGroupLabel = visibleGroups.find((group) => group.items.some((item) => isItemActive(item.href)))?.label ?? null;
   const [openGroup, setOpenGroup] = useState<string | null>(activeGroupLabel);
+  // Client testing 2026-10-09 (F8) — one section open at a time, and the section of
+  // the page being viewed stays expanded after every navigation (adjusted during
+  // render, React's "storing information from previous renders" pattern).
+  const [syncedPath, setSyncedPath] = useState(pathname);
+  if (syncedPath !== pathname) {
+    setSyncedPath(pathname);
+    if (activeGroupLabel) setOpenGroup(activeGroupLabel);
+  }
 
   return (
-    <aside className="crm-sidebar-liquid flex w-64 shrink-0 flex-col p-4 pt-5">
+    // Client testing 2026-10-09 (F8) — pure-white Admin sidebar.
+    <aside className="flex w-64 shrink-0 flex-col border-r border-hairline bg-white p-4 pt-5">
       <div className="px-2 pb-5">
-        <Logo variant="onDark" />
-        <p className="mt-1.5 text-[10.5px] font-semibold tracking-wide text-ink-on-dark-muted uppercase">Admin</p>
+        <Logo />
+        <p className="mt-1.5 text-[10.5px] font-semibold tracking-wide text-ink-tertiary uppercase">Admin</p>
       </div>
       <nav aria-label="Admin" className="flex flex-1 flex-col gap-1 overflow-y-auto pr-0.5">
         {visibleGroups.map((group, groupIndex) => {
@@ -71,7 +80,7 @@ export function AdminSidebar({ permissions }: { permissions: string[] }) {
                 aria-expanded={isOpen}
                 className={cn(
                   "group-head flex items-center justify-between gap-2 rounded-md px-3 py-2 text-left text-[11px] font-bold tracking-wide uppercase transition-colors duration-150",
-                  isActiveGroup ? "text-accent-on-dark" : "text-ink-on-dark-muted hover:text-ink-on-dark-primary"
+                  isActiveGroup ? "text-ink-accent" : "text-ink-tertiary hover:text-ink-heading"
                 )}
               >
                 {group.label}
@@ -90,7 +99,7 @@ export function AdminSidebar({ permissions }: { permissions: string[] }) {
       </nav>
       <Link
         href="/crm"
-        className="mt-3 flex items-center gap-2.5 rounded-md border border-hairline-on-dark px-3 py-2 text-sm font-medium text-ink-on-dark-secondary transition-colors duration-150 hover:bg-white/[0.06] hover:text-ink-on-dark-primary"
+        className="mt-3 flex items-center gap-2.5 rounded-md border border-hairline px-3 py-2 text-sm font-medium text-ink-secondary transition-colors duration-150 hover:bg-ink-primary/[0.04] hover:text-ink-heading"
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         Back to Internal Dashboard
@@ -107,7 +116,7 @@ function NavLink({ item, isActive }: { item: CrmNavItem; isActive: boolean }) {
       aria-current={isActive ? "page" : undefined}
       className={cn(
         "nav-item flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium transition-colors duration-150",
-        isActive ? "bg-[image:var(--gradient-accent)] text-white shadow-[0_4px_14px_rgb(62_111_219/0.35)]" : "text-ink-on-dark-secondary hover:bg-white/[0.07] hover:text-ink-on-dark-primary"
+        isActive ? "bg-[image:var(--gradient-accent)] text-white shadow-[0_4px_14px_rgb(62_111_219/0.35)]" : "text-ink-secondary hover:bg-ink-primary/[0.04] hover:text-ink-heading"
       )}
     >
       <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />

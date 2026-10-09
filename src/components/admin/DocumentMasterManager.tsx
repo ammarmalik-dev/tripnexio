@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Pencil, Plus, X } from "lucide-react";
+import { FileText, Pencil, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -105,6 +105,7 @@ export function DocumentMasterManager() {
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [query, setQuery] = useState("");
   const [creating, setCreating] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
@@ -129,7 +130,15 @@ export function DocumentMasterManager() {
     };
   }, []);
 
-  const visible = useMemo(() => rows.filter((row) => (status === "all" ? true : status === "active" ? row.active : !row.active)), [rows, status]);
+  // Client testing 2026-10-09 (F10) — search by name or description.
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return rows.filter(
+      (row) =>
+        (status === "all" ? true : status === "active" ? row.active : !row.active) &&
+        (!needle || `${row.name} ${row.description ?? ""}`.toLowerCase().includes(needle))
+    );
+  }, [rows, status, query]);
   const replace = (row: DocumentTypeRow) => setRows((current) => current.map((entry) => (entry.id === row.id ? row : entry)));
 
   const toPayload = (values: FormValues) => ({
@@ -183,6 +192,18 @@ export function DocumentMasterManager() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-1 flex-wrap items-center gap-3">
+        <div className="relative w-full max-w-sm">
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Search documents"
+            placeholder="Search by document name"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 pl-10")}
+          />
+        </div>
         <select
           aria-label="Filter by status"
           value={status}
@@ -193,6 +214,7 @@ export function DocumentMasterManager() {
           <option value="active">Active</option>
           <option value="disabled">Disabled</option>
         </select>
+        </div>
         <Button type="button" size="sm" onClick={() => setCreating(true)} disabled={creating}>
           <Plus className="h-4 w-4" aria-hidden="true" />
           Add Document
@@ -212,7 +234,7 @@ export function DocumentMasterManager() {
       ) : null}
 
       {visible.length === 0 ? (
-        <EmptyState icon={<FileText className="h-5 w-5" aria-hidden="true" />} title="No documents here" description="Add a document to start the master list." />
+        <EmptyState icon={<FileText className="h-5 w-5" aria-hidden="true" />} title={query.trim() ? "No matching documents" : "No documents here"} description={query.trim() ? "Try a different name." : "Add a document to start the master list."} />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
           <table className="w-full min-w-[760px] border-collapse text-sm">
