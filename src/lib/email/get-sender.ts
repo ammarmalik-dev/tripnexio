@@ -1,8 +1,8 @@
 import type { EmailSender, SendEmailInput, SendEmailResult } from "./sender";
 import { ResendEmailSender } from "./resend-sender";
 import { ConsoleEmailSender } from "./console-sender";
-import { defaultEmailFooter, SUPPORT_EMAIL } from "./footer";
-import { renderEmailLayout } from "./layout";
+import { SUPPORT_EMAIL } from "./footer";
+import { renderEmailLayout, type EmailSocials } from "./layout";
 import { siteConfig } from "@/lib/site-config";
 import { isPlaceholder } from "@/lib/env-placeholder";
 import { getSiteContact, getSystemConfig } from "@/lib/settings/system-config";
@@ -25,15 +25,23 @@ class BrandedEmailSender implements EmailSender {
   }
 
   async send(input: SendEmailInput): Promise<SendEmailResult> {
-    let footer: string;
-    let contact: { name: string; phone: string; address: string } = { name: siteConfig.name, phone: siteConfig.contact.phone, address: siteConfig.contact.address };
+    // Client testing 2026-10-09 (H) — the layout carries the support details and the
+    // automated-email strip; the Admin footer text is only an extra note now.
+    let footer = "";
+    let contact: { name: string; tagline: string; phone: string; whatsappHref: string; socials: EmailSocials } = {
+      name: siteConfig.name,
+      tagline: "Travel Made Easy with TripNexio.",
+      phone: siteConfig.contact.phone,
+      whatsappHref: siteConfig.contact.whatsappHref,
+      socials: siteConfig.socials,
+    };
     try {
       const config = await getSystemConfig();
       const siteContact = await getSiteContact();
-      contact = { name: siteContact.name, phone: siteContact.phone, address: siteContact.address };
-      footer = config.emailFooterText?.trim() ? config.emailFooterText : defaultEmailFooter(siteContact.phone);
+      contact = { name: siteContact.name, tagline: siteContact.tagline, phone: siteContact.phone, whatsappHref: siteContact.whatsappHref, socials: siteContact.socials };
+      footer = config.emailFooterText?.trim() ?? "";
     } catch {
-      footer = defaultEmailFooter(contact.phone);
+      // defaults above
     }
     const html = renderEmailLayout({
       bodyHtml: input.html,
@@ -41,10 +49,11 @@ class BrandedEmailSender implements EmailSender {
       footerText: footer,
       siteUrl: siteConfig.url,
       companyName: contact.name,
-      tagline: "Travel Made Easy with TripNexio.",
+      tagline: contact.tagline,
       phone: contact.phone,
       supportEmail: SUPPORT_EMAIL,
-      address: contact.address,
+      whatsappHref: contact.whatsappHref,
+      socials: contact.socials,
     });
     return this.inner.send({ ...input, html });
   }

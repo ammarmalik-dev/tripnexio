@@ -95,13 +95,13 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] G7. Invoice number series per financial year: `TNS26/A01` (1 Apr 2026 – 31 Mar 2027), next year `TNS27/A…` (confirm exact format).
 
 ## H. Email template (sample image6)
-- [ ] H1. Header: logo + name + tagline in one line, brand colours; remove "Explore the World".
-- [ ] H2. Mobile layout fixed.
-- [ ] H3. Signature "Team TripNexio"; remove the address.
-- [ ] H4. "Need assistance?" block with phone, WhatsApp, email, website.
-- [ ] H5. "This is an automated email. Please do not reply to this message." strip.
-- [ ] H6. Social media icons.
-- [ ] H7. Per-event images: request received, quote ready, visa approved, payment received; boarding-pass image for ticket / OTB.
+- [x] H1. Header: logo + name + tagline in one line, brand colours; remove "Explore the World".
+- [x] H2. Mobile layout fixed.
+- [x] H3. Signature "Team TripNexio"; remove the address.
+- [x] H4. "Need assistance?" block with phone, WhatsApp, email, website.
+- [x] H5. "This is an automated email. Please do not reply to this message." strip.
+- [x] H6. Social media icons.
+- [x] H7. Per-event images: request received, quote ready, visa approved, payment received; boarding-pass image for ticket / OTB.
 
 ## I. WhatsApp Meta account (client side)
 - [ ] I1. Display name rejected — client sends the verified legal business name; we show "TripNexio is a brand of …" on the site; client resubmits.

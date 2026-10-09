@@ -280,11 +280,11 @@ export function SystemConfigManager() {
       </Section>
       <Section title="Email Footer" description="Added to the bottom of every email the system sends (customer notifications, OTP, password reset, staff messages, system alerts).">
         <Textarea
-          label="Disclaimer text"
+          label="Extra footer note (optional)"
           name="emailFooterText"
           rows={3}
-          placeholder="This is an automatically generated email. Please do not reply to this message. For any queries, feedback or suggestions, please contact our support team at support@tripnexio.com or call (the phone number above)."
-          hint="Leave blank to use the default text shown here, with the phone number above."
+          placeholder="e.g. Office hours: Monday to Saturday, 10 AM to 7 PM IST."
+          hint="Every email already ends with the support details, social links and “This is an automated email. Please do not reply to this message.” Text here is added below that; leave blank for none."
           value={form.emailFooterText}
           onChange={(e) => setForm({ ...form, emailFooterText: e.target.value })}
           error={errors.emailFooterText?.[0]}
