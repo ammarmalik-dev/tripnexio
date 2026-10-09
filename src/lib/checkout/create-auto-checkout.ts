@@ -66,7 +66,9 @@ export async function createAutoCheckout(input: {
     appliedCoupon = result.coupon;
   }
   const details = (lead.details ?? {}) as Record<string, unknown>;
-  const passengerIds = Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [];
+  // Two applicants with the same passport resolve to one Passenger — dedupe, or the
+  // BookingPassenger insert hits its unique key and the whole checkout fails (P2002).
+  const passengerIds = [...new Set(Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [])];
 
   const vendor =
     (await db.vendor.findFirst({
@@ -125,6 +127,7 @@ export async function createAutoCheckout(input: {
     if (passengerIds.length > 0) {
       await tx.bookingPassenger.createMany({
         data: passengerIds.map((passengerId) => ({ bookingId: createdBooking.id, passengerId, status: "PENDING" as const })),
+        skipDuplicates: true,
       });
     }
 

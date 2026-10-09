@@ -113,6 +113,8 @@ export async function createBookingFromQuotation(
     if (passengerIds.length > 0) {
       await tx.bookingPassenger.createMany({
         data: passengerIds.map((passengerId) => ({ bookingId: created.id, passengerId, status: created.status })),
+        // Two applicants with the same passport resolve to one Passenger — never fail the booking on it.
+        skipDuplicates: true,
       });
     }
 
