@@ -1,3 +1,4 @@
+import { leadOwnershipWhere } from "../auth/ownership";
 import type { Prisma } from "../../generated/prisma/client";
 import { serviceTypeCondition } from "../auth/service-scope";
 import type { StaffSession } from "../auth/staff-session";
@@ -14,7 +15,9 @@ export function leadListWhere(
   extra: Prisma.LeadWhereInput = {}
 ): Prisma.LeadWhereInput {
   const { serviceType, status, temperature, search, dateFrom, dateTo, assignedStaffId, countryId, travelFrom, travelTo } = query;
-  return {
+  // Client testing 2026-10-09 (E7) — staff see their own + unassigned leads.
+  const ownership = leadOwnershipWhere(session);
+  const base: Prisma.LeadWhereInput = {
     ...serviceTypeCondition(session, serviceType),
     ...(status ? { status } : {}),
     ...(temperature ? { temperature } : {}),
@@ -43,4 +46,5 @@ export function leadListWhere(
       : {}),
     ...extra,
   };
+  return Object.keys(ownership).length > 0 ? { AND: [base, ownership] } : base;
 }

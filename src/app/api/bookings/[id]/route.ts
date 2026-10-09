@@ -1,3 +1,4 @@
+import { assertOwnsRecord } from "@/lib/auth/ownership";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { subServiceLabel } from "@/lib/leads/sub-service-label";
@@ -52,6 +53,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(auth.session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const ownershipError = assertOwnsRecord(auth.session, booking.lead.assignedStaffId);
+  if (ownershipError) return ownershipError;
 
   // Return_Verified_Ticket.md §7: "Staff should be able to see the internal
   // expiry information" — synced here (not just wherever a future issue

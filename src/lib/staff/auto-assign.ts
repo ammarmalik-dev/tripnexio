@@ -132,12 +132,27 @@ export async function autoAssignLead(leadId: string, serviceType: ServiceType): 
     const offsetMinutes = await getTimezoneOffsetMinutes(db);
     const dayOfWeek = weekdayInAdminTimezone(offsetMinutes);
 
-    const rosterRows = await db.staffRoster.findMany({
+    const rosteredToday = await db.staffRoster.findMany({
       where: { serviceType, dayOfWeek, active: true, user: { active: true } },
       include: { user: { include: { role: { include: { permissions: true } } } } },
       orderBy: { createdAt: "asc" },
     });
+    // Client testing 2026-10-09 (E8) — no roster set up for this service today:
+    // fall back to every active staff member whose service scope covers it
+    // (still never an admin.full account — isAutoAssignable below), so leads
+    // aren't left unassigned just because the roster is empty.
+    const rosterRows =
+      rosteredToday.length > 0
+        ? rosteredToday
+        : (
+            await db.user.findMany({
+              where: { active: true },
+              include: { role: { include: { permissions: true } } },
+              orderBy: { createdAt: "asc" },
+            })
+          ).map((user) => ({ userId: user.id, user }));
     if (rosterRows.length === 0) return null;
+    const usedRoster = rosteredToday.length > 0;
 
     const onLeave = await getStaffIdsOnApprovedLeave();
     const seen = new Set<string>();
@@ -192,9 +207,9 @@ export async function autoAssignLead(leadId: string, serviceType: ServiceType): 
     const countryNote = countryId ? `; destination country ${countryId} within countries handled` : "";
 
     const reason =
-      `Auto-assigned to ${chosen.row.user.name}: rostered for ${SERVICE_TYPE_LABELS[serviceType]} on ${WEEKDAY_LABELS[dayOfWeek]}, ` +
+      `Auto-assigned to ${chosen.row.user.name}: ${usedRoster ? `rostered for ${SERVICE_TYPE_LABELS[serviceType]} on ${WEEKDAY_LABELS[dayOfWeek]}` : `in scope for ${SERVICE_TYPE_LABELS[serviceType]} (no roster set for ${WEEKDAY_LABELS[dayOfWeek]})`}, ` +
       `lowest PAX workload (${chosen.workload.paxCount} PAX across ${chosen.workload.openLeadCount} open lead(s), ` +
-      `${chosen.workload.openBookingCount} open booking(s)) among ${pool.length} eligible rostered staff` +
+      `${chosen.workload.openBookingCount} open booking(s)) among ${pool.length} eligible staff` +
       ruleNote +
       countryNote;
 

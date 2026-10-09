@@ -1,3 +1,4 @@
+import { leadOwnershipWhere, seesAllRecords } from "@/lib/auth/ownership";
 import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
 import { defaultVisaChangeInclusions, VISA_CHANGE_EXCLUSIONS } from "@/lib/visa-change/inclusions";
 import type { NextRequest } from "next/server";
@@ -111,9 +112,11 @@ export async function GET(request: NextRequest) {
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),
-    ...(serviceType || search || hasLeadFilter || !isServiceScopeUnrestricted(auth.session)
+    ...(serviceType || search || hasLeadFilter || !isServiceScopeUnrestricted(auth.session) || !seesAllRecords(auth.session)
       ? {
           lead: {
+            // Client testing 2026-10-09 (E7) — staff see quotations of their own + unassigned leads.
+            ...leadOwnershipWhere(auth.session),
             ...serviceTypeCondition(auth.session, serviceType),
             ...leadFilter,
             ...(search
