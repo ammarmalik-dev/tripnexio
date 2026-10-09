@@ -140,7 +140,6 @@ export function customerBlockRows(block: OperationalBlock): { label: string; val
     { label: "Border", value: block.borderName },
     { label: "Country (non-UAE side)", value: block.borderCountryName },
     { label: "Pickup Location", value: block.pickupLocation },
-    { label: "Pickup Address", value: block.pickupAddress },
     { label: "Vehicle Number", value: block.vehicleNumber },
     { label: "Pickup Person", value: block.pickupPersonName },
     { label: "Pickup Contact Number", value: block.pickupPersonContact },

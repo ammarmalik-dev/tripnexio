@@ -26,7 +26,6 @@ interface VisaChangeBorderDetailsPanelProps {
 const FIELDS = [
   "borderId",
   "pickupLocation",
-  "pickupAddress",
   "vehicleNumber",
   "reportingTime",
   "travelTime",
@@ -147,7 +146,7 @@ export function VisaChangeBorderDetailsPanel({ leadId, existing, onSaved }: Visa
           </select>
         </FormField>
         {text("pickupLocation", "Pickup Location")}
-        {text("pickupAddress", "Pickup Address (optional)")}
+        {/* Client testing 2026-10-09 (B34) — no separate pickup address; the pickup location covers it. */}
         {text("vehicleNumber", "Vehicle Number (optional)")}
         {text("reportingTime", "Reporting Time", { placeholder: "e.g. 6:00 AM" })}
         {text("travelTime", "Departure / Travel Time", { placeholder: "e.g. 7:00 AM" })}

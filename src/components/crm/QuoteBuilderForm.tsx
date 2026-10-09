@@ -14,6 +14,7 @@ import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES } from "@/lib/quotations/pricing";
 import { getJson } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { MAX_ITINERARY_SEGMENTS, type ItinerarySegment } from "@/lib/quotations/itinerary";
+import { VISA_CHANGE_EXCLUSIONS, VISA_CHANGE_INCLUSIONS } from "@/lib/visa-change/inclusions";
 
 /** P22 — which button submitted the form: keep/save as an unsent draft, or make it visible to the customer. */
 export type QuoteFormAction = "draft" | "send";
@@ -26,7 +27,10 @@ export type QuoteFormAction = "draft" | "send";
  */
 export type QuoteFormMode = "create" | "editDraft" | "revise";
 
-const EMPTY_SEGMENT: ItinerarySegment = { from: "", to: "", departAt: "", arriveAt: "", airline: "", flightNumber: "", notes: "" };
+/** Line separator for the one-item-per-line textareas. */
+const NL = "\n";
+
+const EMPTY_SEGMENT: ItinerarySegment ={ from: "", to: "", departAt: "", arriveAt: "", airline: "", flightNumber: "", notes: "" };
 
 const DATE_TIME_KEYS = ["flightDateTime", "arrivalDateTime", "validityExpiresAt", "bookingDeadline"] as const;
 
@@ -163,6 +167,14 @@ export function QuoteBuilderForm({
     defaultValues: {
       ...initialValues,
       ...(multiSectorItinerary ? { itinerary: initialValues?.itinerary ?? [] } : {}),
+      // Client testing 2026-10-09 (B34) — a new Visa Change option starts with the
+      // method's standard inclusions / exclusions filled in (staff can edit them).
+      ...(hasItinerary
+        ? {
+            inclusions: initialValues?.inclusions ?? (VISA_CHANGE_INCLUSIONS[showFlightDetails ? "AIRPORT_TO_AIRPORT" : "BORDER_EXIT"].join(NL) as unknown as string[]),
+            exclusions: initialValues?.exclusions ?? (VISA_CHANGE_EXCLUSIONS.join(NL) as unknown as string[]),
+          }
+        : {}),
     },
   });
   const { fields: sectorFields, append: appendSector, remove: removeSector, move: moveSector } = useFieldArray({
@@ -483,8 +495,9 @@ export function QuoteBuilderForm({
               </div>
             </div>
           ) : null}
+          {/* Client testing 2026-10-09 (B33) — a Visa Change option is just cost, selling price and one fine / other line. */}
           <TextField
-            label={isExtension ? "Extension Fee (₹)" : "Fee (₹)"}
+            label={isExtension ? "Extension Fee (₹)" : hasItinerary ? "Selling Price (₹)" : "Fee (₹)"}
             type="number"
             step="0.01"
             required
@@ -492,7 +505,7 @@ export function QuoteBuilderForm({
             error={errors.feeAmount?.message}
           />
           <TextField
-            label={isExtension ? "Fine (₹)" : "Fine / Charges (₹)"}
+            label={isExtension ? "Fine (₹)" : hasItinerary ? "Fine / Other Charges (₹)" : "Fine / Charges (₹)"}
             type="number"
             step="0.01"
             hint="Optional — added on top of the fee."
@@ -507,16 +520,6 @@ export function QuoteBuilderForm({
               hint="Optional — shown to the customer as its own line."
               {...numberField("otherCharges")}
               error={errors.otherCharges?.message}
-            />
-          ) : null}
-          {hasItinerary && showFlightDetails ? (
-            <TextField
-              label="Flight Ticket (₹)"
-              type="number"
-              step="0.01"
-              hint="Optional — this itinerary's flight-ticket price, added to the total."
-              {...numberField("flightTicketPrice")}
-              error={errors.flightTicketPrice?.message}
             />
           ) : null}
           {showAirlineField ? airlineSelect("Airline", false) : null}
@@ -540,14 +543,14 @@ export function QuoteBuilderForm({
           <Textarea
             label="What's included"
             rows={4}
-            hint="One per line. Leave empty for the standard list for this method."
+            hint="One per line. Pre-filled with the standard list for this method."
             {...register("inclusions", { setValueAs: splitLines })}
             error={errors.inclusions?.message}
           />
           <Textarea
             label="Not included"
             rows={4}
-            hint="One per line. Leave empty for: Fines, Border / immigration fees, Meals."
+            hint="One per line. Pre-filled with the standard list."
             {...register("exclusions", { setValueAs: splitLines })}
             error={errors.exclusions?.message}
           />
@@ -708,14 +711,16 @@ export function QuoteBuilderForm({
             error={errors.sellingPrice?.message}
           />
         ) : null}
-        <TextField
-          label={isFlightQuote ? "Airline fare inside price (₹)" : "Government / airline fee inside total (₹)"}
-          type="number"
-          step="0.01"
-          hint="Optional — shown separately on the invoice; GST is never charged on it."
-          {...numberField("governmentFee")}
-          error={errors.governmentFee?.message}
-        />
+        {hasItinerary ? null : (
+          <TextField
+            label={isFlightQuote ? "Airline fare inside price (₹)" : "Government / airline fee inside total (₹)"}
+            type="number"
+            step="0.01"
+            hint="Optional — shown separately on the invoice; GST is never charged on it."
+            {...numberField("governmentFee")}
+            error={errors.governmentFee?.message}
+          />
+        )}
       </div>
 
       <TextField

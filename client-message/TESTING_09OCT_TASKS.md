@@ -42,9 +42,9 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] B29. New Visa: visa type/option chosen on the card carried forward (not asked again); Basic Details → straight to Applicant Details.
 - [x] B30. New Visa: Processing Time | Visa Stay | Visa Validity in one row on the page.
 - [x] B31. New Visa: country-wise Normal/Express timeline config in Admin works.
-- [ ] B32. Visa Change A2A quote (CRM): no "multiple flights" option — exit and re-entry legs each need from/to airport, date-time and airline, with their own cost and selling price.
-- [ ] B33. Visa Change quote: just cost, selling price and one "fine / other" field; no Govt./airline fee wording.
-- [ ] B34. Visa Change Border: remove the pickup address (pickup location already given); T&C and inclusions/exclusions auto-fill per method.
+- [ ] B32. Visa Change A2A quote (CRM): no "multiple flights" option — exit and re-entry legs each need from/to airport, date-time and airline, with their own cost and selling price. — NEEDS CLIENT CONFIRMATION: today one round-trip flight block on the lead is copied into every option (also used by the package PDF / PNR); per-option flights is a redesign.
+- [x] B33. Visa Change quote: just cost, selling price and one "fine / other" field; no Govt./airline fee wording.
+- [x] B34. Visa Change Border: remove the pickup address (pickup location already given); T&C and inclusions/exclusions auto-fill per method.
 
 ## C. WhatsApp bot
 - [x] C1. Ask number of passengers (Adult / Child / Infant) and collect each passenger.
