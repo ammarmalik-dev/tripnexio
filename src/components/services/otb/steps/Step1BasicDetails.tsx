@@ -28,7 +28,7 @@ export function Step1BasicDetails() {
   // Client corrections 2026-10-05 — dates the airline's TAT can't meet are blocked in the picker.
   const earliest = airline ? earliestOtbTravelDates(airline, new Date(), calendar) : null;
   const fmt = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-  const destinationCountryOptions = useDestinationCountryOptions();
+  const destinationCountryOptions = useDestinationCountryOptions("OTB");
 
   if (state === "loading") return <Skeleton className="h-64 w-full" />;
   if (airlines.length === 0) {

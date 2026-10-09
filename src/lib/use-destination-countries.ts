@@ -17,14 +17,15 @@ import { countryOptionLabel } from "@/lib/countries/flag";
  * override or auto from the code); image overrides are skipped here since a
  * native <select> option can't render an image.
  */
-export function useDestinationCountryOptions(): SelectOption[] {
+/** `service: "OTB"` limits the list to the countries Admin priced OTB for (client testing 2026-10-09). */
+export function useDestinationCountryOptions(service?: "OTB"): SelectOption[] {
   const [options, setOptions] = useState<SelectOption[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/api/countries");
+        const res = await fetch(service ? `/api/countries?service=${service}` : "/api/countries");
         if (!res.ok) return;
         const json = (await res.json()) as { data: { code: string; name: string; flagOverride?: string | null }[] };
         if (!cancelled) {
@@ -38,7 +39,7 @@ export function useDestinationCountryOptions(): SelectOption[] {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [service]);
 
   return options;
 }
