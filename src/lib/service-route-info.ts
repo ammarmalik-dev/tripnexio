@@ -8,8 +8,9 @@
  * metadata with these fixed facts.
  *
  * New Visa, Visa Extension, Return Ticket and OTB use the client's own photos (public/images/services/,
- * supplied 2026-10-03, resized for the web). Client correction 2026-10-05: Visa Change uses the Special
- * Fare airliner photo, and Special Fare takes the client's passport-and-map photo in its place.
+ * supplied 2026-10-03, resized for the web). Client testing 2026-10-09 (B3): Visa Change shows the client's
+ * passport-and-map photo again (visa-change.jpg; flight-special-fare.jpg is the same file, kept for blog
+ * covers that already use it) and Special Fare gets the airliner wing above the clouds.
  *
  * Photography sourced from Unsplash (free to use under the Unsplash
  * License, no attribution required) — high-resolution (2400px) stock shots, also used full-bleed behind each service page's hero (ServiceHeroBackdrop);
@@ -34,13 +35,13 @@ export const SERVICE_ROUTE_INFO: Record<string, ServiceRouteInfo> = {
   },
   VISA_CHANGE: {
     href: "/services/visa-change",
-    image: "https://images.unsplash.com/photo-1570710891163-6d3b5c47248b?auto=format&fit=crop&w=2400&q=85",
-    imageAlt: "An airliner climbing through bright clouds",
+    image: "/images/services/visa-change.jpg",
+    imageAlt: "Stamped passports, a watch and coins on a travel map",
   },
   FLIGHT_SPECIAL_FARE: {
     href: "/services/flight-special-fare",
-    image: "/images/services/flight-special-fare.jpg",
-    imageAlt: "Stamped passports, a watch and coins on a travel map",
+    image: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=2400&q=85",
+    imageAlt: "An airliner wing above the clouds at sunrise",
   },
   RETURN_TICKET: {
     href: "/services/return-ticket",

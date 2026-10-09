@@ -13,7 +13,7 @@ export const BUILT_IN_COVERS: { url: string; label: string }[] = [
   { url: "/images/hero/home.jpg", label: "Homepage hero" },
   { url: "/images/services/new-visa.jpg", label: "New Visa" },
   { url: "/images/services/visa-extension.jpg", label: "Visa Extension" },
-  { url: "/images/services/flight-special-fare.jpg", label: "Flight Special Fare" },
+  { url: "/images/services/visa-change.jpg", label: "Visa Change" },
   { url: "/images/services/return-ticket.jpg", label: "Return Ticket" },
   { url: "/images/services/otb.jpg", label: "OTB" },
 ];

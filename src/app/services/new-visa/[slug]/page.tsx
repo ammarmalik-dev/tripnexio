@@ -16,6 +16,7 @@ import { ServiceRequirementsSection } from "@/components/services/ServiceRequire
 import { NewVisaProcessingTimeSection } from "@/components/services/new-visa/landing/NewVisaProcessingTimeSection";
 import { NewVisaValiditySection, NewVisaBeforeYouApplySection } from "@/components/services/new-visa/landing/NewVisaValidityAndNotesSections";
 import { countryPageImageUrl, getPublishedCountryPage, newVisaApplyHref, type PublishedCountryPage } from "@/lib/new-visa/country-pages";
+import { siteConfig } from "@/lib/site-config";
 
 // Content, prices, timelines and FAQs are Admin-managed; refresh without a redeploy.
 export const revalidate = 300;
@@ -37,7 +38,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!page) return { title: "New Visa" };
   const title = page.seoTitle ?? `${shortName(page)} Visa`;
   const description = page.seoDescription ?? page.heroSubtitle;
-  return { title, description, openGraph: { title, description }, alternates: { canonical: `/services/new-visa/${page.slug}` } };
+  return { title, description, openGraph: { title, description, images: [{ url: siteConfig.ogImage, width: 1200, height: 630 }] }, alternates: { canonical: `/services/new-visa/${page.slug}` } };
 }
 
 // Doc §5 "Visa Applications From Across India" — "minimal applicant icons," not a long occupation list.

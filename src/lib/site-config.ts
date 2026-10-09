@@ -8,7 +8,8 @@ export const siteConfig = {
     "TripNexio brings visa and travel services together in one simple experience. Submit a request and our team handles it with airlines and partners, from start to finish.",
   // TODO(client): confirm production domain before launch.
   url: "https://tripnexio.com",
-  ogImage: "/og-image.png",
+  // Client testing 2026-10-09 (B4) — new file name so WhatsApp/SMS previews drop the cached old image.
+  ogImage: "/og-image-2026.jpg",
   contact: {
     address: "Mumbai, India",
     phone: "+91 92381 84005",

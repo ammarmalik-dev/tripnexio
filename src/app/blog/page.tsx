@@ -19,6 +19,7 @@ export const metadata: Metadata = {
     description: "Guides on visas, OTB, visa change, flights and travel documents from the TripNexio team.",
     url: `${siteConfig.url}/blog`,
     type: "website",
+    images: [{ url: siteConfig.ogImage, width: 1200, height: 630 }],
   },
 };
 

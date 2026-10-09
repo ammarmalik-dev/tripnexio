@@ -13,8 +13,8 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 ## B. Website
 - [x] B1. Home hero: "Tell us what you need…" text not readable on the hero image.
 - [x] B2. Track Status button not mobile-friendly (home + "Ready to simplify your journey?" CTA).
-- [ ] B3. Images: Visa Change gets the current Special Fare image; Special Fare gets a new good image.
-- [ ] B4. Link preview on WhatsApp/SMS shows the old "India to the UAE and GCC" image — new OG image with the tagline.
+- [x] B3. Images: Visa Change gets the current Special Fare image; Special Fare gets a new good image.
+- [x] B4. Link preview on WhatsApp/SMS shows the old "India to the UAE and GCC" image — new OG image with the tagline.
 - [x] B5. Track Status timeline overflows its card (steps go outside the box).
 - [x] B6. Special Fare: "What You'll Need" = client's list (Full name, Mobile, Email, Departure city/airport, Destination city/airport, Travel date, Passenger details, Passport/Govt ID, Visa copy) each with a description.
 - [x] B7. Special Fare: departure/arrival city fields wrong on desktop (mobile OK).
