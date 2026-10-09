@@ -16,8 +16,13 @@ export const BUILT_IN_COVERS: { url: string; label: string }[] = [
   { url: "/images/services/visa-change.jpg", label: "Visa Change" },
   { url: "/images/services/return-ticket.jpg", label: "Return Ticket" },
   { url: "/images/services/otb.jpg", label: "OTB" },
+  // Client testing 2026-10-09 (F9) — the client's destination photos.
+  { url: "/images/blog/dubai.jpg", label: "Dubai" },
+  { url: "/images/blog/oman.jpg", label: "Oman" },
+  { url: "/images/blog/thailand.jpg", label: "Thailand" },
 ];
 
+/** Suggested categories; Admin can also type a new one (client testing 2026-10-09, F9). */
 export const BLOG_CATEGORIES = ["Visa Guides", "Flights & OTB", "Travel Tips", "TripNexio Updates"] as const;
 
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;

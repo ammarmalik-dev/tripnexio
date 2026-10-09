@@ -23,7 +23,7 @@ export function BlogCard({ post, featured = false }: { post: BlogCardPost; featu
   return (
     <article
       className={cn(
-        "group flex overflow-hidden rounded-2xl border border-hairline bg-surface-1 shadow-[0_8px_24px_rgb(24_42_77/0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgb(24_42_77/0.12)]",
+        "group flex w-full overflow-hidden rounded-2xl border border-hairline bg-surface-1 shadow-[0_8px_24px_rgb(24_42_77/0.06)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_14px_34px_rgb(24_42_77/0.12)]",
         featured ? "flex-col lg:flex-row" : "flex-col"
       )}
     >
@@ -33,7 +33,7 @@ export function BlogCard({ post, featured = false }: { post: BlogCardPost; featu
             src={post.coverSrc}
             alt=""
             fill
-            sizes={featured ? "(min-width: 1024px) 640px, 100vw" : "(min-width: 1024px) 380px, (min-width: 640px) 50vw, 100vw"}
+            sizes={featured ? "(min-width: 1024px) 640px, 100vw" : "(min-width: 1024px) 300px, (min-width: 640px) 50vw, 100vw"}
             className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             priority={featured}
             unoptimized={post.coverSrc.startsWith("/api/")}

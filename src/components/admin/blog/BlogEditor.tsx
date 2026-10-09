@@ -254,13 +254,20 @@ export function BlogEditor({ post }: { post: BlogPostData | null }) {
           <TextField {...titleField} name="title" label="Title" required error={errors.title?.message} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextField {...slugField} name="slug" label="URL slug" required hint={`tripnexio.com/blog/${values.slug || "…"}`} error={errors.slug?.message} />
-            <SelectField
+            {/* Client testing 2026-10-09 (F9) — pick a category or type a new one. */}
+            <TextField
               {...register("category")}
               name="category"
               label="Category"
-              options={BLOG_CATEGORIES.map((category) => ({ value: category, label: category }))}
+              list="blog-category-options"
+              hint="Pick one or type a new category."
               error={errors.category?.message}
             />
+            <datalist id="blog-category-options">
+              {BLOG_CATEGORIES.map((category) => (
+                <option key={category} value={category} />
+              ))}
+            </datalist>
           </div>
           <Textarea {...register("excerpt")} name="excerpt" label="Summary" rows={2} required hint="Shown on the blog cards and under the title (20–300 characters)." error={errors.excerpt?.message} />
           <Textarea
