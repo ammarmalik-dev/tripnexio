@@ -54,7 +54,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] C8. Request-received templates per service shared by WhatsApp and email (B9/B19/B24).
 
 ## D. Contact settings
-- [ ] D1. Admin: Phone, WhatsApp and Email configured separately (changing phone must not change WhatsApp); same on invoices.
+- [x] D1. Admin: Phone, WhatsApp and Email configured separately (changing phone must not change WhatsApp); same on invoices.
 - [ ] D2. All WhatsApp / email templates managed from Admin.
 
 ## E. CRM

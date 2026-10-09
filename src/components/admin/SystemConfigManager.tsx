@@ -270,7 +270,7 @@ export function SystemConfigManager() {
         description="Shown in the navbar, mobile menu, footer, Contact and support pages, and in WhatsApp bot replies. Leave blank to keep the site's default."
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TextField label="WhatsApp Number" name="companyWhatsapp" placeholder="Uses the phone number above" hint="With country code, e.g. +91 92381 84005" value={form.companyWhatsapp} onChange={(e) => setForm({ ...form, companyWhatsapp: e.target.value })} error={errors.companyWhatsapp?.[0]} disabled={saving} />
+          <TextField label="WhatsApp Number" name="companyWhatsapp" placeholder="Separate from the phone number" hint="Separate from the phone number — changing the phone never changes this. With country code." value={form.companyWhatsapp} onChange={(e) => setForm({ ...form, companyWhatsapp: e.target.value })} error={errors.companyWhatsapp?.[0]} disabled={saving} />
           <TextField label="Instagram" name="socialInstagram" placeholder="Uses site default" value={form.socialInstagram} onChange={(e) => setForm({ ...form, socialInstagram: e.target.value })} error={errors.socialInstagram?.[0]} disabled={saving} />
           <TextField label="Facebook" name="socialFacebook" placeholder="Uses site default" value={form.socialFacebook} onChange={(e) => setForm({ ...form, socialFacebook: e.target.value })} error={errors.socialFacebook?.[0]} disabled={saving} />
           <TextField label="LinkedIn" name="socialLinkedin" placeholder="Uses site default" value={form.socialLinkedin} onChange={(e) => setForm({ ...form, socialLinkedin: e.target.value })} error={errors.socialLinkedin?.[0]} disabled={saving} />

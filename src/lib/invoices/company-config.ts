@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { readFileBytes } from "../storage/local-file-storage";
-import { getEffectiveSiteConfig, getSystemConfig } from "../settings/system-config";
+import { getEffectiveSiteConfig, getSiteContact, getSystemConfig } from "../settings/system-config";
 import type { InvoiceCompanyDetails } from "./render-invoice";
 
 const INVOICE_CONFIG_ID = "singleton";
@@ -35,6 +35,7 @@ export async function getInvoiceCompanyDetails(): Promise<InvoiceCompanyDetails>
     legalName: effectiveSite.legalName,
     address: effectiveSite.address,
     phone: effectiveSite.phone,
+    whatsapp: (await getSiteContact()).whatsapp,
     email: effectiveSite.email,
     currencyCode: systemConfig.currencyCode,
     gstNumber: config?.companyGstNumber ?? null,

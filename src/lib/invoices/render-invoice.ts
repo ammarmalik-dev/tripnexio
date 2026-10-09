@@ -47,6 +47,8 @@ export interface InvoiceCompanyDetails {
   email: string;
   currencyCode: string;
   gstNumber: string | null;
+  /** Client testing 2026-10-09 (D1) — WhatsApp shown separately from the phone. */
+  whatsapp?: string | null;
   sacCode: string | null;
   logoBuffer: Buffer | null;
   bankAccountName: string | null;
@@ -152,10 +154,11 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
     ["GSTIN", invoice.company.gstNumber],
     ["Email", invoice.company.email],
     ["Phone", invoice.company.phone],
+    ["WhatsApp", invoice.company.whatsapp && invoice.company.whatsapp !== invoice.company.phone ? invoice.company.whatsapp : null],
   ] as const) {
     if (!value) continue;
     text(`${label}:`, companyX, cy, { font: F.semi, size: 8 });
-    text(value, companyX + 40, cy, { size: 8 });
+    text(value, companyX + 52, cy, { size: 8 });
     cy += 12;
   }
   y = Math.max(y + 78, cy + 6);

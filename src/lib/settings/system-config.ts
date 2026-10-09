@@ -195,8 +195,9 @@ export async function getSiteContact(): Promise<SiteContact> {
   const pick = (value: string | null, fallback: string) => (value?.trim() ? value.trim() : fallback);
   const phone = pick(config.companyPhone, STATIC_SITE_CONTACT.phone);
   const email = pick(config.companyEmail, STATIC_SITE_CONTACT.email);
-  // WhatsApp: its own number if set, else the phone number if that was changed in Admin, else the static default.
-  const whatsappSource = config.companyWhatsapp?.trim() || config.companyPhone?.trim() || "";
+  // Client testing 2026-10-09 (D1) — WhatsApp is its own setting: changing the
+  // phone number never changes WhatsApp. Empty = the static default.
+  const whatsappSource = config.companyWhatsapp?.trim() || "";
   return {
     name: pick(config.companyName, STATIC_SITE_CONTACT.name),
     legalName: pick(config.legalEntityName, pick(config.companyName, STATIC_SITE_CONTACT.legalName)),
