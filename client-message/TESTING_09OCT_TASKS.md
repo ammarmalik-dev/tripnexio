@@ -27,7 +27,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] B14. OTB: "Apply for OTB" button at the top and bottom of the page.
 - [ ] B15. OTB: "What You'll Need" (Full name, Passport number, Mobile, Email, Destination country, Airline name, Travel date) with descriptions; fix the airline-name wording.
 - [ ] B16. OTB: remove "Applicants: 1. Final pricing is confirmed by our team." on date select.
-- [ ] B17. OTB: destination list shows only countries enabled for OTB in Admin.
+- [x] B17. OTB: destination list shows only countries enabled for OTB in Admin.
 - [ ] B18. Visa Extension: "What You'll Need" (Name, Mobile, Email, Passport number, Visa expiry date) with descriptions.
 - [ ] B19. Visa Extension success text = WhatsApp + email template ("Your Visa Extension request has been received. Our team will validate each applicant's details and documents and get in touch shortly.").
 - [ ] B20. Visa Extension: prior TripNexio visa check matched the wrong record — fix matching.
@@ -44,13 +44,13 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] B31. New Visa: country-wise Normal/Express timeline config in Admin works.
 
 ## C. WhatsApp bot
-- [ ] C1. Ask number of passengers (Adult / Child / Infant) and collect each passenger.
-- [ ] C2. Ask passport number.
-- [ ] C3. OTB: ask destination country (needed for price → payment link → documents).
-- [ ] C4. New Visa in chat: no adult/child/travel-date re-asking beyond what's needed; TAT-blocked date → suggest Express or another date; send payment link with Booking ID, then documents.
-- [ ] C5. Status check inside WhatsApp (reference + last 4 digits) — no redirect to the website.
-- [ ] C6. "Talk to expert": staff can chat with the customer from the CRM (live WhatsApp inbox / reply).
-- [ ] C7. Don't send a wa.me link inside WhatsApp.
+- [x] C1. Ask number of passengers (Adult / Child / Infant) and collect each passenger.
+- [x] C2. Ask passport number.
+- [x] C3. OTB: ask destination country (needed for price → payment link → documents).
+- [x] C4. New Visa in chat: no adult/child/travel-date re-asking beyond what's needed; TAT-blocked date → suggest Express or another date; send payment link with Booking ID, then documents.
+- [x] C5. Status check inside WhatsApp (reference + last 4 digits) — no redirect to the website.
+- [x] C6. "Talk to expert": staff can chat with the customer from the CRM (live WhatsApp inbox / reply).
+- [x] C7. Don't send a wa.me link inside WhatsApp.
 - [ ] C8. Request-received templates per service shared by WhatsApp and email (B9/B19/B24).
 
 ## D. Contact settings

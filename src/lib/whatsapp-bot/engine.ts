@@ -5,7 +5,10 @@ import { getAiProvider } from "./get-ai-provider";
 import { answerFaqQuestion } from "@/lib/faq/answer-faq";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
 import { buildWelcomeMenu, serviceTypeFromMenuId, MENU_TRACK_ID, MENU_AGENT_ID } from "./menu";
-import { getNextField, buildLeadDetails, buildLeadPassengers, newVisaRequestLink } from "./flows";
+import { getNextField, buildLeadDetails, buildLeadPassengers } from "./flows";
+import { whatsappStatusReply } from "./status-reply";
+import { priceLeadForDirectPayment } from "../checkout/lead-direct-payment";
+import { db } from "../db";
 import { createAutoCheckout } from "../checkout/create-auto-checkout";
 import { siteConfig } from "../site-config";
 import * as messages from "./messages";
@@ -13,6 +16,10 @@ import { getSiteContact } from "../settings/system-config";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 const SERVICE_TYPES = ["NEW_VISA", "VISA_EXTENSION", "VISA_CHANGE", "FLIGHT_SPECIAL_FARE", "RETURN_TICKET", "OTB"] as const;
+/** Paid straight from the chat (no quotation) — client testing 2026-10-09. */
+const DIRECT_PAYMENT = new Set<ServiceType>(["NEW_VISA", "OTB", "RETURN_TICKET"]);
+/** "status", "track", "where is my visa"… — answered in the chat. */
+const TRACK_RE = /^(status|track|tracking|my status|check status|track (my )?(request|booking|status)|where is my (visa|booking|ticket|otb))\b/i;
 import type { WhatsAppConversation } from "../../generated/prisma/client";
 
 export interface EngineResult {
@@ -90,8 +97,9 @@ export async function handleInboundMessage(
     if (tappedService) {
       return await startCollecting(tappedService);
     }
-    if (trimmed === MENU_TRACK_ID) {
-      return { replyText: messages.trackInstructions(), nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
+    // Client testing 2026-10-09 (C5) — status answered inside the chat (no website redirect).
+    if (trimmed === MENU_TRACK_ID || TRACK_RE.test(trimmed)) {
+      return { replyText: await whatsappStatusReply(conversation.waId), nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
     }
     if (trimmed === MENU_AGENT_ID) {
       return { replyText: messages.handoff("Sure —"), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };
@@ -190,17 +198,6 @@ async function continueCollecting(
     }
   }
 
-  // New Visa needs per-traveller passport details and copies the chat can't
-  // collect — hand over to the website form, prefilled (P06).
-  if (serviceType === "NEW_VISA") {
-    return {
-      replyText: messages.newVisaContinueOnWebsite(newVisaRequestLink(siteConfig.url, nextCollected)),
-      nextState: "COMPLETED",
-      nextServiceType: serviceType,
-      nextCollectedFields: nextCollected,
-    };
-  }
-
   // Every field collected — create the Lead exactly like the website does.
   try {
     const details = await buildLeadDetails(serviceType, nextCollected);
@@ -210,22 +207,32 @@ async function continueCollecting(
       contact: { fullName: nextCollected.fullName, mobile: waId, email: nextCollected.email },
       passengers: await buildLeadPassengers(serviceType, nextCollected),
       details,
-      // Client testing 2026-10-09 — OTB / Return Ticket pay straight away: the payment link is the message.
-      deferLeadReceivedNotice: serviceType === "OTB" || serviceType === "RETURN_TICKET",
+      // Client testing 2026-10-09 — New Visa / OTB / Return Ticket pay straight away: the payment link is the message.
+      deferLeadReceivedNotice: DIRECT_PAYMENT.has(serviceType),
     });
 
-    // OTB/Return Ticket pay right after the request, the same auto-checkout
-    // the website uses. A failure never loses the Lead — staff can still send a link.
+    // New Visa / OTB / Return Ticket pay right after the request (client
+    // testing 2026-10-09): priced from Admin config exactly like the CRM's
+    // direct payment link, Booking ID = the reference. A failure (e.g. no
+    // configured price) never loses the Lead — staff follow up instead.
     let payUrl: string | null = null;
-    if (serviceType === "OTB" || serviceType === "RETURN_TICKET") {
+    if (DIRECT_PAYMENT.has(serviceType)) {
       try {
-        const total = Number(details.indicativeTotal);
-        const checkout = Number.isFinite(total) && total > 0
-          ? await createAutoCheckout({ leadId: result.leadId, serviceType, totalPrice: total })
+        const lead = await db.lead.findUnique({ where: { id: result.leadId }, select: { serviceType: true, details: true, paxCount: true } });
+        const price = lead ? await priceLeadForDirectPayment(lead) : null;
+        const checkout = price?.ok
+          ? await createAutoCheckout({
+              leadId: result.leadId,
+              serviceType: price.serviceType,
+              totalPrice: price.totalPrice,
+              vendorCost: price.vendorCost,
+              invoiceLines: price.invoiceLines,
+              actorLabel: "WhatsApp bot checkout",
+            })
           : null;
         if (checkout) payUrl = `${siteConfig.url}/pay/${checkout.token}`;
       } catch (checkoutError) {
-        console.error("[whatsapp-bot] auto checkout failed", checkoutError);
+        console.error("[whatsapp-bot] auto checkout failed", checkoutError instanceof Error ? checkoutError.name : "error");
       }
       if (!payUrl) await notifyLeadReceived(result.leadId);
     }

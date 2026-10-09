@@ -5,7 +5,7 @@ import { otbRequestSchema } from "../validation/otb-schema";
 import { newVisaRequestSchema } from "../validation/new-visa-schema";
 import { visaExtensionBotFieldSchemas, visaExtensionRequestSchema } from "../validation/visa-extension-schema";
 import { visaChangeRequestSchema } from "../validation/visa-change-schema";
-import { flightSpecialFareRequestSchema, flightPassengerSchema } from "../validation/flight-special-fare-schema";
+import { flightSpecialFareRequestSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
 import { getActiveVisaTypes } from "../visa-types/active-visa-types";
 import { getProcessingTypeOptions } from "../processing-types/get";
@@ -13,6 +13,9 @@ import { getOtbGlobalRules, resolveAirlineRules } from "../otb/get-otb-rules";
 import { evaluateOtbTravelDate } from "../otb/processing-rules";
 import { getWorkingCalendar } from "../calendar/get-working-calendar";
 import type { LeadPassengerInput } from "../leads/create-lead";
+import { getNewVisaTravelRules } from "../new-visa/travel-rules";
+import { allowedProcessingTypes, productLabel } from "../new-visa/products";
+import { workingDaysBetween } from "../calendar/working-calendar";
 
 export interface ParseResult {
   ok: boolean;
@@ -177,6 +180,100 @@ function nationalityStep(): NextField {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Client testing 2026-10-09 (C1-C4) — passenger count (Adult / Child / Infant)
+// and each passenger's name + passport over chat, so New Visa / OTB / Return
+// Ticket can be priced from Admin config and paid straight from the chat.
+// ---------------------------------------------------------------------------
+
+const PAX_KINDS = [
+  { key: "adults", label: "Adult", prompt: "How many adults (12 years and above)?", min: 1 },
+  { key: "children", label: "Child", prompt: "How many children (2-11 years)? Reply 0 if none.", min: 0 },
+  { key: "infants", label: "Infant", prompt: "How many infants (under 2)? Reply 0 if none.", min: 0 },
+] as const;
+
+const MAX_PAX = 9;
+const PASSPORT_VALIDATOR = visaExtensionRequestSchema.shape.passportNumber;
+const PAX_LABELS = { ADULT: "Adult", CHILD: "Child", INFANT: "Infant" } as const;
+
+function countValidator(min: number): z.ZodTypeAny {
+  return z
+    .string()
+    .trim()
+    .regex(/^\d{1,2}$/, "Please reply with a number, e.g. 1.")
+    .refine((value) => Number(value) >= min && Number(value) <= MAX_PAX, `Please reply with a number from ${min} to ${MAX_PAX}.`);
+}
+
+/** The passengers so far, in Adult → Child → Infant order (only once all three counts are in). */
+export function botPassengers(collected: Record<string, string>): { index: number; paxType: "ADULT" | "CHILD" | "INFANT"; fullName?: string; passportNumber?: string }[] {
+  const counts = { ADULT: Number(collected.adults ?? 0), CHILD: Number(collected.children ?? 0), INFANT: Number(collected.infants ?? 0) };
+  const list: { index: number; paxType: "ADULT" | "CHILD" | "INFANT"; fullName?: string; passportNumber?: string }[] = [];
+  for (const paxType of ["ADULT", "CHILD", "INFANT"] as const) {
+    for (let n = 0; n < counts[paxType]; n++) {
+      const index = list.length + 1;
+      list.push({ index, paxType, fullName: collected[`pax${index}Name`], passportNumber: collected[`pax${index}Passport`] });
+    }
+  }
+  return list;
+}
+
+/** Next passenger question (counts, then each passenger's name and passport), or null when every passenger is complete. */
+function passengerStep(collected: Record<string, string>, withPassport: boolean): NextField | null {
+  for (const kind of PAX_KINDS) {
+    if (!(kind.key in collected)) return textStep(kind.key, kind.prompt, countValidator(kind.min));
+  }
+  const total = Number(collected.adults) + Number(collected.children) + Number(collected.infants);
+  if (total > MAX_PAX) {
+    return {
+      fieldKey: "infants",
+      prompt: `We can take up to ${MAX_PAX} passengers per request over chat. How many infants (under 2)?`,
+      parse: () => ({ ok: false, error: `That's more than ${MAX_PAX} passengers in total — type "menu" to start again, or "agent" for help.` }),
+    };
+  }
+  for (const passenger of botPassengers(collected)) {
+    const label = PAX_LABELS[passenger.paxType];
+    if (!passenger.fullName) {
+      if (passenger.index === 1) {
+        return {
+          fieldKey: "pax1Name",
+          prompt: `Passenger 1 (${label}) — full name as on the passport? Reply "same" if it's ${collected.fullName}.`,
+          parse: (raw) => {
+            const value = raw.trim().toLowerCase() === "same" ? collected.fullName : raw.trim();
+            const result = NAME_VALIDATOR.safeParse(value);
+            return result.success ? { ok: true, value } : { ok: false, error: result.error.issues[0]?.message ?? "Please type the full name." };
+          },
+        };
+      }
+      return textStep(`pax${passenger.index}Name`, `Passenger ${passenger.index} (${label}) — full name as on the passport?`, NAME_VALIDATOR);
+    }
+    if (withPassport && !passenger.passportNumber) {
+      return textStep(`pax${passenger.index}Passport`, `Passport number of ${passenger.fullName}?`, PASSPORT_VALIDATOR);
+    }
+  }
+  return null;
+}
+
+/** OTB destinations: the countries Admin priced OTB for on this airline (all active countries when none is priced yet). */
+async function getOtbDestinationOptions(airlineCode: string) {
+  const priced = await db.otbPrice.findMany({
+    where: { active: true, airline: { code: airlineCode }, country: { active: true } },
+    distinct: ["countryId"],
+    select: { country: { select: { code: true, name: true } } },
+    orderBy: { country: { name: "asc" } },
+  });
+  if (priced.length > 0) return priced.map((row) => ({ value: row.country.code, label: row.country.name }));
+  return getDestinationCountryOptions();
+}
+
+/** New Visa products (stay × entry) Admin configured for the country; empty = price by the country-wide rules. */
+async function getNewVisaProductOptions(countryCode: string) {
+  const configs = await db.newVisaCountryConfig.findMany({
+    where: { active: true, country: { code: countryCode, active: true } },
+    orderBy: [{ stayDays: "asc" }, { createdAt: "asc" }],
+  });
+  return configs.map((config) => ({ value: config.id, label: productLabel(config) }));
+}
+
 /**
  * The one function the bot engine calls each turn: given a service and
  * whatever's been collected so far, returns the NEXT field to ask about —
@@ -198,6 +295,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       // Same airline timeline rules the website's OTB route enforces.
       const evaluate = await getOtbTravelDateEvaluator(collected.airline);
       if (!evaluate) return numberedChoiceStep("airline", "That airline isn't available for OTB right now.", []);
+      if (!has("destinationCountry")) {
+        return numberedChoiceStep("destinationCountry", "Which country are you travelling to?", await getOtbDestinationOptions(collected.airline));
+      }
       if (!has("travelDate")) {
         return dateStep("travelDate", "What's your travel date?", otbRequestSchema.shape.travelDate, (iso) => {
           const outcome = evaluate(iso);
@@ -210,7 +310,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         const header = outcome.message ? `${outcome.message}\nWhich processing type?` : "Which processing type?";
         return numberedChoiceStep("processingType", header, options);
       }
-      return null;
+      return passengerStep(collected, true);
     }
 
     case "NEW_VISA": {
@@ -228,11 +328,30 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           );
         }
       }
-      if (!has("travelers")) return textStep("travelers", "How many travelers (1-9)?", newVisaRequestSchema.shape.travelers);
-      if (!has("processingType")) return numberedChoiceStep("processingType", "Which processing type?", await getProcessingTypeChoices("NEW_VISA"));
-      // No per-traveller passport/DOB/occupation over chat: the engine sends
-      // the prefilled website request link instead (see newVisaRequestLink).
-      return null;
+      if (!has("newVisaConfigId")) {
+        const products = await getNewVisaProductOptions(collected.destinationCountry);
+        if (products.length > 1) return numberedChoiceStep("newVisaConfigId", "Which visa option?", products);
+      }
+      // Client testing 2026-10-09 (C4) — travel date checked against the
+      // Admin TAT (working days): a date too soon for Normal only offers
+      // Express; too soon for both asks for a later date.
+      const rules = await getNewVisaTravelRules();
+      const calendar = await getWorkingCalendar("UAE");
+      const allowedFor = (iso: string) => allowedProcessingTypes(workingDaysBetween(iso, new Date(), calendar), rules);
+      if (!has("travelDate")) {
+        return dateStep("travelDate", "What's your expected travel date?", newVisaRequestSchema.shape.travelDate, (iso) =>
+          allowedFor(iso).length === 0
+            ? `That's too soon to process a visa — the earliest is ${rules.minTravelDaysExpress} working days from today with Express. Please send a later date.`
+            : null
+        );
+      }
+      if (!has("processingType")) {
+        const allowed = allowedFor(collected.travelDate);
+        const options = (await getProcessingTypeChoices("NEW_VISA")).filter((option) => (allowed as string[]).includes(option.value));
+        const header = allowed.includes("normal") ? "Which processing type?" : "Normal processing can't meet this travel date — Express is available:";
+        return numberedChoiceStep("processingType", header, options);
+      }
+      return passengerStep(collected, true);
     }
 
     case "VISA_EXTENSION": {
@@ -286,7 +405,10 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       // "+Add Another Passenger" equivalent in the conversational flow,
       // same explicit simplification as Visa Change) -- enough to compute
       // their Adult/Child/Infant type per §7.
-      if (!has("dob")) return dateStep("dob", "What's the passenger's date of birth?", flightPassengerSchema.shape.dob);
+      // Client testing 2026-10-09 — passenger count by Adult / Child / Infant (fares are per type).
+      for (const kind of PAX_KINDS) {
+        if (!has(kind.key)) return textStep(kind.key, kind.prompt, countValidator(kind.min));
+      }
       return null;
     }
 
@@ -308,8 +430,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           (iso) => (iso < collected.travelDate ? "Your expected return date should be on or after your travel date." : null)
         );
       }
-      if (!has("travelers")) return textStep("travelers", "How many travelers (1-9)?", returnTicketFieldsSchema.shape.travelers);
-      return null;
+      return passengerStep(collected, true);
     }
 
     default:
@@ -328,17 +449,35 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
 export async function buildLeadDetails(serviceType: ServiceType, collected: Record<string, string>): Promise<Record<string, unknown>> {
   switch (serviceType) {
     case "OTB": {
-      // Same shape and price basis as the website's OTB route (one applicant over chat).
-      const airline = await db.airline.findFirst({ where: { code: collected.airline, active: true, otbRequired: true } });
+      // Same keys as the website's OTB route — priceLeadForDirectPayment() prices it from these.
       const evaluate = await getOtbTravelDateEvaluator(collected.airline);
-      const unitPrice = airline ? Number(collected.processingType === "urgent" ? airline.urgentPrice : airline.normalPrice) : Number.NaN;
+      const applicants = botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, paxType: p.paxType }));
       return {
+        destinationCountry: collected.destinationCountry,
         airline: collected.airline,
         travelDate: collected.travelDate,
         processingType: collected.processingType,
-        travelers: "1",
+        travelers: String(applicants.length),
         ...(evaluate ? { workingDaysToTravel: evaluate(collected.travelDate).workingDays } : {}),
-        ...(Number.isFinite(unitPrice) && unitPrice > 0 ? { ratePerApplicant: unitPrice, indicativeTotal: unitPrice } : {}),
+        applicants,
+      };
+    }
+    case "NEW_VISA": {
+      const applicants = botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, paxType: p.paxType }));
+      return {
+        destinationCountry: collected.destinationCountry,
+        ...(collected.visaType ? { visaTypeId: collected.visaType } : {}),
+        // One product for the country = that one (the chat only asks when there are several).
+        ...(collected.newVisaConfigId
+          ? { newVisaConfigId: collected.newVisaConfigId }
+          : await (async () => {
+              const products = await getNewVisaProductOptions(collected.destinationCountry);
+              return products.length === 1 ? { newVisaConfigId: products[0].value } : {};
+            })()),
+        travelDate: collected.travelDate,
+        processingType: collected.processingType,
+        travelers: String(applicants.length),
+        applicants,
       };
     }
     case "VISA_EXTENSION":
@@ -369,27 +508,25 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
         destination: collected.destination,
         travelDate: collected.travelDate,
         returnDate: collected.returnDate || undefined,
-        passengerCount: 1,
-        passengerDob: collected.dob,
+        adultCount: Number(collected.adults ?? 1),
+        childCount: Number(collected.children ?? 0),
+        infantCount: Number(collected.infants ?? 0),
+        passengerCount: Number(collected.adults ?? 1) + Number(collected.children ?? 0) + Number(collected.infants ?? 0),
       };
     case "RETURN_TICKET": {
-      // Same shape and price basis as the website's /api/leads/return-ticket
-      // route. Client update (2026-09-24): expectedReturnDate is the
-      // customer's own target — the issued ticket date is a separate,
-      // staff/availability-determined outcome, never computed here.
+      // Same keys as the website's Return Ticket route — priceLeadForDirectPayment() prices it from these.
       const destination = await db.returnTicketDestination.findFirst({
         where: { countryId: collected.destinationCountryId, active: true },
         include: { country: { select: { name: true } } },
       });
-      const travelers = Number(collected.travelers) || 1;
-      const rate = destination ? Number(destination.ratePerApplicant) : Number.NaN;
+      const applicants = botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, paxType: p.paxType }));
       return {
         ...(destination ? { destinationCountry: destination.country.name } : {}),
         destinationCountryId: collected.destinationCountryId,
         travelDate: collected.travelDate,
         expectedReturnDate: collected.expectedReturnDate,
-        travelers: collected.travelers,
-        ...(Number.isFinite(rate) && rate > 0 ? { ratePerApplicant: rate, indicativeTotal: rate * travelers } : {}),
+        travelers: String(applicants.length),
+        applicants,
       };
     }
     default:
@@ -406,6 +543,12 @@ export async function buildLeadPassengers(
   serviceType: ServiceType,
   collected: Record<string, string>
 ): Promise<LeadPassengerInput[] | undefined> {
+  if (serviceType === "OTB" || serviceType === "RETURN_TICKET" || serviceType === "NEW_VISA") {
+    const list = botPassengers(collected);
+    return list.length > 0
+      ? list.map((p) => ({ fullName: p.fullName ?? collected.fullName, passportNumber: p.passportNumber, paxType: p.paxType }))
+      : undefined;
+  }
   if (serviceType !== "VISA_CHANGE" || !collected.nationalityId) return undefined;
   const nationality = await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } });
   return [
@@ -419,12 +562,3 @@ export async function buildLeadPassengers(
   ];
 }
 
-/** New Visa over chat ends with the website form, prefilled with what the customer already told the bot. */
-export function newVisaRequestLink(siteUrl: string, collected: Record<string, string>): string {
-  const params = new URLSearchParams();
-  if (collected.destinationCountry) params.set("country", collected.destinationCountry);
-  if (collected.visaType) params.set("visaType", collected.visaType);
-  if (collected.processingType) params.set("processingType", collected.processingType);
-  if (collected.travelers) params.set("travelers", collected.travelers);
-  return `${siteUrl}/services/new-visa/request?${params.toString()}`;
-}

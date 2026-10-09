@@ -1,4 +1,4 @@
-import { captureWhatsAppHandoff, captureWhatsAppNewVisaDraft } from "@/lib/whatsapp-bot/capture-lead";
+import { captureWhatsAppHandoff } from "@/lib/whatsapp-bot/capture-lead";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
@@ -143,8 +143,6 @@ export async function POST(request: NextRequest) {
       serviceType: conversation.serviceType ?? result.nextServiceType,
       collected: (conversation.collectedFields ?? {}) as Record<string, string>,
     });
-  } else if (result.nextState === "COMPLETED" && result.nextServiceType === "NEW_VISA") {
-    await captureWhatsAppNewVisaDraft({ waId, profileName, collected: result.nextCollectedFields as Record<string, string> });
   }
 
   return new Response("OK", { status: 200 });

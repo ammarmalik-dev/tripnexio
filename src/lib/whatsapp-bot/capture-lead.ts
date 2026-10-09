@@ -2,7 +2,6 @@ import type { ServiceType } from "../../generated/prisma/enums";
 import { db } from "../db";
 import { describeError } from "../api/describe-error";
 import { createLeadFromSubmission } from "../leads/create-lead";
-import { createOrRefreshDraftLead } from "../leads/create-draft-lead";
 import { notifyStaff } from "../staff-notifications/notify";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 
@@ -69,31 +68,3 @@ export async function captureWhatsAppHandoff(input: {
   }
 }
 
-/**
- * New Visa over WhatsApp hands over to the website form (passport copies
- * can't be collected in chat) — but staff still see the enquiry right away as
- * a draft lead, which the website submission then takes over (same lead, no
- * duplicate). Never throws.
- */
-export async function captureWhatsAppNewVisaDraft(input: { waId: string; profileName: string | null; collected: Record<string, string> }): Promise<void> {
-  try {
-    const draft = await createOrRefreshDraftLead("NEW_VISA", {
-      fullName: input.collected.fullName || input.profileName || "WhatsApp customer",
-      mobile: input.waId,
-      email: input.collected.email ?? "",
-    });
-    if (draft.outcome === "created") {
-      await notifyStaff({
-        type: "NEW_LEAD",
-        title: `WhatsApp New Visa enquiry: ${input.collected.fullName || input.profileName || `+${input.waId}`}`,
-        body: "Sent the website form link. Follow up if it isn't submitted.",
-        link: `/crm/leads/${draft.leadId}`,
-        entityType: "Lead",
-        entityId: draft.leadId,
-        recipients: { permission: "leads.view", serviceType: "NEW_VISA" },
-      });
-    }
-  } catch (error) {
-    console.error("[whatsapp-bot] new visa draft capture failed", describeError(error));
-  }
-}

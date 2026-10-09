@@ -1,5 +1,4 @@
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
-import { siteConfig } from "@/lib/site-config";
 import { STATIC_SITE_CONTACT, type SiteContact } from "@/lib/site-contact";
 import type { ServiceType } from "../../generated/prisma/enums";
 
@@ -47,38 +46,22 @@ export function leadCreated(referenceId: string, serviceLabel: string): string {
 
 export function leadCreatedWithPayLink(referenceId: string, serviceLabel: string, payUrl: string): string {
   return (
-    `All set! Your ${serviceLabel} request is submitted — reference *${referenceId}*.\n\n` +
+    `All set! Your ${serviceLabel} booking is created — Booking ID *${referenceId}*.\n\n` +
     `Complete your payment securely here:\n${payUrl}\n\n` +
-    `After payment you can upload your documents on the same page. Type "menu" if you'd like to start another request.`
-  );
-}
-
-export function newVisaContinueOnWebsite(requestUrl: string): string {
-  return (
-    `Thanks! New Visa applications need each traveller's passport details and a passport copy, ` +
-    `so please finish on our website — your answers so far are already filled in:\n${requestUrl}\n\n` +
-    `Type "menu" to start over, or "agent" to talk to our team.`
+    `After payment you can upload the required documents on the same page. Type "status" anytime to check progress.`
   );
 }
 
 export function handoff(reason: string): string {
   return (
     `${reason} Let me connect you with our support team — ` +
-    `they'll follow up shortly. You can also reach us directly:\n` +
-    `📞 ${contact.phone}\n✉️ ${contact.email}\n💬 ${contact.whatsappHref}`
+    `they'll reply right here in this chat shortly. You can also reach us at:\n` +
+    `📞 ${contact.phone}\n✉️ ${contact.email}`
   );
 }
 
 export function stillHandedOff(): string {
   return `Our team has this — they'll reach out shortly. Need anything else in the meantime? Type "menu" to start over.`;
-}
-
-export function trackInstructions(): string {
-  return (
-    `You can check your request's status here: ${siteConfig.url}/track — just enter the reference ID we sent you.\n\n` +
-    `Don't have it handy? Message us your name or mobile number and our team will look it up.\n\n` +
-    `Type "menu" anytime to start over.`
-  );
 }
 
 export function faqFooter(): string {
