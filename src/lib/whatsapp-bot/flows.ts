@@ -335,7 +335,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       // Client testing 2026-10-09 (C4) — travel date checked against the
       // Admin TAT (working days): a date too soon for Normal only offers
       // Express; too soon for both asks for a later date.
-      const rules = await getNewVisaTravelRules();
+      const rules = await getNewVisaTravelRules(collected.destinationCountry);
       const calendar = await getWorkingCalendar("UAE");
       const allowedFor = (iso: string) => allowedProcessingTypes(workingDaysBetween(iso, new Date(), calendar), rules);
       if (!has("travelDate")) {

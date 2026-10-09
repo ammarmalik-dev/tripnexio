@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
   }
 
   // P10 — minimum UAE working days before travel for the chosen processing type.
-  const travelRules = await getNewVisaTravelRules();
+  const travelRules = await getNewVisaTravelRules(destinationCountry);
   const workingDays = workingDaysBetween(travelDate, new Date(), await getWorkingCalendar("UAE"));
   if (!allowedProcessingTypes(workingDays, travelRules).includes(processingType)) {
     const needed = processingType === "urgent" ? travelRules.minTravelDaysExpress : travelRules.minTravelDaysNormal;

@@ -10,6 +10,7 @@ import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { NewVisaCountryTimelines } from "./NewVisaCountryTimelines";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 interface TimelineData {
@@ -337,11 +338,14 @@ export function ServiceTimelinesManager({ serviceType }: { serviceType?: Service
   return (
     <div className="flex flex-col gap-4">
       {visibleItems.map((item) => (
-        <TimelineCard
-          key={item.id}
-          item={item}
-          onSaved={(updated) => setItems((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-        />
+        <div key={item.id} className="flex flex-col gap-4">
+          <TimelineCard
+            item={item}
+            onSaved={(updated) => setItems((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+          />
+          {/* Client testing 2026-10-09 (B31) — per-country New Visa timelines. */}
+          {item.serviceType === "NEW_VISA" ? <NewVisaCountryTimelines /> : null}
+        </div>
       ))}
     </div>
   );

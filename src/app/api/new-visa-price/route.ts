@@ -25,6 +25,18 @@ export async function GET(request: NextRequest) {
   const infants = Number(searchParams.get("infants") ?? "0");
 
   if (!countryCode) return jsonError(400, "countryCode is required.");
+
+  // Client testing 2026-10-09 (B26) — `?rates=1`: one Adult and one Child price
+  // for each of Normal / Express, so the first form can show both options
+  // side by side. A rate with no Admin price is null (shown as unavailable).
+  if (searchParams.get("rates") === "1") {
+    const rate = async (processingType: "normal" | "urgent", paxType: PaxType) =>
+      (await computeNewVisaPrice({ countryCode, newVisaConfigId: configId, processingType, travellerPaxTypes: [paxType] }))?.total ?? null;
+    return jsonSuccess({
+      normal: { adult: await rate("normal", "ADULT"), child: await rate("normal", "CHILD") },
+      urgent: { adult: await rate("urgent", "ADULT"), child: await rate("urgent", "CHILD") },
+    });
+  }
   if (processingTypeParam !== "normal" && processingTypeParam !== "urgent") {
     return jsonError(400, "processingType must be 'normal' or 'urgent'.");
   }

@@ -14,7 +14,7 @@ import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
 import { ServiceRequirementsSection } from "@/components/services/ServiceRequirementsSection";
 import { NewVisaProcessingTimeSection } from "@/components/services/new-visa/landing/NewVisaProcessingTimeSection";
-import { NewVisaValiditySection, NewVisaBeforeYouApplySection } from "@/components/services/new-visa/landing/NewVisaValidityAndNotesSections";
+import { NewVisaBeforeYouApplySection } from "@/components/services/new-visa/landing/NewVisaValidityAndNotesSections";
 import { countryPageImageUrl, getPublishedCountryPage, newVisaApplyHref, type PublishedCountryPage } from "@/lib/new-visa/country-pages";
 import { siteConfig } from "@/lib/site-config";
 
@@ -180,7 +180,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      <NewVisaProcessingTimeSection />
+      <NewVisaProcessingTimeSection countryCode={page.country.code} stayText={page.stayText} validityText={page.validityText} />
 
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
@@ -190,8 +190,6 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
           <VisaProcessSteps steps={processSteps} sampleStatusText="Your visa application is being processed." />
         </Container>
       </section>
-
-      <NewVisaValiditySection validityText={page.validityText} stayText={page.stayText} />
 
       <NewVisaBeforeYouApplySection items={page.beforeYouApply} />
 

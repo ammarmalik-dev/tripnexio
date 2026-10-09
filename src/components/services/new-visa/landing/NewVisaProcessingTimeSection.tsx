@@ -1,71 +1,75 @@
-import { Timer, Zap } from "lucide-react";
+import { CalendarCheck, CalendarRange, Timer } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Container } from "@/components/ui/Container";
-import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
-import { getServiceTimelineRules } from "@/lib/settings/service-timeline-config";
+import { getNewVisaTravelRules } from "@/lib/new-visa/travel-rules";
+import type { NewVisaTravelRules } from "@/lib/new-visa/products";
 
-interface MinTravelDays {
-  normal: number | null;
-  express: number | null;
-}
-
-/**
- * The Admin-configured minimum planned travel timelines (Admin → Timelines /
- * SLA). Unconfigured or unreachable → null, and the card falls back to
- * neutral copy rather than a hard-coded number.
- */
-async function loadMinTravelDays(): Promise<MinTravelDays> {
+/** The country's timeline (Admin → Timelines, per country first); null when it can't be read. */
+async function loadRules(countryCode: string): Promise<NewVisaTravelRules | null> {
   try {
-    const rules = await getServiceTimelineRules("NEW_VISA");
-    return { normal: rules.minTravelDaysNormal, express: rules.minTravelDaysExpress };
+    return await getNewVisaTravelRules(countryCode);
   } catch (error) {
     console.error("[new-visa-landing] couldn't load processing timelines", error);
-    return { normal: null, express: null };
+    return null;
   }
 }
 
-function timelineCopy(days: number | null): string {
-  if (days === null || days <= 0) return "Minimum planned travel timeline shown when you apply.";
-  return `Minimum planned travel timeline: ${days} ${days === 1 ? "day" : "days"}`;
+const workingDays = (days: number) => `${days} working day${days === 1 ? "" : "s"}`;
+
+/** "Normal: 5 working days · Express: 2 working days", from Admin values only — never a guessed number. */
+function processingCopy(rules: NewVisaTravelRules | null): string {
+  if (!rules) return "Shown when you apply.";
+  const parts: string[] = [];
+  if (rules.processingDaysNormal != null) parts.push(`Normal: ${workingDays(rules.processingDaysNormal)}`);
+  if (rules.processingDaysExpress != null) parts.push(`Express: ${workingDays(rules.processingDaysExpress)}`);
+  if (parts.length > 0) return parts.join(" · ");
+  return `Apply at least ${workingDays(rules.minTravelDaysNormal)} before travel (Normal), or ${workingDays(rules.minTravelDaysExpress)} with Express.`;
 }
 
-/** New Visa landing — Normal / Express processing cards (doc §8). */
-export async function NewVisaProcessingTimeSection() {
-  const days = await loadMinTravelDays();
-  const options: { title: string; copy: string; Icon: LucideIcon }[] = [
-    { title: "Normal", copy: timelineCopy(days.normal), Icon: Timer },
-    { title: "Express", copy: timelineCopy(days.express), Icon: Zap },
+/**
+ * Client testing 2026-10-09 (B30) — Processing Time | Visa Stay | Visa
+ * Validity together in one row on the country page. Stay and validity are the
+ * page's Admin text; a card without text is left out.
+ */
+export async function NewVisaProcessingTimeSection({
+  countryCode,
+  stayText,
+  validityText,
+}: {
+  countryCode: string;
+  stayText?: string | null;
+  validityText?: string | null;
+}) {
+  const rules = await loadRules(countryCode);
+  const facts: { title: string; copy: string; Icon: LucideIcon }[] = [
+    { title: "Processing Time", copy: processingCopy(rules), Icon: Timer },
+    ...(stayText ? [{ title: "Visa Stay", copy: stayText, Icon: CalendarRange }] : []),
+    ...(validityText ? [{ title: "Visa Validity", copy: validityText, Icon: CalendarCheck }] : []),
   ];
+  const columns = facts.length === 3 ? "sm:grid-cols-3" : facts.length === 2 ? "sm:grid-cols-2" : "";
 
   return (
     <section className="py-10 sm:py-14">
-      <Container className="flex flex-col gap-8">
-        <MotionReveal>
-          <SectionHeading align="center" title="Processing time" className="mx-auto" />
-        </MotionReveal>
-        <ul className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
-          {options.map(({ title, copy, Icon }, index) => (
+      <Container>
+        <ul className={`mx-auto grid w-full max-w-5xl grid-cols-1 gap-4 ${columns}`}>
+          {facts.map(({ title, copy, Icon }, index) => (
             <li key={title} className="h-full">
               <MotionReveal delay={index * 0.06} className="h-full">
-                <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
+                <GlassCard tier={2} className="flex h-full items-start gap-4 p-5">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                     <Icon className="h-5 w-5" aria-hidden="true" />
                   </span>
-                  <h3 className="text-lg font-semibold text-ink-heading">{title}</h3>
-                  <p className="text-sm text-ink-secondary sm:text-base">{copy}</p>
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold tracking-wide text-ink-tertiary uppercase">{title}</h3>
+                    <p className="mt-1 text-sm font-medium text-ink-heading sm:text-base">{copy}</p>
+                  </div>
                 </GlassCard>
               </MotionReveal>
             </li>
           ))}
         </ul>
-        <MotionReveal delay={0.12}>
-          <p className="mx-auto max-w-2xl text-center text-sm text-ink-secondary">
-            Processing timelines depend on document readiness, working days, holidays, configured service timelines and authority
-            processing. Processing type does not guarantee visa approval or a fixed authority decision time.
-          </p>
-        </MotionReveal>
       </Container>
     </section>
   );

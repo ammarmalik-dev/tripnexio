@@ -11,10 +11,16 @@ import { cn } from "@/lib/cn";
 import type { CountryPageCard } from "@/lib/new-visa/country-pages";
 
 const RUPEE_FORMATTER = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
-const SEARCH_THRESHOLD = 6;
 
-/** Destination cards on /services/new-visa. Each opens that country's page. */
+/**
+ * Destination cards on /services/new-visa. Each opens that country's page.
+ * Client testing 2026-10-09 — a Search Destination box is always shown
+ * above the cards (B28); cards sit in centred, even rows (one card is
+ * centred), show which of Normal / Express the country offers, and a
+ * "Price on Request" country shows only Apply Now (B27).
+ */
 export function NewVisaCountryGrid({ cards }: { cards: CountryPageCard[] }) {
+  const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -23,31 +29,47 @@ export function NewVisaCountryGrid({ cards }: { cards: CountryPageCard[] }) {
 
   return (
     <div className="flex flex-col gap-8">
-      {cards.length > SEARCH_THRESHOLD ? (
-        <div className="relative mx-auto w-full max-w-md">
+      <form
+        role="search"
+        className="mx-auto flex w-full max-w-xl items-center gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setQuery(draft);
+        }}
+      >
+        <div className="relative flex-1">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
           <label htmlFor="destination-search" className="sr-only">
-            Search destinations
+            Search destination
           </label>
           <input
             id="destination-search"
             type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search a country…"
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value);
+              setQuery(event.target.value);
+            }}
+            placeholder="Search destination"
             className={cn(fieldControlClass, fieldBorderClass(false), "h-12 rounded-full pl-10")}
           />
         </div>
-      ) : null}
+        <button
+          type="submit"
+          className="h-12 shrink-0 rounded-full bg-[image:var(--gradient-accent)] px-6 text-sm font-semibold text-white shadow-[0_8px_20px_rgb(62_111_219/0.3)] transition-transform duration-150 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 motion-reduce:hover:translate-y-0"
+        >
+          Search
+        </button>
+      </form>
 
       {visible.length === 0 ? (
         <p className="mx-auto max-w-md rounded-xl border border-dashed border-hairline px-6 py-10 text-center text-sm text-ink-tertiary">
           No destination matches &ldquo;{query.trim()}&rdquo;. Ask us on WhatsApp if you can&rsquo;t find your country.
         </p>
       ) : (
-        <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="flex flex-wrap justify-center gap-5">
           {visible.map((card, index) => (
-            <li key={card.slug}>
+            <li key={card.slug} className="w-full sm:w-[calc((100%-1.25rem)/2)] lg:w-[calc((100%-3.75rem)/4)]">
               <MotionReveal delay={Math.min(index, 6) * 0.05} className="h-full">
                 <Link
                   href={`/services/new-visa/${card.slug}`}
@@ -92,15 +114,19 @@ export function NewVisaCountryGrid({ cards }: { cards: CountryPageCard[] }) {
                         Processing: {card.processingText}
                       </p>
                     ) : null}
+                    {card.normalAvailable || card.expressAvailable ? (
+                      <ul className="flex flex-wrap gap-1.5" aria-label="Processing options">
+                        {card.normalAvailable ? <li className="rounded-full bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent-on-light">Normal</li> : null}
+                        {card.expressAvailable ? <li className="rounded-full bg-success/10 px-2.5 py-0.5 text-xs font-medium text-success">Express</li> : null}
+                      </ul>
+                    ) : null}
                     <div className="mt-auto flex flex-col gap-3">
                       {card.fromPrice !== null ? (
                         <p className="text-sm text-ink-tertiary">
                           Starting from{" "}
                           <span className="text-lg font-semibold text-ink-heading">{RUPEE_FORMATTER.format(card.fromPrice)}</span>
                         </p>
-                      ) : (
-                        <p className="text-sm text-ink-tertiary">Price on request</p>
-                      )}
+                      ) : null}
                       <span className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[image:var(--gradient-accent)] px-4 py-2 text-sm font-semibold text-white transition-shadow duration-200 group-hover:shadow-md">
                         Apply Now
                         <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden="true" />

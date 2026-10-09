@@ -35,13 +35,13 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] B22. Visa Change: correct copy — "Currently in the UAE?" block, method descriptions (Border Exit & Re-entry / Airport-to-Airport) as given.
 - [x] B23. Visa Change: documents (passport front/last, photo) after payment; visa copy line (confirm).
 - [x] B24. Visa Change success text = WhatsApp + email template.
-- [ ] B25. New Visa: Expected Approval Date shown immediately from Admin working days/holidays, with blocked calendar dates.
-- [ ] B26. New Visa first page: Adult & Child price for each of Normal / Express.
-- [ ] B27. New Visa country cards: "Price on Request" → only Apply Now; show Normal/Express availability; cards auto-centre (1 card centred, rows even).
-- [ ] B28. New Visa: Search Destination box above the country cards.
-- [ ] B29. New Visa: visa type/option chosen on the card carried forward (not asked again); Basic Details → straight to Applicant Details.
-- [ ] B30. New Visa: Processing Time | Visa Stay | Visa Validity in one row on the page.
-- [ ] B31. New Visa: country-wise Normal/Express timeline config in Admin works.
+- [x] B25. New Visa: Expected Approval Date shown immediately from Admin working days/holidays, with blocked calendar dates.
+- [x] B26. New Visa first page: Adult & Child price for each of Normal / Express.
+- [x] B27. New Visa country cards: "Price on Request" → only Apply Now; show Normal/Express availability; cards auto-centre (1 card centred, rows even).
+- [x] B28. New Visa: Search Destination box above the country cards.
+- [x] B29. New Visa: visa type/option chosen on the card carried forward (not asked again); Basic Details → straight to Applicant Details.
+- [x] B30. New Visa: Processing Time | Visa Stay | Visa Validity in one row on the page.
+- [x] B31. New Visa: country-wise Normal/Express timeline config in Admin works.
 - [ ] B32. Visa Change A2A quote (CRM): no "multiple flights" option — exit and re-entry legs each need from/to airport, date-time and airline, with their own cost and selling price.
 - [ ] B33. Visa Change quote: just cost, selling price and one "fine / other" field; no Govt./airline fee wording.
 - [ ] B34. Visa Change Border: remove the pickup address (pickup location already given); T&C and inclusions/exclusions auto-fill per method.

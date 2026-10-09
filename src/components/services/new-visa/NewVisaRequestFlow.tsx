@@ -32,6 +32,7 @@ function useNewVisaPrefill(): {
   visaType: string;
   processingType: "normal" | "urgent" | undefined;
   travelers: string;
+  travelDate: string;
 } {
   const searchParams = useSearchParams();
   const country = searchParams.get("country") ?? "";
@@ -44,7 +45,10 @@ function useNewVisaPrefill(): {
   const processingType = processingTypeParam === "normal" || processingTypeParam === "urgent" ? processingTypeParam : undefined;
   const travelersCount = Number(travelersParam);
   const travelers = travelersParam && Number.isInteger(travelersCount) && travelersCount >= 1 && travelersCount <= 9 ? travelersParam : "1";
-  return { country, config, visaType, processingType, travelers };
+  // Client testing 2026-10-09 (B25/B29) — the expected travel date picked on the country page.
+  const travelDateParam = searchParams.get("travelDate") ?? "";
+  const travelDate = /^\d{4}-\d{2}-\d{2}$/.test(travelDateParam) ? travelDateParam : "";
+  return { country, config, visaType, processingType, travelers, travelDate };
 }
 
 export function NewVisaRequestFlow() {
@@ -65,7 +69,7 @@ export function NewVisaRequestFlow() {
         newVisaConfigId: prefill.config,
         visaOptionRequired: false,
         travelers: prefill.travelers,
-        travelDate: "",
+        travelDate: prefill.travelDate,
         passportNumber: "",
         dob: "",
         occupation: "",

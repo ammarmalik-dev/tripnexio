@@ -1248,6 +1248,7 @@ model Country {
   documentRequirements    DocumentRequirement[]
   newVisaCountryConfigs   NewVisaCountryConfig[]
   newVisaCountryPage      NewVisaCountryPage?
+  newVisaTimeline         NewVisaCountryTimeline?
   faqs                    Faq[]
   leads                   Lead[]
   holidays                Holiday[]
@@ -2106,6 +2107,22 @@ model ReturnTicketDestination {
 /// which use enable/disable only) — safe to hard-delete since nothing else
 /// references this row's id; a Lead only ever stores its destination country
 /// as a plain Country.code string (see create-lead.ts / new-visa pricing).
+/// Client testing 2026-10-09 (B31) — New Visa timeline per destination
+/// country. Each field overrides the service-wide ServiceTimelineConfig value
+/// for that country; null = use the service-wide value.
+model NewVisaCountryTimeline {
+  id                    String   @id @default(cuid())
+  countryId             String   @unique
+  minTravelDaysNormal   Int?
+  minTravelDaysExpress  Int?
+  processingDaysNormal  Int?
+  processingDaysExpress Int?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id])
+}
+
 model NewVisaCountryConfig {
   id                 String            @id @default(cuid())
   /// P10 — no longer unique: one row per country + stay duration + entry type.

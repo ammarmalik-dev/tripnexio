@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { getJson } from "@/lib/api/client";
 import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
 import { workingDaysBetween } from "@/lib/calendar/working-calendar";
-import { allowedProcessingTypes, DEFAULT_MIN_TRAVEL_DAYS, type NewVisaTravelRules } from "@/lib/new-visa/products";
+import { allowedProcessingTypes } from "@/lib/new-visa/products";
+import { useNewVisaTravelRules } from "@/lib/new-visa/use-travel-rules";
 import type { NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 import { ExpectedApprovalDate } from "../ExpectedApprovalDate";
@@ -29,27 +29,10 @@ export function Step2ProcessingType() {
   } = useFormContext<NewVisaRequestValues>();
   const processingType = useWatch({ control, name: "processingType" });
   const travelDate = useWatch({ control, name: "travelDate" });
+  const destinationCountry = useWatch({ control, name: "destinationCountry" });
   const calendar = useWorkingCalendar("UAE");
-  const [rules, setRules] = useState<NewVisaTravelRules>({
-    minTravelDaysNormal: DEFAULT_MIN_TRAVEL_DAYS.normal,
-    minTravelDaysExpress: DEFAULT_MIN_TRAVEL_DAYS.urgent,
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const result = await getJson<NewVisaTravelRules>("/api/new-visa-rules");
-        if (!cancelled) setRules(result);
-      } catch {
-        // Keep the defaults — the server re-checks on submit.
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Client testing 2026-10-09 (B31) — the destination's own timeline.
+  const rules = useNewVisaTravelRules(destinationCountry);
 
   const { state: optionsState, options: allMasterOptions } = useProcessingTypes("NEW_VISA");
   // The request schema stores only these codes; any other master code can't be submitted here.
