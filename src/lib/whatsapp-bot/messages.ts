@@ -1,6 +1,7 @@
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { STATIC_SITE_CONTACT, type SiteContact } from "@/lib/site-contact";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { requestReceivedMessage } from "../leads/request-received-message";
 
 /**
  * Contact details quoted in bot replies. The engine refreshes this from
@@ -36,10 +37,11 @@ export function startingService(serviceType: ServiceType, firstFieldPrompt: stri
   return `Great — let's get your ${SERVICE_TYPE_LABELS[serviceType]} request started. I'll ask a few quick questions.\n\n${firstFieldPrompt}`;
 }
 
-export function leadCreated(referenceId: string, serviceLabel: string): string {
+/** Client testing 2026-10-09 (C8) — the same per-service "request received" text as the website and email. */
+export function leadCreated(referenceId: string, serviceType: ServiceType): string {
   return (
-    `All set! Your ${serviceLabel} request is submitted — reference *${referenceId}*.\n\n` +
-    `Our team will review it and reach out shortly. You can also reach us anytime at ${contact.phone} or ${contact.email}.\n\n` +
+    `${requestReceivedMessage(serviceType)}\n\nYour reference: *${referenceId}*.\n\n` +
+    `You can also reach us anytime at ${contact.phone} or ${contact.email}.\n\n` +
     `Type "menu" if you'd like to start another request.`
   );
 }

@@ -11,6 +11,7 @@ import {
   otbStepLabels,
   type OtbRequestValues,
 } from "@/lib/validation/otb-schema";
+import { requestReceivedMessage } from "@/lib/leads/request-received-message";
 
 const steps = [Step1BasicDetails, StepApplicants, Step3Summary];
 
@@ -42,7 +43,7 @@ export function OtbRequestFlow() {
       onSubmit={submitOtbRequest}
       draftServiceType="OTB"
       successTitle="Request submitted"
-      successDescription="Your OTB request has been received. Our team will verify the details and get in touch shortly."
+      successDescription={requestReceivedMessage("OTB")}
     />
   );
 }

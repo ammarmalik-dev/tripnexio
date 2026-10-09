@@ -11,6 +11,7 @@ import {
   visaExtensionStepLabels,
   type VisaExtensionRequestValues,
 } from "@/lib/validation/visa-extension-schema";
+import { requestReceivedMessage } from "@/lib/leads/request-received-message";
 
 const steps = [Step1Identity, Step2Applicants, Step3Summary];
 
@@ -36,7 +37,7 @@ export function VisaExtensionRequestFlow() {
       onSubmit={submitVisaExtensionRequest}
       draftServiceType="VISA_EXTENSION"
       successTitle="Request received"
-      successDescription="Your Visa Extension request has been received. Our team will validate each applicant's details and documents and get in touch shortly."
+      successDescription={requestReceivedMessage("VISA_EXTENSION")}
     />
   );
 }

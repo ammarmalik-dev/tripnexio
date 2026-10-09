@@ -11,6 +11,7 @@ import {
   flightSpecialFareStepLabels,
   type FlightSpecialFareRequestValues,
 } from "@/lib/validation/flight-special-fare-schema";
+import { requestReceivedMessage } from "@/lib/leads/request-received-message";
 
 const steps = [Step1TripDetails, Step2Passengers, Step3Summary];
 
@@ -36,7 +37,7 @@ export function FlightSpecialFareRequestFlow() {
       onSubmit={submitFlightSpecialFareRequest}
       draftServiceType="FLIGHT_SPECIAL_FARE"
       successTitle="Request received"
-      successDescription="Your Flight Special Fare request has been received. Our team will check available fares and get in touch shortly."
+      successDescription={requestReceivedMessage("FLIGHT_SPECIAL_FARE")}
     />
   );
 }

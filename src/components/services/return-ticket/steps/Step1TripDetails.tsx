@@ -78,13 +78,16 @@ export function Step1TripDetails() {
           error={errors.expectedReturnDate?.message}
           {...register("expectedReturnDate")}
         />
+        {/* Client testing 2026-10-09 (B13) — the price sits on the same line as the Expected Return Date. */}
+        {selected ? (
+          <div className="flex flex-col justify-center rounded-xl border border-hairline bg-surface-1 px-4 py-3 sm:mt-6 sm:self-start" aria-live="polite">
+            <span className="text-xs font-medium text-ink-tertiary">Price for {selected.countryName}</span>
+            <span className="text-lg font-semibold text-ink-heading">
+              {formatRupees(selected.ratePerApplicant)} <span className="text-sm font-normal text-ink-secondary">per applicant</span>
+            </span>
+          </div>
+        ) : null}
       </div>
-
-      {selected ? (
-        <p className="text-sm text-ink-secondary">
-          Rate for {selected.countryName}: <strong>{formatRupees(selected.ratePerApplicant)}</strong> per applicant.
-        </p>
-      ) : null}
     </div>
   );
 }

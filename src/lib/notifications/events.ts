@@ -50,9 +50,14 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
     label: "Request received",
-    variables: ["customerName", "serviceType", "leadReference"],
+    variables: ["customerName", "serviceType", "leadReference", "requestMessage"],
     wired: true,
-    sampleVariables: { customerName: "Sample Customer", serviceType: "New Visa", leadReference: "10626VI001" },
+    sampleVariables: {
+      customerName: "Sample Customer",
+      serviceType: "New Visa",
+      leadReference: "10626VI001",
+      requestMessage: "Your New Visa request has been received. Our team will review the details and get in touch shortly.",
+    },
   },
   {
     event: NOTIFICATION_EVENTS.QUOTE_READY,

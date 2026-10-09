@@ -32,15 +32,16 @@ export const metadata: Metadata = {
 // Locked content — TripNexio_OTB_Final_Page_Content_Design_FAQ_v3.docx §8/§19.
 // Passport Number and Destination Country are both required customer-form fields;
 // no separate nationality field. "Valid Destination Visa" (not "UAE Visa") — OTB isn't UAE-only.
+// Client testing 2026-10-09 (B15) — the client's list, each with a short description.
 const whatYoullNeed = [
-  "Full name",
-  "Passport number",
-  "Mobile number",
-  "Email address",
-  "Destination country",
-  "Airline",
-  "Travel date",
-].map((label) => ({ label }));
+  { label: "Full name", detail: "As printed on the passport" },
+  { label: "Passport number", detail: "For every traveller" },
+  { label: "Mobile number", detail: "Active contact number for updates" },
+  { label: "Email address", detail: "For your OTB confirmation" },
+  { label: "Destination country", detail: "The country you are flying to" },
+  { label: "Airline name", detail: "The airline you are flying with" },
+  { label: "Travel date", detail: "Your date of departure" },
+];
 
 // Client correction 2026-10-05 — the OTB document list.
 const documentsNeeded = [
@@ -112,7 +113,7 @@ export default function OtbLandingPage() {
           <MotionReveal delay={0.18}>
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/otb/request" variant="primary" size="lg">
-                Request OTB
+                Apply for OTB
               </ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status
@@ -341,7 +342,7 @@ export default function OtbLandingPage() {
               </h2>
               <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <ButtonLink href="/services/otb/request" variant="primary" size="lg">
-                  Request OTB
+                  Apply for OTB
                 </ButtonLink>
                 <ButtonLink href="/services/return-ticket" variant="ghost" size="lg" className="border-white/40 text-white hover:border-white/70 hover:bg-white/5">
                   Get Return Ticket

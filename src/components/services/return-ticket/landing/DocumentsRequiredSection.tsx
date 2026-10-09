@@ -6,17 +6,15 @@ export interface ReturnTicketLandingDocument {
 }
 
 // Locked content — RVT Page Content v3 §7. Used verbatim when an Admin row's
-// name matches one of the doc's three documents, and as the whole list when
+// name matches one of the doc's documents (return ticket removed 2026-10-09, B12), and as the whole list when
 // the Admin checklist can't be read.
 const DOC_CAPTIONS: Record<string, string> = {
   "passport copy": "Required",
-  "return ticket": "Provide existing ticket details where applicable",
   "visa copy": "Optional / where applicable",
 };
 
 const FALLBACK_DOCUMENTS: ReturnTicketLandingDocument[] = [
   { name: "Passport Copy", required: true },
-  { name: "Return Ticket", required: false },
   { name: "Visa Copy", required: false },
 ];
 
@@ -27,5 +25,8 @@ const FALLBACK_DOCUMENTS: ReturnTicketLandingDocument[] = [
  */
 export function returnTicketDocumentsForDisplay(documents: ReturnTicketLandingDocument[] | null): RequiredDocument[] {
   const list = documents && documents.length > 0 ? documents : FALLBACK_DOCUMENTS;
-  return list.map((doc) => ({ ...doc, caption: DOC_CAPTIONS[doc.name.trim().toLowerCase()] }));
+  // Client testing 2026-10-09 (B12) — the return ticket is what we issue, so it is never listed as a customer document.
+  return list
+    .filter((doc) => doc.name.trim().toLowerCase() !== "return ticket")
+    .map((doc) => ({ ...doc, caption: DOC_CAPTIONS[doc.name.trim().toLowerCase()] }));
 }

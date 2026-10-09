@@ -13,6 +13,7 @@ import { findCustomerByMobile } from "../customers/find-by-mobile";
 import { findOpenDraftLead } from "./abandoned-draft";
 import { autoAssignLead } from "../staff/auto-assign";
 import { notifyStaff } from "@/lib/staff-notifications/notify";
+import { requestReceivedMessage } from "./request-received-message";
 
 /**
  * The services that go through a staff-prepared quotation the customer
@@ -302,6 +303,8 @@ async function sendLeadReceivedNotice(input: {
       customerName: input.customerName,
       serviceType: SERVICE_TYPE_LABELS[input.serviceType],
       leadReference: input.referenceId,
+      // Client testing 2026-10-09 (C8) — the same per-service text as the website success screen.
+      requestMessage: requestReceivedMessage(input.serviceType),
     },
     auditTarget: { entityType: "Lead", entityId: input.leadId },
   });

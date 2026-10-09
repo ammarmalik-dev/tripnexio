@@ -26,7 +26,14 @@ export const metadata: Metadata = {
 };
 
 // Locked — P05: exactly these five, nothing else.
-const whatYoullNeed = ["Name", "Mobile Number", "Email Address", "Passport Number", "Visa Expiry Date"].map((label) => ({ label }));
+// Client testing 2026-10-09 (B18) — the client's list, each with a short description.
+const whatYoullNeed = [
+  { label: "Name", detail: "As printed on the passport" },
+  { label: "Mobile Number", detail: "Active contact number for updates" },
+  { label: "Email Address", detail: "For your quotation and extension updates" },
+  { label: "Passport Number", detail: "For every applicant" },
+  { label: "Visa Expiry Date", detail: "The expiry date on your current visa" },
+];
 
 // Client correction 2026-10-05 — compact 4 steps. Step 2 checks the visa and
 // documents, not the passengers.

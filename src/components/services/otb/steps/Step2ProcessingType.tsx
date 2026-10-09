@@ -33,7 +33,6 @@ export function Step2ProcessingType() {
   const travelDate = useWatch({ control, name: "travelDate" });
   const destinationCountry = useWatch({ control, name: "destinationCountry" });
   const paxType = useWatch({ control, name: "paxType" });
-  const applicants = (useWatch({ control, name: "additionalApplicants" }) ?? []).length + 1;
   const { state, airlines } = useOtbAirlines();
   const calendar = useWorkingCalendar("INDIA");
   const { state: optionsState, options: masterOptions } = useProcessingTypes("OTB");
@@ -96,7 +95,6 @@ export function Step2ProcessingType() {
             error={errors.processingType?.message}
             options={options}
           />
-          <p className="text-xs text-ink-tertiary">Applicants: {applicants}. Final pricing is confirmed by our team.</p>
         </>
       )}
     </div>

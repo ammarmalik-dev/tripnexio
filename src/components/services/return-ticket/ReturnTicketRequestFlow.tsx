@@ -11,6 +11,7 @@ import {
   returnTicketStepLabels,
   type ReturnTicketRequestValues,
 } from "@/lib/validation/return-ticket-schema";
+import { requestReceivedMessage } from "@/lib/leads/request-received-message";
 
 const steps = [Step1TripDetails, Step2Applicants, Step3Summary];
 
@@ -36,7 +37,7 @@ export function ReturnTicketRequestFlow() {
       onSubmit={submitReturnTicketRequest}
       draftServiceType="RETURN_TICKET"
       successTitle="Request received"
-      successDescription="Your Return Verified Ticket request has been received. Our team will confirm your reservation and get in touch shortly."
+      successDescription={requestReceivedMessage("RETURN_TICKET")}
     />
   );
 }

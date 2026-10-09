@@ -30,15 +30,17 @@ export const metadata: Metadata = {
     "A verifiable return ticket reservation for international travel. Share your destination and travel date — we take care of the rest.",
 };
 
+// Client testing 2026-10-09 (B11) — the client's list, each with a short description.
 const whatYoullNeed = [
-  "Full name",
-  "Mobile number",
-  "Email address",
-  "Destination country",
-  "Number of passengers",
-  "Travel date",
-  "Expected return / onward date",
-].map((label) => ({ label }));
+  { label: "Full name", detail: "As printed on the passport" },
+  { label: "Mobile number", detail: "Active contact number for updates" },
+  { label: "Email address", detail: "For your booking confirmation and reservation" },
+  { label: "Passport number", detail: "For every traveller on the booking" },
+  { label: "Destination country", detail: "The country you are travelling to" },
+  { label: "Number of passengers", detail: "Adults, children and infants travelling" },
+  { label: "Travel date", detail: "Your planned date of departure" },
+  { label: "Expected return date", detail: "The date you plan to return" },
+];
 
 // Client correction 2026-10-05 — exactly 4 short steps. "airline/partner"
 // follows the client's site-wide Vendor -> Partner wording.

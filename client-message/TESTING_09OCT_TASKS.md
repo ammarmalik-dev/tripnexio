@@ -16,25 +16,25 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] B3. Images: Visa Change gets the current Special Fare image; Special Fare gets a new good image.
 - [ ] B4. Link preview on WhatsApp/SMS shows the old "India to the UAE and GCC" image — new OG image with the tagline.
 - [x] B5. Track Status timeline overflows its card (steps go outside the box).
-- [ ] B6. Special Fare: "What You'll Need" = client's list (Full name, Mobile, Email, Departure city/airport, Destination city/airport, Travel date, Passenger details, Passport/Govt ID, Visa copy) each with a description.
+- [x] B6. Special Fare: "What You'll Need" = client's list (Full name, Mobile, Email, Departure city/airport, Destination city/airport, Travel date, Passenger details, Passport/Govt ID, Visa copy) each with a description.
 - [ ] B7. Special Fare: departure/arrival city fields wrong on desktop (mobile OK).
 - [ ] B8. Special Fare: country select shows flags and only enabled countries.
-- [ ] B9. Special Fare success text: "Your Special Fare request has been received successfully. Our team will check the available fares and share your quotation with you shortly on WhatsApp and email." — same text in the WhatsApp + email template.
+- [x] B9. Special Fare success text: "Your Special Fare request has been received successfully. Our team will check the available fares and share your quotation with you shortly on WhatsApp and email." — same text in the WhatsApp + email template.
 - [ ] B10. Special Fare T&C: auto-fit standard points (e.g. carry/re-post govt ID) for every service.
-- [ ] B11. Return Ticket: "What You'll Need" (Full name, Mobile, Email, Passport number, Destination country, Number of passengers, Travel date, Expected return date) with descriptions.
-- [ ] B12. Return Ticket: remove "Return ticket" from Documents Required (keep Passport copy required, Visa copy optional).
-- [ ] B13. Return Ticket: price shown on the same line as Expected Return Date.
-- [ ] B14. OTB: "Apply for OTB" button at the top and bottom of the page.
-- [ ] B15. OTB: "What You'll Need" (Full name, Passport number, Mobile, Email, Destination country, Airline name, Travel date) with descriptions; fix the airline-name wording.
-- [ ] B16. OTB: remove "Applicants: 1. Final pricing is confirmed by our team." on date select.
+- [x] B11. Return Ticket: "What You'll Need" (Full name, Mobile, Email, Passport number, Destination country, Number of passengers, Travel date, Expected return date) with descriptions.
+- [x] B12. Return Ticket: remove "Return ticket" from Documents Required (keep Passport copy required, Visa copy optional).
+- [x] B13. Return Ticket: price shown on the same line as Expected Return Date.
+- [x] B14. OTB: "Apply for OTB" button at the top and bottom of the page.
+- [x] B15. OTB: "What You'll Need" (Full name, Passport number, Mobile, Email, Destination country, Airline name, Travel date) with descriptions; fix the airline-name wording.
+- [x] B16. OTB: remove "Applicants: 1. Final pricing is confirmed by our team." on date select.
 - [x] B17. OTB: destination list shows only countries enabled for OTB in Admin.
-- [ ] B18. Visa Extension: "What You'll Need" (Name, Mobile, Email, Passport number, Visa expiry date) with descriptions.
-- [ ] B19. Visa Extension success text = WhatsApp + email template ("Your Visa Extension request has been received. Our team will validate each applicant's details and documents and get in touch shortly.").
+- [x] B18. Visa Extension: "What You'll Need" (Name, Mobile, Email, Passport number, Visa expiry date) with descriptions.
+- [x] B19. Visa Extension success text = WhatsApp + email template ("Your Visa Extension request has been received. Our team will validate each applicant's details and documents and get in touch shortly.").
 - [ ] B20. Visa Extension: prior TripNexio visa check matched the wrong record — fix matching.
 - [ ] B21. Visa Extension: if no TripNexio visa (or wrong passport/DOB), after the lead ask the customer to upload the visa copy (website + WhatsApp).
 - [ ] B22. Visa Change: correct copy — "Currently in the UAE?" block, method descriptions (Border Exit & Re-entry / Airport-to-Airport) as given.
 - [ ] B23. Visa Change: documents (passport front/last, photo) after payment; visa copy line (confirm).
-- [ ] B24. Visa Change success text = WhatsApp + email template.
+- [x] B24. Visa Change success text = WhatsApp + email template.
 - [ ] B25. New Visa: Expected Approval Date shown immediately from Admin working days/holidays, with blocked calendar dates.
 - [ ] B26. New Visa first page: Adult & Child price for each of Normal / Express.
 - [ ] B27. New Visa country cards: "Price on Request" → only Apply Now; show Normal/Express availability; cards auto-centre (1 card centred, rows even).
@@ -51,7 +51,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] C5. Status check inside WhatsApp (reference + last 4 digits) — no redirect to the website.
 - [x] C6. "Talk to expert": staff can chat with the customer from the CRM (live WhatsApp inbox / reply).
 - [x] C7. Don't send a wa.me link inside WhatsApp.
-- [ ] C8. Request-received templates per service shared by WhatsApp and email (B9/B19/B24).
+- [x] C8. Request-received templates per service shared by WhatsApp and email (B9/B19/B24).
 
 ## D. Contact settings
 - [x] D1. Admin: Phone, WhatsApp and Email configured separately (changing phone must not change WhatsApp); same on invoices.

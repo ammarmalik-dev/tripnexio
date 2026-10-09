@@ -15,6 +15,7 @@ import {
   newVisaStepLabels,
   type NewVisaRequestValues,
 } from "@/lib/validation/new-visa-schema";
+import { requestReceivedMessage } from "@/lib/leads/request-received-message";
 
 const steps = [Step1TravelDetails, StepTravellers, Step2ProcessingType, Step3Summary];
 
@@ -82,7 +83,7 @@ export function NewVisaRequestFlow() {
       onSubmit={submitNewVisaRequest}
       draftServiceType="NEW_VISA"
       successTitle="Request submitted"
-      successDescription="Your New Visa request has been received. Our team will review the details and get in touch shortly."
+      successDescription={requestReceivedMessage("NEW_VISA")}
     />
   );
 }

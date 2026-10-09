@@ -240,7 +240,7 @@ async function continueCollecting(
     return {
       replyText: payUrl
         ? messages.leadCreatedWithPayLink(result.referenceId, SERVICE_TYPE_LABELS[serviceType], payUrl)
-        : messages.leadCreated(result.referenceId, SERVICE_TYPE_LABELS[serviceType]),
+        : messages.leadCreated(result.referenceId, serviceType),
       nextState: "COMPLETED",
       nextServiceType: serviceType,
       nextCollectedFields: nextCollected,

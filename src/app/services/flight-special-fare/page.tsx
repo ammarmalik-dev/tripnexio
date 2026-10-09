@@ -45,6 +45,9 @@ const whatYoullNeed = [
   { label: "Destination city / airport", detail: "Where you want to travel to" },
   { label: "Travel date", detail: "Your planned date of travel" },
   { label: "Passenger details", detail: "Adults, children and infants where applicable" },
+  // Client testing 2026-10-09 (B6) — the client's two extra lines, verbatim.
+  { label: "Passport / Government ID", detail: "Required for international travel; valid government ID may be used for domestic travel." },
+  { label: "Visa Copy", detail: "Required only when applicable for the destination." },
 ];
 
 // Client correction 2026-10-05: passport required, visa copy optional (may be asked before payment).

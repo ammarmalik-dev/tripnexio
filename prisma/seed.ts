@@ -568,7 +568,8 @@ async function main() {
       id: "notification-template-lead-received",
       event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
       subject: "Sample: We've received your {{serviceType}} request — {{leadReference}}",
-      body: "Hi {{customerName}},\n\nThanks for your {{serviceType}} request with TripNexio. Your reference is {{leadReference}} — our team will review it and reach out shortly.\n\n— TripNexio",
+      // Client testing 2026-10-09 (C8) — same per-service text as the website (migration 20261009160000).
+      body: "Hi {{customerName}},\n\n{{requestMessage}}\n\nYour reference: {{leadReference}}",
     },
     {
       id: "notification-template-quote-ready",
@@ -664,7 +665,7 @@ async function main() {
     {
       id: "notification-template-lead-received-wa",
       event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
-      body: "Hi {{customerName}}, thanks for your {{serviceType}} request with TripNexio. Reference: {{leadReference}}. Our team will reach out shortly.",
+      body: "Hi {{customerName}}, {{requestMessage}} Your reference: {{leadReference}}.",
     },
     {
       id: "notification-template-quote-ready-wa",

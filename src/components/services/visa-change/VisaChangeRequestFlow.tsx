@@ -13,6 +13,7 @@ import {
   visaChangeStepLabels,
   type VisaChangeRequestValues,
 } from "@/lib/validation/visa-change-schema";
+import { requestReceivedMessage } from "@/lib/leads/request-received-message";
 
 const steps = [Step1Method, Step2Details, Step3DocumentChecklist, Step4Summary];
 
@@ -41,7 +42,7 @@ export function VisaChangeRequestFlow() {
       draftServiceType="VISA_CHANGE"
       draftStepIndex={1}
       successTitle="Request received"
-      successDescription="Your Visa Change request has been received. Our team will check availability and get in touch shortly."
+      successDescription={requestReceivedMessage("VISA_CHANGE")}
     />
   );
 }
