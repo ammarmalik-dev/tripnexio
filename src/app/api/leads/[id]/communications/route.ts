@@ -8,6 +8,8 @@ import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
 const WHATSAPP_SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EMAIL_AUDIT_ACTIONS = ["EMAIL_SENT", "EMAIL_SKIPPED", "EMAIL_FAILED"];
+/** The WhatsApp chat that led to a request starts a little before the lead exists. */
+const CHAT_LEAD_IN_MS = 2 * 60 * 60 * 1000;
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -45,10 +47,17 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     : [];
 
   const waId = toWhatsAppId(lead.customer.mobile);
-  const [conversation, whatsappMessages] = await Promise.all([
+  const [conversation, whatsappMessages, nextLead] = await Promise.all([
     db.whatsAppConversation.findUnique({ where: { waId } }),
     db.whatsAppMessageLog.findMany({ where: { waId }, include: { sentByUser: true }, orderBy: { createdAt: "asc" } }),
+    db.lead.findFirst({ where: { customerId: lead.customerId, createdAt: { gt: lead.createdAt } }, orderBy: { createdAt: "asc" }, select: { createdAt: true } }),
   ]);
+  // Client testing 2026-10-09 (E6) — this request's own WhatsApp messages: from a
+  // little before it was created (the chat that led to it) until the customer's
+  // next request. Everything else is returned separately as history.
+  const windowStart = lead.createdAt.getTime() - CHAT_LEAD_IN_MS;
+  const windowEnd = nextLead ? nextLead.createdAt.getTime() - CHAT_LEAD_IN_MS : Number.POSITIVE_INFINITY;
+  const inThisRequest = (at: Date) => at.getTime() >= windowStart && at.getTime() < windowEnd;
 
   const windowOpen = Boolean(
     conversation?.lastInboundAt && Date.now() - conversation.lastInboundAt.getTime() < WHATSAPP_SESSION_WINDOW_MS
@@ -66,7 +75,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     timestamp: row.timestamp,
   }));
 
-  const whatsappItems = whatsappMessages.map((message) => ({
+  const toItem = (message: (typeof whatsappMessages)[number]) => ({
     id: message.id,
     channel: "WHATSAPP" as const,
     direction: message.direction,
@@ -74,7 +83,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     body: message.body,
     sentBy: message.sentByUser?.name ?? null,
     timestamp: message.createdAt,
-  }));
+  });
+  const whatsappItems = whatsappMessages.filter((message) => inThisRequest(message.createdAt)).map(toItem);
+  const history = whatsappMessages.filter((message) => !inThisRequest(message.createdAt)).map(toItem);
 
   const items = [...emailItems, ...whatsappItems].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 
@@ -82,5 +93,6 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     customer: { email: lead.customer.email, mobile: lead.customer.mobile },
     whatsapp: { windowOpen, windowExpiresAt },
     items,
+    history,
   });
 }

@@ -32,11 +32,14 @@ export async function getLeadRelatedEntityRefs(leadId: string): Promise<EntityRe
   const passengerIds = Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [];
   const bookingIds = lead.bookings.map((booking) => booking.id);
 
+  // Client testing 2026-10-09 (E6) — only this request's documents: its bookings'
+  // documents, and the passengers' documents added since this lead was created
+  // without another booking (a passenger's older requests stay in their own records).
   const relatedDocuments = await db.document.findMany({
     where: {
       OR: [
         bookingIds.length ? { bookingId: { in: bookingIds } } : undefined,
-        passengerIds.length ? { passengerId: { in: passengerIds } } : undefined,
+        passengerIds.length ? { passengerId: { in: passengerIds }, bookingId: null, createdAt: { gte: lead.createdAt } } : undefined,
       ].filter((clause): clause is NonNullable<typeof clause> => Boolean(clause)),
     },
   });

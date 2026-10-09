@@ -66,7 +66,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] E3. Staff can create coupons without Admin approval up to a limit — "500" (confirm: ₹500 max discount or 500 coupons).
 - [x] E4. Customer notified (with link) when: lead created, extra payment link raised, refund raised.
 - [x] E5. Refunds: Admin who raised can also approve; approval triggers the gateway refund automatically; booking → Cancelled after refund; invoice auto-cancelled.
-- [ ] E6. Current record shows only its own communication/timeline; previous bookings/leads/quotations in a separate History.
+- [x] E6. Current record shows only its own communication/timeline; previous bookings/leads/quotations in a separate History.
 - [x] E7. Staff see only their own leads / bookings / quotations and act on them.
 - [x] E8. Auto-assign not working — assign by staff scope, never to Super Admin.
 - [ ] E9. Full internal + customer status lists per service so staff can move statuses correctly.

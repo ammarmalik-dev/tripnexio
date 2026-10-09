@@ -30,6 +30,8 @@ interface CommunicationsResponse {
   customer: { email: string | null; mobile: string };
   whatsapp: { windowOpen: boolean; windowExpiresAt: string | null };
   items: CommunicationItem[];
+  /** Client testing 2026-10-09 (E6) — WhatsApp messages from the customer's other requests. */
+  history?: CommunicationItem[];
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -192,6 +194,19 @@ export function CommunicationsPanel({ leadId }: { leadId: string }) {
       {state === "success" && items.length === 0 ? <p className="text-sm text-ink-tertiary">No communication recorded yet.</p> : null}
 
       {state === "success" && items.length > 0 ? <ol className="flex max-h-96 flex-col gap-4 overflow-y-auto pr-1">{items.map((item) => <CommunicationRow key={`${item.channel}-${item.id}`} item={item} />)}</ol> : null}
+
+      {state === "success" && data?.history && data.history.length > 0 ? (
+        <details className="rounded-lg border border-hairline bg-surface-2 px-3 py-2">
+          <summary className="cursor-pointer text-sm font-medium text-ink-secondary">
+            Earlier conversations with this customer ({data.history.length}) — other requests
+          </summary>
+          <ol className="mt-3 flex max-h-72 flex-col gap-4 overflow-y-auto pr-1">
+            {data.history.map((item) => (
+              <CommunicationRow key={`history-${item.id}`} item={item} />
+            ))}
+          </ol>
+        </details>
+      ) : null}
 
       {state === "success" ? (
         <form onSubmit={handleSend} className="flex flex-col gap-3 border-t border-hairline pt-4">
