@@ -6,19 +6,20 @@ import { MotionReveal } from "@/components/motion/MotionReveal";
 import { VISA_CHANGE_EXCLUSIONS, VISA_CHANGE_INCLUSIONS } from "@/lib/visa-change/inclusions";
 
 // Locked content — doc §6 "Choose Your Visa Change Method", with the
-// inclusions from the client correction of 2026-10-05.
+// inclusions from the client correction of 2026-10-05 and the method names and
+// descriptions from client testing 2026-10-09 (B22).
 const methods = [
   {
     title: "Airport-to-Airport",
     description:
-      "Exit the UAE by air through a confirmed airport-to-airport arrangement. We confirm the available airport, airline, flight and timing before you choose.",
+      "Exit and re-enter the UAE by air through the same airport. We arrange the required flight and confirm the available airline, flight and timing before you choose.",
     Icon: Plane,
     included: VISA_CHANGE_INCLUSIONS.AIRPORT_TO_AIRPORT,
   },
   {
-    title: "Border Exit",
+    title: "Border Exit & Re-entry",
     description:
-      "Exit the UAE through a confirmed land-border arrangement. We confirm the border, pickup and reporting details before you choose.",
+      "Exit and re-enter the UAE through a land border. We arrange the required border transportation and confirm the border, pickup and reporting details before you choose.",
     Icon: Bus,
     included: VISA_CHANGE_INCLUSIONS.BORDER_EXIT,
   },

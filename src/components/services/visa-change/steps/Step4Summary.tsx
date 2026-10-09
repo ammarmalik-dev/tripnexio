@@ -6,7 +6,7 @@ import { useNationalities } from "@/lib/use-nationalities";
 
 const CHANGE_TYPE_LABEL: Record<VisaChangeRequestValues["changeType"], string> = {
   AIRPORT_TO_AIRPORT: "Airport to Airport",
-  BORDER_EXIT: "Border Exit",
+  BORDER_EXIT: "Border Exit & Re-entry",
 };
 
 function formatDate(value: string): string {

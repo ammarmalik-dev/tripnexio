@@ -30,12 +30,12 @@ export function Step1Method() {
         {
           value: "AIRPORT_TO_AIRPORT",
           label: "Airport to Airport",
-          description: "Exit and re-enter via an airport confirmed by our team.",
+          description: "Exit and re-enter the UAE by air through the same airport. We arrange the required flight and confirm the available airline, flight and timing before you choose.",
         },
         {
           value: "BORDER_EXIT",
-          label: "Border Exit",
-          description: "Exit via a land border crossing confirmed by our team.",
+          label: "Border Exit & Re-entry",
+          description: "Exit and re-enter the UAE through a land border. We arrange the required border transportation and confirm the border, pickup and reporting details before you choose.",
         },
       ]}
     />

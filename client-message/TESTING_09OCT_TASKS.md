@@ -32,8 +32,8 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] B19. Visa Extension success text = WhatsApp + email template ("Your Visa Extension request has been received. Our team will validate each applicant's details and documents and get in touch shortly.").
 - [ ] B20. Visa Extension: prior TripNexio visa check matched the wrong record — fix matching.
 - [ ] B21. Visa Extension: if no TripNexio visa (or wrong passport/DOB), after the lead ask the customer to upload the visa copy (website + WhatsApp).
-- [ ] B22. Visa Change: correct copy — "Currently in the UAE?" block, method descriptions (Border Exit & Re-entry / Airport-to-Airport) as given.
-- [ ] B23. Visa Change: documents (passport front/last, photo) after payment; visa copy line (confirm).
+- [x] B22. Visa Change: correct copy — "Currently in the UAE?" block, method descriptions (Border Exit & Re-entry / Airport-to-Airport) as given.
+- [x] B23. Visa Change: documents (passport front/last, photo) after payment; visa copy line (confirm).
 - [x] B24. Visa Change success text = WhatsApp + email template.
 - [ ] B25. New Visa: Expected Approval Date shown immediately from Admin working days/holidays, with blocked calendar dates.
 - [ ] B26. New Visa first page: Adult & Child price for each of Normal / Express.
@@ -42,6 +42,9 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] B29. New Visa: visa type/option chosen on the card carried forward (not asked again); Basic Details → straight to Applicant Details.
 - [ ] B30. New Visa: Processing Time | Visa Stay | Visa Validity in one row on the page.
 - [ ] B31. New Visa: country-wise Normal/Express timeline config in Admin works.
+- [ ] B32. Visa Change A2A quote (CRM): no "multiple flights" option — exit and re-entry legs each need from/to airport, date-time and airline, with their own cost and selling price.
+- [ ] B33. Visa Change quote: just cost, selling price and one "fine / other" field; no Govt./airline fee wording.
+- [ ] B34. Visa Change Border: remove the pickup address (pickup location already given); T&C and inclusions/exclusions auto-fill per method.
 
 ## C. WhatsApp bot
 - [x] C1. Ask number of passengers (Adult / Child / Infant) and collect each passenger.

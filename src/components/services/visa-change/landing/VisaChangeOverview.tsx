@@ -38,7 +38,7 @@ export function VisaChangeOverview() {
         <Container className="flex flex-col gap-8">
           <MotionReveal>
             <SectionHeading
-              eyebrow="Currently in the UAE"
+              eyebrow="Currently in the UAE?"
               title="Visa Change is available from inside the UAE"
               className="max-w-3xl"
             />
@@ -60,9 +60,9 @@ export function VisaChangeOverview() {
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
                   <span>
                     <span className="font-semibold text-ink-heading">Eligibility: </span>
-                    Visa Change can be requested by eligible UAE tourist visa holders and eligible holders of a
-                    cancelled UAE residence visa, subject to applicable immigration requirements, document checks,
-                    availability and the final decision of the relevant authority.
+                    {/* Client testing 2026-10-09 (B22) — the client's sentence. */}
+                    Visa Change is available for UAE tourist visa holders and holders of a cancelled UAE residence
+                    visa who are currently inside the UAE.
                   </span>
                 </p>
               </div>
