@@ -6,6 +6,7 @@ import { getTaxFeeRates } from "../settings/tax-fee-config";
 import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { getDefaultPaymentLinkHours } from "../settings/system-config";
 import { usableGateways, type UsableGateway } from "./accounts";
+import { notifyPaymentLinkReady } from "./notify-payment-link";
 import { leadReference } from "../leads/reference";
 import { siteConfig } from "../site-config";
 
@@ -129,7 +130,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   const gateway = issued.candidate.gateway;
   const gatewayAccount = issued.candidate.account;
 
-  return db.$transaction(async (tx) => {
+  const createdPayment = await db.$transaction(async (tx) => {
     const created = await tx.payment.create({
       data: {
         bookingId: booking.id,
@@ -172,6 +173,9 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
 
     return created;
   });
+  // Client testing 2026-10-09 — the customer gets the link on email + WhatsApp (never throws).
+  await notifyPaymentLinkReady(createdPayment.id);
+  return createdPayment;
 }
 
 /**

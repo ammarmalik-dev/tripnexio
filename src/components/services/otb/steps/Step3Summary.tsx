@@ -6,7 +6,6 @@ import { formatOtbRupees, otbApplicantPrice, useOtbAirlines } from "@/lib/otb/us
 import { SelectField } from "@/components/forms/SelectField";
 import { DateField } from "@/components/forms/DateField";
 import { formatRupees, useReturnTicketDestinations } from "@/lib/return-ticket/use-return-ticket-destinations";
-import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
@@ -159,7 +158,7 @@ export function Step3Summary() {
           )}
         </div>
       ) : null}
-      <PassportUploadField base64FieldName="passportImageBase64" mimeFieldName="passportImageMimeType" />
+      <p className="text-xs text-ink-tertiary">Passport, visa and ticket copies are uploaded after payment.</p>
     </div>
   );
 }

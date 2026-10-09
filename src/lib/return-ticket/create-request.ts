@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { createLeadFromSubmission, type CreateLeadResult } from "../leads/create-lead";
+import { createLeadFromSubmission, notifyLeadReceived, type CreateLeadResult } from "../leads/create-lead";
 import { createAutoCheckout } from "../checkout/create-auto-checkout";
 import { describeError } from "../api/describe-error";
 
@@ -34,6 +34,8 @@ export async function createReturnTicketRequest(input: {
 
   const ratePerApplicant = Number(destination.ratePerApplicant);
   const lead = await createLeadFromSubmission({
+    // Client testing 2026-10-09 — pays straight away: the payment link is the customer's message.
+    deferLeadReceivedNotice: true,
     serviceType: "RETURN_TICKET",
     source: input.source,
     contact: input.contact,
@@ -75,5 +77,6 @@ export async function createReturnTicketRequest(input: {
   } catch (checkoutError) {
     console.error("[return-ticket] auto checkout failed", describeError(checkoutError));
   }
+  if (!payToken) await notifyLeadReceived(lead.leadId);
   return { ok: true, lead, payToken, bookingId };
 }

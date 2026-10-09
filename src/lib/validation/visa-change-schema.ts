@@ -106,13 +106,10 @@ export function findMissingApplicantDocuments(values: {
   visaImageBase64?: string;
   additionalPassengers: { passportImageBase64?: string; visaImageBase64?: string }[];
 }): { path: string; message: string }[] {
-  const passportMessage = "Upload a copy of the passport";
   const visaMessage = "Upload a copy of the visa";
   const issues: { path: string; message: string }[] = [];
-  if (!values.passportImageBase64) issues.push({ path: "passportImageBase64", message: passportMessage });
   if (!values.visaImageBase64) issues.push({ path: "visaImageBase64", message: visaMessage });
   values.additionalPassengers.forEach((passenger, index) => {
-    if (!passenger.passportImageBase64) issues.push({ path: `additionalPassengers.${index}.passportImageBase64`, message: passportMessage });
     if (!passenger.visaImageBase64) issues.push({ path: `additionalPassengers.${index}.visaImageBase64`, message: visaMessage });
   });
   return issues;

@@ -11,7 +11,7 @@ import { workingDaysBetween } from "@/lib/calendar/working-calendar";
 import { flagShortPassportValidity } from "@/lib/new-visa/flag-passport-validity";
 import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
 import { newVisaRequestSchema } from "@/lib/validation/new-visa-schema";
-import { createLeadFromSubmission } from "@/lib/leads/create-lead";
+import { createLeadFromSubmission, notifyLeadReceived } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { findNewVisaTravellerIssues } from "@/lib/validation/new-visa-schema";
@@ -162,6 +162,8 @@ export async function POST(request: NextRequest) {
   try {
     const result = await createLeadFromSubmission({
       serviceType: "NEW_VISA",
+      // Client testing 2026-10-09 — pays straight away: the payment link is the customer's message.
+      deferLeadReceivedNotice: true,
       contact: { fullName, mobile, email },
       passengers: travellers.map((t, index) => ({
         fullName: t.fullName,
@@ -265,6 +267,7 @@ export async function POST(request: NextRequest) {
       console.error("[api/leads/new-visa] auto checkout failed", describeError(checkoutError));
     }
 
+    if (!payToken) await notifyLeadReceived(result.leadId);
     return jsonSuccess({ ...result, payToken }, 201);
   } catch (error) {
     console.error("[api/leads/new-visa]", describeError(error));

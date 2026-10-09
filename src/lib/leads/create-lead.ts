@@ -1,7 +1,7 @@
 import { leadListFacts } from "./list-facts";
 import { db } from "../db";
 import { Prisma, type Lead, type ServiceType } from "../../generated/prisma/client";
-import { nextLeadReference } from "./reference";
+import { leadReference, nextLeadReference } from "./reference";
 import { getInitialServiceStatusId } from "../service-status/engine";
 import { writeAudit } from "../audit/log";
 import { notifyCustomer } from "../notifications/notify";
@@ -52,6 +52,13 @@ export interface CreateLeadInput {
    * POC, so automatic assignment never replaces them (client corrections 2026-10-05).
    */
   createdBy?: { id: string; name: string };
+  /**
+   * Client testing 2026-10-09 — New Visa / OTB / Return Ticket pay straight
+   * after the request: skip the "request received, our team will reach out"
+   * message; the caller sends the payment link instead, or calls
+   * notifyLeadReceived() itself when no payment link could be created.
+   */
+  deferLeadReceivedNotice?: boolean;
 }
 
 export interface CreateLeadResult {
@@ -258,18 +265,16 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     recipients: assigneeId ? { userIds: [assigneeId] } : { permission: "leads.view", serviceType },
   });
 
-  await notifyCustomer({
-    event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
-    emailTo: result.customerEmail,
-    whatsappTo: toWhatsAppId(result.customerMobile),
-    smsTo: toWhatsAppId(result.customerMobile),
-    variables: {
+  if (!input.deferLeadReceivedNotice) {
+    await sendLeadReceivedNotice({
+      leadId: result.leadId,
+      serviceType,
+      referenceId: result.referenceId,
       customerName: result.customerName,
-      serviceType: SERVICE_TYPE_LABELS[serviceType],
-      leadReference: result.referenceId,
-    },
-    auditTarget: { entityType: "Lead", entityId: result.leadId },
-  });
+      customerEmail: result.customerEmail,
+      customerMobile: result.customerMobile,
+    });
+  }
 
   return {
     leadId: result.leadId,
@@ -278,4 +283,40 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     status: result.status,
     passengerIds: result.passengerIds,
   };
+}
+
+async function sendLeadReceivedNotice(input: {
+  leadId: string;
+  serviceType: ServiceType;
+  referenceId: string;
+  customerName: string;
+  customerEmail: string | null;
+  customerMobile: string;
+}): Promise<void> {
+  await notifyCustomer({
+    event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
+    emailTo: input.customerEmail,
+    whatsappTo: toWhatsAppId(input.customerMobile),
+    smsTo: toWhatsAppId(input.customerMobile),
+    variables: {
+      customerName: input.customerName,
+      serviceType: SERVICE_TYPE_LABELS[input.serviceType],
+      leadReference: input.referenceId,
+    },
+    auditTarget: { entityType: "Lead", entityId: input.leadId },
+  });
+}
+
+/** The deferred "request received" message, for a lead whose payment link couldn't be created (e.g. no configured price). Never throws. */
+export async function notifyLeadReceived(leadId: string): Promise<void> {
+  const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
+  if (!lead) return;
+  await sendLeadReceivedNotice({
+    leadId,
+    serviceType: lead.serviceType,
+    referenceId: leadReference(lead),
+    customerName: lead.customer.name,
+    customerEmail: lead.customer.email,
+    customerMobile: lead.customer.mobile,
+  });
 }

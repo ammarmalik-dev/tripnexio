@@ -13,6 +13,7 @@ const FLIGHT_SERVICES = new Set<ServiceType>(["FLIGHT_SPECIAL_FARE", "RETURN_TIC
 
 const EVENT_HEADINGS: Record<string, string> = {
   LEAD_RECEIVED: "Request Received",
+  PAYMENT_LINK_READY: "Complete Your Payment",
   QUOTE_READY: "Your Quote Is Ready",
   QUOTE_REMINDER: "Your Quote Is Waiting",
   QUOTE_EXPIRED: "Quote Expired",

@@ -332,9 +332,11 @@ export function LeadDetail({
               <Plus className="h-4 w-4" aria-hidden="true" />
               Create Booking
             </Button>
-          ) : DIRECT_PAYMENT_SERVICES.has(lead.serviceType) && !hasActiveBooking && !selectedQuotation ? (
+          ) : DIRECT_PAYMENT_SERVICES.has(lead.serviceType) && !hasActiveBooking ? (
             // Client corrections 2026-10-05 §16 — Lead → Direct Payment Link → Booking for fixed-price services.
-            <LeadDirectPaymentButton leadId={lead.id} onCreated={refresh} />
+            <a href="#tab-quotation" onClick={() => document.getElementById("record-tab-quotation")?.click()} className="inline-flex h-9 items-center rounded-md bg-accent px-3 text-sm font-semibold text-white">
+              Create Payment Link
+            </a>
           ) : null
         }
       />
@@ -475,17 +477,28 @@ export function LeadDetail({
           },
           {
             id: "quotation",
-            label: "Quotation & Payment",
+            label: DIRECT_PAYMENT_SERVICES.has(lead.serviceType) ? "Payment" : "Quotation & Payment",
             count: lead.bookings.length > 0 ? lead.bookings.length : undefined,
             content: (
               <div className="flex flex-col gap-5">
-                <QuoteBuilder
-                  leadId={lead.id}
-                  serviceType={lead.serviceType}
-                  visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
-                  leadStatus={lead.status}
-                  onLeadChanged={refresh}
-                />
+                {DIRECT_PAYMENT_SERVICES.has(lead.serviceType) ? (
+                  // Client testing 2026-10-09 (A2) — no quotation for these services: payment link straight from the lead.
+                  <RecordSection title="Payment">
+                    <p className="mb-3 text-sm text-ink-secondary">
+                      {SERVICE_TYPE_LABELS[lead.serviceType]} is paid by a direct payment link at the Admin-configured price — no quotation.
+                      The booking becomes active once the payment succeeds.
+                    </p>
+                    {!hasActiveBooking ? <LeadDirectPaymentButton leadId={lead.id} onCreated={refresh} /> : null}
+                  </RecordSection>
+                ) : (
+                  <QuoteBuilder
+                    leadId={lead.id}
+                    serviceType={lead.serviceType}
+                    visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
+                    leadStatus={lead.status}
+                    onLeadChanged={refresh}
+                  />
+                )}
 
                 {lead.bookings.length > 0 || selectedQuotation ? (
                   <RecordSection title="Bookings & Payments">

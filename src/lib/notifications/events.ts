@@ -20,6 +20,8 @@ export const NOTIFICATION_EVENTS = {
   QUOTE_EXPIRED: "QUOTE_EXPIRED",
   PAYMENT_RECEIVED: "PAYMENT_RECEIVED",
   PAYMENT_REMINDER: "PAYMENT_REMINDER",
+  /** Client testing 2026-10-09 — a new payment link (website checkout, CRM payment link, extra payment). */
+  PAYMENT_LINK_READY: "PAYMENT_LINK_READY",
   DOCUMENTS_REQUIRED: "DOCUMENTS_REQUIRED",
   DOCUMENT_APPROVED: "DOCUMENT_APPROVED",
   DOCUMENT_REJECTED: "DOCUMENT_REJECTED",
@@ -83,6 +85,22 @@ export const NOTIFICATION_EVENT_CATALOG: {
     variables: ["customerName", "bookingId", "leadReference", "amount"],
     wired: true,
     sampleVariables: { customerName: "Sample Customer", bookingId: "10626OT002", leadReference: "10626OT002", amount: "Rs. 1,605.00" },
+  },
+  {
+    event: NOTIFICATION_EVENTS.PAYMENT_LINK_READY,
+    label: "Payment link ready",
+    variables: ["customerName", "serviceType", "bookingId", "leadReference", "amount", "paymentLink", "linkExpiresAt", "paymentPurpose"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      serviceType: "Return Ticket",
+      bookingId: "11026RT043",
+      leadReference: "11026RT043",
+      amount: "Rs. 3,000.00",
+      paymentLink: "https://tripnexio.com/pay/sample-token",
+      linkExpiresAt: "10 Oct, 06:30 pm",
+      paymentPurpose: "Booking payment",
+    },
   },
   {
     event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,

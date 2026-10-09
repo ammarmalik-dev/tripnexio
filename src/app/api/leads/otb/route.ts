@@ -4,7 +4,7 @@ import { isHoneypotFilled } from "@/lib/validation/honeypot";
 import { LEAD_INTAKE_RATE_LIMIT } from "@/lib/leads/intake-limits";
 import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
 import { otbRequestSchema } from "@/lib/validation/otb-schema";
-import { createLeadFromSubmission } from "@/lib/leads/create-lead";
+import { createLeadFromSubmission, notifyLeadReceived } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { db } from "@/lib/db";
@@ -123,6 +123,8 @@ export async function POST(request: NextRequest) {
     // rule); createLeadFromSubmission also strips one defensively if present.
     const result = await createLeadFromSubmission({
       serviceType: "OTB",
+      // Client testing 2026-10-09 — pays straight away: the payment link is the customer's message.
+      deferLeadReceivedNotice: true,
       contact: { fullName, mobile, email },
       passengers: applicants.map((a) => ({ fullName: a.fullName, passportNumber: a.passportNumber })),
       details: {
@@ -221,6 +223,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    if (!payToken) await notifyLeadReceived(result.leadId);
     return jsonSuccess({ ...result, payToken, returnTicketPayToken }, 201);
   } catch (error) {
     console.error("[api/leads/otb]", describeError(error));

@@ -162,7 +162,6 @@ export function findNewVisaTravellerIssues(
   // Age on the travel date — the same basis computePaxType uses.
   const ageOn = ageBasisDate(values.travelDate);
   const check = (traveller: TravellerForCheck, prefix: string) => {
-    if (!traveller.passportImageBase64) issues.push({ path: `${prefix}passportImageBase64`, message: "Upload a copy of the passport" });
     if (isMinor(traveller.dob, ageOn)) {
       if (!traveller.guardianFullName || traveller.guardianFullName.trim().length < 2) {
         issues.push({ path: `${prefix}guardianFullName`, message: "Enter the guardian's full name" });

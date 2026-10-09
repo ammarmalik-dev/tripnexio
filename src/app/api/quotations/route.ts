@@ -235,6 +235,10 @@ export async function POST(request: NextRequest) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  // Client testing 2026-10-09 (A2) — New Visa / OTB / Return Ticket are never quoted: direct payment link from the lead.
+  if (lead.serviceType === "NEW_VISA" || lead.serviceType === "OTB" || lead.serviceType === "RETURN_TICKET") {
+    return jsonError(409, "This service is paid by a direct payment link from the lead — no quotation.");
+  }
   // P13 — a Visa Extension is quoted only after staff verified it ELIGIBLE or URGENT_TODAY.
   const extensionBlock = extensionQuoteBlockReason(lead.serviceType, lead.details);
   if (extensionBlock) return jsonError(409, extensionBlock);

@@ -4,11 +4,11 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 `[ ]` = to do, `[x]` = done, `(confirm)` = wording unclear, ask the client.
 
 ## A. Service flow (highest priority)
-- [ ] A1. New Visa / OTB / Return Ticket on the website: payment first → booking (same reference) → documents; no "team will reach out" lead, no quotation.
-- [ ] A2. Same three services in CRM: no quotation option — only "Create Payment Link" from the lead.
-- [ ] A3. Return Ticket / OTB confirmation message replaced by the payment link (not "Our team will reach out shortly").
-- [ ] A4. All documents asked only after payment (remove passport upload from the forms: New Visa basic step, OTB, Visa Change).
-- [ ] A5. Failed payment never moves the record into active Bookings (verify).
+- [x] A1. New Visa / OTB / Return Ticket on the website: payment first → booking (same reference) → documents; no "team will reach out" lead, no quotation.
+- [x] A2. Same three services in CRM: no quotation option — only "Create Payment Link" from the lead.
+- [x] A3. Return Ticket / OTB confirmation message replaced by the payment link (not "Our team will reach out shortly").
+- [x] A4. All documents asked only after payment (remove passport upload from the forms: New Visa basic step, OTB, Visa Change).
+- [x] A5. Failed payment never moves the record into active Bookings (verify).
 
 ## B. Website
 - [ ] B1. Home hero: "Tell us what you need…" text not readable on the hero image.
@@ -58,10 +58,10 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] D2. All WhatsApp / email templates managed from Admin.
 
 ## E. CRM
-- [ ] E1. Manual lead: amount fetched from Admin, base amount shown, coupon applied, final payable shown, extra charges allowed above configured amount.
+- [x] E1. Manual lead: amount fetched from Admin, base amount shown, coupon applied, final payable shown, extra charges allowed above configured amount.
 - [ ] E2. Home: "Need Attention" and "Expiring Soon" as buttons in Operations Overview (not long lists).
 - [ ] E3. Staff can create coupons without Admin approval up to a limit — "500" (confirm: ₹500 max discount or 500 coupons).
-- [ ] E4. Customer notified (with link) when: lead created, extra payment link raised, refund raised.
+- [~] E4. Customer notified (with link) when: lead created, extra payment link raised, refund raised. — payment links (lead + extra payment) done; lead-created / refund-raised still to do.
 - [ ] E5. Refunds: Admin who raised can also approve; approval triggers the gateway refund automatically; booking → Cancelled after refund; invoice auto-cancelled.
 - [ ] E6. Current record shows only its own communication/timeline; previous bookings/leads/quotations in a separate History.
 - [ ] E7. Staff see only their own leads / bookings / quotations and act on them.

@@ -5,7 +5,6 @@ import { Plus, Trash2 } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
 import { DateField } from "@/components/forms/DateField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { PassportUploadField } from "@/components/forms/PassportUploadField";
 import { Button } from "@/components/ui/Button";
 import { ageBasisDate, isMinor } from "@/lib/leads/age";
 import { passportValidityTooShort } from "@/lib/new-visa/passport-validity";
@@ -125,14 +124,7 @@ function TravellerFields({ prefix, label, nameField }: { prefix: string; label: 
         </div>
       ) : null}
 
-      <PassportUploadField
-        base64FieldName={`${prefix}passportImageBase64`}
-        mimeFieldName={`${prefix}passportImageMimeType`}
-        label="Passport copy"
-        description="Upload a clear photo of the passport main page."
-        required
-        error={err("passportImageBase64")}
-      />
+      {/* Client testing 2026-10-09 (A4) — passport and every other document are uploaded after payment. */}
     </fieldset>
   );
 }

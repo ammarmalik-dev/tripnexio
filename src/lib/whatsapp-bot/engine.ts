@@ -1,4 +1,4 @@
-import { createLeadFromSubmission } from "../leads/create-lead";
+import { createLeadFromSubmission, notifyLeadReceived } from "../leads/create-lead";
 import { checkVisaExtensionEligibility, getIneligibleRedirect } from "../leads/visa-extension-eligibility";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getAiProvider } from "./get-ai-provider";
@@ -210,6 +210,8 @@ async function continueCollecting(
       contact: { fullName: nextCollected.fullName, mobile: waId, email: nextCollected.email },
       passengers: await buildLeadPassengers(serviceType, nextCollected),
       details,
+      // Client testing 2026-10-09 — OTB / Return Ticket pay straight away: the payment link is the message.
+      deferLeadReceivedNotice: serviceType === "OTB" || serviceType === "RETURN_TICKET",
     });
 
     // OTB/Return Ticket pay right after the request, the same auto-checkout
@@ -225,6 +227,7 @@ async function continueCollecting(
       } catch (checkoutError) {
         console.error("[whatsapp-bot] auto checkout failed", checkoutError);
       }
+      if (!payUrl) await notifyLeadReceived(result.leadId);
     }
 
     return {
