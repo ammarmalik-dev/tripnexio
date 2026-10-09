@@ -214,6 +214,17 @@ That folder's `.docx` also holds live credentials: never commit it, read secrets
 - **Payment gateway failover**: `PaymentGatewayAccount` (priority, active, health; credentials only in `<envPrefix>_*` env vars) + `PaymentGatewayAttempt` history; `createGatewayPayment` tries active configured accounts in order (`src/lib/payments/accounts.ts`), one Payment row per link. `CashfreeGateway` (Payment Links API, untested live) + `/api/webhooks/cashfree`; both webhooks share `process-webhook-event.ts`. Admin → Payment Gateway table: Add, Make primary, move, activate/disable, health check (all audited).
 - **Still waiting on the client**: SAC codes per service, Cashfree / second Razorpay account keys (add the account in Admin, set its env vars in Coolify, run Check).
 
+## Progress so far — client testing 2026-10-09 (`client-message/TESTING_09OCT_TASKS.md` is the live checklist)
+- **Direct payment services**: New Visa / OTB / Return Ticket have no quotation (CRM "Payment" tab, `PAYMENT_LINK_READY` event); Visa Change / Visa Extension / Special Fare keep quotations.
+- **Request-received text**: one per service in `src/lib/leads/request-received-message.ts`, used by the website success screen, the bot reply and the `LEAD_RECEIVED` templates (`{{requestMessage}}`).
+- **Emails**: `src/lib/email/layout.ts` follows the client sample (white header, Booking ID / Service card, Need assistance, Team TripNexio, socials, automated strip, no address); per-event pictures `public/email/hero-{request,quote,payment,approved,boarding,…}.png` via `illustrationFor()`.
+- **Invoices**: column "Govt./Airline/Vendor Fee" (non-taxable); Visa Change / Extension fines are non-taxable (`nonTaxableQuotationAmount`); service shows the country; refunds cancel the invoice.
+- **Ownership**: staff without `leads.reassign` see only their own + unassigned leads/bookings/quotations (`src/lib/auth/ownership.ts`).
+- **Login**: Administrative Login is refused server-side (403, no session) for accounts without Admin access. Admin sidebar is white with Overview pinned.
+- **WhatsApp bot**: counts/passengers per service, in-chat status, direct payment links; a Visa Extension with no TripNexio visa still creates the lead and asks for the visa copy in chat (`src/lib/whatsapp-bot/visa-copy.ts`, state `AWAITING_VISA_COPY`; the webhook downloads image/document media from Meta hosts only).
+- **Visa Extension prior-visa check** matches the passport on the earlier New Visa booking's own travellers, not any traveller of the same customer.
+- **Link preview**: `siteConfig.ogImage` = `/og-image-2026.jpg` (new name busts WhatsApp's cache).
+
 ## Deployment
 Production (tripnexio.com) is a Hostinger VPS running Coolify; pushing to GitHub does not deploy by itself. Order: push `master` → on the VPS back up the Postgres container (`pg_dump` → `/root/backups/pre-deploy-<timestamp>.sql.gz`) → trigger the Coolify deploy through its API (token in `/root/.coolify-token`, app/db ids in `/root/tripnexio-coolify.ids`) → poll the deployment until `finished`. Migrations run with `prisma migrate deploy` when the container starts; confirm the new migration in the deploy log. Coolify does a rolling update, so a failed build leaves the previous version serving. Runtime env vars are edited through the Coolify API (never print values). The go-live checklist is in README.md.
 
