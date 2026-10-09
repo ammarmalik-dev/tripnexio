@@ -51,8 +51,13 @@ export function Step1TripDetails() {
         {...register("email")}
       />
       <div className="hidden sm:block" aria-hidden="true" />
-      <AirportSearchField name="origin" label="Departure City / Airport" required error={errors.origin?.message} />
-      <AirportSearchField name="destination" label="Arrival City / Airport" required error={errors.destination?.message} />
+      {/* Client testing 2026-10-09 (B7) — full-width on desktop so the chosen "City - Airport (CODE)" isn't cut off. */}
+      <div className="sm:col-span-2">
+        <AirportSearchField name="origin" label="Departure City / Airport" required error={errors.origin?.message} />
+      </div>
+      <div className="sm:col-span-2">
+        <AirportSearchField name="destination" label="Arrival City / Airport" required error={errors.destination?.message} />
+      </div>
       <DateField
         label="Travel Date"
         required

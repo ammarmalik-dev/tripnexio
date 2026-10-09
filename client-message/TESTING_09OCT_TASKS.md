@@ -17,8 +17,8 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] B4. Link preview on WhatsApp/SMS shows the old "India to the UAE and GCC" image — new OG image with the tagline.
 - [x] B5. Track Status timeline overflows its card (steps go outside the box).
 - [x] B6. Special Fare: "What You'll Need" = client's list (Full name, Mobile, Email, Departure city/airport, Destination city/airport, Travel date, Passenger details, Passport/Govt ID, Visa copy) each with a description.
-- [ ] B7. Special Fare: departure/arrival city fields wrong on desktop (mobile OK).
-- [ ] B8. Special Fare: country select shows flags and only enabled countries.
+- [x] B7. Special Fare: departure/arrival city fields wrong on desktop (mobile OK).
+- [x] B8. Special Fare: country select shows flags and only enabled countries.
 - [x] B9. Special Fare success text: "Your Special Fare request has been received successfully. Our team will check the available fares and share your quotation with you shortly on WhatsApp and email." — same text in the WhatsApp + email template.
 - [ ] B10. Special Fare T&C: auto-fit standard points (e.g. carry/re-post govt ID) for every service.
 - [x] B11. Return Ticket: "What You'll Need" (Full name, Mobile, Email, Passport number, Destination country, Number of passengers, Travel date, Expected return date) with descriptions.

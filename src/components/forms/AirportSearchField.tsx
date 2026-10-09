@@ -5,6 +5,7 @@ import { useFormContext } from "react-hook-form";
 import { FormField, fieldControlClass, fieldBorderClass } from "./FormField";
 import { getJson } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
+import type { CountryFlag } from "@/lib/countries/flag";
 
 interface AirportOption {
   id: string;
@@ -12,6 +13,7 @@ interface AirportOption {
   code: string;
   city: string;
   country: string;
+  flag: CountryFlag;
 }
 
 const SEARCH_DEBOUNCE_MS = 250;
@@ -136,11 +138,23 @@ export function AirportSearchField({
                   pick(airport);
                 }}
               >
-                <span className="font-medium">
-                  {airport.city} ({airport.code})
-                </span>
-                <span className="block text-xs text-ink-tertiary">
-                  {airport.name}, {airport.country}
+                <span className="flex items-center gap-2.5">
+                  {airport.flag.kind === "image" ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- Admin-set flag URL, tiny icon
+                    <img src={airport.flag.value} alt="" className="h-4 w-6 shrink-0 rounded-sm object-cover" />
+                  ) : (
+                    <span className="shrink-0 text-lg leading-none" aria-hidden="true">
+                      {airport.flag.value}
+                    </span>
+                  )}
+                  <span className="min-w-0">
+                    <span className="font-medium">
+                      {airport.city} ({airport.code})
+                    </span>
+                    <span className="block text-xs text-ink-tertiary">
+                      {airport.name}, {airport.country}
+                    </span>
+                  </span>
                 </span>
               </li>
             ))}
