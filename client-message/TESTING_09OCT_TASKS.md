@@ -63,7 +63,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 ## E. CRM
 - [x] E1. Manual lead: amount fetched from Admin, base amount shown, coupon applied, final payable shown, extra charges allowed above configured amount.
 - [x] E2. Home: "Need Attention" and "Expiring Soon" as buttons in Operations Overview (not long lists).
-- [ ] E3. Staff can create coupons without Admin approval up to a limit — "500" (confirm: ₹500 max discount or 500 coupons).
+- [x] E3. Staff can create coupons without Admin approval up to a limit — "500" (confirm: ₹500 max discount or 500 coupons).
 - [x] E4. Customer notified (with link) when: lead created, extra payment link raised, refund raised.
 - [x] E5. Refunds: Admin who raised can also approve; approval triggers the gateway refund automatically; booking → Cancelled after refund; invoice auto-cancelled.
 - [ ] E6. Current record shows only its own communication/timeline; previous bookings/leads/quotations in a separate History.
@@ -79,7 +79,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] F1. AI Command Centre — not go-live ready, fix.
 - [x] F2. Airports: country flag auto-fetched from the country when creating; searchable airport picker in CRM quotation/lead forms.
 - [x] F3. Airlines: logo not working — fix.
-- [ ] F4. OTB timeline calculated in working hours (verify).
+- [x] F4. OTB timeline calculated in working hours (verify).
 - [ ] F5. Coupons: Create → table → open/edit → save (check).
 - [ ] F6. Pricing Dashboard reported "not working" — verify on production and fix.
 - [ ] F7. Service Configuration: one short view; TAT for all countries; documents from Document Master; summary cards on top.
