@@ -1,4 +1,5 @@
 import { db } from "../db";
+import type { Prisma } from "../../generated/prisma/client";
 import { findCustomerByMobile } from "../customers/find-by-mobile";
 import { leadReference } from "./reference";
 
@@ -44,11 +45,10 @@ export async function checkVisaExtensionEligibility(
   if (input.passportNumber && input.dob) {
     const dobDate = new Date(input.dob);
     if (!Number.isNaN(dobDate.getTime())) {
-      const passengers = await db.passenger.findMany({
-        where: { passportNumber: { equals: input.passportNumber, mode: "insensitive" }, dob: dobDate },
-        select: { customerId: true },
-      });
-      for (const passenger of passengers) customerIds.add(passenger.customerId);
+      // Client testing 2026-10-09 (B20) — passport + DOB must be a traveller ON the
+      // earlier New Visa booking, not just any traveller of the same customer.
+      const booking = await findNewVisaBookingForTraveller({ passportNumber: { equals: input.passportNumber.trim(), mode: "insensitive" }, dob: dobDate });
+      if (booking) return { eligible: true, matchedLeadId: booking.leadId };
     }
   }
 
@@ -85,33 +85,39 @@ export interface PriorTripNexioVisa {
 }
 
 /**
+ * The latest New Visa booking (on a CONVERTED lead) that has this traveller on
+ * it, preferring a live booking over a cancelled/refunded one.
+ */
+async function findNewVisaBookingForTraveller(passenger: Prisma.PassengerWhereInput) {
+  const where = (extra: Prisma.BookingWhereInput): Prisma.BookingWhereInput => ({
+    lead: { serviceType: "NEW_VISA", status: "CONVERTED" },
+    passengers: { some: { passenger } },
+    ...extra,
+  });
+  const include = { lead: true } as const;
+  return (
+    (await db.booking.findFirst({ where: where({ status: { notIn: ["CANCELLED", "REFUNDED"] } }), orderBy: { createdAt: "desc" }, include })) ??
+    (await db.booking.findFirst({ where: where({}), orderBy: { createdAt: "desc" }, include }))
+  );
+}
+
+/**
  * Staff-facing lookup (Visa Extension handover doc): "check each applicant's
  * Passport Number against existing records to verify whether the applicant
  * previously received a visa through TripNexio." Passport-number-only, unlike
  * checkVisaExtensionEligibility above (which also needs DOB and is the
  * WhatsApp bot's gate). Uses the same proxy for "received a visa": a NEW_VISA
- * Lead that reached CONVERTED. Returns the most recent match, or null.
+ * Lead that reached CONVERTED, with this passport on its booking (B20).
+ * Returns the most recent match, or null.
  */
 export async function findPriorTripNexioVisaByPassport(passportNumber: string): Promise<PriorTripNexioVisa | null> {
-  const passengers = await db.passenger.findMany({
-    where: { passportNumber: { equals: passportNumber.trim(), mode: "insensitive" } },
-    select: { customerId: true },
-  });
-  if (passengers.length === 0) return null;
-
-  const lead = await db.lead.findFirst({
-    where: {
-      customerId: { in: Array.from(new Set(passengers.map((p) => p.customerId))) },
-      serviceType: "NEW_VISA",
-      status: "CONVERTED",
-    },
-    orderBy: { createdAt: "desc" },
-    // Prefer a live booking over a cancelled/refunded one.
-    include: { bookings: { orderBy: [{ createdAt: "desc" }], select: { id: true, bookingId: true, status: true } } },
-  });
-  if (!lead) return null;
-
-  const preferred = lead.bookings.find((booking) => booking.status !== "CANCELLED" && booking.status !== "REFUNDED") ?? lead.bookings[0] ?? null;
+  const trimmed = passportNumber.trim();
+  if (!trimmed) return null;
+  // Client testing 2026-10-09 (B20) — the passport must be a traveller on that
+  // New Visa booking; a visa the same customer bought for someone else is not a match.
+  const preferred = await findNewVisaBookingForTraveller({ passportNumber: { equals: trimmed, mode: "insensitive" } });
+  if (!preferred) return null;
+  const lead = preferred.lead;
   const details = (lead.details ?? {}) as Record<string, unknown>;
   const text = (value: unknown) => (typeof value === "string" && value ? value : null);
   return {
