@@ -43,6 +43,7 @@ export function DeliverOutputSection({
   documents,
   onDelivered,
   defaultOutputType = "VISA_PDF",
+  allowedOutputTypes = OUTPUT_TYPES,
 }: {
   bookingId: string;
   passengers: { id: string; fullName: string }[];
@@ -50,6 +51,8 @@ export function DeliverOutputSection({
   onDelivered: () => void;
   /** P17 — the output this booking's service normally delivers. */
   defaultOutputType?: OutputType;
+  /** Client testing 2026-10-09 (E11) — only this service's outputs; one = picked automatically. */
+  allowedOutputTypes?: readonly OutputType[];
 }) {
   const [outputType, setOutputType] = useState<OutputType>(defaultOutputType);
   const [passengerId, setPassengerId] = useState(passengers[0]?.id ?? "");
@@ -102,19 +105,25 @@ export function DeliverOutputSection({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
         <FormField label="Document" htmlFor="deliver-type">
-          <select
-            id="deliver-type"
-            value={outputType}
-            disabled={sending}
-            onChange={(e) => setOutputType(e.target.value as OutputType)}
-            className={cn(fieldControlClass, fieldBorderClass(false))}
-          >
-            {OUTPUT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {OUTPUT_TYPE_LABELS[type]}
-              </option>
-            ))}
-          </select>
+          {allowedOutputTypes.length === 1 ? (
+            <p id="deliver-type" className={cn(fieldControlClass, fieldBorderClass(false), "flex items-center bg-surface-2 font-medium")}>
+              {OUTPUT_TYPE_LABELS[allowedOutputTypes[0]]}
+            </p>
+          ) : (
+            <select
+              id="deliver-type"
+              value={outputType}
+              disabled={sending}
+              onChange={(e) => setOutputType(e.target.value as OutputType)}
+              className={cn(fieldControlClass, fieldBorderClass(false))}
+            >
+              {allowedOutputTypes.map((type) => (
+                <option key={type} value={type}>
+                  {OUTPUT_TYPE_LABELS[type]}
+                </option>
+              ))}
+            </select>
+          )}
         </FormField>
         <FormField label="For" htmlFor="deliver-passenger">
           <select

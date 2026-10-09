@@ -62,7 +62,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 
 ## E. CRM
 - [x] E1. Manual lead: amount fetched from Admin, base amount shown, coupon applied, final payable shown, extra charges allowed above configured amount.
-- [ ] E2. Home: "Need Attention" and "Expiring Soon" as buttons in Operations Overview (not long lists).
+- [x] E2. Home: "Need Attention" and "Expiring Soon" as buttons in Operations Overview (not long lists).
 - [ ] E3. Staff can create coupons without Admin approval up to a limit — "500" (confirm: ₹500 max discount or 500 coupons).
 - [x] E4. Customer notified (with link) when: lead created, extra payment link raised, refund raised.
 - [x] E5. Refunds: Admin who raised can also approve; approval triggers the gateway refund automatically; booking → Cancelled after refund; invoice auto-cancelled.
@@ -71,7 +71,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] E8. Auto-assign not working — assign by staff scope, never to Super Admin.
 - [ ] E9. Full internal + customer status lists per service so staff can move statuses correctly.
 - [ ] E10. Documents: PAX-level view / validate / reject (reason) / download / staff upload in lead + booking; one customer notification when all validated or something is required; documents only from the master list.
-- [ ] E11. Deliver output: document type auto-selected (ticket for ticket bookings, visa for visa).
+- [x] E11. Deliver output: document type auto-selected (ticket for ticket bookings, visa for visa).
 - [ ] E12. Vendor name captured before "Applied" (confirm wording "do not show vendor name on booking section").
 - [ ] E13. Lead / Quotation / Booking / Payment lists like the client's table screenshot: proper capitalisation, Applied to Embassy + Vendor columns, PAX under Booking ID, every status in the filters, country flags, service details column.
 

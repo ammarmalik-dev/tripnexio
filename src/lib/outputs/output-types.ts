@@ -28,6 +28,21 @@ export const OUTPUT_DELIVERY_EVENT: Record<OutputType, ServiceStatusSystemEvent>
   OTB_CONFIRMATION: "DELIVERED_OTB_CONFIRMATION",
 };
 
+/**
+ * Client testing 2026-10-09 (E11) — the outputs each service can deliver
+ * (first = the usual one): a ticket on a ticket booking, a visa on a visa
+ * booking. The form offers only these and the server refuses anything else.
+ */
+export const OUTPUTS_BY_SERVICE: Record<ServiceType, readonly OutputType[]> = {
+  NEW_VISA: ["VISA_PDF"],
+  VISA_EXTENSION: ["EXTENDED_VISA_PDF"],
+  VISA_CHANGE: ["PACKAGE_PDF", "VISA_PDF"],
+  FLIGHT_SPECIAL_FARE: ["TICKET_PDF"],
+  RETURN_TICKET: ["RESERVATION_PDF", "TICKET_PDF"],
+  OTB: ["OTB_CONFIRMATION"],
+  OTHER: OUTPUT_TYPES,
+};
+
 /** The output each service normally delivers — the Upload & Deliver form's default choice. */
 export const DEFAULT_OUTPUT_BY_SERVICE: Record<ServiceType, OutputType> = {
   NEW_VISA: "VISA_PDF",

@@ -28,7 +28,7 @@ import { SpecialFareActionsPanel, type SpecialFareBookingView } from "./SpecialF
 import { ReturnTicketActionsPanel, type ReturnTicketBookingView } from "./ReturnTicketActionsPanel";
 import { LinkedBookingPanel, type LinkedBookingView } from "./LinkedBookingPanel";
 import { OtbActionsPanel, type OtbBookingView } from "./OtbActionsPanel";
-import { DEFAULT_OUTPUT_BY_SERVICE } from "@/lib/outputs/output-types";
+import { DEFAULT_OUTPUT_BY_SERVICE, OUTPUTS_BY_SERVICE } from "@/lib/outputs/output-types";
 import { RequestDocumentForm } from "./RequestDocumentForm";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { ProtectionPlanControl, type ProtectionPlanData } from "./ProtectionPlanControl";
@@ -507,6 +507,7 @@ export function BookingDetail({
                   documents={booking.documents}
                   onDelivered={refresh}
                   defaultOutputType={DEFAULT_OUTPUT_BY_SERVICE[booking.serviceType]}
+                  allowedOutputTypes={OUTPUTS_BY_SERVICE[booking.serviceType]}
                 />
               </div>
             ),

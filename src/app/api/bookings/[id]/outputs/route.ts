@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
-import { OUTPUT_TYPES } from "@/lib/outputs/output-types";
+import { OUTPUT_TYPES, OUTPUTS_BY_SERVICE } from "@/lib/outputs/output-types";
 import { hasReachedStatusEvent } from "@/lib/service-status/engine";
 import { deliverOutput } from "@/lib/outputs/deliver-output";
 import { describeError } from "@/lib/api/describe-error";
@@ -52,6 +52,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+
+  // Client testing 2026-10-09 (E11) — only this service's own outputs (e.g. no visa PDF on a ticket booking).
+  if (!OUTPUTS_BY_SERVICE[booking.lead.serviceType].includes(parsed.data.outputType)) {
+    return jsonError(400, "That document type isn't delivered for this service.", { outputType: ["Not available for this service."] });
+  }
 
   // P11 — a New Visa's visa PDF follows the embassy's approval.
   if (booking.lead.serviceType === "NEW_VISA" && parsed.data.outputType === "VISA_PDF" && !(await hasReachedStatusEvent(booking.id, "EMBASSY_APPROVED"))) {

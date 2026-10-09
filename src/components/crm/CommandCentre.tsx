@@ -29,7 +29,6 @@ import {
 import { DateField } from "@/components/forms/DateField";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -113,11 +112,14 @@ interface KpiCardProps {
    */
   href?: string;
   notClickableHint?: string;
+  /** Client testing 2026-10-09 (E2) — a toggle button (opens a short list below) instead of a link. */
+  onClick?: () => void;
+  pressed?: boolean;
 }
 
-function KpiCard({ label, value, icon: Icon, tint, comingSoonHint, href, notClickableHint }: KpiCardProps) {
+function KpiCard({ label, value, icon: Icon, tint, comingSoonHint, href, notClickableHint, onClick, pressed }: KpiCardProps) {
   const comingSoon = value === null;
-  const clickable = !comingSoon && !!href;
+  const clickable = !comingSoon && (!!href || !!onClick);
 
   const content = (
     <>
@@ -137,10 +139,19 @@ function KpiCard({ label, value, icon: Icon, tint, comingSoonHint, href, notClic
   const className = cn(
     "flex items-center gap-3 rounded-xl border px-3.5 py-3 transition-all duration-150",
     comingSoon ? "border-dashed border-hairline bg-surface-2" : "border-hairline bg-surface-1",
-    clickable && "cursor-pointer hover:-translate-y-0.5 hover:border-glass-border hover:shadow-[0_8px_20px_rgb(24_42_77/0.08)]"
+    clickable && "cursor-pointer hover:-translate-y-0.5 hover:border-glass-border hover:shadow-[0_8px_20px_rgb(24_42_77/0.08)]",
+    pressed && "border-accent ring-2 ring-accent/20"
   );
 
-  if (clickable) {
+  if (clickable && onClick) {
+    return (
+      <button type="button" onClick={onClick} aria-pressed={pressed} className={cn(className, "text-left")}>
+        {content}
+      </button>
+    );
+  }
+
+  if (clickable && href) {
     return (
       <Link href={href} className={className}>
         {content}
@@ -230,6 +241,7 @@ interface CommandCentreProps {
  * beyond the Quick Actions links — no mutation actions here.
  */
 export function CommandCentre({ staffName, canManageMasters }: CommandCentreProps) {
+  const [openQueue, setOpenQueue] = useState<"needsAttention" | "expiringSoon" | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -417,49 +429,50 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
               <KpiCard label="Delayed" value={data.operations.delayed} icon={Clock} tint="error" href="/crm/delays" />
               <KpiCard label="Refunds Raised" value={data.operations.refundsRaised} icon={RotateCcw} tint="warning" href="/crm/refunds?status=PENDING" />
               <KpiCard label="Completed" value={data.operations.completed} icon={CheckCircle2} tint="success" href="/crm/bookings?status=COMPLETED" />
+              {/* Client testing 2026-10-09 (E2) — buttons that open a short list, not two long lists on the page. */}
+              <KpiCard
+                label="Needs Attention"
+                value={data.actionQueue.needsAttention.length}
+                icon={AlertCircle}
+                tint="error"
+                onClick={() => setOpenQueue((current) => (current === "needsAttention" ? null : "needsAttention"))}
+                pressed={openQueue === "needsAttention"}
+              />
+              <KpiCard
+                label="Expiring Soon"
+                value={data.actionQueue.expiringSoon.length}
+                icon={Clock}
+                tint="warning"
+                onClick={() => setOpenQueue((current) => (current === "expiringSoon" ? null : "expiringSoon"))}
+                pressed={openQueue === "expiringSoon"}
+              />
             </div>
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <h2 className="text-base font-semibold text-ink-heading">Most Action Required</h2>
-
-            {data.actionQueue.expiringSoon.length === 0 && data.actionQueue.needsAttention.length === 0 ? (
-              <EmptyState title="Nothing needs attention right now" description="New action items will show up here as they come in." />
-            ) : (
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <div className="rounded-xl border border-hairline bg-surface-1">
-                  <div className="flex items-center gap-2 border-b border-hairline px-4 py-3">
-                    <Clock className="h-4 w-4 text-warning" aria-hidden="true" />
-                    <p className="text-sm font-semibold text-ink-heading">Expiring Soon</p>
-                  </div>
-                  {data.actionQueue.expiringSoon.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-ink-tertiary">Nothing expiring soon.</p>
-                  ) : (
-                    <div className="flex flex-col divide-y divide-hairline px-1 py-1">
-                      {data.actionQueue.expiringSoon.map((item, i) => (
-                        <ActionQueueRow key={`${item.type}-${i}`} item={item} />
-                      ))}
-                    </div>
-                  )}
+            {openQueue ? (
+              <div className="rounded-xl border border-hairline bg-surface-1">
+                <div className="flex items-center justify-between gap-2 border-b border-hairline px-4 py-3">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
+                    {openQueue === "needsAttention" ? (
+                      <AlertCircle className="h-4 w-4 text-error" aria-hidden="true" />
+                    ) : (
+                      <Clock className="h-4 w-4 text-warning" aria-hidden="true" />
+                    )}
+                    {openQueue === "needsAttention" ? "Needs Attention" : "Expiring Soon"}
+                  </p>
+                  <Button type="button" size="sm" variant="ghost" onClick={() => setOpenQueue(null)}>
+                    Close
+                  </Button>
                 </div>
-
-                <div className="rounded-xl border border-hairline bg-surface-1">
-                  <div className="flex items-center gap-2 border-b border-hairline px-4 py-3">
-                    <AlertCircle className="h-4 w-4 text-error" aria-hidden="true" />
-                    <p className="text-sm font-semibold text-ink-heading">Needs Attention</p>
+                {data.actionQueue[openQueue].length === 0 ? (
+                  <p className="px-4 py-6 text-center text-sm text-ink-tertiary">Nothing here right now.</p>
+                ) : (
+                  <div className="flex max-h-96 flex-col divide-y divide-hairline overflow-y-auto px-1 py-1">
+                    {data.actionQueue[openQueue].map((item, i) => (
+                      <ActionQueueRow key={`${item.type}-${i}`} item={item} />
+                    ))}
                   </div>
-                  {data.actionQueue.needsAttention.length === 0 ? (
-                    <p className="px-4 py-6 text-center text-sm text-ink-tertiary">Nothing in the backlog.</p>
-                  ) : (
-                    <div className="flex flex-col divide-y divide-hairline px-1 py-1">
-                      {data.actionQueue.needsAttention.map((item, i) => (
-                        <ActionQueueRow key={`${item.type}-${i}`} item={item} />
-                      ))}
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
-            )}
+            ) : null}
           </section>
 
           <section className="flex flex-col gap-4">
