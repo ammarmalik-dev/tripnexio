@@ -12,6 +12,8 @@ import { db } from "../db";
 import { createAutoCheckout } from "../checkout/create-auto-checkout";
 import { siteConfig } from "../site-config";
 import * as messages from "./messages";
+import { AWAITING_VISA_COPY, askForVisaCopies, visaCopyTextReply } from "./visa-copy";
+import { writeAudit } from "../audit/log";
 import { getSiteContact } from "../settings/system-config";
 import type { ServiceType } from "../../generated/prisma/enums";
 
@@ -78,6 +80,11 @@ export async function handleInboundMessage(
         nextServiceType: conversation.serviceType,
         nextCollectedFields: conversation.collectedFields as Record<string, string>,
       };
+    }
+
+    // Client testing 2026-10-09 (B21) — waiting for a visa copy; a typed message gets a reminder ("skip" ends it).
+    if (conversation.state === AWAITING_VISA_COPY) {
+      return visaCopyTextReply(conversation.collectedFields as Record<string, string>, trimmed);
     }
 
     const effectiveState = conversation.state === "COMPLETED" ? "GREETING" : conversation.state;
@@ -181,32 +188,22 @@ async function continueCollecting(
   // Visa Change/New Visa instead of creating an Extension lead. Same check
   // the website's POST /api/leads/visa-extension route runs, so a
   // WhatsApp-originated request can't bypass it.
-  if (serviceType === "VISA_EXTENSION") {
-    const eligibility = await checkVisaExtensionEligibility({
-      passportNumber: nextCollected.passportNumber,
-      dob: nextCollected.dob,
-      mobile: waId,
-    });
-    if (!eligibility.eligible) {
-      const redirect = getIneligibleRedirect(nextCollected.insideUAE === "yes" ? "yes" : "no");
-      return {
-        replyText: messages.visaExtensionIneligible(redirect.label),
-        nextState: "GREETING",
-        nextServiceType: null,
-        nextCollectedFields: {},
-      };
-    }
-  }
+  // Client testing 2026-10-09 (B21) — like the website, the lead is always
+  // created; with no TripNexio visa found the bot then asks for the visa copy.
+  const extensionWithoutPriorVisa =
+    serviceType === "VISA_EXTENSION" &&
+    !(await checkVisaExtensionEligibility({ passportNumber: nextCollected.passportNumber, dob: nextCollected.dob, mobile: waId })).eligible;
 
   // Every field collected — create the Lead exactly like the website does.
   try {
     const details = await buildLeadDetails(serviceType, nextCollected);
+    const passengers = await buildLeadPassengers(serviceType, nextCollected);
     const result = await createLeadFromSubmission({
       serviceType,
       source: "WhatsApp Bot",
       contact: { fullName: nextCollected.fullName, mobile: waId, email: nextCollected.email },
-      passengers: await buildLeadPassengers(serviceType, nextCollected),
-      details,
+      passengers,
+      details: extensionWithoutPriorVisa ? { ...details, noPriorVisa: true } : details,
       // Client testing 2026-10-09 — New Visa / OTB / Return Ticket pay straight away: the payment link is the message.
       deferLeadReceivedNotice: DIRECT_PAYMENT.has(serviceType),
     });
@@ -235,6 +232,25 @@ async function continueCollecting(
         console.error("[whatsapp-bot] auto checkout failed", checkoutError instanceof Error ? checkoutError.name : "error");
       }
       if (!payUrl) await notifyLeadReceived(result.leadId);
+    }
+
+    if (extensionWithoutPriorVisa) {
+      const pending = result.passengerIds.map((passengerId, index) => ({ passengerId, name: passengers?.[index]?.fullName || nextCollected.fullName }));
+      await writeAudit(db, {
+        entityType: "Lead",
+        entityId: result.leadId,
+        action: "NO_PRIOR_VISA",
+        note: "No prior TripNexio visa found for these details — visa copy requested on WhatsApp",
+      });
+      const redirect = getIneligibleRedirect(nextCollected.insideUAE === "yes" ? "yes" : "no");
+      return {
+        replyText: `${messages.leadCreated(result.referenceId, serviceType)}
+
+${messages.visaCopyRequest(pending[0]?.name ?? nextCollected.fullName, redirect.label)}`,
+        ...askForVisaCopies(result.leadId, pending),
+        nextServiceType: serviceType,
+        leadId: result.leadId,
+      };
     }
 
     return {

@@ -55,4 +55,17 @@ export interface WhatsAppGateway {
   sendTemplateMessage(to: string, input: SendTemplateMessageInput): Promise<SendMessageResult>;
   /** Verifies Meta's `X-Hub-Signature-256` header against the raw webhook body. */
   verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean;
+  /**
+   * Client testing 2026-10-09 (B21) — fetches a file the customer sent in the
+   * chat (image / PDF) by its WhatsApp media id; null when it can't be read.
+   */
+  downloadMedia(mediaId: string): Promise<DownloadedMedia | null>;
 }
+
+export interface DownloadedMedia {
+  base64: string;
+  mimeType: string;
+}
+
+/** Larger files are refused (same limit as website uploads). */
+export const MAX_MEDIA_BYTES = 8 * 1024 * 1024;

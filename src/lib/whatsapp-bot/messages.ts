@@ -75,6 +75,39 @@ export function invalidAnswer(error: string, retryPrompt: string): string {
 }
 
 /** Visa_Extension.md §2/§25: no eligible TripNexio-issued visa found — routes to Visa Change (inside UAE) or New Visa (outside UAE) instead of creating an Extension lead. */
+/** Client testing 2026-10-09 (B21) — no TripNexio visa found: the lead is created, then the visa copy is asked for. */
+export function visaCopyRequest(name: string, redirectLabel: string): string {
+  return (
+    `We couldn't find a visa issued through TripNexio for these details, so our team will review your request.\n\n` +
+    `Please send a clear photo or PDF of the current visa for *${name}* here.\n\n` +
+    `(If you'd rather apply for *${redirectLabel}* instead, type "menu".)`
+  );
+}
+
+export function visaCopyReminder(name: string): string {
+  return `Please send a clear photo or PDF of the current visa for *${name}* here, or type "skip" and our team will contact you.`;
+}
+
+export function visaCopyNext(name: string): string {
+  return `Thank you, received. Now please send the visa copy for *${name}*.`;
+}
+
+export function visaCopyUnreadable(name: string): string {
+  return `Sorry, we couldn't read that file. Please send the visa copy for *${name}* as a JPG, PNG or PDF (8MB max).`;
+}
+
+export function visaCopyAllReceived(): string {
+  return `Thank you, we have received the visa copy. Our team will review it and get in touch shortly.\n\nType "status" anytime to check progress.`;
+}
+
+export function visaCopySkipped(): string {
+  return `No problem. Our team will contact you about the visa copy. Type "menu" anytime to start a new request.`;
+}
+
+export function attachmentNotExpected(): string {
+  return `Thanks! We can only read attachments when we ask for a document. Please type your message, or type "menu" to see the options.`;
+}
+
 export function visaExtensionIneligible(redirectLabel: string): string {
   return (
     `We currently provide visa extension services only for visas issued through TripNexio, and we couldn't find a matching visa for these details.\n\n` +

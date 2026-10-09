@@ -31,7 +31,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] B18. Visa Extension: "What You'll Need" (Name, Mobile, Email, Passport number, Visa expiry date) with descriptions.
 - [x] B19. Visa Extension success text = WhatsApp + email template ("Your Visa Extension request has been received. Our team will validate each applicant's details and documents and get in touch shortly.").
 - [x] B20. Visa Extension: prior TripNexio visa check matched the wrong record — fix matching.
-- [ ] B21. Visa Extension: if no TripNexio visa (or wrong passport/DOB), after the lead ask the customer to upload the visa copy (website + WhatsApp).
+- [x] B21. Visa Extension: if no TripNexio visa (or wrong passport/DOB), after the lead ask the customer to upload the visa copy (website + WhatsApp).
 - [x] B22. Visa Change: correct copy — "Currently in the UAE?" block, method descriptions (Border Exit & Re-entry / Airport-to-Airport) as given.
 - [x] B23. Visa Change: documents (passport front/last, photo) after payment; visa copy line (confirm).
 - [x] B24. Visa Change success text = WhatsApp + email template.

@@ -2,7 +2,10 @@ import { captureWhatsAppHandoff } from "@/lib/whatsapp-bot/capture-lead";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
-import { handleInboundMessage } from "@/lib/whatsapp-bot/engine";
+import { handleInboundMessage, type EngineResult } from "@/lib/whatsapp-bot/engine";
+import { AWAITING_VISA_COPY, receiveVisaCopy } from "@/lib/whatsapp-bot/visa-copy";
+import { attachmentNotExpected } from "@/lib/whatsapp-bot/messages";
+import type { DownloadedMedia, WhatsAppGateway } from "@/lib/whatsapp/gateway";
 import { describeError } from "@/lib/api/describe-error";
 import { isPlaceholder } from "@/lib/env-placeholder";
 import { isProductionRuntime } from "@/lib/payments/get-gateway";
@@ -20,6 +23,9 @@ interface CloudApiWebhookPayload {
           text?: { body: string };
           /** Present when the customer tapped a row in an interactive list menu (see src/lib/whatsapp-bot/menu.ts). */
           interactive?: { type: string; list_reply?: { id: string; title: string }; button_reply?: { id: string; title: string } };
+          /** Client testing 2026-10-09 (B21) — a photo or file the customer sent (e.g. the visa copy). */
+          image?: { id: string; mime_type?: string };
+          document?: { id: string; mime_type?: string; filename?: string };
         }[];
         contacts?: { profile?: { name?: string } }[];
       };
@@ -87,11 +93,12 @@ export async function POST(request: NextRequest) {
   // transcript reads naturally ("New Visa" rather than "MENU_NEW_VISA").
   const interactiveReply = message.type === "interactive" ? (message.interactive?.list_reply ?? message.interactive?.button_reply) : null;
   const text = interactiveReply?.id ?? message.text?.body;
-  if (!text) {
-    // Non-text, non-interactive message types (image, location, etc.) — nothing for the bot to do.
+  const mediaId = message.type === "image" ? message.image?.id : message.type === "document" ? message.document?.id : undefined;
+  if (!text && !mediaId) {
+    // Other message types (location, sticker, etc.) — nothing for the bot to do.
     return new Response("OK", { status: 200 });
   }
-  const loggedText = interactiveReply?.title ?? text;
+  const loggedText = interactiveReply?.title ?? text ?? `[${message.type} received]`;
 
   const waId = message.from;
   const profileName = payload.entry?.[0]?.changes?.[0]?.value?.contacts?.[0]?.profile?.name ?? null;
@@ -110,7 +117,18 @@ export async function POST(request: NextRequest) {
     create: { waId, customerName: profileName, lastInboundAt: new Date() },
   });
 
-  const result = await handleInboundMessage(conversation, text, profileName);
+  // Client testing 2026-10-09 (B21) — an attachment is read only when the bot asked
+  // for a document (the visa copy); otherwise the customer is asked to type.
+  const result: EngineResult = text
+    ? await handleInboundMessage(conversation, text, profileName)
+    : conversation.state === AWAITING_VISA_COPY
+      ? await receiveVisaCopy(conversation.collectedFields as Record<string, string>, await safeDownload(gateway, mediaId!))
+      : {
+          replyText: attachmentNotExpected(),
+          nextState: conversation.state,
+          nextServiceType: conversation.serviceType,
+          nextCollectedFields: conversation.collectedFields as Record<string, string>,
+        };
 
   await db.whatsAppConversation.update({
     where: { waId },
@@ -146,4 +164,14 @@ export async function POST(request: NextRequest) {
   }
 
   return new Response("OK", { status: 200 });
+}
+
+/** A media download never fails the webhook — an unreadable file just gets a "please resend" reply. */
+async function safeDownload(gateway: WhatsAppGateway, mediaId: string): Promise<DownloadedMedia | null> {
+  try {
+    return await gateway.downloadMedia(mediaId);
+  } catch (error) {
+    console.error("[whatsapp-webhook] media download failed", describeError(error));
+    return null;
+  }
 }

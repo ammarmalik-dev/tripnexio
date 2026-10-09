@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { SendMessageResult, SendTemplateMessageInput, WhatsAppGateway } from "./gateway";
+import type { DownloadedMedia, SendMessageResult, SendTemplateMessageInput, WhatsAppGateway } from "./gateway";
 import { verifyMetaSignature } from "./cloud-api-gateway";
 import { maskRecipient } from "../logging/mask";
 
@@ -35,5 +35,10 @@ export class ConsoleWhatsAppGateway implements WhatsAppGateway {
   verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
     if (!signatureHeader || !this.webhookSecret) return false;
     return verifyMetaSignature(rawBody, signatureHeader, this.webhookSecret);
+  }
+
+  /** No provider, so no media to fetch. */
+  async downloadMedia(): Promise<DownloadedMedia | null> {
+    return null;
   }
 }

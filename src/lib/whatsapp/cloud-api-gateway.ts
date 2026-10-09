@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import type { SendInteractiveListInput, SendMessageResult, SendTemplateMessageInput, WhatsAppGateway } from "./gateway";
+import { MAX_MEDIA_BYTES, type DownloadedMedia, type SendInteractiveListInput, type SendMessageResult, type SendTemplateMessageInput, type WhatsAppGateway } from "./gateway";
 
 const GRAPH_API_VERSION = "v21.0";
 
@@ -80,6 +80,32 @@ export class WhatsAppCloudApiGateway implements WhatsAppGateway {
   verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
     if (!signatureHeader) return false;
     return verifyMetaSignature(rawBody, signatureHeader, this.appSecret);
+  }
+
+  /**
+   * Graph API: GET /{media-id} gives a short-lived URL, which is then fetched
+   * with the same token. The URL is only followed when it is https on Meta's
+   * own hosts (never an arbitrary address), and files over 8MB are refused.
+   */
+  async downloadMedia(mediaId: string): Promise<DownloadedMedia | null> {
+    if (!/^[\w-]{1,64}$/.test(mediaId)) return null;
+    const auth = { Authorization: `Bearer ${this.accessToken}` };
+    const meta = await fetch(`https://graph.facebook.com/${GRAPH_API_VERSION}/${mediaId}`, { headers: auth });
+    if (!meta.ok) return null;
+    const info = (await meta.json()) as { url?: string; mime_type?: string; file_size?: number };
+    if (!info.url || (info.file_size ?? 0) > MAX_MEDIA_BYTES) return null;
+    let url: URL;
+    try {
+      url = new URL(info.url);
+    } catch {
+      return null;
+    }
+    if (url.protocol !== "https:" || !/(^|\.)(fbsbx\.com|facebook\.com|whatsapp\.net)$/.test(url.hostname)) return null;
+    const file = await fetch(url, { headers: auth, redirect: "error" });
+    if (!file.ok) return null;
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length === 0 || bytes.length > MAX_MEDIA_BYTES) return null;
+    return { base64: bytes.toString("base64"), mimeType: (info.mime_type ?? file.headers.get("content-type") ?? "").split(";")[0].trim() };
   }
 }
 
