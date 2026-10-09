@@ -15,15 +15,18 @@ export function StatusTimeline({ stages }: StatusTimelineProps) {
   const doneCount = stages.filter((stage) => stage.status !== "upcoming").length;
   const progress = stages.length > 1 ? (doneCount - 0.5) / (stages.length - 1) : 0;
   const progressPercent = Math.max(0, Math.min(1, progress)) * 100;
+  // Client testing 2026-10-09 (B5) — a row only on wide screens and for a short
+  // list; longer journeys stay a vertical list so no step spills out of the card.
+  const horizontal = stages.length <= 6;
 
   return (
-    <div className="relative flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+    <div className={cn("relative flex min-w-0 flex-col gap-6", horizontal && "lg:flex-row lg:items-start lg:justify-between lg:gap-3")}>
       <div
-        className="absolute left-4 top-4 bottom-0 hidden w-px bg-hairline-on-dark sm:right-4 sm:left-0 sm:bottom-auto sm:h-px sm:w-auto sm:block"
+        className={cn("absolute left-4 top-4 bottom-0 hidden w-px bg-hairline-on-dark", horizontal && "lg:right-4 lg:left-0 lg:bottom-auto lg:block lg:h-px lg:w-auto")}
         aria-hidden="true"
       />
       <motion.div
-        className="absolute left-4 top-4 hidden w-px bg-accent sm:left-0 sm:h-px sm:w-auto sm:block"
+        className={cn("absolute left-4 top-4 hidden w-px bg-accent", horizontal && "lg:right-4 lg:left-0 lg:block lg:h-px lg:w-auto")}
         style={{ transformOrigin: "left" }}
         initial={shouldReduceMotion ? undefined : { scaleX: 0 }}
         animate={{ scaleX: progressPercent / 100 }}
@@ -36,7 +39,7 @@ export function StatusTimeline({ stages }: StatusTimelineProps) {
           initial={shouldReduceMotion ? undefined : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35, delay: shouldReduceMotion ? 0 : index * 0.08, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 flex flex-1 flex-row items-center gap-3 sm:flex-col sm:items-center sm:text-center"
+          className={cn("relative z-10 flex min-w-0 flex-1 flex-row items-center gap-3", horizontal && "lg:flex-col lg:items-center lg:text-center")}
         >
           <span
             className={cn(
@@ -53,7 +56,7 @@ export function StatusTimeline({ stages }: StatusTimelineProps) {
               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
             )}
           </span>
-          <span className="flex flex-col sm:items-center">
+          <span className={cn("flex min-w-0 flex-col break-words", horizontal && "lg:items-center")}>
             <span
               className={cn(
                 "text-sm font-medium",

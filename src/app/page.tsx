@@ -31,19 +31,21 @@ export default function Home() {
           </MotionReveal>
 
           <MotionReveal delay={0.16}>
-            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
+            {/* Client testing 2026-10-09 (B1) — a soft white glass panel keeps the line readable over the photo. */}
+            <p className="max-w-xl rounded-2xl bg-white/75 px-5 py-3 text-base font-medium text-ink-primary shadow-[var(--shadow-glass-1)] ring-1 ring-white/70 backdrop-blur-md sm:text-lg">
               Tell us what you need &mdash; visa, flights or OTB &mdash; and
               we&rsquo;ll guide you through a simple process from request to
               result.
             </p>
           </MotionReveal>
 
-          <MotionReveal delay={0.24}>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg">
+          <MotionReveal delay={0.24} className="w-full sm:w-auto">
+            {/* Client testing 2026-10-09 (B2) — full-width, stacked buttons on phones. */}
+            <div className="mx-auto flex w-full max-w-xs flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
+              <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg" className="justify-center">
                 Explore Services
               </ButtonLink>
-              <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
+              <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg" className="justify-center">
                 Track Status
               </ButtonLink>
             </div>

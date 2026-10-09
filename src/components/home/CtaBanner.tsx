@@ -12,15 +12,16 @@ export function CtaBanner() {
             <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
               Ready to simplify your journey?
             </h2>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg">
+            {/* Client testing 2026-10-09 (B2) — full-width, stacked buttons on phones. */}
+            <div className="flex w-full max-w-xs flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
+              <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg" className="justify-center">
                 Explore Services
               </ButtonLink>
               <ButtonLink
                 href={utilityLinks.trackStatus.href}
                 variant="ghost"
                 size="lg"
-                className="border-white/40 text-white hover:border-white/70 hover:bg-white/5"
+                className="justify-center border-white/40 text-white hover:border-white/70 hover:bg-white/5"
               >
                 Track Status
               </ButtonLink>
