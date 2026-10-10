@@ -73,7 +73,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [ ] E10. Documents: PAX-level view / validate / reject (reason) / download / staff upload in lead + booking; one customer notification when all validated or something is required; documents only from the master list.
 - [x] E11. Deliver output: document type auto-selected (ticket for ticket bookings, visa for visa).
 - [ ] E12. Vendor name captured before "Applied" (confirm wording "do not show vendor name on booking section").
-- [ ] E13. Lead / Quotation / Booking / Payment lists like the client's table screenshot: proper capitalisation, Applied to Embassy + Vendor columns, PAX under Booking ID, every status in the filters, country flags, service details column.
+- [x] E13. Lead / Quotation / Booking / Payment lists like the client's table screenshot: proper capitalisation, Applied to Embassy + Vendor columns, PAX under Booking ID, every status in the filters, country flags, service details column.
 
 ## F. Admin
 - [ ] F1. AI Command Centre — not go-live ready, fix.

@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
+import { countryFlagEmoji } from "@/lib/countries/flag";
+import { subServiceLabel } from "@/lib/leads/sub-service-label";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("payments.view");
@@ -40,7 +42,7 @@ export async function GET(request: NextRequest) {
     db.payment.count({ where }),
     db.payment.findMany({
       where,
-      include: { booking: { include: { customer: true, lead: true } } },
+      include: { booking: { include: { customer: true, lead: { include: { country: { select: { name: true, code: true, flagOverride: true } } } } } } },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -59,7 +61,13 @@ export async function GET(request: NextRequest) {
     bookingId: payment.bookingId,
     bookingDisplayId: payment.booking.bookingId,
     leadReferenceId: leadReference(payment.booking.lead),
-    customer: { name: payment.booking.customer.name, mobile: payment.booking.customer.mobile },
+    customer: { name: payment.booking.customer.name, mobile: payment.booking.customer.mobile, email: payment.booking.customer.email },
+    // Client testing 2026-10-09 (E13) — the shared list layout.
+    serviceType: payment.booking.lead.serviceType,
+    subService: subServiceLabel(payment.booking.lead.details),
+    paxCount: payment.booking.lead.paxCount,
+    countryName: payment.booking.lead.country?.name ?? null,
+    countryFlag: payment.booking.lead.country ? countryFlagEmoji(payment.booking.lead.country) : null,
   }));
 
   return jsonSuccess({ items, total, page, pageSize });

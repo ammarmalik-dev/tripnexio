@@ -25,7 +25,7 @@ describe("automatic assignment (client corrections 2026-10-05)", () => {
 
 describe("sub-service label", () => {
   it("names the Visa Change method", () => {
-    expect(subServiceLabel({ changeType: "BORDER_EXIT" })).toBe("Border Exit");
+    expect(subServiceLabel({ changeType: "BORDER_EXIT" })).toBe("Border Exit & Re-entry");
   });
   it("is null when the service has no sub-service", () => {
     expect(subServiceLabel({ travelDate: "2026-10-10" })).toBeNull();

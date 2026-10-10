@@ -10,6 +10,8 @@ import { isUrgentRequest } from "@/lib/crm/urgency";
 import { leadListWhere } from "@/lib/leads/list-where";
 import { subServiceLabel } from "@/lib/leads/sub-service-label";
 import { PAYMENT_FAILED_STATUSES, latestBookingPaymentSelect, latestPaymentFailedStatus } from "@/lib/crm/payment-failed";
+import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { countryFlagEmoji } from "@/lib/countries/flag";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("leads.view");
@@ -46,7 +48,7 @@ export async function GET(request: NextRequest) {
     db.lead.count({ where }),
     db.lead.findMany({
       where,
-      include: { customer: true, assignedStaff: true, country: { select: { name: true } }, bookings: latestBookingPaymentSelect },
+      include: { customer: true, assignedStaff: true, country: { select: { name: true, code: true, flagOverride: true } }, bookings: latestBookingPaymentSelect },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -62,6 +64,9 @@ export async function GET(request: NextRequest) {
     source: lead.source,
     createdAt: lead.createdAt,
     countryName: lead.country?.name ?? null,
+    // Client testing 2026-10-09 (E13) — flag next to the country and the service details line.
+    countryFlag: lead.country ? countryFlagEmoji(lead.country) : null,
+    serviceDetails: serviceDetailsLine(lead.serviceType, lead.details),
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paxCount: lead.paxCount,
     subService: subServiceLabel(lead.details),

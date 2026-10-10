@@ -32,6 +32,8 @@ interface LeadListItem {
   source: string | null;
   createdAt: string;
   countryName: string | null;
+  countryFlag: string | null;
+  serviceDetails: string | null;
   travelDate: string | null;
   paxCount: number | null;
   subService: string | null;
@@ -384,14 +386,19 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[1100px] border-collapse text-sm">
+          <table className="w-full min-w-[1250px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
+              {/* Client testing 2026-10-09 (E13) — same layout as the Bookings table: Title Case, PAX under the ID. */}
+              <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
                 <th className="px-4 py-3">Lead ID</th>
                 <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Service / Sub-service</th>
-                <th className="px-4 py-3">PAX</th>
+                <th className="px-4 py-3">Mobile</th>
                 <th className="px-4 py-3">Country</th>
+                <th className="px-4 py-3">
+                  Service
+                  <span className="block font-normal text-ink-tertiary">Sub-Service</span>
+                </th>
+                <th className="px-4 py-3">Service Details</th>
                 <th className="px-4 py-3">Travel Date</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Temperature</th>
@@ -402,11 +409,12 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             </thead>
             <tbody>
               {items.map((lead) => (
-                <tr key={lead.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
-                  <td className="px-4 py-3 font-medium">
-                    <Link href={`/crm/leads/${lead.id}`} className="text-ink-accent hover:underline">
+                <tr key={lead.id} className="border-b border-hairline align-top last:border-b-0 hover:bg-ink-primary/[0.02]">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <Link href={`/crm/leads/${lead.id}`} className="font-semibold text-ink-accent hover:underline">
                       {lead.referenceId}
                     </Link>
+                    <span className="block text-xs text-ink-tertiary">{lead.paxCount ?? "—"} PAX</span>
                     {lead.urgent || lead.paymentFailedStatus || lead.abandoned ? (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {lead.abandoned ? (
@@ -434,19 +442,29 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
                     ) : null}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-ink-primary">{lead.customer.name}</span>
-                      <span className="text-xs text-ink-tertiary">{lead.customer.mobile}</span>
-                    </div>
+                    <span className="block font-semibold text-ink-heading">{lead.customer.name}</span>
+                    {lead.customer.email ? <span className="block text-xs text-ink-tertiary">{lead.customer.email}</span> : null}
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">
-                    <div className="flex flex-col">
-                      <span>{SERVICE_TYPE_LABELS[lead.serviceType]}</span>
-                      {lead.subService ? <span className="text-xs text-ink-tertiary">{lead.subService}</span> : null}
-                    </div>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{lead.customer.mobile}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
+                    {lead.countryName ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {lead.countryFlag ? (
+                          <span className="text-base leading-none" aria-hidden="true">
+                            {lead.countryFlag}
+                          </span>
+                        ) : null}
+                        {lead.countryName}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-ink-secondary">{lead.paxCount ?? "—"}</td>
-                  <td className="px-4 py-3 text-ink-secondary">{lead.countryName ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[lead.serviceType]}</span>
+                    {lead.subService ? <span className="block text-xs text-ink-tertiary">{lead.subService}</span> : null}
+                  </td>
+                  <td className="max-w-[14rem] px-4 py-3 text-ink-secondary">{lead.serviceDetails ?? "—"}</td>
                   <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">{formatTravelDate(lead.travelDate)}</td>
                   <td className="px-4 py-3">
                     <LeadStatusBadge status={lead.status} />

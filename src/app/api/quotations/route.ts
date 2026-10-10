@@ -23,6 +23,9 @@ import { dispatchStatusNotifications, type StatusNotification } from "@/lib/serv
 import { applyQuotationSentEffects, notifyQuoteReady } from "@/lib/quotations/send-quotation";
 import { normalizeItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
 import type { Quotation } from "@/generated/prisma/client";
+import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { countryFlagEmoji } from "@/lib/countries/flag";
+import { subServiceLabel } from "@/lib/leads/sub-service-label";
 
 /**
  * SELECTED/EXPIRED/PENDING is derived — Quotation only stores
@@ -142,7 +145,7 @@ export async function GET(request: NextRequest) {
         lead: {
           include: {
             customer: true,
-            country: { select: { name: true } },
+            country: { select: { name: true, code: true, flagOverride: true } },
             assignedStaff: { select: { name: true, active: true } },
           },
         },
@@ -162,8 +165,13 @@ export async function GET(request: NextRequest) {
     sellingPrice: quotation.sellingPrice,
     // Internal-only — omitted (not just hidden) unless the viewer may see costs.
     margin: canViewMargin ? quotation.margin : null,
-    customer: { name: quotation.lead.customer.name, mobile: quotation.lead.customer.mobile },
+    customer: { name: quotation.lead.customer.name, mobile: quotation.lead.customer.mobile, email: quotation.lead.customer.email },
     countryName: quotation.lead.country?.name ?? null,
+    // Client testing 2026-10-09 (E13) — the shared list layout: PAX, flag, sub-service, service details.
+    countryFlag: quotation.lead.country ? countryFlagEmoji(quotation.lead.country) : null,
+    paxCount: quotation.lead.paxCount,
+    subService: subServiceLabel(quotation.lead.details),
+    serviceDetails: serviceDetailsLine(quotation.lead.serviceType, quotation.lead.details),
     travelDate: quotation.lead.travelDate ? quotation.lead.travelDate.toISOString().slice(0, 10) : null,
     poc: quotation.lead.assignedStaff ? { name: quotation.lead.assignedStaff.name, active: quotation.lead.assignedStaff.active } : null,
     createdAt: quotation.createdAt,

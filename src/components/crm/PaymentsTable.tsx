@@ -13,13 +13,13 @@ import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
-import { PAYMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
+import { PAYMENT_STATUS_OPTIONS, SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { ListPagination } from "./ListPagination";
 import { usePaginationState } from "./usePagination";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
-import type { PaymentStatus } from "../../generated/prisma/enums";
+import type { PaymentStatus, ServiceType } from "../../generated/prisma/enums";
 
 interface PaymentListItem {
   id: string;
@@ -33,7 +33,12 @@ interface PaymentListItem {
   bookingId: string;
   bookingDisplayId: string;
   leadReferenceId: string;
-  customer: { name: string; mobile: string };
+  customer: { name: string; mobile: string; email: string | null };
+  serviceType: ServiceType;
+  subService: string | null;
+  paxCount: number | null;
+  countryName: string | null;
+  countryFlag: string | null;
 }
 
 interface PaymentListResponse {
@@ -236,11 +241,18 @@ export function PaymentsTable() {
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[860px] border-collapse text-sm">
+          <table className="w-full min-w-[1150px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
-                <th className="px-4 py-3">Booking</th>
+              {/* Client testing 2026-10-09 (E13) — same layout as the Bookings table. */}
+              <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
+                <th className="px-4 py-3">Booking ID</th>
                 <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Mobile</th>
+                <th className="px-4 py-3">Country</th>
+                <th className="px-4 py-3">
+                  Service
+                  <span className="block font-normal text-ink-tertiary">Sub-Service</span>
+                </th>
                 <th className="px-4 py-3">Base</th>
                 <th className="px-4 py-3">GST</th>
                 <th className="px-4 py-3">Gateway Fee</th>
@@ -251,18 +263,35 @@ export function PaymentsTable() {
             </thead>
             <tbody>
               {items.map((payment) => (
-                <tr key={payment.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
-                  <td className="px-4 py-3 font-medium">
-                    <Link href={`/crm/bookings/${payment.bookingId}`} className="text-ink-accent hover:underline">
+                <tr key={payment.id} className="border-b border-hairline align-top last:border-b-0 hover:bg-ink-primary/[0.02]">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <Link href={`/crm/bookings/${payment.bookingId}`} className="font-semibold text-ink-accent hover:underline">
                       {payment.bookingDisplayId}
                     </Link>
-                    <div className="text-xs text-ink-tertiary">{payment.leadReferenceId}</div>
+                    <span className="block text-xs text-ink-tertiary">{payment.paxCount ?? "—"} PAX</span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-ink-primary">{payment.customer.name}</span>
-                      <span className="text-xs text-ink-tertiary">{payment.customer.mobile}</span>
-                    </div>
+                    <span className="block font-semibold text-ink-heading">{payment.customer.name}</span>
+                    {payment.customer.email ? <span className="block text-xs text-ink-tertiary">{payment.customer.email}</span> : null}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{payment.customer.mobile}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
+                    {payment.countryName ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {payment.countryFlag ? (
+                          <span className="text-base leading-none" aria-hidden="true">
+                            {payment.countryFlag}
+                          </span>
+                        ) : null}
+                        {payment.countryName}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[payment.serviceType]}</span>
+                    {payment.subService ? <span className="block text-xs text-ink-tertiary">{payment.subService}</span> : null}
                   </td>
                   <td className="px-4 py-3 text-ink-secondary">{money(payment.amount)}</td>
                   <td className="px-4 py-3 text-ink-secondary">{money(payment.gstAmount)}</td>

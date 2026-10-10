@@ -46,8 +46,12 @@ interface QuotationListItem {
   status: QuotationStatus;
   sellingPrice: string;
   margin: string | null;
-  customer: { name: string; mobile: string };
+  customer: { name: string; mobile: string; email: string | null };
   countryName: string | null;
+  countryFlag: string | null;
+  paxCount: number | null;
+  subService: string | null;
+  serviceDetails: string | null;
   travelDate: string | null;
   poc: { name: string; active: boolean } | null;
   createdAt: string;
@@ -340,13 +344,19 @@ export function QuotationsTable() {
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[1100px] border-collapse text-sm">
+          <table className="w-full min-w-[1400px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
+              {/* Client testing 2026-10-09 (E13) — same layout as the Bookings table. */}
+              <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
                 <th className="px-4 py-3">Lead ID</th>
                 <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Service</th>
+                <th className="px-4 py-3">Mobile</th>
                 <th className="px-4 py-3">Country</th>
+                <th className="px-4 py-3">
+                  Service
+                  <span className="block font-normal text-ink-tertiary">Sub-Service</span>
+                </th>
+                <th className="px-4 py-3">Service Details</th>
                 <th className="px-4 py-3">Travel Date</th>
                 <th className="px-4 py-3">POC</th>
                 <th className="px-4 py-3">Status</th>
@@ -362,20 +372,37 @@ export function QuotationsTable() {
             </thead>
             <tbody>
               {items.map((quotation) => (
-                <tr key={quotation.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
-                  <td className="px-4 py-3 font-medium">
-                    <Link href={`/crm/leads/${quotation.leadId}#tab-quotation`} className="text-ink-accent hover:underline">
+                <tr key={quotation.id} className="border-b border-hairline align-top last:border-b-0 hover:bg-ink-primary/[0.02]">
+                  <td className="px-4 py-3 whitespace-nowrap">
+                    <Link href={`/crm/leads/${quotation.leadId}#tab-quotation`} className="font-semibold text-ink-accent hover:underline">
                       {quotation.leadReferenceId}
                     </Link>
+                    <span className="block text-xs text-ink-tertiary">{quotation.paxCount ?? "—"} PAX</span>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex flex-col">
-                      <span className="font-medium text-ink-primary">{quotation.customer.name}</span>
-                      <span className="text-xs text-ink-tertiary">{quotation.customer.mobile}</span>
-                    </div>
+                    <span className="block font-semibold text-ink-heading">{quotation.customer.name}</span>
+                    {quotation.customer.email ? <span className="block text-xs text-ink-tertiary">{quotation.customer.email}</span> : null}
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">{SERVICE_TYPE_LABELS[quotation.serviceType]}</td>
-                  <td className="px-4 py-3 text-ink-secondary">{quotation.countryName ?? "—"}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{quotation.customer.mobile}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
+                    {quotation.countryName ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        {quotation.countryFlag ? (
+                          <span className="text-base leading-none" aria-hidden="true">
+                            {quotation.countryFlag}
+                          </span>
+                        ) : null}
+                        {quotation.countryName}
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[quotation.serviceType]}</span>
+                    {quotation.subService ? <span className="block text-xs text-ink-tertiary">{quotation.subService}</span> : null}
+                  </td>
+                  <td className="max-w-[14rem] px-4 py-3 text-ink-secondary">{quotation.serviceDetails ?? "—"}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{formatDay(quotation.travelDate)}</td>
                   <td className="px-4 py-3 text-ink-secondary">
                     {quotation.poc ? (quotation.poc.active ? quotation.poc.name : `Unassigned (was ${quotation.poc.name})`) : "Unassigned"}
