@@ -16,6 +16,7 @@ import { cn } from "@/lib/cn";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 import type { NotificationChannel } from "../../generated/prisma/enums";
+import { NOTIFICATION_EVENT_CATALOG } from "@/lib/notifications/events";
 
 interface TemplateData {
   id: string;
@@ -276,8 +277,87 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
   );
 }
 
-function NewTemplateForm({ onCreated }: { onCreated: (template: TemplateData) => void }) {
-  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+const COVERAGE_CHANNELS: { channel: NotificationChannel; label: string }[] = [
+  { channel: "EMAIL", label: "Email" },
+  { channel: "WHATSAPP", label: "WhatsApp" },
+];
+
+/**
+ * Client testing 2026-10-09 (D2) — every customer message the system sends,
+ * and whether Admin has an Email and a WhatsApp template for it. A message
+ * with no template is simply not sent, so a missing one is shown clearly with
+ * a Create button; an existing one opens in the list below for editing.
+ */
+function TemplateCoverage({
+  templates,
+  onCreate,
+  onFind,
+}: {
+  templates: TemplateData[];
+  onCreate: (event: string, channel: NotificationChannel) => void;
+  onFind: (event: string) => void;
+}) {
+  const missing = NOTIFICATION_EVENT_CATALOG.reduce(
+    (count, entry) => count + COVERAGE_CHANNELS.filter(({ channel }) => !templates.some((template) => template.event === entry.event && template.channel === channel)).length,
+    0
+  );
+  return (
+    <details className="rounded-xl border border-hairline bg-surface-1" open={missing > 0}>
+      <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-sm font-semibold text-ink-heading select-none">
+        <span>All customer messages ({NOTIFICATION_EVENT_CATALOG.length})</span>
+        <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", missing > 0 ? "bg-warning/15 text-warning" : "bg-success/10 text-success")}>
+          {missing > 0 ? `${missing} template${missing === 1 ? "" : "s"} missing` : "Every message has its templates"}
+        </span>
+      </summary>
+      <div className="overflow-x-auto border-t border-hairline">
+        <table className="w-full min-w-[640px] border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
+              <th className="px-5 py-2.5">Message</th>
+              {COVERAGE_CHANNELS.map(({ channel, label }) => (
+                <th key={channel} className="px-3 py-2.5">
+                  {label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {NOTIFICATION_EVENT_CATALOG.map((entry) => (
+              <tr key={entry.event} className="border-b border-hairline last:border-b-0">
+                <td className="px-5 py-2.5">
+                  <button type="button" onClick={() => onFind(entry.event)} className="text-left font-medium text-ink-heading hover:text-ink-accent hover:underline">
+                    {entry.label}
+                  </button>
+                  <span className="block font-mono text-[11px] text-ink-tertiary">{entry.event}</span>
+                </td>
+                {COVERAGE_CHANNELS.map(({ channel, label }) => {
+                  const template = templates.find((row) => row.event === entry.event && row.channel === channel);
+                  return (
+                    <td key={channel} className="px-3 py-2.5">
+                      {!template ? (
+                        <Button type="button" size="sm" variant="ghost" onClick={() => onCreate(entry.event, channel)}>
+                          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                          Create {label}
+                        </Button>
+                      ) : (
+                        <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", template.active ? "bg-success/10 text-success" : "bg-ink-primary/[0.06] text-ink-secondary")}>
+                          {template.active ? (channel === "WHATSAPP" && !template.metaTemplateName ? "Ready (24h chat only)" : "Ready") : "Disabled"}
+                        </span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
+}
+
+function NewTemplateForm({ onCreated, initial }: { onCreated: (template: TemplateData) => void; initial?: Partial<FormState> }) {
+  const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, ...initial });
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [creating, setCreating] = useState(false);
 
@@ -321,6 +401,8 @@ export function NotificationTemplatesManager() {
   const [channelFilter, setChannelFilter] = useState<NotificationChannel | "">("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [showCreate, setShowCreate] = useState(false);
+  // Client testing 2026-10-09 (D2) — "Create" on the coverage table opens the form for that event + channel.
+  const [prefill, setPrefill] = useState<{ event: string; channel: NotificationChannel } | null>(null);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -414,14 +496,32 @@ export function NotificationTemplatesManager() {
         {createOpen ? (
           <div id="new-template-panel" className="border-t border-hairline p-5">
             <NewTemplateForm
+              key={prefill ? `${prefill.event}-${prefill.channel}` : "blank"}
+              initial={prefill ?? undefined}
               onCreated={(created) => {
                 setTemplates((current) => [created, ...current]);
+                setPrefill(null);
                 clearFilters();
               }}
             />
           </div>
         ) : null}
       </section>
+
+      <TemplateCoverage
+        templates={templates}
+        onCreate={(event, channel) => {
+          setPrefill({ event, channel });
+          setShowCreate(true);
+          document.getElementById("new-template-panel")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }}
+        onFind={(event) => {
+          setSearch(event);
+          setChannelFilter("");
+          setStatusFilter("all");
+          resetPage();
+        }}
+      />
 
       {templates.length > 0 ? (
         <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-3 sm:flex-row sm:items-center">

@@ -58,7 +58,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 
 ## D. Contact settings
 - [x] D1. Admin: Phone, WhatsApp and Email configured separately (changing phone must not change WhatsApp); same on invoices.
-- [ ] D2. All WhatsApp / email templates managed from Admin.
+- [x] D2. All WhatsApp / email templates managed from Admin.
 
 ## E. CRM
 - [x] E1. Manual lead: amount fetched from Admin, base amount shown, coupon applied, final payable shown, extra charges allowed above configured amount.
