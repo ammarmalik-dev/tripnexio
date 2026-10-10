@@ -11,6 +11,8 @@ import { leadReference } from "@/lib/leads/reference";
 import { isUrgentRequest } from "@/lib/crm/urgency";
 import { bookingListWhere } from "@/lib/bookings/list-where";
 import { subServiceLabel } from "@/lib/leads/sub-service-label";
+import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { countryFlagEmoji } from "@/lib/countries/flag";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("bookings.view");
@@ -33,7 +35,7 @@ export async function GET(request: NextRequest) {
         customer: true,
         lead: {
           include: {
-            country: { select: { name: true } },
+            country: { select: { name: true, code: true, flagOverride: true } },
             assignedStaff: { select: { name: true, active: true } },
             quotations: { where: { isSelected: true }, take: 1, select: { vendor: { select: { name: true } } } },
           },
@@ -51,6 +53,11 @@ export async function GET(request: NextRequest) {
   // here too, not just on the detail route — see
   // feedback_audit_all_readers_of_lazily_synced_state in memory.
   const bookings = await syncExpiredReservations(bookingsRaw);
+  // OTB details store the airline code; one lookup for the names on this page.
+  const airlineCodes = [...new Set(bookings.map((booking) => (booking.lead.details as Record<string, unknown> | null)?.airline).filter((code): code is string => typeof code === "string"))];
+  const airlineNames = new Map(
+    airlineCodes.length > 0 ? (await db.airline.findMany({ where: { code: { in: airlineCodes } }, select: { code: true, name: true } })).map((airline) => [airline.code, airline.name]) : []
+  );
 
   // Client corrections 2026-10-05 — the full operational table.
   const items = bookings.map((booking) => ({
@@ -63,9 +70,15 @@ export async function GET(request: NextRequest) {
     urgent: isUrgentRequest(booking.lead.serviceType, booking.lead.details),
     leadId: booking.leadId,
     leadReferenceId: leadReference(booking.lead),
-    customer: { name: booking.customer.name, mobile: booking.customer.mobile },
+    customer: { name: booking.customer.name, mobile: booking.customer.mobile, email: booking.customer.email },
     paxCount: booking._count.passengers || booking.lead.paxCount,
     countryName: booking.lead.country?.name ?? null,
+    // Client testing 2026-10-09 (E13) — flag + short code next to the country, and the service details line.
+    countryCode: booking.lead.country?.code ?? null,
+    countryFlag: booking.lead.country ? countryFlagEmoji(booking.lead.country) : null,
+    serviceDetails: serviceDetailsLine(booking.lead.serviceType, booking.lead.details, {
+      airlineName: airlineNames.get(String((booking.lead.details as Record<string, unknown> | null)?.airline ?? "")) ?? null,
+    }),
     travelDate: booking.lead.travelDate ? booking.lead.travelDate.toISOString().slice(0, 10) : null,
     customerStatus: booking.serviceStatus?.customerLabel ?? null,
     internalStatus: booking.serviceStatus?.name ?? null,

@@ -16,6 +16,7 @@ import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { UrgentBadge } from "./UrgentBadge";
+import { StatusPill } from "./StatusPill";
 import {
   SERVICE_TYPE_LABELS,
   SERVICE_TYPE_OPTIONS,
@@ -38,9 +39,12 @@ interface BookingListItem {
   subService: string | null;
   urgent: boolean;
   leadReferenceId: string;
-  customer: { name: string; mobile: string };
+  customer: { name: string; mobile: string; email: string | null };
   paxCount: number | null;
   countryName: string | null;
+  countryCode: string | null;
+  countryFlag: string | null;
+  serviceDetails: string | null;
   travelDate: string | null;
   customerStatus: string | null;
   internalStatus: string | null;
@@ -60,7 +64,7 @@ interface FilterOptions {
   staff: { id: string; name: string; active: boolean }[];
   vendors: { id: string; name: string; active: boolean }[];
   countries: { id: string; name: string }[];
-  serviceStatuses: { id: string; name: string; serviceType: ServiceType; active: boolean }[];
+  serviceStatuses: { id: string; name: string; customerLabel: string; serviceType: ServiceType; active: boolean }[];
 }
 
 type SortOption = "createdAt_desc" | "createdAt_asc";
@@ -68,6 +72,10 @@ type FetchState = "loading" | "success" | "error";
 
 function formatDate(iso: string | null): string {
   return iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
 }
 
 function formatDay(day: string | null): string {
@@ -91,13 +99,16 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
   const [status, setStatus] = useState(() => param("status"));
   const [serviceType, setServiceType] = useState(() => param("serviceType"));
   const [serviceStatusId, setServiceStatusId] = useState(() => param("serviceStatusId"));
+  const [customerStatus, setCustomerStatus] = useState(() => param("customerStatus"));
   const [paymentStatus, setPaymentStatus] = useState(() => param("paymentStatus"));
   const [assignedStaffId, setAssignedStaffId] = useState(() => param("assignedStaffId"));
   const [countryId, setCountryId] = useState(() => param("countryId"));
   const [vendorId, setVendorId] = useState(() => param("vendorId"));
   const [travelFrom, setTravelFrom] = useState(() => param("travelFrom"));
   const [travelTo, setTravelTo] = useState(() => param("travelTo"));
-  const [search] = useState(() => param("search"));
+  // Client testing 2026-10-09 (E13) — search by Booking ID, name, mobile, email or passport.
+  const [search, setSearch] = useState(() => param("search"));
+  const [searchDraft, setSearchDraft] = useState(() => param("search"));
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(param("dateFrom"), param("dateTo"));
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
@@ -130,6 +141,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
       ["status", status],
       ["serviceType", serviceType],
       ["serviceStatusId", serviceStatusId],
+      ["customerStatus", customerStatus],
       ["paymentStatus", paymentStatus],
       ["assignedStaffId", assignedStaffId],
       ["countryId", countryId],
@@ -172,9 +184,11 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
     };
     // buildFilterParams reads exactly the state listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, serviceType, serviceStatusId, paymentStatus, assignedStaffId, countryId, vendorId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [status, serviceType, serviceStatusId, customerStatus, paymentStatus, assignedStaffId, countryId, vendorId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
-  const internalStatusOptions = serviceType ? options.serviceStatuses.filter((option) => option.serviceType === serviceType) : [];
+  // Client testing 2026-10-09 (E13) — every status is in the filters, not only after picking a service.
+  const internalStatusOptions = serviceType ? options.serviceStatuses.filter((option) => option.serviceType === serviceType) : options.serviceStatuses;
+  const customerStatusOptions = [...new Set(internalStatusOptions.map((option) => option.customerLabel).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
   function filterSelect(id: string, label: string, value: string, onChange: (next: string) => void, allLabel: string, choices: { value: string; label: string }[]) {
     return (
@@ -204,6 +218,37 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
 
   return (
     <div className="flex flex-col gap-4">
+      <form
+        role="search"
+        className="flex w-full max-w-xl items-center gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          setSearch(searchDraft.trim());
+          resetPage();
+        }}
+      >
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+          <input
+            type="search"
+            aria-label="Search bookings"
+            placeholder="Search booking ID, name, mobile, email, passport…"
+            value={searchDraft}
+            onChange={(event) => {
+              setSearchDraft(event.target.value);
+              if (event.target.value === "") {
+                setSearch("");
+                resetPage();
+              }
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "pl-10")}
+          />
+        </div>
+        <Button type="submit" size="md">
+          Search
+        </Button>
+      </form>
+
       <div className="flex flex-wrap items-center gap-2.5">
         {filterSelect("filter-booking-service", "Filter by service", serviceType, (next) => {
           setServiceType(next);
@@ -217,16 +262,31 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
           "All booking statuses",
           BOOKING_STATUS_OPTIONS.filter((option) => option.value !== "PENDING")
         )}
-        {serviceType
-          ? filterSelect(
-              "filter-booking-internal",
-              "Filter by internal status",
-              serviceStatusId,
-              setServiceStatusId,
-              "All internal statuses",
-              internalStatusOptions.map((option) => ({ value: option.id, label: option.name }))
-            )
-          : null}
+        {filterSelect(
+          "filter-booking-customer-status",
+          "Filter by customer status",
+          customerStatus,
+          (next) => {
+            setCustomerStatus(next);
+            setServiceStatusId("");
+          },
+          "Customer status",
+          customerStatusOptions.map((label) => ({ value: label, label }))
+        )}
+        {filterSelect(
+          "filter-booking-internal",
+          "Filter by internal status",
+          serviceStatusId,
+          (next) => {
+            setServiceStatusId(next);
+            setCustomerStatus("");
+          },
+          "Internal status",
+          internalStatusOptions.map((option) => ({
+            value: option.id,
+            label: serviceType ? option.name : `${SERVICE_TYPE_LABELS[option.serviceType]} — ${option.name}`,
+          }))
+        )}
         {filterSelect("filter-booking-payment", "Filter by payment status", paymentStatus, setPaymentStatus, "All payments", PAYMENT_STATUS_OPTIONS)}
         {filterSelect("filter-booking-poc", "Filter by POC", assignedStaffId, setAssignedStaffId, "All POCs", [
           { value: "unassigned", label: "Unassigned" },
@@ -358,25 +418,27 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[1600px] border-collapse text-sm">
+          <table className="w-full min-w-[1500px] border-collapse text-sm">
             <thead>
-              <tr className="border-b border-hairline text-left text-xs font-medium tracking-wide text-ink-tertiary uppercase">
+              {/* Client testing 2026-10-09 (E13) — the client's table: Title Case headers, PAX under the Booking ID. */}
+              <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
                 <th className="px-3 py-3">Booking ID</th>
-                <th className="px-3 py-3">PAX</th>
                 <th className="px-3 py-3">Customer</th>
                 <th className="px-3 py-3">Mobile</th>
                 <th className="px-3 py-3">Country</th>
-                <th className="px-3 py-3">Service</th>
-                <th className="px-3 py-3">Sub-service</th>
-                <th className="px-3 py-3">Booking Date</th>
+                <th className="px-3 py-3">
+                  Service
+                  <span className="block font-normal text-ink-tertiary">Sub-Service</span>
+                </th>
+                <th className="px-3 py-3">Service Details</th>
                 <th className="px-3 py-3">Travel Date</th>
-                <th className="px-3 py-3">Customer Status</th>
+                <th className="px-3 py-3">Booking Date</th>
+                <th className="px-3 py-3">Cust. Status</th>
                 <th className="px-3 py-3">Internal Status</th>
                 <th className="px-3 py-3">Payment</th>
                 <th className="px-3 py-3">POC</th>
                 <th className="px-3 py-3">Vendor</th>
-                <th className="px-3 py-3">Source</th>
-                <th className="px-3 py-3">Apply Date</th>
+                <th className="px-3 py-3">Applied to Embassy</th>
                 <th className="px-3 py-3 text-right">Action</th>
               </tr>
             </thead>
@@ -384,33 +446,53 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
               {items.map((booking) => {
                 const href = `${detailBasePath}/${booking.id}`;
                 return (
-                  <tr key={booking.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
-                    <td className="px-3 py-3 font-medium whitespace-nowrap">
-                      <Link href={href} className="text-ink-accent hover:underline">
+                  <tr key={booking.id} className="border-b border-hairline align-top last:border-b-0 hover:bg-ink-primary/[0.02]">
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <Link href={href} className="font-semibold text-ink-accent hover:underline">
                         {booking.bookingId}
                       </Link>
+                      <span className="block text-xs text-ink-tertiary">{booking.paxCount ?? "—"} PAX</span>
                       {booking.urgent ? (
                         <div className="mt-1">
                           <UrgentBadge serviceType={booking.serviceType} />
                         </div>
                       ) : null}
                     </td>
-                    <td className="px-3 py-3 text-ink-secondary tabular-nums">{booking.paxCount ?? "—"}</td>
-                    <td className="px-3 py-3 font-medium text-ink-primary">{booking.customer.name}</td>
-                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{booking.customer.mobile}</td>
-                    <td className="px-3 py-3 text-ink-secondary">{booking.countryName ?? "—"}</td>
-                    <td className="px-3 py-3 text-ink-secondary">{SERVICE_TYPE_LABELS[booking.serviceType]}</td>
-                    <td className="px-3 py-3 text-ink-secondary">{booking.subService ?? "—"}</td>
-                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{formatDate(booking.createdAt)}</td>
-                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{formatDay(booking.travelDate)}</td>
                     <td className="px-3 py-3">
-                      {booking.customerStatus ? (
-                        <span className="text-ink-secondary">{booking.customerStatus}</span>
+                      <span className="block font-semibold text-ink-heading">{booking.customer.name}</span>
+                      {booking.customer.email ? <span className="block text-xs text-ink-tertiary">{booking.customer.email}</span> : null}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{booking.customer.mobile}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
+                      {booking.countryName ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          {booking.countryFlag ? (
+                            <span className="text-base leading-none" aria-hidden="true">
+                              {booking.countryFlag}
+                            </span>
+                          ) : null}
+                          {booking.countryName}
+                        </span>
                       ) : (
-                        <BookingStatusBadge status={booking.status} />
+                        "—"
                       )}
                     </td>
-                    <td className="px-3 py-3 text-ink-secondary">{booking.internalStatus ?? "—"}</td>
+                    <td className="px-3 py-3">
+                      <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[booking.serviceType]}</span>
+                      {booking.subService ? <span className="block text-xs text-ink-tertiary">{booking.subService}</span> : null}
+                    </td>
+                    <td className="max-w-[14rem] px-3 py-3 text-ink-secondary">{booking.serviceDetails ?? "—"}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{formatDay(booking.travelDate)}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
+                      {formatDate(booking.createdAt)}
+                      <span className="block text-xs text-ink-tertiary">{formatTime(booking.createdAt)}</span>
+                    </td>
+                    <td className="px-3 py-3">
+                      {booking.customerStatus ? <StatusPill label={booking.customerStatus} /> : <BookingStatusBadge status={booking.status} />}
+                    </td>
+                    <td className="px-3 py-3">
+                      <StatusPill label={booking.internalStatus} />
+                    </td>
                     <td className="px-3 py-3">
                       {booking.latestPayment ? <PaymentStatusBadge status={booking.latestPayment.status} /> : <span className="text-xs text-ink-tertiary">—</span>}
                     </td>
@@ -418,11 +500,13 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                       {booking.poc ? (booking.poc.active ? booking.poc.name : `Unassigned (was ${booking.poc.name})`) : "Unassigned"}
                     </td>
                     <td className="px-3 py-3 text-ink-secondary">{booking.vendorName ?? "—"}</td>
-                    <td className="px-3 py-3 text-ink-secondary">{booking.source ?? "—"}</td>
-                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{formatDate(booking.appliedAt)}</td>
+                    <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{booking.appliedAt ? formatDate(booking.appliedAt) : "—"}</td>
                     <td className="px-3 py-3 text-right">
-                      <Link href={href} className="inline-flex items-center gap-1 font-medium text-ink-accent hover:underline">
-                        Open
+                      <Link
+                        href={href}
+                        className="inline-flex items-center gap-1 rounded-lg border border-hairline px-3 py-1.5 font-medium text-ink-heading transition-colors hover:border-glass-border hover:bg-ink-primary/[0.03]"
+                      >
+                        View
                         <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                       </Link>
                     </td>

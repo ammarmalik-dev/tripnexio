@@ -12,7 +12,7 @@ import type { BookingListQueryValues } from "../validation/booking-query-schema"
  * date) filter through the booking's lead.
  */
 export function bookingListWhere(session: StaffSession, query: BookingListQueryValues): Prisma.BookingWhereInput {
-  const { status, serviceType, search, dateFrom, dateTo, assignedStaffId, countryId, travelFrom, travelTo, paymentStatus, vendorId, serviceStatusId } =
+  const { status, serviceType, search, dateFrom, dateTo, assignedStaffId, countryId, travelFrom, travelTo, paymentStatus, vendorId, serviceStatusId, customerStatus } =
     query;
 
   const statuses = (status ?? []).filter((value) => value !== "PENDING");
@@ -36,7 +36,7 @@ export function bookingListWhere(session: StaffSession, query: BookingListQueryV
   return {
     status: statuses.length > 0 ? { in: statuses } : { not: "PENDING" },
     ...(Object.keys(lead).length > 0 ? { lead } : {}),
-    ...(serviceStatusId ? { serviceStatusId } : {}),
+    ...(serviceStatusId ? { serviceStatusId } : customerStatus ? { serviceStatus: { customerLabel: customerStatus } } : {}),
     ...(paymentStatus ? { payments: { some: { status: paymentStatus } } } : {}),
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
@@ -47,6 +47,9 @@ export function bookingListWhere(session: StaffSession, query: BookingListQueryV
             { bookingId: { contains: search, mode: "insensitive" as const } },
             { customer: { name: { contains: search, mode: "insensitive" as const } } },
             { customer: { mobile: { contains: search, mode: "insensitive" as const } } },
+            // Client testing 2026-10-09 (E13) — passport number and email too.
+            { customer: { email: { contains: search, mode: "insensitive" as const } } },
+            { passengers: { some: { passenger: { passportNumber: { contains: search, mode: "insensitive" as const } } } } },
           ],
         }
       : {}),

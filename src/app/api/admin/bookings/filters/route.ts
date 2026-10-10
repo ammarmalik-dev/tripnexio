@@ -20,7 +20,7 @@ export async function GET() {
       () => (db.country.findMany({ where: { active: true }, select: { id: true, name: true, code: true }, orderBy: [{ displayOrder: "asc" }, { name: "asc" }] })),
       () => (db.serviceStatus.findMany({
         where: { scope: "BOOKING" },
-        select: { id: true, name: true, serviceType: true, active: true },
+        select: { id: true, name: true, customerLabel: true, serviceType: true, active: true },
         orderBy: [{ serviceType: "asc" }, { displayOrder: "asc" }],
       }))]);
     return jsonSuccess({ staff, vendors, countries, serviceStatuses });

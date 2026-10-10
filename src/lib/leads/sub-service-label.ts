@@ -5,7 +5,7 @@
  */
 const CHANGE_TYPE_LABELS: Record<string, string> = {
   AIRPORT_TO_AIRPORT: "Airport-to-Airport",
-  BORDER_EXIT: "Border Exit",
+  BORDER_EXIT: "Border Exit & Re-entry",
 };
 
 export function subServiceLabel(details: unknown): string | null {

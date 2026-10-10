@@ -41,6 +41,8 @@ export const bookingListQuerySchema = z.object({
   paymentStatus: z.enum(paymentStatusValues).optional(),
   vendorId: z.string().trim().min(1).optional(),
   serviceStatusId: z.string().trim().min(1).optional(),
+  /** Client testing 2026-10-09 (E13) — the customer-facing status label (across services). */
+  customerStatus: z.string().trim().min(1).max(80).optional(),
   sort: z.enum(["createdAt_asc", "createdAt_desc"]).default("createdAt_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),
