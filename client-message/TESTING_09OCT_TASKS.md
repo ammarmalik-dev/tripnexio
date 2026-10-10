@@ -20,7 +20,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] B7. Special Fare: departure/arrival city fields wrong on desktop (mobile OK).
 - [x] B8. Special Fare: country select shows flags and only enabled countries.
 - [x] B9. Special Fare success text: "Your Special Fare request has been received successfully. Our team will check the available fares and share your quotation with you shortly on WhatsApp and email." — same text in the WhatsApp + email template.
-- [ ] B10. Special Fare T&C: auto-fit standard points (e.g. carry/re-post govt ID) for every service.
+- [ ] B10. Special Fare T&C: auto-fit standard points (e.g. carry/re-post govt ID) for every service. — NEEDS CLIENT INPUT: the exact standard points (e.g. ID to carry, reporting time) per service; they are not invented.
 - [x] B11. Return Ticket: "What You'll Need" (Full name, Mobile, Email, Passport number, Destination country, Number of passengers, Travel date, Expected return date) with descriptions.
 - [x] B12. Return Ticket: remove "Return ticket" from Documents Required (keep Passport copy required, Visa copy optional).
 - [x] B13. Return Ticket: price shown on the same line as Expected Return Date.
@@ -76,12 +76,12 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] E13. Lead / Quotation / Booking / Payment lists like the client's table screenshot: proper capitalisation, Applied to Embassy + Vendor columns, PAX under Booking ID, every status in the filters, country flags, service details column.
 
 ## F. Admin
-- [ ] F1. AI Command Centre — not go-live ready, fix.
+- [ ] F1. AI Command Centre — not go-live ready, fix. — NEEDS CLIENT INPUT: which question / screen failed (no server error is logged).
 - [x] F2. Airports: country flag auto-fetched from the country when creating; searchable airport picker in CRM quotation/lead forms.
 - [x] F3. Airlines: logo not working — fix.
 - [x] F4. OTB timeline calculated in working hours (verify).
-- [ ] F5. Coupons: Create → table → open/edit → save (check).
-- [ ] F6. Pricing Dashboard reported "not working" — verify on production and fix.
+- [ ] F5. Coupons: Create → table → open/edit → save (check). — exists (Admin -> Coupons create/table/edit/save; CRM staff coupon added, E3); client to test.
+- [ ] F6. Pricing Dashboard reported "not working" — verify on production and fix. — NEEDS CLIENT INPUT: exact steps (no server error is logged).
 - [x] F7. Service Configuration: one short view; TAT for all countries; documents from Document Master; summary cards on top.
 - [x] F8. Admin sidebar: pure-white look; only one accordion open; Overview button fixed.
 - [x] F9. Blog: new photos, categories, search above articles, 4 cards per row centred.
