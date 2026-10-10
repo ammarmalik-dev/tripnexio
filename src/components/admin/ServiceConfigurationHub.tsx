@@ -28,6 +28,7 @@ import { OtbPricesManager } from "./OtbPricesManager";
 import { OtbRulesManager } from "./OtbRulesManager";
 import { SubServicesManager } from "@/components/admin/SubServicesManager";
 import { ProcessingTypesManager } from "@/components/admin/ProcessingTypesManager";
+import { ServiceConfigSummaryCards } from "./ServiceConfigSummaryCards";
 
 interface CountryOption {
   id: string;
@@ -249,6 +250,9 @@ export function ServiceConfigurationHub({
         </FormField>
         {countryControl}
       </div>
+
+      {/* Client testing 2026-10-09 (F7) — summary cards first, then the compact sections. */}
+      <ServiceConfigSummaryCards service={service} tabs={tabs} activeTab={activeTab} onOpen={(next) => selectTab(next)} />
 
       <div className="-mx-1 overflow-x-auto px-1 pb-1">
         <div role="tablist" aria-label={`${SERVICE_TYPE_LABELS[service]} configuration`} className="flex w-max gap-1 border-b border-hairline">
