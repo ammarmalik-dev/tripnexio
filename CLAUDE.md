@@ -220,7 +220,7 @@ That folder's `.docx` also holds live credentials: never commit it, read secrets
 - **Emails**: `src/lib/email/layout.ts` follows the client sample (white header, Booking ID / Service card, Need assistance, Team TripNexio, socials, automated strip, no address); per-event pictures `public/email/hero-{request,quote,payment,approved,boarding,…}.png` via `illustrationFor()`.
 - **Invoices**: column "Govt./Airline/Vendor Fee" (non-taxable); Visa Change / Extension fines are non-taxable (`nonTaxableQuotationAmount`); service shows the country; refunds cancel the invoice.
 - **Ownership**: staff without `leads.reassign` see only their own + unassigned leads/bookings/quotations (`src/lib/auth/ownership.ts`).
-- **Login**: Administrative Login is refused server-side (403, no session) for accounts without Admin access. Admin sidebar is white with Overview pinned.
+- **Login**: Administrative Login is refused server-side (403, no session) for accounts without Admin access. The Admin sidebar matches the CRM sidebar (dark liquid, all groups open, each collapses on its own; 2026-10-11) with Overview pinned.
 - **WhatsApp bot**: counts/passengers per service, in-chat status, direct payment links; a Visa Extension with no TripNexio visa still creates the lead and asks for the visa copy in chat (`src/lib/whatsapp-bot/visa-copy.ts`, state `AWAITING_VISA_COPY`; the webhook downloads image/document media from Meta hosts only).
 - **Visa Extension prior-visa check** matches the passport on the earlier New Visa booking's own travellers, not any traveller of the same customer.
 - **Link preview**: `siteConfig.ogImage` = `/og-image-2026.jpg` (new name busts WhatsApp's cache).
