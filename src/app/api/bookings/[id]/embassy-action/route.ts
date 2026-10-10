@@ -8,6 +8,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import { EMBASSY_ACTIONS, EMBASSY_ACTION_KEYS } from "@/lib/new-visa/embassy-actions";
 import { openRefundReviewsForRejectedVisa } from "@/lib/protection-plan/lifecycle";
+import { setBookingVendor } from "@/lib/bookings/set-vendor";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -17,6 +18,8 @@ const actionSchema = z.object({
   action: z.enum(EMBASSY_ACTION_KEYS),
   /** Mandatory for REJECTED — shown to the customer. */
   reason: z.string().trim().max(500).optional(),
+  /** Client testing 2026-10-09 (E12) — mandatory for APPLIED: the vendor processing this visa. */
+  vendorId: z.string().trim().min(1).optional(),
 });
 
 /**
@@ -40,16 +43,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
   const parsed = actionSchema.safeParse(body);
   if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
-  const { action, reason } = parsed.data;
+  const { action, reason, vendorId } = parsed.data;
   if (action === "REJECTED" && (!reason || reason.length < 5)) {
     return jsonError(400, "Enter the rejection reason (the customer will see it).", { reason: ["At least 5 characters."] });
   }
 
-  const booking = await db.booking.findUnique({ where: { id }, select: { lead: { select: { serviceType: true } } } });
+  const booking = await db.booking.findUnique({ where: { id }, select: { leadId: true, lead: { select: { serviceType: true } } } });
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
   if (booking.lead.serviceType !== "NEW_VISA") return jsonError(409, "Embassy actions are only for New Visa bookings.");
+
+  // Looked up before the transaction (no global db inside one).
+  const vendor = action === "APPLIED" && vendorId ? await db.vendor.findFirst({ where: { id: vendorId, active: true }, select: { id: true, name: true } }) : null;
+  if (action === "APPLIED" && !vendor) {
+    return jsonError(400, "Select the vendor processing this visa before marking it Applied.", { vendorId: ["Select a vendor."] });
+  }
 
   const { event, label } = EMBASSY_ACTIONS[action];
   const result = await db.$transaction(async (tx) => {
@@ -64,6 +73,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!outcome.ok) return outcome;
     if (action === "APPLIED") {
       await tx.booking.update({ where: { id }, data: { appliedToEmbassyAt: new Date() } });
+      if (vendor) await setBookingVendor(tx, { bookingId: id, leadId: booking.leadId, vendor, actor: { userId: session.id, name: session.name } });
     }
     if (action === "REJECTED") {
       await tx.booking.update({ where: { id }, data: { visaRejectionReason: reason } });

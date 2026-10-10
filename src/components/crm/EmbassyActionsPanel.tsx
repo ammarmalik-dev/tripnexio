@@ -6,6 +6,10 @@ import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { EMBASSY_ACTIONS, type EmbassyAction } from "@/lib/new-visa/embassy-actions";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
+import { useServiceVendors } from "./booking/BookingVendorPicker";
+import { fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
+import { DIRECT_VENDOR_NAME } from "@/lib/bookings/vendor-names";
+import { cn } from "@/lib/cn";
 
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -27,6 +31,7 @@ export function EmbassyActionsPanel({
   travelDate,
   currentStatus,
   rejectionReason,
+  currentVendor,
   onChanged,
 }: {
   bookingId: string;
@@ -35,15 +40,24 @@ export function EmbassyActionsPanel({
   travelDate: string | null;
   currentStatus: string | null;
   rejectionReason: string | null;
+  /** Client testing 2026-10-09 (E12) — the vendor on record (null / the placeholder = not chosen yet). */
+  currentVendor: { id: string; name: string | null } | null;
   onChanged: () => void;
 }) {
+  const vendors = useServiceVendors("NEW_VISA");
+  // A direct-payment booking starts with a placeholder vendor, so staff name the real one before "Applied".
+  const [vendorId, setVendorId] = useState(() => (currentVendor && currentVendor.name !== DIRECT_VENDOR_NAME ? currentVendor.id : ""));
   const [pending, setPending] = useState<EmbassyAction | null>(null);
   const [confirmingReject, setConfirmingReject] = useState(false);
 
   const run = async (action: EmbassyAction, reason?: string) => {
+    if (action === "APPLIED" && !vendorId) {
+      toast.error("Select the vendor processing this visa first.");
+      return;
+    }
     setPending(action);
     try {
-      await postJson(`/api/bookings/${bookingId}/embassy-action`, { action, reason });
+      await postJson(`/api/bookings/${bookingId}/embassy-action`, { action, reason, ...(action === "APPLIED" ? { vendorId } : {}) });
       toast.success(`${EMBASSY_ACTIONS[action].label} recorded.`);
       setConfirmingReject(false);
       onChanged();
@@ -76,6 +90,28 @@ export function EmbassyActionsPanel({
       </dl>
       {rejectionReason ? (
         <p className="mb-3 rounded-lg bg-error/10 px-4 py-3 text-sm text-error">Rejected: {rejectionReason}</p>
+      ) : null}
+      {!appliedToEmbassyAt ? (
+        <div className="mb-3 flex max-w-sm flex-col gap-1.5">
+          <label htmlFor="embassy-vendor" className="text-sm font-medium text-ink-heading">
+            Vendor processing this visa <span className="text-error">*</span>
+          </label>
+          <select
+            id="embassy-vendor"
+            value={vendorId}
+            onChange={(event) => setVendorId(event.target.value)}
+            disabled={pending !== null}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10")}
+          >
+            <option value="">{vendors.length === 0 ? "No active vendors for New Visa" : "Select a vendor"}</option>
+            {vendors.map((vendor) => (
+              <option key={vendor.id} value={vendor.id}>
+                {vendor.name}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-ink-tertiary">Required before Applied to Embassy. Internal — never shown to the customer.</span>
+        </div>
       ) : null}
       <div className="flex flex-wrap gap-2">
         {(Object.keys(EMBASSY_ACTIONS) as EmbassyAction[]).map((action) => (

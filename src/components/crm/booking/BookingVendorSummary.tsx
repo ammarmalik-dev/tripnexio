@@ -1,3 +1,5 @@
+import { DIRECT_VENDOR_NAME } from "@/lib/bookings/vendor-names";
+
 export interface BookingVendorSummaryData {
   vendorId: string;
   vendorName: string | null;
@@ -27,7 +29,7 @@ function money(value: string): string {
 export function BookingVendorSummary({ vendor, compact = false }: { vendor: BookingVendorSummaryData; compact?: boolean }) {
   const reference = vendor.vendorReference ?? vendor.quotationVendorReference;
   const rows: [string, string][] = [
-    ["Vendor", vendor.vendorName ?? "Unknown vendor"],
+    ["Vendor", vendor.vendorName === DIRECT_VENDOR_NAME ? "Not chosen yet" : (vendor.vendorName ?? "Unknown vendor")],
     ["Selling Price", money(vendor.sellingPrice)],
     ["Vendor Cost (internal)", money(vendor.vendorCost)],
     ["Margin (internal)", money(vendor.margin)],

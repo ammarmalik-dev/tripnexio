@@ -12,6 +12,7 @@ import { isUrgentRequest } from "@/lib/crm/urgency";
 import { bookingListWhere } from "@/lib/bookings/list-where";
 import { subServiceLabel } from "@/lib/leads/sub-service-label";
 import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { DIRECT_VENDOR_NAME } from "@/lib/bookings/vendor-names";
 import { countryFlagEmoji } from "@/lib/countries/flag";
 
 export async function GET(request: NextRequest) {
@@ -83,7 +84,8 @@ export async function GET(request: NextRequest) {
     customerStatus: booking.serviceStatus?.customerLabel ?? null,
     internalStatus: booking.serviceStatus?.name ?? null,
     poc: booking.lead.assignedStaff ? { name: booking.lead.assignedStaff.name, active: booking.lead.assignedStaff.active } : null,
-    vendorName: booking.lead.quotations[0]?.vendor.name ?? null,
+    // The placeholder vendor of a direct-payment booking is "not chosen yet" (E12).
+    vendorName: booking.lead.quotations[0] && booking.lead.quotations[0].vendor.name !== DIRECT_VENDOR_NAME ? booking.lead.quotations[0].vendor.name : null,
     source: booking.lead.source,
     appliedAt: booking.appliedToEmbassyAt,
     latestPayment: booking.payments[0] ? { id: booking.payments[0].id, status: booking.payments[0].status } : null,

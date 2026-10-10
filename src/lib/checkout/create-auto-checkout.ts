@@ -10,7 +10,7 @@ import { notifyNewBooking } from "../staff-notifications/triggers";
 import type { ServiceType } from "../../generated/prisma/enums";
 import { invoiceLinesGovernmentFee, type InvoiceLine } from "../invoices/invoice-lines";
 
-const DIRECT_VENDOR_NAME = "Direct (auto-priced)";
+import { DIRECT_VENDOR_NAME } from "../bookings/set-vendor";
 
 /**
  * Pay-right-after-the-form (client's Return Ticket / OTB handover): the price

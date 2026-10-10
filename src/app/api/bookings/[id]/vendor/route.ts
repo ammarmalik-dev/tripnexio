@@ -1,0 +1,60 @@
+import type { NextRequest } from "next/server";
+import { z } from "zod";
+import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { db } from "@/lib/db";
+import { requirePermission } from "@/lib/auth/require-permission";
+import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertOwnsRecord } from "@/lib/auth/ownership";
+import { setBookingVendor } from "@/lib/bookings/set-vendor";
+import { describeError } from "@/lib/api/describe-error";
+
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+const schema = z.object({
+  vendorId: z.string().trim().min(1, "Select a vendor"),
+  reason: z.string().trim().min(5, "Give a short reason (at least 5 characters)").max(300),
+});
+
+/**
+ * Client testing 2026-10-09 (E12) — set or change the vendor processing a
+ * booking (a vendor change is a Locked-Q14 sensitive action: reason required,
+ * audited). The vendor lives on the lead's selected quotation.
+ */
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  const auth = await requirePermission("bookings.edit");
+  if (auth.error) return auth.error;
+  const { session } = auth;
+  const { id } = await params;
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonError(400, "Invalid request body.");
+  }
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
+
+  try {
+    const booking = await db.booking.findUnique({ where: { id }, select: { leadId: true, lead: { select: { serviceType: true, assignedStaffId: true } } } });
+    if (!booking) return jsonError(404, "Booking not found.");
+    const scopeError = assertServiceAccess(session, booking.lead.serviceType);
+    if (scopeError) return scopeError;
+    const ownershipError = assertOwnsRecord(session, booking.lead.assignedStaffId);
+    if (ownershipError) return ownershipError;
+
+    const vendor = await db.vendor.findFirst({ where: { id: parsed.data.vendorId, active: true }, select: { id: true, name: true } });
+    if (!vendor) return jsonError(400, "Select a valid, active vendor.", { vendorId: ["This vendor isn't available."] });
+
+    const problem = await db.$transaction((tx) =>
+      setBookingVendor(tx, { bookingId: id, leadId: booking.leadId, vendor, actor: { userId: session.id, name: session.name }, reason: parsed.data.reason })
+    );
+    if (problem) return jsonError(409, problem);
+    return jsonSuccess({ vendorId: vendor.id, vendorName: vendor.name });
+  } catch (error) {
+    console.error("[api/bookings/vendor]", describeError(error));
+    return jsonError(500, "Couldn't save the vendor.");
+  }
+}

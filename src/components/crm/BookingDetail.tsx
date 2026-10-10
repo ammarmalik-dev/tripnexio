@@ -37,6 +37,7 @@ import { CommunicationsPanel } from "./CommunicationsPanel";
 import { AddTaskPanel } from "./tasks/CreateTaskForm";
 import { BookingDatesRow } from "./booking/BookingDatesRow";
 import { BookingVendorSummary, type BookingVendorSummaryData } from "./booking/BookingVendorSummary";
+import { BookingVendorPicker } from "./booking/BookingVendorPicker";
 import { BookingTimelineSection, type BookingTimelineEntry } from "./booking/BookingTimelineSection";
 import type { BookingDateItem } from "@/lib/crm/booking-dates";
 import { SERVICE_TYPE_LABELS, PROTECTION_PLAN_STATUS_LABELS } from "@/lib/crm/labels";
@@ -437,6 +438,7 @@ export function BookingDetail({
                     travelDate={booking.travelDate}
                     currentStatus={booking.serviceStatusName}
                     rejectionReason={booking.visaRejectionReason}
+                    currentVendor={booking.vendorSummary ? { id: booking.vendorSummary.vendorId, name: booking.vendorSummary.vendorName } : null}
                     onChanged={refresh}
                   />
                 ) : null}
@@ -600,7 +602,18 @@ export function BookingDetail({
                 </RecordSection>
                 <RecordSection title="Vendor">
                   {booking.vendorSummary ? (
-                    <BookingVendorSummary vendor={booking.vendorSummary} compact={booking.serviceType === "RETURN_TICKET"} />
+                    <div className="flex flex-col gap-3">
+                      <BookingVendorSummary vendor={booking.vendorSummary} compact={booking.serviceType === "RETURN_TICKET"} />
+                      {/* Client testing 2026-10-09 (E12) — name / change the vendor processing this booking. */}
+                      {booking.serviceType !== "RETURN_TICKET" ? (
+                        <BookingVendorPicker
+                          bookingId={booking.id}
+                          serviceType={booking.serviceType}
+                          currentVendorId={booking.vendorSummary.vendorId}
+                          onSaved={refresh}
+                        />
+                      ) : null}
+                    </div>
                   ) : (
                     <p className="text-sm text-ink-tertiary">No selected quotation, so no vendor on record.</p>
                   )}
