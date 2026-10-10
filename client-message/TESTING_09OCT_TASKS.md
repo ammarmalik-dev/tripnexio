@@ -69,7 +69,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] E6. Current record shows only its own communication/timeline; previous bookings/leads/quotations in a separate History.
 - [x] E7. Staff see only their own leads / bookings / quotations and act on them.
 - [x] E8. Auto-assign not working — assign by staff scope, never to Super Admin.
-- [ ] E9. Full internal + customer status lists per service so staff can move statuses correctly.
+- [x] E9. Full internal + customer status lists per service so staff can move statuses correctly.
 - [x] E10. Documents: PAX-level view / validate / reject (reason) / download / staff upload in lead + booking; one customer notification when all validated or something is required; documents only from the master list.
 - [x] E11. Deliver output: document type auto-selected (ticket for ticket bookings, visa for visa).
 - [x] E12. Vendor name captured before "Applied" (confirm wording "do not show vendor name on booking section").

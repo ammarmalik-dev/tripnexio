@@ -10,11 +10,14 @@ import { cn } from "@/lib/cn";
 interface StatusOption {
   id: string;
   name: string;
+  customerLabel?: string | null;
 }
 
 interface StatusState {
   current: (StatusOption & { customerLabel: string | null; isTerminal: boolean }) | null;
   allowed: StatusOption[];
+  /** Client testing 2026-10-09 (E9) — every status of this service, in order. */
+  all?: (StatusOption & { isTerminal: boolean })[];
 }
 
 /**
@@ -112,7 +115,7 @@ export function ServiceStatusControl<TCoarse extends string>({
                 </option>
                 {state.allowed.map((option) => (
                   <option key={option.id} value={option.id}>
-                    {option.name}
+                    {option.customerLabel && option.customerLabel !== option.name ? `${option.name} (customer sees: ${option.customerLabel})` : option.name}
                   </option>
                 ))}
               </select>
@@ -120,6 +123,44 @@ export function ServiceStatusControl<TCoarse extends string>({
           ) : (
             <span className="text-xs text-ink-tertiary">Final status — no further transitions</span>
           )}
+          {state.all && state.all.length > 0 ? (
+            <details className="relative text-left">
+              <summary className="cursor-pointer text-xs font-medium text-ink-accent select-none">All statuses</summary>
+              <div className="absolute right-0 z-20 mt-2 w-[min(28rem,80vw)] rounded-xl border border-hairline bg-surface-1 p-3 shadow-lg">
+                <p className="mb-2 text-xs text-ink-tertiary">Every status for this service. You can move only to the ones marked &ldquo;Next&rdquo;.</p>
+                <table className="w-full border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-hairline text-left font-semibold text-ink-secondary">
+                      <th className="py-1.5 pr-2">Internal status</th>
+                      <th className="py-1.5 pr-2">Customer sees</th>
+                      <th className="py-1.5" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {state.all.map((option) => {
+                      const isCurrent = option.id === state.current?.id;
+                      const isNext = state.allowed.some((allowed) => allowed.id === option.id);
+                      return (
+                        <tr key={option.id} className={cn("border-b border-hairline last:border-b-0", isCurrent && "bg-accent/10")}>
+                          <td className="py-1.5 pr-2 font-medium text-ink-primary">{option.name}</td>
+                          <td className="py-1.5 pr-2 text-ink-secondary">{option.customerLabel ?? "—"}</td>
+                          <td className="py-1.5 text-right whitespace-nowrap">
+                            {isCurrent ? (
+                              <span className="font-semibold text-ink-accent">Current</span>
+                            ) : isNext ? (
+                              <span className="font-semibold text-success">Next</span>
+                            ) : option.isTerminal ? (
+                              <span className="text-ink-tertiary">Final</span>
+                            ) : null}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </details>
+          ) : null}
         </>
       )}
     </div>

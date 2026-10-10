@@ -71,7 +71,7 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
     ? (
         await db.serviceStatusTransition.findMany({
           where: { fromStatusId: current.id, to: { active: true } },
-          select: { to: { select: { id: true, name: true, displayOrder: true } } },
+          select: { to: { select: { id: true, name: true, customerLabel: true, displayOrder: true } } },
         })
       )
         .map((transition) => transition.to)
@@ -80,9 +80,16 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
       await db.serviceStatus.findMany({
         where: { serviceType: entity.serviceType, scope, active: true },
         orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-        select: { id: true, name: true, displayOrder: true },
+        select: { id: true, name: true, customerLabel: true, displayOrder: true },
       });
-  return { current, allowed: allowed.map(({ id, name }) => ({ id, name })) };
+  // Client testing 2026-10-09 (E9) — the service's whole status list (internal name
+  // + what the customer sees), so staff can see where a record is and what comes next.
+  const all = await db.serviceStatus.findMany({
+    where: { serviceType: entity.serviceType, scope, active: true },
+    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, customerLabel: true, isTerminal: true },
+  });
+  return { current, allowed: allowed.map(({ id, name, customerLabel }) => ({ id, name, customerLabel })), all };
 }
 
 async function applyStatus(
