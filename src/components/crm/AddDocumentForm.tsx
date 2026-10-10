@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { TextField } from "@/components/forms/TextField";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
-import { postJson, ApiError } from "@/lib/api/client";
+import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -15,9 +15,30 @@ interface AddDocumentFormProps {
   onAdded: () => void;
 }
 
-/** e.g. "PASSPORT", "VISA_COPY", "TICKET" — Document.type is free text since the set varies per service. */
+/**
+ * Client testing 2026-10-09 (E10) — the document is picked from the Document
+ * Master (Admin → Document Master), not typed. Only while the master is empty
+ * or can't be read does the free-text box remain, so staff are never blocked.
+ */
 export function AddDocumentForm({ bookingId, passengers, onAdded }: AddDocumentFormProps) {
   const [type, setType] = useState("");
+  const [masterTypes, setMasterTypes] = useState<{ id: string; name: string }[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const result = await getJson<{ id: string; name: string }[]>("/api/crm/document-types");
+        if (!cancelled) setMasterTypes(result);
+      } catch {
+        if (!cancelled) setMasterTypes([]);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [passengerId, setPassengerId] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -40,14 +61,35 @@ export function AddDocumentForm({ bookingId, passengers, onAdded }: AddDocumentF
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2">
-      <TextField
-        label="Document Type"
-        name="documentType"
-        placeholder="e.g. PASSPORT"
-        value={type}
-        onChange={(event) => setType(event.target.value)}
-        className="w-48"
-      />
+      {masterTypes && masterTypes.length > 0 ? (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="add-doc-type" className="text-sm font-medium text-ink-heading">
+            Document
+          </label>
+          <select
+            id="add-doc-type"
+            value={type}
+            onChange={(event) => setType(event.target.value)}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-11 w-60")}
+          >
+            <option value="">Select from Document Master</option>
+            {masterTypes.map((option) => (
+              <option key={option.id} value={option.name}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : (
+        <TextField
+          label="Document Type"
+          name="documentType"
+          placeholder={masterTypes === null ? "Loading…" : "e.g. PASSPORT"}
+          value={type}
+          onChange={(event) => setType(event.target.value)}
+          className="w-48"
+        />
+      )}
       {passengers.length > 0 ? (
         <div className="flex flex-col gap-1.5">
           <label htmlFor="add-doc-passenger" className="text-sm font-medium text-ink-heading">

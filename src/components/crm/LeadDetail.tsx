@@ -23,7 +23,7 @@ import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { ListPagination } from "./ListPagination";
 import { useClientPagination } from "./usePagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
-import { DocumentStatusBadge } from "./DocumentStatusBadge";
+import { DocumentStatusControl } from "./DocumentStatusControl";
 import { PassportExtractionReview } from "./PassportExtractionReview";
 import { VisaExtensionEligibilityPanel } from "./VisaExtensionEligibilityPanel";
 import { VisaChangeBorderDetailsPanel } from "./VisaChangeBorderDetailsPanel";
@@ -85,6 +85,7 @@ interface PassengerDocument {
   id: string;
   type: string;
   status: DocumentStatus;
+  rejectionReason?: string | null;
   fileUrl: string | null;
   /** P27 - set when the retention job deleted the file. */
   purgedAt?: string | null;
@@ -569,16 +570,22 @@ export function LeadDetail({
                               <span className="text-xs text-ink-tertiary">No documents yet.</span>
                             ) : (
                               passenger.documents.map((document) => (
-                                <div key={document.id} className="flex flex-wrap items-center gap-1.5">
-                                  <span className="flex flex-wrap items-center gap-2 text-xs text-ink-tertiary">
-                                    {document.type}
+                                // Client testing 2026-10-09 (E10) — per traveller: view, download, upload, validate / reject (with a reason).
+                                <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-hairline px-2.5 py-1.5">
+                                  <span className="flex flex-wrap items-center gap-2 text-xs text-ink-secondary">
+                                    <span className="font-medium text-ink-primary">{document.type}</span>
                                     <PurgedFileTag purgedAt={document.purgedAt} />
                                     <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
+                                    {!document.purgedAt ? (
+                                      <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={refresh} />
+                                    ) : null}
                                   </span>
-                                  <DocumentStatusBadge status={document.status} />
-                                  {!document.purgedAt ? (
-                                    <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={refresh} />
-                                  ) : null}
+                                  <DocumentStatusControl
+                                    documentId={document.id}
+                                    status={document.status}
+                                    rejectionReason={document.rejectionReason}
+                                    onChanged={() => refresh()}
+                                  />
                                 </div>
                               ))
                             )}

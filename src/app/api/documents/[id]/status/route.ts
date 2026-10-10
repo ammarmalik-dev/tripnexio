@@ -10,11 +10,12 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
-import type { NotificationEvent } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { createTask, autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
 import { assertValidDocumentTransition } from "@/lib/documents/transitions";
 import { notifyDocumentRejected } from "@/lib/staff-notifications/triggers";
+import { reviewRoundOutcome } from "@/lib/documents/review-round";
+import { isOutputType } from "@/lib/outputs/output-types";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -107,25 +108,29 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   await dispatchStatusNotifications(statusNotifications);
   if (updated.status === "REJECTED") await notifyDocumentRejected(updated.id, session.id);
 
-  const EVENT_BY_STATUS: Partial<Record<typeof updated.status, NotificationEvent>> = {
-    MISSING: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
-    VERIFIED: NOTIFICATION_EVENTS.DOCUMENT_APPROVED,
-    REJECTED: NOTIFICATION_EVENTS.DOCUMENT_REJECTED,
-  };
-  const event = EVENT_BY_STATUS[updated.status];
-  if (event) {
+  // Client testing 2026-10-09 (E10) — one customer message per review round
+  // (src/lib/documents/review-round.ts), not one per document: nothing while a
+  // document still waits for staff, then either "documents required" (listing
+  // what was rejected / is missing) or "all documents validated".
+  const roundDocuments = (
+    await db.document.findMany({
+      where: updated.bookingId ? { bookingId: updated.bookingId } : { passengerId: updated.passengerId, bookingId: null },
+      select: { type: true, status: true, rejectionReason: true, purgedAt: true },
+    })
+  ).filter((document) => !isOutputType(document.type) && !document.purgedAt);
+  const outcome = reviewRoundOutcome(roundDocuments);
+  if (outcome.kind !== "IN_PROGRESS") {
     const recipient = await resolveDocumentRecipient(updated);
     if (recipient) {
       await notifyCustomer({
-        event,
+        event: outcome.kind === "ALL_VALIDATED" ? NOTIFICATION_EVENTS.DOCUMENT_APPROVED : NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
         emailTo: recipient.email,
         whatsappTo: toWhatsAppId(recipient.mobile),
         smsTo: toWhatsAppId(recipient.mobile),
         variables: {
           customerName: recipient.customerName,
-          documentName: updated.type,
+          documentName: outcome.kind === "ALL_VALIDATED" ? "full set of documents" : outcome.summary,
           leadReference: recipient.leadReference,
-          rejectionReason: updated.rejectionReason ?? "",
         },
         auditTarget: { entityType: "Document", entityId: updated.id },
       });

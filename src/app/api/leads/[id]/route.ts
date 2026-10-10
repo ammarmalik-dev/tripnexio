@@ -118,6 +118,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         id: document.id,
         type: document.type,
         status: document.status,
+        rejectionReason: document.rejectionReason,
         fileUrl: document.fileUrl,
         purgedAt: document.purgedAt,
       })),
