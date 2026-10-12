@@ -1,11 +1,12 @@
 /**
  * P14 — Visa Change operational blocks (Visa_Change.md §6/§9/§10/§13/§21).
- * Staff fill one per lead from the CRM panel that matches the customer's
- * chosen method (Lead.details.changeType): Airport-to-Airport or Border Exit.
- * It is mandatory before quoting, copied onto each quotation option
- * (Quotation.operationalBlock), shown to the customer per option, and
- * printed on the package PDF. Vendor, cost and selling price are internal:
- * customerBlockRows() never includes them.
+ * Border Exit: staff fill one per lead from the CRM panel; it is mandatory
+ * before quoting and copied onto each quotation option. Airport-to-Airport
+ * (client testing 2026-10-09, B32): each quotation option carries its own
+ * exit and re-entry flights, built by build-a2a-block.ts. Either way the
+ * option's block (Quotation.operationalBlock) is shown to the customer per
+ * option and printed on the package PDF. Vendor, cost and selling price are
+ * internal: customerBlockRows() never includes them.
  */
 
 /**
@@ -23,6 +24,13 @@ export interface A2ABlock {
   /** Exit airport (where the onward flight departs). */
   exitAirportId: string;
   exitAirport: string;
+  /** B32 — per-option flights: airport codes and the far-side airports of both legs (absent on older blocks). */
+  exitAirportCode?: string | null;
+  entryAirportCode?: string | null;
+  exitToAirportCode?: string | null;
+  exitToAirport?: string | null;
+  reentryFromAirportCode?: string | null;
+  reentryFromAirport?: string | null;
   airlineCode: string;
   airline: string;
   flightNumber: string;
@@ -95,14 +103,24 @@ export function leadOperationalBlock(details: unknown): OperationalBlock | null 
   return null;
 }
 
-/** P14 — why a Visa Change lead can't be quoted yet (null when its operational details are complete). */
+/** True for a Visa Change lead whose method is Airport-to-Airport. */
+export function isAirportToAirportLead(serviceType: string, details: unknown): boolean {
+  return serviceType === "VISA_CHANGE" && ((details ?? {}) as Record<string, unknown>).changeType === "AIRPORT_TO_AIRPORT";
+}
+
+/**
+ * P14 — why a Visa Change lead can't be quoted yet (null when it can). Only
+ * Border Exit needs lead-level details first; an Airport-to-Airport option
+ * carries its own flights (B32), checked on the quotation itself.
+ */
 export function visaChangeQuoteBlockReason(serviceType: string, details: unknown): string | null {
   if (serviceType !== "VISA_CHANGE") return null;
-  if (leadOperationalBlock(details)) return null;
   const changeType = ((details ?? {}) as Record<string, unknown>).changeType;
+  if (changeType === "AIRPORT_TO_AIRPORT") return null;
+  if (leadOperationalBlock(details)) return null;
   return changeType === "BORDER_EXIT"
     ? "Complete the Border Exit operational details (including travel time) before quoting."
-    : "Complete the Airport-to-Airport operational details before quoting.";
+    : "Choose the Visa Change method (Border Exit or Airport-to-Airport) before quoting.";
 }
 
 export function formatFlightDate(date: string): string {
@@ -129,6 +147,22 @@ export function customerBlockRows(block: OperationalBlock): { label: string; val
             },
           ]
         : [];
+    // B32 — a per-option block names both ends of each leg.
+    if (block.exitToAirport && block.reentryFromAirport) {
+      return [
+        {
+          label: "Exit Flight",
+          value: `${block.airline} ${block.flightNumber} · ${block.exitAirport} → ${block.exitToAirport} · ${formatFlightDate(block.flightDate)} ${block.flightTime}`,
+        },
+        {
+          label: "Re-entry Flight",
+          value: `${block.returnAirline ?? block.airline} ${block.returnFlightNumber ?? ""} · ${block.reentryFromAirport} → ${block.entryAirport}${
+            block.returnFlightDate ? ` · ${formatFlightDate(block.returnFlightDate)} ${block.returnFlightTime ?? ""}` : ""
+          }`.trim(),
+        },
+        { label: "Reporting Time", value: block.reportingTime },
+      ];
+    }
     return [
       ...airportRows,
       { label: returnLeg.length > 0 ? "Onward Flight" : "Flight", value: `${block.airline} ${block.flightNumber} · ${formatFlightDate(block.flightDate)} ${block.flightTime}` },

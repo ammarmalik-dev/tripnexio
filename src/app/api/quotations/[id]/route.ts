@@ -13,6 +13,8 @@ import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
 import { Prisma, type Quotation } from "@/generated/prisma/client";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
 import { normalizeItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
+import { isAirportToAirportLead, parseOperationalBlock } from "@/lib/visa-change/operational";
+import { buildA2ABlockForQuote } from "@/lib/visa-change/build-a2a-block";
 import { notifyQuoteReady } from "@/lib/quotations/send-quotation";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
@@ -62,6 +64,7 @@ const REVISION_TRACKED_FIELDS = [
   "customerCancellationPolicy",
   "alternativeOfId",
   "itinerary",
+  "operationalBlock",
 ] as const satisfies readonly (keyof Quotation)[];
 
 function auditValue(value: unknown): string {
@@ -149,7 +152,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   // P22 — multi-sector itinerary: Visa Change / Flight Special Fare only
   // (service type derived from the lead server-side). An empty array clears it.
-  const { itinerary: itineraryInput, couponCode, ...restOfPatch } = parsed.data;
+  const { itinerary: itineraryInput, couponCode, a2aFlights, ...restOfPatch } = parsed.data;
   const multiSector = supportsMultiSectorItinerary(lead.serviceType);
   if (itineraryInput && itineraryInput.length > 0 && !multiSector) {
     return jsonError(400, "An itinerary can only be added to Visa Change or Special Fare quotations.", {
@@ -248,6 +251,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     vendorCost !== Number(existing.vendorCost) ||
     (parsed.data.vendorId !== undefined && parsed.data.vendorId !== existing.vendorId) ||
     (couponFields !== undefined && couponFields.couponCode !== existing.couponCode);
+  // Client testing 2026-10-09 (B32) — an A2A option's flights are rebuilt with its
+  // (possibly changed) vendor, cost and price; without new flights the saved
+  // block just takes the new commercial values.
+  let operationalBlockField: Prisma.InputJsonValue | undefined;
+  if (isAirportToAirportLead(lead.serviceType, lead.details)) {
+    const vendorId = parsed.data.vendorId ?? existing.vendorId;
+    const vendor = await db.vendor.findUnique({ where: { id: vendorId }, select: { id: true, name: true } });
+    if (!vendor) return jsonError(400, "Select a valid, active vendor.", { vendorId: ["This vendor isn't available."] });
+    const commercial = { vendorId: vendor.id, vendorName: vendor.name, cost: vendorCost, sellingPrice };
+    if (a2aFlights) {
+      const built = await buildA2ABlockForQuote(a2aFlights, commercial);
+      if (!built.ok) return jsonError(400, built.error, { [`a2aFlights.${built.field}`]: [built.error] });
+      operationalBlockField = built.block as unknown as Prisma.InputJsonValue;
+    } else {
+      const saved = parseOperationalBlock(existing.operationalBlock);
+      if (saved?.kind === "A2A") operationalBlockField = { ...saved, ...commercial } as unknown as Prisma.InputJsonValue;
+    }
+  }
+
   const reasonResult = readBodyReason(body);
   if (priceOrVendorChanged && reasonResult.error) return reasonResult.error;
   const reason = reasonResult.reason ?? null;
@@ -267,6 +289,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         validityExpiresAt: parsed.data.validityExpiresAt ? new Date(parsed.data.validityExpiresAt) : undefined,
         bookingDeadline: parsed.data.bookingDeadline ? new Date(parsed.data.bookingDeadline) : undefined,
         itinerary: itineraryField,
+        operationalBlock: operationalBlockField,
         ...(isRevision ? { revision: { increment: 1 } } : {}),
       },
     });

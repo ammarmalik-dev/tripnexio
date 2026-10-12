@@ -7,7 +7,8 @@ import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schem
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import type { Prisma } from "@/generated/prisma/client";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
-import { leadOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
+import { isAirportToAirportLead, leadOperationalBlock, visaChangeQuoteBlockReason, type OperationalBlock } from "@/lib/visa-change/operational";
+import { buildA2ABlockForQuote } from "@/lib/visa-change/build-a2a-block";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
@@ -238,6 +239,7 @@ export async function POST(request: NextRequest) {
     alternativeOfId,
     couponCode,
     itinerary,
+    a2aFlights,
     saveAsDraft,
   } = parsed.data;
   const isDraft = saveAsDraft === true;
@@ -253,11 +255,13 @@ export async function POST(request: NextRequest) {
   // P13 — a Visa Extension is quoted only after staff verified it ELIGIBLE or URGENT_TODAY.
   const extensionBlock = extensionQuoteBlockReason(lead.serviceType, lead.details);
   if (extensionBlock) return jsonError(409, extensionBlock);
-  // P14 — a Visa Change is quoted only once its A2A / Border operational
-  // details are complete; each option carries a snapshot of them.
+  // P14 — a Border Exit Visa Change is quoted only once its operational
+  // details are complete; each option carries a snapshot of them. An
+  // Airport-to-Airport option brings its own flights (B32, below).
   const visaChangeBlock = visaChangeQuoteBlockReason(lead.serviceType, lead.details);
   if (visaChangeBlock) return jsonError(409, visaChangeBlock);
-  const operationalBlock = lead.serviceType === "VISA_CHANGE" ? leadOperationalBlock(lead.details) : null;
+  const isA2A = isAirportToAirportLead(lead.serviceType, lead.details);
+  let operationalBlock: OperationalBlock | null = lead.serviceType === "VISA_CHANGE" && !isA2A ? leadOperationalBlock(lead.details) : null;
 
   const vendor = await db.vendor.findUnique({ where: { id: vendorId } });
   if (!vendor || !vendor.active) {
@@ -325,6 +329,17 @@ export async function POST(request: NextRequest) {
   const margin = resolvedSellingPrice - vendorCost;
   if (governmentFee !== undefined && governmentFee > resolvedSellingPrice) {
     return jsonError(400, "The government / airline fee can't be more than the total price.", { governmentFee: ["Can't exceed the total price."] });
+  }
+
+  // Client testing 2026-10-09 (B32) — an A2A option's exit + re-entry flights, with its own vendor, cost and price.
+  if (isA2A) {
+    if (a2aFlights) {
+      const built = await buildA2ABlockForQuote(a2aFlights, { vendorId: vendor.id, vendorName: vendor.name, cost: vendorCost, sellingPrice: resolvedSellingPrice });
+      if (!built.ok) return jsonError(400, built.error, { [`a2aFlights.${built.field}`]: [built.error] });
+      operationalBlock = built.block;
+    } else if (!isDraft) {
+      return jsonError(400, "Enter the exit and re-entry flights for this option.", { a2aFlights: ["Enter both flights."] });
+    }
   }
 
   // Step 22 (audit §3.2/§4.2/§7.8) — resolved and validated here, not

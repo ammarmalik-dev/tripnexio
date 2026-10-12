@@ -15,6 +15,8 @@ import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus } from "../../generated/prisma/enums";
 import type { QuoteFormValues } from "@/lib/validation/quotation-schema";
 import { parseStoredItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
+import { parseOperationalBlock } from "@/lib/visa-change/operational";
+import { a2aFlightsFromBlock } from "@/lib/visa-change/a2a-flights";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 interface VendorRecord {
@@ -108,6 +110,11 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
     // Always sent back on a non-flight edit so the server re-validates it
     // against the (possibly changed) total; "" clears it.
     couponCode: flightQuote ? undefined : (quotation.couponCode ?? ""),
+    // B32 — an Airport-to-Airport option's own flights (older options without airport codes start empty).
+    a2aFlights: (() => {
+      const block = parseOperationalBlock(quotation.operationalBlock);
+      return (block?.kind === "A2A" ? a2aFlightsFromBlock(block) : null) ?? undefined;
+    })(),
     itinerary: parseStoredItinerary(quotation.itinerary).map((segment) => ({
       from: segment.from,
       to: segment.to,
@@ -139,8 +146,8 @@ export function QuoteBuilder({
   // Client corrections 2026-10-05 — a Border Exit quote never shows flight details.
   const showFlightDetails = hasItinerary && visaChangeMethod !== "BORDER_EXIT";
   const airlineCapable = capturesAirline(serviceType);
-  // Client corrections 2026-10-05 §8 — Visa Change flights come from the lead's round-trip
-  // itinerary (the operational record), so its quotes don't carry a second itinerary.
+  // Visa Change quotes never take the free multi-sector itinerary: an Airport-to-Airport
+  // option has exactly one exit and one re-entry flight of its own (B32).
   const multiSector = supportsMultiSectorItinerary(serviceType) && serviceType !== "VISA_CHANGE";
   const [state, setState] = useState<FetchState>("loading");
   const [quotations, setQuotations] = useState<QuoteCardData[]>([]);

@@ -7,7 +7,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { sendQuotationSchema } from "@/lib/validation/quotation-schema";
 import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
-import { visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
+import { isAirportToAirportLead, parseOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
 import { applyQuotationSentEffects, notifyQuoteReady } from "@/lib/quotations/send-quotation";
 import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 
@@ -62,6 +62,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (extensionBlock) return jsonError(409, extensionBlock);
   const visaChangeBlock = visaChangeQuoteBlockReason(lead.serviceType, lead.details);
   if (visaChangeBlock) return jsonError(409, visaChangeBlock);
+  // B32 — an Airport-to-Airport option can't go to the customer without its own flights.
+  if (isAirportToAirportLead(lead.serviceType, lead.details) && parseOperationalBlock(quotation.operationalBlock)?.kind !== "A2A") {
+    return jsonError(409, "Add the exit and re-entry flights to this option before sending it.");
+  }
 
   let validityExpiresAt = quotation.validityExpiresAt;
   if (parsed.data.validityExpiresAt) {

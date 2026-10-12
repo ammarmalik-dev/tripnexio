@@ -41,7 +41,6 @@ import type { ServiceType, LeadStatus, LeadTemperature, BookingStatus, PaymentSt
 import { ApplicantsTable } from "./ApplicantsTable";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { urgentDeadlineFromDetails } from "@/lib/visa-extension/rules";
-import { VisaChangeA2ADetailsPanel } from "./VisaChangeA2ADetailsPanel";
 
 /**
  * Client-side pagination for a lead-detail list that can grow without bound
@@ -461,17 +460,14 @@ export function LeadDetail({
                 ) : null}
 
                 {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "AIRPORT_TO_AIRPORT" ? (
-                  <VisaChangeA2ADetailsPanel
-                    leadId={lead.id}
-                    existing={
-                      lead.details.a2aOperationalDetails && typeof lead.details.a2aOperationalDetails === "object"
-                        ? (lead.details.a2aOperationalDetails as Record<string, unknown>)
-                        : undefined
-                    }
-                    onSaved={(details) =>
-                      setLead((current) => (current ? { ...current, details: { ...current.details, a2aOperationalDetails: details } } : current))
-                    }
-                  />
+                  // Client testing 2026-10-09 (B32) — each quotation option carries its own exit and
+                  // re-entry flights, cost and selling price; nothing to fill on the lead itself.
+                  <RecordSection title="Airport-to-Airport flights">
+                    <p className="text-sm text-ink-secondary">
+                      Each option on the Quotation &amp; Payment tab has its own exit flight, re-entry flight, cost and selling price.
+                      The option the customer selects is the one used for the booking and the package PDF.
+                    </p>
+                  </RecordSection>
                 ) : null}
               </div>
             ),

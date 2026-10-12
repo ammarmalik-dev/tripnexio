@@ -15,6 +15,31 @@ import { getJson } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { MAX_ITINERARY_SEGMENTS, type ItinerarySegment } from "@/lib/quotations/itinerary";
 import { VISA_CHANGE_EXCLUSIONS, VISA_CHANGE_INCLUSIONS } from "@/lib/visa-change/inclusions";
+import { EMPTY_A2A_FLIGHTS } from "@/lib/visa-change/a2a-flights";
+
+/** B32 — the form fields of each Airport-to-Airport leg. */
+const A2A_LEGS = [
+  {
+    key: "exit",
+    title: "Exit Flight",
+    hint: "Out of the UAE, from the exit airport.",
+    from: "exitFromAirportCode",
+    to: "exitToAirportCode",
+    airline: "exitAirlineCode",
+    flightNumber: "exitFlightNumber",
+    departAt: "exitDepartAt",
+  },
+  {
+    key: "reentry",
+    title: "Re-entry Flight",
+    hint: "Back into the UAE — usually the same aircraft returning, the passenger stays airside.",
+    from: "reentryFromAirportCode",
+    to: "reentryToAirportCode",
+    airline: "reentryAirlineCode",
+    flightNumber: "reentryFlightNumber",
+    departAt: "reentryDepartAt",
+  },
+] as const;
 
 /** P22 — which button submitted the form: keep/save as an unsent draft, or make it visible to the customer. */
 export type QuoteFormAction = "draft" | "send";
@@ -160,6 +185,7 @@ export function QuoteBuilderForm({
     register,
     handleSubmit,
     setValue,
+    getValues,
     control,
     formState: { errors },
   } = useForm<QuoteFormValues>({
@@ -167,6 +193,8 @@ export function QuoteBuilderForm({
     defaultValues: {
       ...initialValues,
       ...(multiSectorItinerary ? { itinerary: initialValues?.itinerary ?? [] } : {}),
+      // Client testing 2026-10-09 (B32) — an Airport-to-Airport option has its own exit and re-entry flights.
+      ...(hasItinerary && showFlightDetails ? { a2aFlights: initialValues?.a2aFlights ?? { ...EMPTY_A2A_FLIGHTS } } : {}),
       // Client testing 2026-10-09 (B34) — a new Visa Change option starts with the
       // method's standard inclusions / exclusions filled in (staff can edit them).
       ...(hasItinerary
@@ -188,6 +216,8 @@ export function QuoteBuilderForm({
   const chosenFrom = useWatch({ control, name: "fromAirportCode" });
   const chosenTo = useWatch({ control, name: "toAirportCode" });
   const chosenSectors = useWatch({ control, name: "itinerary" });
+  const chosenA2A = useWatch({ control, name: "a2aFlights" });
+  const isA2A = hasItinerary && showFlightDetails;
 
   // Every button stays type="button" and calls handleSubmit directly (see the
   // multi-step button type-toggle race in CLAUDE.md) — the <form> itself
@@ -266,7 +296,17 @@ export function QuoteBuilderForm({
   const sectorErrors = errors.itinerary;
   const sectorListError = sectorErrors?.message;
 
-  const keepCodes = new Set([chosenFrom, chosenTo, ...(chosenSectors ?? []).flatMap((sector) => [sector?.from, sector?.to])].filter(Boolean));
+  const keepCodes = new Set(
+    [
+      chosenFrom,
+      chosenTo,
+      ...(chosenSectors ?? []).flatMap((sector) => [sector?.from, sector?.to]),
+      chosenA2A?.exitFromAirportCode,
+      chosenA2A?.exitToAirportCode,
+      chosenA2A?.reentryFromAirportCode,
+      chosenA2A?.reentryToAirportCode,
+    ].filter(Boolean)
+  );
   const query = airportQuery.trim().toLowerCase();
   const visibleAirports = query
     ? airports.filter(
@@ -557,12 +597,98 @@ export function QuoteBuilderForm({
         </div>
       ) : null}
 
-      {hasItinerary && showFlightDetails ? (
-        // Client corrections 2026-10-05 §8 — no second, free-text itinerary on an A2A quote: the
-        // lead's round-trip itinerary is the operational record and is attached to every option.
-        <p className="rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-xs text-ink-secondary">
-          Flights come from the lead&rsquo;s confirmed round-trip itinerary (Overview tab) and are attached to this option automatically.
-        </p>
+      {isA2A ? (
+        // Client testing 2026-10-09 (B32) — no "multiple flights": exactly one exit and one
+        // re-entry flight per option, every field required; the option's own vendor cost and
+        // selling price below are this flight pair's price.
+        <fieldset className="flex flex-col gap-3 rounded-lg border border-hairline p-4">
+          <legend className="px-1 text-sm font-medium text-ink-heading">Flights for this option</legend>
+          {airportSearch}
+          {A2A_LEGS.map((leg) => {
+            const legErrors = errors.a2aFlights;
+            return (
+              <div key={leg.key} className="flex flex-col gap-3 rounded-lg border border-hairline bg-surface-2 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-semibold text-ink-heading">{leg.title}</p>
+                    <p className="text-xs text-ink-tertiary">{leg.hint}</p>
+                  </div>
+                  {leg.key === "reentry" ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        const exit = getValues("a2aFlights");
+                        if (!exit) return;
+                        setValue("a2aFlights.reentryFromAirportCode", exit.exitToAirportCode, { shouldValidate: false });
+                        setValue("a2aFlights.reentryToAirportCode", exit.exitFromAirportCode, { shouldValidate: false });
+                        setValue("a2aFlights.reentryAirlineCode", exit.exitAirlineCode, { shouldValidate: false });
+                      }}
+                    >
+                      Same aircraft returns
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <FormField label="From" htmlFor={`a2a-${leg.from}`} error={legErrors?.[leg.from]?.message} required>
+                    <select
+                      id={`a2a-${leg.from}`}
+                      className={cn(fieldControlClass, fieldBorderClass(!!legErrors?.[leg.from]))}
+                      {...register(`a2aFlights.${leg.from}`)}
+                    >
+                      {airportOptions("Select airport")}
+                    </select>
+                  </FormField>
+                  <FormField label="To" htmlFor={`a2a-${leg.to}`} error={legErrors?.[leg.to]?.message} required>
+                    <select
+                      id={`a2a-${leg.to}`}
+                      className={cn(fieldControlClass, fieldBorderClass(!!legErrors?.[leg.to]))}
+                      {...register(`a2aFlights.${leg.to}`)}
+                    >
+                      {airportOptions("Select airport")}
+                    </select>
+                  </FormField>
+                  <TextField
+                    label="Departure (date & time)"
+                    type="datetime-local"
+                    required
+                    {...register(`a2aFlights.${leg.departAt}`)}
+                    error={legErrors?.[leg.departAt]?.message}
+                  />
+                  <FormField label="Airline" htmlFor={`a2a-${leg.airline}`} error={legErrors?.[leg.airline]?.message} required>
+                    <select
+                      id={`a2a-${leg.airline}`}
+                      className={cn(fieldControlClass, fieldBorderClass(!!legErrors?.[leg.airline]))}
+                      {...register(`a2aFlights.${leg.airline}`)}
+                    >
+                      <option value="">{airlines.length === 0 ? "No active airlines configured" : "Select an airline"}</option>
+                      {airlines.map((airline) => (
+                        <option key={airline.id} value={airline.code}>
+                          {airline.name} ({airline.code})
+                        </option>
+                      ))}
+                    </select>
+                  </FormField>
+                  <TextField
+                    label="Flight Number"
+                    placeholder="e.g. G9 123"
+                    required
+                    {...register(`a2aFlights.${leg.flightNumber}`)}
+                    error={legErrors?.[leg.flightNumber]?.message}
+                  />
+                </div>
+              </div>
+            );
+          })}
+          <TextField
+            label="Reporting Time"
+            placeholder="e.g. 3 hours before departure"
+            required
+            {...register("a2aFlights.reportingTime")}
+            error={errors.a2aFlights?.reportingTime?.message}
+          />
+        </fieldset>
       ) : null}
 
       {multiSectorItinerary ? (

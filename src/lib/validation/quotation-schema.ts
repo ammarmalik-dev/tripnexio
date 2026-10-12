@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { itinerarySchema } from "../quotations/itinerary";
+import { a2aFlightsSchema } from "../visa-change/a2a-flights";
 
 const isoDate = (message: string) => z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), message);
 
@@ -65,6 +66,9 @@ export const createQuotationSchema = z.object({
    * itinerary for any other service). An empty array clears it.
    */
   itinerary: itinerarySchema.optional(),
+
+  /** Client testing 2026-10-09 (B32) — Visa Change Airport-to-Airport: this option's exit and re-entry flights. */
+  a2aFlights: a2aFlightsSchema.optional(),
 
   /**
    * P22 — true creates the quotation as an unsent draft (isDraft=true,
