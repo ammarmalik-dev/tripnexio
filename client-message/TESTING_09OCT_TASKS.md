@@ -81,7 +81,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] F3. Airlines: logo not working — fix.
 - [x] F4. OTB timeline calculated in working hours (verify).
 - [x] F5. Coupons: Create → table → open/edit → save (check). — exists (Admin -> Coupons create/table/edit/save; CRM staff coupon up to ₹500, confirmed by the client 2026-10-12).
-- [ ] F6. Pricing Dashboard reported "not working" — verify on production and fix. — NEEDS CLIENT INPUT: exact steps (no server error is logged).
+- [x] F6. Pricing Dashboard reported "not working" — client reply 2026-10-13: OTB (country × airline) and Return Ticket (country) prices could not be set there. Added both as Pricing Dashboard tabs.
 - [x] F7. Service Configuration: one short view; TAT for all countries; documents from Document Master; summary cards on top.
 - [x] F8. Admin sidebar: pure-white look; only one accordion open; Overview button fixed.
 - [x] F9. Blog: new photos, categories, search above articles, 4 cards per row centred.
@@ -94,7 +94,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] G3. Cancelled booking → invoice auto-cancelled (status in history). (done with E4/E5, cede8b6)
 - [x] G4. Rename "Government Fee" → "Govt. fee / Airlines / Vendor fee"; no GST on it.
 - [x] G5. Visa Change fines / status-change charges go into that fee, not our service fee.
-- [ ] G6. Service fee = total selling − total cost; GST only on the service fee.
+- [x] G6. Service fee = total selling − total cost; GST only on the service fee. — client reply 2026-10-13: vendor cost must NOT be shown on the invoice (unchanged).
 - [x] G7. Invoice number series per financial year: `TNS26/A01` (1 Apr 2026 – 31 Mar 2027), next year `TNS27/A01` — format confirmed 2026-10-12; issued INV- numbers kept.
 
 ## H. Email template (sample image6)

@@ -3,19 +3,27 @@
 import { useState } from "react";
 import { PricingCountryCards } from "./PricingCountryCards";
 import { PricingDashboard } from "./PricingDashboard";
+import { OtbPricesManager } from "./OtbPricesManager";
+import { ReturnTicketDestinationsManager } from "./ReturnTicketDestinationsManager";
 import { cn } from "@/lib/cn";
 
 const VIEWS = [
   { id: "countries", label: "By country" },
   { id: "table", label: "All prices (table)" },
+  { id: "otb", label: "OTB (country × airline)" },
+  { id: "return-ticket", label: "Return Ticket (country)" },
 ] as const;
 
-/** Client corrections 2026-10-05 §31 — country cards by default; the filterable table stays one click away. */
+/**
+ * Client corrections 2026-10-05 §31 — country cards by default; the filterable table stays one click away.
+ * Client reply 2026-10-13 — OTB (per country and airline) and Return Ticket (per country) prices are set here too,
+ * with the same managers as Service Configuration.
+ */
 export function PricingDashboardViews() {
   const [view, setView] = useState<(typeof VIEWS)[number]["id"]>("countries");
   return (
     <div className="flex flex-col gap-4">
-      <div role="tablist" aria-label="Pricing views" className="glass-1 flex w-fit gap-1 rounded-xl p-1">
+      <div role="tablist" aria-label="Pricing views" className="glass-1 flex w-fit max-w-full flex-wrap gap-1 rounded-xl p-1">
         {VIEWS.map((option) => (
           <button
             key={option.id}
@@ -32,7 +40,10 @@ export function PricingDashboardViews() {
           </button>
         ))}
       </div>
-      {view === "countries" ? <PricingCountryCards /> : <PricingDashboard />}
+      {view === "countries" ? <PricingCountryCards /> : null}
+      {view === "table" ? <PricingDashboard /> : null}
+      {view === "otb" ? <OtbPricesManager /> : null}
+      {view === "return-ticket" ? <ReturnTicketDestinationsManager /> : null}
     </div>
   );
 }

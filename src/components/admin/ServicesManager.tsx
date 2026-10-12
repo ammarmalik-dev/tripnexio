@@ -144,7 +144,7 @@ function ServiceFields({
         label="SAC Code (invoices)"
         name={id("sacCode")}
         value={form.sacCode}
-        placeholder="Blank = default SAC"
+        placeholder="e.g. 998555 (blank = not shown on invoice)"
         onChange={(event) => onChange({ ...form, sacCode: event.target.value })}
         error={errors.sacCode?.[0]}
         disabled={disabled}
@@ -397,7 +397,7 @@ export function ServicesManager() {
             columns={[
               { header: "Service", cell: (row) => <span className="font-medium text-ink-primary">{row.name}</span> },
               { header: "Reference Code", cell: (row) => <span className="font-mono text-xs">{row.referenceCode}</span> },
-              { header: "SAC", cell: (row) => row.sacCode || <span className="text-ink-tertiary">Default</span> },
+              { header: "SAC", cell: (row) => row.sacCode || <span className="text-ink-tertiary">—</span> },
               {
                 header: "Configuration",
                 cell: (row) => (

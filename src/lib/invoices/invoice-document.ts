@@ -84,7 +84,7 @@ function invoiceCustomer(customer: {
   };
 }
 
-/** The Admin-set SAC code of a service (Admin → Services), or null to use the Invoice Settings default. */
+/** The Admin-set SAC code of a service (Admin → Services); null = no SAC printed (client reply 2026-10-13: no default SAC). */
 export async function serviceSacCode(serviceType: string): Promise<string | null> {
   try {
     const service = await db.service.findUnique({ where: { code: serviceType }, select: { sacCode: true } });
@@ -195,7 +195,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
   const company = await getInvoiceCompanyDetails();
   const { booking } = payment;
   const lead = booking.lead;
-  const sac = (await serviceSacCode(lead.serviceType)) ?? company.sacCode;
+  const sac = await serviceSacCode(lead.serviceType);
   const { serviceLabel, subService } = describeService(lead.serviceType, lead.details, lead.country?.name);
 
   const amount = Number(payment.amount);
@@ -260,7 +260,7 @@ export async function buildQuotationInvoiceDocument(quotationId: string): Promis
   if (!quotation) return null;
   const company = await getInvoiceCompanyDetails();
   const lead = quotation.lead;
-  const sac = (await serviceSacCode(lead.serviceType)) ?? company.sacCode;
+  const sac = await serviceSacCode(lead.serviceType);
   const { serviceLabel, subService } = describeService(lead.serviceType, lead.details, lead.country?.name);
   const sellingPrice = Number(quotation.sellingPrice);
   const couponDiscount = Number(quotation.couponDiscount ?? 0);

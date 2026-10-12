@@ -270,16 +270,7 @@ export function InvoiceConfigManager() {
           error={errors.companyGstNumber?.[0]}
           disabled={saving}
         />
-        <TextField
-          label="Default SAC Code"
-          name="defaultSacCode"
-          placeholder="e.g. 9985"
-          hint="Services Accounting Code shown on every invoice line item."
-          value={form.defaultSacCode}
-          onChange={(event) => setForm({ ...form, defaultSacCode: event.target.value })}
-          error={errors.defaultSacCode?.[0]}
-          disabled={saving}
-        />
+        <p className="self-end text-xs text-ink-tertiary">SAC codes are set per service in Admin → Services.</p>
       </div>
 
       <ImageUploadRow label="Company Logo" currentUrl={config.companyLogoUrl} onUpload={(b, m) => void handleLogoUpload(b, m)} onRemove={() => void handleLogoRemove()} uploading={uploadingLogo} />
