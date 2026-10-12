@@ -13,7 +13,8 @@ const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://checkout.razorpay.com`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://images.unsplash.com https://images.kiwi.com",
+  // Any https image: airline logos / flag overrides are Admin-set URLs on any host.
+  "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
   `connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com${isDev ? " ws: wss:" : ""}`,
   "frame-src https://api.razorpay.com https://checkout.razorpay.com",

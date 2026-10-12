@@ -22,6 +22,7 @@ import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TE
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, LeadStatus, LeadTemperature, PaymentStatus } from "../../generated/prisma/enums";
+import { FlagIcon } from "@/components/ui/FlagIcon";
 
 interface LeadListItem {
   id: string;
@@ -449,11 +450,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
                     {lead.countryName ? (
                       <span className="inline-flex items-center gap-1.5">
-                        {lead.countryFlag ? (
-                          <span className="text-base leading-none" aria-hidden="true">
-                            {lead.countryFlag}
-                          </span>
-                        ) : null}
+                        <FlagIcon value={lead.countryFlag} />
                         {lead.countryName}
                       </span>
                     ) : (

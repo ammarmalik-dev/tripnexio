@@ -46,12 +46,36 @@ export function emojiFromIsoCode(code: string): string | null {
   return String.fromCodePoint(...[...alpha2].map((char) => REGIONAL_INDICATOR_A + char.charCodeAt(0) - 65));
 }
 
+/** "AE" / "UAE" → "ae"; null for anything without an ISO alpha-2 code. */
+function alpha2For(code: string): string | null {
+  const normalized = code.trim().toUpperCase();
+  const alpha2 = /^[A-Z]{2}$/.test(normalized) ? normalized : CODE_ALIASES[normalized];
+  return alpha2 ? alpha2.toLowerCase() : null;
+}
+
+/**
+ * Image for a flag string: an image URL as-is, a flag emoji ("🇦🇪") as the
+ * self-hosted SVG (/flags/ae.svg, from the MIT-licensed flag-icons set).
+ * Emoji flags don't render on Windows, so every on-page flag uses this.
+ */
+export function flagImageSrc(value: string): string | null {
+  const trimmed = value.trim();
+  if (isImageUrl(trimmed)) return trimmed;
+  const points = [...trimmed].map((char) => char.codePointAt(0) ?? 0);
+  if (points.length === 2 && points.every((point) => point >= REGIONAL_INDICATOR_A && point < REGIONAL_INDICATOR_A + 26)) {
+    return `/flags/${points.map((point) => String.fromCharCode(point - REGIONAL_INDICATOR_A + 97)).join("")}.svg`;
+  }
+  return null;
+}
+
 export function countryFlag(country: { code: string; flagOverride?: string | null }): CountryFlag {
   const override = country.flagOverride?.trim();
   if (override) {
-    return isImageUrl(override) ? { kind: "image", value: override } : { kind: "emoji", value: override };
+    const src = flagImageSrc(override);
+    return src ? { kind: "image", value: src } : { kind: "emoji", value: override };
   }
-  return { kind: "emoji", value: emojiFromIsoCode(country.code) ?? FALLBACK_FLAG };
+  const alpha2 = alpha2For(country.code);
+  return alpha2 ? { kind: "image", value: `/flags/${alpha2}.svg` } : { kind: "emoji", value: FALLBACK_FLAG };
 }
 
 /**

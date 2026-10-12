@@ -9,6 +9,7 @@ import { fieldBorderClass, fieldControlClass } from "@/components/forms/FormFiel
 import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
 import { cn } from "@/lib/cn";
 import type { CountryPageCard } from "@/lib/new-visa/country-pages";
+import { FlagIcon } from "@/components/ui/FlagIcon";
 
 const RUPEE_FORMATTER = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 });
 
@@ -97,9 +98,7 @@ export function NewVisaCountryGrid({ cards }: { cards: CountryPageCard[] }) {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
                     <div className="absolute inset-x-4 bottom-3 flex items-center gap-2 text-white">
                       {card.flag ? (
-                        <span className="text-2xl leading-none drop-shadow" aria-hidden="true">
-                          {card.flag}
-                        </span>
+                        <FlagIcon value={card.flag} className="h-5 w-7 text-2xl shadow" />
                       ) : (
                         <Globe2 className="h-5 w-5" aria-hidden="true" />
                       )}

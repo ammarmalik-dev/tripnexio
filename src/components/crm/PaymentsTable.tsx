@@ -20,6 +20,7 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { PaymentStatus, ServiceType } from "../../generated/prisma/enums";
+import { FlagIcon } from "@/components/ui/FlagIcon";
 
 interface PaymentListItem {
   id: string;
@@ -278,11 +279,7 @@ export function PaymentsTable() {
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
                     {payment.countryName ? (
                       <span className="inline-flex items-center gap-1.5">
-                        {payment.countryFlag ? (
-                          <span className="text-base leading-none" aria-hidden="true">
-                            {payment.countryFlag}
-                          </span>
-                        ) : null}
+                        <FlagIcon value={payment.countryFlag} />
                         {payment.countryName}
                       </span>
                     ) : (

@@ -19,6 +19,7 @@ import { useListFilterOptions } from "./useListFilterOptions";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { FlagIcon } from "@/components/ui/FlagIcon";
 
 type QuotationStatus = "SELECTED" | "EXPIRED" | "PENDING";
 
@@ -387,11 +388,7 @@ export function QuotationsTable() {
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
                     {quotation.countryName ? (
                       <span className="inline-flex items-center gap-1.5">
-                        {quotation.countryFlag ? (
-                          <span className="text-base leading-none" aria-hidden="true">
-                            {quotation.countryFlag}
-                          </span>
-                        ) : null}
+                        <FlagIcon value={quotation.countryFlag} />
                         {quotation.countryName}
                       </span>
                     ) : (

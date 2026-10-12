@@ -29,6 +29,7 @@ import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, PaymentStatus } from "../../generated/prisma/enums";
+import { FlagIcon } from "@/components/ui/FlagIcon";
 
 interface BookingListItem {
   id: string;
@@ -466,11 +467,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                       {booking.countryName ? (
                         <span className="inline-flex items-center gap-1.5">
-                          {booking.countryFlag ? (
-                            <span className="text-base leading-none" aria-hidden="true">
-                              {booking.countryFlag}
-                            </span>
-                          ) : null}
+                          <FlagIcon value={booking.countryFlag} />
                           {booking.countryName}
                         </span>
                       ) : (
