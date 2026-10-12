@@ -42,7 +42,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] B29. New Visa: visa type/option chosen on the card carried forward (not asked again); Basic Details → straight to Applicant Details.
 - [x] B30. New Visa: Processing Time | Visa Stay | Visa Validity in one row on the page.
 - [x] B31. New Visa: country-wise Normal/Express timeline config in Admin works.
-- [ ] B32. Visa Change A2A quote (CRM): no "multiple flights" option — exit and re-entry legs each need from/to airport, date-time and airline, with their own cost and selling price. — NEEDS CLIENT CONFIRMATION: today one round-trip flight block on the lead is copied into every option (also used by the package PDF / PNR); per-option flights is a redesign.
+- [x] B32. Visa Change A2A quote (CRM): no "multiple flights" option — exit and re-entry legs each need from/to airport, date-time and airline, with their own cost and selling price. — client confirmed 2026-10-12 (same aircraft returns, passenger stays airside); each option now has its own exit + re-entry flight, cost and selling price.
 - [x] B33. Visa Change quote: just cost, selling price and one "fine / other" field; no Govt./airline fee wording.
 - [x] B34. Visa Change Border: remove the pickup address (pickup location already given); T&C and inclusions/exclusions auto-fill per method.
 
@@ -76,11 +76,11 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] E13. Lead / Quotation / Booking / Payment lists like the client's table screenshot: proper capitalisation, Applied to Embassy + Vendor columns, PAX under Booking ID, every status in the filters, country flags, service details column.
 
 ## F. Admin
-- [ ] F1. AI Command Centre — not go-live ready, fix. — NEEDS CLIENT INPUT: which question / screen failed (no server error is logged).
+- [x] F1. AI Command Centre — not go-live ready, fix. — the "Not go-live ready" badge is the launch checklist, not an error; the page now explains it and lists the open checks with a link.
 - [x] F2. Airports: country flag auto-fetched from the country when creating; searchable airport picker in CRM quotation/lead forms.
 - [x] F3. Airlines: logo not working — fix.
 - [x] F4. OTB timeline calculated in working hours (verify).
-- [ ] F5. Coupons: Create → table → open/edit → save (check). — exists (Admin -> Coupons create/table/edit/save; CRM staff coupon added, E3); client to test.
+- [x] F5. Coupons: Create → table → open/edit → save (check). — exists (Admin -> Coupons create/table/edit/save; CRM staff coupon up to ₹500, confirmed by the client 2026-10-12).
 - [ ] F6. Pricing Dashboard reported "not working" — verify on production and fix. — NEEDS CLIENT INPUT: exact steps (no server error is logged).
 - [x] F7. Service Configuration: one short view; TAT for all countries; documents from Document Master; summary cards on top.
 - [x] F8. Admin sidebar: pure-white look; only one accordion open; Overview button fixed.
@@ -95,7 +95,7 @@ Source: `client-message/new-doc-from-client-09-oct/TripNexio Project.docx` (cont
 - [x] G4. Rename "Government Fee" → "Govt. fee / Airlines / Vendor fee"; no GST on it.
 - [x] G5. Visa Change fines / status-change charges go into that fee, not our service fee.
 - [ ] G6. Service fee = total selling − total cost; GST only on the service fee.
-- [ ] G7. Invoice number series per financial year: `TNS26/A01` (1 Apr 2026 – 31 Mar 2027), next year `TNS27/A…` (confirm exact format).
+- [x] G7. Invoice number series per financial year: `TNS26/A01` (1 Apr 2026 – 31 Mar 2027), next year `TNS27/A01` — format confirmed 2026-10-12; issued INV- numbers kept.
 
 ## H. Email template (sample image6)
 - [x] H1. Header: logo + name + tagline in one line, brand colours; remove "Explore the World".
