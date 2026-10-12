@@ -7,6 +7,7 @@ import { invoiceVerifyKey } from "@/lib/invoices/invoice-document";
 import { maskName } from "@/lib/track/lookup";
 import { formatCurrency } from "@/lib/format-currency";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { invoiceNumberFromSlug } from "@/lib/invoices/invoice-filters";
 
 export const metadata: Metadata = { title: "Verify Invoice", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -31,7 +32,7 @@ function keyMatches(invoiceNumber: string, key: string | undefined): boolean {
 export default async function VerifyInvoicePage({ params, searchParams }: VerifyInvoicePageProps) {
   const { number } = await params;
   const { k } = await searchParams;
-  const invoiceNumber = decodeURIComponent(number);
+  const invoiceNumber = invoiceNumberFromSlug(decodeURIComponent(number));
 
   const payment = keyMatches(invoiceNumber, k)
     ? await db.payment.findUnique({

@@ -13,7 +13,7 @@ import {
   INVOICE_REFUND_STATES,
   INVOICE_SORTS,
   financialYearRange,
-  invoiceNumberPrefix,
+  invoiceNumberPrefixes,
   isValidFinancialYear,
 } from "./invoice-filters";
 
@@ -21,8 +21,8 @@ const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeType, ...Ser
 const methodValues = Object.values(PaymentMethod) as [PaymentMethodType, ...PaymentMethodType[]];
 const purposeValues = Object.values(PaymentPurpose) as [PaymentPurposeType, ...PaymentPurposeType[]];
 
-/** Every sequential (P07) invoice number starts with "INV-20" + the FY; legacy random ones don't. */
-const SEQUENTIAL_INVOICE_PREFIX = "INV-20";
+/** Every sequential invoice number carries its FY ("TNS26/A01", or P07's "INV-2026-27-0001"); legacy random ones don't. */
+const SEQUENTIAL_INVOICE_PREFIXES = ["TNS", "INV-20"];
 
 const isoInstant = z
   .string()
@@ -87,16 +87,21 @@ export function buildInvoiceWhere(
   }
 
   if (query.financialYear) {
-    // A sequential invoice (INV-2026-27-0001) belongs to the FY in its
+    // A sequential invoice (TNS26/A01, INV-2026-27-0001) belongs to the FY in its
     // number. An unnumbered one, or a legacy pre-P07 number with no year in
     // it (INV-E3JUGSJJ), falls back to its issued date.
     const { start, end } = financialYearRange(query.financialYear, timezoneOffsetMinutes);
     and.push({
       OR: [
-        { invoiceNumber: { startsWith: invoiceNumberPrefix(query.financialYear) } },
+        ...invoiceNumberPrefixes(query.financialYear).map((prefix) => ({ invoiceNumber: { startsWith: prefix } })),
         {
           AND: [
-            { OR: [{ invoiceNumber: null }, { NOT: { invoiceNumber: { startsWith: SEQUENTIAL_INVOICE_PREFIX } } }] },
+            {
+              OR: [
+                { invoiceNumber: null },
+                { AND: SEQUENTIAL_INVOICE_PREFIXES.map((prefix) => ({ NOT: { invoiceNumber: { startsWith: prefix } } })) },
+              ],
+            },
             { updatedAt: { gte: start, lt: end } },
           ],
         },

@@ -59,9 +59,23 @@ export function financialYearRange(label: string, timezoneOffsetMinutes: number)
   };
 }
 
-/** Invoice-number prefix for a financial year, e.g. "INV-2026-27-". */
-export function invoiceNumberPrefix(label: string): string {
-  return `INV-${label}-`;
+/** The current invoice series prefix for a financial year: "2026-27" -> "TNS26/A" (G7). */
+export function invoiceSeriesPrefix(label: string): string {
+  return `TNS${label.slice(2, 4)}/A`;
+}
+
+/** "TNS26/A01" <-> "TNS26-A01": the verify link's path form, since a "/" can't sit inside one URL segment. */
+export function invoiceNumberToSlug(invoiceNumber: string): string {
+  return /^TNS\d{2}\/A\d+$/.test(invoiceNumber) ? invoiceNumber.replace("/", "-") : invoiceNumber;
+}
+
+export function invoiceNumberFromSlug(slug: string): string {
+  return /^TNS\d{2}-A\d+$/.test(slug) ? slug.replace("-", "/") : slug;
+}
+
+/** Every invoice-number prefix that carries this financial year: the TNS series and the older "INV-2026-27-". */
+export function invoiceNumberPrefixes(label: string): string[] {
+  return [invoiceSeriesPrefix(label), `INV-${label}-`];
 }
 
 /** The current FY and the `count - 1` before it, newest first — the filter dropdown's options. */

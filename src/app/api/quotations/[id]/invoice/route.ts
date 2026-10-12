@@ -34,7 +34,7 @@ export async function GET(_request: Request, { params }: RouteParams) {
   return new Response(new Uint8Array(invoice.pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="proforma-${invoice.invoiceNumber}.pdf"`,
+      "Content-Disposition": `attachment; filename="proforma-${invoice.invoiceNumber.replace(/[^A-Za-z0-9_-]/g, "_")}.pdf"`,
     },
   });
 }

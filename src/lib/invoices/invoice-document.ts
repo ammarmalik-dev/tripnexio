@@ -7,6 +7,7 @@ import { siteConfig } from "../site-config";
 import { parseInvoiceLines } from "./invoice-lines";
 import { getInvoiceCompanyDetails } from "./company-config";
 import { ensureInvoiceNumber } from "./invoice-number";
+import { invoiceNumberToSlug } from "./invoice-filters";
 import type { InvoiceCompanyDetails } from "./render-invoice";
 import type { Quotation } from "../../generated/prisma/client";
 import type { ServiceType } from "../../generated/prisma/enums";
@@ -102,7 +103,7 @@ export function invoiceVerifyKey(invoiceNumber: string): string | null {
 
 function verifyUrlFor(invoiceNumber: string): string | null {
   const key = invoiceVerifyKey(invoiceNumber);
-  return key ? `${siteConfig.url}/verify-invoice/${encodeURIComponent(invoiceNumber)}?k=${key}` : null;
+  return key ? `${siteConfig.url}/verify-invoice/${encodeURIComponent(invoiceNumberToSlug(invoiceNumber))}?k=${key}` : null;
 }
 
 /**

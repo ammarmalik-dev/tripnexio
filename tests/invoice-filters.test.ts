@@ -4,7 +4,9 @@ import {
   financialYearOf,
   financialYearOptions,
   financialYearRange,
-  invoiceNumberPrefix,
+  invoiceNumberPrefixes,
+  invoiceNumberFromSlug,
+  invoiceNumberToSlug,
   invoiceRefundState,
   isValidFinancialYear,
 } from "@/lib/invoices/invoice-filters";
@@ -49,7 +51,9 @@ describe("financial year helpers", () => {
   });
 
   it("matches the invoice-number prefix", () => {
-    expect("INV-2026-27-0001".startsWith(invoiceNumberPrefix("2026-27"))).toBe(true);
+    expect(invoiceNumberPrefixes("2026-27").some((prefix) => "TNS26/A01".startsWith(prefix))).toBe(true);
+    expect(invoiceNumberPrefixes("2026-27").some((prefix) => "INV-2026-27-0001".startsWith(prefix))).toBe(true);
+    expect(invoiceNumberPrefixes("2027-28").some((prefix) => "TNS26/A01".startsWith(prefix))).toBe(false);
   });
 
   it("lists the current FY first", () => {
@@ -83,5 +87,14 @@ describe("invoiceQuerySchema", () => {
   it("rejects a page size over 100 and a bad FY", () => {
     expect(invoiceQuerySchema.safeParse({ pageSize: "101" }).success).toBe(false);
     expect(invoiceQuerySchema.safeParse({ financialYear: "2026-30" }).success).toBe(false);
+  });
+});
+
+describe("invoice verify-link slug (G7)", () => {
+  it("swaps the TNS series' slash for a dash and back, leaving older numbers alone", () => {
+    expect(invoiceNumberToSlug("TNS26/A01")).toBe("TNS26-A01");
+    expect(invoiceNumberFromSlug("TNS26-A01")).toBe("TNS26/A01");
+    expect(invoiceNumberToSlug("INV-2026-27-0001")).toBe("INV-2026-27-0001");
+    expect(invoiceNumberFromSlug("INV-2026-27-0001")).toBe("INV-2026-27-0001");
   });
 });
