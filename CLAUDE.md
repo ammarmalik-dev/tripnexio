@@ -225,6 +225,14 @@ That folder's `.docx` also holds live credentials: never commit it, read secrets
 - **Visa Extension prior-visa check** matches the passport on the earlier New Visa booking's own travellers, not any traveller of the same customer.
 - **Link preview**: `siteConfig.ogImage` = `/og-image-2026.jpg` (new name busts WhatsApp's cache).
 
+## Progress so far — client doc 2026-10-14 (`client-message/TESTING_14OCT_TASKS.md`; the doc in `client-message/doc/` holds credentials — never commit it)
+- **Payment links**: New Visa / OTB / Return Ticket links never expire (`NO_EXPIRY_LINK_SERVICES`, no `expire_by`).
+- **Buttons, not links**: `src/lib/notifications/cta.ts` (`EVENT_CTA`): email button, WhatsApp session `sendCtaUrl`, Meta template URL button `https://tripnexio.com/{{1}}` when the body has no link placeholder. `{{tripSummary}}` (`src/lib/leads/trip-summary.ts`) in request/payment-link/payment-received WhatsApp; email card shows Passengers / Route or Destination / Travel date. The WhatsApp bot's booking reply is the only message (Pay Now button).
+- **Special Fare quote**: `SpecialFareQuoteFields.tsx` — Direct / Connecting sectors (airport search inside the field, terminals per sector), fare rules + cancellation / no-show, vendor cost + selling price per Adult / Child / Infant; the API derives route / airline / times from sectors (`resolveSectorFlight`) and totals from rates × lead counts (`specialFareTotals`, governmentFee = vendor cost). Ticket email: `src/lib/outputs/output-notes.ts`.
+- **Terms**: `ServiceTerms.acceptanceText` = the checkbox sentence; client T&C published for Special Fare (Dom + Intl), Return Ticket, OTB.
+- **OTB**: priced and enabled only per country × airline (no `Airline.otbRequired` reads); country first then its airlines (website + bot); optional departure time for Express TAT; "I need one" adds the Return Ticket.
+- **Vendor rates**: `VendorServiceRate` (OTB / Return Ticket by vendor, country, airline, processing type); picking the booking's vendor sets its vendor cost.
+
 ## Deployment
 Production (tripnexio.com) is a Hostinger VPS running Coolify; pushing to GitHub does not deploy by itself. Order: push `master` → on the VPS back up the Postgres container (`pg_dump` → `/root/backups/pre-deploy-<timestamp>.sql.gz`) → trigger the Coolify deploy through its API (token in `/root/.coolify-token`, app/db ids in `/root/tripnexio-coolify.ids`) → poll the deployment until `finished`. Migrations run with `prisma migrate deploy` when the container starts; confirm the new migration in the deploy log. Coolify does a rolling update, so a failed build leaves the previous version serving. Runtime env vars are edited through the Coolify API (never print values). The go-live checklist is in README.md.
 

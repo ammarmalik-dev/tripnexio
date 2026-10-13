@@ -77,12 +77,12 @@ After Meta approves a template, send us its name. We enter it in Admin so the me
 
 | # | Template name | Message text | Sample values |
 |---|---|---|---|
-| 1 | `tn_request_received` | Hi {{1}}, {{2}} Your reference: {{3}}. | 1 Rahul · 2 Your New Visa request has been received. Our team will review the details and get in touch shortly. · 3 11026VI001 |
-| 2 | `tn_quote_ready` | Hi {{1}}, your quote for {{2}} is ready: {{3}} (valid until {{4}}). Review and pay here: {{5}} | 1 Rahul · 2 11026VC004 · 3 Rs. 25,000.00 · 4 12 Oct, 6:30 pm · 5 https://tripnexio.com/quote/abc123 |
+| 1 | `tn_request_received` | Hi {{1}}, {{2}} {{3}}. Your reference: {{4}}. | 1 Rahul · 2 Your New Visa request has been received. Our team will review the details and get in touch shortly. · 3 Passengers: 2 · Destination: Bahrain · Travel date: 20 Oct 2026 · 4 11026VI001 |
+| 2 | `tn_quote_ready` | Hi {{1}}, your quote for {{2}} is ready: {{3}} (valid until {{4}}). Tap View & Pay below to review and pay. — Team TripNexio **+ button** | 1 Rahul · 2 11026VC004 · 3 Rs. 25,000.00 · 4 12 Oct, 6:30 pm · button: quote/abc123 |
 | 3 | `tn_quote_reminder` | Hi {{1}}, your quote for {{2}} is expiring soon. Let us know if you'd like to proceed. | 1 Rahul · 2 11026VC004 |
 | 4 | `tn_quote_expired` | Hi {{1}}, your quote for {{2}} has expired. Message us for an updated quote. | 1 Rahul · 2 11026VC004 |
-| 5 | `tn_payment_link` | Hi {{1}}, your {{2}} booking is created. Booking ID: {{3}}. Amount: {{4}}. Complete your payment here: {{5}} (valid until {{6}}). After payment you can upload your documents on the same page. — Team TripNexio | 1 Rahul · 2 Return Ticket · 3 11026RT043 · 4 Rs. 3,000.00 · 5 https://tripnexio.com/pay/abc123 · 6 12 Oct, 06:30 pm |
-| 6 | `tn_payment_received` | Hi {{1}}, we've received your payment of {{2}} for booking {{3}}. Thank you for choosing TripNexio! | 1 Rahul · 2 Rs. 1,605.00 · 3 11026OT002 |
+| 5 | `tn_payment_link` | Hi {{1}}, your {{2}} booking is created. Booking ID: {{3}}. {{4}}. Amount: {{5}}. Tap Pay Now below to complete your payment, then upload your documents on the same page. — Team TripNexio **+ button** | 1 Rahul · 2 Return Ticket · 3 11026RT043 · 4 Passengers: 2 · Destination: Bahrain · Travel date: 20 Oct 2026 · 5 Rs. 3,000.00 · button: pay/abc123 |
+| 6 | `tn_payment_received` | Hi {{1}}, we've received your payment of {{2}} for booking {{3}} ({{4}}). Thank you for choosing TripNexio! | 1 Rahul · 2 Rs. 1,605.00 · 3 11026OT002 · 4 Passengers: 1 · Destination: United Arab Emirates · Travel date: 20 Oct 2026 |
 | 7 | `tn_payment_reminder` | Hi {{1}}, your payment of {{2}} for booking {{3}} is still pending. Let us know if you need help completing it. | 1 Rahul · 2 Rs. 1,605.00 · 3 11026OT002 |
 | 8 | `tn_refund_update` | Hi {{1}}, your refund of {{2}} for {{3}} booking {{4}} {{5}}. — Team TripNexio | 1 Rahul · 2 Rs. 3,000.00 · 3 Return Ticket · 4 11026RT043 · 5 has been approved and sent to the payment gateway |
 | 9 | `tn_documents_required` | Hi {{1}}, we need {{2}} to proceed with {{3}}. Please share it at your earliest convenience. | 1 Rahul · 2 Bank statement · 3 11026VI001 |
@@ -92,12 +92,14 @@ After Meta approves a template, send us its name. We enter it in Admin so the me
 | 13 | `tn_visa_extension_reminder` | Hi {{1}}, your extended UAE visa (booking {{2}}) is valid until {{3}}. Need a further extension? Just let us know. | 1 Rahul · 2 11026VE003 · 3 30 Oct 2026 |
 | 14 | `tn_otb_approved` | Hi {{1}}, your OTB has been approved by the airline. OTB PNR / reference: {{2}} (booking {{3}}). Have a safe journey! — Team TripNexio | 1 Rahul · 2 ABC123 · 3 11026OT001 |
 | 15 | `tn_status_update` | Hi {{1}}, the status of your booking {{2}} is now: {{3}}. Track it anytime on tripnexio.com/track. — Team TripNexio | 1 Rahul · 2 11026VI001 · 3 Applied to Embassy |
-| 16 | `tn_output_delivered` | Hi {{1}}, your {{2}} for booking {{3}} is ready. Download it here: {{4}} — Team TripNexio | 1 Rahul · 2 Visa · 3 11026VI001 · 4 https://tripnexio.com/account |
+| 16 | `tn_output_delivered` | Hi {{1}}, your {{2}} for booking {{3}} is ready. Tap Download below to get it. — Team TripNexio **+ button** | 1 Rahul · 2 Visa · 3 11026VI001 · button: account |
 | 17 | `tn_coupon_offer` | Hi {{1}}, your request {{2}} isn't completed yet. If you'd still like to go ahead, coupon {{3}} gives {{4}} off this request, valid until {{5}}. Single use, for this request only. | 1 Rahul · 2 11026VC004 · 3 TNAQ7K2P · 4 10% (up to Rs. 500.00) · 5 15 Oct 2026 |
+
+**Buttons (updated 2026-10-14 — "Pay Now / Download button, not a link"):** templates 2, 5 and 16 carry one button. In WhatsApp Manager → Buttons → **Call to action → Visit website**, URL type **Dynamic**, URL `https://tripnexio.com/{{1}}`. Button text: template 2 **View & Pay**, template 5 **Pay Now**, template 16 **Download**. The sample for the button is shown in the table (e.g. `pay/abc123`). Templates 1, 2, 5, 6 and 16 changed on 2026-10-14; the Admin texts were updated to match.
 
 **Notes for the developer (applied in Admin once the templates are approved):**
 - Templates 1–13 and 17 are the same text as the current WhatsApp bodies, so only the Meta name has to be entered in Admin.
 - Template 14 drops the trailing Return Ticket offer, because Meta rejects a template that ends with a variable or gets an empty value. The OTB_APPROVED WhatsApp body in Admin must be updated to the exact text above.
-- Templates 15 (SERVICE_STATUS_UPDATE) and 16 (OUTPUT_DELIVERED) need new WhatsApp rows in Admin with the exact text above.
+- Template 15 (SERVICE_STATUS_UPDATE) needs a new WhatsApp row in Admin with the exact text above. Template 16's row was added by migration `20261014120000_notification_buttons_trip_summary`.
 - The variable order of the Admin body sets the `{{1}}, {{2}}…` order. Admin body and Meta text must match exactly.
 - Template 17 can be skipped if the client doesn't use abandoned-quote coupons.
