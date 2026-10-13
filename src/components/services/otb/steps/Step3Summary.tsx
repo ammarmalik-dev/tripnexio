@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { formatOtbRupees, otbApplicantPrice, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
@@ -26,6 +27,7 @@ export function Step3Summary() {
     getValues,
     register,
     watch,
+    setValue,
     formState: { errors },
   } = useFormContext<OtbRequestValues>();
   const values = getValues();
@@ -49,6 +51,11 @@ export function Step3Summary() {
   const returnDestinationCountryId = watch("returnDestinationCountryId");
   const { destinations } = useReturnTicketDestinations();
   const returnDestination = destinations.find((d) => d.countryId === returnDestinationCountryId);
+  // "No, I need one" always adds the Return Verified Ticket to this order; "Yes" never does.
+  useEffect(() => {
+    if (hasReturnTicket === "no" && addReturnTicket !== "yes") setValue("addReturnTicket", "yes");
+    if (hasReturnTicket === "yes" && addReturnTicket === "yes") setValue("addReturnTicket", "no");
+  }, [hasReturnTicket, addReturnTicket, setValue]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -105,17 +112,10 @@ export function Step3Summary() {
       />
       {hasReturnTicket === "no" ? (
         <div className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-          <RadioCardGroup<OtbRequestValues>
-            name="addReturnTicket"
-            label="Add a Return Verified Ticket to this order?"
-            register={register}
-            selectedValue={addReturnTicket}
-            error={errors.addReturnTicket?.message}
-            options={[
-              { value: "yes", label: "Yes, add it", description: `Destination rate × ${applicantCount} applicant${applicantCount > 1 ? "s" : ""}, paid separately.` },
-              { value: "no", label: "Not now", description: "Our team will follow up with you." },
-            ]}
-          />
+          {/* Client doc 2026-10-14 — "I need one" books the Return Verified Ticket with this order (no "Not now"). */}
+          <p className="text-sm font-medium text-ink-heading">
+            Return Verified Ticket — added to this order (destination rate × {applicantCount} applicant{applicantCount > 1 ? "s" : ""}, paid separately)
+          </p>
           {addReturnTicket === "yes" ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <SelectField
