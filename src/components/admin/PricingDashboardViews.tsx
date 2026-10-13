@@ -5,6 +5,7 @@ import { PricingCountryCards } from "./PricingCountryCards";
 import { PricingDashboard } from "./PricingDashboard";
 import { OtbPricesManager } from "./OtbPricesManager";
 import { ReturnTicketDestinationsManager } from "./ReturnTicketDestinationsManager";
+import { VendorServiceRatesManager } from "./VendorServiceRatesManager";
 import { cn } from "@/lib/cn";
 
 const VIEWS = [
@@ -12,6 +13,7 @@ const VIEWS = [
   { id: "table", label: "All prices (table)" },
   { id: "otb", label: "OTB (country × airline)" },
   { id: "return-ticket", label: "Return Ticket (country)" },
+  { id: "vendor-rates", label: "Vendor rates (OTB / Return Ticket)" },
 ] as const;
 
 /**
@@ -44,6 +46,7 @@ export function PricingDashboardViews() {
       {view === "table" ? <PricingDashboard /> : null}
       {view === "otb" ? <OtbPricesManager /> : null}
       {view === "return-ticket" ? <ReturnTicketDestinationsManager /> : null}
+      {view === "vendor-rates" ? <VendorServiceRatesManager /> : null}
     </div>
   );
 }

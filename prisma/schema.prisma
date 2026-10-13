@@ -165,24 +165,24 @@ enum PaxType {
 // ---------------------------------------------------------------------------
 
 model Customer {
-  id           String   @id @default(cuid())
-  name         String
-  mobile       String   @unique
-  email        String?  @unique
+  id               String   @id @default(cuid())
+  name             String
+  mobile           String   @unique
+  email            String?  @unique
   /// Set only once a customer actually registers/logs in — a guest's
   /// Customer row (created by findOrCreateCustomer at lead-submission time,
   /// see src/lib/leads/create-lead.ts) has no password until they later
   /// register with the same mobile/email, at which point registration
   /// claims that existing row instead of creating a duplicate.
-  passwordHash String?
+  passwordHash     String?
   /// Client corrections 2026-10-05 (invoice sample) — optional billing
   /// details printed on invoices: address, GST state code (place of supply;
   /// "96" = outside India) and the customer's GSTIN for a business invoice.
   billingAddress   String?
   billingStateCode String?
   gstin            String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   passengers          Passenger[]
   leads               Lead[]
@@ -329,7 +329,7 @@ model Lead {
 }
 
 model Quotation {
-  id                         String    @id @default(cuid())
+  id                         String       @id @default(cuid())
   leadId                     String
   /// --- Flight Special Fare fields (structured quote) ---
   airline                    String?
@@ -346,21 +346,21 @@ model Quotation {
   arrivalDateTime            DateTime?
   baggageAllowance           String?
   fareType                   String?
-  adultFare                  Decimal?  @db.Decimal(10, 2)
-  childFare                  Decimal?  @db.Decimal(10, 2)
-  infantFare                 Decimal?  @db.Decimal(10, 2)
+  adultFare                  Decimal?     @db.Decimal(10, 2)
+  childFare                  Decimal?     @db.Decimal(10, 2)
+  infantFare                 Decimal?     @db.Decimal(10, 2)
   /// Client doc 2026-10-14 — Special Fare vendor cost per Adult / Child / Infant
   /// (internal only); vendorCost = Σ cost × passengers of that type.
-  adultVendorCost            Decimal?  @db.Decimal(10, 2)
-  childVendorCost            Decimal?  @db.Decimal(10, 2)
-  infantVendorCost           Decimal?  @db.Decimal(10, 2)
+  adultVendorCost            Decimal?     @db.Decimal(10, 2)
+  childVendorCost            Decimal?     @db.Decimal(10, 2)
+  infantVendorCost           Decimal?     @db.Decimal(10, 2)
   /// Visa Change itinerary options: the flight-ticket component of one itinerary, added on top of feeAmount + fineOrCharges.
-  flightTicketPrice          Decimal?  @db.Decimal(10, 2)
+  flightTicketPrice          Decimal?     @db.Decimal(10, 2)
   /// --- Visa services / OTB fields (simple fee-based quote) ---
-  feeAmount                  Decimal?  @db.Decimal(10, 2)
-  fineOrCharges              Decimal?  @db.Decimal(10, 2)
+  feeAmount                  Decimal?     @db.Decimal(10, 2)
+  fineOrCharges              Decimal?     @db.Decimal(10, 2)
   /// P13 — Visa Extension quote breakdown: any other charges, added to the total like fineOrCharges.
-  otherCharges               Decimal?  @db.Decimal(10, 2)
+  otherCharges               Decimal?     @db.Decimal(10, 2)
   /// P14 — Visa Change: snapshot of the operational block this option is for
   /// (A2A flight or Border exit), copied from the lead's staff panel when the
   /// quotation is created. Vendor/cost inside it stay internal — the customer
@@ -375,24 +375,24 @@ model Quotation {
   vendorReference            String?
   bookingDeadline            DateTime?
   cancellationAllowed        Boolean?
-  cancellationCharge         Decimal?  @db.Decimal(10, 2)
+  cancellationCharge         Decimal?     @db.Decimal(10, 2)
   /// e.g. "Per passenger" / "Per booking" — staff wording, shown to the customer.
   chargeBasis                String?
   /// e.g. "More than 24 hours before departure".
   timeCondition              String?
-  noShowCharge               Decimal?  @db.Decimal(10, 2)
-  estimatedRefund            Decimal?  @db.Decimal(10, 2)
+  noShowCharge               Decimal?     @db.Decimal(10, 2)
+  estimatedRefund            Decimal?     @db.Decimal(10, 2)
   customerCancellationPolicy String?
   /// --- Commercial fields shared by every service type ---
   vendorId                   String
-  vendorCost                 Decimal   @db.Decimal(10, 2)
+  vendorCost                 Decimal      @db.Decimal(10, 2)
   /// The customer-facing total. For Flight Special Fare this is staff-entered
   /// directly; for every other service type the API computes it server-side
   /// as feeAmount + fineOrCharges. Never shown to the customer alongside
   /// vendorCost/margin — those two stay staff-only.
-  sellingPrice               Decimal   @db.Decimal(10, 2)
+  sellingPrice               Decimal      @db.Decimal(10, 2)
   /// Computed by the API layer as sellingPrice - vendorCost on write.
-  margin                     Decimal   @db.Decimal(10, 2)
+  margin                     Decimal      @db.Decimal(10, 2)
   /// --- Step 22 (audit §3.2/§4.2/§7.8) — CRM.md §10's pricing formula ---
   /// Never set for a Flight Special Fare quote — §10 gives flight its own
   /// formula ("Selling Amount + Configured Gateway Charge = Customer
@@ -403,34 +403,34 @@ model Quotation {
   /// doesn't retroactively change an already-quoted discount.
   couponId                   String?
   couponCode                 String?
-  couponDiscount             Decimal?  @db.Decimal(10, 2)
+  couponDiscount             Decimal?     @db.Decimal(10, 2)
   /// Client corrections 2026-10-05 — the government / airline (third-party)
   /// part of the price, shown apart from TripNexio's service fee on the
   /// invoice and excluded from GST. Null/0 = all service fee.
-  governmentFee              Decimal?  @db.Decimal(10, 2)
+  governmentFee              Decimal?     @db.Decimal(10, 2)
   /// Client corrections 2026-10-05 — Visa Change package inclusions / exclusions shown on the quote (staff-editable).
-  inclusions                 String[]  @default([])
-  exclusions                 String[]  @default([])
+  inclusions                 String[]     @default([])
+  exclusions                 String[]     @default([])
   /// Invoice lines snapshotted when the price is set (one per passenger type:
   /// [{ description, quantity, governmentFee, serviceFee }], unit amounts).
   /// Null = one line for the whole price (staff quotes, older rows).
   invoiceLines               Json?
   validityExpiresAt          DateTime?
-  isSelected                 Boolean   @default(false)
-  isExpired                  Boolean   @default(false)
+  isSelected                 Boolean      @default(false)
+  isExpired                  Boolean      @default(false)
   /// Set when this quote represents an alternative route/option offered
   /// instead of what the customer originally requested — points at the
   /// sibling quotation (on the same lead) it stands in for. The UI must
   /// always render this quotation's own `route`, never the requested one.
   alternativeOfId            String?
   /// P22 — a draft is prepared/revised by staff and only sent to the customer (QUOTE_READY) on "Send".
-  isDraft                    Boolean   @default(false)
+  isDraft                    Boolean      @default(false)
   sentAt                     DateTime?
-  revision                   Int       @default(1)
+  revision                   Int          @default(1)
   /// P22 — multi-sector itinerary for Visa Change / flight quotes: [{from, to, departAt, arriveAt, airline, flightNumber, notes}].
   itinerary                  Json?
-  createdAt                  DateTime  @default(now())
-  updatedAt                  DateTime  @updatedAt
+  createdAt                  DateTime     @default(now())
+  updatedAt                  DateTime     @updatedAt
 
   lead          Lead        @relation(fields: [leadId], references: [id])
   vendor        Vendor      @relation(fields: [vendorId], references: [id])
@@ -1148,8 +1148,9 @@ model Vendor {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
 
-  services   VendorService[]
-  quotations Quotation[]
+  services     VendorService[]
+  serviceRates VendorServiceRate[]
+  quotations   Quotation[]
 
   @@index([active])
 }
@@ -1169,6 +1170,32 @@ model VendorScoringConfig {
 }
 
 /// Join table: which services/sub-services a Vendor is linked to (§12 "service coverage").
+/// Client doc 2026-10-14 — what a vendor charges TripNexio for OTB / Return
+/// Ticket, per destination country, airline and processing type (internal,
+/// never customer-facing). Picking the vendor on such a booking sets its vendor
+/// cost = this rate × passengers. airlineId / processingType null = any.
+model VendorServiceRate {
+  id             String      @id @default(cuid())
+  vendorId       String
+  serviceType    ServiceType
+  countryId      String
+  airlineId      String?
+  /// "normal" / "urgent" (Processing Types master codes); null = any.
+  processingType String?
+  /// Cost per passenger.
+  cost           Decimal     @db.Decimal(10, 2)
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  vendor  Vendor   @relation(fields: [vendorId], references: [id])
+  country Country  @relation(fields: [countryId], references: [id])
+  airline Airline? @relation(fields: [airlineId], references: [id])
+
+  @@index([vendorId, serviceType])
+  @@index([countryId])
+}
+
 model VendorService {
   id         String      @id @default(cuid())
   vendorId   String
@@ -1249,6 +1276,7 @@ model Country {
   borders                 Border[]
   returnTicketDestination ReturnTicketDestination?
   otbPrices               OtbPrice[]
+  vendorServiceRates      VendorServiceRate[]
   pricingRules            PricingRule[]
   documentRequirements    DocumentRequirement[]
   newVisaCountryConfigs   NewVisaCountryConfig[]
@@ -1349,7 +1377,8 @@ model Airline {
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
-  otbPrices OtbPrice[]
+  otbPrices          OtbPrice[]
+  vendorServiceRates VendorServiceRate[]
 
   @@index([otbRequired])
   @@index([active])
@@ -1407,21 +1436,21 @@ model Border {
 /// distinct — same reasoning PricingRule's own doc comment already gives);
 /// the admin routes check for an exact-match duplicate server-side.
 model DocumentRequirement {
-  id            String      @id @default(cuid())
-  serviceType   ServiceType
-  countryId     String?
+  id             String      @id @default(cuid())
+  serviceType    ServiceType
+  countryId      String?
   /// Legacy free-text match, kept for rows created before `nationalityId`.
-  nationality   String?
-  nationalityId String?
-  paxType       PaxType?
+  nationality    String?
+  nationalityId  String?
+  paxType        PaxType?
   /// Copied from the Document Master row (documentTypeId) so every reader keeps working; renaming the master renames it here too.
-  documentName  String
+  documentName   String
   /// Client corrections 2026-10-05 — the Document Master entry this requirement uses.
   documentTypeId String?
-  required      Boolean     @default(true)
-  active        Boolean     @default(true)
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  required       Boolean     @default(true)
+  active         Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 
   country        Country?      @relation(fields: [countryId], references: [id])
   nationalityRef Nationality?  @relation(fields: [nationalityId], references: [id])
@@ -2068,18 +2097,18 @@ model ProtectionPlanCountry {
 /// removed along with the customer-facing selection they existed for —
 /// see src/lib/leads/compute-return-date.ts's deletion in the same change.
 model ReturnTicketDestination {
-  id               String   @id @default(cuid())
-  countryId        String   @unique
-  ratePerApplicant Decimal  @db.Decimal(10, 2)
+  id                     String   @id @default(cuid())
+  countryId              String   @unique
+  ratePerApplicant       Decimal  @db.Decimal(10, 2)
   /// Client corrections 2026-10-05 — the airline fee inside ratePerApplicant.
-  airlineFeePerApplicant Decimal @default(0) @db.Decimal(10, 2)
+  airlineFeePerApplicant Decimal  @default(0) @db.Decimal(10, 2)
   /// P17 — per-booking cancellation fee for this destination (Admin-set, null = none).
   /// Shown before payment and deducted by the refund engine before forwarding.
-  cancellationFee  Decimal? @db.Decimal(10, 2)
-  active           Boolean  @default(true)
-  displayOrder     Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  cancellationFee        Decimal? @db.Decimal(10, 2)
+  active                 Boolean  @default(true)
+  displayOrder           Int      @default(0)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
 
   country Country @relation(fields: [countryId], references: [id])
 
@@ -2692,22 +2721,22 @@ model LegalPage {
 /// paying. Versioned: editing means adding a new version; the active
 /// highest version for the service (country-specific first) applies.
 model ServiceTerms {
-  id          String      @id @default(cuid())
-  serviceType ServiceType
+  id             String       @id @default(cuid())
+  serviceType    ServiceType
   /// null = every destination country; set = overrides for that country.
-  countryId   String?
+  countryId      String?
   /// Client corrections 2026-10-05 — Flight Special Fare only: terms for
   /// DOMESTIC or INTERNATIONAL routes; null = every route.
-  flightScope FlightScope?
-  version     Int
-  title       String
-  body        String
+  flightScope    FlightScope?
+  version        Int
+  title          String
+  body           String
   /// Client 2026-10-14 — the customer's checkbox sentence before payment
   /// (e.g. "I have read and agree to the OTB Terms & Conditions…"); null = the default "I agree to the Terms & Conditions above."
   acceptanceText String?
-  active      Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
 
   country Country? @relation(fields: [countryId], references: [id])
 
