@@ -55,7 +55,7 @@ export async function priceLeadForDirectPayment(lead: {
     const airlineCode = text(details.airline);
     const countryCode = text(details.destinationCountry);
     if (!airlineCode || !countryCode || !processingType) return { ok: false, error: "The lead has no airline / destination / processing type to price it." };
-    const airline = await db.airline.findFirst({ where: { code: airlineCode, active: true, otbRequired: true } });
+    const airline = await db.airline.findFirst({ where: { code: airlineCode, active: true } });
     if (!airline) return { ok: false, error: `Airline ${airlineCode} isn't active for OTB.` };
     const quotes = await resolveOtbApplicantPrices({ airline, countryCode, processingType, paxTypes });
     if (quotes.some((quote) => quote.price === null || !(quote.price > 0))) {

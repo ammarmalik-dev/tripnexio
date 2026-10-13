@@ -11,7 +11,8 @@ import { getOtbGlobalRules, resolveAirlineRules } from "@/lib/otb/get-otb-rules"
 export async function GET() {
   const [airlines, global] = await Promise.all([
     db.airline.findMany({
-      where: { active: true, otbRequired: true },
+      // Client doc 2026-10-14 — only airlines Admin priced OTB for (country × airline); no separate airline flag.
+      where: { active: true, otbPrices: { some: { active: true, country: { active: true } } } },
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
       include: {
         otbPrices: {

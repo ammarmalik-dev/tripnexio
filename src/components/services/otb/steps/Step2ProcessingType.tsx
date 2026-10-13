@@ -32,13 +32,14 @@ export function Step2ProcessingType() {
   const airlineCode = useWatch({ control, name: "airline" });
   const travelDate = useWatch({ control, name: "travelDate" });
   const destinationCountry = useWatch({ control, name: "destinationCountry" });
+  const departureTime = useWatch({ control, name: "departureTime" });
   const { state, airlines } = useOtbAirlines();
   const calendar = useWorkingCalendar("INDIA");
   const { state: optionsState, options: masterOptions } = useProcessingTypes("OTB");
   const offeredCodes = masterOptions.map((option) => option.code);
 
   const airline = airlines.find((a) => a.code === airlineCode);
-  const outcome = airline ? evaluateOtbTravelDate(travelDate, otbRulesForCountry(airline, destinationCountry ?? ""), new Date(), calendar) : null;
+  const outcome = airline ? evaluateOtbTravelDate(travelDate, otbRulesForCountry(airline, destinationCountry ?? ""), new Date(), calendar, departureTime || null) : null;
 
   // A previously chosen type may no longer be valid after the airline/date changed.
   const allowedCodes = (outcome?.allowed ?? []).filter((code) => offeredCodes.includes(code));

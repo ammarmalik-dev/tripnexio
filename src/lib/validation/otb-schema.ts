@@ -40,6 +40,11 @@ export const otbStep1Schema = z.object({
       const date = new Date(value);
       return !Number.isNaN(date.getTime()) && date >= todayAtMidnight();
     }, "Travel date must be today or later"),
+  /**
+   * Client doc 2026-10-14 — optional local departure time ("HH:mm"): Express is
+   * offered when its working-hour TAT finishes before the flight, even same-day.
+   */
+  departureTime: z.string().regex(/^(\d{2}:\d{2})?$/, "Enter the time as HH:MM").optional(),
 });
 
 export const otbStep2Schema = z.object({
@@ -127,7 +132,7 @@ export type OtbRequestValues = z.infer<typeof otbRequestSchema>;
 
 export const otbStepFields: Record<number, (keyof OtbRequestValues)[]> = {
   // Client corrections 2026-10-05 — Normal / Express is chosen on the first page, with the travel date.
-  0: ["fullName", "mobile", "email", "passportNumber", "destinationCountry", "airline", "travelDate", "processingType"],
+  0: ["fullName", "mobile", "email", "passportNumber", "destinationCountry", "airline", "travelDate", "departureTime", "processingType"],
   1: ["paxType", "additionalApplicants"],
   2: ["hasReturnTicket", "addReturnTicket", "returnDestinationCountryId", "expectedReturnDate"],
 };

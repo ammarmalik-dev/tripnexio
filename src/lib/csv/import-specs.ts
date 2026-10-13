@@ -49,7 +49,6 @@ export const IMPORT_SPECS: Record<ImportEntityKey, ImportEntitySpec> = {
       col("code", true, "2-3 letter IATA code (the match key)"),
       col("name", true, "Airline name"),
       col("country", true, "Country code or name (stored as the country's name when it matches Admin → Countries)"),
-      col("otb_required", false, "true/false (default false)"),
       col("standard_processing_days", false, "Working days (1-365)"),
       col("urgent_processing_hours", false, "Working hours (0-200)"),
       col("logo_url", false, "Logo URL (auto-filled from the code when blank on create)"),

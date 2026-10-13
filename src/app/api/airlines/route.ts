@@ -6,7 +6,7 @@ import { getStaffSession } from "@/lib/auth/staff-session";
  * Lightweight active-airlines lookup for CRM pickers (Flight Special Fare /
  * Return Ticket quote builder) — mirrors GET /api/vendors vs. the full
  * /api/admin/vendors CRUD. Distinct from the OTB-specific GET
- * /api/otb/airlines (public, filtered to `otbRequired: true`, no `id`,
+ * /api/otb/airlines (public, only airlines with an active OTB price, no `id`,
  * keyed by `code` alone) — this route is staff-gated, filters only on
  * `active` (every active airline is usable here, not just OTB-eligible
  * ones), and includes `id` since it's the general-purpose shared list §9

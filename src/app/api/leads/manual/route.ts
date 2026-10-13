@@ -52,7 +52,7 @@ async function resolveFixedRatePricing(
   }
 
   if (data.serviceType === "OTB") {
-    const airline = await db.airline.findFirst({ where: { code: data.airlineCode!, active: true, otbRequired: true } });
+    const airline = await db.airline.findFirst({ where: { code: data.airlineCode!, active: true } });
     if (!airline) return { pricing: null, note: "That airline isn't available for OTB." };
     // One rate for every passenger, from the OTB price for this airline + destination (client reply 2026-10-13).
     const quotes = await resolveOtbApplicantPrices({

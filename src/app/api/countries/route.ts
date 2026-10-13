@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   let otbCountryIds: string[] | null = null;
   if (service === "OTB") {
     const priced = await db.otbPrice.findMany({
-      where: { active: true, airline: { active: true, otbRequired: true } },
+      where: { active: true, airline: { active: true } },
       distinct: ["countryId"],
       select: { countryId: true },
     });

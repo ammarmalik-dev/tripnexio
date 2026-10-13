@@ -71,7 +71,7 @@ export function workingDaysBetween(targetDate: string, from: Date, calendar: Wor
  * `targetDate` — business hours on working days only, the partial current
  * day included.
  */
-export function workingHoursBetween(targetDate: string, from: Date, calendar: WorkingCalendar, maxDays = 800): number {
+export function workingHoursBetween(targetDate: string, from: Date, calendar: WorkingCalendar, maxDays = 800, targetHour = 0): number {
   const targetMs = Date.parse(`${targetDate.slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(targetMs)) return 0;
   const shifted = new Date(from.getTime() + calendar.offsetMs);
@@ -84,6 +84,10 @@ export function workingHoursBetween(targetDate: string, from: Date, calendar: Wo
     }
     dayStart += DAY_MS;
     hourOfDay = 0;
+  }
+  // Client doc 2026-10-14 — with a departure time, the travel day's own business hours before it count too.
+  if (targetHour > 0 && dayStart === targetMs && isWorkingDay(targetMs, calendar)) {
+    hours += Math.max(0, Math.min(targetHour, calendar.endHour) - Math.max(hourOfDay, calendar.startHour));
   }
   return Math.floor(hours);
 }

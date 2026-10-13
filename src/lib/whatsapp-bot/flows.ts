@@ -127,10 +127,13 @@ async function getDestinationCountryOptions() {
   return countries.map((country) => ({ value: country.code, label: country.name }));
 }
 
-/** OTB airlines from the Airline master — the same active + OTB-required set the website offers. Stores the code. */
-async function getOtbAirlineOptions() {
+/**
+ * Client doc 2026-10-14 — OTB airlines for the chosen destination: only those
+ * Admin priced OTB for (country × airline), the same set the website offers.
+ */
+async function getOtbAirlineOptions(countryCode: string) {
   const airlines = await db.airline.findMany({
-    where: { active: true, otbRequired: true },
+    where: { active: true, otbPrices: { some: { active: true, country: { code: { equals: countryCode, mode: "insensitive" } } } } },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
   });
   return airlines.map((airline) => ({ value: airline.code, label: airline.name }));
@@ -142,7 +145,7 @@ async function getOtbAirlineOptions() {
  * airline is no longer available for OTB.
  */
 async function getOtbTravelDateEvaluator(airlineCode: string, countryCode: string | undefined) {
-  const airline = await db.airline.findFirst({ where: { code: airlineCode, active: true, otbRequired: true } });
+  const airline = await db.airline.findFirst({ where: { code: airlineCode, active: true } });
   if (!airline) return null;
   // Urgent depends on the destination's OTB price; before the destination is known only the timeline matters.
   const urgentAvailable = countryCode ? await otbUrgentAvailable(airline.id, countryCode) : true;
@@ -313,10 +316,10 @@ function passengerStep(collected: Record<string, string>, withPassport: boolean,
   return null;
 }
 
-/** OTB destinations: the countries Admin priced OTB for on this airline (OTB is priced only per country × airline). */
-async function getOtbDestinationOptions(airlineCode: string) {
+/** OTB destinations: the countries Admin priced OTB for, on any active airline (OTB is priced only per country × airline). */
+async function getOtbDestinationOptions() {
   const priced = await db.otbPrice.findMany({
-    where: { active: true, airline: { code: airlineCode }, country: { active: true } },
+    where: { active: true, airline: { active: true }, country: { active: true } },
     distinct: ["countryId"],
     select: { country: { select: { code: true, name: true } } },
     orderBy: { country: { name: "asc" } },
@@ -350,13 +353,14 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
 
   switch (serviceType) {
     case "OTB": {
-      if (!has("airline")) return numberedChoiceStep("airline", "Which airline is this for?", await getOtbAirlineOptions());
+      // Client doc 2026-10-14 — destination country first, then only the airlines enabled for it.
+      if (!has("destinationCountry")) {
+        return numberedChoiceStep("destinationCountry", "Which country are you travelling to?", await getOtbDestinationOptions());
+      }
+      if (!has("airline")) return numberedChoiceStep("airline", "Which airline is this for?", await getOtbAirlineOptions(collected.destinationCountry));
       // Same airline timeline rules the website's OTB route enforces.
       const evaluate = await getOtbTravelDateEvaluator(collected.airline, collected.destinationCountry);
       if (!evaluate) return numberedChoiceStep("airline", "That airline isn't available for OTB right now.", []);
-      if (!has("destinationCountry")) {
-        return numberedChoiceStep("destinationCountry", "Which country are you travelling to?", await getOtbDestinationOptions(collected.airline));
-      }
       if (!has("travelDate")) {
         return dateStep("travelDate", "What's your travel date?", otbRequestSchema.shape.travelDate, (iso) => {
           const outcome = evaluate(iso);

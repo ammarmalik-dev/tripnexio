@@ -231,7 +231,8 @@ export function OtbPricesManager({ countryId }: { countryId?: string } = {}) {
         ]);
         if (cancelled) return;
         setRows(prices);
-        setAirlines(airlineList.filter((a) => a.active && a.otbRequired));
+        // Client doc 2026-10-14 — no "OTB required" flag on the airline: adding a price here enables OTB for that country × airline.
+        setAirlines(airlineList.filter((a) => a.active));
         setCountries(countryList.filter((c) => c.active));
         setState("success");
       } catch {

@@ -50,6 +50,7 @@ export async function POST(request: NextRequest) {
     destinationCountry,
     airline,
     travelDate,
+    departureTime,
     processingType,
     passportImageBase64,
     passportImageMimeType,
@@ -74,14 +75,17 @@ export async function POST(request: NextRequest) {
     if (!(await isActiveProcessingType("OTB", processingType))) {
       return jsonError(400, "That processing type isn't available.", { processingType: ["Select an available processing type."] });
     }
-    const airlineRecord = await db.airline.findFirst({ where: { code: airline, active: true, otbRequired: true } });
+    // Client doc 2026-10-14 — an airline offers OTB for a country when Admin priced it for that country.
+    const airlineRecord = await db.airline.findFirst({
+      where: { code: airline, active: true, otbPrices: { some: { active: true, country: { code: { equals: destinationCountry, mode: "insensitive" } } } } },
+    });
     if (!airlineRecord) {
       return jsonError(400, "That airline isn't available for OTB.", { airline: ["Select an available airline."] });
     }
     const rules = resolveAirlineRules(airlineRecord, await getOtbGlobalRules(), await otbUrgentAvailable(airlineRecord.id, destinationCountry));
     // P09 — enforced against the Admin-configured India working calendar
     // (weekends, holidays, business hours, timezone).
-    const outcome = evaluateOtbTravelDate(travelDate, rules, new Date(), await getWorkingCalendar("INDIA"));
+    const outcome = evaluateOtbTravelDate(travelDate, rules, new Date(), await getWorkingCalendar("INDIA"), departureTime || null);
     if (outcome.status === "BLOCKED") {
       return jsonError(400, outcome.message ?? "That travel date can't be processed.", { travelDate: [outcome.message ?? "Choose a later date."] });
     }
@@ -130,6 +134,7 @@ export async function POST(request: NextRequest) {
         destinationCountry,
         airline,
         travelDate,
+        ...(departureTime ? { departureTime } : {}),
         processingType,
         travelers: String(applicants.length),
         workingDaysToTravel: outcome.workingDays,

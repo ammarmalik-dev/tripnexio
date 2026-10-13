@@ -148,15 +148,6 @@ function AirlineFields({
         error={errors.logoUrl?.[0]}
         disabled={disabled}
       />
-      <label className="flex items-center gap-2 text-sm text-ink-secondary">
-        <input
-          type="checkbox"
-          checked={form.otbRequired}
-          disabled={disabled}
-          onChange={(event) => onChange({ ...form, otbRequired: event.target.checked })}
-        />
-        OTB (Ok to Board) required for this airline
-      </label>
     </div>
   );
 }
@@ -241,7 +232,7 @@ function AirlineCard({ airline, onSaved }: { airline: AirlineData; onSaved: (air
               </span>
             </div>
             <p className="mt-1 text-xs text-ink-tertiary">
-              {[airline.country, airline.otbRequired ? "OTB required" : "No OTB", `Order ${airline.displayOrder}`]
+              {[airline.country, `Order ${airline.displayOrder}`]
                 .filter(Boolean)
                 .join(" · ")}
             </p>

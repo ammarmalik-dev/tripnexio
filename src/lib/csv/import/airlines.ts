@@ -18,7 +18,6 @@ const MAPPING: CellMapping = {
   code: ["code", "string"],
   name: ["name", "string"],
   country: ["country", "string"],
-  otbRequired: ["otb_required", "boolean"],
   standardProcessingDays: ["standard_processing_days", "number"],
   urgentProcessingHours: ["urgent_processing_hours", "number"],
   logoUrl: ["logo_url", "string"],

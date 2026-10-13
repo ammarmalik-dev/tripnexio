@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { CalendarClock } from "lucide-react";
 import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
@@ -11,7 +12,7 @@ import { SearchableSelectField } from "@/components/forms/SearchableSelectField"
 import { DateField } from "@/components/forms/DateField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { useOtbAirlines } from "@/lib/otb/use-otb-airlines";
+import { otbRulesForCountry, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 
@@ -19,14 +20,29 @@ export function Step1BasicDetails() {
   const {
     register,
     control,
+    setValue,
     formState: { errors },
   } = useFormContext<OtbRequestValues>();
   const { state, airlines } = useOtbAirlines();
   const airlineCode = useWatch({ control, name: "airline" });
+  const destinationCountry = useWatch({ control, name: "destinationCountry" });
   const calendar = useWorkingCalendar("INDIA");
-  const airline = airlines.find((entry) => entry.code === airlineCode);
+  // Client doc 2026-10-14 — destination country first, then only the airlines Admin priced OTB for in that country.
+  const countryAirlines = useMemo(
+    () =>
+      destinationCountry
+        ? airlines.filter((entry) => entry.prices.some((price) => price.countryCode.toLowerCase() === destinationCountry.toLowerCase()))
+        : [],
+    [airlines, destinationCountry]
+  );
+  const airline = countryAirlines.find((entry) => entry.code === airlineCode);
+  // A previously picked airline that doesn't fly OTB for the new country is cleared.
+  useEffect(() => {
+    if (state !== "success" || !airlineCode) return;
+    if (!countryAirlines.some((entry) => entry.code === airlineCode)) setValue("airline", "" as OtbRequestValues["airline"]);
+  }, [state, airlineCode, countryAirlines, setValue]);
   // Client corrections 2026-10-05 — dates the airline's TAT can't meet are blocked in the picker.
-  const earliest = airline ? earliestOtbTravelDates(airline, new Date(), calendar) : null;
+  const earliest = airline ? earliestOtbTravelDates(otbRulesForCountry(airline, destinationCountry ?? ""), new Date(), calendar) : null;
   const fmt = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
   const destinationCountryOptions = useDestinationCountryOptions("OTB");
 
@@ -81,8 +97,8 @@ export function Step1BasicDetails() {
         name="airline"
         label="Airline"
         required
-        hint="Start typing an airline name or code."
-        options={airlines.map((airline) => ({ value: airline.code, label: airline.name, detail: airline.code }))}
+        hint={destinationCountry ? "Start typing an airline name or code." : "Choose the destination country first."}
+        options={countryAirlines.map((entry) => ({ value: entry.code, label: entry.name, detail: entry.code }))}
         error={errors.airline?.message}
       />
       <div className="flex flex-col gap-3 sm:col-span-2">
@@ -93,6 +109,13 @@ export function Step1BasicDetails() {
           hint={airline ? undefined : "Choose the airline first to see the earliest possible date."}
           error={errors.travelDate?.message}
           {...register("travelDate")}
+        />
+        <TextField
+          label="Flight departure time (optional)"
+          type="time"
+          hint="Travelling within 2 working days? Add it so we can check whether Express can be completed before your flight."
+          error={errors.departureTime?.message}
+          {...register("departureTime")}
         />
         {airline && earliest ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-accent/20 bg-ink-accent/[0.04] px-4 py-3 text-xs text-ink-secondary">

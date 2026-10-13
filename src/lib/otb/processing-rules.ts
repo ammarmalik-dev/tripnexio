@@ -38,12 +38,20 @@ export function workingDaysUntil(travelDate: string, from: Date = new Date(), ca
 }
 
 /**
- * Working HOURS between `from` and the START of `travelDate` (local
- * midnight) — no flight time is collected on the OTB form, so the start of
- * the travel day is the conservative cutoff.
+ * Working HOURS between `from` and the departure: the START of `travelDate`
+ * (local midnight) when no departure time is known — the conservative cutoff
+ * — else that local time on the travel day (client doc 2026-10-14: same-day
+ * travel can be Express when the 8 working hours finish before the flight).
  */
-export function workingHoursUntil(travelDate: string, from: Date = new Date(), calendar: WorkingCalendar = DEFAULT_WORKING_CALENDAR): number {
-  return workingHoursBetween(travelDate, from, calendar);
+export function workingHoursUntil(
+  travelDate: string,
+  from: Date = new Date(),
+  calendar: WorkingCalendar = DEFAULT_WORKING_CALENDAR,
+  departureTime?: string | null
+): number {
+  const match = departureTime?.match(/^(\d{1,2}):(\d{2})$/);
+  const hour = match ? Math.min(24, Number(match[1]) + Number(match[2]) / 60) : 0;
+  return workingHoursBetween(travelDate, from, calendar, 800, hour);
 }
 
 /**
@@ -57,10 +65,12 @@ export function evaluateOtbTravelDate(
   travelDate: string,
   rules: OtbAirlineRules,
   from: Date = new Date(),
-  calendar: WorkingCalendar = DEFAULT_WORKING_CALENDAR
+  calendar: WorkingCalendar = DEFAULT_WORKING_CALENDAR,
+  /** "HH:mm" local departure time, when the customer gave it. */
+  departureTime?: string | null
 ): OtbTravelDateOutcome {
   const workingDays = workingDaysUntil(travelDate, from, calendar);
-  const workingHours = workingHoursUntil(travelDate, from, calendar);
+  const workingHours = workingHoursUntil(travelDate, from, calendar, departureTime);
 
   if (workingDays >= rules.standardDays) {
     return {
@@ -85,7 +95,7 @@ export function evaluateOtbTravelDate(
   }
 
   const reason = rules.urgentAvailable
-    ? `Even urgent processing needs at least ${rules.urgentHours} working hours for this airline.`
+    ? `Even urgent processing needs at least ${rules.urgentHours} working hours before departure for this airline${departureTime ? "" : " (add your flight's departure time if you travel soon)"}.`
     : "Urgent processing isn't available for this airline.";
   return {
     status: "BLOCKED",
