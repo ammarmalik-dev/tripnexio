@@ -151,6 +151,55 @@ async function getOtbTravelDateEvaluator(airlineCode: string, countryCode: strin
   return (travelDate: string) => evaluateOtbTravelDate(travelDate, rules, new Date(), calendar);
 }
 
+/** "Delhi - Indira Gandhi International Airport (DEL)" — the same value the website's airport field stores. */
+function airportValue(airport: { code: string; name: string; city: string }): string {
+  return `${airport.city} - ${airport.name} (${airport.code})`;
+}
+
+/**
+ * Client doc 2026-10-14 — a Special Fare airport over WhatsApp: an airport code,
+ * airport name or city, matched against the active Airport master. One match is
+ * taken (stored like the website value, so staff and quotes see the real airport);
+ * several matches list them and ask for the code; anything else is refused.
+ */
+function airportStep(fieldKey: string, prompt: string, notSameAs?: string): NextField {
+  return {
+    fieldKey,
+    prompt,
+    parse: async (raw) => {
+      const text = raw.trim();
+      if (text.length < 2) return { ok: false, error: "Please reply with a city, airport name or airport code." };
+      const exact = /^[a-z]{3}$/i.test(text) ? await db.airport.findFirst({ where: { active: true, code: text.toUpperCase() } }) : null;
+      const matches = exact
+        ? [exact]
+        : await db.airport.findMany({
+            where: {
+              active: true,
+              OR: [
+                { city: { contains: text, mode: "insensitive" } },
+                { name: { contains: text, mode: "insensitive" } },
+                { code: { equals: text, mode: "insensitive" } },
+              ],
+            },
+            orderBy: [{ city: "asc" }, { name: "asc" }],
+            take: 8,
+          });
+      if (matches.length === 0) {
+        return { ok: false, error: `We couldn't find an airport for "${text}". Please check the spelling, or reply with the airport code (e.g. DEL), or type "agent" for help.` };
+      }
+      if (matches.length > 1) {
+        return {
+          ok: false,
+          error: `Several airports match "${text}". Please reply with the code of your airport:\n${matches.map((airport) => `• ${airport.code} — ${airport.name}, ${airport.city}`).join("\n")}`,
+        };
+      }
+      const value = airportValue(matches[0]);
+      if (notSameAs && value === notSameAs) return { ok: false, error: "The destination must be a different airport from where you're flying." };
+      return { ok: true, value };
+    },
+  };
+}
+
 /** Return Ticket destinations with an Admin-configured rate. Stores the Country id, like the website form. */
 async function getReturnTicketDestinationOptions() {
   const destinations = await db.returnTicketDestination.findMany({
@@ -396,9 +445,15 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
     }
 
     case "FLIGHT_SPECIAL_FARE": {
-      if (!has("origin")) return textStep("origin", "Where are you flying from (city or airport)?", flightSpecialFareRequestSchema.shape.origin);
-      if (!has("destination")) return textStep("destination", "Where are you flying to?", flightSpecialFareRequestSchema.shape.destination);
-      if (!has("travelDate")) return dateStep("travelDate", "What's your travel date?", flightSpecialFareRequestSchema.shape.travelDate);
+      // Client doc 2026-10-14 — airports only from the Airport master: a code, airport name or city;
+      // the chosen airport's full name is confirmed in the next question.
+      if (!has("origin")) return airportStep("origin", "Where are you flying from? Reply with a city, airport name or airport code (e.g. DEL).");
+      if (!has("destination")) {
+        return airportStep("destination", `✈️ From: ${collected.origin}\n\nWhere are you flying to? Reply with a city, airport name or airport code (e.g. DXB).`, collected.origin);
+      }
+      if (!has("travelDate")) {
+        return dateStep("travelDate", `✈️ ${collected.origin}\n➡️ ${collected.destination}\n\nWhat's your travel date?`, flightSpecialFareRequestSchema.shape.travelDate);
+      }
       if (!has("returnDate")) {
         return {
           fieldKey: "returnDate",
