@@ -13,6 +13,7 @@ import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
 import { Prisma, type Quotation } from "@/generated/prisma/client";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
 import { normalizeItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
+import { resolveSectorFlight } from "@/lib/special-fare/sector-flight";
 import { isAirportToAirportLead, parseOperationalBlock } from "@/lib/visa-change/operational";
 import { buildA2ABlockForQuote } from "@/lib/visa-change/build-a2a-block";
 import { notifyQuoteReady } from "@/lib/quotations/send-quotation";
@@ -148,6 +149,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const message = "A revised quotation's validity must be in the future.";
       return jsonError(400, message, { validityExpiresAt: [message] });
     }
+  }
+
+  // Client 2026-10-13 — Special Fare: the main flight fields come from the sectors (entered once).
+  if (lead.serviceType === "FLIGHT_SPECIAL_FARE" && parsed.data.itinerary && parsed.data.itinerary.length > 0) {
+    const sectors = await resolveSectorFlight(parsed.data.itinerary);
+    if (!sectors.ok) return jsonError(400, sectors.error, { itinerary: [sectors.error] });
+    Object.assign(parsed.data, sectors.fields);
   }
 
   // P22 — multi-sector itinerary: Visa Change / Flight Special Fare only

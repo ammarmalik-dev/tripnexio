@@ -159,6 +159,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             pnrRecordedAt: booking.pnrRecordedAt,
             ticketIssuedAt: booking.ticketIssuedAt,
             ticketBaggage: booking.ticketBaggage,
+            // Client 2026-10-13 — PNR / ticket steps start from what the selected quote already says (no re-typing).
+            quoteBaggage: selectedQuotation?.baggageAllowance ?? null,
+            quoteVendorReference: selectedQuotation?.vendorReference ?? null,
             tickets: booking.passengers.map((row) => ({ passengerId: row.passenger.id, fullName: row.passenger.fullName, ticketNumber: row.ticketNumber })),
           }
         : null,

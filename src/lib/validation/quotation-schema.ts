@@ -98,15 +98,15 @@ export const sendQuotationSchema = z.object({
  */
 export function buildQuoteFormSchema(isFlightQuote: boolean) {
   return quoteFormSchema.superRefine((data, ctx) => {
-    if (isFlightQuote && !data.fromAirportCode) {
-      ctx.addIssue({ code: "custom", message: "Select the departure airport.", path: ["fromAirportCode"] });
+    // Client 2026-10-13 — a Special Fare flight is entered once, as sectors (route / airline / times derive from them).
+    if (isFlightQuote && (!data.itinerary || data.itinerary.length === 0)) {
+      ctx.addIssue({ code: "custom", message: "Add at least one flight sector.", path: ["itinerary"] });
     }
-    if (isFlightQuote && !data.toAirportCode) {
-      ctx.addIssue({ code: "custom", message: "Select the arrival airport.", path: ["toAirportCode"] });
-    }
-    if (isFlightQuote && data.fromAirportCode && data.fromAirportCode === data.toAirportCode) {
-      ctx.addIssue({ code: "custom", message: "Arrival must be a different airport.", path: ["toAirportCode"] });
-    }
+    (isFlightQuote ? (data.itinerary ?? []) : []).forEach((sector, index) => {
+      if (sector.from && sector.from === sector.to) {
+        ctx.addIssue({ code: "custom", message: "Arrival must be a different airport.", path: ["itinerary", index, "to"] });
+      }
+    });
     if (isFlightQuote && data.sellingPrice == null) {
       ctx.addIssue({ code: "custom", message: "Enter the selling price.", path: ["sellingPrice"] });
     }

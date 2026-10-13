@@ -141,6 +141,7 @@ function QuoteCard({
   const expired = Boolean(specialFare) && (Boolean(quote.expired) || (remainingMs !== null && remainingMs <= 0));
   const cancellation = quote.cancellation;
   const counts = specialFare?.passengerCounts;
+  const multiSector = (quote.itinerary?.length ?? 0) > 1;
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
       {quote.alternativeLabel ? (
@@ -151,7 +152,7 @@ function QuoteCard({
           <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
             <AirlineLogo src={quote.airlineLogoUrl} name={quote.airline ?? "Airline"} />
             {quote.airline ?? "Option"}
-            {quote.flightNumber ? ` ${quote.flightNumber}` : ""}
+            {quote.flightNumber && !multiSector ? ` ${quote.flightNumber}` : ""}
           </span>
           {quote.route ? (
             <span className="flex flex-wrap items-center gap-2 text-sm text-ink-secondary">
@@ -163,7 +164,7 @@ function QuoteCard({
               ) : null}
             </span>
           ) : null}
-          {quote.flightDateTime ? (
+          {quote.flightDateTime && !multiSector ? (
             <span className="text-xs text-ink-tertiary">
               Departs {formatDateTime(quote.flightDateTime)}
               {quote.arrivalDateTime ? ` · Arrives ${formatDateTime(quote.arrivalDateTime)}` : ""}
@@ -177,7 +178,8 @@ function QuoteCard({
         </div>
       ) : null}
 
-      {quote.itinerary && quote.itinerary.length > 0 ? <ItinerarySectors segments={quote.itinerary} title="Your itinerary" airlines={quote.airlines} /> : null}
+      {/* A one-sector flight is already shown in full above; only a multi-sector trip lists its sectors (client 2026-10-13: no repeats). */}
+      {quote.itinerary && quote.itinerary.length > 0 && !(specialFare && quote.itinerary.length === 1) ? <ItinerarySectors segments={quote.itinerary} title="Your itinerary" airlines={quote.airlines} /> : null}
 
       {specialFare && counts ? (
         <div className="flex flex-col gap-2">
@@ -195,7 +197,7 @@ function QuoteCard({
         <div className="flex flex-col gap-1 text-xs text-ink-secondary">
           {quote.fareRules ? (
             <p className="whitespace-pre-line">
-              <span className="font-semibold text-ink-heading">Fare rules: </span>
+              <span className="font-semibold text-ink-heading">Fare rules &amp; cancellation policy: </span>
               {quote.fareRules}
             </p>
           ) : null}

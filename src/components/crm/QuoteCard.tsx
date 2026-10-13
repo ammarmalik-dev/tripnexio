@@ -195,13 +195,14 @@ export function QuoteCard({
 
       {isFlightQuote ? (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
-          {quotation.flightDateTime ? (
+          {/* With sectors, the times are on each sector below (client 2026-10-13: no repeats). */}
+          {quotation.flightDateTime && itinerary.length === 0 ? (
             <div className="flex justify-between gap-2">
               <dt className="text-ink-tertiary">Departure</dt>
               <dd className="font-medium text-ink-primary">{formatDateTime(quotation.flightDateTime)}</dd>
             </div>
           ) : null}
-          {quotation.arrivalDateTime ? (
+          {quotation.arrivalDateTime && itinerary.length === 0 ? (
             <div className="flex justify-between gap-2">
               <dt className="text-ink-tertiary">Arrival</dt>
               <dd className="font-medium text-ink-primary">{formatDateTime(quotation.arrivalDateTime)}</dd>

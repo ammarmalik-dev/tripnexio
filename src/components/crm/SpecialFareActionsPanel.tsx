@@ -23,6 +23,9 @@ export interface SpecialFareBookingView {
   pnrRecordedAt: string | null;
   ticketIssuedAt: string | null;
   ticketBaggage: string | null;
+  /** The selected quote's baggage / vendor reference — the PNR and ticket fields start from these. */
+  quoteBaggage: string | null;
+  quoteVendorReference: string | null;
   tickets: { passengerId: string; fullName: string; ticketNumber: string | null }[];
 }
 
@@ -68,10 +71,10 @@ export function SpecialFareActionsPanel({
   const [showAlternative, setShowAlternative] = useState(false);
   const [noAlternative, setNoAlternative] = useState(false);
   const [alt, setAlt] = useState(EMPTY_ALT);
-  const [pnr, setPnr] = useState({ pnr: "", vendorReference: "" });
+  const [pnr, setPnr] = useState({ pnr: "", vendorReference: view.quoteVendorReference ?? "" });
   const [ticketNumbers, setTicketNumbers] = useState<Record<string, string>>({});
   const [issuedAt, setIssuedAt] = useState("");
-  const [baggage, setBaggage] = useState("");
+  const [baggage, setBaggage] = useState(view.quoteBaggage ?? "");
   const [ticketFile, setTicketFile] = useState<File | null>(null);
 
   const run = async (key: string, body: Record<string, unknown>) => {
@@ -220,7 +223,7 @@ export function SpecialFareActionsPanel({
           <p className="text-sm font-medium text-ink-heading">Record PNR</p>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <TextField label="PNR" name="pnr" value={pnr.pnr} onChange={(e) => setPnr({ ...pnr, pnr: e.target.value })} required />
-            <TextField label="Vendor reference" name="pnrVendorRef" value={pnr.vendorReference} onChange={(e) => setPnr({ ...pnr, vendorReference: e.target.value })} />
+            <TextField label="Vendor reference" name="pnrVendorRef" value={pnr.vendorReference} onChange={(e) => setPnr({ ...pnr, vendorReference: e.target.value })} hint="From the quote — change only if it's different." />
           </div>
           <div className="flex justify-end">
             <Button
@@ -249,7 +252,7 @@ export function SpecialFareActionsPanel({
               />
             ))}
             <TextField label="Issue time" name="issuedAt" type="datetime-local" value={issuedAt} onChange={(e) => setIssuedAt(e.target.value)} hint="Defaults to now." />
-            <TextField label="Baggage" name="ticketBaggage" value={baggage} onChange={(e) => setBaggage(e.target.value)} />
+            <TextField label="Baggage" name="ticketBaggage" value={baggage} onChange={(e) => setBaggage(e.target.value)} hint="From the quote — change only if it's different." />
             <label className="flex flex-col gap-1 text-sm text-ink-secondary">
               Ticket PDF
               <input type="file" accept="application/pdf,image/*" onChange={(e) => setTicketFile(e.target.files?.[0] ?? null)} />

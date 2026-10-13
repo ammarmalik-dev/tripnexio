@@ -23,6 +23,7 @@ import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
 import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { applyQuotationSentEffects, notifyQuoteReady } from "@/lib/quotations/send-quotation";
 import { normalizeItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
+import { resolveSectorFlight } from "@/lib/special-fare/sector-flight";
 import type { Quotation } from "@/generated/prisma/client";
 import { serviceDetailsLine } from "@/lib/crm/service-details";
 import { countryFlagEmoji } from "@/lib/countries/flag";
@@ -196,6 +197,17 @@ export async function POST(request: NextRequest) {
   const parsed = createQuotationSchema.safeParse(body);
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
+  }
+
+  // Client 2026-10-13 — a Special Fare flight is entered once, as sectors; the
+  // route, airline, flight number and times are derived from them here.
+  if (parsed.data.itinerary && parsed.data.itinerary.length > 0) {
+    const sectorLead = await db.lead.findUnique({ where: { id: parsed.data.leadId }, select: { serviceType: true } });
+    if (sectorLead?.serviceType === "FLIGHT_SPECIAL_FARE") {
+      const sectors = await resolveSectorFlight(parsed.data.itinerary);
+      if (!sectors.ok) return jsonError(400, sectors.error, { itinerary: [sectors.error] });
+      Object.assign(parsed.data, sectors.fields);
+    }
   }
 
   const {

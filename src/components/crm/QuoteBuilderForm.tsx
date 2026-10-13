@@ -13,7 +13,7 @@ import { buildQuoteFormSchema, type QuoteFormValues } from "@/lib/validation/quo
 import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES } from "@/lib/quotations/pricing";
 import { getJson } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
-import { MAX_ITINERARY_SEGMENTS, type ItinerarySegment } from "@/lib/quotations/itinerary";
+import { MAX_ITINERARY_SEGMENTS, flightFieldsFromSectors, type ItinerarySegment } from "@/lib/quotations/itinerary";
 import { VISA_CHANGE_EXCLUSIONS, VISA_CHANGE_INCLUSIONS } from "@/lib/visa-change/inclusions";
 import { EMPTY_A2A_FLIGHTS } from "@/lib/visa-change/a2a-flights";
 
@@ -76,7 +76,7 @@ function toIsoOrUndefined(value: string | undefined): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-function normalizeForSubmit(values: QuoteFormValues): QuoteFormValues {
+function normalizeForSubmit(values: QuoteFormValues, isFlightQuote: boolean): QuoteFormValues {
   const next: QuoteFormValues = { ...values };
   for (const key of DATE_TIME_KEYS) {
     next[key] = toIsoOrUndefined(values[key]);
@@ -87,8 +87,28 @@ function normalizeForSubmit(values: QuoteFormValues): QuoteFormValues {
       departAt: toIsoOrUndefined(segment.departAt),
       arriveAt: toIsoOrUndefined(segment.arriveAt),
     }));
+    // Special Fare — the route / airline / flight / times come from the sectors (the server derives them again).
+    const fromSectors = isFlightQuote ? flightFieldsFromSectors(next.itinerary) : null;
+    if (fromSectors) Object.assign(next, fromSectors);
   }
   return next;
+}
+
+/** An older Special Fare quote entered its flight in the main fields: open it as one sector so it's edited in one place. */
+function initialSectors(values: Partial<QuoteFormValues> | undefined): ItinerarySegment[] {
+  if (values?.itinerary && values.itinerary.length > 0) return values.itinerary;
+  if (!values?.fromAirportCode || !values.toAirportCode) return [{ ...EMPTY_SEGMENT }];
+  return [
+    {
+      ...EMPTY_SEGMENT,
+      from: values.fromAirportCode,
+      to: values.toAirportCode,
+      departAt: values.flightDateTime ?? "",
+      arriveAt: values.arrivalDateTime ?? "",
+      airline: values.airline ?? "",
+      flightNumber: values.flightNumber ?? "",
+    },
+  ];
 }
 
 // Mirrors VisaChangeFeeSuggestion in src/lib/quotations/visa-change-pricing.ts
@@ -192,7 +212,7 @@ export function QuoteBuilderForm({
     resolver: zodResolver(buildQuoteFormSchema(isFlightQuote)),
     defaultValues: {
       ...initialValues,
-      ...(multiSectorItinerary ? { itinerary: initialValues?.itinerary ?? [] } : {}),
+      ...(multiSectorItinerary ? { itinerary: isFlightQuote ? initialSectors(initialValues) : (initialValues?.itinerary ?? []) } : {}),
       // Client testing 2026-10-09 (B32) — an Airport-to-Airport option has its own exit and re-entry flights.
       ...(hasItinerary && showFlightDetails ? { a2aFlights: initialValues?.a2aFlights ?? { ...EMPTY_A2A_FLIGHTS } } : {}),
       // Client testing 2026-10-09 (B34) — a new Visa Change option starts with the
@@ -225,7 +245,7 @@ export function QuoteBuilderForm({
   const submitWith = (action: QuoteFormAction) => {
     setPendingAction(action);
     void handleSubmit(async (values) => {
-      await onSubmit(normalizeForSubmit(values), action);
+      await onSubmit(normalizeForSubmit(values, isFlightQuote), action);
     })().finally(() => setPendingAction(null));
   };
 
@@ -341,18 +361,6 @@ export function QuoteBuilderForm({
       ))}
     </>
   );
-  const routeAirportSelect = (name: "fromAirportCode" | "toAirportCode", label: string) => (
-    <FormField label={label} htmlFor={name} error={errors[name]?.message} required>
-      <select
-        id={name}
-        defaultValue={initialValues?.[name] ?? ""}
-        className={cn(fieldControlClass, fieldBorderClass(!!errors[name]))}
-        {...register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) })}
-      >
-        {airportOptions(name === "fromAirportCode" ? "Select departure airport" : "Select arrival airport")}
-      </select>
-    </FormField>
-  );
 
   return (
     <form
@@ -393,32 +401,6 @@ export function QuoteBuilderForm({
       {isFlightQuote ? (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {airlineSelect("Airline", false)}
-            <TextField label="Flight Number" {...optionalField("flightNumber")} error={errors.flightNumber?.message} />
-          </div>
-          {airportSearch}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {routeAirportSelect("fromAirportCode", "From (airport)")}
-            {routeAirportSelect("toAirportCode", "To (airport)")}
-          </div>
-          <p className="-mt-2 text-xs text-ink-tertiary">
-            Same-country airports = Domestic, otherwise International — the matching Terms &amp; Conditions are applied automatically.
-          </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField
-              label="Departure"
-              type="datetime-local"
-              {...dateTimeField("flightDateTime")}
-              error={errors.flightDateTime?.message}
-            />
-            <TextField
-              label="Arrival"
-              type="datetime-local"
-              {...dateTimeField("arrivalDateTime")}
-              error={errors.arrivalDateTime?.message}
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextField
               label="Baggage Allowance"
               placeholder="e.g. 30kg checked"
@@ -447,8 +429,6 @@ export function QuoteBuilderForm({
               error={errors.reportingTime?.message}
             />
           </div>
-          <Textarea label="Fare Rules" rows={2} {...optionalField("fareRules")} error={errors.fareRules?.message} />
-          <Textarea label="Restrictions" rows={2} {...optionalField("restrictions")} error={errors.restrictions?.message} />
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TextField
               label="Vendor Reference (internal)"
@@ -460,31 +440,22 @@ export function QuoteBuilderForm({
           </div>
 
           <fieldset className="flex flex-col gap-4 rounded-lg border border-hairline p-4">
-            <legend className="px-1 text-sm font-medium text-ink-heading">Cancellation &amp; refund terms (shown to the customer)</legend>
-            <label className="flex items-center gap-2 text-sm text-ink-secondary">
-              <input type="checkbox" {...register("cancellationAllowed")} />
-              Cancellation allowed
-            </label>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <TextField label="Cancellation Charge (₹)" type="number" step="0.01" {...numberField("cancellationCharge")} error={errors.cancellationCharge?.message} />
-              <TextField label="No-show Charge (₹)" type="number" step="0.01" {...numberField("noShowCharge")} error={errors.noShowCharge?.message} />
-              <TextField label="Estimated Refund (₹)" type="number" step="0.01" {...numberField("estimatedRefund")} error={errors.estimatedRefund?.message} />
-            </div>
+            <legend className="px-1 text-sm font-medium text-ink-heading">Fare rules &amp; cancellation (shown to the customer)</legend>
+            {/* Client 2026-10-13 — one place for the fare's terms: refundable, charge, and one text (the Admin Domestic /
+                International T&C still apply on top). Older quotes keep their separate fields; they're only shown, not asked. */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <TextField label="Charge Basis" placeholder="e.g. Per passenger" {...optionalField("chargeBasis")} error={errors.chargeBasis?.message} />
-              <TextField
-                label="Time Condition"
-                placeholder="e.g. More than 24 hours before departure"
-                {...optionalField("timeCondition")}
-                error={errors.timeCondition?.message}
-              />
+              <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink-secondary">
+                <input type="checkbox" {...register("cancellationAllowed")} />
+                Refundable (cancellation allowed)
+              </label>
+              <TextField label="Cancellation Charge (₹)" type="number" step="0.01" {...numberField("cancellationCharge")} error={errors.cancellationCharge?.message} />
             </div>
             <Textarea
-              label="Customer Cancellation Policy"
+              label="Fare Rules & Cancellation Policy"
               rows={3}
-              {...optionalField("customerCancellationPolicy")}
-              error={errors.customerCancellationPolicy?.message}
-              hint="Exactly what the customer reads before paying."
+              {...optionalField("fareRules")}
+              error={errors.fareRules?.message}
+              hint="Date change, no-show and refund rules from the airline — exactly what the customer reads before paying."
             />
           </fieldset>
 
@@ -694,11 +665,14 @@ export function QuoteBuilderForm({
       {multiSectorItinerary ? (
         <fieldset className="flex flex-col gap-3 rounded-lg border border-dashed border-hairline p-4">
           <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-accent">
-            Multi-sector itinerary (optional)
+            {isFlightQuote ? "Flight sectors" : "Multi-sector itinerary (optional)"}
           </legend>
           <p className="text-xs text-ink-tertiary">
-            Add each flight leg in travel order. Everything here is shown to the customer on their quote page.
+            {isFlightQuote
+              ? "Add each flight leg in travel order (one sector for a direct flight). The quote's route, airline, flight number and times come from these; same-country airports = Domestic, otherwise International, and the matching T&C apply."
+              : "Add each flight leg in travel order. Everything here is shown to the customer on their quote page."}
           </p>
+          {isFlightQuote ? airportSearch : null}
           {sectorFields.length === 0 ? <p className="text-xs text-ink-tertiary">No sectors added.</p> : null}
           <ol className="flex flex-col gap-3">
             {sectorFields.map((field, index) => {
@@ -794,7 +768,7 @@ export function QuoteBuilderForm({
                   <Textarea
                     label="Sector Notes"
                     rows={2}
-                    hint="Shown to the customer (e.g. terminal change, layover)."
+                    hint="Shown to the customer (e.g. layover)."
                     {...register(`itinerary.${index}.notes` as const)}
                     error={rowErrors?.notes?.message}
                   />

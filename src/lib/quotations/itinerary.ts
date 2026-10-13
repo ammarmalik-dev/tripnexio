@@ -88,3 +88,38 @@ export function parseStoredItinerary(value: unknown): StoredItinerarySegment[] {
   }
   return result;
 }
+
+/** The main flight fields a Special Fare quote derives from its sectors. */
+export interface SectorFlightFields {
+  fromAirportCode: string;
+  toAirportCode: string;
+  airline?: string;
+  flightNumber?: string;
+  flightDateTime?: string;
+  arrivalDateTime?: string;
+}
+
+/**
+ * Client 2026-10-13 ("lots of duplicancy" in Special Fare): the flight is
+ * entered once, as sectors, and the quote's route / airline / flight number /
+ * departure / arrival come from them — first sector's departure, last
+ * sector's arrival. A round trip (back where it started) takes the outbound
+ * destination as the route's "to", so DEL → DXB → DEL reads "DEL → DXB".
+ */
+export function flightFieldsFromSectors(segments: { from: string; to: string; departAt?: string; arriveAt?: string; airline?: string; flightNumber?: string }[]): SectorFlightFields | null {
+  if (segments.length === 0) return null;
+  const first = segments[0];
+  const last = segments[segments.length - 1];
+  const from = first.from.trim().toUpperCase();
+  let to = last.to.trim().toUpperCase();
+  if (to === from && segments.length > 1) to = segments[Math.ceil(segments.length / 2) - 1].to.trim().toUpperCase();
+  const text = (value: string | undefined) => (value && value.trim() ? value.trim() : undefined);
+  return {
+    fromAirportCode: from,
+    toAirportCode: to,
+    airline: text(first.airline),
+    flightNumber: text(first.flightNumber),
+    flightDateTime: text(first.departAt),
+    arrivalDateTime: text(last.arriveAt),
+  };
+}

@@ -230,6 +230,11 @@ export function LeadDetail({
     "methodHistory",
     "passengers",
     "applicants",
+    // Already in the header facts (PAX, Travel date) — client 2026-10-13: no repeats.
+    "travelDate",
+    "passengerCount",
+    "travelers",
+    "manualEntry",
   ]);
   // (New Visa/Visa Extension/Return Ticket store an applicant-wise list under details.applicants.)
   const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
