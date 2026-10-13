@@ -1,4 +1,5 @@
 import type { Booking, Customer, Document, Lead } from "../../generated/prisma/client";
+import { ticketDetailsFor } from "./output-notes";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { OUTPUT_DELIVERY_EVENT, OUTPUT_TYPE_LABELS, type OutputType } from "./output-types";
@@ -58,7 +59,15 @@ export async function deliverOutput(input: {
     emailTo: booking.customer.email,
     whatsappTo: toWhatsAppId(booking.customer.mobile),
     smsTo: toWhatsAppId(booking.customer.mobile),
-    variables: { customerName: booking.customer.name, leadReference: leadReference(booking.lead), documentName: label, downloadLink },
+    variables: {
+      customerName: booking.customer.name,
+      leadReference: leadReference(booking.lead),
+      documentName: label,
+      downloadLink,
+      // Client doc 2026-10-14 — the output's own "important information" text in the email, and a ticket's PNR / passengers / flights / baggage.
+      outputType,
+      ticketDetails: await ticketDetailsFor(booking.id, outputType),
+    },
     auditTarget: { entityType: "Document", entityId: document.id },
   });
 

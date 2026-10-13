@@ -14,6 +14,7 @@ import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES } from "@/lib/quotations/pricing";
 import { getJson } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { MAX_ITINERARY_SEGMENTS, flightFieldsFromSectors, type ItinerarySegment } from "@/lib/quotations/itinerary";
+import { EMPTY_SEGMENT, SpecialFareQuoteFields, type PaxCountsView } from "./SpecialFareQuoteFields";
 import { VISA_CHANGE_EXCLUSIONS, VISA_CHANGE_INCLUSIONS } from "@/lib/visa-change/inclusions";
 import { EMPTY_A2A_FLIGHTS } from "@/lib/visa-change/a2a-flights";
 
@@ -55,7 +56,6 @@ export type QuoteFormMode = "create" | "editDraft" | "revise";
 /** Line separator for the one-item-per-line textareas. */
 const NL = "\n";
 
-const EMPTY_SEGMENT: ItinerarySegment ={ from: "", to: "", departAt: "", arriveAt: "", airline: "", flightNumber: "", notes: "" };
 
 const DATE_TIME_KEYS = ["flightDateTime", "arrivalDateTime", "validityExpiresAt", "bookingDeadline"] as const;
 
@@ -95,9 +95,10 @@ function normalizeForSubmit(values: QuoteFormValues, isFlightQuote: boolean): Qu
 }
 
 /** An older Special Fare quote entered its flight in the main fields: open it as one sector so it's edited in one place. */
-function initialSectors(values: Partial<QuoteFormValues> | undefined): ItinerarySegment[] {
+function initialSectors(values: Partial<QuoteFormValues> | undefined, request: { fromCode: string | null; toCode: string | null } | null): ItinerarySegment[] {
   if (values?.itinerary && values.itinerary.length > 0) return values.itinerary;
-  if (!values?.fromAirportCode || !values.toAirportCode) return [{ ...EMPTY_SEGMENT }];
+  // Client doc 2026-10-14 — a new quote starts from the customer's requested airports.
+  if (!values?.fromAirportCode || !values.toAirportCode) return [{ ...EMPTY_SEGMENT, from: request?.fromCode ?? "", to: request?.toCode ?? "" }];
   return [
     {
       ...EMPTY_SEGMENT,
@@ -174,6 +175,10 @@ interface QuoteBuilderFormProps {
   onSubmit: (values: QuoteFormValues, action: QuoteFormAction) => Promise<void>;
   onCancel: () => void;
   submitting: boolean;
+  /** Special Fare: the lead's Adult / Child / Infant counts (prices are per passenger). */
+  paxCounts?: PaxCountsView;
+  /** Special Fare: the customer's requested airports — a new quote starts from them. */
+  flightRequest?: { fromCode: string | null; toCode: string | null } | null;
 }
 
 function maxValidityLocalIso(): string {
@@ -200,19 +205,14 @@ export function QuoteBuilderForm({
   onSubmit,
   onCancel,
   submitting,
+  paxCounts = { adult: 1, child: 0, infant: 0 },
+  flightRequest = null,
 }: QuoteBuilderFormProps) {
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    getValues,
-    control,
-    formState: { errors },
-  } = useForm<QuoteFormValues>({
+  const form = useForm<QuoteFormValues>({
     resolver: zodResolver(buildQuoteFormSchema(isFlightQuote)),
     defaultValues: {
       ...initialValues,
-      ...(multiSectorItinerary ? { itinerary: isFlightQuote ? initialSectors(initialValues) : (initialValues?.itinerary ?? []) } : {}),
+      ...(multiSectorItinerary ? { itinerary: isFlightQuote ? initialSectors(initialValues, flightRequest) : (initialValues?.itinerary ?? []) } : {}),
       // Client testing 2026-10-09 (B32) — an Airport-to-Airport option has its own exit and re-entry flights.
       ...(hasItinerary && showFlightDetails ? { a2aFlights: initialValues?.a2aFlights ?? { ...EMPTY_A2A_FLIGHTS } } : {}),
       // Client testing 2026-10-09 (B34) — a new Visa Change option starts with the
@@ -225,6 +225,14 @@ export function QuoteBuilderForm({
         : {}),
     },
   });
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    getValues,
+    control,
+    formState: { errors },
+  } = form;
   const { fields: sectorFields, append: appendSector, remove: removeSector, move: moveSector } = useFieldArray({
     control,
     name: "itinerary",
@@ -273,23 +281,6 @@ export function QuoteBuilderForm({
 
   const numberField = (name: "vendorCost" | "adultFare" | "childFare" | "infantFare" | "sellingPrice" | "feeAmount" | "fineOrCharges" | "otherCharges" | "governmentFee" | "flightTicketPrice" | "cancellationCharge" | "noShowCharge" | "estimatedRefund") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
-
-  const optionalField = (
-    name:
-      | "flightNumber"
-      | "route"
-      | "baggageAllowance"
-      | "fareType"
-      | "terminal"
-      | "reportingTime"
-      | "fareRules"
-      | "restrictions"
-      | "vendorReference"
-      | "chargeBasis"
-      | "timeCondition"
-      | "customerCancellationPolicy"
-  ) =>
-    register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
 
   // datetime-local inputs: blank = not set; converted to ISO in normalizeForSubmit().
   const dateTimeField = (name: (typeof DATE_TIME_KEYS)[number]) =>
@@ -399,66 +390,17 @@ export function QuoteBuilderForm({
       </FormField>
 
       {isFlightQuote ? (
+        // Client doc 2026-10-14 — the cleaned-up Special Fare form (flight, fare & cancellation, price per passenger).
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField
-              label="Baggage Allowance"
-              placeholder="e.g. 30kg checked"
-              {...optionalField("baggageAllowance")}
-              error={errors.baggageAllowance?.message}
-            />
-            <TextField label="Fare Type" placeholder="e.g. Special Fare" {...optionalField("fareType")} error={errors.fareType?.message} />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <TextField label="Adult Fare (₹)" type="number" step="0.01" {...numberField("adultFare")} error={errors.adultFare?.message} />
-            <TextField label="Child Fare (₹)" type="number" step="0.01" {...numberField("childFare")} error={errors.childFare?.message} />
-            <TextField
-              label="Infant Fare (₹)"
-              type="number"
-              step="0.01"
-              {...numberField("infantFare")}
-              error={errors.infantFare?.message}
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField label="Terminal" placeholder="e.g. T2" {...optionalField("terminal")} error={errors.terminal?.message} />
-            <TextField
-              label="Reporting Time"
-              placeholder="e.g. 3 hours before departure"
-              {...optionalField("reportingTime")}
-              error={errors.reportingTime?.message}
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField
-              label="Vendor Reference (internal)"
-              {...optionalField("vendorReference")}
-              error={errors.vendorReference?.message}
-              hint="Never shown to the customer."
-            />
-            <TextField label="Booking Deadline" type="datetime-local" {...dateTimeField("bookingDeadline")} error={errors.bookingDeadline?.message} />
-          </div>
-
-          <fieldset className="flex flex-col gap-4 rounded-lg border border-hairline p-4">
-            <legend className="px-1 text-sm font-medium text-ink-heading">Fare rules &amp; cancellation (shown to the customer)</legend>
-            {/* Client 2026-10-13 — one place for the fare's terms: refundable, charge, and one text (the Admin Domestic /
-                International T&C still apply on top). Older quotes keep their separate fields; they're only shown, not asked. */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="flex items-center gap-2 self-end pb-2 text-sm text-ink-secondary">
-                <input type="checkbox" {...register("cancellationAllowed")} />
-                Refundable (cancellation allowed)
-              </label>
-              <TextField label="Cancellation Charge (₹)" type="number" step="0.01" {...numberField("cancellationCharge")} error={errors.cancellationCharge?.message} />
-            </div>
-            <Textarea
-              label="Fare Rules & Cancellation Policy"
-              rows={3}
-              {...optionalField("fareRules")}
-              error={errors.fareRules?.message}
-              hint="Date change, no-show and refund rules from the airline — exactly what the customer reads before paying."
-            />
-          </fieldset>
-
+          <SpecialFareQuoteFields
+            form={form}
+            sectorFields={sectorFields}
+            appendSector={appendSector}
+            removeSector={removeSector}
+            airports={airports}
+            airlines={airlines}
+            paxCounts={paxCounts}
+          />
           {alternativeOptions.length > 0 ? (
             <FormField
               label="Alternative Route"
@@ -662,7 +604,7 @@ export function QuoteBuilderForm({
         </fieldset>
       ) : null}
 
-      {multiSectorItinerary ? (
+      {multiSectorItinerary && !isFlightQuote ? (
         <fieldset className="flex flex-col gap-3 rounded-lg border border-dashed border-hairline p-4">
           <legend className="px-1 text-xs font-medium uppercase tracking-wide text-ink-accent">
             {isFlightQuote ? "Flight sectors" : "Multi-sector itinerary (optional)"}
@@ -672,7 +614,6 @@ export function QuoteBuilderForm({
               ? "Add each flight leg in travel order (one sector for a direct flight). The quote's route, airline, flight number and times come from these; same-country airports = Domestic, otherwise International, and the matching T&C apply."
               : "Add each flight leg in travel order. Everything here is shown to the customer on their quote page."}
           </p>
-          {isFlightQuote ? airportSearch : null}
           {sectorFields.length === 0 ? <p className="text-xs text-ink-tertiary">No sectors added.</p> : null}
           <ol className="flex flex-col gap-3">
             {sectorFields.map((field, index) => {
@@ -791,6 +732,7 @@ export function QuoteBuilderForm({
         </fieldset>
       ) : null}
 
+      {isFlightQuote ? null : (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField
           label="Vendor Cost (₹)"
@@ -822,6 +764,7 @@ export function QuoteBuilderForm({
           />
         )}
       </div>
+      )}
 
       <TextField
         label="Validity Expires At"

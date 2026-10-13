@@ -10,6 +10,8 @@ export interface TermsView {
   title: string;
   body: string;
   version: number;
+  /** Client 2026-10-14 — the service's own checkbox sentence (Admin → Terms); null = the default. */
+  acceptanceText?: string | null;
 }
 
 /**
@@ -44,17 +46,21 @@ export function TermsCheckbox({
       ) : null}
       <label htmlFor={id} className="flex items-start gap-2 text-sm text-ink-secondary">
         <input id={id} type="checkbox" className="mt-0.5" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-        <span>
-          I agree to the{" "}
-          {terms ? (
-            "Terms & Conditions above"
-          ) : (
-            <Link href="/legal/terms" target="_blank" className="text-ink-accent underline">
-              Terms &amp; Conditions
-            </Link>
-          )}
-          .
-        </span>
+        {terms?.acceptanceText ? (
+          <span>{terms.acceptanceText}</span>
+        ) : (
+          <span>
+            I agree to the{" "}
+            {terms ? (
+              "Terms & Conditions above"
+            ) : (
+              <Link href="/legal/terms" target="_blank" className="text-ink-accent underline">
+                Terms &amp; Conditions
+              </Link>
+            )}
+            .
+          </span>
+        )}
       </label>
     </div>
   );
@@ -81,7 +87,7 @@ export function TermsAgreement({ token, terms, onAccepted }: { token: string; te
     <div className="flex flex-col gap-3">
       <TermsCheckbox terms={terms} checked={checked} onChange={setChecked} id="pay-terms" />
       <Button type="button" size="lg" onClick={() => void accept()} isLoading={saving} disabled={!checked}>
-        Agree &amp; continue to payment
+        Accept &amp; Proceed to Payment
       </Button>
     </div>
   );

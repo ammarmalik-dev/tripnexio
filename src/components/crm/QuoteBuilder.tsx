@@ -84,6 +84,9 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
     adultFare: toNumber(quotation.adultFare),
     childFare: toNumber(quotation.childFare),
     infantFare: toNumber(quotation.infantFare),
+    adultVendorCost: toNumber(quotation.adultVendorCost),
+    childVendorCost: toNumber(quotation.childVendorCost),
+    infantVendorCost: toNumber(quotation.infantVendorCost),
     // Selling price is only staff-entered on a flight quote; every other service's total is computed server-side.
     sellingPrice: flightQuote ? toNumber(quotation.sellingPrice) : undefined,
     terminal: toText(quotation.terminal),
@@ -122,6 +125,8 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
       arriveAt: toLocalInput(segment.arriveAt) ?? "",
       airline: segment.airline ?? "",
       flightNumber: segment.flightNumber ?? "",
+      departTerminal: segment.departTerminal ?? "",
+      arriveTerminal: segment.arriveTerminal ?? "",
       notes: segment.notes ?? "",
     })),
   };
@@ -133,6 +138,8 @@ export function QuoteBuilder({
   leadStatus,
   onLeadChanged,
   visaChangeMethod = null,
+  paxCounts,
+  flightRequest = null,
 }: {
   leadId: string;
   serviceType: ServiceType;
@@ -140,6 +147,9 @@ export function QuoteBuilder({
   onLeadChanged: () => void;
   /** Visa Change: "AIRPORT_TO_AIRPORT" / "BORDER_EXIT" (Lead.details.changeType). */
   visaChangeMethod?: string | null;
+  /** Special Fare: the lead's Adult / Child / Infant counts and requested airports (client doc 2026-10-14). */
+  paxCounts?: { adult: number; child: number; infant: number };
+  flightRequest?: { fromCode: string | null; toCode: string | null } | null;
 }) {
   const flightQuote = isFlightQuote(serviceType);
   const hasItinerary = supportsItinerary(serviceType);
@@ -331,6 +341,8 @@ export function QuoteBuilder({
       {showForm ? (
         <div className="mb-4">
           <QuoteBuilderForm
+            paxCounts={paxCounts}
+            flightRequest={flightRequest}
             leadId={leadId}
             isFlightQuote={flightQuote}
             hasItinerary={hasItinerary}
@@ -355,6 +367,7 @@ export function QuoteBuilder({
             {editing.mode === "revise" ? `Revise quote (currently Revision ${editing.quotation.revision ?? 1})` : "Edit draft quote"}
           </h3>
           <QuoteBuilderForm
+            paxCounts={paxCounts}
             // Remount per quote/mode so defaultValues re-initialise.
             key={`${editing.quotation.id}-${editing.mode}`}
             leadId={leadId}

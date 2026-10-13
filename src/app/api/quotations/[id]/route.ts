@@ -1,4 +1,5 @@
 import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
+import { specialFarePaxCounts, specialFareTotals } from "@/lib/special-fare/pax-counts";
 import type { NextRequest } from "next/server";
 import { updateQuotationSchema } from "@/lib/validation/quotation-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -37,6 +38,9 @@ const REVISION_TRACKED_FIELDS = [
   "adultFare",
   "childFare",
   "infantFare",
+  "adultVendorCost",
+  "childVendorCost",
+  "infantVendorCost",
   "feeAmount",
   "fineOrCharges",
   "otherCharges",
@@ -151,11 +155,31 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // Client 2026-10-13 — Special Fare: the main flight fields come from the sectors (entered once).
-  if (lead.serviceType === "FLIGHT_SPECIAL_FARE" && parsed.data.itinerary && parsed.data.itinerary.length > 0) {
-    const sectors = await resolveSectorFlight(parsed.data.itinerary);
-    if (!sectors.ok) return jsonError(400, sectors.error, { itinerary: [sectors.error] });
-    Object.assign(parsed.data, sectors.fields);
+  // Client 2026-10-13 — Special Fare: the main flight fields come from the sectors (entered once);
+  // client doc 2026-10-14 — price and vendor cost from the per-passenger rates (see POST /api/quotations).
+  if (lead.serviceType === "FLIGHT_SPECIAL_FARE") {
+    if (parsed.data.itinerary && parsed.data.itinerary.length > 0) {
+      const sectors = await resolveSectorFlight(parsed.data.itinerary);
+      if (!sectors.ok) return jsonError(400, sectors.error, { itinerary: [sectors.error] });
+      Object.assign(parsed.data, sectors.fields);
+    }
+    const rate = (patched: number | undefined, stored: Prisma.Decimal | null) => (patched !== undefined ? patched : stored === null ? undefined : Number(stored));
+    Object.assign(
+      parsed.data,
+      specialFareTotals(
+        {
+          adultFare: rate(parsed.data.adultFare, existing.adultFare),
+          childFare: rate(parsed.data.childFare, existing.childFare),
+          infantFare: rate(parsed.data.infantFare, existing.infantFare),
+          adultVendorCost: rate(parsed.data.adultVendorCost, existing.adultVendorCost),
+          childVendorCost: rate(parsed.data.childVendorCost, existing.childVendorCost),
+          infantVendorCost: rate(parsed.data.infantVendorCost, existing.infantVendorCost),
+          sellingPrice: parsed.data.sellingPrice,
+          vendorCost: parsed.data.vendorCost,
+        },
+        await specialFarePaxCounts(lead)
+      )
+    );
   }
 
   // P22 — multi-sector itinerary: Visa Change / Flight Special Fare only

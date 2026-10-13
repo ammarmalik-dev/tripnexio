@@ -113,7 +113,7 @@ export async function loadCheckoutByToken(token: string) {
         : null,
       quotationExpired,
       termsAccepted,
-      terms: terms ? { title: terms.title, body: terms.body, version: terms.version } : null,
+      terms: terms ? { title: terms.title, body: terms.body, version: terms.version, acceptanceText: terms.acceptanceText } : null,
       demoGateway: isMockGatewayActive(),
       applicants: booking.passengers.map((row) => ({ id: row.passenger.id, fullName: row.passenger.fullName })),
       documentTypes,

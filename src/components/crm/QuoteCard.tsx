@@ -24,6 +24,10 @@ export interface QuoteCardData {
   adultFare: string | null;
   childFare: string | null;
   infantFare: string | null;
+  /** Client doc 2026-10-14 — Special Fare vendor cost per passenger type (internal). */
+  adultVendorCost?: string | null;
+  childVendorCost?: string | null;
+  infantVendorCost?: string | null;
   feeAmount: string | null;
   fineOrCharges: string | null;
   otherCharges?: string | null;
@@ -240,11 +244,14 @@ export function QuoteCard({
           ) : null}
           {(
             [
+              ["Adult cost (internal)", money(quotation.adultVendorCost ?? null)],
+              ["Child cost (internal)", money(quotation.childVendorCost ?? null)],
+              ["Infant cost (internal)", money(quotation.infantVendorCost ?? null)],
               ["Terminal", quotation.terminal],
               ["Reporting Time", quotation.reportingTime],
               ["Booking Deadline", quotation.bookingDeadline ? formatDateTime(quotation.bookingDeadline) : null],
               ["Vendor Ref (internal)", quotation.vendorReference],
-              ["Cancellation", quotation.cancellationAllowed == null ? null : quotation.cancellationAllowed ? "Allowed" : "Not allowed"],
+              ["Cancellation", quotation.cancellationAllowed == null ? null : quotation.cancellationAllowed ? "Allowed" : "Not allowed (non-refundable)"],
               ["Cancellation Charge", money(quotation.cancellationCharge ?? null)],
               ["Charge Basis", quotation.chargeBasis],
               ["Time Condition", quotation.timeCondition],

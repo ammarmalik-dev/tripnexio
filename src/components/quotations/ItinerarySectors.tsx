@@ -65,6 +65,13 @@ export function ItinerarySectors({
                   {segment.arriveAt ? `Arrives ${formatDateTime(segment.arriveAt)}` : ""}
                 </span>
               ) : null}
+              {segment.departTerminal || segment.arriveTerminal ? (
+                <span className="text-ink-tertiary">
+                  {[segment.departTerminal ? `Departure terminal ${segment.departTerminal}` : null, segment.arriveTerminal ? `Arrival terminal ${segment.arriveTerminal}` : null]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </span>
+              ) : null}
               {segment.notes ? <span className="whitespace-pre-line text-ink-secondary">{segment.notes}</span> : null}
             </div>
           </li>

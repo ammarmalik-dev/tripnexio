@@ -34,6 +34,7 @@ interface TermsData {
   version: number;
   title: string;
   body: string;
+  acceptanceText: string | null;
   active: boolean;
   createdAt: string;
 }
@@ -79,7 +80,12 @@ function TermsRow({ terms, onSaved }: { terms: TermsData; onSaved: (t: TermsData
           </Button>
         </div>
       </div>
-      {open ? <div className="max-h-64 overflow-auto whitespace-pre-line rounded-lg bg-surface-2 p-3 text-xs text-ink-secondary">{terms.body}</div> : null}
+      {open ? (
+        <div className="max-h-64 overflow-auto whitespace-pre-line rounded-lg bg-surface-2 p-3 text-xs text-ink-secondary">
+          {terms.body}
+          {terms.acceptanceText ? <p className="mt-3 font-medium text-ink-primary">Checkbox: {terms.acceptanceText}</p> : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -99,6 +105,7 @@ function NewTermsForm({
   const [flightScope, setFlightScope] = useState<"" | "DOMESTIC" | "INTERNATIONAL">("");
   const [title, setTitle] = useState("Terms & Conditions");
   const [body, setBody] = useState("");
+  const [acceptanceText, setAcceptanceText] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
 
@@ -112,10 +119,12 @@ function NewTermsForm({
         ...(serviceType === "FLIGHT_SPECIAL_FARE" ? { flightScope: flightScope || null } : {}),
         title: title.trim(),
         body: body.trim(),
+        acceptanceText: acceptanceText.trim() || undefined,
       });
       toast.success(`Version ${created.version} published.`);
       onCreated(created);
       setBody("");
+      setAcceptanceText("");
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) setErrors(err.fieldErrors);
       toast.error(err instanceof ApiError ? err.message : "Couldn't publish these terms. Please try again.");
@@ -162,6 +171,16 @@ function NewTermsForm({
         <TextField label="Title" name="terms-title" value={title} onChange={(e) => setTitle(e.target.value)} error={errors.title?.[0]} disabled={saving} />
       </div>
       <Textarea label="Terms text" name="terms-body" rows={10} value={body} onChange={(e) => setBody(e.target.value)} error={errors.body?.[0]} disabled={saving} />
+      <Textarea
+        label="Checkbox text (optional)"
+        name="terms-acceptance"
+        rows={2}
+        value={acceptanceText}
+        onChange={(e) => setAcceptanceText(e.target.value)}
+        error={errors.acceptanceText?.[0]}
+        hint='What the customer ticks before paying. Blank = "I agree to the Terms & Conditions above."'
+        disabled={saving}
+      />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void publish()} isLoading={saving} disabled={body.trim().length < 20 || title.trim().length < 3}>
           Publish version

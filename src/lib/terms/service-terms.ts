@@ -7,6 +7,8 @@ export interface EffectiveTerms {
   version: number;
   title: string;
   body: string;
+  /** The customer's checkbox sentence; null = the default wording. */
+  acceptanceText: string | null;
 }
 
 /**
@@ -22,7 +24,7 @@ export async function getEffectiveTerms(
   /** Client corrections 2026-10-05 — Special Fare: Domestic / International terms first, then the any-route ones. */
   flightScope: FlightScope | null = null
 ): Promise<EffectiveTerms | null> {
-  const select = { id: true, version: true, title: true, body: true } as const;
+  const select = { id: true, version: true, title: true, body: true, acceptanceText: true } as const;
   const scopes: (FlightScope | null)[] = flightScope ? [flightScope, null] : [null];
   for (const scope of scopes) {
     if (countryId) {

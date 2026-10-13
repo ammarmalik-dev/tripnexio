@@ -141,7 +141,8 @@ function QuoteCard({
   const expired = Boolean(specialFare) && (Boolean(quote.expired) || (remainingMs !== null && remainingMs <= 0));
   const cancellation = quote.cancellation;
   const counts = specialFare?.passengerCounts;
-  const multiSector = (quote.itinerary?.length ?? 0) > 1;
+  // Client doc 2026-10-14 — the full itinerary (times, terminals) is shown sector by sector; the header keeps airline + route.
+  const multiSector = (quote.itinerary?.length ?? 0) > 0;
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
       {quote.alternativeLabel ? (
@@ -172,14 +173,13 @@ function QuoteCard({
           ) : null}
           {quote.baggageAllowance ? <span className="text-xs text-ink-tertiary">Baggage: {quote.baggageAllowance}</span> : null}
           {quote.fareType ? <span className="text-xs text-ink-tertiary">Fare: {quote.fareType}</span> : null}
-          {quote.terminal ? <span className="text-xs text-ink-tertiary">Terminal: {quote.terminal}</span> : null}
+          {quote.terminal && !multiSector ? <span className="text-xs text-ink-tertiary">Terminal: {quote.terminal}</span> : null}
           {quote.reportingTime ? <span className="text-xs text-ink-tertiary">Reporting time: {quote.reportingTime}</span> : null}
           {quote.bookingDeadline ? <span className="text-xs text-ink-tertiary">Booking deadline: {formatDateTime(quote.bookingDeadline)}</span> : null}
         </div>
       ) : null}
 
-      {/* A one-sector flight is already shown in full above; only a multi-sector trip lists its sectors (client 2026-10-13: no repeats). */}
-      {quote.itinerary && quote.itinerary.length > 0 && !(specialFare && quote.itinerary.length === 1) ? <ItinerarySectors segments={quote.itinerary} title="Your itinerary" airlines={quote.airlines} /> : null}
+      {quote.itinerary && quote.itinerary.length > 0 ? <ItinerarySectors segments={quote.itinerary} title="Your itinerary" airlines={quote.airlines} /> : null}
 
       {specialFare && counts ? (
         <div className="flex flex-col gap-2">
@@ -197,7 +197,7 @@ function QuoteCard({
         <div className="flex flex-col gap-1 text-xs text-ink-secondary">
           {quote.fareRules ? (
             <p className="whitespace-pre-line">
-              <span className="font-semibold text-ink-heading">Fare rules &amp; cancellation policy: </span>
+              <span className="font-semibold text-ink-heading">Fare rules: </span>
               {quote.fareRules}
             </p>
           ) : null}
@@ -214,13 +214,18 @@ function QuoteCard({
       (cancellation.allowed !== null || cancellation.policy || cancellation.charge !== null || cancellation.noShowCharge !== null || cancellation.estimatedRefund !== null) ? (
         <div className="flex flex-col gap-2 rounded-lg bg-surface-2 p-3">
           <span className="text-sm font-semibold text-ink-heading">Cancellation &amp; refund</span>
-          {cancellation.allowed !== null ? <BreakdownRow label="Cancellation" value={cancellation.allowed ? "Allowed" : "Not allowed"} /> : null}
-          {cancellation.charge !== null ? (
+          {/* Client doc 2026-10-14 — a fare that can't be cancelled says so, without contradictory charges. */}
+          {cancellation.allowed !== null ? (
+            <BreakdownRow label="Cancellation" value={cancellation.allowed ? "Allowed" : "Not allowed — non-refundable fare"} />
+          ) : null}
+          {cancellation.allowed !== false && cancellation.charge !== null ? (
             <BreakdownRow label="Cancellation charge" value={`${formatRupees(cancellation.charge)}${cancellation.chargeBasis ? ` (${cancellation.chargeBasis})` : ""}`} />
           ) : null}
           {cancellation.timeCondition ? <BreakdownRow label="Applies" value={cancellation.timeCondition} /> : null}
-          {cancellation.noShowCharge !== null ? <BreakdownRow label="No-show charge" value={formatRupees(cancellation.noShowCharge)} /> : null}
-          {cancellation.estimatedRefund !== null ? <BreakdownRow label="Estimated refund" value={formatRupees(cancellation.estimatedRefund)} /> : null}
+          {cancellation.allowed !== false && cancellation.noShowCharge !== null ? <BreakdownRow label="No-show charge" value={formatRupees(cancellation.noShowCharge)} /> : null}
+          {cancellation.allowed !== false && cancellation.estimatedRefund !== null ? (
+            <BreakdownRow label="Estimated refund" value={formatRupees(cancellation.estimatedRefund)} />
+          ) : null}
           {cancellation.policy ? <p className="whitespace-pre-line text-xs text-ink-secondary">{cancellation.policy}</p> : null}
         </div>
       ) : null}

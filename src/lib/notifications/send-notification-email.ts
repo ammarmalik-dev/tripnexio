@@ -1,4 +1,7 @@
 import { db } from "../db";
+import { OUTPUT_IMPORTANT_INFO } from "../outputs/output-notes";
+import { escapeHtml } from "../html/escape";
+import type { OutputType } from "../outputs/output-types";
 import { ctaFor } from "./cta";
 import { emailButtonHtml } from "../email/layout";
 import { writeAudit } from "../audit/log";
@@ -88,7 +91,14 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
       .replace(/\n/g, "<br>")
       .replace(CTA_MARKER, cta ? emailButtonHtml(cta.label, cta.url) : "")
       .replaceAll(CTA_MARKER, "");
-    const html = OUTPUT_EVENTS.has(event) ? `${body}<p style="margin-top:16px"><strong>${OUTPUT_DISCREPANCY_NOTE}</strong></p>` : body;
+    const info = OUTPUT_IMPORTANT_INFO[variables.outputType as OutputType];
+    const html = info
+      ? `${body}<div style="margin-top:18px;padding:14px 16px;border-radius:12px;background:#F1F6FE"><p style="margin:0 0 8px"><strong>${escapeHtml(info.title)}</strong></p>${info.lines
+          .map((line) => `<p style="margin:0 0 6px">${escapeHtml(line)}</p>`)
+          .join("")}<p style="margin:10px 0 0"><strong>${escapeHtml(info.closing)}</strong></p></div>`
+      : OUTPUT_EVENTS.has(event)
+        ? `${body}<p style="margin-top:16px"><strong>${OUTPUT_DISCREPANCY_NOTE}</strong></p>`
+        : body;
 
     const sender = getEmailSender();
     const hero = await emailHeroFor(event, auditTarget, variables);

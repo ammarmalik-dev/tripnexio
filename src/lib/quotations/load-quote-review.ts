@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { specialFarePaxCounts } from "../special-fare/pax-counts";
 import { leadReference } from "../leads/reference";
 import { getEffectiveTerms, leadFlightScope, resolveLeadCountryId } from "../terms/service-terms";
 import { isExpiredNow } from "./sync-expiry";
@@ -49,6 +50,27 @@ export async function loadQuoteReviewByToken(token: string) {
     ordered.flatMap((quotation) => [quotation.airline, ...parseStoredItinerary(quotation.itinerary).map((segment) => segment.airline)])
   );
 
+  // Client doc 2026-10-14 — each option shows the departure / arrival city, not only airport codes.
+  const placeCodes = [
+    ...new Set(
+      ordered.flatMap((quotation) => [
+        quotation.fromAirportCode,
+        quotation.toAirportCode,
+        ...parseStoredItinerary(quotation.itinerary).flatMap((segment) => [segment.from, segment.to]),
+      ])
+    ),
+  ].filter((code): code is string => Boolean(code));
+  const airports = placeCodes.length
+    ? await db.airport.findMany({ where: { code: { in: placeCodes.map((code) => code.toUpperCase()) } }, select: { code: true, city: true } })
+    : [];
+  const cityOf = new Map(airports.map((airport) => [airport.code, airport.city]));
+  const place = (code: string) => {
+    const city = cityOf.get(code.trim().toUpperCase());
+    return city ? `${city} (${code.trim().toUpperCase()})` : code;
+  };
+  const cityRoute = (quotation: (typeof ordered)[number]) =>
+    quotation.fromAirportCode && quotation.toAirportCode ? `${place(quotation.fromAirportCode)} → ${place(quotation.toAirportCode)}` : quotation.route;
+
   const quotations = ordered
     .map((quotation) => ({
       id: quotation.id,
@@ -66,7 +88,7 @@ export async function loadQuoteReviewByToken(token: string) {
             airlines: airlineDisplay,
             flightScope: quotation.flightScope,
             flightNumber: quotation.flightNumber,
-            route: quotation.route,
+            route: cityRoute(quotation),
             flightDateTime: quotation.flightDateTime,
             arrivalDateTime: quotation.arrivalDateTime,
             baggageAllowance: quotation.baggageAllowance,
@@ -74,7 +96,9 @@ export async function loadQuoteReviewByToken(token: string) {
           }
         : {}),
       // P22 — multi-sector itinerary (customer-safe: places, times, airline, flight number, sector notes).
-      ...(supportsMultiSectorItinerary(lead.serviceType) ? { itinerary: parseStoredItinerary(quotation.itinerary) } : {}),
+      ...(supportsMultiSectorItinerary(lead.serviceType)
+        ? { itinerary: parseStoredItinerary(quotation.itinerary).map((segment) => ({ ...segment, from: place(segment.from), to: place(segment.to) })) }
+        : {}),
       // P15 — Special Fare: fares per passenger type, the customer-facing
       // details and cancellation terms (never vendor cost, margin or vendor
       // reference), and the alternative-route wording.
@@ -97,7 +121,7 @@ export async function loadQuoteReviewByToken(token: string) {
               estimatedRefund: money(quotation.estimatedRefund),
               policy: quotation.customerCancellationPolicy,
             },
-            alternativeLabel: quotation.alternativeOfId ? alternativeRouteLabel(requestedRoute, quotation.route) : null,
+            alternativeLabel: quotation.alternativeOfId ? alternativeRouteLabel(requestedRoute, cityRoute(quotation)) : null,
           }
         : {}),
       // P14 — Visa Change: the option's A2A or Border block (customer-safe rows only — never vendor/cost).
@@ -139,17 +163,7 @@ export async function loadQuoteReviewByToken(token: string) {
 
   // P15 — Special Fare: passenger count by Adult / Child / Infant (from the lead's passengers).
   let passengerCounts: { adult: number; child: number; infant: number } | null = null;
-  if (flight) {
-    const ids = Array.isArray((lead.details as Record<string, unknown> | null)?.passengerIds)
-      ? ((lead.details as Record<string, unknown>).passengerIds as string[])
-      : [];
-    const passengers = ids.length > 0 ? await db.passenger.findMany({ where: { id: { in: ids } }, select: { paxType: true } }) : [];
-    passengerCounts = {
-      adult: passengers.filter((p) => p.paxType === "ADULT").length,
-      child: passengers.filter((p) => p.paxType === "CHILD").length,
-      infant: passengers.filter((p) => p.paxType === "INFANT").length,
-    };
-  }
+  if (flight) passengerCounts = await specialFarePaxCounts(lead);
   const details = (lead.details ?? {}) as Record<string, unknown>;
 
   const terms = await getEffectiveTerms(lead.serviceType, await resolveLeadCountryId(lead.details), await leadFlightScope(lead));
@@ -160,7 +174,7 @@ export async function loadQuoteReviewByToken(token: string) {
     leadStatus: lead.status,
     quotations,
     bookingToken: booking?.customerToken ?? null,
-    terms: terms ? { title: terms.title, body: terms.body, version: terms.version } : null,
+    terms: terms ? { title: terms.title, body: terms.body, version: terms.version, acceptanceText: terms.acceptanceText } : null,
     extension,
     specialFare: flight
       ? { requestedRoute, passengerCounts, newQuoteRequested: typeof details.newQuoteRequestedAt === "string" }

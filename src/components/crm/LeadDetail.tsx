@@ -146,6 +146,23 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+/** Client doc 2026-10-14 — the Special Fare quote is priced per Adult / Child / Infant. */
+function paxCountsOf(passengers: { paxType: PaxType }[]): { adult: number; child: number; infant: number } {
+  const counts = {
+    adult: passengers.filter((p) => p.paxType === "ADULT").length,
+    child: passengers.filter((p) => p.paxType === "CHILD").length,
+    infant: passengers.filter((p) => p.paxType === "INFANT").length,
+  };
+  return counts.adult + counts.child + counts.infant > 0 ? counts : { adult: 1, child: 0, infant: 0 };
+}
+
+/** "Delhi - Indira Gandhi International Airport (DEL)" (the website's airport field) -> "DEL". */
+function airportCodeOf(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const match = value.match(/\(([A-Z0-9]{3,4})\)\s*$/i) ?? value.trim().match(/^([A-Z]{3})$/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
 export function LeadDetail({
   leadId,
   canReassignLeads,
@@ -497,6 +514,8 @@ export function LeadDetail({
                     leadId={lead.id}
                     serviceType={lead.serviceType}
                     visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
+                    paxCounts={paxCountsOf(lead.passengers)}
+                    flightRequest={{ fromCode: airportCodeOf(lead.details.origin), toCode: airportCodeOf(lead.details.destination) }}
                     leadStatus={lead.status}
                     onLeadChanged={refresh}
                   />

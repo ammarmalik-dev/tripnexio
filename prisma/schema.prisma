@@ -349,6 +349,11 @@ model Quotation {
   adultFare                  Decimal?  @db.Decimal(10, 2)
   childFare                  Decimal?  @db.Decimal(10, 2)
   infantFare                 Decimal?  @db.Decimal(10, 2)
+  /// Client doc 2026-10-14 — Special Fare vendor cost per Adult / Child / Infant
+  /// (internal only); vendorCost = Σ cost × passengers of that type.
+  adultVendorCost            Decimal?  @db.Decimal(10, 2)
+  childVendorCost            Decimal?  @db.Decimal(10, 2)
+  infantVendorCost           Decimal?  @db.Decimal(10, 2)
   /// Visa Change itinerary options: the flight-ticket component of one itinerary, added on top of feeAmount + fineOrCharges.
   flightTicketPrice          Decimal?  @db.Decimal(10, 2)
   /// --- Visa services / OTB fields (simple fee-based quote) ---
@@ -2697,6 +2702,9 @@ model ServiceTerms {
   version     Int
   title       String
   body        String
+  /// Client 2026-10-14 — the customer's checkbox sentence before payment
+  /// (e.g. "I have read and agree to the OTB Terms & Conditions…"); null = the default "I agree to the Terms & Conditions above."
+  acceptanceText String?
   active      Boolean     @default(true)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

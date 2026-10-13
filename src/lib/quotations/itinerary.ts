@@ -26,6 +26,9 @@ export const itinerarySegmentSchema = z.object({
   arriveAt: optionalDateTime,
   airline: optionalText(80),
   flightNumber: optionalText(20),
+  /** Client doc 2026-10-14 — each sector's departure / arrival terminal. */
+  departTerminal: optionalText(60),
+  arriveTerminal: optionalText(60),
   notes: optionalText(300),
 });
 
@@ -48,6 +51,8 @@ export interface StoredItinerarySegment {
   arriveAt?: string;
   airline?: string;
   flightNumber?: string;
+  departTerminal?: string;
+  arriveTerminal?: string;
   notes?: string;
 }
 
@@ -69,6 +74,10 @@ export function normalizeItinerary(segments: ItinerarySegment[]): StoredItinerar
     const airline = blankToUndefined(segment.airline);
     const flightNumber = blankToUndefined(segment.flightNumber);
     const notes = blankToUndefined(segment.notes);
+    const departTerminal = blankToUndefined(segment.departTerminal);
+    const arriveTerminal = blankToUndefined(segment.arriveTerminal);
+    if (departTerminal) stored.departTerminal = departTerminal;
+    if (arriveTerminal) stored.arriveTerminal = arriveTerminal;
     if (departAt) stored.departAt = departAt;
     if (arriveAt) stored.arriveAt = arriveAt;
     if (airline) stored.airline = airline;
@@ -97,6 +106,8 @@ export interface SectorFlightFields {
   flightNumber?: string;
   flightDateTime?: string;
   arrivalDateTime?: string;
+  /** The first sector's departure terminal (the quote's "Terminal"). */
+  terminal?: string;
 }
 
 /**
@@ -106,7 +117,9 @@ export interface SectorFlightFields {
  * sector's arrival. A round trip (back where it started) takes the outbound
  * destination as the route's "to", so DEL → DXB → DEL reads "DEL → DXB".
  */
-export function flightFieldsFromSectors(segments: { from: string; to: string; departAt?: string; arriveAt?: string; airline?: string; flightNumber?: string }[]): SectorFlightFields | null {
+export function flightFieldsFromSectors(
+  segments: { from: string; to: string; departAt?: string; arriveAt?: string; airline?: string; flightNumber?: string; departTerminal?: string }[]
+): SectorFlightFields | null {
   if (segments.length === 0) return null;
   const first = segments[0];
   const last = segments[segments.length - 1];
@@ -121,5 +134,6 @@ export function flightFieldsFromSectors(segments: { from: string; to: string; de
     flightNumber: text(first.flightNumber),
     flightDateTime: text(first.departAt),
     arrivalDateTime: text(last.arriveAt),
+    terminal: text(first.departTerminal),
   };
 }

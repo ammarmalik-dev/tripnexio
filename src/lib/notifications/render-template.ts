@@ -15,6 +15,7 @@ import { escapeHtml } from "../html/escape";
 const REQUIRED_LINES: Record<string, string> = {
   rejectionReason: "Reason: {{rejectionReason}}",
   unsubscribeLink: "To stop these reminders, visit {{unsubscribeLink}}",
+  ticketDetails: "{{ticketDetails}}",
 };
 
 /** Appends REQUIRED_LINES for filled-in variables the template body doesn't already use. */

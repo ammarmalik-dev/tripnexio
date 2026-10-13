@@ -25,6 +25,10 @@ export const createQuotationSchema = z.object({
   adultFare: z.number().nonnegative("Adult fare can't be negative").optional(),
   childFare: z.number().nonnegative("Child fare can't be negative").optional(),
   infantFare: z.number().nonnegative("Infant fare can't be negative").optional(),
+  /** Client doc 2026-10-14 — Special Fare vendor cost per passenger type (internal only). */
+  adultVendorCost: z.number().nonnegative("Vendor cost can't be negative").optional(),
+  childVendorCost: z.number().nonnegative("Vendor cost can't be negative").optional(),
+  infantVendorCost: z.number().nonnegative("Vendor cost can't be negative").optional(),
   sellingPrice: z.number().nonnegative("Selling price can't be negative").optional(),
 
   // P15 — Flight Special Fare quote details and cancellation terms (Locked

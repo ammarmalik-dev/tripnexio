@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       select: { version: true },
     });
     const row = await tx.serviceTerms.create({
-      data: { serviceType: parsed.data.serviceType, countryId, flightScope, title: parsed.data.title, body: parsed.data.body, version: (latest?.version ?? 0) + 1 },
+      data: { serviceType: parsed.data.serviceType, countryId, flightScope, title: parsed.data.title, body: parsed.data.body, acceptanceText: parsed.data.acceptanceText || null, version: (latest?.version ?? 0) + 1 },
       include,
     });
     await writeAudit(tx, {

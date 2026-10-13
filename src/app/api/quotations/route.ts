@@ -1,4 +1,5 @@
 import { leadOwnershipWhere, seesAllRecords } from "@/lib/auth/ownership";
+import { specialFarePaxCounts, specialFareTotals } from "@/lib/special-fare/pax-counts";
 import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
 import { defaultVisaChangeInclusions, VISA_CHANGE_EXCLUSIONS } from "@/lib/visa-change/inclusions";
 import type { NextRequest } from "next/server";
@@ -201,13 +202,17 @@ export async function POST(request: NextRequest) {
 
   // Client 2026-10-13 — a Special Fare flight is entered once, as sectors; the
   // route, airline, flight number and times are derived from them here.
-  if (parsed.data.itinerary && parsed.data.itinerary.length > 0) {
-    const sectorLead = await db.lead.findUnique({ where: { id: parsed.data.leadId }, select: { serviceType: true } });
-    if (sectorLead?.serviceType === "FLIGHT_SPECIAL_FARE") {
+  // Client doc 2026-10-14 — its selling price and vendor cost come from the
+  // per-passenger rates × the lead's Adult / Child / Infant counts, and the
+  // vendor cost is the non-taxable (airline) part of the invoice.
+  const sfLead = await db.lead.findUnique({ where: { id: parsed.data.leadId }, select: { serviceType: true, details: true, paxCount: true } });
+  if (sfLead?.serviceType === "FLIGHT_SPECIAL_FARE") {
+    if (parsed.data.itinerary && parsed.data.itinerary.length > 0) {
       const sectors = await resolveSectorFlight(parsed.data.itinerary);
       if (!sectors.ok) return jsonError(400, sectors.error, { itinerary: [sectors.error] });
       Object.assign(parsed.data, sectors.fields);
     }
+    Object.assign(parsed.data, specialFareTotals(parsed.data, await specialFarePaxCounts(sfLead)));
   }
 
   const {
@@ -385,6 +390,9 @@ export async function POST(request: NextRequest) {
         adultFare,
         childFare,
         infantFare,
+        adultVendorCost: parsed.data.adultVendorCost,
+        childVendorCost: parsed.data.childVendorCost,
+        infantVendorCost: parsed.data.infantVendorCost,
         feeAmount,
         fineOrCharges,
         otherCharges,

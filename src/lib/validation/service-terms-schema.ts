@@ -12,6 +12,8 @@ export const createServiceTermsSchema = z.object({
   flightScope: z.enum(flightScopeValues).nullable().optional(),
   title: z.string().trim().min(3, "Enter a title").max(120, "Title is too long"),
   body: z.string().trim().min(20, "Enter the full terms text").max(50000, "Terms text is too long"),
+  /** Client 2026-10-14 — the customer's checkbox sentence; blank = "I agree to the Terms & Conditions above." */
+  acceptanceText: z.string().trim().max(600, "Keep the checkbox text under 600 characters").optional(),
 });
 
 export const updateServiceTermsSchema = z.object({ active: z.boolean() });
