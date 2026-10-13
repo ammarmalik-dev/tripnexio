@@ -20,8 +20,8 @@ export interface EmailHero {
   illustration: EmailIllustration;
   /** Client corrections 2026-10-05 §9 — flight emails show the airline's logo + name under the heading. */
   airline?: { name: string; logoUrl: string | null } | null;
-  /** The Booking ID / Service card (client testing 2026-10-09, H). */
-  summary?: { reference: string | null; service: string | null } | null;
+  /** The Booking ID / Service card (client testing 2026-10-09, H), plus passengers / route / travel date (client 2026-10-14). */
+  summary?: { reference: string | null; service: string | null; trip?: { label: string; value: string }[] } | null;
 }
 
 export interface EmailSocials {
@@ -68,6 +68,11 @@ export function stripTrailingSignature(bodyHtml: string, companyName: string): s
   return bodyHtml.replace(new RegExp(`(?:<br\\s*/?>|\\s)*(?:—|–|-{1,2})\\s*(?:Team\\s+)?${name}\\.?(?:<br\\s*/?>|\\s)*$`, "i"), "");
 }
 
+/** A bulletproof (table-based, Outlook-safe) button — "Pay Now", "Download"… (client 2026-10-14: buttons, not bare links). */
+export function emailButtonHtml(label: string, url: string): string {
+  return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:14px 0"><tr><td style="border-radius:10px;background:${BLUE}"><a href="${escapeEmailText(url)}" style="${FONT}display:inline-block;padding:12px 28px;font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:10px">${escapeEmailText(label)}</a></td></tr></table>`;
+}
+
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
@@ -111,6 +116,9 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
             <td valign="middle" style="${FONT}padding:16px 20px;border-left:1px solid ${BORDER}">
               ${summary.reference ? `<p style="margin:0;font-size:13px;color:${MUTED}">Booking ID</p><p style="margin:2px 0 0;font-size:20px;font-weight:700;color:${BLUE}">${esc(summary.reference)}</p>` : ""}
               ${summary.service ? `<p style="margin:${summary.reference ? "10px" : "0"} 0 0;font-size:13px;color:${MUTED}">Service</p><p style="margin:2px 0 0;font-size:16px;color:${INK}">${esc(summary.service)}</p>` : ""}
+              ${(summary.trip ?? [])
+                .map((fact) => `<p style="margin:10px 0 0;font-size:13px;color:${MUTED}">${esc(fact.label)}</p><p style="margin:2px 0 0;font-size:16px;color:${INK}">${esc(fact.value)}</p>`)
+                .join("")}
             </td>
           </tr>
         </table>

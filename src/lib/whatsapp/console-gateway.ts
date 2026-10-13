@@ -27,6 +27,11 @@ export class ConsoleWhatsAppGateway implements WhatsAppGateway {
     return { id: `console_wa_${crypto.randomUUID()}` };
   }
 
+  async sendCtaUrl(to: string): Promise<SendMessageResult> {
+    console.log(`[whatsapp:console] button message not delivered (no provider configured) to ${maskRecipient(to)}`);
+    return { id: `console_wa_${crypto.randomUUID()}` };
+  }
+
   async sendTemplateMessage(to: string, input: SendTemplateMessageInput): Promise<SendMessageResult> {
     console.log(`[whatsapp:console] template "${input.templateName}" not delivered (no provider configured) to ${maskRecipient(to)}`);
     return { id: `console_wa_${crypto.randomUUID()}` };

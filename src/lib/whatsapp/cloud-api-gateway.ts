@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { MAX_MEDIA_BYTES, type DownloadedMedia, type SendInteractiveListInput, type SendMessageResult, type SendTemplateMessageInput, type WhatsAppGateway } from "./gateway";
+import { MAX_MEDIA_BYTES, type DownloadedMedia, type SendCtaUrlInput, type SendInteractiveListInput, type SendMessageResult, type SendTemplateMessageInput, type WhatsAppGateway } from "./gateway";
 
 const GRAPH_API_VERSION = "v21.0";
 
@@ -63,16 +63,31 @@ export class WhatsAppCloudApiGateway implements WhatsAppGateway {
     });
   }
 
+  async sendCtaUrl(to: string, input: SendCtaUrlInput): Promise<SendMessageResult> {
+    return this.send({
+      to,
+      type: "interactive",
+      interactive: {
+        type: "cta_url",
+        body: { text: input.bodyText.slice(0, 1024) },
+        action: { name: "cta_url", parameters: { display_text: input.buttonText.slice(0, 20), url: input.url } },
+      },
+    });
+  }
+
   async sendTemplateMessage(to: string, input: SendTemplateMessageInput): Promise<SendMessageResult> {
+    const components: Record<string, unknown>[] = [];
+    if (input.bodyParameters.length) components.push({ type: "body", parameters: input.bodyParameters.map((text) => ({ type: "text", text })) });
+    if (input.buttonUrlSuffix) {
+      components.push({ type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: input.buttonUrlSuffix }] });
+    }
     return this.send({
       to,
       type: "template",
       template: {
         name: input.templateName,
         language: { code: input.languageCode },
-        components: input.bodyParameters.length
-          ? [{ type: "body", parameters: input.bodyParameters.map((text) => ({ type: "text", text })) }]
-          : undefined,
+        components: components.length ? components : undefined,
       },
     });
   }

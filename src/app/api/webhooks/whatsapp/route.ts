@@ -140,6 +140,9 @@ export async function POST(request: NextRequest) {
   try {
     if (result.replyMenu) {
       await gateway.sendInteractiveList(waId, result.replyMenu);
+    } else if (result.replyCta) {
+      // The link goes as a tappable button; the logged replyText keeps the URL for staff.
+      await gateway.sendCtaUrl(waId, { bodyText: result.replyText.replace(result.replyCta.url, "").replace(/\n{3,}/g, "\n\n").trim(), buttonText: result.replyCta.label, url: result.replyCta.url });
     } else {
       await gateway.sendSessionText(waId, result.replyText);
     }

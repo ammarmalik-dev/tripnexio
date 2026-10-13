@@ -1,4 +1,5 @@
 import { createLeadFromSubmission, notifyLeadReceived } from "../leads/create-lead";
+import { tripFactsForLead, tripSummaryLine } from "../leads/trip-summary";
 import { checkVisaExtensionEligibility, getIneligibleRedirect } from "../leads/visa-extension-eligibility";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getAiProvider } from "./get-ai-provider";
@@ -32,6 +33,8 @@ export interface EngineResult {
   nextServiceType: ServiceType | null;
   nextCollectedFields: Record<string, string>;
   leadId?: string;
+  /** Client 2026-10-14 — sent as a message with a tappable button (e.g. Pay Now) instead of plain replyText. */
+  replyCta?: { label: string; url: string };
 }
 
 async function greetingReply(profileName: string | null): Promise<EngineResult> {
@@ -225,6 +228,8 @@ async function continueCollecting(
               vendorCost: price.vendorCost,
               invoiceLines: price.invoiceLines,
               actorLabel: "WhatsApp bot checkout",
+              // This reply carries the Pay Now button — one WhatsApp message, not two (client 2026-10-14).
+              skipWhatsAppNotice: true,
             })
           : null;
         if (checkout) payUrl = `${siteConfig.url}/pay/${checkout.token}`;
@@ -255,8 +260,9 @@ ${messages.visaCopyRequest(pending[0]?.name ?? nextCollected.fullName, redirect.
 
     return {
       replyText: payUrl
-        ? messages.leadCreatedWithPayLink(result.referenceId, SERVICE_TYPE_LABELS[serviceType], payUrl)
+        ? messages.leadCreatedWithPayLink(result.referenceId, SERVICE_TYPE_LABELS[serviceType], payUrl, tripSummaryLine(await tripFactsForLead(result.leadId)))
         : messages.leadCreated(result.referenceId, serviceType),
+      ...(payUrl ? { replyCta: { label: "Pay Now", url: payUrl } } : {}),
       nextState: "COMPLETED",
       nextServiceType: serviceType,
       nextCollectedFields: nextCollected,

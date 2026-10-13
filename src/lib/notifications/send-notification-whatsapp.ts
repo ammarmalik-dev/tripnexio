@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { ctaFor, ctaUrlSuffix, withoutLinkPlaceholder } from "./cta";
 import { writeAudit } from "../audit/log";
 import { getWhatsAppGateway } from "../whatsapp/get-gateway";
 import { renderTemplate, withRequiredLines } from "./render-template";
@@ -76,12 +77,17 @@ export async function sendNotificationWhatsApp(input: SendNotificationWhatsAppIn
     // Meta-approved template is set up yet. Outside the window a template is
     // required (below).
     const conversation = await db.whatsAppConversation.findUnique({ where: { waId: to }, select: { lastInboundAt: true } });
+    // Client 2026-10-14 — the event's link (Pay Now, Download…) goes as a tappable button, not a bare URL.
+    const cta = ctaFor(event, variables);
     if (conversation?.lastInboundAt && conversation.lastInboundAt.getTime() > Date.now() - SESSION_WINDOW_MS) {
-      const text = renderTemplate(withRequiredLines(template.body, variables), variables, { escape: false })
+      const body = cta ? withoutLinkPlaceholder(template.body, cta.variable) : template.body;
+      const text = renderTemplate(withRequiredLines(body, variables), variables, { escape: false })
         .replace(/<[^>]+>/g, "")
         .trim();
       const gateway = getWhatsAppGateway();
-      const result = await gateway.sendSessionText(to, text);
+      const result = cta
+        ? await gateway.sendCtaUrl(to, { bodyText: text, buttonText: cta.label, url: cta.url })
+        : await gateway.sendSessionText(to, text);
       await writeAudit(db, {
         entityType: auditTarget.entityType,
         entityId: auditTarget.entityId,
@@ -105,10 +111,15 @@ export async function sendNotificationWhatsApp(input: SendNotificationWhatsAppIn
     const bodyParameters = orderedVariableNames.map((name) => variables[name] ?? "");
 
     const gateway = getWhatsAppGateway();
+    // A body without the link placeholder means the Meta template carries the link as its
+    // URL button (https://tripnexio.com/{{1}}) — send the dynamic part for it.
+    const buttonUrlSuffix =
+      cta && !new RegExp(`\\{\\{\\s*${cta.variable}\\s*\\}\\}`).test(template.body) ? (ctaUrlSuffix(cta.url) ?? undefined) : undefined;
     const result = await gateway.sendTemplateMessage(to, {
       templateName: template.metaTemplateName,
       languageCode: template.metaTemplateLanguage?.trim() || "en",
       bodyParameters,
+      buttonUrlSuffix,
     });
 
     await writeAudit(db, {

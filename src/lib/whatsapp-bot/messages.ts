@@ -46,10 +46,12 @@ export function leadCreated(referenceId: string, serviceType: ServiceType): stri
   );
 }
 
-export function leadCreatedWithPayLink(referenceId: string, serviceLabel: string, payUrl: string): string {
+export function leadCreatedWithPayLink(referenceId: string, serviceLabel: string, payUrl: string, tripSummary = ""): string {
   return (
     `All set! Your ${serviceLabel} booking is created — Booking ID *${referenceId}*.\n\n` +
-    `Complete your payment securely here:\n${payUrl}\n\n` +
+    // Client 2026-10-14 — passengers, route / destination and travel date in the confirmation.
+    (tripSummary ? `${tripSummary.split(" · ").join("\n")}\n\n` : "") +
+    `Tap *Pay Now* below to complete your payment securely.\n${payUrl}\n\n` +
     `After payment you can upload the required documents on the same page. Type "status" anytime to check progress.`
   );
 }

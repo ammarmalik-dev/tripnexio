@@ -14,13 +14,18 @@ import { siteConfig } from "../site-config";
 /** Fallback when the service has no configured `paymentDeadlineHours` (Step 42) — the original hardcoded value, unchanged for every service until an Admin opts in. */
 export const DEFAULT_PAYMENT_LINK_VALIDITY_HOURS = 24;
 
+/** Direct-payment services whose payment link never expires (client 2026-10-14). */
+export const NO_EXPIRY_LINK_SERVICES: ReadonlySet<ServiceType> = new Set<ServiceType>(["NEW_VISA", "OTB", "RETURN_TICKET"]);
+
 /**
- * P24 — the one place a payment link's validity is decided:
+ * P24 — the one place a payment link's validity is decided (null = no expiry):
  * service paymentDeadlineHours (Admin → Timelines) ?? SystemConfig.defaultPaymentLinkHours
  * (Admin → Payment Gateway) ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS. Uses the
  * global db — call it outside any transaction.
  */
-export async function resolvePaymentLinkValidityHours(serviceType: ServiceType): Promise<number> {
+export async function resolvePaymentLinkValidityHours(serviceType: ServiceType): Promise<number | null> {
+  // Client 2026-10-14 — "do not set a time limit on OTB, Return Ticket and New Visa payment links".
+  if (NO_EXPIRY_LINK_SERVICES.has(serviceType)) return null;
   const { paymentDeadlineHours } = await getServiceTimelineRules(serviceType);
   if (paymentDeadlineHours != null) return paymentDeadlineHours;
   return (await getDefaultPaymentLinkHours()) ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS;
@@ -45,6 +50,8 @@ interface CreateGatewayPaymentInput {
   protectionPlans?: { ids: string[]; amount: number };
   /** Client corrections 2026-10-05 — the government / airline fee inside `baseAmount`; GST is charged on the rest only. */
   nonTaxableAmount?: number;
+  /** The WhatsApp bot sends the Pay Now button in its own reply — no second WhatsApp message (client 2026-10-14). */
+  skipWhatsAppNotice?: boolean;
 }
 
 /**
@@ -74,7 +81,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   // caller invokes createPendingPayment/createExtraPayment outside any
   // transaction, so using the global db is safe.
   const validityHours = await resolvePaymentLinkValidityHours(booking.lead.serviceType);
-  const linkExpiresAt = new Date(Date.now() + validityHours * 60 * 60 * 1000);
+  const linkExpiresAt = validityHours === null ? null : new Date(Date.now() + validityHours * 60 * 60 * 1000);
 
   const reference = leadReference(booking.lead);
   // Client corrections 2026-10-05 §27 — failover: try each active, configured
@@ -175,7 +182,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
     return created;
   });
   // Client testing 2026-10-09 — the customer gets the link on email + WhatsApp (never throws).
-  await notifyPaymentLinkReady(createdPayment.id);
+  await notifyPaymentLinkReady(createdPayment.id, { skipWhatsApp: input.skipWhatsAppNotice });
   return createdPayment;
 }
 
@@ -191,6 +198,7 @@ export async function createPendingPayment(input: {
   booking: Booking & { customer: Customer; lead: Lead };
   quotation: Quotation;
   actor: { byUserId?: string; label: string };
+  skipWhatsAppNotice?: boolean;
 }) {
   const { booking, quotation, actor } = input;
   const protectionPlans = await unpaidAcceptedProtectionPlans(booking.id);
@@ -204,6 +212,7 @@ export async function createPendingPayment(input: {
     purpose: "PRIMARY",
     protectionPlans,
     nonTaxableAmount: nonTaxableQuotationAmount(booking.lead.serviceType, quotation),
+    skipWhatsAppNotice: input.skipWhatsAppNotice,
   });
 }
 

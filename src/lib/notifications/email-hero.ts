@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { TRIP_LEAD_SELECT, tripFacts, type TripFact, type TripLead } from "../leads/trip-summary";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import type { EmailHero, EmailIllustration } from "../email/layout";
 import type { ServiceType } from "../../generated/prisma/enums";
@@ -36,13 +37,14 @@ const STATUS_EVENTS = new Set(["SERVICE_STATUS_UPDATE", "OUTPUT_DELIVERED"]);
 interface LeadInfo {
   serviceType: ServiceType;
   countryName: string | null;
+  trip: TripFact[];
 }
 
-const LEAD_INFO_SELECT = { serviceType: true, country: { select: { name: true } } } as const;
+const LEAD_INFO_SELECT = TRIP_LEAD_SELECT;
 
 async function leadInfoFor(target: { entityType: string; entityId: string }): Promise<LeadInfo | null> {
   try {
-    let lead: { serviceType: ServiceType; country: { name: string } | null } | null | undefined = null;
+    let lead: TripLead | null | undefined = null;
     switch (target.entityType) {
       case "Lead":
         lead = await db.lead.findUnique({ where: { id: target.entityId }, select: LEAD_INFO_SELECT });
@@ -60,7 +62,7 @@ async function leadInfoFor(target: { entityType: string; entityId: string }): Pr
         lead = (await db.document.findUnique({ where: { id: target.entityId }, select: { booking: { select: { lead: { select: LEAD_INFO_SELECT } } } } }))?.booking?.lead;
         break;
     }
-    return lead ? { serviceType: lead.serviceType, countryName: lead.country?.name ?? null } : null;
+    return lead ? { serviceType: lead.serviceType, countryName: lead.country?.name ?? null, trip: tripFacts(lead) } : null;
   } catch {
     return null;
   }
@@ -139,7 +141,8 @@ export async function emailHeroFor(event: string, target: { entityType: string; 
       ? `${serviceLabel} – ${info.countryName}`
       : serviceLabel
     : variables.serviceType || null;
-  const summary = reference || service ? { reference, service } : null;
+  // Client 2026-10-14 — passengers, route / destination and travel date on every email's card.
+  const summary = reference || service ? { reference, service, trip: info?.trip ?? [] } : null;
 
   if (STATUS_EVENTS.has(event) || (!EVENT_HEADINGS[event] && serviceLabel)) {
     return {

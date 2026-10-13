@@ -16,7 +16,8 @@ export interface CreatePaymentLinkInput {
   customerEmail: string | null;
   /** Arbitrary key-value metadata attached to the gateway's order/link (e.g. bookingId, paymentId) for reconciliation. */
   notes: Record<string, string>;
-  expiresAt: Date;
+  /** null = the link never expires (New Visa / OTB / Return Ticket, client 2026-10-14). */
+  expiresAt: Date | null;
   /** Client corrections 2026-10-05 — where the customer returns after paying (their /pay/<token> page), so checkout stays in one tab. */
   callbackUrl?: string;
 }

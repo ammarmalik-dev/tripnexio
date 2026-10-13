@@ -72,7 +72,7 @@ export class RazorpayGateway implements PaymentGateway {
       notify: { sms: false, email: false },
       reminder_enable: false,
       notes: input.notes,
-      expire_by: Math.floor(input.expiresAt.getTime() / 1000),
+      ...(input.expiresAt ? { expire_by: Math.floor(input.expiresAt.getTime() / 1000) } : {}),
       ...(input.callbackUrl ? { callback_url: input.callbackUrl, callback_method: "get" } : {}),
     });
 

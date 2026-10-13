@@ -50,9 +50,10 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
     label: "Request received",
-    variables: ["customerName", "serviceType", "leadReference", "requestMessage"],
+    variables: ["customerName", "serviceType", "leadReference", "requestMessage", "tripSummary"],
     wired: true,
     sampleVariables: {
+      tripSummary: "Passengers: 2 · Route: Delhi → Dubai · Travel date: 20 Oct 2026",
       customerName: "Sample Customer",
       serviceType: "New Visa",
       leadReference: "10626VI001",
@@ -89,16 +90,17 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.PAYMENT_RECEIVED,
     label: "Payment received",
-    variables: ["customerName", "bookingId", "leadReference", "amount"],
+    variables: ["customerName", "bookingId", "leadReference", "amount", "tripSummary"],
     wired: true,
-    sampleVariables: { customerName: "Sample Customer", bookingId: "10626OT002", leadReference: "10626OT002", amount: "Rs. 1,605.00" },
+    sampleVariables: { tripSummary: "Passengers: 2 · Route: Delhi → Dubai · Travel date: 20 Oct 2026", customerName: "Sample Customer", bookingId: "10626OT002", leadReference: "10626OT002", amount: "Rs. 1,605.00" },
   },
   {
     event: NOTIFICATION_EVENTS.PAYMENT_LINK_READY,
     label: "Payment link ready",
-    variables: ["customerName", "serviceType", "bookingId", "leadReference", "amount", "paymentLink", "linkExpiresAt", "paymentPurpose"],
+    variables: ["customerName", "serviceType", "bookingId", "leadReference", "amount", "paymentLink", "linkExpiresAt", "paymentPurpose", "tripSummary"],
     wired: true,
     sampleVariables: {
+      tripSummary: "Passengers: 2 · Route: Delhi → Dubai · Travel date: 20 Oct 2026",
       customerName: "Sample Customer",
       serviceType: "Return Ticket",
       bookingId: "11026RT043",

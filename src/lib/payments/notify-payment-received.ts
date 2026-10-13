@@ -1,4 +1,6 @@
 import { db } from "../db";
+import { tripSummaryForLead } from "../leads/trip-summary";
+import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import { leadReference } from "../leads/reference";
 import { buildInvoicePdfForPayment, money } from "../invoices/render-invoice";
 import { notifyCustomer } from "../notifications/notify";
@@ -45,6 +47,7 @@ export async function notifyPaymentReceived(paymentId: string, statusNotificatio
       bookingId: payment.booking.bookingId,
       leadReference: leadReference(payment.booking.lead),
       amount: money(total),
+      tripSummary: await tripSummaryForLead(payment.booking.leadId, SERVICE_TYPE_LABELS[payment.booking.lead.serviceType]),
     },
     auditTarget: { entityType: "Payment", entityId: payment.id },
     emailAttachments: invoice ? [{ filename: `invoice-${payment.booking.bookingId}.pdf`, content: invoice.pdf }] : undefined,

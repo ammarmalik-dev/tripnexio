@@ -51,6 +51,8 @@ export async function createAutoCheckout(input: {
   invoiceLines?: InvoiceLine[];
   /** Who raised the payment link (audit wording); defaults to the website checkout. */
   actorLabel?: string;
+  /** The WhatsApp bot replies with the Pay Now button itself, so the payment-link WhatsApp message is skipped. */
+  skipWhatsAppNotice?: boolean;
 }): Promise<{ token: string; bookingId: string } | null> {
   const { leadId, serviceType, totalPrice, vendorCost = 0, extraCharges = 0, couponCode, skipAutoPayment = false, invoiceLines } = input;
   if (!(totalPrice > 0)) return null;
@@ -171,6 +173,7 @@ export async function createAutoCheckout(input: {
       booking: { ...booking, customer: lead.customer, lead },
       quotation,
       actor: { label: input.actorLabel ?? "automatic website checkout" },
+      skipWhatsAppNotice: input.skipWhatsAppNotice,
     });
   }
 

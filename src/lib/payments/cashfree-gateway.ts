@@ -57,7 +57,7 @@ export class CashfreeGateway implements PaymentGateway {
           customer_phone: phone,
           ...(input.customerEmail ? { customer_email: input.customerEmail } : {}),
         },
-        link_expiry_time: input.expiresAt.toISOString(),
+        ...(input.expiresAt ? { link_expiry_time: input.expiresAt.toISOString() } : {}),
         link_notes: input.notes,
         link_notify: { send_sms: false, send_email: false },
         ...(input.callbackUrl ? { link_meta: { return_url: input.callbackUrl } } : {}),

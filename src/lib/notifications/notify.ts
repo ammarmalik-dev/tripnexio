@@ -18,6 +18,11 @@ export interface NotifyCustomerInput {
   variables: Record<string, string>;
   auditTarget: { entityType: string; entityId: string };
   emailAttachments?: EmailAttachment[];
+  /**
+   * Client 2026-10-14 — true when the customer is already getting this news in the
+   * WhatsApp chat itself (the bot's reply), so they don't receive it twice.
+   */
+  skipWhatsApp?: boolean;
 }
 
 /**
@@ -35,12 +40,14 @@ export async function notifyCustomer(input: NotifyCustomerInput): Promise<void> 
       auditTarget: input.auditTarget,
       attachments: input.emailAttachments,
     }),
-    sendNotificationWhatsApp({
-      event: input.event,
-      to: input.whatsappTo,
-      variables: input.variables,
-      auditTarget: input.auditTarget,
-    }),
+    input.skipWhatsApp
+      ? Promise.resolve()
+      : sendNotificationWhatsApp({
+          event: input.event,
+          to: input.whatsappTo,
+          variables: input.variables,
+          auditTarget: input.auditTarget,
+        }),
     sendNotificationSms({
       event: input.event,
       to: input.smsTo,

@@ -5,6 +5,21 @@ export interface SendTemplateMessageInput {
   languageCode: string;
   /** Positional {{1}}, {{2}}, … body parameters, in order. */
   bodyParameters: string[];
+  /**
+   * Client 2026-10-14 ("Pay Now" button, not a bare link) — the dynamic part of
+   * the template's URL button (button 0), e.g. "pay/abc123" for a button whose
+   * Meta URL is https://tripnexio.com/{{1}}. Omitted for a template without one.
+   */
+  buttonUrlSuffix?: string;
+}
+
+/** A session message with one tappable URL button ("Pay Now", "View Quote", "Download"). */
+export interface SendCtaUrlInput {
+  /** Max 1024 chars. */
+  bodyText: string;
+  /** Max 20 chars. */
+  buttonText: string;
+  url: string;
 }
 
 export interface SendMessageResult {
@@ -52,6 +67,8 @@ export interface WhatsAppGateway {
   sendSessionText(to: string, body: string): Promise<SendMessageResult>;
   /** A real tappable WhatsApp list menu — a session message like sendSessionText (same 24h-window rule), not a template. */
   sendInteractiveList(to: string, input: SendInteractiveListInput): Promise<SendMessageResult>;
+  /** A message with a tappable URL button — a session message (24h-window rule), not a template. */
+  sendCtaUrl(to: string, input: SendCtaUrlInput): Promise<SendMessageResult>;
   sendTemplateMessage(to: string, input: SendTemplateMessageInput): Promise<SendMessageResult>;
   /** Verifies Meta's `X-Hub-Signature-256` header against the raw webhook body. */
   verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean;

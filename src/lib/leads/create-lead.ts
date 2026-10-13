@@ -1,4 +1,5 @@
 import { leadListFacts } from "./list-facts";
+import { tripSummaryForLead } from "./trip-summary";
 import { db } from "../db";
 import { Prisma, type Lead, type ServiceType } from "../../generated/prisma/client";
 import { leadReference, nextLeadReference } from "./reference";
@@ -305,6 +306,8 @@ async function sendLeadReceivedNotice(input: {
       leadReference: input.referenceId,
       // Client testing 2026-10-09 (C8) — the same per-service text as the website success screen.
       requestMessage: requestReceivedMessage(input.serviceType),
+      // Client 2026-10-14 — passengers, route / destination, travel date.
+      tripSummary: await tripSummaryForLead(input.leadId, SERVICE_TYPE_LABELS[input.serviceType]),
     },
     auditTarget: { entityType: "Lead", entityId: input.leadId },
   });

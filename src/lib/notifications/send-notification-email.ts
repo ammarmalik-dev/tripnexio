@@ -1,4 +1,6 @@
 import { db } from "../db";
+import { ctaFor } from "./cta";
+import { emailButtonHtml } from "../email/layout";
 import { writeAudit } from "../audit/log";
 import { getEmailSender } from "../email/get-sender";
 import { renderTemplate, withRequiredLines } from "./render-template";
@@ -74,7 +76,18 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
     }
 
     const subject = renderTemplate(template.subject ?? event, variables, { escape: false });
-    const body = renderTemplate(withRequiredLines(template.body, variables), variables).replace(/\n/g, "<br>");
+    // Client 2026-10-14 — the event's link (Pay Now, Download…) is a button, not a bare URL.
+    const cta = ctaFor(event, variables);
+    const CTA_MARKER = "@@TN_CTA@@";
+    let bodyText = withRequiredLines(template.body, variables);
+    if (cta) {
+      const placeholder = new RegExp(`\\{\\{\\s*${cta.variable}\\s*\\}\\}`, "g");
+      bodyText = placeholder.test(bodyText) ? bodyText.replace(placeholder, CTA_MARKER) : `${bodyText}\n${CTA_MARKER}`;
+    }
+    const body = renderTemplate(bodyText, variables)
+      .replace(/\n/g, "<br>")
+      .replace(CTA_MARKER, cta ? emailButtonHtml(cta.label, cta.url) : "")
+      .replaceAll(CTA_MARKER, "");
     const html = OUTPUT_EVENTS.has(event) ? `${body}<p style="margin-top:16px"><strong>${OUTPUT_DISCREPANCY_NOTE}</strong></p>` : body;
 
     const sender = getEmailSender();

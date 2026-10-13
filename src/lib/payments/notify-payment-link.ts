@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { tripSummaryForLead } from "../leads/trip-summary";
 import { leadReference } from "../leads/reference";
 import { money } from "../invoices/render-invoice";
 import { notifyCustomer } from "../notifications/notify";
@@ -15,7 +16,7 @@ import { paymentTotal } from "./totals";
  * "Create Payment Link", and extra payments. Called after the payment row
  * is committed; never throws (notifyCustomer audits every outcome).
  */
-export async function notifyPaymentLinkReady(paymentId: string): Promise<void> {
+export async function notifyPaymentLinkReady(paymentId: string, options: { skipWhatsApp?: boolean } = {}): Promise<void> {
   try {
     const payment = await db.payment.findUnique({
       where: { id: paymentId },
@@ -39,8 +40,10 @@ export async function notifyPaymentLinkReady(paymentId: string): Promise<void> {
           ? payment.linkExpiresAt.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" })
           : "",
         paymentPurpose: payment.purpose === "EXTRA" ? (payment.description ?? "Additional payment") : "Booking payment",
+        tripSummary: await tripSummaryForLead(booking.leadId, SERVICE_TYPE_LABELS[booking.lead.serviceType]),
       },
       auditTarget: { entityType: "Payment", entityId: payment.id },
+      skipWhatsApp: options.skipWhatsApp,
     });
   } catch (error) {
     console.error("[notify-payment-link] failed", error instanceof Error ? error.name : "unknown");
