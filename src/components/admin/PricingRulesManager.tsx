@@ -18,6 +18,7 @@ import type { ServiceType, PaxType } from "../../generated/prisma/enums";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
+import { unusedRuleMessage, usesPricingRules } from "@/lib/pricing/price-sources";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
 /** Used only for a service with no Processing Types configured yet (the pre-P23 codes). */
@@ -226,7 +227,8 @@ function PricingFields({
           <option value="" disabled>
             Select a service
           </option>
-          {SERVICE_TYPE_OPTIONS.map((option) => (
+          {/* Only services that read pricing rules; an older rule for another service keeps its own value so it can still be edited or disabled. */}
+          {SERVICE_TYPE_OPTIONS.filter((option) => usesPricingRules(option.value) || option.value === form.serviceType).map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -620,6 +622,11 @@ function PricingCard({ rule, lookups, onSaved }: { rule: PricingRuleData; lookup
           {rule.active ? "Disable" : "Enable"}
         </Button>
       </div>
+      {!usesPricingRules(rule.serviceType) ? (
+        <p role="note" className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning">
+          {unusedRuleMessage(rule.serviceType)} You can disable this rule.
+        </p>
+      ) : null}
       <PricingFields
         idPrefix={`rule-${rule.id}`}
         form={form}

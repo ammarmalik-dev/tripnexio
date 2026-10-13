@@ -11,6 +11,7 @@ import { FormField, fieldControlClass, fieldBorderClass } from "@/components/for
 import { ListPagination } from "@/components/crm/ListPagination";
 import { usePaginationState } from "@/components/crm/usePagination";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
+import { unusedRuleMessage, usesPricingRules } from "@/lib/pricing/price-sources";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
@@ -430,6 +431,7 @@ export function PricingDashboard() {
                       <td className="px-3 py-2.5">
                         <div className="font-medium text-ink-primary">{SERVICE_TYPE_LABELS[row.serviceType]}</div>
                         <div className="text-xs text-ink-tertiary">{row.subService?.name ?? "All sub-services"}</div>
+                        {!usesPricingRules(row.serviceType) ? <div className="mt-1 max-w-56 text-xs text-warning">{unusedRuleMessage(row.serviceType)}</div> : null}
                       </td>
                       <td className="px-3 py-2.5 text-ink-secondary">{row.country?.name ?? "All countries"}</td>
                       <td className="px-3 py-2.5 text-ink-secondary">{row.visaType?.name ?? "Any"}</td>

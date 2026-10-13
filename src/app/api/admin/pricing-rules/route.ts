@@ -10,6 +10,7 @@ import { pricingRuleSnapshot, writePricingRuleHistory } from "@/lib/pricing/rule
 import { validatePricingRuleRefs } from "@/lib/pricing/validate-rule-refs";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { unusedRuleMessage, usesPricingRules } from "@/lib/pricing/price-sources";
 
 const ruleInclude = {
   country: { select: { id: true, name: true, code: true } },
@@ -48,6 +49,9 @@ export async function POST(request: NextRequest) {
   if (reasonResult.error) return reasonResult.error;
   const { reason } = reasonResult;
 
+  if (!usesPricingRules(parsed.data.serviceType)) {
+    return jsonError(400, unusedRuleMessage(parsed.data.serviceType), { serviceType: [unusedRuleMessage(parsed.data.serviceType)] });
+  }
   if (parsed.data.countryId) {
     const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
     if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });

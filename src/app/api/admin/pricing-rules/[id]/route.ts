@@ -10,6 +10,7 @@ import { diffSnapshots, pricingRuleSnapshot, writePricingRuleHistory } from "@/l
 import { validatePricingRuleRefs } from "@/lib/pricing/validate-rule-refs";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { unusedRuleMessage, usesPricingRules } from "@/lib/pricing/price-sources";
 
 const ruleInclude = {
   country: { select: { id: true, name: true, code: true } },
@@ -45,6 +46,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const existing = await db.pricingRule.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Pricing rule not found.");
+  // An old rule for a service that doesn't read pricing rules can still be edited or disabled, but no rule moves onto one.
+  if (parsed.data.serviceType !== undefined && parsed.data.serviceType !== existing.serviceType && !usesPricingRules(parsed.data.serviceType)) {
+    return jsonError(400, unusedRuleMessage(parsed.data.serviceType), { serviceType: [unusedRuleMessage(parsed.data.serviceType)] });
+  }
 
   if (parsed.data.countryId) {
     const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });

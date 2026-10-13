@@ -2,6 +2,8 @@ import { db } from "../../db";
 import { createPricingRuleSchema, updatePricingRuleSchema } from "../../validation/pricing-rule-schema";
 import { diffSnapshots, pricingRuleSnapshot, writePricingRuleHistory } from "../../pricing/rule-history";
 import type { PricingRule } from "../../../generated/prisma/client";
+import { ServiceType } from "../../../generated/prisma/enums";
+import { unusedRuleMessage, usesPricingRules } from "../../pricing/price-sources";
 import {
   AMBIGUOUS_MATCH,
   buildApply,
@@ -18,6 +20,10 @@ import {
   type ImportOp,
 } from "./shared";
 import type { ImportRowResult } from "../import-specs";
+
+function isServiceType(value: string): value is ServiceType {
+  return (Object.values(ServiceType) as string[]).includes(value);
+}
 
 /** Same fallback as src/lib/pricing/validate-rule-refs.ts — a service with no Processing Types configured yet accepts the legacy codes. */
 const LEGACY_PROCESSING_CODES = ["normal", "urgent"];
@@ -86,6 +92,7 @@ export const pricingRulesImporter: EntityImporter = {
       if (typeof input.serviceType === "string") input.serviceType = input.serviceType.toUpperCase();
       if (typeof input.paxType === "string") input.paxType = input.paxType.toUpperCase();
       const serviceType = typeof input.serviceType === "string" ? input.serviceType : "";
+      if (isServiceType(serviceType) && !usesPricingRules(serviceType)) errors.push(`service_type: ${unusedRuleMessage(serviceType)}`);
 
       const countryValue = record.values.country_code ?? "";
       const country = countryValue ? findCountry(countryValue) : undefined;
