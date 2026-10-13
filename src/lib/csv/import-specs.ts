@@ -50,8 +50,6 @@ export const IMPORT_SPECS: Record<ImportEntityKey, ImportEntitySpec> = {
       col("name", true, "Airline name"),
       col("country", true, "Country code or name (stored as the country's name when it matches Admin → Countries)"),
       col("otb_required", false, "true/false (default false)"),
-      col("normal_price", false, "OTB normal price, ₹"),
-      col("urgent_price", false, "OTB urgent price, ₹"),
       col("standard_processing_days", false, "Working days (1-365)"),
       col("urgent_processing_hours", false, "Working hours (0-200)"),
       col("logo_url", false, "Logo URL (auto-filled from the code when blank on create)"),

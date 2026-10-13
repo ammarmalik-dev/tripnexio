@@ -7,23 +7,24 @@ import type { OtbAirlineRules } from "./processing-rules";
 export interface OtbAirlineOption extends OtbAirlineRules {
   code: string;
   name: string;
-  normalPrice: number | null;
-  urgentPrice: number | null;
-  /** P18 — Admin OTB prices by destination country + passenger type (fallback: the airline prices above). */
-  prices: { countryCode: string; paxType: "ADULT" | "CHILD" | "INFANT"; normalPrice: number; urgentPrice: number | null }[];
+  /** Admin OTB price per destination country — one rate for every passenger (client reply 2026-10-13). */
+  prices: { countryCode: string; normalPrice: number; urgentPrice: number | null }[];
 }
 
-/** P18 — same rule as the server (src/lib/otb/pricing.ts): the matching OTB price, else the airline's own price. */
-export function otbApplicantPrice(
-  airline: OtbAirlineOption,
-  countryCode: string,
-  paxType: string | undefined,
-  processingType: "normal" | "urgent" | undefined
-): number | null {
-  const row = airline.prices.find((p) => p.countryCode.toLowerCase() === countryCode.toLowerCase() && p.paxType === (paxType ?? "ADULT"));
-  const rowPrice = row ? (processingType === "urgent" ? row.urgentPrice : row.normalPrice) : null;
-  if (rowPrice !== null) return rowPrice;
-  return processingType === "urgent" ? airline.urgentPrice : airline.normalPrice;
+function countryRow(airline: OtbAirlineOption, countryCode: string) {
+  return airline.prices.find((p) => p.countryCode.toLowerCase() === countryCode.toLowerCase()) ?? null;
+}
+
+/** Same rule as the server (src/lib/otb/pricing.ts): the airline's price for this country, per applicant; null = not configured. */
+export function otbApplicantPrice(airline: OtbAirlineOption, countryCode: string, processingType: "normal" | "urgent" | undefined): number | null {
+  const row = countryRow(airline, countryCode);
+  if (!row) return null;
+  return processingType === "urgent" ? row.urgentPrice : row.normalPrice;
+}
+
+/** The airline's timelines for this destination: Urgent only when the country price has an urgent amount. */
+export function otbRulesForCountry(airline: OtbAirlineOption, countryCode: string): OtbAirlineRules {
+  return { ...airline, urgentAvailable: countryRow(airline, countryCode)?.urgentPrice != null };
 }
 
 /** Admin-managed OTB airlines with their prices and processing timelines. */

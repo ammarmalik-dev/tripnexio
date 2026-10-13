@@ -9,7 +9,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { db } from "@/lib/db";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
-import { resolveOtbApplicantPrices } from "@/lib/otb/pricing";
+import { otbUrgentAvailable, resolveOtbApplicantPrices } from "@/lib/otb/pricing";
 import { groupInvoiceLines, PAX_LINE_LABELS } from "@/lib/invoices/invoice-lines";
 import { createReturnTicketRequest } from "@/lib/return-ticket/create-request";
 import { linkServiceBookings } from "@/lib/return-ticket/operations";
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     if (!airlineRecord) {
       return jsonError(400, "That airline isn't available for OTB.", { airline: ["Select an available airline."] });
     }
-    const rules = resolveAirlineRules(airlineRecord, await getOtbGlobalRules());
+    const rules = resolveAirlineRules(airlineRecord, await getOtbGlobalRules(), await otbUrgentAvailable(airlineRecord.id, destinationCountry));
     // P09 — enforced against the Admin-configured India working calendar
     // (weekends, holidays, business hours, timezone).
     const outcome = evaluateOtbTravelDate(travelDate, rules, new Date(), await getWorkingCalendar("INDIA"));
@@ -107,8 +107,7 @@ export async function POST(request: NextRequest) {
       { fullName, passportNumber, paxType: paxType ?? "ADULT" },
       ...additionalApplicants.map((a) => ({ fullName: a.fullName, passportNumber: a.passportNumber, paxType: a.paxType ?? "ADULT" })),
     ];
-    // P18 — priced per applicant: Admin OTB price for airline + destination +
-    // passenger type, falling back to the airline's own normal/urgent price.
+    // Priced per applicant from the Admin OTB price for airline + destination (one rate for every passenger).
     const applicantQuotes = await resolveOtbApplicantPrices({
       airline: airlineRecord,
       countryCode: destinationCountry,

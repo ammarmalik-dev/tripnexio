@@ -70,6 +70,7 @@ export const manualLeadSchema = z
       if (!data.processingType) ctx.addIssue({ code: "custom", message: "Select a processing type", path: ["processingType"] });
     }
     if (data.serviceType === "OTB") {
+      if (!data.destinationCountryCode) ctx.addIssue({ code: "custom", message: "Select a destination country", path: ["destinationCountryCode"] });
       if (!data.airlineCode) ctx.addIssue({ code: "custom", message: "Select an airline", path: ["airlineCode"] });
       if (!data.processingType) ctx.addIssue({ code: "custom", message: "Select a processing type", path: ["processingType"] });
     }

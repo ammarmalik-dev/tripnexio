@@ -7,7 +7,8 @@ const price = (label: string) => z.number({ error: `Enter the ${label}` }).min(0
 export const createOtbPriceSchema = z.object({
   airlineId: z.string().min(1, "Select an airline"),
   countryId: z.string().min(1, "Select a destination country"),
-  paxType: z.enum(["ADULT", "CHILD", "INFANT"], { error: "Select a passenger type" }),
+  /** One rate for every passenger (client reply 2026-10-13): new rows are always ADULT. */
+  paxType: z.enum(["ADULT", "CHILD", "INFANT"]).default("ADULT"),
   normalPrice: price("normal price"),
   urgentPrice: price("urgent price").nullable().default(null),
   /** Client corrections 2026-10-05 — the airline's OTB fee inside the price, shown apart on invoices. */

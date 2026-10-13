@@ -39,11 +39,9 @@ export function Step3Summary() {
   // P23 — label from the Admin Processing Types master (stored code unchanged).
   const { options: processingTypeOptions } = useProcessingTypes("OTB");
   const applicantCount = 1 + values.additionalApplicants.length;
-  // P18 — priced per applicant (airline + destination + passenger type).
+  // Priced per applicant from the airline's price for the destination — the same rate for everyone.
   const applicantPrices = airline
-    ? [values.paxType, ...values.additionalApplicants.map((a) => a.paxType)].map((paxType) =>
-        otbApplicantPrice(airline, values.destinationCountry, paxType, values.processingType)
-      )
+    ? Array.from({ length: applicantCount }, () => otbApplicantPrice(airline, values.destinationCountry, values.processingType))
     : [];
   const otbTotal = applicantPrices.length && applicantPrices.every((p) => p !== null) ? applicantPrices.reduce<number>((sum, p) => sum + (p ?? 0), 0) : null;
   const hasReturnTicket = watch("hasReturnTicket");

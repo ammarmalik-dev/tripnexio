@@ -3,6 +3,7 @@ import { manualLeadSchema, isFixedRateService } from "@/lib/validation/manual-le
 import { createLeadFromSubmission, type LeadPassengerInput } from "@/lib/leads/create-lead";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
+import { resolveOtbApplicantPrices } from "@/lib/otb/pricing";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -53,11 +54,18 @@ async function resolveFixedRatePricing(
   if (data.serviceType === "OTB") {
     const airline = await db.airline.findFirst({ where: { code: data.airlineCode!, active: true, otbRequired: true } });
     if (!airline) return { pricing: null, note: "That airline isn't available for OTB." };
-    const unitPrice = Number(data.processingType === "urgent" ? airline.urgentPrice : airline.normalPrice);
-    if (!Number.isFinite(unitPrice) || unitPrice <= 0) {
-      return { pricing: null, note: `${airline.name} has no configured ${data.processingType} rate.` };
+    // One rate for every passenger, from the OTB price for this airline + destination (client reply 2026-10-13).
+    const quotes = await resolveOtbApplicantPrices({
+      airline,
+      countryCode: data.destinationCountryCode!,
+      processingType: data.processingType as "normal" | "urgent",
+      paxTypes: travellerPaxTypes,
+    });
+    if (quotes.some((quote) => quote.price === null || !(quote.price > 0))) {
+      return { pricing: null, note: `No ${data.processingType} OTB price is configured for ${airline.name} to ${data.destinationCountryCode}.` };
     }
-    return { pricing: { totalPrice: unitPrice * travellerPaxTypes.length, extraDetails: { airline: data.airlineCode } } };
+    const totalPrice = quotes.reduce((sum, quote) => sum + (quote.price ?? 0), 0);
+    return { pricing: { totalPrice, extraDetails: { airline: data.airlineCode, destinationCountry: data.destinationCountryCode } } };
   }
 
   // RETURN_TICKET
@@ -120,6 +128,11 @@ export async function POST(request: NextRequest) {
   const scopeError = assertServiceAccess(session, data.serviceType);
   if (scopeError) return scopeError;
 
+  // OTB and Return Ticket have one rate for every passenger (client reply 2026-10-13): the form asks one count, kept in adultCount.
+  if (data.serviceType === "OTB" || data.serviceType === "RETURN_TICKET") {
+    data.childCount = 0;
+    data.infantCount = 0;
+  }
   const passengers = buildPlaceholderPassengers(data.fullName, data.adultCount, data.childCount, data.infantCount);
   const travelerCount = data.adultCount + data.childCount + data.infantCount;
 

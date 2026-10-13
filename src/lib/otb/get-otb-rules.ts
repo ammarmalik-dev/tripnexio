@@ -22,14 +22,19 @@ export async function getOtbGlobalRules(): Promise<OtbGlobalRules> {
   };
 }
 
-/** An airline's own timelines override the global ones; urgent is only offered when it has an urgent price. */
+/**
+ * An airline's own timelines override the global ones. Urgent is only offered
+ * when the destination's OTB price has an urgent amount (`otbUrgentAvailable`);
+ * callers that don't know the destination yet pass true.
+ */
 export function resolveAirlineRules(
-  airline: { standardProcessingDays: number | null; urgentProcessingHours: number | null; urgentPrice: unknown },
-  global: OtbGlobalRules
+  airline: { standardProcessingDays: number | null; urgentProcessingHours: number | null },
+  global: OtbGlobalRules,
+  urgentAvailable: boolean
 ): OtbAirlineRules {
   return {
     standardDays: airline.standardProcessingDays ?? global.standardProcessingDays,
     urgentHours: airline.urgentProcessingHours ?? global.urgentProcessingHours,
-    urgentAvailable: airline.urgentPrice !== null && airline.urgentPrice !== undefined,
+    urgentAvailable,
   };
 }

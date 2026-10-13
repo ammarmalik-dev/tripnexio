@@ -21,8 +21,6 @@ interface AirlineData {
   code: string;
   country: string;
   otbRequired: boolean;
-  normalPrice: string | null;
-  urgentPrice: string | null;
   standardProcessingDays: number | null;
   urgentProcessingHours: number | null;
   logoUrl: string | null;
@@ -38,8 +36,6 @@ interface AirlineFormState {
   code: string;
   country: string;
   otbRequired: boolean;
-  normalPrice: string;
-  urgentPrice: string;
   standardProcessingDays: string;
   urgentProcessingHours: string;
   logoUrl: string;
@@ -51,8 +47,6 @@ const EMPTY_FORM: AirlineFormState = {
   code: "",
   country: "",
   otbRequired: false,
-  normalPrice: "",
-  urgentPrice: "",
   standardProcessingDays: "",
   urgentProcessingHours: "",
   logoUrl: "",
@@ -65,8 +59,6 @@ function toFormState(airline: AirlineData): AirlineFormState {
     code: airline.code,
     country: airline.country,
     otbRequired: airline.otbRequired,
-    normalPrice: airline.normalPrice ?? "",
-    urgentPrice: airline.urgentPrice ?? "",
     standardProcessingDays: airline.standardProcessingDays === null ? "" : String(airline.standardProcessingDays),
     urgentProcessingHours: airline.urgentProcessingHours === null ? "" : String(airline.urgentProcessingHours),
     logoUrl: airline.logoUrl ?? "",
@@ -123,28 +115,6 @@ function AirlineFields({
         disabled={disabled}
       />
       <TextField
-        label="Normal Processing Price (₹)"
-        name="normalPrice"
-        type="number"
-        step="0.01"
-        placeholder="Optional"
-        value={form.normalPrice}
-        onChange={(event) => onChange({ ...form, normalPrice: event.target.value })}
-        error={errors.normalPrice?.[0]}
-        disabled={disabled}
-      />
-      <TextField
-        label="Urgent Processing Price (₹)"
-        name="urgentPrice"
-        type="number"
-        step="0.01"
-        placeholder="Optional"
-        value={form.urgentPrice}
-        onChange={(event) => onChange({ ...form, urgentPrice: event.target.value })}
-        error={errors.urgentPrice?.[0]}
-        disabled={disabled}
-      />
-      <TextField
         label="Standard OTB processing (working days)"
         name="standardProcessingDays"
         type="number"
@@ -197,8 +167,6 @@ function buildPayload(form: AirlineFormState) {
     code: form.code.trim(),
     country: form.country.trim(),
     otbRequired: form.otbRequired,
-    normalPrice: form.normalPrice.trim() === "" ? undefined : Number(form.normalPrice),
-    urgentPrice: form.urgentPrice.trim() === "" ? undefined : Number(form.urgentPrice),
     standardProcessingDays: form.standardProcessingDays.trim() === "" ? null : Number(form.standardProcessingDays),
     urgentProcessingHours: form.urgentProcessingHours.trim() === "" ? null : Number(form.urgentProcessingHours),
     logoUrl: form.logoUrl.trim() === "" ? undefined : form.logoUrl.trim(),

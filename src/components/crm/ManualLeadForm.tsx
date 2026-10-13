@@ -27,8 +27,6 @@ interface CountryOption {
 interface OtbAirlineOption {
   code: string;
   name: string;
-  normalPrice: number | null;
-  urgentPrice: number | null;
 }
 
 interface ReturnTicketDestinationOption {
@@ -229,7 +227,22 @@ export function ManualLeadForm() {
       ) : null}
 
       {serviceType === "OTB" ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <FormField label="Destination Country" htmlFor="otbDestinationCountryCode" error={errors.destinationCountryCode?.message} required>
+            <select
+              id="otbDestinationCountryCode"
+              defaultValue=""
+              className={cn(fieldControlClass, fieldBorderClass(!!errors.destinationCountryCode))}
+              {...optionalField("destinationCountryCode")}
+            >
+              <option value="">{countries.length === 0 ? "No active countries configured" : "Select a country"}</option>
+              {countries.map((country) => (
+                <option key={country.id} value={country.code}>
+                  {country.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
           <FormField label="Airline" htmlFor="airlineCode" error={errors.airlineCode?.message} required>
             <select
               id="airlineCode"
@@ -297,11 +310,18 @@ export function ManualLeadForm() {
 
       <DateField {...register("travelDate")} name="travelDate" label="Travel Date" error={errors.travelDate?.message} required />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <TextField {...numberField("adultCount")} type="number" min={1} name="adultCount" label="Adults" error={errors.adultCount?.message} required />
-        <TextField {...numberField("childCount")} type="number" min={0} name="childCount" label="Children" error={errors.childCount?.message} />
-        <TextField {...numberField("infantCount")} type="number" min={0} name="infantCount" label="Infants" error={errors.infantCount?.message} />
-      </div>
+      {/* OTB and Return Ticket have one rate for every passenger (client reply 2026-10-13): just a passenger count. */}
+      {serviceType === "OTB" || serviceType === "RETURN_TICKET" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <TextField {...numberField("adultCount")} type="number" min={1} name="adultCount" label="Passengers" error={errors.adultCount?.message} required />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <TextField {...numberField("adultCount")} type="number" min={1} name="adultCount" label="Adults" error={errors.adultCount?.message} required />
+          <TextField {...numberField("childCount")} type="number" min={0} name="childCount" label="Children" error={errors.childCount?.message} />
+          <TextField {...numberField("infantCount")} type="number" min={0} name="infantCount" label="Infants" error={errors.infantCount?.message} />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField

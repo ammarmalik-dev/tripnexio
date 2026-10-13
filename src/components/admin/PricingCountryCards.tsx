@@ -376,7 +376,7 @@ function OtbPriceRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<OtbCo
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className={cn("text-sm", row.active && row.airlineActive ? "text-ink-primary" : "text-ink-tertiary line-through")}>
-            {row.airlineName} · {PAX_TYPE_LABELS[row.paxType]}
+            {row.airlineName}
           </p>
           <p className="text-xs text-ink-tertiary">
             {row.urgentPrice !== null ? `Urgent ${money(row.urgentPrice)}` : "No urgent price"}
@@ -388,7 +388,7 @@ function OtbPriceRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<OtbCo
           <span className="text-sm font-semibold text-ink-heading" title="Normal price">
             {money(row.normalPrice)}
           </span>
-          {!editing ? <EditButton label={`Edit OTB price: ${row.airlineName} ${PAX_TYPE_LABELS[row.paxType]}`} onClick={() => onEdit(row.id)} /> : null}
+          {!editing ? <EditButton label={`Edit OTB price: ${row.airlineName}`} onClick={() => onEdit(row.id)} /> : null}
         </div>
       </div>
       {editing ? (

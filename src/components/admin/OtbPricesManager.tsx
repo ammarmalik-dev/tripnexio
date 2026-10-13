@@ -17,7 +17,7 @@ import { cn } from "@/lib/cn";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 
 type PaxType = "ADULT" | "CHILD" | "INFANT";
-const PAX_LABELS: Record<PaxType, string> = { ADULT: "Adult", CHILD: "Child", INFANT: "Infant" };
+// One rate for every passenger (client reply 2026-10-13): no Adult / Child / Infant choice; new rows are ADULT.
 
 interface OtbPriceData {
   id: string;
@@ -82,7 +82,7 @@ function PriceRow({ row, onSaved }: { row: OtbPriceData; onSaved: (row: OtbPrice
     <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-ink-heading">
-          {row.airlineName} ({row.airlineCode}) → {row.countryName} · {PAX_LABELS[row.paxType]}
+          {row.airlineName} ({row.airlineCode}) → {row.countryName}
         </span>
         <div className="flex items-center gap-2">
           <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", row.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
@@ -161,7 +161,6 @@ function NewPriceForm({
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <SelectField label="Airline" name="otb-price-airline" placeholder="Select an airline" options={airlines.map((a) => ({ value: a.id, label: `${a.name} (${a.code ?? ""})` }))} value={form.airlineId} onChange={(e) => setForm({ ...form, airlineId: e.target.value })} error={errors.airlineId?.[0]} disabled={creating} />
         <SelectField label="Destination country" name="otb-price-country" placeholder="Select a country" options={countries.map((c) => ({ value: c.id, label: c.name }))} value={form.countryId} onChange={(e) => setForm({ ...form, countryId: e.target.value })} error={errors.countryId?.[0]} disabled={creating} />
-        <SelectField label="Passenger type" name="otb-price-pax" options={(Object.keys(PAX_LABELS) as PaxType[]).map((p) => ({ value: p, label: PAX_LABELS[p] }))} value={form.paxType} onChange={(e) => setForm({ ...form, paxType: e.target.value })} error={errors.paxType?.[0]} disabled={creating} />
         <TextField label="Normal price (₹)" name="otb-price-normal" type="number" min={0} value={form.normal} onChange={(e) => setForm({ ...form, normal: e.target.value })} error={errors.normalPrice?.[0]} disabled={creating} />
         <TextField label="Urgent price (₹)" name="otb-price-urgent" type="number" min={0} placeholder="Airline price" value={form.urgent} onChange={(e) => setForm({ ...form, urgent: e.target.value })} error={errors.urgentPrice?.[0]} disabled={creating} />
         <TextField label="Airline fee inside price (₹)" name="otb-price-fee" type="number" min={0} placeholder="0" hint="Shown apart on the invoice, no GST." value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} error={errors.airlineFee?.[0]} disabled={creating} />
@@ -191,7 +190,6 @@ export function OtbPricesManager({ countryId }: { countryId?: string } = {}) {
   const [search, setSearch] = useState("");
   const [airlineFilter, setAirlineFilter] = useState("");
   const [countryFilter, setCountryFilter] = useState("");
-  const [paxFilter, setPaxFilter] = useState<PaxType | "">("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
 
   // P23 — optional `countryId` (Service Configuration hub) narrows the list and pre-fills the add form. Absent = every row.
@@ -200,19 +198,17 @@ export function OtbPricesManager({ countryId }: { countryId?: string } = {}) {
   const filtered = visibleRows.filter((row) => {
     if (airlineFilter && row.airlineId !== airlineFilter) return false;
     if (countryFilter && row.countryId !== countryFilter) return false;
-    if (paxFilter && row.paxType !== paxFilter) return false;
     if (activeFilter === "active" && !row.active) return false;
     if (activeFilter === "inactive" && row.active) return false;
     if (!query) return true;
     return [row.airlineName, row.airlineCode, row.countryName, row.countryCode].join(" ").toLowerCase().includes(query);
   });
   const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
-  const hasFilters = query !== "" || airlineFilter !== "" || countryFilter !== "" || paxFilter !== "" || activeFilter !== "all";
+  const hasFilters = query !== "" || airlineFilter !== "" || countryFilter !== "" || activeFilter !== "all";
   const clearFilters = () => {
     setSearch("");
     setAirlineFilter("");
     setCountryFilter("");
-    setPaxFilter("");
     setActiveFilter("all");
     resetPage();
   };
@@ -329,25 +325,6 @@ export function OtbPricesManager({ countryId }: { countryId?: string } = {}) {
                 </select>
               </>
             )}
-            <label htmlFor="otb-price-filter-pax" className="sr-only">
-              Filter by passenger type
-            </label>
-            <select
-              id="otb-price-filter-pax"
-              value={paxFilter}
-              onChange={(event) => {
-                setPaxFilter(event.target.value as PaxType | "");
-                resetPage();
-              }}
-              className={filterClass}
-            >
-              <option value="">All passenger types</option>
-              {(Object.keys(PAX_LABELS) as PaxType[]).map((pax) => (
-                <option key={pax} value={pax}>
-                  {PAX_LABELS[pax]}
-                </option>
-              ))}
-            </select>
             <label htmlFor="otb-price-filter-active" className="sr-only">
               Filter by status
             </label>

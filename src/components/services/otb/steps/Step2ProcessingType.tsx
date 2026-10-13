@@ -8,7 +8,7 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
 import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
-import { formatOtbRupees, otbApplicantPrice, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
+import { formatOtbRupees, otbApplicantPrice, otbRulesForCountry, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { useSiteContact } from "@/components/layout/SiteContactProvider";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
@@ -32,14 +32,13 @@ export function Step2ProcessingType() {
   const airlineCode = useWatch({ control, name: "airline" });
   const travelDate = useWatch({ control, name: "travelDate" });
   const destinationCountry = useWatch({ control, name: "destinationCountry" });
-  const paxType = useWatch({ control, name: "paxType" });
   const { state, airlines } = useOtbAirlines();
   const calendar = useWorkingCalendar("INDIA");
   const { state: optionsState, options: masterOptions } = useProcessingTypes("OTB");
   const offeredCodes = masterOptions.map((option) => option.code);
 
   const airline = airlines.find((a) => a.code === airlineCode);
-  const outcome = airline ? evaluateOtbTravelDate(travelDate, airline, new Date(), calendar) : null;
+  const outcome = airline ? evaluateOtbTravelDate(travelDate, otbRulesForCountry(airline, destinationCountry ?? ""), new Date(), calendar) : null;
 
   // A previously chosen type may no longer be valid after the airline/date changed.
   const allowedCodes = (outcome?.allowed ?? []).filter((code) => offeredCodes.includes(code));
@@ -62,8 +61,8 @@ export function Step2ProcessingType() {
       label: option.label,
       description:
         option.code === "urgent"
-          ? `${option.description || "Expedited processing for time-sensitive travel."}${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", paxType, "urgent"))}`
-          : `${option.description || `Standard processing (${airline.standardDays} working days).`}${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", paxType, "normal"))}`,
+          ? `${option.description || "Expedited processing for time-sensitive travel."}${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", "urgent"))}`
+          : `${option.description || `Standard processing (${airline.standardDays} working days).`}${priceNote(otbApplicantPrice(airline, destinationCountry ?? "", "normal"))}`,
     }));
 
   return (

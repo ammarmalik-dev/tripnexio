@@ -25,9 +25,9 @@ export async function expectedOtbCompletion(input: { details: unknown; paidAt: D
   const details = (input.details ?? {}) as Record<string, unknown>;
   const code = typeof details.airline === "string" ? details.airline : null;
   if (!code) return null;
-  const airline = await db.airline.findUnique({ where: { code }, select: { standardProcessingDays: true, urgentProcessingHours: true, urgentPrice: true } });
+  const airline = await db.airline.findUnique({ where: { code }, select: { standardProcessingDays: true, urgentProcessingHours: true } });
   if (!airline) return null;
-  const rules = resolveAirlineRules(airline, await getOtbGlobalRules());
+  const rules = resolveAirlineRules(airline, await getOtbGlobalRules(), true);
   const calendar = await getWorkingCalendar("INDIA");
   if (details.processingType === "urgent" && rules.urgentHours !== null) {
     return addWorkingHours(input.paidAt, rules.urgentHours, calendar).toISOString();

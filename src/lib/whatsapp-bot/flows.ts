@@ -10,6 +10,7 @@ import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
 import { getActiveVisaTypes } from "../visa-types/active-visa-types";
 import { getProcessingTypeOptions } from "../processing-types/get";
 import { getOtbGlobalRules, resolveAirlineRules } from "../otb/get-otb-rules";
+import { otbUrgentAvailable } from "../otb/pricing";
 import { evaluateOtbTravelDate } from "../otb/processing-rules";
 import { getWorkingCalendar } from "../calendar/get-working-calendar";
 import type { LeadPassengerInput } from "../leads/create-lead";
@@ -140,10 +141,12 @@ async function getOtbAirlineOptions() {
  * airline code: returns an evaluator for a travel date, or null when that
  * airline is no longer available for OTB.
  */
-async function getOtbTravelDateEvaluator(airlineCode: string) {
+async function getOtbTravelDateEvaluator(airlineCode: string, countryCode: string | undefined) {
   const airline = await db.airline.findFirst({ where: { code: airlineCode, active: true, otbRequired: true } });
   if (!airline) return null;
-  const rules = resolveAirlineRules(airline, await getOtbGlobalRules());
+  // Urgent depends on the destination's OTB price; before the destination is known only the timeline matters.
+  const urgentAvailable = countryCode ? await otbUrgentAvailable(airline.id, countryCode) : true;
+  const rules = resolveAirlineRules(airline, await getOtbGlobalRules(), urgentAvailable);
   const calendar = await getWorkingCalendar("INDIA");
   return (travelDate: string) => evaluateOtbTravelDate(travelDate, rules, new Date(), calendar);
 }
@@ -217,12 +220,20 @@ export function botPassengers(collected: Record<string, string>): { index: numbe
   return list;
 }
 
-/** Next passenger question (counts, then each passenger's name and passport), or null when every passenger is complete. */
-function passengerStep(collected: Record<string, string>, withPassport: boolean): NextField | null {
-  for (const kind of PAX_KINDS) {
-    if (!(kind.key in collected)) return textStep(kind.key, kind.prompt, countValidator(kind.min));
+/**
+ * Next passenger question (counts, then each passenger's name and passport), or null when every passenger is complete.
+ * `sameRateForAll` (OTB, Return Ticket — one rate for every passenger, client reply 2026-10-13) asks one passenger
+ * count, kept in `adults`, instead of Adult / Child / Infant.
+ */
+function passengerStep(collected: Record<string, string>, withPassport: boolean, sameRateForAll = false): NextField | null {
+  if (sameRateForAll) {
+    if (!("adults" in collected)) return textStep("adults", `How many passengers? (1 to ${MAX_PAX})`, countValidator(1));
+  } else {
+    for (const kind of PAX_KINDS) {
+      if (!(kind.key in collected)) return textStep(kind.key, kind.prompt, countValidator(kind.min));
+    }
   }
-  const total = Number(collected.adults) + Number(collected.children) + Number(collected.infants);
+  const total = Number(collected.adults ?? 0) + Number(collected.children ?? 0) + Number(collected.infants ?? 0);
   if (total > MAX_PAX) {
     return {
       fieldKey: "infants",
@@ -231,12 +242,12 @@ function passengerStep(collected: Record<string, string>, withPassport: boolean)
     };
   }
   for (const passenger of botPassengers(collected)) {
-    const label = PAX_LABELS[passenger.paxType];
+    const label = sameRateForAll ? "" : ` (${PAX_LABELS[passenger.paxType]})`;
     if (!passenger.fullName) {
       if (passenger.index === 1) {
         return {
           fieldKey: "pax1Name",
-          prompt: `Passenger 1 (${label}) — full name as on the passport? Reply "same" if it's ${collected.fullName}.`,
+          prompt: `Passenger 1${label} — full name as on the passport? Reply "same" if it's ${collected.fullName}.`,
           parse: (raw) => {
             const value = raw.trim().toLowerCase() === "same" ? collected.fullName : raw.trim();
             const result = NAME_VALIDATOR.safeParse(value);
@@ -244,7 +255,7 @@ function passengerStep(collected: Record<string, string>, withPassport: boolean)
           },
         };
       }
-      return textStep(`pax${passenger.index}Name`, `Passenger ${passenger.index} (${label}) — full name as on the passport?`, NAME_VALIDATOR);
+      return textStep(`pax${passenger.index}Name`, `Passenger ${passenger.index}${label} — full name as on the passport?`, NAME_VALIDATOR);
     }
     if (withPassport && !passenger.passportNumber) {
       return textStep(`pax${passenger.index}Passport`, `Passport number of ${passenger.fullName}?`, PASSPORT_VALIDATOR);
@@ -253,7 +264,7 @@ function passengerStep(collected: Record<string, string>, withPassport: boolean)
   return null;
 }
 
-/** OTB destinations: the countries Admin priced OTB for on this airline (all active countries when none is priced yet). */
+/** OTB destinations: the countries Admin priced OTB for on this airline (OTB is priced only per country × airline). */
 async function getOtbDestinationOptions(airlineCode: string) {
   const priced = await db.otbPrice.findMany({
     where: { active: true, airline: { code: airlineCode }, country: { active: true } },
@@ -261,8 +272,7 @@ async function getOtbDestinationOptions(airlineCode: string) {
     select: { country: { select: { code: true, name: true } } },
     orderBy: { country: { name: "asc" } },
   });
-  if (priced.length > 0) return priced.map((row) => ({ value: row.country.code, label: row.country.name }));
-  return getDestinationCountryOptions();
+  return priced.map((row) => ({ value: row.country.code, label: row.country.name }));
 }
 
 /** New Visa products (stay × entry) Admin configured for the country; empty = price by the country-wide rules. */
@@ -293,7 +303,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
     case "OTB": {
       if (!has("airline")) return numberedChoiceStep("airline", "Which airline is this for?", await getOtbAirlineOptions());
       // Same airline timeline rules the website's OTB route enforces.
-      const evaluate = await getOtbTravelDateEvaluator(collected.airline);
+      const evaluate = await getOtbTravelDateEvaluator(collected.airline, collected.destinationCountry);
       if (!evaluate) return numberedChoiceStep("airline", "That airline isn't available for OTB right now.", []);
       if (!has("destinationCountry")) {
         return numberedChoiceStep("destinationCountry", "Which country are you travelling to?", await getOtbDestinationOptions(collected.airline));
@@ -310,7 +320,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         const header = outcome.message ? `${outcome.message}\nWhich processing type?` : "Which processing type?";
         return numberedChoiceStep("processingType", header, options);
       }
-      return passengerStep(collected, true);
+      return passengerStep(collected, true, true);
     }
 
     case "NEW_VISA": {
@@ -430,7 +440,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           (iso) => (iso < collected.travelDate ? "Your expected return date should be on or after your travel date." : null)
         );
       }
-      return passengerStep(collected, true);
+      return passengerStep(collected, true, true);
     }
 
     default:
@@ -450,7 +460,7 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
   switch (serviceType) {
     case "OTB": {
       // Same keys as the website's OTB route — priceLeadForDirectPayment() prices it from these.
-      const evaluate = await getOtbTravelDateEvaluator(collected.airline);
+      const evaluate = await getOtbTravelDateEvaluator(collected.airline, collected.destinationCountry);
       const applicants = botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, paxType: p.paxType }));
       return {
         destinationCountry: collected.destinationCountry,
