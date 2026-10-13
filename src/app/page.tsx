@@ -30,22 +30,13 @@ export default function Home() {
             </h1>
           </MotionReveal>
 
-          <MotionReveal delay={0.16}>
-            {/* Client testing 2026-10-09 (B1) — a soft white glass panel keeps the line readable over the photo. */}
-            <p className="max-w-xl rounded-2xl bg-white/75 px-5 py-3 text-base font-medium text-ink-primary shadow-[var(--shadow-glass-1)] ring-1 ring-white/70 backdrop-blur-md sm:text-lg">
-              Tell us what you need &mdash; visa, flights or OTB &mdash; and
-              we&rsquo;ll guide you through a simple process from request to
-              result.
-            </p>
-          </MotionReveal>
-
-          <MotionReveal delay={0.24} className="w-full sm:w-auto">
-            {/* Client testing 2026-10-09 (B2) — full-width, stacked buttons on phones. */}
-            <div className="mx-auto flex w-full max-w-xs flex-col items-stretch gap-3 sm:max-w-none sm:flex-row sm:items-center sm:justify-center">
-              <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg" className="justify-center">
+          <MotionReveal delay={0.16} className="w-full sm:w-auto">
+            {/* Client 2026-10-14 — the hero background text is removed, and both buttons sit on one line on phones too. */}
+            <div className="mx-auto flex w-full max-w-sm items-center justify-center gap-2.5 sm:max-w-none sm:gap-3">
+              <ButtonLink href={headerActions.getStarted.href} variant="primary" size="lg" className="h-11 min-w-0 flex-1 justify-center whitespace-nowrap px-3 text-sm sm:h-13 sm:flex-none sm:px-7 sm:text-base">
                 Explore Services
               </ButtonLink>
-              <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg" className="justify-center">
+              <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg" className="h-11 min-w-0 flex-1 justify-center whitespace-nowrap px-3 text-sm sm:h-13 sm:flex-none sm:px-7 sm:text-base">
                 Track Status
               </ButtonLink>
             </div>

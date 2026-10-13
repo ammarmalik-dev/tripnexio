@@ -30,7 +30,8 @@ export function Logo({ className, variant = "onLight", size = "md" }: LogoProps)
             variant === "onDark" ? "text-ink-on-dark-primary" : "text-ink-heading"
           )}
         >
-          TripNexio
+          {/* Client 2026-10-14 — the official two-colour name everywhere (as in the email header): "Trip" + Electric Blue "Nexio". */}
+          Trip<span className="text-accent">Nexio</span>
         </span>
       </span>
     </Link>
