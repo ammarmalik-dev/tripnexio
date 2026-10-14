@@ -156,7 +156,7 @@ export function Step3Summary() {
           )}
         </div>
       ) : null}
-      <p className="text-xs text-ink-tertiary">Passport, visa and ticket copies are uploaded after payment.</p>
+      <p className="text-xs text-ink-tertiary">After payment, you&apos;ll upload each passenger&apos;s passport, visa and air ticket copies on the same page.</p>
     </div>
   );
 }

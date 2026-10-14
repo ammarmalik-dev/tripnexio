@@ -113,7 +113,7 @@ export function Step1BasicDetails() {
         <TextField
           label="Flight departure time (optional)"
           type="time"
-          hint="Travelling within 2 working days? Add it so we can check whether Express can be completed before your flight."
+          hint="Travelling today? Same-day OTB is accepted on working days until 4 PM for flights at least 8 hours later — add your departure time."
           error={errors.departureTime?.message}
           {...register("departureTime")}
         />
