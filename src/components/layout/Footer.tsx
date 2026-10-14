@@ -81,6 +81,7 @@ export async function Footer() {
   const contact = await getSiteContact();
   const serviceLinks = await loadServiceLinks();
   const companyName = config.companyName?.trim();
+  const legalLine = [config.legalEntityName?.trim(), config.gstin?.trim() ? `GSTIN ${config.gstin.trim()}` : null].filter(Boolean).join(" · ");
   const companyPhone = config.companyPhone?.trim();
   const companyEmail = config.companyEmail?.trim();
 
@@ -114,9 +115,11 @@ export async function Footer() {
 
       <div className="border-t border-hairline-on-dark">
         <Container className="flex flex-col items-center justify-between gap-2 py-6 text-xs text-ink-on-dark-muted sm:flex-row">
-          {companyName ? (
-            <p>
-              &copy; {new Date().getFullYear()} {companyName}. All rights reserved.
+          {companyName || legalLine ? (
+            <p className="text-center sm:text-left">
+              {companyName ? <>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</> : null}
+              {/* Client doc 2026-10-15 — the registered business details (System Configuration), shown when filled in. */}
+              {legalLine ? <span className="block sm:inline sm:ml-2">{legalLine}</span> : null}
             </p>
           ) : null}
           <CookieSettingsLink className="hover:text-ink-on-dark-primary focus-visible:outline-none focus-visible:underline" />

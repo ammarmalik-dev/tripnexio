@@ -38,7 +38,8 @@ export async function getInvoiceCompanyDetails(): Promise<InvoiceCompanyDetails>
     whatsapp: (await getSiteContact()).whatsapp,
     email: effectiveSite.email,
     currencyCode: systemConfig.currencyCode,
-    gstNumber: config?.companyGstNumber ?? null,
+    // One GSTIN for the business: Invoice Settings, else System Configuration's legal GSTIN (also shown on the website).
+    gstNumber: config?.companyGstNumber?.trim() || systemConfig.gstin?.trim() || null,
     sacCode: config?.defaultSacCode ?? null,
     logoBuffer,
     bankAccountName: config?.bankAccountName ?? null,

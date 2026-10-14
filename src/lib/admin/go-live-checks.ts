@@ -110,6 +110,7 @@ export async function getGoLiveChecks(): Promise<GoLiveCheck[]> {
   const [
     unapprovedWhatsappTemplates,
     systemConfig,
+    invoiceConfig,
     taxFee,
     airports,
     airlines,
@@ -128,7 +129,8 @@ export async function getGoLiveChecks(): Promise<GoLiveCheck[]> {
       db.notificationTemplate.count({
         where: { channel: "WHATSAPP", active: true, OR: [{ metaTemplateName: null }, { metaTemplateName: "" }] },
       }),
-    () => db.systemConfig.findUnique({ where: { id: SYSTEM_CONFIG_ID }, select: { systemAlertEmail: true } }),
+    () => db.systemConfig.findUnique({ where: { id: SYSTEM_CONFIG_ID }, select: { systemAlertEmail: true, gstin: true } }),
+    () => db.invoiceConfig.findUnique({ where: { id: "singleton" }, select: { companyGstNumber: true } }),
     () => db.taxFeeConfig.findUnique({ where: { id: TAX_FEE_CONFIG_ID }, select: { gstRatePercent: true } }),
     () => db.airport.findMany({ where: { active: true, OR: [...containsSampleOrTest("name"), ...containsSampleOrTest("code")] }, select: { name: true, code: true } }),
     () => db.airline.findMany({ where: { active: true, OR: [...containsSampleOrTest("name"), ...containsSampleOrTest("code")] }, select: { name: true, code: true } }),
@@ -178,16 +180,17 @@ export async function getGoLiveChecks(): Promise<GoLiveCheck[]> {
     fixHint: "Set the System Alert Email in Admin → System Configuration so failures reach someone.",
   });
 
-  // P26 task: go-live is blocked while GST > 0 — the client's locked rule is
-  // "GST OFF, invoice non-GST" until a GSTIN is registered and confirmed.
+  // P26 task: GST > 0 needs a GSTIN. Client doc 2026-10-15: the GSTIN is registered, so GST
+  // can be charged once the business GSTIN is set (System Configuration or Invoice Settings).
   const gstPercent = taxFee ? Number(taxFee.gstRatePercent) : 0;
+  const hasGstin = Boolean(systemConfig?.gstin?.trim() || invoiceConfig?.companyGstNumber?.trim());
   checks.push({
     key: "gst-rate",
     group: "Settings",
-    label: "GST off (locked rule until GSTIN registration)",
-    ok: gstPercent === 0,
-    detail: gstPercent === 0 ? "GST is 0% (invoices are non-GST)" : `GST is set to ${gstPercent}%`,
-    fixHint: "The locked business rule keeps GST at 0% until the GSTIN is registered and confirmed by the client. Set it back to 0% in Admin → Tax & Fee, or get the client's written go-ahead before charging GST.",
+    label: "GST has a GSTIN",
+    ok: gstPercent === 0 || hasGstin,
+    detail: gstPercent === 0 ? "GST is 0% (invoices are non-GST)" : hasGstin ? `GST is ${gstPercent}% with the business GSTIN set` : `GST is ${gstPercent}% but no GSTIN is set`,
+    fixHint: "Enter the business GSTIN in Admin → System Configuration (legal details) or Admin → Invoice Settings, or set GST back to 0% in Admin → Tax & Fees.",
   });
 
   checks.push(
