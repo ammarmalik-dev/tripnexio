@@ -6,7 +6,7 @@ import { RefundStatusBadge } from "./RefundStatusBadge";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { REFUND_STATUS_LABELS } from "@/lib/crm/labels";
 import { getAllowedNextRefundStatuses } from "@/lib/refunds/transitions";
-import { patchJson, ApiError } from "@/lib/api/client";
+import { patchJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { RefundStatus } from "../../generated/prisma/enums";
@@ -23,9 +23,14 @@ interface RefundStatusControlProps {
    * refunds.approve), this is just the matching UI state, not the real gate.
    */
   canApprove: boolean;
+  /** Client doc 2026-10-15 (I5) — the gateway's refund id / status once Admin approval sent it there. */
+  gatewayRefundId?: string | null;
+  gatewayRefundStatus?: string | null;
 }
 
-export function RefundStatusControl({ refundId, status, onChanged, canApprove }: RefundStatusControlProps) {
+export function RefundStatusControl({ refundId, status, onChanged, canApprove, gatewayRefundId, gatewayRefundStatus }: RefundStatusControlProps) {
+  const [checking, setChecking] = useState(false);
+  const [gatewayStatus, setGatewayStatus] = useState(gatewayRefundStatus ?? null);
   const [pending, setPending] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<RefundStatus | null>(null);
   const nextStatuses = getAllowedNextRefundStatuses(status);
@@ -45,46 +50,79 @@ export function RefundStatusControl({ refundId, status, onChanged, canApprove }:
     }
   };
 
-  return (
-    <div className="flex items-center gap-3">
-      <RefundStatusBadge status={status} />
-      {nextStatuses.length === 0 ? (
-        <span className="text-xs text-ink-tertiary">Final status</span>
-      ) : !canApprove ? (
-        <span className="text-xs text-ink-tertiary">Awaiting Admin approval</span>
-      ) : (
-        <>
-          <label htmlFor={`refund-status-select-${refundId}`} className="sr-only">
-            Change refund status
-          </label>
-          <select
-            id={`refund-status-select-${refundId}`}
-            value=""
-            disabled={pending}
-            onChange={(event) => setPendingStatus((event.target.value || null) as RefundStatus | null)}
-            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[160px] text-sm")}
-          >
-            <option value="" disabled>
-              Move to…
-            </option>
-            {nextStatuses.map((next) => (
-              <option key={next} value={next}>
-                {REFUND_STATUS_LABELS[next]}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
+  const checkGateway = async () => {
+    setChecking(true);
+    try {
+      const result = await postJson<{ changed: boolean; status: RefundStatus; gatewayRefundStatus: string }>(`/api/refunds/${refundId}/gateway-sync`, {});
+      setGatewayStatus(result.gatewayRefundStatus);
+      if (result.changed) {
+        onChanged(result.status);
+        toast.success(result.status === "COMPLETED" ? "The gateway has processed this refund." : "The gateway refund failed — approve it again or refund manually.");
+      } else {
+        toast.success(`Still ${result.gatewayRefundStatus} at the gateway.`);
+      }
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't check the refund with the gateway.");
+    } finally {
+      setChecking(false);
+    }
+  };
 
-      {pendingStatus ? (
-        <ConfirmActionDialog
-          title={`Move refund to ${REFUND_STATUS_LABELS[pendingStatus]}?`}
-          description="Refund status changes are a sensitive financial action (Business Rules §14) — this is recorded in the audit trail with your reason."
-          confirmLabel="Confirm Change"
-          pending={pending}
-          onConfirm={(reason) => void handleConfirm(reason)}
-          onCancel={() => setPendingStatus(null)}
-        />
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-3">
+        <RefundStatusBadge status={status} />
+        {nextStatuses.length === 0 ? (
+          <span className="text-xs text-ink-tertiary">Final status</span>
+        ) : !canApprove ? (
+          <span className="text-xs text-ink-tertiary">Awaiting Admin approval</span>
+        ) : (
+          <>
+            <label htmlFor={`refund-status-select-${refundId}`} className="sr-only">
+              Change refund status
+            </label>
+            <select
+              id={`refund-status-select-${refundId}`}
+              value=""
+              disabled={pending}
+              onChange={(event) => setPendingStatus((event.target.value || null) as RefundStatus | null)}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[160px] text-sm")}
+            >
+              <option value="" disabled>
+                Move to…
+              </option>
+              {nextStatuses.map((next) => (
+                <option key={next} value={next}>
+                  {REFUND_STATUS_LABELS[next]}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {pendingStatus ? (
+          <ConfirmActionDialog
+            title={`Move refund to ${REFUND_STATUS_LABELS[pendingStatus]}?`}
+            description="Refund status changes are a sensitive financial action (Business Rules §14) — this is recorded in the audit trail with your reason."
+            confirmLabel="Confirm Change"
+            pending={pending}
+            onConfirm={(reason) => void handleConfirm(reason)}
+            onCancel={() => setPendingStatus(null)}
+          />
+        ) : null}
+      </div>
+      {gatewayRefundId ? (
+        <p className="flex flex-wrap items-center gap-2 text-xs text-ink-tertiary">
+          <span>
+            Gateway refund ID <span className="font-mono text-ink-secondary">{gatewayRefundId}</span>
+            {gatewayStatus ? ` · ${gatewayStatus}` : ""}
+          </span>
+          {status === "PROCESSING" ? (
+            <button type="button" onClick={() => void checkGateway()} disabled={checking} className="font-medium text-ink-accent hover:underline disabled:opacity-50">
+              {checking ? "Checking…" : "Check gateway"}
+            </button>
+          ) : null}
+        </p>
       ) : null}
     </div>
   );

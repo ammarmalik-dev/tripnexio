@@ -43,6 +43,19 @@ export class RazorpayGateway implements PaymentGateway {
     return { refundId: body.id, status: body.status ?? "pending" };
   }
 
+  /** GET /v1/refunds/:id — "pending" until the bank confirms, then "processed" (or "failed"). */
+  async fetchRefundStatus(refundId: string): Promise<GatewayRefundResult> {
+    const response = await fetch(`https://api.razorpay.com/v1/refunds/${encodeURIComponent(refundId)}`, {
+      headers: { Authorization: `Basic ${this.basicAuth}` },
+      signal: AbortSignal.timeout(15_000),
+    });
+    const body = (await response.json().catch(() => null)) as { id?: string; status?: string; error?: { description?: string } } | null;
+    if (!response.ok || !body?.id) {
+      throw new Error(`Razorpay refund lookup failed (HTTP ${response.status}${body?.error?.description ? `: ${body.error.description}` : ""})`);
+    }
+    return { refundId: body.id, status: body.status ?? "pending" };
+  }
+
   /** GET /v1/payment_links?count=1 — authenticated and read-only. */
   async healthCheck(): Promise<GatewayHealth> {
     try {

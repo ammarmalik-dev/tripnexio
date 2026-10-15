@@ -770,6 +770,12 @@ model Refund {
   /// Backfilled from each refund's AuditTrail CREATE row where one exists.
   raisedByUserId     String?
   status             RefundStatus @default(PENDING)
+  /// Client doc 2026-10-15 (I5) — the gateway's own refund id and status (e.g. Razorpay rfnd_… / "processed"),
+  /// recorded when Admin approval sends the refund to the gateway; null for manual (bank transfer) refunds.
+  gatewayRefundId     String?
+  gatewayRefundStatus String?
+  /// When the refund reached COMPLETED.
+  completedAt        DateTime?
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 

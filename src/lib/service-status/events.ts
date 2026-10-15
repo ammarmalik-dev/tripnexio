@@ -48,6 +48,9 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   "OTB_APPROVED",
   "OTB_REJECTED",
   "OTB_UNABLE_TO_PROCESS",
+  // Client doc 2026-10-15 (I5) — the gateway / Admin completed a refund: everything paid, or only part of it.
+  "REFUND_COMPLETED",
+  "REFUND_PARTIALLY_COMPLETED",
 ] as const;
 
 export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[number];
@@ -92,5 +95,7 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   OTB_APPROVED: "OTB: approved (PNR recorded)",
   OTB_REJECTED: "OTB: rejected by airline",
   OTB_UNABLE_TO_PROCESS: "OTB: unable to process (TripNexio)",
+  REFUND_COMPLETED: "Refund completed (full amount) — e.g. Cancelled",
+  REFUND_PARTIALLY_COMPLETED: "Refund completed (part of the amount) — e.g. Partially Cancelled",
   ON_HOLD: "On Hold (marker)",
 };

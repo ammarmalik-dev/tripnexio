@@ -71,6 +71,8 @@ export interface PaymentGateway {
    * automatically — the caller then leaves the refund for manual processing.
    */
   refundPayment(gatewayRef: string, amountInPaise: number, notes: Record<string, string>): Promise<GatewayRefundResult>;
+  /** Client doc 2026-10-15 (I5) — the gateway's current status of a refund it accepted ("processed", "pending", "failed"). */
+  fetchRefundStatus(refundId: string): Promise<GatewayRefundResult>;
 }
 
 export interface GatewayRefundResult {

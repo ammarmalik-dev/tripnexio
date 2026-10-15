@@ -4,11 +4,11 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { applyRefundStatus } from "@/lib/refunds/finalize-refund";
+import { dispatchStatusNotifications } from "@/lib/service-status/engine";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertValidRefundTransition } from "@/lib/refunds/transitions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { paymentTotal } from "@/lib/payments/totals";
-import { syncPlanWithRefund } from "@/lib/protection-plan/lifecycle";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { gatewayForPayment } from "@/lib/payments/accounts";
 import { notifyCustomerRefund } from "@/lib/refunds/notify-customer";
@@ -69,6 +69,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   // untouched (staff can retry, or refund manually and mark it completed).
   let targetStatus = parsed.data.status;
   let gatewayNote = "";
+  let gatewayRefund: { gatewayRefundId: string; gatewayRefundStatus: string } | null = null;
   if (parsed.data.status === "PROCESSING" && refund.payment.method === "GATEWAY" && refund.payment.gatewayRef) {
     try {
       const gateway = await gatewayForPayment(refund.payment);
@@ -77,6 +78,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         refundId: refund.id,
       });
       gatewayNote = ` — gateway refund ${result.refundId} (${result.status})`;
+      // Client doc 2026-10-15 (I5) — keep the gateway's refund id; "Check gateway" follows a pending one to its result.
+      gatewayRefund = { gatewayRefundId: result.refundId, gatewayRefundStatus: result.status };
       if (result.status === "processed") targetStatus = "COMPLETED";
     } catch (error) {
       const message = error instanceof Error ? error.message : "Gateway refund failed.";
@@ -91,51 +94,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  const updated = await db.$transaction(async (tx) => {
-    const result = await tx.refund.update({ where: { id }, data: { status: targetStatus } });
-    await writeAudit(tx, {
-      entityType: "Refund",
-      entityId: id,
-      action: "STATUS_CHANGE",
-      byUserId: session.id,
-      note: withReason(`${refund.status} -> ${targetStatus}${gatewayNote} (by ${session.name})`, parsed.data.reason),
-    });
-    // P12 — a Protection Plan refund keeps the plan's status in step.
-    await syncPlanWithRefund(tx, id, targetStatus, { byUserId: session.id, label: `by ${session.name}` });
-
-    // Once completed refunds cover everything successfully paid on the booking, the booking is REFUNDED.
-    const booking = refund.payment.booking;
-    if (targetStatus === "COMPLETED" && booking.status !== "REFUNDED") {
-      const paidPayments = await tx.payment.findMany({ where: { bookingId: booking.id, status: "SUCCESS" } });
-      const totalPaid = paidPayments.reduce((sum, payment) => sum + paymentTotal(payment), 0);
-      const completed = await tx.refund.aggregate({
-        where: { status: "COMPLETED", payment: { bookingId: booking.id } },
-        _sum: { refundAmount: true },
-      });
-      const totalRefunded = Number(completed._sum.refundAmount ?? 0);
-      if (totalPaid > 0 && totalRefunded + 0.001 >= totalPaid) {
-        await tx.booking.update({ where: { id: booking.id }, data: { status: "REFUNDED" } });
-        await writeAudit(tx, {
-          entityType: "Booking",
-          entityId: booking.id,
-          action: "STATUS_CHANGE",
-          byUserId: session.id,
-          note: `${booking.status} -> REFUNDED — booking cancelled (completed refunds ₹${totalRefunded} cover the ₹${totalPaid} paid; by ${session.name})`,
-        });
-        // Client testing 2026-10-09 (E5) — a cancelled booking's invoices are cancelled with it.
-        for (const payment of paidPayments.filter((row) => row.invoiceNumber)) {
-          await writeAudit(tx, {
-            entityType: "Payment",
-            entityId: payment.id,
-            action: "INVOICE_CANCELLED",
-            byUserId: session.id,
-            note: `Invoice ${payment.invoiceNumber} cancelled — booking ${booking.bookingId} fully refunded (by ${session.name})`,
-          });
-        }
-      }
-    }
-    return result;
-  });
+  const notifications = await db.$transaction((tx) =>
+    applyRefundStatus(tx, id, targetStatus, { userId: session.id, label: `by ${session.name}` }, {
+      note: withReason(gatewayNote, parsed.data.reason),
+      ...(gatewayRefund ?? {}),
+    })
+  );
+  await dispatchStatusNotifications(notifications);
+  const updated = await db.refund.findUniqueOrThrow({ where: { id } });
 
   const stage = targetStatus === "PROCESSING" ? "processing" : targetStatus === "COMPLETED" ? "completed" : targetStatus === "REJECTED" ? "rejected" : null;
   if (stage) await notifyCustomerRefund(id, stage);

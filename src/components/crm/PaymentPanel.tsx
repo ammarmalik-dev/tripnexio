@@ -24,6 +24,8 @@ export interface RefundData {
   refundAmount: string;
   reason: string | null;
   status: RefundStatus;
+  gatewayRefundId?: string | null;
+  gatewayRefundStatus?: string | null;
   createdAt: string;
   /** CRM.md §21 (Step 14) — empty means the refund applied to the whole booking. */
   passengerIds: string[];
@@ -315,6 +317,8 @@ export function PaymentPanel({
                   status={refundStatuses[refund.id] ?? refund.status}
                   onChanged={(next) => setRefundStatuses((current) => ({ ...current, [refund.id]: next }))}
                   canApprove={canApproveRefunds}
+                  gatewayRefundId={refund.gatewayRefundId}
+                  gatewayRefundStatus={refund.gatewayRefundStatus}
                 />
                 <span className="font-semibold text-ink-heading">{money(refund.refundAmount)}</span>
               </div>

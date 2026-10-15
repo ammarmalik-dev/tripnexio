@@ -17,6 +17,11 @@ export class MockPaymentGateway implements PaymentGateway {
   /** null = no webhook secret configured, so every webhook is rejected. */
   constructor(private readonly webhookSecret: string | null) {}
 
+  /** Development only — every mock refund is already processed. */
+  async fetchRefundStatus(refundId: string): Promise<GatewayRefundResult> {
+    return { refundId, status: "processed" };
+  }
+
   /** Development only — pretends the gateway processed the refund. */
   async refundPayment(): Promise<GatewayRefundResult> {
     return { refundId: `mock_rfnd_${crypto.randomUUID().replace(/-/g, "").slice(0, 16)}`, status: "processed" };

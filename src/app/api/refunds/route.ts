@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
+import { syncRefundWithGateway } from "@/lib/refunds/finalize-refund";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("refunds.view");
@@ -17,6 +18,19 @@ export async function GET(request: NextRequest) {
   }
 
   const { status, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
+
+  // Client doc 2026-10-15 (I5) — refunds still processing at the gateway follow its real result when the list
+  // loads (a few at a time, oldest first, at most every 10 minutes each), so staff rarely need "Check gateway".
+  const stale = await db.refund.findMany({
+    where: { status: "PROCESSING", gatewayRefundId: { not: null }, updatedAt: { lt: new Date(Date.now() - 10 * 60_000) } },
+    orderBy: { updatedAt: "asc" },
+    take: 3,
+    select: { id: true },
+  });
+  for (const row of stale) {
+    const result = await syncRefundWithGateway(row.id, { userId: auth.session.id, label: "gateway check" });
+    if (!result.ok || !result.changed) await db.refund.update({ where: { id: row.id }, data: { updatedAt: new Date() } });
+  }
 
   const where = {
     ...(status ? { status } : {}),
@@ -57,6 +71,8 @@ export async function GET(request: NextRequest) {
     refundAmount: refund.refundAmount,
     reason: refund.reason,
     status: refund.status,
+    gatewayRefundId: refund.gatewayRefundId,
+    gatewayRefundStatus: refund.gatewayRefundStatus,
     createdAt: refund.createdAt,
     bookingDisplayId: refund.payment.booking.bookingId,
     leadReferenceId: leadReference(refund.payment.booking.lead),

@@ -28,6 +28,8 @@ interface RefundListItem {
   refundAmount: string;
   reason: string | null;
   status: RefundStatus;
+  gatewayRefundId: string | null;
+  gatewayRefundStatus: string | null;
   createdAt: string;
   paymentId: string;
   bookingDisplayId: string;
@@ -258,6 +260,8 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
                       status={statusOverrides[refund.id] ?? refund.status}
                       onChanged={(next) => setStatusOverrides((current) => ({ ...current, [refund.id]: next }))}
                       canApprove={canApproveRefunds}
+                      gatewayRefundId={refund.gatewayRefundId}
+                      gatewayRefundStatus={refund.gatewayRefundStatus}
                     />
                   </td>
                   <td className="px-4 py-3 text-ink-tertiary">{formatDate(refund.createdAt)}</td>

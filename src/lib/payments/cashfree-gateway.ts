@@ -121,6 +121,10 @@ export class CashfreeGateway implements PaymentGateway {
   }
 
   /** Link refunds need Cashfree's order id, which a payment link doesn't hand back here — refund from the Cashfree dashboard, then mark it completed. */
+  async fetchRefundStatus(): Promise<GatewayRefundResult> {
+    throw new Error("Cashfree refunds are made from the Cashfree dashboard — mark the refund completed once it is done.");
+  }
+
   async refundPayment(): Promise<GatewayRefundResult> {
     throw new Error("Automatic refunds aren't available for Cashfree payment links yet — refund from the Cashfree dashboard, then mark it completed.");
   }
