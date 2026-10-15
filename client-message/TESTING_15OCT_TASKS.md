@@ -106,19 +106,19 @@ Client message: "implement all corrections… consistently to avoid repeated cor
   - No OTB document upload.
   - OTB statuses; a rejection shows "Rejected", not "Cancelled", everywhere.
 - [ ] I4. Passenger-level partial approval, rejection and cancellation ("Partially Approved" / "Partially Cancelled"), with the selling, cancellation and refund amounts.
-- [ ] I5. Refunds:
+- [x] I5. Refunds:
   - Admin approval, then automatic gateway refund; the refund id is fetched.
   - Status follows the real refund result (Cancelled / Partially Cancelled).
   - The admin can approve a refund they raised.
   - The customer is notified on lead creation, extra payment link and refund.
-- [ ] I6. Documents:
+- [x] I6. Documents:
   - One Booking Documents area (from both lead and booking) with PAX sections.
   - Statuses: Pending, Received, Validated, Rejected, Additional Required.
   - One consolidated customer notification listing which passenger needs which document.
-- [ ] I7. Vendor choice:
+- [x] I7. Vendor choice:
   - OTB / New Visa / Return Ticket: the vendor is picked from the enabled vendors after all documents are validated; P&L from the buying rate.
   - Visa Change / Visa Extension / Special Fare: the vendor comes from the selected quotation.
-- [ ] I8. Upload button in colour; PDF / PNG / JPG under 3 MB.
+- [x] I8. Upload button in colour; PDF / PNG / JPG under 3 MB.
 - [ ] I9. Admin can refund at any status, and move a status or document back, with audit.
 
 ## J. Admin / site misc
