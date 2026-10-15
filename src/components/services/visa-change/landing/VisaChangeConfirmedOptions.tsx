@@ -4,25 +4,23 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 
-// Locked content — doc §12 "Confirmed Options". The values themselves come
+// Client doc 2026-10-15 (E1) — the client's lists, word for word. The values themselves come
 // from the CRM per booking; this only lists what the customer will be shown.
 const options = [
   {
     title: "A2A",
     Icon: Plane,
-    items: ["Exit & Re-entry Airport", "Airline", "Flight", "Date", "Time", "Reporting Time", "Package details"],
+    items: ["Exit & Re-entry Airport name", "Flight details", "Travel Date & timing", "Reporting date & time", "Package details"],
   },
   {
     title: "Border Exit & Re-entry",
     Icon: Bus,
     items: [
-      "Border Name",
-      "Pickup Location",
-      "Pickup Person",
-      "Pickup Contact",
-      "Reporting Time",
-      "Travel Time",
-      "Drop / Border Location",
+      "Transit country name (Non UAE side border)",
+      "Pickup & drop Location",
+      "Pickup Person details",
+      "Travel Date & timing",
+      "Reporting date & time",
       "Package details",
     ],
   },

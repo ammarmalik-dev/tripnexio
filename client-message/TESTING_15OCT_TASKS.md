@@ -43,24 +43,24 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [ ] C8. Website form text alignment after submission.
 
 ## D. Visa Extension
-- [ ] D1. Costing:
+- [x] D1. Costing:
   - Fields: Vendor, Extension cost, Fine, Selling amount.
   - Profit = Selling − Cost − Fine; GST on profit; gateway charge on the full amount.
   - "Keep two separate coupon fields" (to clarify).
-- [ ] D2. Wrong visa expiry date/time on the review and payment screens.
-- [ ] D3. Multiple passengers: cost, fine and selling per passenger; partial approval and payment.
-- [ ] D4. New T&C text and checkbox.
+- [x] D2. Wrong visa expiry date/time on the review and payment screens.
+- [x] D3. Multiple passengers: cost, fine and selling per passenger; partial approval and payment.
+- [x] D4. New T&C text and checkbox.
 
 ## E. Visa Change
-- [ ] E1. Website: the "after availability is confirmed you will see…" lists for A2A and Border.
-- [ ] E2. Document checklist per passenger by that passenger's own nationality.
-- [ ] E3. A2A CRM:
+- [x] E1. Website: the "after availability is confirmed you will see…" lists for A2A and Border.
+- [x] E2. Document checklist per passenger by that passenger's own nationality.
+- [x] E3. A2A CRM:
   - Airport search inside the field.
   - Departure terminal.
   - Remove the reporting time.
   - T&C attached automatically to the quote / package.
-- [ ] E4. Profit = Selling − Vendor cost − Fine; GST on profit (A2A and Border).
-- [ ] E5. New T&C text and checkbox; "Important Travel Instructions" in the ticket / package email.
+- [x] E4. Profit = Selling − Vendor cost − Fine; GST on profit (A2A and Border).
+- [x] E5. New T&C text and checkbox; "Important Travel Instructions" in the ticket / package email.
 
 ## F. New Visa
 - [x] F1. First form:

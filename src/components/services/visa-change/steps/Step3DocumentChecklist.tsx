@@ -15,12 +15,11 @@ interface DocumentRequirementItem {
 }
 
 /**
- * Visa_Change.md §11: the Admin-configured document checklist for the
- * nationality (no final pricing here). Per the client's updated Visa Change
- * handover, each applicant's passport copy is now uploaded HERE, before the
- * Lead is created (this supersedes §20's upload-after-payment for the
- * passport copy); any other documents on the checklist are still requested by
- * staff after review.
+ * Visa_Change.md §11: the Admin-configured document checklist (no final
+ * pricing here). Client doc 2026-10-15 (E2) — one checklist per passenger,
+ * from that passenger's own nationality (passengers may hold different
+ * passports). Each applicant's current visa copy is uploaded here; any other
+ * documents on the checklist are requested by staff after review.
  */
 export function Step3DocumentChecklist() {
   const {
@@ -28,34 +27,39 @@ export function Step3DocumentChecklist() {
     control,
     formState: { errors },
   } = useFormContext<VisaChangeRequestValues>();
-  const nationalityId = getValues("nationalityId");
   const { options: nationalities } = useNationalities();
-  const nationality = nationalities.find((option) => option.id === nationalityId)?.name ?? "";
   const additionalPassengers = useWatch({ control, name: "additionalPassengers" }) ?? [];
-  const [items, setItems] = useState<DocumentRequirementItem[] | null>(null);
+  const travellers = [
+    { fullName: getValues("fullName") || "You", nationalityId: getValues("nationalityId") },
+    ...additionalPassengers.map((passenger, index) => ({ fullName: passenger.fullName || `Passenger ${index + 2}`, nationalityId: passenger.nationalityId })),
+  ];
+  const nationalityIds = [...new Set(travellers.map((traveller) => traveller.nationalityId).filter(Boolean))];
+  const nationalityKey = nationalityIds.join(",");
+  const [itemsByNationality, setItemsByNationality] = useState<Record<string, DocumentRequirementItem[]> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      try {
-        const res = await fetch(
-          `/api/document-requirements?nationalityId=${encodeURIComponent(nationalityId)}&serviceType=VISA_CHANGE`
-        );
-        if (!res.ok) {
-          if (!cancelled) setItems([]);
-          return;
-        }
-        const json = (await res.json()) as { data: DocumentRequirementItem[] };
-        if (!cancelled) setItems(json.data);
-      } catch {
-        if (!cancelled) setItems([]);
-      }
+      const ids = nationalityKey ? nationalityKey.split(",") : [];
+      const entries = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const res = await fetch(`/api/document-requirements?nationalityId=${encodeURIComponent(id)}&serviceType=VISA_CHANGE`);
+            if (!res.ok) return [id, []] as const;
+            const json = (await res.json()) as { data: DocumentRequirementItem[] };
+            return [id, json.data] as const;
+          } catch {
+            return [id, []] as const;
+          }
+        })
+      );
+      if (!cancelled) setItemsByNationality(Object.fromEntries(entries));
     }
     void load();
     return () => {
       cancelled = true;
     };
-  }, [nationalityId]);
+  }, [nationalityKey]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -65,29 +69,42 @@ export function Step3DocumentChecklist() {
         </span>
         <div>
           <p className="text-sm font-semibold text-ink-heading">Documents you&apos;ll likely need</p>
-          <p className="text-xs text-ink-tertiary">Based on nationality: {nationality || "—"}</p>
+          <p className="text-xs text-ink-tertiary">For each passenger, based on their own nationality.</p>
         </div>
       </div>
 
-      {items === null ? (
+      {itemsByNationality === null ? (
         <div className="flex flex-col gap-2">
           <Skeleton className="h-10 w-full" />
           <Skeleton className="h-10 w-full" />
         </div>
-      ) : items.length === 0 ? (
-        <p className="rounded-lg bg-surface-2 px-4 py-3 text-sm text-ink-secondary">
-          Our team will confirm the exact document checklist for your nationality once we review your request.
-        </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {items.map((item) => (
-            <li key={item.id} className="flex items-center gap-2.5 rounded-lg border border-hairline bg-surface-1 px-3 py-2.5 text-sm">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-              <span className="text-ink-primary">{item.documentName}</span>
-              {!item.required ? <span className="text-xs text-ink-tertiary">(optional)</span> : null}
-            </li>
-          ))}
-        </ul>
+        travellers.map((traveller, index) => {
+          const items = itemsByNationality[traveller.nationalityId] ?? [];
+          const nationality = nationalities.find((option) => option.id === traveller.nationalityId)?.name ?? "—";
+          return (
+            <div key={index} className="flex flex-col gap-2">
+              <p className="text-sm font-medium text-ink-primary">
+                {traveller.fullName} <span className="text-xs font-normal text-ink-tertiary">· {nationality}</span>
+              </p>
+              {items.length === 0 ? (
+                <p className="rounded-lg bg-surface-2 px-4 py-3 text-sm text-ink-secondary">
+                  Our team will confirm the exact document checklist for this nationality once we review your request.
+                </p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {items.map((item) => (
+                    <li key={item.id} className="flex items-center gap-2.5 rounded-lg border border-hairline bg-surface-1 px-3 py-2.5 text-sm">
+                      <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                      <span className="text-ink-primary">{item.documentName}</span>
+                      {!item.required ? <span className="text-xs text-ink-tertiary">(optional)</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })
       )}
 
       <div className="flex flex-col gap-3">
