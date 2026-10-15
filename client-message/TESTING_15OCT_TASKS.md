@@ -46,7 +46,7 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [x] D1. Costing:
   - Fields: Vendor, Extension cost, Fine, Selling amount.
   - Profit = Selling − Cost − Fine; GST on profit; gateway charge on the full amount.
-  - "Keep two separate coupon fields" (to clarify).
+  - Coupon: client reply 2026-10-15 "keep one only". The Visa Extension quote already has a single Coupon Code field, so nothing changes.
 - [x] D2. Wrong visa expiry date/time on the review and payment screens.
 - [x] D3. Multiple passengers: cost, fine and selling per passenger; partial approval and payment.
 - [x] D4. New T&C text and checkbox.
