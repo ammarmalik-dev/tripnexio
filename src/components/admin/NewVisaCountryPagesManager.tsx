@@ -49,6 +49,18 @@ interface CountryPage {
   beforeYouApply: string[];
   ctaHeading: string | null;
   ctaBody: string | null;
+  serviceName: string | null;
+  applyLabel: string | null;
+  introEyebrow: string | null;
+  selectorEyebrow: string | null;
+  selectorHeading: string | null;
+  childrenHeading: string | null;
+  stayLabel: string | null;
+  validityLabel: string | null;
+  processEyebrow: string | null;
+  processHeading: string | null;
+  statusSampleText: string | null;
+  howItWorksSteps: string[];
   seoTitle: string | null;
   seoDescription: string | null;
   country: { id: string; code: string; name: string; active: boolean };
@@ -81,6 +93,18 @@ interface FormState {
   beforeYouApply: string;
   ctaHeading: string;
   ctaBody: string;
+  serviceName: string;
+  applyLabel: string;
+  introEyebrow: string;
+  selectorEyebrow: string;
+  selectorHeading: string;
+  childrenHeading: string;
+  stayLabel: string;
+  validityLabel: string;
+  processEyebrow: string;
+  processHeading: string;
+  statusSampleText: string;
+  howItWorksSteps: string;
   seoTitle: string;
   seoDescription: string;
 }
@@ -107,6 +131,18 @@ const EMPTY_FORM: FormState = {
   beforeYouApply: "",
   ctaHeading: "",
   ctaBody: "",
+  serviceName: "",
+  applyLabel: "",
+  introEyebrow: "",
+  selectorEyebrow: "",
+  selectorHeading: "",
+  childrenHeading: "",
+  stayLabel: "",
+  validityLabel: "",
+  processEyebrow: "",
+  processHeading: "",
+  statusSampleText: "",
+  howItWorksSteps: "",
   seoTitle: "",
   seoDescription: "",
 };
@@ -135,6 +171,18 @@ function toForm(page: CountryPage): FormState {
     beforeYouApply: page.beforeYouApply.join("\n"),
     ctaHeading: text(page.ctaHeading),
     ctaBody: text(page.ctaBody),
+    serviceName: text(page.serviceName),
+    applyLabel: text(page.applyLabel),
+    introEyebrow: text(page.introEyebrow),
+    selectorEyebrow: text(page.selectorEyebrow),
+    selectorHeading: text(page.selectorHeading),
+    childrenHeading: text(page.childrenHeading),
+    stayLabel: text(page.stayLabel),
+    validityLabel: text(page.validityLabel),
+    processEyebrow: text(page.processEyebrow),
+    processHeading: text(page.processHeading),
+    statusSampleText: text(page.statusSampleText),
+    howItWorksSteps: (page.howItWorksSteps ?? []).join("\n"),
     seoTitle: text(page.seoTitle),
     seoDescription: text(page.seoDescription),
   };
@@ -169,6 +217,18 @@ function toPayload(form: FormState) {
     beforeYouApply: lines(form.beforeYouApply),
     ctaHeading: optional(form.ctaHeading),
     ctaBody: optional(form.ctaBody),
+    serviceName: optional(form.serviceName),
+    applyLabel: optional(form.applyLabel),
+    introEyebrow: optional(form.introEyebrow),
+    selectorEyebrow: optional(form.selectorEyebrow),
+    selectorHeading: optional(form.selectorHeading),
+    childrenHeading: optional(form.childrenHeading),
+    stayLabel: optional(form.stayLabel),
+    validityLabel: optional(form.validityLabel),
+    processEyebrow: optional(form.processEyebrow),
+    processHeading: optional(form.processHeading),
+    statusSampleText: optional(form.statusSampleText),
+    howItWorksSteps: lines(form.howItWorksSteps),
     seoTitle: optional(form.seoTitle),
     seoDescription: optional(form.seoDescription),
   };
@@ -481,6 +541,16 @@ function PageEditor({
         />
       </Section>
 
+      <Section
+        title="Product name & buttons"
+        description="Some countries issue an eTA or an arrival card instead of a visa. Leave empty to use “<Country> Visa” and “Apply for <Country> Visa”."
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {text("serviceName", "Product name", { placeholder: "e.g. UAE Visa, UK ETA, Arrival Card" })}
+          {text("applyLabel", "Apply button", { placeholder: "e.g. Apply for UK ETA" })}
+        </div>
+      </Section>
+
       <Section title="Top of the page (hero)">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {text("heroEyebrow", "Small label above the heading", { placeholder: "e.g. UAE Visa" })}
@@ -497,9 +567,19 @@ function PageEditor({
         />
       </Section>
 
-      <Section title="About this visa" description="Leave both empty to hide this section.">
-        {text("introHeading", "Heading")}
+      <Section title="About this visa" description="Leave the heading and text empty to hide this section.">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {text("introEyebrow", "Small label", { placeholder: "What is a New Visa Request?" })}
+          {text("introHeading", "Heading")}
+        </div>
         {area("introBody", "Text", { rows: 5 })}
+      </Section>
+
+      <Section title="Visa options & prices" description="Above the option / price picker. Leave empty to use the standard wording.">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {text("selectorEyebrow", "Small label", { placeholder: "e.g. UAE visa options" })}
+          {text("selectorHeading", "Heading", { placeholder: "Choose your visa and see the price instantly" })}
+        </div>
       </Section>
 
       <Section title="Who can apply" description="Leave both empty to hide this section.">
@@ -520,14 +600,26 @@ function PageEditor({
           </div>
         </div>
         {area("documentsNote", "Documents note", { rows: 2 })}
+        {text("childrenHeading", "Children card heading", { placeholder: "Travelling with children" })}
         {area("childrenNote", "Travelling with children", { rows: 2, hint: "Leave empty to hide this card." })}
       </Section>
 
-      <Section title="Visa validity & stay" description="Leave both empty to hide this section.">
+      <Section title="Visa validity & stay" description="Leave a text empty to hide its card.">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {text("validityLabel", "Validity card title", { placeholder: "Visa Validity" })}
+          {text("stayLabel", "Stay card title", { placeholder: "Visa Stay" })}
           {area("validityText", "Visa validity")}
           {area("stayText", "Stay duration")}
         </div>
+      </Section>
+
+      <Section title="How It Works" description="Leave empty to use the standard four steps.">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {text("processEyebrow", "Small label", { placeholder: "The visa process" })}
+          {text("processHeading", "Heading", { placeholder: "How It Works" })}
+        </div>
+        {area("howItWorksSteps", "Steps", { rows: 4, hint: "One step per line as “Title | description”, up to 6 steps." })}
+        {text("statusSampleText", "Sample status line", { placeholder: "Your visa application is being processed." })}
       </Section>
 
       <Section title="Important before you apply" description="One point per line. Leave empty to hide.">

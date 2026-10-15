@@ -2257,6 +2257,21 @@ model NewVisaCountryPage {
   beforeYouApply    String[]
   ctaHeading        String?
   ctaBody           String?  @db.Text
+  /// Client doc 2026-10-15 — fully editable page wording (some countries issue an eTA or an arrival
+  /// card, not a visa): the product's name ("UAE Visa", "UK ETA", "Arrival Card"); empty = "<Country> Visa".
+  serviceName       String?
+  applyLabel        String?
+  introEyebrow      String?
+  selectorEyebrow   String?
+  selectorHeading   String?
+  childrenHeading   String?
+  stayLabel         String?
+  validityLabel     String?
+  processEyebrow    String?
+  processHeading    String?
+  /// "How It Works" steps, one per line as "Title | description"; empty = the standard four steps.
+  howItWorksSteps   String[] @default([])
+  statusSampleText  String?
   seoTitle          String?
   seoDescription    String?
   createdAt         DateTime @default(now())

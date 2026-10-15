@@ -37,16 +37,21 @@ export async function NewVisaProcessingTimeSection({
   countryCode,
   stayText,
   validityText,
+  stayLabel = "Visa Stay",
+  validityLabel = "Visa Validity",
 }: {
   countryCode: string;
   stayText?: string | null;
   validityText?: string | null;
+  /** Client doc 2026-10-15 — the country page's own card titles (eTA / arrival card wording). */
+  stayLabel?: string;
+  validityLabel?: string;
 }) {
   const rules = await loadRules(countryCode);
   const facts: { title: string; copy: string; Icon: LucideIcon }[] = [
     { title: "Processing Time", copy: processingCopy(rules), Icon: Timer },
-    ...(stayText ? [{ title: "Visa Stay", copy: stayText, Icon: CalendarRange }] : []),
-    ...(validityText ? [{ title: "Visa Validity", copy: validityText, Icon: CalendarCheck }] : []),
+    ...(stayText ? [{ title: stayLabel, copy: stayText, Icon: CalendarRange }] : []),
+    ...(validityText ? [{ title: validityLabel, copy: validityText, Icon: CalendarCheck }] : []),
   ];
   const columns = facts.length === 3 ? "sm:grid-cols-3" : facts.length === 2 ? "sm:grid-cols-2" : "";
 

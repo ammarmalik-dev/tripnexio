@@ -32,11 +32,38 @@ function shortName(page: PublishedCountryPage): string {
   return fromEyebrow || page.country.name;
 }
 
+/** Client doc 2026-10-15 — the product's own name ("UK ETA", "Arrival Card"); "<Country> Visa" when not set. */
+function productName(page: PublishedCountryPage): string {
+  return page.serviceName ?? `${shortName(page)} Visa`;
+}
+
+const STEP_ICONS = [ClipboardList, Upload, Settings2, BadgeCheck];
+
+/** Admin's "Title | description" lines, or the standard four steps. */
+function howItWorks(page: PublishedCountryPage, product: string) {
+  const custom = (page.howItWorksSteps ?? [])
+    .map((line) => line.split("|").map((part) => part.trim()))
+    .filter(([headline]) => Boolean(headline))
+    .map(([headline, ...rest], index) => ({
+      step: String(index + 1).padStart(2, "0"),
+      icon: STEP_ICONS[index % STEP_ICONS.length],
+      headline,
+      supportingCopy: rest.join(" | "),
+    }));
+  if (custom.length > 0) return custom;
+  return [
+    { step: "01", icon: ClipboardList, headline: "Apply online", supportingCopy: `Choose your ${product} option and submit your traveller details.` },
+    { step: "02", icon: Upload, headline: "Upload documents", supportingCopy: "Complete payment and upload the required documents." },
+    { step: "03", icon: Settings2, headline: "We process your application", supportingCopy: "We coordinate the next steps and keep you updated." },
+    { step: "04", icon: BadgeCheck, headline: `${product} delivered`, supportingCopy: `Receive your ${product} digitally once approved and issued.` },
+  ];
+}
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const page = await getPublishedCountryPage(slug).catch(() => null);
   if (!page) return { title: "New Visa" };
-  const title = page.seoTitle ?? `${shortName(page)} Visa`;
+  const title = page.seoTitle ?? productName(page);
   const description = page.seoDescription ?? page.heroSubtitle;
   return { title, description, openGraph: { title, description, images: [{ url: siteConfig.ogImage, width: 1200, height: 630 }] }, alternates: { canonical: `/services/new-visa/${page.slug}` } };
 }
@@ -49,15 +76,10 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
   const page = await getPublishedCountryPage(slug);
   if (!page) notFound();
 
-  const name = shortName(page);
+  const product = productName(page);
   const applyHref = newVisaApplyHref(page.country.code);
-  const applyLabel = `Apply for ${name} Visa`;
-  const processSteps = [
-    { step: "01", icon: ClipboardList, headline: "Apply online", supportingCopy: `Choose your ${name} visa option and submit your traveller details.` },
-    { step: "02", icon: Upload, headline: "Upload documents", supportingCopy: "Complete payment and upload the required documents." },
-    { step: "03", icon: Settings2, headline: "We process your application", supportingCopy: "We coordinate the next steps and keep you updated." },
-    { step: "04", icon: BadgeCheck, headline: "Visa delivered", supportingCopy: "Receive your issued visa digitally once approved and issued." },
-  ];
+  const applyLabel = page.applyLabel ?? `Apply for ${product}`;
+  const processSteps = howItWorks(page, product);
 
   return (
     <>
@@ -107,7 +129,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
           <Container>
             <MotionReveal>
               <div className="mx-auto flex max-w-3xl flex-col gap-4">
-                <SectionHeading eyebrow="What is a New Visa Request?" title={page.introHeading ?? `Your ${name} visa application, guided end to end`} />
+                <SectionHeading eyebrow={page.introEyebrow ?? "What is a New Visa Request?"} title={page.introHeading ?? `Your ${product} application, guided end to end`} />
                 {page.introBody ? <p className="whitespace-pre-line text-sm text-ink-secondary sm:text-base">{page.introBody}</p> : null}
               </div>
             </MotionReveal>
@@ -118,7 +140,12 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-6">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow={`${name} visa options`} title="Choose your visa and see the price instantly" className="mx-auto" />
+            <SectionHeading
+              align="center"
+              eyebrow={page.selectorEyebrow ?? `${product} options`}
+              title={page.selectorHeading ?? "Choose your option and see the price instantly"}
+              className="mx-auto"
+            />
           </MotionReveal>
           <MotionReveal delay={0.08}>
             <div className="mx-auto w-full max-w-2xl">
@@ -132,7 +159,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
         <section className="py-10 sm:py-14">
           <Container className="flex flex-col items-center gap-5 text-center">
             <MotionReveal>
-              <SectionHeading align="center" title={page.applicantsHeading ?? `${name} Visa Applications From Across India`} className="mx-auto" />
+              <SectionHeading align="center" title={page.applicantsHeading ?? `${product} Applications From Across India`} className="mx-auto" />
             </MotionReveal>
             {page.applicantsBody ? (
               <MotionReveal delay={0.06}>
@@ -171,7 +198,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
                   <Baby className="h-6 w-6" aria-hidden="true" />
                 </span>
                 <div className="flex flex-col gap-2">
-                  <h2 className="text-xl font-semibold text-ink-heading sm:text-2xl">Travelling with children</h2>
+                  <h2 className="text-xl font-semibold text-ink-heading sm:text-2xl">{page.childrenHeading ?? "Travelling with children"}</h2>
                   <p className="text-sm text-ink-secondary sm:text-base">{page.childrenNote}</p>
                 </div>
               </GlassCard>
@@ -180,14 +207,20 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      <NewVisaProcessingTimeSection countryCode={page.country.code} stayText={page.stayText} validityText={page.validityText} />
+      <NewVisaProcessingTimeSection
+        countryCode={page.country.code}
+        stayText={page.stayText}
+        validityText={page.validityText}
+        stayLabel={page.stayLabel ?? "Stay Duration"}
+        validityLabel={page.validityLabel ?? "Validity"}
+      />
 
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="The visa process" title="How It Works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow={page.processEyebrow ?? `The ${product} process`} title={page.processHeading ?? "How It Works"} className="mx-auto" />
           </MotionReveal>
-          <VisaProcessSteps steps={processSteps} sampleStatusText="Your visa application is being processed." />
+          <VisaProcessSteps steps={processSteps} sampleStatusText={page.statusSampleText ?? `Your ${product} application is being processed.`} />
         </Container>
       </section>
 
@@ -203,10 +236,10 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </span>
               <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
-                {page.ctaHeading ?? `Ready to apply for your ${name} visa?`}
+                {page.ctaHeading ?? `Ready to apply for your ${product}?`}
               </h2>
               <p className="max-w-xl text-sm text-ink-on-dark-secondary sm:text-base">
-                {page.ctaBody ?? "Choose your visa option, enter your traveller details and complete your application online."}
+                {page.ctaBody ?? "Choose your option, enter your traveller details and complete your application online."}
               </p>
               <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <ButtonLink href={applyHref} variant="primary" size="lg">
