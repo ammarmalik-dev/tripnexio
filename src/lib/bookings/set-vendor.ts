@@ -1,8 +1,28 @@
 import type { Prisma } from "../../generated/prisma/client";
 import { writeAudit } from "../audit/log";
 import { pickVendorRate } from "../vendors/service-rates";
+import type { ServiceType } from "../../generated/prisma/enums";
+import { bookingDocumentsWhere } from "../documents/document-lead";
+import { isOutputType } from "../outputs/output-types";
 
-export { DIRECT_VENDOR_NAME } from "./vendor-names";
+export { DIRECT_VENDOR_NAME, VENDOR_AFTER_DOCUMENTS_SERVICES } from "./vendor-names";
+import { VENDOR_AFTER_DOCUMENTS_SERVICES } from "./vendor-names";
+
+/**
+ * Client doc 2026-10-15 (I7) — OTB / New Visa / Return Ticket: staff pick the vendor (from the vendors
+ * enabled for the service) once every customer document is validated, and its buying rate sets the
+ * vendor cost. Visa Change / Visa Extension / Special Fare: the vendor comes from the selected quotation.
+ */
+
+/** Why the booking's vendor can't be picked yet (or at all) — null when it can. */
+export function vendorChoiceBlock(serviceType: ServiceType, documents: { type: string; status: string; purgedAt?: Date | string | null }[]): string | null {
+  if (!VENDOR_AFTER_DOCUMENTS_SERVICES.has(serviceType)) return "The vendor comes from the selected quotation.";
+  const customerDocuments = documents.filter((document) => !isOutputType(document.type) && !document.purgedAt);
+  if (customerDocuments.length === 0 || customerDocuments.some((document) => document.status !== "VERIFIED")) {
+    return "Pick the vendor once every document is validated.";
+  }
+  return null;
+}
 
 /**
  * Client testing 2026-10-09 (E12) — records which vendor actually processes a
@@ -29,6 +49,11 @@ export async function setBookingVendor(
   });
   if (!quotation) return "This booking has no selected quotation to record the vendor on.";
   if (quotation.vendorId === input.vendor.id) return null;
+
+  const booking = await tx.booking.findUniqueOrThrow({ where: { id: input.bookingId }, select: { id: true, leadId: true, lead: { select: { serviceType: true } } } });
+  const documents = await tx.document.findMany({ where: bookingDocumentsWhere(booking), select: { type: true, status: true, purgedAt: true } });
+  const blocked = vendorChoiceBlock(booking.lead.serviceType, documents);
+  if (blocked) return blocked;
 
   // Client doc 2026-10-14 — OTB / Return Ticket: the vendor's rate for this country / airline /
   // processing type sets the booking's vendor cost (rate × passengers) and margin.

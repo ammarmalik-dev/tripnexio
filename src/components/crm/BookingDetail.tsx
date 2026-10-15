@@ -47,6 +47,7 @@ import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormFiel
 import { cn } from "@/lib/cn";
 import type { BookingStatus, DocumentStatus, ExtensionOutcome, PaxType, ProtectionPlanStatus, ServiceType } from "../../generated/prisma/enums";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { VENDOR_AFTER_DOCUMENTS_SERVICES } from "@/lib/bookings/vendor-names";
 
 interface DocumentItem {
   id: string;
@@ -145,6 +146,8 @@ interface BookingDetailResponse {
   bookingDates: BookingDateItem[];
   /** P21 — staff-internal vendor / cost / margin / reference / PNR summary. */
   vendorSummary: BookingVendorSummaryData | null;
+  /** Client doc 2026-10-15 (I7) — null when staff can pick the vendor now. */
+  vendorChoiceBlockedReason: string | null;
   /** P21 — CRM.md §36, oldest first, capped server-side. */
   timeline: BookingTimelineEntry[];
   timelineTruncated: boolean;
@@ -604,15 +607,21 @@ export function BookingDetail({
                   {booking.vendorSummary ? (
                     <div className="flex flex-col gap-3">
                       <BookingVendorSummary vendor={booking.vendorSummary} compact={booking.serviceType === "RETURN_TICKET"} />
-                      {/* Client testing 2026-10-09 (E12) — name / change the vendor processing this booking. */}
-                      {booking.serviceType !== "RETURN_TICKET" ? (
-                        <BookingVendorPicker
-                          bookingId={booking.id}
-                          serviceType={booking.serviceType}
-                          currentVendorId={booking.vendorSummary.vendorId}
-                          onSaved={refresh}
-                        />
-                      ) : null}
+                      {/* Client doc 2026-10-15 (I7) — OTB / New Visa / Return Ticket: pick the vendor once every document is validated. */}
+                      {VENDOR_AFTER_DOCUMENTS_SERVICES.has(booking.serviceType) ? (
+                        booking.vendorChoiceBlockedReason ? (
+                          <p className="text-xs text-ink-tertiary">{booking.vendorChoiceBlockedReason}</p>
+                        ) : (
+                          <BookingVendorPicker
+                            bookingId={booking.id}
+                            serviceType={booking.serviceType}
+                            currentVendorId={booking.vendorSummary.vendorId}
+                            onSaved={refresh}
+                          />
+                        )
+                      ) : (
+                        <p className="text-xs text-ink-tertiary">The vendor comes from the selected quotation.</p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-ink-tertiary">No selected quotation, so no vendor on record.</p>

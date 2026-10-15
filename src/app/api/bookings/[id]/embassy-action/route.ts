@@ -8,7 +8,8 @@ import { writeAudit } from "@/lib/audit/log";
 import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import { EMBASSY_ACTIONS, EMBASSY_ACTION_KEYS } from "@/lib/new-visa/embassy-actions";
 import { openRefundReviewsForRejectedVisa } from "@/lib/protection-plan/lifecycle";
-import { setBookingVendor } from "@/lib/bookings/set-vendor";
+import { setBookingVendor, vendorChoiceBlock } from "@/lib/bookings/set-vendor";
+import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -58,6 +59,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const vendor = action === "APPLIED" && vendorId ? await db.vendor.findFirst({ where: { id: vendorId, active: true }, select: { id: true, name: true } }) : null;
   if (action === "APPLIED" && !vendor) {
     return jsonError(400, "Select the vendor processing this visa before marking it Applied.", { vendorId: ["Select a vendor."] });
+  }
+  // Client doc 2026-10-15 (I7) — the vendor is picked once every document is validated.
+  if (action === "APPLIED") {
+    const documents = await db.document.findMany({ where: bookingDocumentsWhere({ id, leadId: booking.leadId }), select: { type: true, status: true, purgedAt: true } });
+    const blocked = vendorChoiceBlock("NEW_VISA", documents);
+    if (blocked) return jsonError(409, blocked);
   }
 
   const { event, label } = EMBASSY_ACTIONS[action];

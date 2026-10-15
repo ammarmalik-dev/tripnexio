@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { computeVendorScore, getVendorScoringWeights } from "@/lib/vendors/scoring";
 import type { ServiceType } from "@/generated/prisma/enums";
+import { DIRECT_VENDOR_NAME } from "@/lib/bookings/vendor-names";
 
 const SERVICE_TYPES: ServiceType[] = [
   "NEW_VISA",
@@ -27,6 +28,8 @@ export async function GET(request: NextRequest) {
   const vendors = await db.vendor.findMany({
     where: {
       active: true,
+      // Client doc 2026-10-15 (I7) — only real vendors, never the auto-priced placeholder.
+      name: { not: DIRECT_VENDOR_NAME },
       ...(service ? { services: { some: { service: service as ServiceType } } } : {}),
     },
     orderBy: { name: "asc" },

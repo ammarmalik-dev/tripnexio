@@ -19,6 +19,7 @@ import { leadOperationalBlock, parseOperationalBlock } from "@/lib/visa-change/o
 import { getBookingTimeline } from "@/lib/audit/booking-timeline";
 import { getBookingDates } from "@/lib/crm/booking-dates";
 import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
+import { vendorChoiceBlock } from "@/lib/bookings/set-vendor";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -133,6 +134,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       bookingCreatedAt: synced.createdAt,
       appliedToEmbassyAt: booking.appliedToEmbassyAt,
     }),
+    // Client doc 2026-10-15 (I7) — whether staff can pick the vendor now (and why not).
+    vendorChoiceBlockedReason: vendorChoiceBlock(booking.lead.serviceType, booking.documents),
     // P21 — staff-internal vendor summary (vendor cost / margin never go to a customer view).
     vendorSummary: selectedQuotation
       ? {
