@@ -43,6 +43,10 @@ export interface A2ABlock {
   returnFlightNumber?: string | null;
   returnFlightDate?: string | null;
   returnFlightTime?: string | null;
+  /** Client doc 2026-10-15 (E3) — departure terminals of the exit / re-entry flights. */
+  terminal?: string | null;
+  returnTerminal?: string | null;
+  /** Empty on options quoted after client doc 2026-10-15 (no reporting time asked). */
   reportingTime: string;
   vendorId: string;
   vendorName: string;
@@ -83,7 +87,7 @@ export function parseOperationalBlock(raw: unknown): OperationalBlock | null {
   if (!raw || typeof raw !== "object") return null;
   const data = raw as Record<string, unknown>;
   if (data.kind === "A2A") {
-    const required = ["entryAirportId", "entryAirport", "exitAirportId", "exitAirport", "airlineCode", "airline", "flightNumber", "flightDate", "flightTime", "reportingTime", "vendorId", "vendorName"];
+    const required = ["entryAirportId", "entryAirport", "exitAirportId", "exitAirport", "airlineCode", "airline", "flightNumber", "flightDate", "flightTime", "vendorId", "vendorName"];
     if (required.some((key) => !str(data[key])) || num(data.cost) === null || num(data.sellingPrice) === null) return null;
     return data as unknown as A2ABlock;
   }
@@ -152,15 +156,15 @@ export function customerBlockRows(block: OperationalBlock): { label: string; val
       return [
         {
           label: "Exit Flight",
-          value: `${block.airline} ${block.flightNumber} · ${block.exitAirport} → ${block.exitToAirport} · ${formatFlightDate(block.flightDate)} ${block.flightTime}`,
+          value: `${block.airline} ${block.flightNumber} · ${block.exitAirport}${block.terminal ? ` (Terminal ${block.terminal})` : ""} → ${block.exitToAirport} · ${formatFlightDate(block.flightDate)} ${block.flightTime}`,
         },
         {
           label: "Re-entry Flight",
-          value: `${block.returnAirline ?? block.airline} ${block.returnFlightNumber ?? ""} · ${block.reentryFromAirport} → ${block.entryAirport}${
+          value: `${block.returnAirline ?? block.airline} ${block.returnFlightNumber ?? ""} · ${block.reentryFromAirport}${block.returnTerminal ? ` (Terminal ${block.returnTerminal})` : ""} → ${block.entryAirport}${
             block.returnFlightDate ? ` · ${formatFlightDate(block.returnFlightDate)} ${block.returnFlightTime ?? ""}` : ""
           }`.trim(),
         },
-        { label: "Reporting Time", value: block.reportingTime },
+        ...(block.reportingTime ? [{ label: "Reporting Time", value: block.reportingTime }] : []),
       ];
     }
     return [

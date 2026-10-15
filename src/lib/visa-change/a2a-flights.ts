@@ -29,7 +29,11 @@ export const a2aFlightsSchema = z
     reentryAirlineCode: airlineCode("Select the airline"),
     reentryFlightNumber: flightNumber,
     reentryDepartAt: localDateTime("Enter the departure date and time"),
-    reportingTime: z.string().trim().min(1, "Enter the reporting time").max(40, "Keep this under 40 characters"),
+    /** Client doc 2026-10-15 (E3) — departure terminal of each flight (optional). */
+    exitTerminal: z.string().trim().max(20, "Keep this under 20 characters").optional(),
+    reentryTerminal: z.string().trim().max(20, "Keep this under 20 characters").optional(),
+    /** Client doc 2026-10-15 (E3) — no longer asked (the T&C cover reporting); older options keep theirs. */
+    reportingTime: z.string().trim().max(40, "Keep this under 40 characters").optional(),
   })
   .superRefine((data, ctx) => {
     if (data.exitFromAirportCode.toUpperCase() === data.exitToAirportCode.toUpperCase()) {
@@ -56,7 +60,8 @@ export const EMPTY_A2A_FLIGHTS: A2AFlightsInput = {
   reentryAirlineCode: "",
   reentryFlightNumber: "",
   reentryDepartAt: "",
-  reportingTime: "",
+  exitTerminal: "",
+  reentryTerminal: "",
 };
 
 /** A saved option's block back into form values (edit / revise). Older blocks without airport codes return null. */
@@ -73,6 +78,8 @@ export function a2aFlightsFromBlock(block: A2ABlock | null): A2AFlightsInput | n
     reentryAirlineCode: block.returnAirlineCode ?? "",
     reentryFlightNumber: block.returnFlightNumber ?? "",
     reentryDepartAt: block.returnFlightDate && block.returnFlightTime ? `${block.returnFlightDate}T${block.returnFlightTime}` : "",
-    reportingTime: block.reportingTime,
+    exitTerminal: block.terminal ?? "",
+    reentryTerminal: block.returnTerminal ?? "",
+    reportingTime: block.reportingTime || undefined,
   };
 }

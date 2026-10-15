@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
@@ -30,6 +30,7 @@ const A2A_LEGS = [
     airline: "exitAirlineCode",
     flightNumber: "exitFlightNumber",
     departAt: "exitDepartAt",
+    terminal: "exitTerminal",
   },
   {
     key: "reentry",
@@ -40,6 +41,7 @@ const A2A_LEGS = [
     airline: "reentryAirlineCode",
     flightNumber: "reentryFlightNumber",
     departAt: "reentryDepartAt",
+    terminal: "reentryTerminal",
   },
 ] as const;
 
@@ -252,13 +254,6 @@ export function QuoteBuilderForm({
     name: "itinerary",
   });
   const [pendingAction, setPendingAction] = useState<QuoteFormAction | null>(null);
-  // Client testing 2026-10-09 (F2) — one search box filters every airport dropdown;
-  // airports already chosen always stay in the list.
-  const [airportQuery, setAirportQuery] = useState("");
-  const chosenFrom = useWatch({ control, name: "fromAirportCode" });
-  const chosenTo = useWatch({ control, name: "toAirportCode" });
-  const chosenSectors = useWatch({ control, name: "itinerary" });
-  const chosenA2A = useWatch({ control, name: "a2aFlights" });
   const isA2A = hasItinerary && showFlightDetails;
 
   // Every button stays type="button" and calls handleSubmit directly (see the
@@ -321,37 +316,7 @@ export function QuoteBuilderForm({
   const sectorErrors = errors.itinerary;
   const sectorListError = sectorErrors?.message;
 
-  const keepCodes = new Set(
-    [
-      chosenFrom,
-      chosenTo,
-      ...(chosenSectors ?? []).flatMap((sector) => [sector?.from, sector?.to]),
-      chosenA2A?.exitFromAirportCode,
-      chosenA2A?.exitToAirportCode,
-      chosenA2A?.reentryFromAirportCode,
-      chosenA2A?.reentryToAirportCode,
-    ].filter(Boolean)
-  );
-  const query = airportQuery.trim().toLowerCase();
-  const visibleAirports = query
-    ? airports.filter(
-        (airport) => keepCodes.has(airport.code) || `${airport.code} ${airport.city} ${airport.name} ${airport.country}`.toLowerCase().includes(query)
-      )
-    : airports;
-  const airportsByCountry = [
-    ...new Map(visibleAirports.map((airport) => [airport.country, visibleAirports.filter((a) => a.country === airport.country)])).entries(),
-  ];
-  const airportSearch =
-    airports.length > 8 ? (
-      <TextField
-        label="Find airport"
-        name="airport-search"
-        placeholder="Type a city, airport or code (e.g. DXB)"
-        value={airportQuery}
-        onChange={(event) => setAirportQuery(event.target.value)}
-        hint="Filters the airport lists below."
-      />
-    ) : null;
+  const airportsByCountry = [...new Map(airports.map((airport) => [airport.country, airports.filter((a) => a.country === airport.country)])).entries()];
   const airportOptions = (placeholder: string) => (
     <>
       <option value="">{airports.length === 0 ? "No active airports in the master" : placeholder}</option>
@@ -519,7 +484,14 @@ export function QuoteBuilderForm({
         // selling price below are this flight pair's price.
         <fieldset className="flex flex-col gap-3 rounded-lg border border-hairline p-4">
           <legend className="px-1 text-sm font-medium text-ink-heading">Flights for this option</legend>
-          {airportSearch}
+          {/* Client doc 2026-10-15 (E3) — type a code, airport name or city inside the field itself (no separate search). */}
+          <datalist id="a2a-airports">
+            {airports.map((airport) => (
+              <option key={airport.code} value={airport.code}>
+                {`${airport.city} — ${airport.name} (${airport.code}), ${airport.country}`}
+              </option>
+            ))}
+          </datalist>
           {A2A_LEGS.map((leg) => {
             const legErrors = errors.a2aFlights;
             return (
@@ -547,24 +519,30 @@ export function QuoteBuilderForm({
                   ) : null}
                 </div>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <FormField label="From" htmlFor={`a2a-${leg.from}`} error={legErrors?.[leg.from]?.message} required>
-                    <select
-                      id={`a2a-${leg.from}`}
-                      className={cn(fieldControlClass, fieldBorderClass(!!legErrors?.[leg.from]))}
-                      {...register(`a2aFlights.${leg.from}`)}
-                    >
-                      {airportOptions("Select airport")}
-                    </select>
-                  </FormField>
-                  <FormField label="To" htmlFor={`a2a-${leg.to}`} error={legErrors?.[leg.to]?.message} required>
-                    <select
-                      id={`a2a-${leg.to}`}
-                      className={cn(fieldControlClass, fieldBorderClass(!!legErrors?.[leg.to]))}
-                      {...register(`a2aFlights.${leg.to}`)}
-                    >
-                      {airportOptions("Select airport")}
-                    </select>
-                  </FormField>
+                  <TextField
+                    label="From"
+                    list="a2a-airports"
+                    placeholder="City, airport or code"
+                    autoComplete="off"
+                    required
+                    {...register(`a2aFlights.${leg.from}`, { setValueAs: (value: string) => value.trim().toUpperCase() })}
+                    error={legErrors?.[leg.from]?.message}
+                  />
+                  <TextField
+                    label="To"
+                    list="a2a-airports"
+                    placeholder="City, airport or code"
+                    autoComplete="off"
+                    required
+                    {...register(`a2aFlights.${leg.to}`, { setValueAs: (value: string) => value.trim().toUpperCase() })}
+                    error={legErrors?.[leg.to]?.message}
+                  />
+                  <TextField
+                    label="Departure terminal"
+                    placeholder="e.g. T1"
+                    {...register(`a2aFlights.${leg.terminal}`)}
+                    error={legErrors?.[leg.terminal]?.message}
+                  />
                   <TextField
                     label="Departure (date & time)"
                     type="datetime-local"
@@ -597,13 +575,6 @@ export function QuoteBuilderForm({
               </div>
             );
           })}
-          <TextField
-            label="Reporting Time"
-            placeholder="e.g. 3 hours before departure"
-            required
-            {...register("a2aFlights.reportingTime")}
-            error={errors.a2aFlights?.reportingTime?.message}
-          />
         </fieldset>
       ) : null}
 
