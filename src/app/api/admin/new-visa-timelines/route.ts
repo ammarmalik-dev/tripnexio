@@ -35,7 +35,8 @@ export async function GET() {
   if (auth.error) return auth.error;
   try {
     const countries = await db.country.findMany({
-      where: { newVisaCountryConfigs: { some: {} } },
+      // Client doc 2026-10-15 — enabled New Visa countries only.
+      where: { active: true, newVisaCountryConfigs: { some: { active: true } } },
       orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
       select: { id: true, code: true, name: true, newVisaTimeline: true },
     });

@@ -36,8 +36,8 @@ const toValue = (text: string): number | null => (text.trim() === "" ? null : Nu
 /**
  * Client testing 2026-10-09 (B31) — New Visa timelines per destination
  * country, in working days. The form uses them for the Expected Approval Date
- * and to block travel dates the chosen processing type can't meet; an empty
- * cell uses the service-wide value above.
+ * and to block travel dates the chosen processing type can't meet.
+ * Client doc 2026-10-15 — this is the only New Visa timeline (no service-wide one).
  */
 export function NewVisaCountryTimelines() {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -94,7 +94,7 @@ export function NewVisaCountryTimelines() {
         <h3 className="text-sm font-semibold text-ink-heading">New Visa timeline by country</h3>
         <p className="text-xs text-ink-tertiary">
           Working days. Processing days give the Expected Approval Date; minimum days before travel block dates the option can&apos;t meet.
-          Leave a cell empty to use the service-wide value.
+          An empty minimum uses 7 (Normal) / 3 (Express); an empty processing time shows no approval date.
         </p>
       </div>
       <div className="overflow-x-auto">

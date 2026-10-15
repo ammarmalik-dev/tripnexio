@@ -187,58 +187,7 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
           error={errors.followUpIntervalDays?.[0]}
           disabled={saving}
         />
-        {item.serviceType === "NEW_VISA" ? (
-          <>
-            <TextField
-              label="Normal: minimum working days before travel"
-              name={`min-normal-${item.id}`}
-              type="number"
-              min={0}
-              placeholder="7 (default)"
-              hint="UAE working days (weekends and holidays skipped). Uses 7 when not set."
-              value={form.minTravelDaysNormal}
-              onChange={(event) => setForm({ ...form, minTravelDaysNormal: event.target.value })}
-              error={errors.minTravelDaysNormal?.[0]}
-              disabled={saving}
-            />
-            <TextField
-              label="Express: minimum working days before travel"
-              name={`min-express-${item.id}`}
-              type="number"
-              min={0}
-              placeholder="3 (default)"
-              hint="UAE working days. Uses 3 when not set."
-              value={form.minTravelDaysExpress}
-              onChange={(event) => setForm({ ...form, minTravelDaysExpress: event.target.value })}
-              error={errors.minTravelDaysExpress?.[0]}
-              disabled={saving}
-            />
-            <TextField
-              label="Normal: processing time (working days)"
-              name={`proc-normal-${item.id}`}
-              type="number"
-              min={0}
-              placeholder="Not set"
-              hint="Shows the Expected Approval Date on the New Visa form. Leave empty to hide it."
-              value={form.processingDaysNormal}
-              onChange={(event) => setForm({ ...form, processingDaysNormal: event.target.value })}
-              error={errors.processingDaysNormal?.[0]}
-              disabled={saving}
-            />
-            <TextField
-              label="Express: processing time (working days)"
-              name={`proc-express-${item.id}`}
-              type="number"
-              min={0}
-              placeholder="Not set"
-              hint="Expected Approval Date for Express."
-              value={form.processingDaysExpress}
-              onChange={(event) => setForm({ ...form, processingDaysExpress: event.target.value })}
-              error={errors.processingDaysExpress?.[0]}
-              disabled={saving}
-            />
-          </>
-        ) : null}
+        {/* Client doc 2026-10-15 — New Visa timelines are set per country only (below), not service-wide. */}
         {item.serviceType === "RETURN_TICKET" ? (
           <TextField
             label="Auto-complete: days after travel date"

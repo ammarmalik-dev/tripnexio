@@ -7,12 +7,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
-import { Textarea } from "@/components/forms/Textarea";
 import { SelectField } from "@/components/forms/SelectField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
+import { NEW_VISA_CATEGORIES } from "@/lib/validation/new-visa-country-config-schema";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { ListPagination } from "@/components/crm/ListPagination";
@@ -138,7 +138,7 @@ function toFormState(c: ConfigData): FormState {
 }
 
 const EMPTY_FORM: FormState = {
-  visaCategory: "",
+  visaCategory: "Tourist",
   stayDays: "30",
   entryKind: "SINGLE",
   validityTypeId: "",
@@ -238,6 +238,27 @@ function ConfigFields({
             <option value="MULTIPLE">Multiple Entry</option>
           </select>
         </FormField>
+        <FormField label="Visa Category" htmlFor={id("visaCategory")} error={errors.visaCategory?.[0]} required>
+          <select
+            id={id("visaCategory")}
+            value={form.visaCategory}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...form, visaCategory: event.target.value })}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.visaCategory))}
+          >
+            {/* An older row's own wording stays selectable until it is changed. */}
+            {form.visaCategory && !(NEW_VISA_CATEGORIES as readonly string[]).includes(form.visaCategory) ? (
+              <option value={form.visaCategory}>{form.visaCategory}</option>
+            ) : null}
+            {NEW_VISA_CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <TextField
           label="Display Order"
           name={id("displayOrder")}
@@ -247,60 +268,10 @@ function ConfigFields({
           disabled={disabled}
         />
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <TextField
-          label="Visa Category"
-          name={id("visaCategory")}
-          placeholder="e.g. Tourist / Visit Visa"
-          value={form.visaCategory}
-          onChange={(event) => onChange({ ...form, visaCategory: event.target.value })}
-          error={errors.visaCategory?.[0]}
-          disabled={disabled}
-        />
-        <TextField
-          label="Duration text (optional)"
-          name={id("duration")}
-          placeholder="Defaults to e.g. 30 Days"
-          value={form.duration}
-          onChange={(event) => onChange({ ...form, duration: event.target.value })}
-          error={errors.duration?.[0]}
-          disabled={disabled}
-        />
-        <TextField
-          label="Entry type text (optional)"
-          name={id("entryType")}
-          placeholder="Defaults to e.g. Single Entry"
-          value={form.entryType}
-          onChange={(event) => onChange({ ...form, entryType: event.target.value })}
-          error={errors.entryType?.[0]}
-          disabled={disabled}
-        />
-      </div>
-      <TextField
-        label="Processing Type"
-        name={id("processingType")}
-        placeholder="e.g. Normal & Express available"
-        value={form.processingType}
-        onChange={(event) => onChange({ ...form, processingType: event.target.value })}
-        error={errors.processingType?.[0]}
-        disabled={disabled}
-      />
-      <Textarea
-        label="Description"
-        name={id("description")}
-        value={form.description}
-        onChange={(event) => onChange({ ...form, description: event.target.value })}
-        error={errors.description?.[0]}
-        disabled={disabled}
-      />
-      <Textarea
-        label="Terms & Conditions"
-        name={id("termsAndConditions")}
-        value={form.termsAndConditions}
-        onChange={(event) => onChange({ ...form, termsAndConditions: event.target.value })}
-        error={errors.termsAndConditions?.[0]}
-        disabled={disabled}
-      />
+      <p className="text-xs text-ink-tertiary">
+        The description, documents and wording are edited on the country&apos;s New Visa page; terms in Terms &amp; Conditions (per country);
+        processing days in Timelines (per country).
+      </p>
     </div>
   );
 }
@@ -309,7 +280,6 @@ function ConfigFields({
 function ReferencePanel({ countryId, reference }: { countryId: string; reference: ReferenceData }) {
   const rules = reference.pricingRules.filter((r) => r.serviceType === "NEW_VISA" && r.countryId === countryId);
   const docs = reference.documentRequirements.filter((d) => d.serviceType === "NEW_VISA" && d.countryId === countryId);
-  const timeline = reference.newVisaTimeline;
 
   return (
     <div className="grid grid-cols-1 gap-3 rounded-lg border border-hairline bg-surface-2 p-4 text-xs text-ink-tertiary sm:grid-cols-3">
@@ -335,21 +305,13 @@ function ReferencePanel({ countryId, reference }: { countryId: string; reference
             {docs.length} document{docs.length === 1 ? "" : "s"} configured.
           </p>
         )}
-        <a href={`/admin/service-configuration?service=NEW_VISA&country=${countryId}&tab=documents`} className="text-ink-accent hover:underline">
-          Manage on Documents →
+        <a href="/admin/new-visa-pages" className="text-ink-accent hover:underline">
+          Manage on the country&apos;s New Visa page →
         </a>
       </div>
       <div>
-        <div className="font-medium text-ink-secondary">Timeline (New Visa, service-wide)</div>
-        {timeline?.quotationResponseMinutes == null && timeline?.paymentDeadlineHours == null ? (
-          <p>Not configured — using defaults.</p>
-        ) : (
-          <p>
-            {timeline?.quotationResponseMinutes != null ? `Quote response: ${timeline.quotationResponseMinutes}m. ` : ""}
-            {timeline?.paymentDeadlineHours != null ? `Payment deadline: ${timeline.paymentDeadlineHours}h.` : ""}
-          </p>
-        )}
-        <p className="italic">Timeline is configured per-service, not per-country, today.</p>
+        <div className="font-medium text-ink-secondary">Timeline (New Visa, this country)</div>
+        <p>Processing days and minimum days before travel are set per country.</p>
         <a href={`/admin/service-configuration?service=NEW_VISA&country=${countryId}&tab=timelines`} className="text-ink-accent hover:underline">
           Manage on Timelines →
         </a>

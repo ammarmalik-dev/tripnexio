@@ -51,6 +51,9 @@ export async function POST(request: NextRequest) {
     ...parsed.data,
     duration: parsed.data.duration || `${parsed.data.stayDays} Days`,
     entryType: parsed.data.entryType || ENTRY_KIND_LABELS[parsed.data.entryKind],
+    processingType: parsed.data.processingType ?? "",
+    description: parsed.data.description ?? "",
+    termsAndConditions: parsed.data.termsAndConditions ?? "",
   };
 
   const created = await db.$transaction(async (tx) => {

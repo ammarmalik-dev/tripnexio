@@ -1,22 +1,22 @@
 import { db } from "../db";
-import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { DEFAULT_MIN_TRAVEL_DAYS, type NewVisaTravelRules } from "./products";
 
 /**
- * The Admin-configured New Visa timeline (Timelines / SLA), falling back to
- * 7 / 3 working days before travel. Client testing 2026-10-09 (B31) — with a
- * destination country, that country's own values (Admin → Timelines → per
- * country) win field by field; an empty field uses the service-wide value.
+ * The New Visa timeline of a destination country (Admin → Service
+ * Configuration → Timelines → New Visa timeline by country). Client doc
+ * 2026-10-15 — "Keep one New Visa Timeline by Country": there is no
+ * service-wide value any more (migration 20261015110000 copied it into every
+ * enabled country). An empty minimum uses 7 / 3 working days; an empty
+ * processing time shows no Expected Approval Date (never guessed).
  */
 export async function getNewVisaTravelRules(countryCode?: string | null): Promise<NewVisaTravelRules> {
-  const timeline = await getServiceTimelineRules("NEW_VISA");
   const country = countryCode
     ? await db.newVisaCountryTimeline.findFirst({ where: { country: { code: { equals: countryCode, mode: "insensitive" } } } })
     : null;
   return {
-    minTravelDaysNormal: country?.minTravelDaysNormal ?? timeline.minTravelDaysNormal ?? DEFAULT_MIN_TRAVEL_DAYS.normal,
-    minTravelDaysExpress: country?.minTravelDaysExpress ?? timeline.minTravelDaysExpress ?? DEFAULT_MIN_TRAVEL_DAYS.urgent,
-    processingDaysNormal: country?.processingDaysNormal ?? timeline.processingDaysNormal,
-    processingDaysExpress: country?.processingDaysExpress ?? timeline.processingDaysExpress,
+    minTravelDaysNormal: country?.minTravelDaysNormal ?? DEFAULT_MIN_TRAVEL_DAYS.normal,
+    minTravelDaysExpress: country?.minTravelDaysExpress ?? DEFAULT_MIN_TRAVEL_DAYS.urgent,
+    processingDaysNormal: country?.processingDaysNormal ?? null,
+    processingDaysExpress: country?.processingDaysExpress ?? null,
   };
 }
