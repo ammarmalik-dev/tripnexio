@@ -130,23 +130,18 @@ function TravellerFields({ prefix, label, nameField }: { prefix: string; label: 
 }
 
 /**
- * Step 2 (Applicant Details): the expected travel date, then everyone
- * travelling — the primary applicant (name from step 1) plus any additional
- * travellers. The travel date comes first because a traveller's age on that
- * date decides Adult/Child and whether guardian details are needed.
+ * Applicant Details: everyone travelling — the primary applicant (name from
+ * Basic Details) plus any additional travellers. A traveller's age on the
+ * travel date (picked on the first step) decides Adult/Child and whether
+ * guardian details are needed.
  */
 export function StepTravellers() {
-  const {
-    control,
-    register,
-    formState: { errors },
-  } = useFormContext<NewVisaRequestValues>();
+  const { control } = useFormContext<NewVisaRequestValues>();
   const { fields, append, remove } = useFieldArray({ control, name: "additionalTravellers" });
   const primaryName = useWatch({ control, name: "fullName" });
 
   return (
     <div className="flex flex-col gap-5">
-      <DateField label="Expected Travel Date" required error={errors.travelDate?.message} {...register("travelDate")} />
 
       <TravellerFields prefix="" label={`Traveller 1 — ${primaryName || "you"}`} />
 

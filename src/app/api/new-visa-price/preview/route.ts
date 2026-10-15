@@ -10,6 +10,8 @@ import type { PaxType } from "@/generated/prisma/enums";
 const previewSchema = z.object({
   countryCode: z.string().min(1).max(40),
   newVisaConfigId: z.string().max(40).nullable().optional(),
+  /** Client doc 2026-10-15 — passport nationality (Nationality master id). */
+  nationalityId: z.string().max(40).nullable().optional(),
   processingType: z.enum(["normal", "urgent"]),
   travelDate: z.string().min(1).max(20),
   travellers: z
@@ -44,6 +46,7 @@ export async function POST(request: NextRequest) {
   const breakdown = await computeNewVisaPrice({
     countryCode: parsed.data.countryCode,
     newVisaConfigId: parsed.data.newVisaConfigId ?? null,
+    nationalityId: parsed.data.nationalityId || null,
     processingType: parsed.data.processingType,
     travellerPaxTypes: paxTypes,
   });
@@ -61,7 +64,9 @@ export async function POST(request: NextRequest) {
   }));
   const { gstRate, gatewayFeeRate } = await getTaxFeeRates();
   const subtotal = breakdown.total;
-  const gst = roundToPaise(subtotal * gstRate);
+  // Same as the payment: GST only on the service charge (price − vendor / government fee).
+  const nonTaxable = breakdown.invoiceLines.reduce((sum, line) => sum + line.governmentFee * line.quantity, 0);
+  const gst = roundToPaise(Math.max(0, subtotal - nonTaxable) * gstRate);
   const gatewayFee = roundToPaise(subtotal * gatewayFeeRate);
 
   return jsonSuccess({ configured: true, lines, subtotal, gst, gatewayFee, total: roundToPaise(subtotal + gst + gatewayFee) });

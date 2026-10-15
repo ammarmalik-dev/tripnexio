@@ -33,6 +33,40 @@ const LOOKAHEAD_MS = 400 * 24 * 60 * 60 * 1000;
  * Holiday table (Admin → Holidays). Falls back to Monday-Friday, 09:00-18:00
  * IST, no holidays if the data can't be read.
  */
+/**
+ * Client doc 2026-10-15 — the working calendar of any Country master row (by its code): the
+ * country's own weekend (Admin → Holidays) and holidays, the legacy India / UAE calendars for
+ * those two. A country with no weekend set uses Saturday-Sunday.
+ */
+export async function getWorkingCalendarForCountry(countryCode: string): Promise<WorkingCalendar> {
+  const code = countryCode.trim().toUpperCase();
+  const legacy = (Object.keys(LEGACY_COUNTRY_MATCH) as HolidayCountry[]).find((key) => LEGACY_COUNTRY_MATCH[key].codes.includes(code));
+  if (legacy) return getWorkingCalendar(legacy);
+  try {
+    const config = await getSystemConfig();
+    const raw = await db.systemConfig.findUnique({ where: { id: "singleton" }, select: { workdayStartHour: true, workdayEndHour: true } });
+    const country = await db.country.findFirst({ where: { code: { equals: code, mode: "insensitive" } }, select: { id: true, weekendDays: true } });
+    const now = Date.now();
+    const holidays = country
+      ? await db.holiday.findMany({
+          where: { countryId: country.id, active: true, date: { gte: new Date(now - LOOKBACK_MS), lte: new Date(now + LOOKAHEAD_MS) } },
+          select: { date: true },
+        })
+      : [];
+    const weekend = country?.weekendDays ? parseWeekendDays(country.weekendDays) : [];
+    return {
+      weekendDays: weekend.length > 0 ? weekend : DEFAULT_WORKING_CALENDAR.weekendDays,
+      holidays: holidays.map((holiday) => holiday.date.toISOString().slice(0, 10)),
+      startHour: raw?.workdayStartHour ?? DEFAULT_WORKING_CALENDAR.startHour,
+      endHour: raw?.workdayEndHour ?? DEFAULT_WORKING_CALENDAR.endHour,
+      offsetMs: config.timezoneOffsetMinutes * 60 * 1000,
+    };
+  } catch (error) {
+    console.error("[calendar] couldn't load the country's working calendar, using defaults", error);
+    return DEFAULT_WORKING_CALENDAR;
+  }
+}
+
 export async function getWorkingCalendar(country: HolidayCountry): Promise<WorkingCalendar> {
   try {
     const config = await getSystemConfig();

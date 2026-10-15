@@ -23,12 +23,15 @@ const RUPEES = new Intl.NumberFormat("en-IN", { style: "currency", currency: "IN
 export function NewVisaPricePreview({
   countryCode,
   newVisaConfigId,
+  nationalityId,
   processingType,
   travelDate,
   travellers,
 }: {
   countryCode: string;
   newVisaConfigId: string;
+  /** Client doc 2026-10-15 — prices can differ by passport nationality. */
+  nationalityId?: string;
   processingType: "normal" | "urgent";
   travelDate: string;
   travellers: { fullName: string; dob: string }[];
@@ -44,6 +47,7 @@ export function NewVisaPricePreview({
         const result = await postJson<Preview>("/api/new-visa-price/preview", {
           countryCode,
           newVisaConfigId: newVisaConfigId || null,
+          nationalityId: nationalityId || null,
           processingType,
           travelDate,
           travellers: JSON.parse(travellersKey) as { fullName: string; dob: string }[],
@@ -57,7 +61,7 @@ export function NewVisaPricePreview({
     return () => {
       cancelled = true;
     };
-  }, [countryCode, newVisaConfigId, processingType, travelDate, travellersKey]);
+  }, [countryCode, newVisaConfigId, nationalityId, processingType, travelDate, travellersKey]);
 
   if (failed || (preview && !preview.configured)) {
     return (

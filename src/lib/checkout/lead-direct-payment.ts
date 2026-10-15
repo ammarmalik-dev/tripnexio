@@ -46,7 +46,13 @@ export async function priceLeadForDirectPayment(lead: {
   if (lead.serviceType === "NEW_VISA") {
     const countryCode = text(details.destinationCountry);
     if (!countryCode || !processingType) return { ok: false, error: "The lead has no destination country / processing type to price it." };
-    const price = await computeNewVisaPrice({ countryCode, newVisaConfigId: text(details.newVisaConfigId), processingType, travellerPaxTypes: paxTypes });
+    const price = await computeNewVisaPrice({
+      countryCode,
+      newVisaConfigId: text(details.newVisaConfigId),
+      nationalityId: text(details.nationalityId),
+      processingType,
+      travellerPaxTypes: paxTypes,
+    });
     if (!price) return { ok: false, error: `No New Visa price is configured for ${countryCode} (${processingType}) for these travellers.` };
     return { ok: true, serviceType: "NEW_VISA", totalPrice: price.total, vendorCost: price.vendorCost, invoiceLines: price.invoiceLines };
   }

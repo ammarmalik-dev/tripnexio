@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const countryCode = searchParams.get("countryCode");
   const configId = searchParams.get("configId");
+  // Client doc 2026-10-15 — prices by passport nationality (Nationality master id; blank = all nationalities).
+  const nationalityId = searchParams.get("nationalityId") || null;
   const processingTypeParam = searchParams.get("processingType");
   const adults = Number(searchParams.get("adults") ?? "0");
   const children = Number(searchParams.get("children") ?? "0");
@@ -31,7 +33,7 @@ export async function GET(request: NextRequest) {
   // side by side. A rate with no Admin price is null (shown as unavailable).
   if (searchParams.get("rates") === "1") {
     const rate = async (processingType: "normal" | "urgent", paxType: PaxType) =>
-      (await computeNewVisaPrice({ countryCode, newVisaConfigId: configId, processingType, travellerPaxTypes: [paxType] }))?.total ?? null;
+      (await computeNewVisaPrice({ countryCode, newVisaConfigId: configId, nationalityId, processingType, travellerPaxTypes: [paxType] }))?.total ?? null;
     return jsonSuccess({
       normal: { adult: await rate("normal", "ADULT"), child: await rate("normal", "CHILD") },
       urgent: { adult: await rate("urgent", "ADULT"), child: await rate("urgent", "CHILD") },
@@ -57,7 +59,7 @@ export async function GET(request: NextRequest) {
     ...Array<PaxType>(infants).fill("INFANT"),
   ];
 
-  const breakdown = await computeNewVisaPrice({ countryCode, newVisaConfigId: configId, processingType: processingTypeParam, travellerPaxTypes });
+  const breakdown = await computeNewVisaPrice({ countryCode, newVisaConfigId: configId, nationalityId, processingType: processingTypeParam, travellerPaxTypes });
   if (!breakdown) return jsonSuccess({ configured: false });
 
   return jsonSuccess({ configured: true, total: breakdown.total, ratePerType: breakdown.ratePerType });

@@ -11,7 +11,7 @@ import { useProcessingTypes } from "@/lib/processing-types/use-processing-types"
 import { defaultProcessingTypes, type ProcessingTypeView } from "@/lib/processing-types/defaults";
 import { DateField } from "@/components/forms/DateField";
 import { useVisaTypes } from "@/lib/use-visa-types";
-import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
+import { useCountryWorkingCalendar } from "@/lib/calendar/use-working-calendar";
 import { workingDaysBetween, type WorkingCalendar } from "@/lib/calendar/working-calendar";
 import { allowedProcessingTypes } from "@/lib/new-visa/products";
 import { useNewVisaTravelRules } from "@/lib/new-visa/use-travel-rules";
@@ -113,7 +113,7 @@ export function NewVisaProductSelector({ countryCode: lockedCountryCode }: { cou
   const [visaTypeId, setVisaTypeId] = useState("");
   const [travelDate, setTravelDate] = useState("");
   const [rates, setRates] = useState<Rates | null>(null);
-  const calendar = useWorkingCalendar("UAE");
+  const calendar = useCountryWorkingCalendar(countryCode);
   // New Visa has Adult and Child only (client correction 2026-10-05); a child under 2 is priced as a Child.
   const [price, setPrice] = useState<{ loading: boolean; configured: boolean; total: number | null }>({
     loading: false,

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useFormContext } from "react-hook-form";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import { useVisaTypes } from "@/lib/use-visa-types";
+import { useNationalities } from "@/lib/use-nationalities";
 import { useNewVisaProducts } from "@/lib/new-visa/use-new-visa-products";
 import { NewVisaPricePreview } from "../NewVisaPricePreview";
 import { getJson } from "@/lib/api/client";
@@ -131,6 +132,8 @@ export function Step3Summary() {
   const { options: visaTypes } = useVisaTypes(values.destinationCountry);
   const visaTypeLabel = visaTypes.find((visaType) => visaType.id === values.visaType)?.name ?? "";
   const { products } = useNewVisaProducts();
+  const { options: nationalities } = useNationalities();
+  const nationalityLabel = nationalities.find((nationality) => nationality.id === values.nationalityId)?.name ?? "";
   const productLabel = products.find((product) => product.id === values.newVisaConfigId)?.label ?? "";
   // P23 — label from the Admin Processing Types master (stored code unchanged).
   const { options: processingTypeOptions } = useProcessingTypes("NEW_VISA");
@@ -144,6 +147,7 @@ export function Step3Summary() {
         <SummaryRow label="Destination Country" value={destinationLabel} />
         {values.newVisaConfigId ? <SummaryRow label="Visa Option" value={productLabel} /> : null}
         {values.visaType ? <SummaryRow label="Visa Type" value={visaTypeLabel} /> : null}
+        {nationalityLabel ? <SummaryRow label="Nationality" value={nationalityLabel} /> : null}
         <SummaryRow label="Number of Travelers" value={String(1 + values.additionalTravellers.length)} />
         <SummaryRow
           label="Travel Date"
@@ -173,12 +177,12 @@ export function Step3Summary() {
           {traveller.guardianFullName ? (
             <SummaryRow label="Guardian" value={`${traveller.guardianFullName} (${traveller.guardianRelationship ? GUARDIAN_RELATIONSHIP_LABELS[traveller.guardianRelationship] : ""})`} />
           ) : null}
-          <SummaryRow label="Passport Copy" value={traveller.passportImageBase64 ? "Uploaded" : "Missing"} />
         </div>
       ))}
       <NewVisaPricePreview
         countryCode={values.destinationCountry}
         newVisaConfigId={values.newVisaConfigId}
+        nationalityId={values.nationalityId}
         processingType={values.processingType}
         travelDate={values.travelDate}
         travellers={[{ fullName: values.fullName, dob: values.dob }, ...values.additionalTravellers.map((t) => ({ fullName: t.fullName, dob: t.dob }))]}

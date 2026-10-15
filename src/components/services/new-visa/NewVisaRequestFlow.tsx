@@ -2,9 +2,9 @@
 
 import { useSearchParams } from "next/navigation";
 import { MultiStepRequestFlow } from "@/components/forms/MultiStepRequestFlow";
-import { Step1TravelDetails } from "./steps/Step1TravelDetails";
+import { StepVisaDetails } from "./steps/StepVisaDetails";
+import { StepBasicDetails } from "./steps/StepBasicDetails";
 import { StepTravellers } from "./steps/StepTravellers";
-import { Step2ProcessingType } from "./steps/Step2ProcessingType";
 import { Step3Summary } from "./steps/Step3Summary";
 import { submitNewVisaRequest } from "@/lib/api/new-visa";
 import {
@@ -17,7 +17,7 @@ import {
 } from "@/lib/validation/new-visa-schema";
 import { requestReceivedMessage } from "@/lib/leads/request-received-message";
 
-const steps = [Step1TravelDetails, StepTravellers, Step2ProcessingType, Step3Summary];
+const steps = [StepVisaDetails, StepBasicDetails, StepTravellers, Step3Summary];
 
 /**
  * Pre-fills from the New Visa landing page's product-selector "Apply Now"
@@ -68,6 +68,8 @@ export function NewVisaRequestFlow() {
         visaTypeRequired: false,
         newVisaConfigId: prefill.config,
         visaOptionRequired: false,
+        nationalityId: "",
+        nationalityRequired: false,
         travelers: prefill.travelers,
         travelDate: prefill.travelDate,
         passportNumber: "",
@@ -83,7 +85,7 @@ export function NewVisaRequestFlow() {
       stepFields={newVisaStepFields}
       stepLabels={newVisaStepLabels}
       steps={steps}
-      extraStepValidation={{ 0: findNewVisaStep1Issues, 1: findNewVisaTravellerIssues }}
+      extraStepValidation={{ 0: findNewVisaStep1Issues, 2: findNewVisaTravellerIssues }}
       onSubmit={submitNewVisaRequest}
       draftServiceType="NEW_VISA"
       successTitle="Request submitted"

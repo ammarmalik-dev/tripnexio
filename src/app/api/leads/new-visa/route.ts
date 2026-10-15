@@ -6,7 +6,7 @@ import { getActiveVisaTypes } from "@/lib/visa-types/active-visa-types";
 import { db } from "@/lib/db";
 import { allowedProcessingTypes, productLabel } from "@/lib/new-visa/products";
 import { getNewVisaTravelRules } from "@/lib/new-visa/travel-rules";
-import { getWorkingCalendar } from "@/lib/calendar/get-working-calendar";
+import { getWorkingCalendarForCountry } from "@/lib/calendar/get-working-calendar";
 import { workingDaysBetween } from "@/lib/calendar/working-calendar";
 import { flagShortPassportValidity } from "@/lib/new-visa/flag-passport-validity";
 import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
@@ -147,9 +147,18 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "That processing type isn't available.", { processingType: ["Select an available processing type."] });
   }
 
-  // P10 — minimum UAE working days before travel for the chosen processing type.
+  // Client doc 2026-10-15 — the passport nationality (prices can differ by nationality); optional.
+  const nationality = parsed.data.nationalityId
+    ? await db.nationality.findFirst({ where: { id: parsed.data.nationalityId, active: true }, select: { id: true, name: true } })
+    : null;
+  if (parsed.data.nationalityId && !nationality) {
+    return jsonError(400, "Select your nationality.", { nationalityId: ["Select a nationality from the list."] });
+  }
+
+  // P10 — minimum working days before travel for the chosen processing type, on the
+  // destination's own calendar (client doc 2026-10-15: country weekend + holidays).
   const travelRules = await getNewVisaTravelRules(destinationCountry);
-  const workingDays = workingDaysBetween(travelDate, new Date(), await getWorkingCalendar("UAE"));
+  const workingDays = workingDaysBetween(travelDate, new Date(), await getWorkingCalendarForCountry(destinationCountry));
   if (!allowedProcessingTypes(workingDays, travelRules).includes(processingType)) {
     const needed = processingType === "urgent" ? travelRules.minTravelDaysExpress : travelRules.minTravelDaysNormal;
     return jsonError(400, `${processingOption.label} processing needs your travel date at least ${needed} working days away.`, {
@@ -170,9 +179,11 @@ export async function POST(request: NextRequest) {
         passportNumber: t.passportNumber,
         dob: t.dob,
         paxType: paxTypes[index],
+        ...(nationality ? { nationality: nationality.name, nationalityId: nationality.id } : {}),
       })),
       details: {
         destinationCountry,
+        ...(nationality ? { nationalityId: nationality.id, nationality: nationality.name } : {}),
         ...(pickedVisaType ? { visaType: pickedVisaType.name, visaTypeId: pickedVisaType.id } : {}),
         ...(product ? { newVisaConfigId: product.id, visaOption: productLabel(product) } : {}),
         travelers: String(travellers.length),
@@ -248,6 +259,7 @@ export async function POST(request: NextRequest) {
       const price = await computeNewVisaPrice({
         countryCode: destinationCountry,
         newVisaConfigId: product?.id ?? null,
+        nationalityId: nationality?.id ?? null,
         processingType,
         travellerPaxTypes: paxTypes,
       });

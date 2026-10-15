@@ -41,6 +41,13 @@ export const newVisaStep1Schema = z.object({
    */
   newVisaConfigId: z.string().max(40),
   visaOptionRequired: z.boolean(),
+  /**
+   * Client doc 2026-10-15 — the passport nationality (Nationality master id); New Visa prices can
+   * differ by nationality. Required on the form whenever the master has nationalities
+   * (`nationalityRequired`, set by the first step); the API checks the id.
+   */
+  nationalityId: z.string().max(40).optional(),
+  nationalityRequired: z.boolean().optional(),
   travelers: z
     .string()
     .trim()
@@ -179,11 +186,19 @@ export function findNewVisaTravellerIssues(
   return issues;
 }
 
-/** Step 1's cross-field rule: a visa type must be picked whenever the destination offers any. */
-export function findNewVisaStep1Issues(values: { visaType: string; visaTypeRequired: boolean; newVisaConfigId: string; visaOptionRequired: boolean }) {
+/** The first step's cross-field rules: a visa option / visa type / nationality whenever the destination (or master) offers any. */
+export function findNewVisaStep1Issues(values: {
+  visaType: string;
+  visaTypeRequired: boolean;
+  newVisaConfigId: string;
+  visaOptionRequired: boolean;
+  nationalityId?: string;
+  nationalityRequired?: boolean;
+}) {
   const issues: { path: string; message: string }[] = [];
   if (values.visaOptionRequired && !values.newVisaConfigId) issues.push({ path: "newVisaConfigId", message: "Select a visa option" });
   if (values.visaTypeRequired && !values.visaType) issues.push({ path: "visaType", message: "Select a visa type" });
+  if (values.nationalityRequired && !values.nationalityId) issues.push({ path: "nationalityId", message: "Select your nationality" });
   return issues;
 }
 
@@ -192,11 +207,12 @@ export type NewVisaStep2Values = z.infer<typeof newVisaStep2Schema>;
 export type NewVisaRequestValues = z.infer<typeof newVisaRequestSchema>;
 
 export const newVisaStepFields: Record<number, (keyof NewVisaRequestValues)[]> = {
-  0: ["fullName", "mobile", "email", "destinationCountry", "newVisaConfigId", "visaType"],
-  1: ["travelDate", "passportNumber", "dob", "occupation", "additionalTravellers"],
-  2: ["processingType"],
+  0: ["destinationCountry", "newVisaConfigId", "visaType", "nationalityId", "travelDate", "processingType"],
+  1: ["fullName", "mobile", "email"],
+  2: ["passportNumber", "dob", "occupation", "additionalTravellers"],
   3: [],
 };
 
-// Client correction 2026-10-05: Basic Details -> Applicant Details (with the expected travel date) -> Normal/Express -> Summary.
-export const newVisaStepLabels = ["Basic Details", "Applicant Details", "Processing Type", "Summary"];
+// Client doc 2026-10-15: Visa Details (country, option, travel date, Normal/Express with prices and the
+// approval date, all together) -> Basic Details -> Applicant Details -> Summary.
+export const newVisaStepLabels = ["Visa Details", "Basic Details", "Applicant Details", "Summary"];
