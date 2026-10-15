@@ -148,7 +148,7 @@ export const gatewayChargesReport: ReportDefinition = {
         by: ["method"],
         where: { AND: [scope, { status: "SUCCESS", updatedAt: inRange(filters), booking: { lead: { serviceType } } }] },
         _count: { _all: true },
-        _sum: { amount: true, couponDiscount: true, gstAmount: true, gatewayFee: true },
+        _sum: { amount: true, couponDiscount: true, gstAmount: true, gatewayFee: true, gatewayFeeAbsorbed: true },
       });
       for (const group of groups) {
         const gst = num(group._sum.gstAmount);
@@ -161,6 +161,8 @@ export const gatewayChargesReport: ReportDefinition = {
           collected: round2(collected),
           gatewayFee: round2(fee),
           gatewayFeePct: pct(fee, collected),
+          // Client doc 2026-10-15 (G5) — gateway charge not passed to the customer: our expense.
+          gatewayFeeAbsorbed: round2(num(group._sum.gatewayFeeAbsorbed)),
           gst: round2(gst),
         });
       }
@@ -175,10 +177,11 @@ export const gatewayChargesReport: ReportDefinition = {
         { key: "collected", label: "Collected", kind: "money" },
         { key: "gatewayFee", label: "Gateway fees", kind: "money" },
         { key: "gatewayFeePct", label: "Fee % of collected", kind: "percent" },
+        { key: "gatewayFeeAbsorbed", label: "Gateway fees we bear", kind: "money" },
         { key: "gst", label: "GST", kind: "money" },
       ],
       rows,
-      totals: sumColumns(rows, ["payments", "collected", "gatewayFee", "gst"]),
+      totals: sumColumns(rows, ["payments", "collected", "gatewayFee", "gatewayFeeAbsorbed", "gst"]),
       notes: [
         PAYMENT_DATE_NOTE,
         "Collected = (amount - coupon discount) + GST + gateway fee - what the customer paid.",

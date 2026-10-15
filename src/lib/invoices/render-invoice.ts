@@ -188,18 +188,24 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
 
   // ---- Bill To / Booking Details cards
   const cardW = (W - 12) / 2;
+  // Client doc 2026-10-15 (G3) — each row as tall as its value (a long email / address wraps instead of
+  // running into the next row).
   const drawCard = (x: number, title: string, rows: [string, string][]) => {
-    const h = 26 + rows.length * 13 + 8;
+    const valueW = cardW - 108;
+    doc.font(F.regular).fontSize(8.5);
+    const heights = rows.map(([, value]) => Math.max(13, doc.heightOfString(value || "—", { width: valueW }) + 2));
+    const h = 26 + heights.reduce((sum, rowH) => sum + rowH, 0) + 8;
     doc.roundedRect(x, y, cardW, h, 6).lineWidth(0.8).strokeColor(BORDER).stroke();
     doc.roundedRect(x, y, cardW, 22, 6).fill(PANEL);
     doc.rect(x, y + 14, cardW, 8).fill(PANEL);
     doc.roundedRect(x + 8, y + 5, 12, 12, 3).fill(BLUE);
     text(title, x + 26, y + 6, { font: F.bold, size: 9.5, color: NAVY });
+    let rowY = y + 28;
     rows.forEach(([label, value], index) => {
-      const rowY = y + 28 + index * 13;
       text(label, x + 10, rowY, { size: 8.5, color: MUTED });
       text(":", x + 92, rowY, { size: 8.5, color: MUTED });
-      text(value || "—", x + 100, rowY, { size: 8.5, width: cardW - 108, ellipsis: true });
+      text(value || "—", x + 100, rowY, { size: 8.5, width: valueW });
+      rowY += heights[index];
     });
     return h;
   };
@@ -237,7 +243,7 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
     { key: "Description", w: 128, align: "left" as const },
     { key: "SAC", w: 44, align: "center" as const },
     { key: "Qty", w: 26, align: "center" as const },
-    { key: `Govt./Airline/ Vendor Fee`, w: 56, align: "right" as const },
+    { key: invoice.feeLabel, w: 56, align: "right" as const },
     { key: `Service Fee`, w: 52, align: "right" as const },
     { key: `Taxable Value`, w: 56, align: "right" as const },
     { key: "GST %", w: 32, align: "right" as const },
@@ -354,13 +360,17 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   ry += 28;
   const governmentTotal = invoice.lines.reduce((sum, line) => sum + line.governmentFee, 0);
   const serviceTotal = invoice.lines.reduce((sum, line) => sum + line.serviceFee, 0);
+  // Client doc 2026-10-15 (G3) — label left and amount right on every row, full width, never overlapping.
+  const valueW = 92;
   const summaryRow = (label: string, value: string, color = INK) => {
-    text(label, rightCol + 8, ry, { size: 8.5, color: MUTED });
-    text(value, rightCol + 8, ry, { size: 8.5, color, width: rightW - 16, align: "right" });
-    ry += 13;
+    doc.font(F.regular).fontSize(8.5);
+    const labelH = doc.heightOfString(label, { width: rightW - 16 - valueW - 6 });
+    text(label, rightCol + 8, ry, { size: 8.5, color: MUTED, width: rightW - 16 - valueW - 6 });
+    text(value, rightCol + rightW - 8 - valueW, ry, { size: 8.5, color, width: valueW, align: "right" });
+    ry += Math.max(13, labelH + 4);
     doc.moveTo(rightCol, ry - 2).lineTo(rightCol + rightW, ry - 2).strokeColor(BORDER).lineWidth(0.4).stroke();
   };
-  summaryRow("Total Govt./Airline/Vendor Fee", money(governmentTotal));
+  summaryRow(`Total ${invoice.feeLabel}`, money(governmentTotal));
   summaryRow("Total Service Fee", money(serviceTotal));
   summaryRow(`Discount${invoice.couponCode ? ` (${invoice.couponCode})` : ""}`, `- ${money(invoice.couponDiscount)}`, GREEN);
   summaryRow("Taxable Value", money(taxable));
@@ -371,8 +381,10 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   text("Grand Total", rightCol + 10, ry + 6, { font: F.bold, size: 11, color: "#FFFFFF" });
   text(money(invoice.grandTotal), rightCol + 10, ry + 6, { font: F.bold, size: 11, color: "#FFFFFF", width: rightW - 20, align: "right" });
   ry += 30;
-  summaryRow("Amount Paid", money(invoice.amountPaid), GREEN);
-  summaryRow("Balance Due", money(invoice.balanceDue));
+  if (invoice.editedNote) {
+    text(invoice.editedNote, rightCol + 8, ry, { size: 7, color: MUTED, width: rightW - 16 });
+    ry = doc.y + 4;
+  }
   y = Math.max(leftBottom, ry) + 8;
   if (y > 640) {
     doc.addPage();
@@ -414,18 +426,22 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   }
 
   const signX = M + W - 100;
+  // A long company name wraps: the signature, line and name move down with it.
+  doc.font(F.bold).fontSize(8);
+  const forH = doc.heightOfString(`For ${invoice.company.legalName}`, { width: 100 });
+  const signTop = notesTop + Math.max(0, forH - 10);
   text(`For ${invoice.company.legalName}`, signX, notesTop, { font: F.bold, size: 8, color: NAVY, width: 100, align: "center" });
   if (invoice.company.signatureBuffer) {
     try {
-      doc.image(invoice.company.signatureBuffer, signX + 12, notesTop + 16, { fit: [76, 34], align: "center" });
+      doc.image(invoice.company.signatureBuffer, signX + 12, signTop + 16, { fit: [76, 34], align: "center" });
     } catch (error) {
       console.error("[render-invoice] couldn't draw signature image", error);
     }
   }
-  doc.moveTo(signX + 6, notesTop + 52).lineTo(signX + 96, notesTop + 52).strokeColor(INK).lineWidth(0.6).stroke();
-  text(invoice.company.signatoryName ?? "Authorized Signatory", signX, notesTop + 56, { size: 8, width: 100, align: "center" });
+  doc.moveTo(signX + 6, signTop + 52).lineTo(signX + 96, signTop + 52).strokeColor(INK).lineWidth(0.6).stroke();
+  text(invoice.company.signatoryName ?? "Authorized Signatory", signX, signTop + 56, { size: 8, width: 100, align: "center" });
   if (invoice.company.signatoryName) {
-    text(invoice.company.signatoryTitle ?? "Authorized Signatory", signX, notesTop + 67, { size: 7, color: MUTED, width: 100, align: "center" });
+    text(invoice.company.signatoryTitle ?? "Authorized Signatory", signX, signTop + 67, { size: 7, color: MUTED, width: 100, align: "center" });
   }
 
   // ---- Footer
@@ -435,13 +451,13 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   doc.rect(0, footerY, PAGE_W, 842 - footerY).fill(NAVY);
   text("Travel Made Easy with TripNexio.", 0, footerY + 10, { font: F.semi, size: 8.5, color: "#FFFFFF", width: PAGE_W, align: "center" });
 
-  if (invoice.paymentStatus === "Cancelled") {
-    // Client testing 2026-10-09 (E5) — the booking was cancelled / fully refunded: stamp the first page.
+  if (invoice.paymentStatus === "Cancelled" || invoice.paymentStatus === "Refunded") {
+    // Client testing 2026-10-09 (E5) / doc 2026-10-15 (G2) — cancelled, or refunded: stamp the first page.
     doc.switchToPage(0);
     doc.save();
     doc.opacity(0.22);
     doc.rotate(-24, { origin: [PAGE_W / 2, 420] });
-    text("CANCELLED", PAGE_W / 2 - 300, 385, { font: F.bold, size: 72, color: "#D1435B", width: 600, align: "center" });
+    text(invoice.paymentStatus.toUpperCase(), PAGE_W / 2 - 300, 385, { font: F.bold, size: 72, color: "#D1435B", width: 600, align: "center" });
     doc.restore();
   }
   doc.end();

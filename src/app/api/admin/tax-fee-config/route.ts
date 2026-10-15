@@ -48,7 +48,10 @@ export async function PATCH(request: NextRequest) {
       entityId: TAX_FEE_CONFIG_ID,
       action: "UPDATE",
       byUserId: session.id,
-      note: withReason(`Tax/fee config updated: GST ${existing.gstRatePercent}% -> ${result.gstRatePercent}%, gateway fee ${existing.gatewayFeePercent}% -> ${result.gatewayFeePercent}% (by ${session.name})`, reason),
+      note: withReason(
+        `Tax/fee config updated: GST ${existing.gstRatePercent}% -> ${result.gstRatePercent}%, gateway fee ${existing.gatewayFeePercent}% -> ${result.gatewayFeePercent}%, gateway fee ${result.gatewayFeeChargedToCustomer ? "charged to the customer" : "absorbed by TripNexio"} (by ${session.name})`,
+        reason
+      ),
     });
     return result;
   });

@@ -12,6 +12,7 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 interface TaxFeeConfigData {
   gstRatePercent: string;
   gatewayFeePercent: string;
+  gatewayFeeChargedToCustomer: boolean;
   updatedAt: string;
 }
 
@@ -22,6 +23,7 @@ export function TaxFeeConfigManager() {
   const [config, setConfig] = useState<TaxFeeConfigData | null>(null);
   const [gstRatePercent, setGstRatePercent] = useState("");
   const [gatewayFeePercent, setGatewayFeePercent] = useState("");
+  const [chargedToCustomer, setChargedToCustomer] = useState(true);
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [errorMessage, setErrorMessage] = useState("");
   const [saving, setSaving] = useState(false);
@@ -39,6 +41,7 @@ export function TaxFeeConfigManager() {
         setConfig(result);
         setGstRatePercent(result.gstRatePercent);
         setGatewayFeePercent(result.gatewayFeePercent);
+        setChargedToCustomer(result.gatewayFeeChargedToCustomer);
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -53,12 +56,14 @@ export function TaxFeeConfigManager() {
     };
   }, [reloadNonce]);
 
-  const dirty = config != null && (gstRatePercent !== config.gstRatePercent || gatewayFeePercent !== config.gatewayFeePercent);
+  const dirty =
+    config != null &&
+    (gstRatePercent !== config.gstRatePercent || gatewayFeePercent !== config.gatewayFeePercent || chargedToCustomer !== config.gatewayFeeChargedToCustomer);
 
   const handleSave = async () => {
     const reason = await confirm({
       title: "Change GST / gateway fee rates?",
-      description: `GST ${config?.gstRatePercent ?? "?"}% → ${gstRatePercent}%, gateway fee ${config?.gatewayFeePercent ?? "?"}% → ${gatewayFeePercent}%. Every new payment will be charged at these rates.`,
+      description: `GST ${config?.gstRatePercent ?? "?"}% → ${gstRatePercent}%, gateway fee ${config?.gatewayFeePercent ?? "?"}% → ${gatewayFeePercent}% (${chargedToCustomer ? "charged to the customer" : "absorbed by TripNexio"}). Every new payment will use these settings.`,
       confirmLabel: "Save Rates",
     });
     if (!reason) return;
@@ -68,12 +73,14 @@ export function TaxFeeConfigManager() {
       const updated = await patchJson<TaxFeeConfigData>("/api/admin/tax-fee-config", {
         gstRatePercent: Number(gstRatePercent),
         gatewayFeePercent: Number(gatewayFeePercent),
+        gatewayFeeChargedToCustomer: chargedToCustomer,
         reason,
       });
       toast.success("Tax/fee configuration updated — new payments will use these rates.");
       setConfig(updated);
       setGstRatePercent(updated.gstRatePercent);
       setGatewayFeePercent(updated.gatewayFeePercent);
+      setChargedToCustomer(updated.gatewayFeeChargedToCustomer);
     } catch (error) {
       if (error instanceof ApiError && error.fieldErrors) setErrors(error.fieldErrors);
       toast.error(error instanceof ApiError ? error.message : "Couldn't update the configuration. Please try again.");
@@ -129,6 +136,22 @@ export function TaxFeeConfigManager() {
           disabled={saving}
         />
       </div>
+      <label className="flex items-start gap-3 rounded-lg border border-hairline px-4 py-3">
+        <input
+          type="checkbox"
+          checked={chargedToCustomer}
+          disabled={saving}
+          onChange={(event) => setChargedToCustomer(event.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-[var(--color-accent)]"
+        />
+        <span className="flex flex-col gap-0.5">
+          <span className="text-sm font-medium text-ink-primary">Charge the gateway fee to the customer</span>
+          <span className="text-xs text-ink-tertiary">
+            On: shown separately on the invoice and added to the payable amount. Off: the customer pays no gateway fee; it is recorded as
+            our expense on each payment.
+          </span>
+        </span>
+      </label>
       <p className="text-xs text-ink-tertiary">
         Applied to every new payment&apos;s base amount when a booking&apos;s payment is created — see{" "}
         <code>src/app/api/bookings/[id]/payments/route.ts</code>. Existing payments already created keep their original

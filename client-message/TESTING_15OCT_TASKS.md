@@ -80,17 +80,17 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [x] F7. Profit = Selling − Vendor cost; GST on that.
 
 ## G. Invoice & profit
-- [ ] G1. Remove "Amount Paid" and "Balance Due".
-- [ ] G2. Invoice status Cancelled, then Refunded when the refund completes (not "Paid").
-- [ ] G3. Govt / Airline / Vendor fee rows aligned full width.
-- [ ] G4. Profit = Selling − applicable vendor / govt / airline fee − fines.
+- [x] G1. Remove "Amount Paid" and "Balance Due".
+- [x] G2. Invoice status Cancelled, then Refunded when the refund completes (not "Paid").
+- [x] G3. Govt / Airline / Vendor fee rows aligned full width.
+- [x] G4. Profit = Selling − applicable vendor / govt / airline fee − fines.
   - New Visa, Visa Change, Extension: the vendor / govt fee.
   - Return Ticket, Special Fare, OTB: the airline fee.
   - GST on the service charge.
-- [ ] G5. Gateway charge:
+- [x] G5. Gateway charge:
   - Charged to the customer: shown separately on the invoice and included in the payable amount.
   - Not charged: our expense.
-- [ ] G6. Admin can edit an invoice later (cost, service fee, GST).
+- [x] G6. Admin can edit an invoice later (cost, service fee, GST).
 
 ## H. Email template
 - [ ] H1. Light-blue body; dark header with logo, name and tagline.

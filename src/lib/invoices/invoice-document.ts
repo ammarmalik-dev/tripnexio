@@ -16,8 +16,8 @@ import type { ServiceType } from "../../generated/prisma/enums";
  * Client corrections 2026-10-05 — everything an invoice shows, built from a
  * payment (Tax Invoice / Invoice) or a quotation (Proforma), in the layout of
  * the client's sample: government/airline fee apart from the service fee,
- * one line per passenger type, SAC per service, tax and total summaries,
- * amount paid / balance due and a "scan to verify" link. Pure data — the PDF
+ * one line per passenger type, SAC per service, tax and total summaries and
+ * a "scan to verify" link (no Amount Paid / Balance Due — client doc 2026-10-15, G1). Pure data — the PDF
  * is drawn by render-invoice.ts.
  */
 export interface InvoiceDocumentLine {
@@ -41,7 +41,10 @@ export interface InvoiceDocument {
   paxCount: number | null;
   bookingDate: Date | null;
   travelDate: string | null;
-  paymentStatus: "Paid" | "Pending" | "Estimate" | "Cancelled";
+  /** Client doc 2026-10-15 (G2) — Cancelled once the booking is cancelled, Refunded once the refund completed. */
+  paymentStatus: "Paid" | "Pending" | "Estimate" | "Cancelled" | "Refunded" | "Partially Refunded";
+  /** Client doc 2026-10-15 (G3/G4) — the third-party fee column's name for this service (Vendor / Govt. / Airline fee). */
+  feeLabel: string;
   customer: {
     name: string;
     mobile: string;
@@ -58,8 +61,8 @@ export interface InvoiceDocument {
   gstAmount: number;
   gatewayFee: number;
   grandTotal: number;
-  amountPaid: number;
-  balanceDue: number;
+  /** Client doc 2026-10-15 (G6) — set when Admin edited this invoice. */
+  editedNote: string | null;
   verifyUrl: string | null;
   company: InvoiceCompanyDetails;
 }
@@ -165,6 +168,57 @@ function withGst(lines: Omit<InvoiceDocumentLine, "gstAmount">[], gstAmount: num
   });
 }
 
+/**
+ * Client doc 2026-10-15 (G4) — what the non-taxable fee is for each service: the vendor / government
+ * fee for visas, the airline fee for tickets and OTB. GST applies to the rest (the service charge).
+ */
+export function feeLabelFor(serviceType: ServiceType): string {
+  switch (serviceType) {
+    case "NEW_VISA":
+      return "Govt./Vendor Fee";
+    case "VISA_CHANGE":
+    case "VISA_EXTENSION":
+      return "Vendor Fee";
+    case "RETURN_TICKET":
+    case "FLIGHT_SPECIAL_FARE":
+    case "OTB":
+      return "Airline Fee";
+    default:
+      return "Govt./Airline/Vendor Fee";
+  }
+}
+
+/** Client doc 2026-10-15 (G6) — Admin's edit of an invoice, as stored on Payment.invoiceOverride. */
+export interface InvoiceOverride {
+  lines: { description: string; quantity: number; governmentFee: number; serviceFee: number }[];
+  gstAmount: number;
+  note: string;
+  editedBy: string;
+  editedAt: string;
+}
+
+export function parseInvoiceOverride(raw: unknown): InvoiceOverride | null {
+  if (!raw || typeof raw !== "object") return null;
+  const data = raw as Record<string, unknown>;
+  if (!Array.isArray(data.lines) || data.lines.length === 0) return null;
+  const lines = data.lines
+    .filter((line): line is Record<string, unknown> => !!line && typeof line === "object")
+    .map((line) => ({
+      description: String(line.description ?? ""),
+      quantity: Math.max(1, Number(line.quantity) || 1),
+      governmentFee: Number(line.governmentFee) || 0,
+      serviceFee: Number(line.serviceFee) || 0,
+    }));
+  if (lines.length === 0) return null;
+  return {
+    lines,
+    gstAmount: Number(data.gstAmount) || 0,
+    note: String(data.note ?? ""),
+    editedBy: String(data.editedBy ?? ""),
+    editedAt: String(data.editedAt ?? ""),
+  };
+}
+
 /** Client testing 2026-10-09 (G2) — "New Visa – United Arab Emirates", "OTB – …", "Return Ticket – …". */
 const SERVICES_WITH_COUNTRY: readonly ServiceType[] = ["NEW_VISA", "OTB", "RETURN_TICKET"];
 
@@ -187,6 +241,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
           _count: { select: { passengers: true } },
         },
       },
+      refunds: { where: { status: "COMPLETED" }, select: { refundAmount: true } },
     },
   });
   if (!payment || payment.status !== "SUCCESS") return null;
@@ -219,12 +274,28 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
   }
   if (planAmount > 0) baseLines.push({ description: "Protection Plan", sac, quantity: 1, governmentFee: 0, serviceFee: round2(planAmount) });
 
+  // Client doc 2026-10-15 (G6) — Admin's edited lines and GST replace the computed ones.
+  const override = parseInvoiceOverride(payment.invoiceOverride);
   const couponDiscount = Number(payment.couponDiscount ?? 0);
-  const gstAmount = Number(payment.gstAmount);
+  const gstAmount = override ? override.gstAmount : Number(payment.gstAmount);
   const gatewayFee = Number(payment.gatewayFee);
-  const lines = withGst(baseLines, gstAmount);
+  const lines = withGst(
+    override
+      ? override.lines.map((line) => ({ description: line.description, sac, quantity: line.quantity, governmentFee: round2(line.governmentFee), serviceFee: round2(line.serviceFee) }))
+      : baseLines,
+    gstAmount
+  );
+  const lineTotal = round2(lines.reduce((sum, line) => sum + line.governmentFee + line.serviceFee, 0));
   const taxable = Math.max(0, lines.reduce((sum, line) => sum + line.serviceFee, 0) - couponDiscount);
-  const grandTotal = round2(amount - couponDiscount + gstAmount + gatewayFee);
+  const grandTotal = round2((override ? lineTotal : amount) - couponDiscount + gstAmount + gatewayFee);
+
+  // Client doc 2026-10-15 (G2) — Refunded once a refund completed (Partially Refunded when it was less
+  // than the amount paid), Cancelled when the booking is cancelled without a completed refund yet.
+  const refunded = round2(payment.refunds.reduce((sum, refund) => sum + Number(refund.refundAmount), 0));
+  const paidTotal = round2(Math.max(0, amount - couponDiscount) + Number(payment.gstAmount) + gatewayFee);
+  const cancelled = booking.status === "CANCELLED" || booking.status === "REFUNDED";
+  const paymentStatus: InvoiceDocument["paymentStatus"] =
+    refunded > 0 ? (refunded + 0.01 >= paidTotal - gatewayFee || cancelled ? "Refunded" : "Partially Refunded") : cancelled ? "Cancelled" : "Paid";
 
   return {
     title: company.gstNumber ? "TAX INVOICE" : "INVOICE",
@@ -237,8 +308,8 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
     paxCount: booking._count.passengers || lead.paxCount,
     bookingDate: booking.createdAt,
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
-    // Client testing 2026-10-09 (E5) — a cancelled / fully refunded booking's invoice is cancelled.
-    paymentStatus: booking.status === "CANCELLED" || booking.status === "REFUNDED" ? "Cancelled" : "Paid",
+    paymentStatus,
+    feeLabel: feeLabelFor(lead.serviceType),
     customer: invoiceCustomer(booking.customer),
     lines,
     couponCode: payment.couponCode,
@@ -247,8 +318,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
     gstAmount,
     gatewayFee,
     grandTotal,
-    amountPaid: grandTotal,
-    balanceDue: 0,
+    editedNote: override ? `Edited by ${override.editedBy}${override.note ? `: ${override.note}` : ""}` : null,
     verifyUrl: verifyUrlFor(invoiceNumber),
     company,
   };
@@ -281,6 +351,7 @@ export async function buildQuotationInvoiceDocument(quotationId: string): Promis
     bookingDate: null,
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paymentStatus: "Estimate",
+    feeLabel: feeLabelFor(lead.serviceType),
     customer: invoiceCustomer(lead.customer),
     lines,
     couponCode: quotation.couponCode,
@@ -289,8 +360,7 @@ export async function buildQuotationInvoiceDocument(quotationId: string): Promis
     gstAmount: 0,
     gatewayFee: 0,
     grandTotal,
-    amountPaid: 0,
-    balanceDue: grandTotal,
+    editedNote: null,
     verifyUrl: null,
     company,
   };

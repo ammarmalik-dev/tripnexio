@@ -68,11 +68,13 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   // CRM.md §10: "...− Coupon + Gateway Charge = Customer Payable." GST and the
   // gateway fee are computed on the amount AFTER the coupon discount.
   const netAmount = Math.max(0, baseAmount - couponDiscount);
-  const { gstRate, gatewayFeeRate } = await getTaxFeeRates();
+  const { gstRate, gatewayFeeRate, absorbedGatewayFeeRate } = await getTaxFeeRates();
   const taxableAmount = Math.max(0, netAmount - (input.nonTaxableAmount ?? 0));
   const gstAmount = roundToPaise(taxableAmount * gstRate);
   const gatewayFee = roundToPaise(netAmount * gatewayFeeRate);
   const totalAmount = roundToPaise(netAmount + gstAmount + gatewayFee);
+  // Client doc 2026-10-15 (G5) — not charged to the customer: our expense, on the full amount paid.
+  const gatewayFeeAbsorbed = roundToPaise(totalAmount * absorbedGatewayFeeRate);
 
   // Step 42 (Admin FINAL handover §6, "payment deadline") — per-service
   // configurable; P24 adds the Admin → Payment Gateway system-wide default
@@ -145,6 +147,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
         amount: baseAmount,
         gstAmount,
         gatewayFee,
+        gatewayFeeAbsorbed,
         couponId,
         couponCode,
         couponDiscount: couponId ? couponDiscount : undefined,

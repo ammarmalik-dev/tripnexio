@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Download, Eye, FileArchive, FileText, Receipt, RotateCw, Search, X } from "lucide-react";
+import { Download, Eye, FileArchive, FileText, Pencil, Receipt, RotateCw, Search, X } from "lucide-react";
+import { InvoiceEditDialog } from "./InvoiceEditDialog";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -141,7 +142,9 @@ function FilterSelect({ id, label, value, onChange, children }: { id: string; la
  * feeds the CSV register (/api/invoices/export) and the bulk PDF ZIP
  * (/api/invoices/download, capped at MAX_INVOICE_ZIP).
  */
-export function InvoiceHistory() {
+/** `canEdit` — Admin with finance.manage: an Edit action per invoice (client doc 2026-10-15, G6). */
+export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) {
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
   // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
@@ -279,6 +282,15 @@ export function InvoiceHistory() {
 
   return (
     <div className="flex flex-col gap-5">
+      {editingPaymentId ? (
+        <InvoiceEditDialog
+          paymentId={editingPaymentId}
+          onClose={() => {
+            setEditingPaymentId(null);
+            setRefreshNonce((current) => current + 1);
+          }}
+        />
+      ) : null}
       <section aria-label="Invoice summary for the current filters" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
         <StatCard label="Invoices" value={matchCount.toLocaleString("en-IN")} loading={loading && !summary} />
         <StatCard label="Total invoiced" value={money(summary?.totalInvoiced ?? 0)} hint="Incl. GST & gateway fee" loading={loading && !summary} />
@@ -536,6 +548,17 @@ export function InvoiceHistory() {
                           )}
                           Download
                         </button>
+                        {canEdit ? (
+                          <button
+                            type="button"
+                            onClick={() => setEditingPaymentId(item.paymentId)}
+                            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-hairline px-3 text-xs font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border hover:bg-accent/[0.05] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                            aria-label={`Edit invoice ${item.invoiceNumber ?? item.bookingRef}`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                            Edit
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
