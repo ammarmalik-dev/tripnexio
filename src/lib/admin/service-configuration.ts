@@ -72,8 +72,17 @@ export const COUNTRY_SCOPED_TABS: ReadonlySet<ServiceConfigTab> = new Set<Servic
   "otb-prices",
 ]);
 
+/**
+ * Client doc 2026-10-15 — New Visa has no Sub-Service, and its documents are managed on each
+ * country's New Visa page, so those two tabs aren't offered for it.
+ */
+const HIDDEN_TABS: Partial<Record<ServiceType, ServiceConfigTab[]>> = {
+  NEW_VISA: ["documents", "sub-services"],
+};
+
 export function getServiceConfigTabs(service: ServiceType): ServiceConfigTab[] {
-  return [...COMMON_TABS, ...(SERVICE_SPECIFIC_TABS[service] ?? [])];
+  const hidden = HIDDEN_TABS[service] ?? [];
+  return [...COMMON_TABS, ...(SERVICE_SPECIFIC_TABS[service] ?? [])].filter((tab) => !hidden.includes(tab));
 }
 
 export function parseServiceConfigService(value: string | undefined): ServiceType {

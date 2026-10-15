@@ -13,9 +13,10 @@ import { toast } from "@/components/ui/Toaster";
 import { getJson, patchJson, postJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 
-type RateService = "OTB" | "RETURN_TICKET";
-const SERVICE_LABELS: Record<RateService, string> = { OTB: "OTB", RETURN_TICKET: "Return Ticket" };
+type RateService = "OTB" | "RETURN_TICKET" | "NEW_VISA";
+const SERVICE_LABELS: Record<RateService, string> = { OTB: "OTB", RETURN_TICKET: "Return Ticket", NEW_VISA: "New Visa" };
 const PROCESSING_LABELS: Record<string, string> = { normal: "Normal", urgent: "Urgent / Express" };
+const PAX_LABELS: Record<string, string> = { ADULT: "Adult", CHILD: "Child" };
 
 interface RateRow {
   id: string;
@@ -27,6 +28,9 @@ interface RateRow {
   airlineId: string | null;
   airlineName: string | null;
   processingType: string | null;
+  nationalityId: string | null;
+  nationalityName: string | null;
+  paxType: string | null;
   cost: number;
   active: boolean;
 }
@@ -113,14 +117,16 @@ function NewRateForm({
   vendors,
   countries,
   airlines,
+  nationalities,
   onCreated,
 }: {
   vendors: VendorOption[];
   countries: Option[];
   airlines: Option[];
+  nationalities: Option[];
   onCreated: (row: RateRow) => void;
 }) {
-  const empty = { vendorId: "", serviceType: "OTB" as RateService, countryId: "", airlineId: "", processingType: "", cost: "" };
+  const empty = { vendorId: "", serviceType: "OTB" as RateService, countryId: "", airlineId: "", nationalityId: "", paxType: "", processingType: "", cost: "" };
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
@@ -145,7 +151,10 @@ function NewRateForm({
     const cost = Number(form.cost);
     const reason = await confirm({
       title: "Add this vendor rate?",
-      description: "Bookings for this country / airline / processing type get this cost per passenger when this vendor is picked.",
+      description:
+        form.serviceType === "NEW_VISA"
+          ? "New Visa passengers for this country / nationality / passenger type / processing type get this cost when this vendor is picked."
+          : "Bookings for this country / airline / processing type get this cost per passenger when this vendor is picked.",
       confirmLabel: "Add Rate",
     });
     if (!reason) return;
@@ -157,6 +166,8 @@ function NewRateForm({
         serviceType: form.serviceType,
         countryId: form.countryId,
         airlineId: form.serviceType === "OTB" ? form.airlineId : "",
+        nationalityId: form.serviceType === "NEW_VISA" ? form.nationalityId : "",
+        paxType: form.serviceType === "NEW_VISA" ? form.paxType : "",
         processingType: form.processingType,
         cost,
         reason,
@@ -182,13 +193,19 @@ function NewRateForm({
           "vr-service",
           "Service",
           form.serviceType,
-          (value) => setForm({ ...form, serviceType: value as RateService, vendorId: "", airlineId: "" }),
+          (value) => setForm({ ...form, serviceType: value as RateService, vendorId: "", airlineId: "", nationalityId: "", paxType: "" }),
           (Object.keys(SERVICE_LABELS) as RateService[]).map((key) => ({ value: key, label: SERVICE_LABELS[key] }))
         )}
         {select("vr-vendor", "Vendor", form.vendorId, (value) => setForm({ ...form, vendorId: value }), shownVendors.map((v) => ({ value: v.id, label: v.name })), errors.vendorId?.[0], "Select a vendor")}
         {select("vr-country", "Destination country", form.countryId, (value) => setForm({ ...form, countryId: value }), countries.map((c) => ({ value: c.id, label: c.name })), errors.countryId?.[0], "Select a country")}
         {form.serviceType === "OTB"
           ? select("vr-airline", "Airline", form.airlineId, (value) => setForm({ ...form, airlineId: value }), airlines.map((a) => ({ value: a.id, label: a.name })), errors.airlineId?.[0], "Any airline")
+          : null}
+        {form.serviceType === "NEW_VISA"
+          ? select("vr-nationality", "Nationality", form.nationalityId, (value) => setForm({ ...form, nationalityId: value }), nationalities.map((n) => ({ value: n.id, label: n.name })), errors.nationalityId?.[0], "Any nationality")
+          : null}
+        {form.serviceType === "NEW_VISA"
+          ? select("vr-pax", "Passenger type", form.paxType, (value) => setForm({ ...form, paxType: value }), Object.entries(PAX_LABELS).map(([value, label]) => ({ value, label })), errors.paxType?.[0], "Adult and Child")
           : null}
         {select(
           "vr-processing",
@@ -228,6 +245,8 @@ function NewRateForm({
  * make for vendor as well: Return Ticket and OTB by vendor, by country, by
  * airline, by processing type". What each vendor charges TripNexio (internal);
  * picking the vendor on an OTB / Return Ticket booking sets its vendor cost.
+ * Client doc 2026-10-15 — New Visa by country, nationality, Adult / Child and
+ * processing type; the vendor cost drives profit and the invoice.
  */
 export function VendorServiceRatesManager() {
   const [state, setState] = useState<"loading" | "error" | "ready">("loading");
@@ -235,6 +254,7 @@ export function VendorServiceRatesManager() {
   const [vendors, setVendors] = useState<VendorOption[]>([]);
   const [countries, setCountries] = useState<Option[]>([]);
   const [airlines, setAirlines] = useState<Option[]>([]);
+  const [nationalities, setNationalities] = useState<Option[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [serviceFilter, setServiceFilter] = useState<RateService | "">("");
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -244,17 +264,19 @@ export function VendorServiceRatesManager() {
     async function load() {
       setState("loading");
       try {
-        const [rateList, vendorList, countryList, airlineList] = await Promise.all([
+        const [rateList, vendorList, countryList, airlineList, nationalityList] = await Promise.all([
           getJson<RateRow[]>("/api/admin/vendor-service-rates"),
           getJson<VendorOption[]>("/api/admin/vendors"),
           getJson<Option[]>("/api/admin/countries"),
           getJson<Option[]>("/api/admin/airlines"),
+          getJson<Option[]>("/api/admin/nationalities"),
         ]);
         if (cancelled) return;
         setRows(rateList);
         setVendors(vendorList);
         setCountries(countryList.filter((c) => c.active));
         setAirlines(airlineList.filter((a) => a.active));
+        setNationalities(nationalityList.filter((n) => n.active));
         setState("ready");
       } catch {
         if (!cancelled) setState("error");
@@ -294,15 +316,16 @@ export function VendorServiceRatesManager() {
             onChange={(event) => setServiceFilter(event.target.value as RateService | "")}
             className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-48 text-sm")}
           >
-            <option value="">OTB and Return Ticket</option>
+            <option value="">All services</option>
             <option value="OTB">OTB</option>
             <option value="RETURN_TICKET">Return Ticket</option>
+            <option value="NEW_VISA">New Visa</option>
           </select>
         </label>
       </div>
 
       {visible.length === 0 ? (
-        <EmptyState title="No vendor rates yet" description="Add what each vendor charges for OTB / Return Ticket below." />
+        <EmptyState title="No vendor rates yet" description="Add what each vendor charges for OTB / Return Ticket / New Visa below." />
       ) : (
         <ul className="divide-y divide-hairline rounded-xl border border-hairline bg-surface-1">
           {visible.map((row) => (
@@ -313,7 +336,12 @@ export function VendorServiceRatesManager() {
                     {row.vendorName} · {SERVICE_LABELS[row.serviceType]} · {row.countryName}
                   </p>
                   <p className="text-xs text-ink-tertiary">
-                    {row.serviceType === "OTB" ? (row.airlineName ?? "Any airline") : "All airlines"} · {row.processingType ? PROCESSING_LABELS[row.processingType] ?? row.processingType : "Any processing"}
+                    {row.serviceType === "NEW_VISA"
+                      ? `${row.nationalityName ?? "Any nationality"} · ${row.paxType ? (PAX_LABELS[row.paxType] ?? row.paxType) : "Adult and Child"}`
+                      : row.serviceType === "OTB"
+                        ? (row.airlineName ?? "Any airline")
+                        : "All airlines"}{" "}
+                    · {row.processingType ? PROCESSING_LABELS[row.processingType] ?? row.processingType : "Any processing"}
                     {row.active ? "" : " · disabled"}
                   </p>
                 </div>
@@ -341,7 +369,7 @@ export function VendorServiceRatesManager() {
         </ul>
       )}
 
-      <NewRateForm vendors={vendors} countries={countries} airlines={airlines} onCreated={(created) => setRows((current) => [...current, created])} />
+      <NewRateForm vendors={vendors} countries={countries} airlines={airlines} nationalities={nationalities} onCreated={(created) => setRows((current) => [...current, created])} />
     </div>
   );
 }

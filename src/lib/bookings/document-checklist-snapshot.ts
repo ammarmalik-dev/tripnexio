@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import type { ServiceType, PaxType } from "@/generated/prisma/enums";
 import { isUniversalNationalityRule, matchesNationality } from "@/lib/nationalities/match";
+import { getNewVisaPageDocuments } from "@/lib/checkout/required-documents";
 
 export interface DocumentChecklistSnapshotItem {
   documentName: string;
@@ -39,6 +40,22 @@ export async function buildDocumentChecklistSnapshot(
   passengers: { id: string; fullName: string; nationality: string | null; nationalityId?: string | null; paxType?: PaxType | null }[],
   countryId?: string | null
 ): Promise<DocumentChecklistSnapshot> {
+  // Client doc 2026-10-15 — New Visa: the country page's own document list, for every passenger.
+  const pageDocuments = serviceType === "NEW_VISA" ? await getNewVisaPageDocuments(countryId) : [];
+  if (pageDocuments.length > 0) {
+    return {
+      generatedAt: new Date().toISOString(),
+      serviceType,
+      countryId: countryId ?? null,
+      passengers: passengers.map((passenger) => ({
+        passengerId: passenger.id,
+        fullName: passenger.fullName,
+        nationality: passenger.nationality,
+        requirements: pageDocuments.map((documentName) => ({ documentName, required: true })),
+      })),
+    };
+  }
+
   const activeRequirements = await db.documentRequirement.findMany({
     where: { serviceType, active: true },
     orderBy: [{ required: "desc" }, { documentName: "asc" }],

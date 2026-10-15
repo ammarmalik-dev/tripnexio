@@ -9,12 +9,28 @@ describe("vendor rate for an OTB / Return Ticket booking", () => {
   ];
 
   it("prefers the most specific matching rate", () => {
-    expect(pickVendorRate(rows, "air-1", "urgent")?.cost).toBe(900);
-    expect(pickVendorRate(rows, "air-1", "normal")?.cost).toBe(600);
-    expect(pickVendorRate(rows, "air-2", "urgent")?.cost).toBe(500);
+    expect(pickVendorRate(rows, { airlineId: "air-1", processingType: "urgent" })?.cost).toBe(900);
+    expect(pickVendorRate(rows, { airlineId: "air-1", processingType: "normal" })?.cost).toBe(600);
+    expect(pickVendorRate(rows, { airlineId: "air-2", processingType: "urgent" })?.cost).toBe(500);
   });
 
   it("returns null when nothing fits", () => {
-    expect(pickVendorRate([{ airlineId: "air-1", processingType: null, cost: 1 }], "air-2", null)).toBeNull();
+    expect(pickVendorRate([{ airlineId: "air-1", processingType: null, cost: 1 }], { airlineId: "air-2", processingType: null })).toBeNull();
+  });
+});
+
+describe("vendor rate for a New Visa passenger", () => {
+  const rows = [
+    { airlineId: null, processingType: null, nationalityId: null, paxType: null, cost: 4000 },
+    { airlineId: null, processingType: null, nationalityId: null, paxType: "CHILD", cost: 3000 },
+    { airlineId: null, processingType: "urgent", nationalityId: "nat-in", paxType: "ADULT", cost: 5500 },
+    { airlineId: null, processingType: null, nationalityId: "nat-in", paxType: null, cost: 4500 },
+  ];
+
+  it("matches nationality, passenger type and processing type", () => {
+    expect(pickVendorRate(rows, { processingType: "urgent", nationalityId: "nat-in", paxType: "ADULT" })?.cost).toBe(5500);
+    expect(pickVendorRate(rows, { processingType: "normal", nationalityId: "nat-in", paxType: "ADULT" })?.cost).toBe(4500);
+    expect(pickVendorRate(rows, { processingType: "normal", nationalityId: "nat-pk", paxType: "CHILD" })?.cost).toBe(3000);
+    expect(pickVendorRate(rows, { processingType: "normal", nationalityId: null, paxType: "ADULT" })?.cost).toBe(4000);
   });
 });

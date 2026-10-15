@@ -9,7 +9,8 @@ import { createVendorServiceRateSchema, serializeVendorServiceRate, VENDOR_RATE_
 
 /**
  * Client doc 2026-10-14 — vendor rates for OTB / Return Ticket by vendor,
- * country, airline and processing type. Internal cost data: Admin only
+ * country, airline and processing type; New Visa (2026-10-15) by country,
+ * nationality, Adult / Child and processing type. Internal cost data: Admin only
  * (masters.manage), never leaves /api/admin.
  */
 export async function GET() {
@@ -39,7 +40,14 @@ export async function POST(request: NextRequest) {
   if (reasonResult.error) return reasonResult.error;
   const { reason } = reasonResult;
 
-  const data = { ...parsed.data, airlineId: parsed.data.airlineId ?? null, processingType: parsed.data.processingType || null };
+  const isNewVisa = parsed.data.serviceType === "NEW_VISA";
+  const data = {
+    ...parsed.data,
+    airlineId: parsed.data.serviceType === "OTB" ? (parsed.data.airlineId ?? null) : null,
+    nationalityId: isNewVisa ? (parsed.data.nationalityId ?? null) : null,
+    paxType: isNewVisa && parsed.data.paxType ? parsed.data.paxType : null,
+    processingType: parsed.data.processingType || null,
+  };
   const vendor = await db.vendor.findUnique({ where: { id: data.vendorId }, select: { id: true } });
   if (!vendor) return jsonError(400, "Vendor not found.", { vendorId: ["Select a valid vendor."] });
   const country = await db.country.findUnique({ where: { id: data.countryId }, select: { id: true } });
@@ -47,11 +55,22 @@ export async function POST(request: NextRequest) {
   if (data.airlineId && !(await db.airline.findUnique({ where: { id: data.airlineId }, select: { id: true } }))) {
     return jsonError(400, "Airline not found.", { airlineId: ["Select a valid airline."] });
   }
+  if (data.nationalityId && !(await db.nationality.findUnique({ where: { id: data.nationalityId }, select: { id: true } }))) {
+    return jsonError(400, "Nationality not found.", { nationalityId: ["Select a valid nationality."] });
+  }
   const duplicate = await db.vendorServiceRate.findFirst({
-    where: { vendorId: data.vendorId, serviceType: data.serviceType, countryId: data.countryId, airlineId: data.airlineId, processingType: data.processingType },
+    where: {
+      vendorId: data.vendorId,
+      serviceType: data.serviceType,
+      countryId: data.countryId,
+      airlineId: data.airlineId,
+      nationalityId: data.nationalityId,
+      paxType: data.paxType,
+      processingType: data.processingType,
+    },
     select: { id: true },
   });
-  if (duplicate) return jsonError(400, "This vendor already has a rate for that country, airline and processing type — edit it instead.", { countryId: ["Already added."] });
+  if (duplicate) return jsonError(400, "This vendor already has this rate — edit it instead.", { countryId: ["Already added."] });
 
   const created = await db.$transaction(async (tx) => {
     const row = await tx.vendorServiceRate.create({ data, include: VENDOR_RATE_INCLUDE });
@@ -61,7 +80,7 @@ export async function POST(request: NextRequest) {
       action: "CREATE",
       byUserId: session.id,
       note: withReason(
-        `Vendor rate ${row.vendor.name} · ${row.serviceType} · ${row.country.name}${row.airline ? ` · ${row.airline.code}` : ""}${row.processingType ? ` · ${row.processingType}` : ""}: ₹${parsed.data.cost} per passenger (by ${session.name})`,
+        `Vendor rate ${row.vendor.name} · ${row.serviceType} · ${row.country.name}${row.airline ? ` · ${row.airline.code}` : ""}${row.nationality ? ` · ${row.nationality.name}` : ""}${row.paxType ? ` · ${row.paxType}` : ""}${row.processingType ? ` · ${row.processingType}` : ""}: ₹${parsed.data.cost} per passenger (by ${session.name})`,
         reason
       ),
     });

@@ -71,6 +71,9 @@ export const NEW_VISA_DEFAULT_NATIONALITY = "India";
  * standalone check before a lead exists).
  */
 export async function getNewVisaCheckoutDocumentTypes(countryId?: string | null): Promise<CheckoutDocumentType[]> {
+  // Client doc 2026-10-15 — New Visa documents are managed on the country's own New Visa page.
+  const pageDocuments = await getNewVisaPageDocuments(countryId);
+  if (pageDocuments.length > 0) return pageDocuments.map((name) => ({ type: name, label: name, required: true }));
   const requirements = await db.documentRequirement.findMany({
     where: {
       serviceType: "NEW_VISA",
@@ -87,6 +90,17 @@ export async function getNewVisaCheckoutDocumentTypes(countryId?: string | null)
   // independent null-or-exact-match semantics alongside the nationality OR above.
   const filtered = requirements.filter((requirement) => !requirement.countryId || requirement.countryId === countryId);
   return filtered.map((requirement) => ({ type: requirement.documentName, label: requirement.documentName, required: requirement.required }));
+}
+
+/**
+ * Client doc 2026-10-15 — "Remove document management from the New Visa configuration page.
+ * Manage documents on the respective country's New Visa page": the page's Documents list
+ * (Admin → New Visa Pages). Empty = none set there (older Document Requirements rows still apply).
+ */
+export async function getNewVisaPageDocuments(countryId?: string | null): Promise<string[]> {
+  if (!countryId) return [];
+  const page = await db.newVisaCountryPage.findUnique({ where: { countryId }, select: { documents: true } });
+  return (page?.documents ?? []).map((name) => name.trim()).filter(Boolean);
 }
 
 export function isCheckoutService(serviceType: ServiceType): boolean {

@@ -25,19 +25,22 @@ export async function setBookingVendor(
 ): Promise<string | null> {
   const quotation = await tx.quotation.findFirst({
     where: { leadId: input.leadId, isSelected: true },
-    select: { id: true, vendorId: true, sellingPrice: true, vendor: { select: { name: true } } },
+    select: { id: true, vendorId: true, sellingPrice: true, invoiceLines: true, vendor: { select: { name: true } } },
   });
   if (!quotation) return "This booking has no selected quotation to record the vendor on.";
   if (quotation.vendorId === input.vendor.id) return null;
 
   // Client doc 2026-10-14 — OTB / Return Ticket: the vendor's rate for this country / airline /
   // processing type sets the booking's vendor cost (rate × passengers) and margin.
+  // Client doc 2026-10-15 — New Visa: per passenger by nationality + Adult / Child; the vendor
+  // cost is also the invoice's Govt./Vendor fee, so GST applies to selling − vendor cost only.
   const rated = await vendorRateCost(tx, input.bookingId, input.vendor.id);
   await tx.quotation.update({
     where: { id: quotation.id },
     data: {
       vendorId: input.vendor.id,
       ...(rated ? { vendorCost: rated.total, margin: Number(quotation.sellingPrice ?? 0) - rated.total } : {}),
+      ...(rated?.serviceType === "NEW_VISA" ? { governmentFee: rated.total, invoiceLines: rated.invoiceLines(quotation.invoiceLines) } : {}),
     },
   });
   await writeAudit(tx, {
@@ -45,22 +48,31 @@ export async function setBookingVendor(
     entityId: input.bookingId,
     action: "VENDOR_SET",
     byUserId: input.actor.userId,
-    note: `Vendor ${quotation.vendor.name} -> ${input.vendor.name}${rated ? ` — vendor cost ₹${rated.total} (₹${rated.perPassenger} × ${rated.passengers} from the vendor rate)` : ""}${input.reason ? `: ${input.reason}` : ""} (by ${input.actor.name})`,
+    note: `Vendor ${quotation.vendor.name} -> ${input.vendor.name}${rated ? ` — vendor cost ₹${rated.total} (${rated.summary} from the vendor rate)` : ""}${input.reason ? `: ${input.reason}` : ""} (by ${input.actor.name})`,
   });
   return null;
 }
 
-/** The vendor's rate for an OTB / Return Ticket booking × its passengers; null when none applies. */
-async function vendorRateCost(
-  tx: Prisma.TransactionClient,
-  bookingId: string,
-  vendorId: string
-): Promise<{ total: number; perPassenger: number; passengers: number } | null> {
+interface RatedCost {
+  serviceType: string;
+  total: number;
+  summary: string;
+  /** New Visa — the stored invoice lines with each passenger type's vendor cost as its Govt./Vendor fee. */
+  invoiceLines: (stored: unknown) => Prisma.InputJsonValue | undefined;
+}
+
+/** The vendor's rate for an OTB / Return Ticket / New Visa booking × its passengers; null when none applies. */
+async function vendorRateCost(tx: Prisma.TransactionClient, bookingId: string, vendorId: string): Promise<RatedCost | null> {
   const booking = await tx.booking.findUnique({
     where: { id: bookingId },
-    select: { _count: { select: { passengers: true } }, lead: { select: { serviceType: true, details: true } } },
+    select: {
+      _count: { select: { passengers: true } },
+      passengers: { select: { passenger: { select: { paxType: true, nationalityId: true } } } },
+      lead: { select: { serviceType: true, details: true } },
+    },
   });
-  if (!booking || (booking.lead.serviceType !== "OTB" && booking.lead.serviceType !== "RETURN_TICKET")) return null;
+  const serviceType = booking?.lead.serviceType;
+  if (!booking || (serviceType !== "OTB" && serviceType !== "RETURN_TICKET" && serviceType !== "NEW_VISA")) return null;
   const details = (booking.lead.details ?? {}) as Record<string, unknown>;
   const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
   const countryId =
@@ -72,12 +84,53 @@ async function vendorRateCost(
   const airlineCode = text(details.airline);
   const airlineId = airlineCode ? ((await tx.airline.findUnique({ where: { code: airlineCode }, select: { id: true } }))?.id ?? null) : null;
   const rows = await tx.vendorServiceRate.findMany({
-    where: { vendorId, serviceType: booking.lead.serviceType, countryId, active: true },
-    select: { airlineId: true, processingType: true, cost: true },
+    where: { vendorId, serviceType, countryId, active: true },
+    select: { airlineId: true, processingType: true, nationalityId: true, paxType: true, cost: true },
   });
-  const rate = pickVendorRate(rows, airlineId, text(details.processingType));
+  const processingType = text(details.processingType);
+  const round2 = (value: number) => Math.round(value * 100) / 100;
+
+  if (serviceType === "NEW_VISA") {
+    const travellers = booking.passengers.map((entry) => entry.passenger);
+    if (travellers.length === 0) return null;
+    const costs: { paxType: string; cost: number }[] = [];
+    for (const traveller of travellers) {
+      const rate = pickVendorRate(rows, { processingType, nationalityId: traveller.nationalityId ?? text(details.nationalityId), paxType: traveller.paxType });
+      if (!rate) return null; // a passenger with no rate from this vendor: leave the cost for staff to enter
+      costs.push({ paxType: traveller.paxType, cost: Number(rate.cost) });
+    }
+    const total = round2(costs.reduce((sum, entry) => sum + entry.cost, 0));
+    const perType = new Map<string, number>();
+    for (const entry of costs) perType.set(entry.paxType, entry.cost);
+    return {
+      serviceType,
+      total,
+      summary: costs.map((entry) => `${entry.paxType} ₹${entry.cost}`).join(" + "),
+      invoiceLines: (stored) => withVendorFees(stored, perType),
+    };
+  }
+
+  const rate = pickVendorRate(rows, { airlineId, processingType });
   if (!rate) return null;
   const passengers = Math.max(1, booking._count.passengers);
   const perPassenger = Number(rate.cost);
-  return { total: Math.round(perPassenger * passengers * 100) / 100, perPassenger, passengers };
+  return { serviceType, total: round2(perPassenger * passengers), summary: `₹${perPassenger} × ${passengers}`, invoiceLines: () => undefined };
+}
+
+/**
+ * New Visa invoice lines ("<Country> Visa — Adult" × n …) with each line's Govt./Vendor fee set to
+ * the vendor's cost for that passenger type; the line price stays, the rest is the service fee.
+ */
+function withVendorFees(stored: unknown, perType: Map<string, number>): Prisma.InputJsonValue | undefined {
+  if (!Array.isArray(stored)) return undefined;
+  const typeOf = (description: string) => (/child/i.test(description) ? "CHILD" : /infant/i.test(description) ? "INFANT" : "ADULT");
+  return stored.map((line) => {
+    if (!line || typeof line !== "object") return line;
+    const entry = line as Record<string, unknown>;
+    const fee = perType.get(typeOf(String(entry.description ?? "")));
+    if (fee === undefined) return entry;
+    const price = Number(entry.governmentFee ?? 0) + Number(entry.serviceFee ?? 0);
+    const governmentFee = Math.min(fee, price);
+    return { ...entry, governmentFee, serviceFee: Math.round((price - governmentFee) * 100) / 100 };
+  }) as Prisma.InputJsonValue;
 }

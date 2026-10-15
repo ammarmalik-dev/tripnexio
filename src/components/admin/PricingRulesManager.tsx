@@ -203,14 +203,14 @@ function PricingFields({
   currentNationalityName?: string | null;
 }) {
   const id = (field: string) => `${idPrefix}-${field}`;
-  const subServices = form.serviceType
-    ? (lookups.serviceOptions[form.serviceType]?.subServices ?? []).filter((entry) => entry.active || entry.id === form.subServiceId)
-    : [];
   const visaTypes = lookups.visaTypes.filter(
     (entry) => entry.id === form.visaTypeId || (entry.active && (!entry.countryId || !form.countryId || entry.countryId === form.countryId))
   );
   const countries = lookups.countries.filter((entry) => entry.active || entry.id === form.countryId);
   const processingOptions = processingOptionsFor(form.serviceType, lookups, form.processingType);
+  // Client doc 2026-10-15 — New Visa: only the customer's selling price by country × nationality ×
+  // Adult / Child × Normal / Express. The vendor cost comes from Vendor rates (picked vendor).
+  const isNewVisa = form.serviceType === "NEW_VISA";
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -231,28 +231,6 @@ function PricingFields({
           {SERVICE_TYPE_OPTIONS.filter((option) => usesPricingRules(option.value) || option.value === form.serviceType).map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
-            </option>
-          ))}
-        </select>
-      </FormField>
-      <FormField
-        label="Sub-service"
-        htmlFor={id("subServiceId")}
-        error={errors.subServiceId?.[0]}
-        hint={form.serviceType && subServices.length === 0 ? "No sub-services configured for this service." : "Optional — leave unset for every sub-service."}
-      >
-        <select
-          id={id("subServiceId")}
-          value={form.subServiceId}
-          disabled={disabled || !form.serviceType || subServices.length === 0}
-          onChange={(event) => onChange({ ...form, subServiceId: event.target.value })}
-          className={cn(fieldControlClass, fieldBorderClass(!!errors.subServiceId))}
-        >
-          <option value="">Every sub-service</option>
-          {subServices.map((entry) => (
-            <option key={entry.id} value={entry.id}>
-              {entry.name}
-              {entry.active ? "" : " (inactive)"}
             </option>
           ))}
         </select>
@@ -298,6 +276,7 @@ function PricingFields({
           </select>
         </FormField>
       ) : null}
+      {isNewVisa ? null : (
       <FormField label="Visa Type" htmlFor={id("visaTypeId")} error={errors.visaTypeId?.[0]} hint="Optional — leave unset for every visa type.">
         <select
           id={id("visaTypeId")}
@@ -316,6 +295,7 @@ function PricingFields({
           ))}
         </select>
       </FormField>
+      )}
       <FormField label="Processing Type" htmlFor={id("processingType")} error={errors.processingType?.[0]}>
         <select
           id={id("processingType")}
@@ -343,7 +323,7 @@ function PricingFields({
           <option value="" disabled>
             Select a passenger type
           </option>
-          {PAX_TYPE_OPTIONS.map((option) => (
+          {PAX_TYPE_OPTIONS.filter((option) => !isNewVisa || option.value !== "INFANT" || form.paxType === "INFANT").map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -358,6 +338,7 @@ function PricingFields({
         error={errors.nationalityId?.[0] ?? errors.nationality?.[0]}
         disabled={disabled}
       />
+      {isNewVisa ? null : (
       <TextField
         label="Vendor Cost (₹)"
         name={id("vendorCost")}
@@ -369,6 +350,7 @@ function PricingFields({
         disabled={disabled}
         hint="Internal — never shown to the customer."
       />
+      )}
       <TextField
         label="Selling Price (₹)"
         name={id("sellingPrice")}
@@ -378,7 +360,10 @@ function PricingFields({
         onChange={(event) => onChange({ ...form, sellingPrice: event.target.value })}
         error={errors.sellingPrice?.[0]}
         disabled={disabled}
+        hint={isNewVisa ? "What the customer pays per passenger. The vendor cost comes from the vendor picked on the booking (Pricing Dashboard → Vendor rates)." : undefined}
       />
+      {isNewVisa ? null : (
+      <>
       <TextField
         label="Additional Charges (₹)"
         name={id("additionalCharges")}
@@ -401,6 +386,8 @@ function PricingFields({
         disabled={disabled}
         hint="Part of the price that is the government / embassy fee — shown separately on the invoice, no GST."
       />
+      </>
+      )}
       <TextField
         label="Validity From"
         name={id("validityFrom")}

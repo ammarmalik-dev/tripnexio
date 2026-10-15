@@ -1182,15 +1182,20 @@ model VendorServiceRate {
   airlineId      String?
   /// "normal" / "urgent" (Processing Types master codes); null = any.
   processingType String?
+  /// Client doc 2026-10-15 — New Visa: the passport nationality this cost is for; null = any.
+  nationalityId  String?
+  /// Client doc 2026-10-15 — New Visa: Adult or Child; null = any passenger.
+  paxType        PaxType?
   /// Cost per passenger.
   cost           Decimal     @db.Decimal(10, 2)
   active         Boolean     @default(true)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
-  vendor  Vendor   @relation(fields: [vendorId], references: [id])
-  country Country  @relation(fields: [countryId], references: [id])
-  airline Airline? @relation(fields: [airlineId], references: [id])
+  vendor      Vendor       @relation(fields: [vendorId], references: [id])
+  country     Country      @relation(fields: [countryId], references: [id])
+  airline     Airline?     @relation(fields: [airlineId], references: [id])
+  nationality Nationality? @relation(fields: [nationalityId], references: [id])
 
   @@index([vendorId, serviceType])
   @@index([countryId])
@@ -1325,6 +1330,7 @@ model Nationality {
   passengers           Passenger[]
   pricingRules         PricingRule[]
   documentRequirements DocumentRequirement[]
+  vendorServiceRates   VendorServiceRate[]
 
   @@index([active])
   @@index([countryId])

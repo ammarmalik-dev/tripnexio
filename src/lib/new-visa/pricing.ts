@@ -1,30 +1,43 @@
 import { db } from "../db";
 import type { PaxType } from "../../generated/prisma/enums";
 import { groupInvoiceLines, PAX_LINE_LABELS, type InvoiceLine } from "../invoices/invoice-lines";
+import { pickVendorRate } from "../vendors/service-rates";
 
 export interface NewVisaPriceBreakdown {
   ratePerType: { adultPrice: number; childPrice: number; infantPrice: number };
   travellerCount: number;
   total: number;
-  /** Step 40 — summed from PricingRule.vendorCost across all travellers, so New Visa's auto-checkout can finally record a real margin instead of always defaulting to 0. */
+  /** Step 40 — summed across all travellers, so New Visa's auto-checkout records a real margin. Client doc 2026-10-15: the expected vendor cost (see below). */
   vendorCost: number;
-  /** Client corrections 2026-10-05 — invoice lines per passenger type, government fee apart from the service fee. */
+  /** Client corrections 2026-10-05 — invoice lines per passenger type, the vendor / government fee apart from the service fee. */
   invoiceLines: InvoiceLine[];
 }
 
 /**
- * Step 40 (Admin FINAL handover §4): reads the central `PricingRule` table
- * — replaces the retired `NewVisaPricing` model. One row per
- * (NEW_VISA, country, processingType, paxType) with `nationality: null`
- * (New Visa's own form never asks nationality, so only the catch-all rows
- * apply). Returns `null` — never a guessed/fallback price — if any
- * traveller's paxType has no configured rule, matching the old function's
- * fail-safe behavior exactly.
+ * Step 40 (Admin FINAL handover §4): reads the central `PricingRule` table.
+ * One row per (NEW_VISA, country, processingType, paxType), optionally for a
+ * product (NewVisaCountryConfig) and a passport nationality.
+ *
+ * Client doc 2026-10-15 — Admin sets only the customer's selling price, by
+ * country × nationality × Adult / Child × Normal / Urgent. A rule for the
+ * chosen product beats the country-wide one, and a rule for the customer's
+ * nationality beats the "all nationalities" one. The vendor cost comes from
+ * the Vendor rates (Pricing Dashboard): until staff pick the vendor on the
+ * booking, the lowest active vendor rate for the passenger is the expected
+ * cost (it fixes the GST on selling − vendor cost at payment time); picking
+ * the vendor replaces it with that vendor's own rate (setBookingVendor).
+ * Older rules that still carry their own vendor cost / government fee keep
+ * using them when no vendor rate exists.
+ *
+ * Returns `null` — never a guessed/fallback price — if any traveller's
+ * passenger type has no configured rule.
  */
 export async function computeNewVisaPrice(input: {
   countryCode: string;
   /** P10 — the chosen product (NewVisaCountryConfig); its own rules win over the country-wide ones. */
   newVisaConfigId?: string | null;
+  /** Client doc 2026-10-15 — the passport nationality (Nationality master id); its own rules win over "all nationalities". */
+  nationalityId?: string | null;
   processingType: "normal" | "urgent";
   travellerPaxTypes: PaxType[];
 }): Promise<NewVisaPriceBreakdown | null> {
@@ -32,31 +45,50 @@ export async function computeNewVisaPrice(input: {
   if (!country) return null;
 
   const uniquePaxTypes = [...new Set(input.travellerPaxTypes)];
-  const rules = await db.pricingRule.findMany({
+  const nationalityId = input.nationalityId || null;
+  const allRules = await db.pricingRule.findMany({
     where: {
       serviceType: "NEW_VISA",
       countryId: country.id,
       processingType: input.processingType,
       paxType: { in: uniquePaxTypes },
       nationality: null,
-      nationalityId: null,
       active: true,
       country: { active: true },
-      OR: [{ newVisaConfigId: null }, ...(input.newVisaConfigId ? [{ newVisaConfigId: input.newVisaConfigId }] : [])],
+      AND: [
+        { OR: [{ nationalityId: null }, ...(nationalityId ? [{ nationalityId }] : [])] },
+        { OR: [{ newVisaConfigId: null }, ...(input.newVisaConfigId ? [{ newVisaConfigId: input.newVisaConfigId }] : [])] },
+      ],
     },
   });
 
-  // A rule for the chosen product beats the country-wide one for the same passenger type.
+  // Most specific first: product + nationality, product, nationality, country-wide.
+  const score = (rule: (typeof allRules)[number]) => Number(rule.newVisaConfigId !== null) * 2 + Number(rule.nationalityId !== null);
   const ruleFor = (paxType: PaxType) =>
-    (input.newVisaConfigId ? rules.find((rule) => rule.paxType === paxType && rule.newVisaConfigId === input.newVisaConfigId) : undefined) ??
-    rules.find((rule) => rule.paxType === paxType && rule.newVisaConfigId === null);
+    allRules.filter((rule) => rule.paxType === paxType).sort((a, b) => score(b) - score(a))[0];
   if (uniquePaxTypes.some((paxType) => !ruleFor(paxType))) return null;
+
+  const vendorRates = await db.vendorServiceRate.findMany({
+    where: { serviceType: "NEW_VISA", countryId: country.id, active: true, vendor: { active: true } },
+    select: { vendorId: true, airlineId: true, processingType: true, nationalityId: true, paxType: true, cost: true },
+  });
+  // The lowest of each vendor's best-matching rate for this passenger type.
+  const expectedVendorCost = (paxType: PaxType): number | null => {
+    const byVendor = new Map<string, typeof vendorRates>();
+    for (const rate of vendorRates) byVendor.set(rate.vendorId, [...(byVendor.get(rate.vendorId) ?? []), rate]);
+    const costs = [...byVendor.values()]
+      .map((rows) => pickVendorRate(rows, { processingType: input.processingType, nationalityId, paxType }))
+      .filter((rate): rate is (typeof vendorRates)[number] => rate !== null)
+      .map((rate) => Number(rate.cost));
+    return costs.length > 0 ? Math.min(...costs) : null;
+  };
 
   const rateFor = (paxType: PaxType) => {
     const rule = ruleFor(paxType)!;
     return Number(rule.sellingPrice) + Number(rule.additionalCharges);
   };
-  const vendorCostFor = (paxType: PaxType) => Number(ruleFor(paxType)!.vendorCost);
+  const vendorCostFor = (paxType: PaxType) => expectedVendorCost(paxType) ?? Number(ruleFor(paxType)!.vendorCost);
+  const feeFor = (paxType: PaxType) => expectedVendorCost(paxType) ?? Number(ruleFor(paxType)!.governmentFee);
 
   const ratePerType = {
     adultPrice: uniquePaxTypes.includes("ADULT") ? rateFor("ADULT") : 0,
@@ -75,7 +107,7 @@ export async function computeNewVisaPrice(input: {
     input.travellerPaxTypes.map((paxType) => ({
       label: `${country.name} Visa — ${PAX_LINE_LABELS[paxType]}`,
       price: rateFor(paxType),
-      governmentFee: Number(ruleFor(paxType)!.governmentFee),
+      governmentFee: feeFor(paxType),
     }))
   );
 
