@@ -54,7 +54,7 @@ describe("Visa Change A2A per-option flights (B32)", () => {
   });
 
   it("round-trips a saved option back into the form, and older blocks start empty", () => {
-    expect(a2aFlightsFromBlock(block)).toEqual(flights);
+    expect(a2aFlightsFromBlock(block)).toEqual({ ...flights, exitTerminal: "", reentryTerminal: "" });
     expect(a2aFlightsFromBlock({ ...block, exitToAirportCode: null })).toBeNull();
   });
 
