@@ -1,4 +1,5 @@
 import { jsonError } from "@/lib/api/respond";
+import { DOCUMENT_UPLOAD_MAX_BYTES, DOCUMENT_UPLOAD_TYPES } from "./document-rules";
 
 export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
 
@@ -14,6 +15,14 @@ export function sniffMimeType(buffer: Buffer): AllowedUploadMimeType | null {
   if (buffer.length >= 5 && buffer.subarray(0, 5).toString("ascii") === "%PDF-") return "application/pdf";
   return null;
 }
+
+const TYPE_NAMES: Record<AllowedUploadMimeType, string> = {
+  "image/jpeg": "JPG",
+  "image/png": "PNG",
+  "image/webp": "WebP",
+  "image/gif": "GIF",
+  "application/pdf": "PDF",
+};
 
 export type UploadCheck =
   | { ok: true; buffer: Buffer; mimeType: AllowedUploadMimeType }
@@ -40,16 +49,25 @@ export function checkBase64Upload(
   }
   const mimeType = sniffMimeType(buffer);
   if (!mimeType || !allowed.includes(mimeType)) {
-    return { ok: false, status: 415, message: "Unsupported file type — use JPEG, PNG, WebP, GIF or PDF." };
+    return { ok: false, status: 415, message: `Unsupported file type — use ${allowed.map((type) => TYPE_NAMES[type]).join(", ")}.` };
   }
   return { ok: true, buffer, mimeType };
 }
 
+/** Client doc 2026-10-15 (I8) — a customer document: PDF, PNG or JPG under 3MB. */
+export function rejectInvalidDocumentUploads(fields: (string | null | undefined)[]): Response | null {
+  return rejectInvalidUploads(fields, DOCUMENT_UPLOAD_TYPES, DOCUMENT_UPLOAD_MAX_BYTES);
+}
+
 /** Runs checkBase64Upload on every provided (non-empty) field; returns an error Response for the first failure, or null. */
-export function rejectInvalidUploads(fields: (string | null | undefined)[], allowed?: readonly AllowedUploadMimeType[]): Response | null {
+export function rejectInvalidUploads(
+  fields: (string | null | undefined)[],
+  allowed?: readonly AllowedUploadMimeType[],
+  maxBytes?: number
+): Response | null {
   for (const value of fields) {
     if (!value) continue;
-    const check = checkBase64Upload(value, allowed);
+    const check = checkBase64Upload(value, allowed, maxBytes);
     if (!check.ok) return jsonError(check.status, check.message);
   }
   return null;

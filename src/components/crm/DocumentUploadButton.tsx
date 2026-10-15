@@ -4,8 +4,8 @@ import { useState, type ChangeEvent } from "react";
 import { Upload } from "lucide-react";
 import { patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { DOCUMENT_UPLOAD_ACCEPT, documentUploadError } from "@/lib/uploads/document-rules";
 
-const ACCEPTED = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"] as const;
 
 function readAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -19,7 +19,7 @@ function readAsBase64(file: File): Promise<string> {
 /**
  * Client corrections 2026-10-05 — staff upload a customer's document file
  * manually, from the Lead or the Booking (PATCH /api/documents/[id]/upload,
- * documents.edit; validated server-side, max 8MB). The document moves to
+ * documents.edit; PDF / PNG / JPG under 3MB, validated server-side). The document moves to
  * Uploaded / Received.
  */
 export function DocumentUploadButton({ documentId, hasFile, onUploaded }: { documentId: string; hasFile: boolean; onUploaded: () => void }) {
@@ -29,8 +29,9 @@ export function DocumentUploadButton({ documentId, hasFile, onUploaded }: { docu
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!(ACCEPTED as readonly string[]).includes(file.type)) {
-      toast.error("Use a JPEG, PNG, GIF, WebP or PDF file.");
+    const invalid = documentUploadError(file);
+    if (invalid) {
+      toast.error(invalid);
       return;
     }
     setBusy(true);
@@ -49,7 +50,7 @@ export function DocumentUploadButton({ documentId, hasFile, onUploaded }: { docu
     <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-ink-accent hover:underline">
       <Upload className="h-3.5 w-3.5" aria-hidden="true" />
       {busy ? "Uploading…" : hasFile ? "Replace file" : "Upload file"}
-      <input type="file" accept={ACCEPTED.join(",")} className="sr-only" disabled={busy} onChange={(event) => void handleChange(event)} />
+      <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="sr-only" disabled={busy} onChange={(event) => void handleChange(event)} />
     </label>
   );
 }

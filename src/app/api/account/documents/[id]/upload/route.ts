@@ -10,7 +10,7 @@ import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-s
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { runTicketExtraction } from "@/lib/ocr/extract-ticket";
 import { runVisaExtraction } from "@/lib/ocr/extract-visa";
-import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 import { notifyDocumentUploaded } from "@/lib/staff-notifications/triggers";
 
 interface RouteParams {
@@ -60,7 +60,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the file and try again.", parsed.error.flatten().fieldErrors);
   }
-  const uploadError = rejectInvalidUploads([parsed.data.fileBase64]);
+  const uploadError = rejectInvalidDocumentUploads([parsed.data.fileBase64]);
   if (uploadError) return uploadError;
 
   let fileUrl: string;

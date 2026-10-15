@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { rateLimitByIp } from "@/lib/auth/rate-limit";
 import { isHoneypotFilled } from "@/lib/validation/honeypot";
 import { LEAD_INTAKE_RATE_LIMIT } from "@/lib/leads/intake-limits";
-import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
+import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 import { visaChangeRequestSchema, findMissingApplicantDocuments } from "@/lib/validation/visa-change-schema";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Invalid submission.");
   }
 
-  const uploadError = rejectInvalidUploads([parsed.data.passportImageBase64, parsed.data.visaImageBase64, ...parsed.data.additionalPassengers.flatMap((passenger) => [passenger.passportImageBase64, passenger.visaImageBase64])], IMAGE_OR_PDF);
+  const uploadError = rejectInvalidDocumentUploads([parsed.data.passportImageBase64, parsed.data.visaImageBase64, ...parsed.data.additionalPassengers.flatMap((passenger) => [passenger.passportImageBase64, passenger.visaImageBase64])]);
   if (uploadError) return uploadError;
 
   const { fullName, passportNumber, visaLastDate, mobile, email, nationalityId, paxType, additionalPassengers, changeType } = parsed.data;

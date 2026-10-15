@@ -4,7 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { deleteUploadedFile, saveUploadedFile } from "@/lib/storage/local-file-storage";
-import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 import { describeError } from "@/lib/api/describe-error";
 import { notifyDocumentUploaded } from "@/lib/staff-notifications/triggers";
 import { rateLimitByIp } from "@/lib/auth/rate-limit";
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
   const parsed = uploadSchema.safeParse(body);
   if (!parsed.success) return jsonError(400, "Please check the file and try again.", parsed.error.flatten().fieldErrors);
-  const uploadError = rejectInvalidUploads([parsed.data.fileBase64]);
+  const uploadError = rejectInvalidDocumentUploads([parsed.data.fileBase64]);
   if (uploadError) return uploadError;
   const { passengerId, type, fileBase64 } = parsed.data;
 

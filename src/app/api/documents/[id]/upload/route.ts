@@ -11,7 +11,7 @@ import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-s
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { runTicketExtraction } from "@/lib/ocr/extract-ticket";
 import { runVisaExtraction } from "@/lib/ocr/extract-visa";
-import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
-  const uploadError = rejectInvalidUploads(["fileBase64" in parsed.data ? parsed.data.fileBase64 : undefined]);
+  const uploadError = rejectInvalidDocumentUploads(["fileBase64" in parsed.data ? parsed.data.fileBase64 : undefined]);
   if (uploadError) return uploadError;
 
   const existing = await db.document.findUnique({ where: { id }, include: { booking: { include: { lead: true } } } });

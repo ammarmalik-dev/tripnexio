@@ -8,9 +8,8 @@ import { toast } from "@/components/ui/Toaster";
 import { patchJson, ApiError } from "@/lib/api/client";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import type { OutstandingDocument } from "@/lib/account/outstanding-documents";
+import { DOCUMENT_UPLOAD_ACCEPT, DOCUMENT_UPLOAD_BUTTON_CLASS, documentUploadError } from "@/lib/uploads/document-rules";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
-const MAX_BYTES = 3 * 1024 * 1024;
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -29,8 +28,8 @@ function DocumentRow({ document, onUploaded }: { document: OutstandingDocument; 
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!ALLOWED_TYPES.includes(file.type)) return setError("Use a JPEG, PNG, GIF, WebP image or a PDF.");
-    if (file.size > MAX_BYTES) return setError("That file is too large (3MB max).");
+    const invalid = documentUploadError(file);
+    if (invalid) return setError(invalid);
     setError(null);
     setUploading(true);
     try {
@@ -59,9 +58,10 @@ function DocumentRow({ document, onUploaded }: { document: OutstandingDocument; 
               .join(" · ")}
           </span>
         </div>
-        <label className="cursor-pointer rounded-md bg-surface-2 px-3 py-1.5 text-xs font-medium text-ink-accent ring-1 ring-hairline hover:bg-surface-3">
+        <label className={DOCUMENT_UPLOAD_BUTTON_CLASS}>
+          <Upload className="h-3.5 w-3.5" aria-hidden="true" />
           {uploading ? "Uploading..." : "Choose file"}
-          <input type="file" accept={ALLOWED_TYPES.join(",")} className="sr-only" onChange={handleChange} disabled={uploading} />
+          <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="sr-only" onChange={handleChange} disabled={uploading} />
         </label>
       </div>
       {document.rejectionReason ? (

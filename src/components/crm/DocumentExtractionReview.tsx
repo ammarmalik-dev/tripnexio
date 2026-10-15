@@ -7,6 +7,7 @@ import { TextField } from "@/components/forms/TextField";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { DOCUMENT_UPLOAD_ACCEPT, documentUploadError } from "@/lib/uploads/document-rules";
 
 type ExtractionType = "TICKET" | "VISA";
 type ExtractedFields = Record<string, string | undefined>;
@@ -20,7 +21,6 @@ interface ExtractionData {
   createdAt: string;
 }
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
 
 /** CRM.md §17/§18 (Step 16) — the exact fields each type asks for, in display order. */
 const FIELD_CONFIG: Record<ExtractionType, { key: string; label: string }[]> = {
@@ -189,8 +189,9 @@ export function DocumentExtractionReview({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Please upload a JPEG, PNG, GIF, WebP image, or a PDF.");
+    const invalid = documentUploadError(file);
+    if (invalid) {
+      toast.error(invalid);
       return;
     }
     setUploading(true);
@@ -226,7 +227,7 @@ export function DocumentExtractionReview({
           {uploading
             ? "Uploading..."
             : `${hasFile ? "Re-upload" : "Upload"} ${documentType === "TICKET" ? "Ticket" : "Visa"} (auto-extract)`}
-          <input type="file" accept={ALLOWED_TYPES.join(",")} className="hidden" disabled={uploading} onChange={(e) => void handleUpload(e)} />
+          <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="hidden" disabled={uploading} onChange={(e) => void handleUpload(e)} />
         </label>
       )}
     </div>

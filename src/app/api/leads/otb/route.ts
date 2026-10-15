@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { rateLimitByIp } from "@/lib/auth/rate-limit";
 import { isHoneypotFilled } from "@/lib/validation/honeypot";
 import { LEAD_INTAKE_RATE_LIMIT } from "@/lib/leads/intake-limits";
-import { rejectInvalidUploads, ALLOWED_UPLOAD_MIME_TYPES as IMAGE_OR_PDF } from "@/lib/uploads/validate-upload";
+import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 import { otbRequestSchema } from "@/lib/validation/otb-schema";
 import { createLeadFromSubmission, notifyLeadReceived } from "@/lib/leads/create-lead";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Invalid submission.");
   }
 
-  const uploadError = rejectInvalidUploads([parsed.data.passportImageBase64], IMAGE_OR_PDF);
+  const uploadError = rejectInvalidDocumentUploads([parsed.data.passportImageBase64]);
   if (uploadError) return uploadError;
 
   const {

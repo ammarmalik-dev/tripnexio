@@ -7,6 +7,7 @@ import { TextField } from "@/components/forms/TextField";
 import { getJson, patchJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { DOCUMENT_UPLOAD_MAX_BYTES } from "@/lib/uploads/document-rules";
 
 interface ExtractedFields {
   fullName?: string;
@@ -28,7 +29,7 @@ interface ExtractionData {
   createdAt: string;
 }
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+const ALLOWED_TYPES = ["image/jpeg", "image/png"];
 
 function toBase64(file: File): Promise<{ base64: string; mimeType: string }> {
   return new Promise((resolve, reject) => {
@@ -162,7 +163,11 @@ export function PassportExtractionReview({ passengerId }: { passengerId: string 
     event.target.value = "";
     if (!file) return;
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Please upload a JPEG, PNG, GIF, or WebP image.");
+      toast.error("Please upload a JPG or PNG image.");
+      return;
+    }
+    if (file.size > DOCUMENT_UPLOAD_MAX_BYTES) {
+      toast.error("That file is larger than 3MB. Please upload a smaller copy.");
       return;
     }
     setUploading(true);

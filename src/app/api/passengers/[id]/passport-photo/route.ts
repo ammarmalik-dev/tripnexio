@@ -6,7 +6,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
-import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
-  const uploadError = rejectInvalidUploads([parsed.data.imageBase64]);
+  const uploadError = rejectInvalidDocumentUploads([parsed.data.imageBase64]);
   if (uploadError) return uploadError;
 
   try {

@@ -3,9 +3,8 @@
 import { useState, type ChangeEvent } from "react";
 import { useFormContext } from "react-hook-form";
 import { CheckCircle2 } from "lucide-react";
+import { DOCUMENT_UPLOAD_ACCEPT, DOCUMENT_UPLOAD_HINT, documentUploadError } from "@/lib/uploads/document-rules";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
-const MAX_BYTES = 8 * 1024 * 1024;
 
 /**
  * Optional passport-photo upload, reused across every service request flow
@@ -44,12 +43,9 @@ export function PassportUploadField({
     if (!file) return;
     setError(null);
 
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      setError("Please upload a JPEG, PNG, GIF, or WebP image.");
-      return;
-    }
-    if (file.size > MAX_BYTES) {
-      setError("That image is too large (8MB max).");
+    const invalid = documentUploadError(file);
+    if (invalid) {
+      setError(invalid);
       return;
     }
 
@@ -71,14 +67,16 @@ export function PassportUploadField({
         {label}
         {required ? <span className="ml-0.5 text-error" aria-hidden="true">*</span> : null}
       </label>
-      <p className="text-xs text-ink-tertiary">{description}</p>
+      <p className="text-xs text-ink-tertiary">
+        {description} ({DOCUMENT_UPLOAD_HINT})
+      </p>
       <input
         id={inputId}
         aria-invalid={!!externalError}
         type="file"
-        accept={ALLOWED_TYPES.join(",")}
+        accept={DOCUMENT_UPLOAD_ACCEPT}
         onChange={handleChange}
-        className="text-sm text-ink-secondary file:mr-3 file:rounded-md file:border-0 file:bg-surface-2 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink-primary"
+        className="text-sm text-ink-secondary file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink-on-dark-primary hover:file:opacity-90"
       />
       {hasValue && fileName ? (
         <span className="flex items-center gap-1.5 text-xs text-success">

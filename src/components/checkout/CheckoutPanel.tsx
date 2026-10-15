@@ -14,6 +14,7 @@ import { utilityLinks } from "@/lib/nav-config";
 import { TermsAgreement } from "@/components/terms/TermsAgreement";
 import { PostTicketOfferCard } from "@/components/cross-sell/PostTicketOfferCard";
 import { SpecialFareAlternativeCard, type SpecialFareAlternativeView } from "./SpecialFareAlternativeCard";
+import { DOCUMENT_UPLOAD_ACCEPT, DOCUMENT_UPLOAD_BUTTON_CLASS, documentUploadError } from "@/lib/uploads/document-rules";
 
 interface CheckoutView {
   serviceType: string;
@@ -53,8 +54,6 @@ interface CheckoutView {
   linkedOrder: { service: "OTB" | "RETURN_TICKET"; token: string; paymentStatus: string | null; total: number | null } | null;
 }
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
-const MAX_BYTES = 3 * 1024 * 1024;
 const POLL_MS = 4000;
 
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
@@ -85,8 +84,8 @@ function DocumentSlot({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    if (!ALLOWED_TYPES.includes(file.type)) return setError("Use a JPEG, PNG, GIF, WebP image or a PDF.");
-    if (file.size > MAX_BYTES) return setError("That file is too large (3MB max).");
+    const invalid = documentUploadError(file);
+    if (invalid) return setError(invalid);
     setError(null);
     onFile(file);
   };
@@ -114,9 +113,9 @@ function DocumentSlot({
               Use existing
             </button>
           ) : null}
-          <label className="cursor-pointer rounded-md bg-surface-1 px-3 py-1.5 text-xs font-medium text-ink-accent ring-1 ring-hairline hover:bg-surface-3">
+          <label className={DOCUMENT_UPLOAD_BUTTON_CLASS}>
             {uploading ? "Uploading..." : uploaded ? "Replace" : reuse ? "Upload new" : "Choose file"}
-            <input type="file" accept={ALLOWED_TYPES.join(",")} className="sr-only" onChange={handleChange} disabled={uploading} />
+            <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="sr-only" onChange={handleChange} disabled={uploading} />
           </label>
         </span>
       </div>

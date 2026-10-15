@@ -8,7 +8,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { loadCheckoutByToken } from "@/lib/checkout/load-checkout";
 import { resolveCheckoutDocumentTypes } from "@/lib/checkout/required-documents";
 import { deleteUploadedFile, saveUploadedFile } from "@/lib/storage/local-file-storage";
-import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 import { describeError } from "@/lib/api/describe-error";
 import { notifyDocumentUploaded } from "@/lib/staff-notifications/triggers";
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) {
     return jsonError(400, "Please check the file and try again.", parsed.error.flatten().fieldErrors);
   }
-  const uploadError = rejectInvalidUploads([parsed.data.fileBase64]);
+  const uploadError = rejectInvalidDocumentUploads([parsed.data.fileBase64]);
   if (uploadError) return uploadError;
   const { passengerId, type, fileBase64 } = parsed.data;
 

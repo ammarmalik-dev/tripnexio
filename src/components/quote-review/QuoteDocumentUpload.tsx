@@ -5,6 +5,7 @@ import { CheckCircle2, FileUp, Loader2 } from "lucide-react";
 import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { DOCUMENT_UPLOAD_ACCEPT, DOCUMENT_UPLOAD_MAX_BYTES } from "@/lib/uploads/document-rules";
 
 export interface UploadPassengerView {
   id: string;
@@ -17,7 +18,6 @@ const TYPES = [
   { type: "VISA_COPY", label: "Current visa copy" },
 ] as const;
 
-const MAX_BYTES = 3 * 1024 * 1024;
 const ACCEPTED = ["application/pdf", "image/png", "image/jpeg"];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -51,7 +51,7 @@ export function QuoteDocumentUpload({ token, passengers }: { token: string; pass
       toast.error("Please upload a PDF, PNG or JPG file.");
       return;
     }
-    if (file.size > MAX_BYTES) {
+    if (file.size > DOCUMENT_UPLOAD_MAX_BYTES) {
       toast.error("That file is larger than 3MB. Please upload a smaller copy.");
       return;
     }
@@ -119,7 +119,7 @@ export function QuoteDocumentUpload({ token, passengers }: { token: string; pass
                       {done ? "Replace" : "Choose file"}
                       <input
                         type="file"
-                        accept=".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg"
+                        accept={DOCUMENT_UPLOAD_ACCEPT}
                         className="sr-only"
                         disabled={busy !== null}
                         aria-label={`${entry.label} for ${passenger.fullName}`}
