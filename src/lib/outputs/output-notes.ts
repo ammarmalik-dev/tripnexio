@@ -1,6 +1,7 @@
 import type { OutputType } from "./output-types";
 import { db } from "../db";
 import { parseStoredItinerary } from "../quotations/itinerary";
+import { VISA_CHANGE_TRAVEL_INSTRUCTIONS } from "./output-instructions";
 
 /**
  * Client doc 2026-10-14 — the text in the body of the "ticket issued" email
@@ -21,6 +22,12 @@ export const OUTPUT_IMPORTANT_INFO: Partial<Record<OutputType, { title: string; 
       "Ticket Verification Disclaimer: Please check all ticket details, including passenger names, travel dates, flight timings and routes, immediately upon receipt. Report any errors to TripNexio within 12 hours of ticket issuance. Later corrections will be subject to airline rules, availability and applicable charges.",
     ],
     closing: "Have a safe and pleasant journey with TripNexio!",
+  },
+  // Client doc 2026-10-15 (E5) — Visa Change: in the body of the package / ticket email, word for word.
+  PACKAGE_PDF: {
+    title: "Important Travel Instructions",
+    lines: VISA_CHANGE_TRAVEL_INSTRUCTIONS,
+    closing: "Please review all details carefully to help avoid last-minute issues.",
   },
   RESERVATION_PDF: {
     title: "⚠️ Important: Please Verify Your Details",

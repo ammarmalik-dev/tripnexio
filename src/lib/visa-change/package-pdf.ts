@@ -3,6 +3,7 @@ import { PDF_BRAND } from "../brand/pdf-tokens";
 import { siteConfig } from "../site-config";
 import type { InvoiceCompanyDetails } from "../invoices/render-invoice";
 import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, type OperationalBlock } from "./operational";
+import { VISA_CHANGE_TRAVEL_INSTRUCTIONS } from "../outputs/output-instructions";
 
 export interface VisaChangePackageInput {
   bookingId: string;
@@ -15,6 +16,8 @@ export interface VisaChangePackageInput {
   pnr?: string | null;
   company: InvoiceCompanyDetails;
   generatedAt: Date;
+  /** Client doc 2026-10-15 (E3) — the Visa Change Terms & Conditions, attached to the package. */
+  terms?: { title: string; body: string } | null;
 }
 
 /**
@@ -98,6 +101,20 @@ export async function renderVisaChangePackagePdf(input: VisaChangePackageInput):
     .text(instructions || "Please follow the reporting time above. For any question, contact TripNexio using the details below.", left, doc.y, {
       width: contentWidth,
     });
+
+  // Client doc 2026-10-15 (E5) — Important Travel Instructions, then (E3) the Terms & Conditions.
+  section("Important Travel Instructions");
+  for (const line of VISA_CHANGE_TRAVEL_INSTRUCTIONS) {
+    doc.font("Helvetica").fontSize(9.5).fillColor(PDF_BRAND.inkBlack).text(`•  ${line}`, left, doc.y, { width: contentWidth });
+    doc.moveDown(0.3);
+  }
+  if (input.terms) {
+    section(input.terms.title);
+    for (const paragraph of input.terms.body.split(/\n{2,}/)) {
+      doc.font("Helvetica").fontSize(8.5).fillColor(PDF_BRAND.mutedText).text(paragraph.trim(), left, doc.y, { width: contentWidth });
+      doc.moveDown(0.35);
+    }
+  }
 
   // Footer
   doc.moveDown(2);

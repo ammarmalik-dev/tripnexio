@@ -8,6 +8,7 @@ import { OUTPUT_TYPES } from "@/lib/outputs/output-types";
 import { deliverOutput } from "@/lib/outputs/deliver-output";
 import { leadOperationalBlock, parseOperationalBlock } from "@/lib/visa-change/operational";
 import { renderVisaChangePackagePdf } from "@/lib/visa-change/package-pdf";
+import { getEffectiveTerms } from "@/lib/terms/service-terms";
 import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
 import { leadReference } from "@/lib/leads/reference";
 import { describeError } from "@/lib/api/describe-error";
@@ -82,6 +83,7 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
       pnr: booking.pnr,
       company: await getInvoiceCompanyDetails(),
       generatedAt: new Date(),
+      terms: await getEffectiveTerms("VISA_CHANGE", null),
     });
     const { url } = await saveUploadedFile(pdf.toString("base64"));
     const document = await deliverOutput({
