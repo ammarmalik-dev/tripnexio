@@ -4,6 +4,7 @@ import { createNewVisaCountryConfigSchema } from "@/lib/validation/new-visa-coun
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
+import { newVisaDefaultTerms } from "@/lib/terms/new-visa-default-terms";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { ENTRY_KIND_LABELS } from "@/lib/new-visa/products";
 
@@ -68,6 +69,19 @@ export async function POST(request: NextRequest) {
       byUserId: session.id,
       note: `New Visa product for "${row.country.name}" added — ${row.stayDays} days, ${row.entryKind} entry (by ${session.name})`,
     });
+    // Client doc 2026-10-15 — a country's first New Visa product gets its default Terms & Conditions draft.
+    if (!(await tx.serviceTerms.findFirst({ where: { serviceType: "NEW_VISA", countryId: row.countryId }, select: { id: true } }))) {
+      const terms = await tx.serviceTerms.create({
+        data: { serviceType: "NEW_VISA", countryId: row.countryId, version: 1, active: true, ...newVisaDefaultTerms(row.country.name) },
+      });
+      await writeAudit(tx, {
+        entityType: "ServiceTerms",
+        entityId: terms.id,
+        action: "CREATE",
+        byUserId: session.id,
+        note: `Default New Visa Terms & Conditions draft for "${row.country.name}" (by ${session.name})`,
+      });
+    }
     return row;
   });
 
