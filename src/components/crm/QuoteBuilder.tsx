@@ -106,6 +106,14 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
     fineOrCharges: toNumber(quotation.fineOrCharges),
     otherCharges: toNumber(quotation.otherCharges),
     governmentFee: toNumber(quotation.governmentFee),
+    paxCosting: Array.isArray(quotation.paxCosting)
+      ? (quotation.paxCosting as { passengerId: string; cost: number; fine: number; selling: number }[]).map(({ passengerId, cost, fine, selling }) => ({
+          passengerId,
+          cost: Number(cost),
+          fine: Number(fine),
+          selling: Number(selling),
+        }))
+      : undefined,
     // The form edits these as one item per line; register() splits them back into arrays.
     inclusions: quotation.inclusions?.length ? (quotation.inclusions.join("\n") as unknown as string[]) : undefined,
     exclusions: quotation.exclusions?.length ? (quotation.exclusions.join("\n") as unknown as string[]) : undefined,
@@ -140,6 +148,7 @@ export function QuoteBuilder({
   visaChangeMethod = null,
   paxCounts,
   flightRequest = null,
+  passengers = [],
 }: {
   leadId: string;
   serviceType: ServiceType;
@@ -150,6 +159,8 @@ export function QuoteBuilder({
   /** Special Fare: the lead's Adult / Child / Infant counts and requested airports (client doc 2026-10-14). */
   paxCounts?: { adult: number; child: number; infant: number };
   flightRequest?: { fromCode: string | null; toCode: string | null } | null;
+  /** Client doc 2026-10-15 — Visa Extension / Visa Change: the lead's passengers, costed one by one. */
+  passengers?: { id: string; fullName: string }[];
 }) {
   const flightQuote = isFlightQuote(serviceType);
   const hasItinerary = supportsItinerary(serviceType);
@@ -342,6 +353,7 @@ export function QuoteBuilder({
         <div className="mb-4">
           <QuoteBuilderForm
             paxCounts={paxCounts}
+            passengers={passengers}
             flightRequest={flightRequest}
             leadId={leadId}
             isFlightQuote={flightQuote}
@@ -368,6 +380,7 @@ export function QuoteBuilder({
           </h3>
           <QuoteBuilderForm
             paxCounts={paxCounts}
+            passengers={passengers}
             // Remount per quote/mode so defaultValues re-initialise.
             key={`${editing.quotation.id}-${editing.mode}`}
             leadId={leadId}

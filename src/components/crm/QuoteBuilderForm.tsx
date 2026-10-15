@@ -16,6 +16,7 @@ import { cn } from "@/lib/cn";
 import { MAX_ITINERARY_SEGMENTS, flightFieldsFromSectors, type ItinerarySegment } from "@/lib/quotations/itinerary";
 import { EMPTY_SEGMENT, SpecialFareQuoteFields, type PaxCountsView } from "./SpecialFareQuoteFields";
 import { VISA_CHANGE_EXCLUSIONS, VISA_CHANGE_INCLUSIONS } from "@/lib/visa-change/inclusions";
+import { PaxCostingFields } from "./PaxCostingFields";
 import { EMPTY_A2A_FLIGHTS } from "@/lib/visa-change/a2a-flights";
 
 /** B32 — the form fields of each Airport-to-Airport leg. */
@@ -179,6 +180,8 @@ interface QuoteBuilderFormProps {
   paxCounts?: PaxCountsView;
   /** Special Fare: the customer's requested airports — a new quote starts from them. */
   flightRequest?: { fromCode: string | null; toCode: string | null } | null;
+  /** Client doc 2026-10-15 — Visa Extension / Visa Change: the lead's passengers, costed one by one. */
+  passengers?: { id: string; fullName: string }[];
 }
 
 function maxValidityLocalIso(): string {
@@ -207,11 +210,22 @@ export function QuoteBuilderForm({
   submitting,
   paxCounts = { adult: 1, child: 0, infant: 0 },
   flightRequest = null,
+  passengers = [],
 }: QuoteBuilderFormProps) {
+  // Client doc 2026-10-15 (D1/D3, E4) — Visa Extension / Visa Change: Vendor + cost / fine / selling per passenger.
+  const perPaxCosting = isExtension || hasItinerary;
   const form = useForm<QuoteFormValues>({
     resolver: zodResolver(buildQuoteFormSchema(isFlightQuote)),
     defaultValues: {
       ...initialValues,
+      ...(perPaxCosting
+        ? {
+            paxCosting:
+              initialValues?.paxCosting && initialValues.paxCosting.length > 0
+                ? initialValues.paxCosting
+                : passengers.map((passenger) => ({ passengerId: passenger.id, cost: 0, fine: 0, selling: 0 })),
+          }
+        : {}),
       ...(multiSectorItinerary ? { itinerary: isFlightQuote ? initialSectors(initialValues, flightRequest) : (initialValues?.itinerary ?? []) } : {}),
       // Client testing 2026-10-09 (B32) — an Airport-to-Airport option has its own exit and re-entry flights.
       ...(hasItinerary && showFlightDetails ? { a2aFlights: initialValues?.a2aFlights ?? { ...EMPTY_A2A_FLIGHTS } } : {}),
@@ -425,30 +439,17 @@ export function QuoteBuilderForm({
         </>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {hasItinerary && feeSuggestion && feeSuggestion.lines.length > 0 ? (
-            <div className="col-span-full flex flex-col gap-2 rounded-lg border border-hairline bg-surface-2 p-3 text-xs">
-              <p className="font-medium text-ink-secondary">Suggested fee, from Admin-configured nationality/passenger-type rates:</p>
-              <ul className="flex flex-col gap-1">
-                {feeSuggestion.lines.map((line) => (
-                  <li key={line.passengerId} className="flex items-center justify-between text-ink-tertiary">
-                    <span>
-                      {line.fullName} ({line.paxType.toLowerCase()}{line.nationality ? `, ${line.nationality}` : ""})
-                    </span>
-                    <span>{line.rate !== null ? `₹${line.rate}` : "no rate configured"}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-ink-primary">
-                  Total: {feeSuggestion.configured ? `₹${feeSuggestion.total}` : `₹${feeSuggestion.total} (some passengers unconfigured)`}
-                </span>
-                <Button type="button" size="sm" variant="ghost" onClick={() => setValue("feeAmount", feeSuggestion.total)}>
-                  Use Suggested Total
-                </Button>
-              </div>
-            </div>
+          {perPaxCosting ? (
+            <PaxCostingFields
+              passengers={passengers}
+              initial={initialValues?.paxCosting}
+              suggestedSelling={feeSuggestion ? Object.fromEntries(feeSuggestion.lines.map((line) => [line.passengerId, line.rate])) : undefined}
+              onChange={(lines) => setValue("paxCosting", lines, { shouldDirty: true })}
+              error={errors.paxCosting?.message ?? errors.feeAmount?.message}
+            />
           ) : null}
-          {/* Client testing 2026-10-09 (B33) — a Visa Change option is just cost, selling price and one fine / other line. */}
+          {perPaxCosting ? null : (
+          <>
           <TextField
             label={isExtension ? "Extension Fee (₹)" : hasItinerary ? "Selling Price (₹)" : "Fee (₹)"}
             type="number"
@@ -475,6 +476,8 @@ export function QuoteBuilderForm({
               error={errors.otherCharges?.message}
             />
           ) : null}
+          </>
+          )}
           {showAirlineField ? airlineSelect("Airline", false) : null}
           <TextField
             label="Coupon Code"
@@ -732,7 +735,7 @@ export function QuoteBuilderForm({
         </fieldset>
       ) : null}
 
-      {isFlightQuote ? null : (
+      {isFlightQuote || perPaxCosting ? null : (
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField
           label="Vendor Cost (₹)"

@@ -40,6 +40,8 @@ interface QuoteOption {
   fareType?: string | null;
   /** P13 — Visa Extension only. */
   breakdown?: { extensionFee: number; fine: number; otherCharges: number };
+  /** Client doc 2026-10-15 — Visa Extension / Visa Change: the passengers on this quote, each with fine and amount. */
+  passengerLines?: { fullName: string; fine: number; amount: number }[];
   /** P14 — Visa Change only: this option's Airport-to-Airport or Border Exit details. */
   operational?: { title: string; rows: { label: string; value: string }[] };
   inclusions?: string[];
@@ -266,7 +268,19 @@ function QuoteCard({
         </div>
       ) : null}
 
-      {quote.breakdown && extension ? (
+      {quote.passengerLines && quote.passengerLines.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {extension ? <BreakdownRow label="Extension duration" value={`${extension.durationDays} days`} /> : null}
+          <span className="text-xs font-semibold tracking-wide text-ink-tertiary uppercase">Passengers on this quote</span>
+          {quote.passengerLines.map((line) => (
+            <BreakdownRow
+              key={line.fullName}
+              label={line.fine > 0 ? `${line.fullName} (incl. fine ${formatRupees(line.fine)})` : line.fullName}
+              value={formatRupees(line.amount)}
+            />
+          ))}
+        </div>
+      ) : quote.breakdown && extension ? (
         <div className="flex flex-col gap-2">
           <BreakdownRow label="Extension duration" value={`${extension.durationDays} days`} />
           <BreakdownRow label="Extension fee" value={formatRupees(quote.breakdown.extensionFee)} />

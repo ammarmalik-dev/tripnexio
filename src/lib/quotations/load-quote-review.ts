@@ -6,6 +6,7 @@ import { getEffectiveTerms, leadFlightScope, resolveLeadCountryId } from "../ter
 import { isExpiredNow } from "./sync-expiry";
 import { isFlightQuote, supportsItinerary } from "./pricing";
 import { resolvePaymentLinkValidityHours } from "../payments/create-payment";
+import { customerPaxLines, usesPaxCosting } from "./pax-costing";
 import { EXTENSION_DURATION_DAYS, urgentDeadlineFromDetails } from "../visa-extension/rules";
 import { customerBlockRows, OPERATIONAL_BLOCK_TITLE, parseOperationalBlock } from "../visa-change/operational";
 import { alternativeRouteLabel, requestedRouteFromDetails } from "./flight-quote";
@@ -137,6 +138,9 @@ export async function loadQuoteReviewByToken(token: string) {
             };
           })()
         : {}),
+      // Client doc 2026-10-15 — Visa Extension / Visa Change: the passengers this quote covers, each with
+      // their fine and amount (never the vendor cost); a passenger not listed isn't on this quote.
+      ...(usesPaxCosting(lead.serviceType) ? { passengerLines: customerPaxLines(quotation.paxCosting) } : {}),
       // P13 — Visa Extension: the customer sees the fee / fine / other charges breakdown.
       ...(lead.serviceType === "VISA_EXTENSION"
         ? {

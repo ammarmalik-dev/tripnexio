@@ -415,6 +415,10 @@ model Quotation {
   /// [{ description, quantity, governmentFee, serviceFee }], unit amounts).
   /// Null = one line for the whole price (staff quotes, older rows).
   invoiceLines               Json?
+  /// Client doc 2026-10-15 — Visa Extension / Visa Change: per passenger
+  /// [{ passengerId, fullName, cost, fine, selling }]; only these passengers are
+  /// on the quote (partial approval). Vendor cost is internal (never sent to customers).
+  paxCosting                 Json?
   validityExpiresAt          DateTime?
   isSelected                 Boolean      @default(false)
   isExpired                  Boolean      @default(false)

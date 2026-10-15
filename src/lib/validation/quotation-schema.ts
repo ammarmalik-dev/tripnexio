@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { itinerarySchema } from "../quotations/itinerary";
 import { a2aFlightsSchema } from "../visa-change/a2a-flights";
+import { paxCostingSchema } from "../quotations/pax-costing";
 
 const isoDate = (message: string) => z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), message);
 
@@ -47,6 +48,9 @@ export const createQuotationSchema = z.object({
   noShowCharge: z.number().nonnegative("No-show charge can't be negative").optional(),
   estimatedRefund: z.number().nonnegative("Estimated refund can't be negative").optional(),
   customerCancellationPolicy: z.string().trim().max(3000).optional(),
+
+  /** Client doc 2026-10-15 — Visa Extension / Visa Change: cost, fine and selling per passenger (sets the money fields server-side). */
+  paxCosting: paxCostingSchema.optional(),
 
   // Visa services / OTB fields (simple fee-based quote)
   feeAmount: z.number().nonnegative("Fee can't be negative").optional(),
@@ -114,7 +118,7 @@ export function buildQuoteFormSchema(isFlightQuote: boolean) {
     if (isFlightQuote && data.sellingPrice == null) {
       ctx.addIssue({ code: "custom", message: "Enter the selling price.", path: ["sellingPrice"] });
     }
-    if (!isFlightQuote && data.feeAmount == null) {
+    if (!isFlightQuote && data.feeAmount == null && !(data.paxCosting && data.paxCosting.length > 0)) {
       ctx.addIssue({ code: "custom", message: "Enter the fee amount.", path: ["feeAmount"] });
     }
   });

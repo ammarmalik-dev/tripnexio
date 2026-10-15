@@ -17,6 +17,9 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { hasPermission } from "@/lib/auth/permissions";
 import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { computeSellingPrice, isFlightQuote, supportsItinerary } from "@/lib/quotations/pricing";
+import { quotationMargin, resolvePaxCosting, usesPaxCosting } from "@/lib/quotations/pax-costing";
+import { leadPassengersFor } from "@/lib/quotations/lead-passengers";
+import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { leadReference } from "@/lib/leads/reference";
@@ -215,6 +218,16 @@ export async function POST(request: NextRequest) {
     Object.assign(parsed.data, specialFareTotals(parsed.data, await specialFarePaxCounts(sfLead)));
   }
 
+  // Client doc 2026-10-15 — Visa Extension / Visa Change: the money fields come from the per-passenger lines.
+  let paxCostingFields: Extract<ReturnType<typeof resolvePaxCosting>, { ok: true }>["fields"] | null = null;
+  if (sfLead && usesPaxCosting(sfLead.serviceType) && parsed.data.paxCosting && parsed.data.paxCosting.length > 0) {
+    const leadPassengers = await leadPassengersFor(sfLead.details);
+    const costed = resolvePaxCosting(SERVICE_TYPE_LABELS[sfLead.serviceType], parsed.data.paxCosting, leadPassengers);
+    if (!costed.ok) return jsonError(400, costed.error, { paxCosting: [costed.error] });
+    paxCostingFields = costed.fields;
+    Object.assign(parsed.data, { vendorCost: costed.fields.vendorCost, feeAmount: costed.fields.feeAmount, fineOrCharges: costed.fields.fineOrCharges, otherCharges: 0, governmentFee: costed.fields.governmentFee });
+  }
+
   const {
     leadId,
     vendorId,
@@ -343,7 +356,8 @@ export async function POST(request: NextRequest) {
 
   // Selling price and margin are always computed/resolved server-side — never trust a client-sent value.
   const resolvedSellingPrice = computeSellingPrice(lead.serviceType, { sellingPrice, feeAmount, fineOrCharges, otherCharges, flightTicketPrice });
-  const margin = resolvedSellingPrice - vendorCost;
+  // Client doc 2026-10-15 — Visa Extension / Visa Change: the fine is a pass-through, not profit.
+  const margin = quotationMargin(lead.serviceType, resolvedSellingPrice, vendorCost, fineOrCharges);
   if (governmentFee !== undefined && governmentFee > resolvedSellingPrice) {
     return jsonError(400, "The government / airline fee can't be more than the total price.", { governmentFee: ["Can't exceed the total price."] });
   }
@@ -397,6 +411,12 @@ export async function POST(request: NextRequest) {
         fineOrCharges,
         otherCharges,
         governmentFee,
+        ...(paxCostingFields
+          ? {
+              paxCosting: paxCostingFields.paxCosting as unknown as Prisma.InputJsonValue,
+              invoiceLines: paxCostingFields.invoiceLines as unknown as Prisma.InputJsonValue,
+            }
+          : {}),
         // Visa Change: the package's inclusions / exclusions (defaults from the method when staff left them empty).
         ...(lead.serviceType === "VISA_CHANGE"
           ? {

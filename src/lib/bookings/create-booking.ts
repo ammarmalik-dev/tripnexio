@@ -6,6 +6,7 @@ import { getInitialServiceStatusId } from "../service-status/engine";
 import { isExpiredNow } from "../quotations/sync-expiry";
 import { getProtectionPlanOffer, leadDestinationCountryCode, protectionPlanRowsForBooking } from "../protection-plan/country-offer";
 import { buildDocumentChecklistSnapshot } from "./document-checklist-snapshot";
+import { quotedPassengerIds } from "../quotations/pax-costing";
 import { generateToken } from "../quotations/select-quotation";
 import { findOriginalBookingForExtension } from "../leads/visa-extension-eligibility";
 import { notifyNewBooking } from "../staff-notifications/triggers";
@@ -59,7 +60,11 @@ export async function createBookingFromQuotation(
   // defaults to one derived from the contact's own name when the service
   // doesn't collect a real passenger list) — see create-lead.ts.
   const leadDetails = (quotation.lead.details ?? {}) as Record<string, unknown>;
-  const passengerIds = Array.isArray(leadDetails.passengerIds) ? (leadDetails.passengerIds as string[]) : [];
+  const leadPassengerIds = Array.isArray(leadDetails.passengerIds) ? (leadDetails.passengerIds as string[]) : [];
+  // Client doc 2026-10-15 (D3) — a Visa Extension / Visa Change quote may cover only some passengers
+  // (partial approval): the booking holds just those; the others can be quoted and booked later.
+  const quotedIds = quotedPassengerIds(quotation.paxCosting);
+  const passengerIds = quotedIds.length > 0 ? leadPassengerIds.filter((id) => quotedIds.includes(id)) : leadPassengerIds;
 
   // New_Visa.md §8: "Protection Plan is offered after processing selection
   // and before payment" — the earliest point a Booking (and fixed passenger

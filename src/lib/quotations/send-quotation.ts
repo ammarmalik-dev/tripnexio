@@ -8,6 +8,7 @@ import { toWhatsAppId } from "../whatsapp/phone";
 import { siteConfig } from "../site-config";
 import { ensureLeadCustomerToken } from "./select-quotation";
 import { resolveNewQuoteRequest } from "./new-quote-request";
+import { formatBusinessDateTime } from "../format-business-time";
 import { applySystemEvent, type StatusNotification } from "../service-status/engine";
 
 /**
@@ -82,9 +83,9 @@ export async function notifyQuoteReady(
       customerName: lead.customer.name,
       leadReference: leadReference(lead),
       sellingPrice: money(payable),
-      quoteValidUntil: quotation.validityExpiresAt
-        ? quotation.validityExpiresAt.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })
-        : "no expiry set",
+      // Client doc 2026-10-15 (D2) — in the business timezone (Admin → System Configuration), not the
+      // server's own (UTC on the VPS), which showed the time 5½ hours early.
+      quoteValidUntil: quotation.validityExpiresAt ? await formatBusinessDateTime(quotation.validityExpiresAt) : "no expiry set",
       reviewLink: `${siteConfig.url}/quote/${reviewToken}`,
     },
     auditTarget: { entityType: "Quotation", entityId: quotation.id },

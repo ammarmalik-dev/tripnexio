@@ -37,6 +37,8 @@ export interface QuoteCardData {
   exclusions?: string[];
   /** P14 — Visa Change: the A2A / Border block snapshot this option carries. */
   operationalBlock?: unknown;
+  /** Client doc 2026-10-15 — Visa Extension / Visa Change per-passenger costing (staff view). */
+  paxCosting?: unknown;
   /** P15 — Flight Special Fare quote details / cancellation terms. */
   terminal?: string | null;
   reportingTime?: string | null;

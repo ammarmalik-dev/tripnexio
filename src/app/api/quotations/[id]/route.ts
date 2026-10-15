@@ -8,6 +8,9 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { computeSellingPrice } from "@/lib/quotations/pricing";
+import { quotationMargin, resolvePaxCosting, usesPaxCosting } from "@/lib/quotations/pax-costing";
+import { leadPassengersFor } from "@/lib/quotations/lead-passengers";
+import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
@@ -182,9 +185,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     );
   }
 
+  // Client doc 2026-10-15 — Visa Extension / Visa Change: the money fields come from the per-passenger lines.
+  let paxCostingData: { paxCosting: Prisma.InputJsonValue; invoiceLines: Prisma.InputJsonValue } | undefined;
+  if (usesPaxCosting(lead.serviceType) && parsed.data.paxCosting && parsed.data.paxCosting.length > 0) {
+    const costed = resolvePaxCosting(SERVICE_TYPE_LABELS[lead.serviceType], parsed.data.paxCosting, await leadPassengersFor(lead.details));
+    if (!costed.ok) return jsonError(400, costed.error, { paxCosting: [costed.error] });
+    Object.assign(parsed.data, { vendorCost: costed.fields.vendorCost, feeAmount: costed.fields.feeAmount, fineOrCharges: costed.fields.fineOrCharges, otherCharges: 0, governmentFee: costed.fields.governmentFee });
+    paxCostingData = {
+      paxCosting: costed.fields.paxCosting as unknown as Prisma.InputJsonValue,
+      invoiceLines: costed.fields.invoiceLines as unknown as Prisma.InputJsonValue,
+    };
+  }
+
   // P22 — multi-sector itinerary: Visa Change / Flight Special Fare only
   // (service type derived from the lead server-side). An empty array clears it.
-  const { itinerary: itineraryInput, couponCode, a2aFlights, ...restOfPatch } = parsed.data;
+  const { itinerary: itineraryInput, couponCode, a2aFlights, paxCosting: _paxCosting, ...restOfPatch } = parsed.data;
+  void _paxCosting;
   const multiSector = supportsMultiSectorItinerary(lead.serviceType);
   if (itineraryInput && itineraryInput.length > 0 && !multiSector) {
     return jsonError(400, "An itinerary can only be added to Visa Change or Special Fare quotations.", {
@@ -252,7 +268,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     flightTicketPrice:
       parsed.data.flightTicketPrice ?? (existing.flightTicketPrice ? Number(existing.flightTicketPrice) : undefined),
   });
-  const margin = sellingPrice - vendorCost;
+  // Client doc 2026-10-15 — Visa Extension / Visa Change: the fine is a pass-through, not profit.
+  const margin = quotationMargin(
+    lead.serviceType,
+    sellingPrice,
+    vendorCost,
+    parsed.data.fineOrCharges ?? (existing.fineOrCharges ? Number(existing.fineOrCharges) : undefined)
+  );
   const governmentFee = parsed.data.governmentFee ?? (existing.governmentFee === null ? undefined : Number(existing.governmentFee));
   if (governmentFee !== undefined && governmentFee > sellingPrice) {
     return jsonError(400, "The government / airline fee can't be more than the total price.", { governmentFee: ["Can't exceed the total price."] });
@@ -322,6 +344,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         bookingDeadline: parsed.data.bookingDeadline ? new Date(parsed.data.bookingDeadline) : undefined,
         itinerary: itineraryField,
         operationalBlock: operationalBlockField,
+        ...paxCostingData,
         ...(isRevision ? { revision: { increment: 1 } } : {}),
       },
     });

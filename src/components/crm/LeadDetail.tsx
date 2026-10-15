@@ -515,6 +515,7 @@ export function LeadDetail({
                     serviceType={lead.serviceType}
                     visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
                     paxCounts={paxCountsOf(lead.passengers)}
+                    passengers={lead.passengers.map((passenger) => ({ id: passenger.id, fullName: passenger.fullName }))}
                     flightRequest={{ fromCode: airportCodeOf(lead.details.origin), toCode: airportCodeOf(lead.details.destination) }}
                     leadStatus={lead.status}
                     onLeadChanged={refresh}
