@@ -63,21 +63,21 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [ ] E5. New T&C text and checkbox; "Important Travel Instructions" in the ticket / package email.
 
 ## F. New Visa
-- [ ] F1. First form:
+- [x] F1. First form:
   - Expected approval date (working calendar).
   - Adult and Child prices for Normal and Express.
   - Values chosen on the country card carried forward; no repeated questions; Basic Details then Applicant Details.
-- [ ] F2. One timeline per country (remove the duplicate New Visa timeline settings).
-- [ ] F3. Admin pricing and vendor cost:
+- [x] F2. One timeline per country (remove the duplicate New Visa timeline settings).
+- [x] F3. Admin pricing and vendor cost:
   - Remove Sub-Service and the documents section; documents live on the country page.
   - Selling price by country × nationality × Adult/Child × Normal/Urgent, with no government or vendor fee fields.
   - Vendor cost comes from the vendor selected during processing (same keys) and drives profit and the invoice.
-- [ ] F4. Configuration fields:
+- [x] F4. Configuration fields:
   - Visa validity, stay duration, entry type, visa category (Tourist / Transit / Business / Arrival Card).
   - Remove the description.
-- [ ] F5. Editable T&C per country (with a default draft), with checkbox and "Accept & Proceed to Payment".
-- [ ] F6. Fully editable country pages (headings, service names, banners, How It Works; ETA / arrival card wording).
-- [ ] F7. Profit = Selling − Vendor cost; GST on that.
+- [x] F5. Editable T&C per country (with a default draft), with checkbox and "Accept & Proceed to Payment".
+- [x] F6. Fully editable country pages (headings, service names, banners, How It Works; ETA / arrival card wording).
+- [x] F7. Profit = Selling − Vendor cost; GST on that.
 
 ## G. Invoice & profit
 - [ ] G1. Remove "Amount Paid" and "Balance Due".
