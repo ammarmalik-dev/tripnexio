@@ -23,13 +23,44 @@ const MENU_LINES = [
   "6. OTB (Ok to Board)",
 ];
 
+/** Client doc 2026-10-15 — the WhatsApp greeting, word for word (the tappable list in menu.ts uses it too). */
+export const WELCOME_TEXT =
+  "👋 Welcome to TripNexio!\n" +
+  "How can we help you today? Choose a service below or type your request in your own words.\n\n" +
+  "✈️ Visa & Travel Services\n" +
+  "💬 Type Agent anytime to speak with our team.\n" +
+  "👇 Tap See Options to get started.";
+
+/** The plain-text greeting (message log / console gateway); the real message is the tappable list in menu.ts. */
 export function welcomeMenu(profileName?: string | null): string {
-  const greeting = profileName ? `Hi ${profileName}! ` : "Hi! ";
+  void profileName;
+  return `${WELCOME_TEXT}\n\n${MENU_LINES.join("\n")}`;
+}
+
+/** Client doc 2026-10-15 — Visa Extension asked from outside the UAE: only New Visa applies. */
+export function extensionOutsideUae(): string {
+  return "Visa Extension is only for travellers who are currently inside the UAE. Since you're outside the UAE, you can apply for a New Visa instead — tap See Options below, or type \"agent\" for help.";
+}
+
+/** Client doc 2026-10-15 — no TripNexio visa for the given passport(s). */
+export function tripNexioVisaNotFound(): string {
   return (
-    `${greeting}Welcome to TripNexio 👋\n\n` +
-    `Tell me what you need in your own words (e.g. "I need a new visa" or "mera visa extend karna hai"), or just ask a question — I'm happy to help with:\n\n` +
-    `${MENU_LINES.join("\n")}\n\n` +
-    `You can also type "agent" anytime to talk to our team.`
+    "❌ *TripNexio Visa Not Found*\n\n" +
+    "We couldn't find a visa issued through TripNexio for these passport details, so it can't be extended here. " +
+    "You can apply for a Visa Change (if you're inside the UAE) or a New Visa instead — tap See Options below, or type \"agent\" for help."
+  );
+}
+
+/** Client doc 2026-10-15 — Visa Extension lead created: thank-you + link to upload the documents. */
+export function extensionUploadRequest(referenceId: string, uploadUrl: string | null): string {
+  return (
+    `Thank you! Your Visa Extension request has been received — reference *${referenceId}*.\n\n` +
+    (uploadUrl
+      ? "Please upload each passenger's passport and visa copies using the button below. "
+      : "Our team will contact you for each passenger's passport and visa copies. ") +
+    "Our team will validate the documents and share your quotation.\n\n" +
+    'Type "status" anytime to check progress.' +
+    (uploadUrl ? `\n${uploadUrl}` : "")
   );
 }
 

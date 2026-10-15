@@ -294,6 +294,8 @@ async function sendLeadReceivedNotice(input: {
   customerName: string;
   customerEmail: string | null;
   customerMobile: string;
+  /** The WhatsApp bot's own reply already confirms the request (client doc 2026-10-15). */
+  skipWhatsApp?: boolean;
 }): Promise<void> {
   await notifyCustomer({
     event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
@@ -310,11 +312,12 @@ async function sendLeadReceivedNotice(input: {
       tripSummary: await tripSummaryForLead(input.leadId, SERVICE_TYPE_LABELS[input.serviceType]),
     },
     auditTarget: { entityType: "Lead", entityId: input.leadId },
+    skipWhatsApp: input.skipWhatsApp,
   });
 }
 
 /** The deferred "request received" message, for a lead whose payment link couldn't be created (e.g. no configured price). Never throws. */
-export async function notifyLeadReceived(leadId: string): Promise<void> {
+export async function notifyLeadReceived(leadId: string, options: { skipWhatsApp?: boolean } = {}): Promise<void> {
   const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
   if (!lead) return;
   await sendLeadReceivedNotice({
@@ -324,5 +327,6 @@ export async function notifyLeadReceived(leadId: string): Promise<void> {
     customerName: lead.customer.name,
     customerEmail: lead.customer.email,
     customerMobile: lead.customer.mobile,
+    skipWhatsApp: options.skipWhatsApp,
   });
 }

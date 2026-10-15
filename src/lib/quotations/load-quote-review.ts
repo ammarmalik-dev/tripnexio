@@ -1,5 +1,6 @@
 import { db } from "../db";
 import { specialFarePaxCounts } from "../special-fare/pax-counts";
+import { leadUploadPassengers } from "./lead-document-upload";
 import { leadReference } from "../leads/reference";
 import { getEffectiveTerms, leadFlightScope, resolveLeadCountryId } from "../terms/service-terms";
 import { isExpiredNow } from "./sync-expiry";
@@ -176,6 +177,8 @@ export async function loadQuoteReviewByToken(token: string) {
     bookingToken: booking?.customerToken ?? null,
     terms: terms ? { title: terms.title, body: terms.body, version: terms.version, acceptanceText: terms.acceptanceText } : null,
     extension,
+    // Client doc 2026-10-15 — Visa Extension / Visa Change: per-passenger uploads before the quotation (until booked).
+    uploadPassengers: booking ? [] : await leadUploadPassengers(lead),
     specialFare: flight
       ? { requestedRoute, passengerCounts, newQuoteRequested: typeof details.newQuoteRequestedAt === "string" }
       : null,

@@ -12,7 +12,8 @@ export const REQUEST_RECEIVED_MESSAGES: Record<ServiceType, string> = {
     "Your Special Fare request has been received successfully. Our team will check the available fares and share your quotation with you shortly on WhatsApp and email.",
   VISA_EXTENSION:
     "Your Visa Extension request has been received. Our team will validate each applicant's details and documents and get in touch shortly.",
-  VISA_CHANGE: "Your Visa Change request has been received. Our team will check availability and get in touch shortly.",
+  // Client doc 2026-10-15 — verbatim.
+  VISA_CHANGE: "Your Visa Change request has been received. Our team will check availability and share an update with you.",
   NEW_VISA: "Your New Visa request has been received. Our team will review the details and get in touch shortly.",
   OTB: "Your OTB request has been received. Our team will verify the details and get in touch shortly.",
   RETURN_TICKET: "Your Return Verified Ticket request has been received. Our team will confirm your reservation and get in touch shortly.",

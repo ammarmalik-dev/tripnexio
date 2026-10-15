@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { QuoteDocumentUpload, type UploadPassengerView } from "./QuoteDocumentUpload";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -88,6 +89,8 @@ interface ReviewView {
   terms: TermsView | null;
   extension: ExtensionView | null;
   specialFare: SpecialFareView | null;
+  /** Client doc 2026-10-15 — Visa Extension / Visa Change documents uploaded before the quotation. */
+  uploadPassengers?: UploadPassengerView[];
 }
 
 function plural(count: number, word: string): string {
@@ -418,6 +421,8 @@ export function QuoteReviewPanel({ token }: { token: string }) {
         <span className="text-sm font-medium tracking-wide text-ink-accent">Reference {view.leadReference}</span>
         <h1 className="text-2xl font-semibold tracking-tight text-ink-heading">Review your quote</h1>
       </div>
+
+      {view.uploadPassengers && view.uploadPassengers.length > 0 ? <QuoteDocumentUpload token={token} passengers={view.uploadPassengers} /> : null}
 
       {view.quotations.length === 0 ? (
         <EmptyState

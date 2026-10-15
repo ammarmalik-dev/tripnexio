@@ -3,7 +3,7 @@ import { db } from "../db";
 import type { ServiceType } from "../../generated/prisma/enums";
 import { otbRequestSchema } from "../validation/otb-schema";
 import { newVisaRequestSchema } from "../validation/new-visa-schema";
-import { visaExtensionBotFieldSchemas, visaExtensionRequestSchema } from "../validation/visa-extension-schema";
+import { visaExtensionRequestSchema } from "../validation/visa-extension-schema";
 import { visaChangeRequestSchema } from "../validation/visa-change-schema";
 import { flightSpecialFareRequestSchema } from "../validation/flight-special-fare-schema";
 import { returnTicketFieldsSchema } from "../validation/return-ticket-schema";
@@ -121,11 +121,6 @@ async function getProcessingTypeChoices(serviceType: ServiceType): Promise<{ val
 // airport/border, only the A2A-vs-Border method (see the VISA_CHANGE case
 // below); staff picks the actual airport/border later from the CRM.
 
-/** Replaces the old hardcoded DESTINATION_COUNTRY_OPTIONS (Step 6.1, client-locked-spec roadmap) with the real Admin-managed Country list. */
-async function getDestinationCountryOptions() {
-  const countries = await db.country.findMany({ where: { active: true }, orderBy: [{ displayOrder: "asc" }, { name: "asc" }] });
-  return countries.map((country) => ({ value: country.code, label: country.name }));
-}
 
 /**
  * Client doc 2026-10-14 — OTB airlines for the chosen destination: only those
@@ -260,13 +255,28 @@ function countValidator(min: number): z.ZodTypeAny {
 }
 
 /** The passengers so far, in Adult → Child → Infant order (only once all three counts are in). */
-export function botPassengers(collected: Record<string, string>): { index: number; paxType: "ADULT" | "CHILD" | "INFANT"; fullName?: string; passportNumber?: string }[] {
+export interface BotPassenger {
+  index: number;
+  paxType: "ADULT" | "CHILD" | "INFANT";
+  fullName?: string;
+  passportNumber?: string;
+  /** Visa Extension — the passenger's current visa expiry (client doc 2026-10-15). */
+  visaExpiryDate?: string;
+}
+
+export function botPassengers(collected: Record<string, string>): BotPassenger[] {
   const counts = { ADULT: Number(collected.adults ?? 0), CHILD: Number(collected.children ?? 0), INFANT: Number(collected.infants ?? 0) };
-  const list: { index: number; paxType: "ADULT" | "CHILD" | "INFANT"; fullName?: string; passportNumber?: string }[] = [];
+  const list: BotPassenger[] = [];
   for (const paxType of ["ADULT", "CHILD", "INFANT"] as const) {
     for (let n = 0; n < counts[paxType]; n++) {
       const index = list.length + 1;
-      list.push({ index, paxType, fullName: collected[`pax${index}Name`], passportNumber: collected[`pax${index}Passport`] });
+      list.push({
+        index,
+        paxType,
+        fullName: collected[`pax${index}Name`],
+        passportNumber: collected[`pax${index}Passport`],
+        visaExpiryDate: collected[`pax${index}Expiry`],
+      });
     }
   }
   return list;
@@ -277,12 +287,26 @@ export function botPassengers(collected: Record<string, string>): { index: numbe
  * `sameRateForAll` (OTB, Return Ticket — one rate for every passenger, client reply 2026-10-13) asks one passenger
  * count, kept in `adults`, instead of Adult / Child / Infant.
  */
-function passengerStep(collected: Record<string, string>, withPassport: boolean, sameRateForAll = false): NextField | null {
+function passengerStep(
+  collected: Record<string, string>,
+  withPassport: boolean,
+  options: {
+    /** OTB, Return Ticket, Visa Extension: one passenger count instead of Adult / Child / Infant. */
+    sameRateForAll?: boolean;
+    /** New Visa, Visa Change: Adult (18+) and Child only (client doc 2026-10-15). */
+    noInfants?: boolean;
+    /** Visa Extension: each passenger's visa expiry date (no DOB asked on WhatsApp). */
+    withVisaExpiry?: boolean;
+  } = {}
+): NextField | null {
+  const { sameRateForAll = false, noInfants = false, withVisaExpiry = false } = options;
   if (sameRateForAll) {
     if (!("adults" in collected)) return textStep("adults", `How many passengers? (1 to ${MAX_PAX})`, countValidator(1));
   } else {
     for (const kind of PAX_KINDS) {
-      if (!(kind.key in collected)) return textStep(kind.key, kind.prompt, countValidator(kind.min));
+      if (noInfants && kind.key === "infants") continue;
+      const prompt = noInfants && kind.key === "adults" ? "How many adults (18 years and above)?" : noInfants && kind.key === "children" ? "How many children (under 18)? Reply 0 if none." : kind.prompt;
+      if (!(kind.key in collected)) return textStep(kind.key, prompt, countValidator(kind.min));
     }
   }
   const total = Number(collected.adults ?? 0) + Number(collected.children ?? 0) + Number(collected.infants ?? 0);
@@ -312,6 +336,9 @@ function passengerStep(collected: Record<string, string>, withPassport: boolean,
     if (withPassport && !passenger.passportNumber) {
       return textStep(`pax${passenger.index}Passport`, `Passport number of ${passenger.fullName}?`, PASSPORT_VALIDATOR);
     }
+    if (withVisaExpiry && !passenger.visaExpiryDate) {
+      return dateStep(`pax${passenger.index}Expiry`, `Current UAE visa expiry date of ${passenger.fullName}?`, visaExtensionRequestSchema.shape.visaExpiryDate);
+    }
   }
   return null;
 }
@@ -325,6 +352,19 @@ async function getOtbDestinationOptions() {
     orderBy: { country: { name: "asc" } },
   });
   return priced.map((row) => ({ value: row.country.code, label: row.country.name }));
+}
+
+/** Client doc 2026-10-15 — only the countries Admin enabled for New Visa (an active product), each once — same as the website. */
+async function getNewVisaCountryOptions() {
+  const configs = await db.newVisaCountryConfig.findMany({
+    where: { active: true, country: { active: true } },
+    distinct: ["countryId"],
+    select: { country: { select: { code: true, name: true, displayOrder: true } } },
+  });
+  return configs
+    .map((config) => config.country)
+    .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name))
+    .map((country) => ({ value: country.code, label: country.name }));
 }
 
 /** New Visa products (stay × entry) Admin configured for the country; empty = price by the country-wide rules. */
@@ -373,12 +413,12 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         const header = outcome.message ? `${outcome.message}\nWhich processing type?` : "Which processing type?";
         return numberedChoiceStep("processingType", header, options);
       }
-      return passengerStep(collected, true, true);
+      return passengerStep(collected, true, { sameRateForAll: true });
     }
 
     case "NEW_VISA": {
       if (!has("destinationCountry")) {
-        return numberedChoiceStep("destinationCountry", "Which country is this visa for?", await getDestinationCountryOptions());
+        return numberedChoiceStep("destinationCountry", "Which country is this visa for?", await getNewVisaCountryOptions());
       }
       if (!has("visaType")) {
         // Admin-managed per destination; skipped when none is configured (the website hides it too).
@@ -414,20 +454,20 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         const header = allowed.includes("normal") ? "Which processing type?" : "Normal processing can't meet this travel date — Express is available:";
         return numberedChoiceStep("processingType", header, options);
       }
-      return passengerStep(collected, true);
+      return passengerStep(collected, true, { noInfants: true });
     }
 
     case "VISA_EXTENSION": {
-      if (!has("passportNumber")) return textStep("passportNumber", "What's your passport number?", visaExtensionRequestSchema.shape.passportNumber);
-      if (!has("dob")) return dateStep("dob", "What's your date of birth?", visaExtensionBotFieldSchemas.dob);
+      // Client doc 2026-10-15 — inside / outside the UAE first (outside = New Visa only, handled by the
+      // engine), then each passenger's name, passport number and visa expiry. No DOB on WhatsApp.
       if (!has("insideUAE")) {
         return numberedChoiceStep("insideUAE", "Are you currently inside the UAE?", [
           { value: "yes", label: "Yes, I'm inside the UAE" },
           { value: "no", label: "No, I'm outside the UAE" },
         ]);
       }
-      if (!has("entryDate")) return dateStep("entryDate", "What was your UAE entry date?", visaExtensionBotFieldSchemas.entryDate);
-      return null;
+      if (collected.insideUAE === "no") return null;
+      return passengerStep(collected, true, { sameRateForAll: true, withVisaExpiry: true });
     }
 
     case "VISA_CHANGE": {
@@ -442,7 +482,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           { value: "BORDER_EXIT", label: "Border Exit" },
         ]);
       }
-      if (!has("passportNumber")) return textStep("passportNumber", "What's your passport number?", visaChangeRequestSchema.shape.passportNumber);
+      // Client doc 2026-10-15 — adults and children, then each passenger's name and passport.
+      const paxQuestion = passengerStep(collected, true, { noInfants: true });
+      if (paxQuestion) return paxQuestion;
       if (!has("visaLastDate")) return dateStep("visaLastDate", "What's your current visa's last date?", visaChangeRequestSchema.shape.visaLastDate);
       if (!has("nationalityId")) return nationalityStep();
       return null;
@@ -499,7 +541,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           (iso) => (iso < collected.travelDate ? "Your expected return date should be on or after your travel date." : null)
         );
       }
-      return passengerStep(collected, true, true);
+      return passengerStep(collected, true, { sameRateForAll: true });
     }
 
     default:
@@ -549,13 +591,16 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
         applicants,
       };
     }
-    case "VISA_EXTENSION":
+    case "VISA_EXTENSION": {
+      // Same applicant-wise shape as the website form (details.applicants, in passenger order).
+      const applicants = botPassengers(collected).map((p) => ({ fullName: p.fullName ?? collected.fullName, passportNumber: p.passportNumber, visaExpiryDate: p.visaExpiryDate }));
       return {
-        passportNumber: collected.passportNumber,
-        dob: collected.dob,
         insideUAE: collected.insideUAE,
-        entryDate: collected.entryDate,
+        passportNumber: applicants[0]?.passportNumber,
+        visaExpiryDate: applicants[0]?.visaExpiryDate,
+        applicants,
       };
+    }
     case "VISA_CHANGE":
       // Bot only ever captures the primary/single passenger (createLeadFromSubmission's
       // default fullName-derived passenger) -- no "+Add Another Passenger" equivalent
@@ -563,7 +608,7 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
       // simplification, not a silent gap: staff can still see these raw answers.
       return {
         changeType: collected.changeType,
-        passengers: [{ passportNumber: collected.passportNumber, visaLastDate: collected.visaLastDate }],
+        passengers: botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, visaLastDate: collected.visaLastDate })),
       };
     case "FLIGHT_SPECIAL_FARE":
       // Bot captures only the primary passenger's DOB (no dynamic
@@ -612,22 +657,19 @@ export async function buildLeadPassengers(
   serviceType: ServiceType,
   collected: Record<string, string>
 ): Promise<LeadPassengerInput[] | undefined> {
-  if (serviceType === "OTB" || serviceType === "RETURN_TICKET" || serviceType === "NEW_VISA") {
+  if (serviceType === "OTB" || serviceType === "RETURN_TICKET" || serviceType === "NEW_VISA" || serviceType === "VISA_EXTENSION") {
     const list = botPassengers(collected);
     return list.length > 0
       ? list.map((p) => ({ fullName: p.fullName ?? collected.fullName, passportNumber: p.passportNumber, paxType: p.paxType }))
       : undefined;
   }
-  if (serviceType !== "VISA_CHANGE" || !collected.nationalityId) return undefined;
-  const nationality = await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } });
-  return [
-    {
-      fullName: collected.fullName,
-      passportNumber: collected.passportNumber,
-      nationality: nationality?.name,
-      nationalityId: nationality?.id,
-      paxType: "ADULT",
-    },
-  ];
+  if (serviceType !== "VISA_CHANGE") return undefined;
+  const nationality = collected.nationalityId
+    ? await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } })
+    : null;
+  const list = botPassengers(collected);
+  return list.length > 0
+    ? list.map((p) => ({ fullName: p.fullName ?? collected.fullName, passportNumber: p.passportNumber, nationality: nationality?.name, nationalityId: nationality?.id, paxType: p.paxType }))
+    : undefined;
 }
 

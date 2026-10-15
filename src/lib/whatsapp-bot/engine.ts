@@ -1,19 +1,19 @@
 import { createLeadFromSubmission, notifyLeadReceived } from "../leads/create-lead";
 import { tripFactsForLead, tripSummaryLine } from "../leads/trip-summary";
-import { checkVisaExtensionEligibility, getIneligibleRedirect } from "../leads/visa-extension-eligibility";
+import { findPriorTripNexioVisaByPassport } from "../leads/visa-extension-eligibility";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getAiProvider } from "./get-ai-provider";
 import { answerFaqQuestion } from "@/lib/faq/answer-faq";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
 import { buildWelcomeMenu, serviceTypeFromMenuId, MENU_TRACK_ID, MENU_AGENT_ID } from "./menu";
-import { getNextField, buildLeadDetails, buildLeadPassengers } from "./flows";
+import { getNextField, buildLeadDetails, buildLeadPassengers, botPassengers } from "./flows";
 import { whatsappStatusReply } from "./status-reply";
 import { priceLeadForDirectPayment } from "../checkout/lead-direct-payment";
 import { db } from "../db";
 import { createAutoCheckout } from "../checkout/create-auto-checkout";
 import { siteConfig } from "../site-config";
 import * as messages from "./messages";
-import { AWAITING_VISA_COPY, askForVisaCopies, visaCopyTextReply } from "./visa-copy";
+import { AWAITING_VISA_COPY, visaCopyTextReply } from "./visa-copy";
 import { writeAudit } from "../audit/log";
 import { getSiteContact } from "../settings/system-config";
 import type { ServiceType } from "../../generated/prisma/enums";
@@ -187,15 +187,33 @@ async function continueCollecting(
     return { replyText: nextField.prompt, nextState: "COLLECTING", nextServiceType: serviceType, nextCollectedFields: nextCollected };
   }
 
-  // Visa_Extension.md §2/§25: no eligible TripNexio-issued visa -> route to
-  // Visa Change/New Visa instead of creating an Extension lead. Same check
-  // the website's POST /api/leads/visa-extension route runs, so a
-  // WhatsApp-originated request can't bypass it.
-  // Client testing 2026-10-09 (B21) — like the website, the lead is always
-  // created; with no TripNexio visa found the bot then asks for the visa copy.
-  const extensionWithoutPriorVisa =
-    serviceType === "VISA_EXTENSION" &&
-    !(await checkVisaExtensionEligibility({ passportNumber: nextCollected.passportNumber, dob: nextCollected.dob, mobile: waId })).eligible;
+  // Client doc 2026-10-15 — Visa Extension: outside the UAE only New Visa is offered; inside the UAE
+  // with no TripNexio visa for any passenger, "TripNexio Visa Not Found" offers Visa Change / New Visa.
+  // No Extension lead is created in either case.
+  let unmatchedApplicants: string[] = [];
+  if (serviceType === "VISA_EXTENSION") {
+    if (nextCollected.insideUAE === "no") {
+      return {
+        replyText: messages.extensionOutsideUae(),
+        replyMenu: await buildWelcomeMenu({ only: ["NEW_VISA"], bodyText: messages.extensionOutsideUae() }),
+        nextState: "GREETING",
+        nextServiceType: null,
+        nextCollectedFields: {},
+      };
+    }
+    const travellers = botPassengers(nextCollected);
+    const matches = await Promise.all(travellers.map((p) => (p.passportNumber ? findPriorTripNexioVisaByPassport(p.passportNumber) : Promise.resolve(null))));
+    if (!matches.some(Boolean)) {
+      return {
+        replyText: messages.tripNexioVisaNotFound(),
+        replyMenu: await buildWelcomeMenu({ only: ["VISA_CHANGE", "NEW_VISA"], bodyText: messages.tripNexioVisaNotFound() }),
+        nextState: "GREETING",
+        nextServiceType: null,
+        nextCollectedFields: {},
+      };
+    }
+    unmatchedApplicants = travellers.filter((_, index) => !matches[index]).map((p) => p.fullName ?? nextCollected.fullName);
+  }
 
   // Every field collected — create the Lead exactly like the website does.
   try {
@@ -206,10 +224,12 @@ async function continueCollecting(
       source: "WhatsApp Bot",
       contact: { fullName: nextCollected.fullName, mobile: waId, email: nextCollected.email },
       passengers,
-      details: extensionWithoutPriorVisa ? { ...details, noPriorVisa: true } : details,
-      // Client testing 2026-10-09 — New Visa / OTB / Return Ticket pay straight away: the payment link is the message.
-      deferLeadReceivedNotice: DIRECT_PAYMENT.has(serviceType),
+      details: unmatchedApplicants.length > 0 ? { ...details, noPriorVisa: true, noPriorVisaApplicants: unmatchedApplicants } : details,
+      // Client doc 2026-10-15 — the bot's own reply is the confirmation: no second WhatsApp message
+      // (the request-received email still goes out, below).
+      deferLeadReceivedNotice: true,
     });
+    if (!DIRECT_PAYMENT.has(serviceType)) await notifyLeadReceived(result.leadId, { skipWhatsApp: true });
 
     // New Visa / OTB / Return Ticket pay right after the request (client
     // testing 2026-10-09): priced from Admin config exactly like the CRM's
@@ -236,24 +256,28 @@ async function continueCollecting(
       } catch (checkoutError) {
         console.error("[whatsapp-bot] auto checkout failed", checkoutError instanceof Error ? checkoutError.name : "error");
       }
-      if (!payUrl) await notifyLeadReceived(result.leadId);
+      if (!payUrl) await notifyLeadReceived(result.leadId, { skipWhatsApp: true });
     }
 
-    if (extensionWithoutPriorVisa) {
-      const pending = result.passengerIds.map((passengerId, index) => ({ passengerId, name: passengers?.[index]?.fullName || nextCollected.fullName }));
+    if (unmatchedApplicants.length > 0) {
       await writeAudit(db, {
         entityType: "Lead",
         entityId: result.leadId,
         action: "NO_PRIOR_VISA",
-        note: "No prior TripNexio visa found for these details — visa copy requested on WhatsApp",
+        note: `No prior TripNexio visa found for ${unmatchedApplicants.join(", ")} — staff to verify`,
       });
-      const redirect = getIneligibleRedirect(nextCollected.insideUAE === "yes" ? "yes" : "no");
-      return {
-        replyText: `${messages.leadCreated(result.referenceId, serviceType)}
+    }
 
-${messages.visaCopyRequest(pending[0]?.name ?? nextCollected.fullName, redirect.label)}`,
-        ...askForVisaCopies(result.leadId, pending),
+    // Client doc 2026-10-15 — Visa Extension: thank-you + a link to upload each passenger's passport and visa copies.
+    if (serviceType === "VISA_EXTENSION") {
+      const lead = await db.lead.findUnique({ where: { id: result.leadId }, select: { customerToken: true } });
+      const uploadUrl = lead?.customerToken ? `${siteConfig.url}/quote/${lead.customerToken}` : null;
+      return {
+        replyText: messages.extensionUploadRequest(result.referenceId, uploadUrl),
+        ...(uploadUrl ? { replyCta: { label: "Upload Documents", url: uploadUrl } } : {}),
+        nextState: "COMPLETED",
         nextServiceType: serviceType,
+        nextCollectedFields: nextCollected,
         leadId: result.leadId,
       };
     }

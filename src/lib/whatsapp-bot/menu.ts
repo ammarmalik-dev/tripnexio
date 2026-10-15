@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { WELCOME_TEXT } from "./messages";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import type { SendInteractiveListInput } from "@/lib/whatsapp/gateway";
 import type { ServiceType } from "../../generated/prisma/enums";
@@ -24,31 +25,34 @@ export function serviceTypeFromMenuId(id: string, validServiceTypes: readonly st
  * "don't rebuild the underlying engine" note. A tapped row and free text both
  * end up starting the exact same `startCollecting()` flow.
  */
-export async function buildWelcomeMenu(): Promise<SendInteractiveListInput> {
+/**
+ * The greeting list of Admin-enabled services. `only` narrows it (e.g. Visa Change / New Visa after
+ * "TripNexio Visa Not Found") and `bodyText` replaces the greeting text.
+ */
+export async function buildWelcomeMenu(options: { only?: ServiceType[]; bodyText?: string } = {}): Promise<SendInteractiveListInput> {
   const services = await db.service.findMany({
-    where: { active: true },
+    where: { active: true, ...(options.only ? { code: { in: options.only } } : {}) },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-    select: { code: true, name: true, shortDescription: true },
+    select: { code: true, name: true },
   });
 
   return {
-    bodyText: "Welcome to TripNexio 👋\n\nChoose what you need below, or just type it in your own words (e.g. \"mera visa extend karna hai\").",
-    buttonText: "See options",
-    footerText: 'Type "agent" anytime to talk to our team.',
+    // Client doc 2026-10-15 — the client's greeting, word for word; product names only (no descriptions).
+    bodyText: options.bodyText ?? WELCOME_TEXT,
+    buttonText: "See Options",
     sections: [
       {
         title: "Services",
         rows: services.map((service) => ({
           id: `${MENU_ROW_PREFIX}${service.code}`,
-          title: (SERVICE_TYPE_LABELS as Record<string, string>)[service.code] ?? service.name,
-          description: service.shortDescription.slice(0, 72),
+          title: ((SERVICE_TYPE_LABELS as Record<string, string>)[service.code] ?? service.name).slice(0, 24),
         })),
       },
       {
         title: "Other",
         rows: [
-          { id: MENU_TRACK_ID, title: "Track my request", description: "Check the status of an existing request" },
-          { id: MENU_AGENT_ID, title: "Talk to our team", description: "Speak with a TripNexio expert" },
+          { id: MENU_TRACK_ID, title: "Track my request" },
+          { id: MENU_AGENT_ID, title: "Talk to our team" },
         ],
       },
     ],
