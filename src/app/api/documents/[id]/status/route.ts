@@ -16,6 +16,7 @@ import { assertValidDocumentTransition } from "@/lib/documents/transitions";
 import { notifyDocumentRejected } from "@/lib/staff-notifications/triggers";
 import { reviewRoundOutcome } from "@/lib/documents/review-round";
 import { isOutputType } from "@/lib/outputs/output-types";
+import { bookingDocumentsWhere, bookingIdForDocument } from "@/lib/documents/document-lead";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -50,7 +51,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   // Resolved once up front (not inside the transaction) since it's only
   // needed to populate the new Task's display fields, same booking->lead
   // join resolveDocumentRecipient already does for the email trigger below.
-  const booking = existing.bookingId ? await db.booking.findUnique({ where: { id: existing.bookingId }, include: { lead: true } }) : null;
+  // Client doc 2026-10-15 (I6) — a document uploaded with the request counts towards its lead's booking.
+  const countsTowardsBookingId = await bookingIdForDocument(db, existing);
+  const booking = countsTowardsBookingId ? await db.booking.findUnique({ where: { id: countsTowardsBookingId }, include: { lead: true } }) : null;
   // A passenger-only document (no booking) isn't service-scoped — see the
   // list route's own note on why.
   if (booking) {
@@ -102,7 +105,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       await autoCompleteTasksForEntity(tx, "Document", id, `Document status moved to ${parsed.data.status} — no longer missing`);
     }
 
-    statusNotifications = await applyBookingDocumentEvent(tx, existing.bookingId, { userId: session.id, actorLabel: `by ${session.name}` });
+    statusNotifications = await applyBookingDocumentEvent(tx, countsTowardsBookingId, { userId: session.id, actorLabel: `by ${session.name}` });
     return result;
   });
   await dispatchStatusNotifications(statusNotifications);
@@ -114,10 +117,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   // what was rejected / is missing) or "all documents validated".
   const roundDocuments = (
     await db.document.findMany({
-      where: updated.bookingId ? { bookingId: updated.bookingId } : { passengerId: updated.passengerId, bookingId: null },
-      select: { type: true, status: true, rejectionReason: true, purgedAt: true },
+      where: booking
+        ? bookingDocumentsWhere(booking)
+        : updated.leadId
+          ? { leadId: updated.leadId, bookingId: null }
+          : { passengerId: updated.passengerId, bookingId: null },
+      select: { type: true, status: true, rejectionReason: true, purgedAt: true, passenger: { select: { fullName: true } } },
     })
-  ).filter((document) => !isOutputType(document.type) && !document.purgedAt);
+  )
+    .filter((document) => !isOutputType(document.type) && !document.purgedAt)
+    .map((document) => ({ ...document, passengerName: document.passenger?.fullName ?? null }));
   const outcome = reviewRoundOutcome(roundDocuments);
   if (outcome.kind !== "IN_PROGRESS") {
     const recipient = await resolveDocumentRecipient(updated);

@@ -2,6 +2,7 @@ import type { Prisma } from "../../generated/prisma/client";
 import { applySystemEvent, type StatusNotification } from "./engine";
 import type { ServiceStatusSystemEvent } from "./events";
 import { OUTPUT_TYPES } from "../outputs/output-types";
+import { bookingDocumentsWhere } from "../documents/document-lead";
 
 /**
  * P08 — after any write to a booking's documents, moves the booking's
@@ -19,7 +20,13 @@ export async function applyBookingDocumentEvent(
 ): Promise<StatusNotification[]> {
   if (!bookingId) return [];
   // Only the customer's own documents — delivered outputs (visa, ticket...) aren't part of "documents received/validated".
-  const documents = await tx.document.findMany({ where: { bookingId, type: { notIn: [...OUTPUT_TYPES] } }, select: { status: true } });
+  const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { id: true, leadId: true } });
+  if (!booking) return [];
+  // Client doc 2026-10-15 (I6) — the booking's documents include those uploaded with the request.
+  const documents = await tx.document.findMany({
+    where: { AND: [bookingDocumentsWhere(booking), { type: { notIn: [...OUTPUT_TYPES] }, purgedAt: null }] },
+    select: { status: true },
+  });
   if (documents.length === 0) return [];
 
   let event: ServiceStatusSystemEvent;

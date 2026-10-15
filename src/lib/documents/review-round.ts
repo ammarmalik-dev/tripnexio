@@ -14,6 +14,8 @@ export interface ReviewRoundDocument {
   type: string;
   status: DocumentStatus;
   rejectionReason: string | null;
+  /** Client doc 2026-10-15 (I6) — whose document it is, so the message says which passenger needs what. */
+  passengerName?: string | null;
 }
 
 export type ReviewRoundOutcome =
@@ -28,16 +30,34 @@ export function documentDisplayName(type: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+/**
+ * Client doc 2026-10-15 (I6) — one line per passenger: "Rahul: Passport (blurry), Photo; Priya: Visa copy".
+ * Without names (or with one passenger only) it's the plain list "Passport (blurry); Photo".
+ */
+export function documentsByPassengerSummary(items: { passengerName?: string | null; label: string }[]): string {
+  const names = new Set(items.map((item) => item.passengerName?.trim() || ""));
+  if (names.size <= 1) return items.map((item) => item.label).join("; ");
+  const groups = new Map<string, string[]>();
+  for (const item of items) {
+    const key = item.passengerName?.trim() || "Other";
+    groups.set(key, [...(groups.get(key) ?? []), item.label]);
+  }
+  return [...groups.entries()].map(([name, labels]) => `${name}: ${labels.join(", ")}`).join("; ");
+}
+
 export function reviewRoundOutcome(documents: ReviewRoundDocument[]): ReviewRoundOutcome {
   if (documents.length === 0 || documents.some((document) => document.status === "RECEIVED")) return { kind: "IN_PROGRESS" };
   const outstanding = documents.filter((document) => document.status === "REJECTED" || document.status === "MISSING");
   if (outstanding.length > 0) {
-    const summary = outstanding
-      .map((document) => {
+    const summary = documentsByPassengerSummary(
+      outstanding.map((document) => {
         const name = documentDisplayName(document.type);
-        return document.status === "REJECTED" && document.rejectionReason ? `${name} (${document.rejectionReason})` : name;
+        return {
+          passengerName: document.passengerName,
+          label: document.status === "REJECTED" && document.rejectionReason ? `${name} (${document.rejectionReason})` : name,
+        };
       })
-      .join("; ");
+    );
     return { kind: "ACTION_REQUIRED", summary, count: outstanding.length };
   }
   // Documents not uploaded yet (REQUIRED) are still open — only a fully validated set is announced.

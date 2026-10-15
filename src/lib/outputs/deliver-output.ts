@@ -33,7 +33,7 @@ export async function deliverOutput(input: {
 
   const document = await db.$transaction(async (tx) => {
     const created = await tx.document.create({
-      data: { bookingId: booking.id, passengerId, type: outputType, status: "VERIFIED", fileUrl, deliveredAt: new Date() },
+      data: { bookingId: booking.id, leadId: booking.leadId, passengerId, type: outputType, status: "VERIFIED", fileUrl, deliveredAt: new Date() },
     });
     await writeAudit(tx, {
       entityType: "Document",

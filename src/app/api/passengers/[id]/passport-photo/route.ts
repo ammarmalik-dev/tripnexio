@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
+import { documentLeadId } from "@/lib/documents/document-lead";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const document = await db.$transaction(async (tx) => {
       const created = await tx.document.create({
-        data: { passengerId, type: "PASSPORT", status: "RECEIVED", fileUrl: url },
+        data: { passengerId, leadId: await documentLeadId(tx, { passengerId }), type: "PASSPORT", status: "RECEIVED", fileUrl: url },
       });
       await writeAudit(tx, {
         entityType: "Document",

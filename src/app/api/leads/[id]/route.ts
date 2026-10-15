@@ -10,6 +10,7 @@ import { buildApplicantRows } from "@/lib/new-visa/applicants";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
 import { findPriorTripNexioVisaByPassport } from "@/lib/leads/visa-extension-eligibility";
+import { leadDocumentsWhere } from "@/lib/documents/document-lead";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -28,7 +29,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         include: {
           // Only this lead's own passengers are shown (client corrections 2026-10-05:
           // the customer's other leads/bookings belong to Customer 360, not here).
-          passengers: { include: { documents: true } },
+          // Client doc 2026-10-15 (I6 / C7) — only this lead's documents (with its bookings'), never an earlier request's.
+          passengers: { include: { documents: { where: leadDocumentsWhere(id), orderBy: { createdAt: "asc" } } } },
         },
       },
       assignedStaff: true,

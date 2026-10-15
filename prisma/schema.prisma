@@ -317,6 +317,9 @@ model Lead {
   /// The Contact-form enquiry this lead was converted from, if any.
   fromEnquiry   Enquiry?
 
+  /// Client doc 2026-10-15 (I6) — every document of this lead and its bookings.
+  documents       Document[]
+
   @@index([customerId])
   @@index([serviceType])
   @@index([status])
@@ -791,6 +794,9 @@ model Document {
   id              String         @id @default(cuid())
   passengerId     String?
   bookingId       String?
+  /// Client doc 2026-10-15 (I6 / C7) — the lead this document belongs to (set for lead-stage and booking
+  /// documents alike), so a lead and its booking share one document set and a new lead starts clean.
+  leadId          String?
   /// e.g. "PASSPORT", "VISA_COPY", "TICKET" — free text since the set of
   /// document types varies per service; see DocumentRequirement for the
   /// per-nationality master list this is checked against.
@@ -818,11 +824,13 @@ model Document {
 
   passenger Passenger? @relation(fields: [passengerId], references: [id])
   booking   Booking?   @relation(fields: [bookingId], references: [id])
+  lead      Lead?      @relation(fields: [leadId], references: [id])
 
   extractions DocumentExtraction[]
 
   @@index([passengerId])
   @@index([bookingId])
+  @@index([leadId])
   @@index([status])
 }
 

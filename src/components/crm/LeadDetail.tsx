@@ -569,7 +569,7 @@ export function LeadDetail({
                 <RecordSection title="Passengers & Documents">
                   {lead.passengers.length > 0 ? (
                     <div className="mb-4">
-                      <AddDocumentForm passengers={lead.passengers} onAdded={refresh} />
+                      <AddDocumentForm leadId={lead.id} passengers={lead.passengers} onAdded={refresh} />
                     </div>
                   ) : null}
                   {lead.passengers.length === 0 ? (

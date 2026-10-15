@@ -2,6 +2,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { saveUploadedFile } from "../storage/local-file-storage";
 import { runPassportExtraction } from "./extract-passport";
+import { documentLeadId } from "../documents/document-lead";
 
 /**
  * The customer-flow trigger point — called by a lead-intake route right
@@ -29,7 +30,7 @@ export async function handleOptionalPassportUpload(input: {
   try {
     const { url } = await saveUploadedFile(input.imageBase64);
     const document = await db.document.create({
-      data: { passengerId: input.passengerId, type: documentType, status: "RECEIVED", fileUrl: url },
+      data: { passengerId: input.passengerId, leadId: await documentLeadId(db, { passengerId: input.passengerId }), type: documentType, status: "RECEIVED", fileUrl: url },
     });
     await writeAudit(db, {
       entityType: "Document",

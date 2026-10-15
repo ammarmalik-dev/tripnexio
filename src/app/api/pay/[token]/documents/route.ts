@@ -67,13 +67,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { url } = await saveUploadedFile(fileBase64);
     const bookingId = checkout.booking.id;
-    const existing = await db.document.findFirst({ where: { bookingId, passengerId, type } });
+    // Client doc 2026-10-15 (I6) — one document set per lead: a copy uploaded with the request is replaced, not duplicated.
+    const existing = await db.document.findFirst({
+      where: { passengerId, type, OR: [{ bookingId }, { bookingId: null, leadId: checkout.booking.leadId }] },
+      orderBy: { updatedAt: "desc" },
+    });
 
     let statusNotifications: StatusNotification[] = [];
     const document = await db.$transaction(async (tx) => {
       const saved = existing
-        ? await tx.document.update({ where: { id: existing.id }, data: { fileUrl: url, status: "RECEIVED", purgedAt: null, rejectionReason: null } })
-        : await tx.document.create({ data: { bookingId, passengerId, type, status: "RECEIVED", fileUrl: url } });
+        ? await tx.document.update({ where: { id: existing.id }, data: { bookingId, fileUrl: url, status: "RECEIVED", purgedAt: null, rejectionReason: null } })
+        : await tx.document.create({ data: { bookingId, leadId: checkout.booking.leadId, passengerId, type, status: "RECEIVED", fileUrl: url } });
       await writeAudit(tx, {
         entityType: "Document",
         entityId: saved.id,

@@ -11,6 +11,8 @@ import { cn } from "@/lib/cn";
 interface AddDocumentFormProps {
   /** Omitted on a Lead (client corrections 2026-10-05): the document then belongs to the chosen passenger. */
   bookingId?: string;
+  /** Client doc 2026-10-15 (I6) — on the lead page, the lead the document belongs to. */
+  leadId?: string;
   passengers: { id: string; fullName: string }[];
   onAdded: () => void;
 }
@@ -20,7 +22,7 @@ interface AddDocumentFormProps {
  * Master (Admin → Document Master), not typed. Only while the master is empty
  * or can't be read does the free-text box remain, so staff are never blocked.
  */
-export function AddDocumentForm({ bookingId, passengers, onAdded }: AddDocumentFormProps) {
+export function AddDocumentForm({ bookingId, leadId, passengers, onAdded }: AddDocumentFormProps) {
   const [type, setType] = useState("");
   const [masterTypes, setMasterTypes] = useState<{ id: string; name: string }[] | null>(null);
 
@@ -47,7 +49,7 @@ export function AddDocumentForm({ bookingId, passengers, onAdded }: AddDocumentF
     if (!type.trim()) return;
     setSubmitting(true);
     try {
-      await postJson("/api/documents", { bookingId, passengerId: (passengerId || (bookingId ? "" : passengers[0]?.id)) || undefined, type: type.trim() });
+      await postJson("/api/documents", { bookingId, leadId, passengerId: (passengerId || (bookingId ? "" : passengers[0]?.id)) || undefined, type: type.trim() });
       toast.success("Document requirement added.");
       setType("");
       setPassengerId("");

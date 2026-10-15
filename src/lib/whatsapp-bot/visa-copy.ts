@@ -66,7 +66,7 @@ export async function receiveVisaCopy(fields: Record<string, string>, media: Dow
   const [current, ...rest] = pending;
   try {
     const { url } = await saveUploadedFile(media.base64);
-    const document = await db.document.create({ data: { passengerId: current.passengerId, type: "VISA_COPY", status: "RECEIVED", fileUrl: url } });
+    const document = await db.document.create({ data: { passengerId: current.passengerId, leadId: fields.leadId || null, type: "VISA_COPY", status: "RECEIVED", fileUrl: url } });
     await writeAudit(db, { entityType: "Document", entityId: document.id, action: "CREATE", note: `Visa copy received on WhatsApp for ${current.name}` });
     if (fields.leadId) {
       await writeAudit(db, { entityType: "Lead", entityId: fields.leadId, action: "VISA_COPY_RECEIVED", note: `Visa copy received on WhatsApp for ${current.name}` });

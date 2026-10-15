@@ -57,11 +57,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   try {
     const { url } = await saveUploadedFile(fileBase64);
-    const existing = await db.document.findFirst({ where: { passengerId, type, bookingId: null, purgedAt: null }, orderBy: { updatedAt: "desc" } });
+    const existing = await db.document.findFirst({ where: { passengerId, type, leadId: lead.id, bookingId: null, purgedAt: null }, orderBy: { updatedAt: "desc" } });
     const document = await db.$transaction(async (tx) => {
       const saved = existing
         ? await tx.document.update({ where: { id: existing.id }, data: { fileUrl: url, status: "RECEIVED", rejectionReason: null } })
-        : await tx.document.create({ data: { passengerId, type, status: "RECEIVED", fileUrl: url } });
+        : await tx.document.create({ data: { passengerId, leadId: lead.id, type, status: "RECEIVED", fileUrl: url } });
       await writeAudit(tx, {
         entityType: "Document",
         entityId: saved.id,

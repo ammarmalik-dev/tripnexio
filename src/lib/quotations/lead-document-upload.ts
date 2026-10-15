@@ -15,7 +15,7 @@ export interface LeadUploadPassenger {
 }
 
 /** The lead's passengers (in order) with the status of each upload type; empty for other services. */
-export async function leadUploadPassengers(lead: { serviceType: ServiceType; details: unknown }): Promise<LeadUploadPassenger[]> {
+export async function leadUploadPassengers(lead: { id: string; serviceType: ServiceType; details: unknown }): Promise<LeadUploadPassenger[]> {
   if (!LEAD_UPLOAD_SERVICES.has(lead.serviceType)) return [];
   const details = (lead.details ?? {}) as Record<string, unknown>;
   const ids = Array.isArray(details.passengerIds) ? details.passengerIds.filter((id): id is string => typeof id === "string") : [];
@@ -25,7 +25,7 @@ export async function leadUploadPassengers(lead: { serviceType: ServiceType; det
     select: {
       id: true,
       fullName: true,
-      documents: { where: { type: { in: LEAD_UPLOAD_TYPES.map((entry) => entry.type) }, purgedAt: null }, select: { type: true, status: true }, orderBy: { updatedAt: "desc" } },
+      documents: { where: { leadId: lead.id, type: { in: LEAD_UPLOAD_TYPES.map((entry) => entry.type) }, purgedAt: null }, select: { type: true, status: true }, orderBy: { updatedAt: "desc" } },
     },
   });
   return ids

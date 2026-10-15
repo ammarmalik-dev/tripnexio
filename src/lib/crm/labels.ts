@@ -61,11 +61,11 @@ export const LEAD_TEMPERATURE_OPTIONS: { value: LeadTemperature; label: string }
   Object.entries(LEAD_TEMPERATURE_LABELS) as [LeadTemperature, string][]
 ).map(([value, label]) => ({ value, label }));
 
-/** Client corrections 2026-10-05 — Pending, Uploaded / Received, Validated, Rejected, Additional Documents Required. */
+/** Client doc 2026-10-15 (I6) — Pending, Received, Validated, Rejected, Additional Required. */
 export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
   REQUIRED: "Pending",
-  MISSING: "Additional Documents Required",
-  RECEIVED: "Uploaded / Received",
+  MISSING: "Additional Required",
+  RECEIVED: "Received",
   VERIFIED: "Validated",
   REJECTED: "Rejected",
 };

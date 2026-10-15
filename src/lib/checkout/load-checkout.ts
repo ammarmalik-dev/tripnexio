@@ -8,6 +8,7 @@ import { findReusableDocuments } from "./reusable-documents";
 import { showPostTicketOffer } from "../cross-sell/post-ticket";
 import { customerAlternativeOffer, parseAlternativeOffer } from "../special-fare/post-payment";
 import { returnTicketCancellationFee } from "../return-ticket/operations";
+import { bookingDocumentsWhere } from "../documents/document-lead";
 
 function linkedOrderView(
   linked: {
@@ -33,16 +34,24 @@ function linkedOrderView(
 export async function loadCheckoutByToken(token: string) {
   if (!/^[a-f0-9]{32}$/.test(token)) return null;
 
-  const booking = await db.booking.findUnique({
+  const found = await db.booking.findUnique({
     where: { customerToken: token },
     include: {
       lead: true,
       payments: { orderBy: { createdAt: "desc" }, take: 1 },
       passengers: { include: { passenger: { select: { id: true, fullName: true } } } },
-      documents: { select: { id: true, passengerId: true, type: true, status: true, requestReason: true, rejectionReason: true } },
     },
   });
-  if (!booking) return null;
+  if (!found) return null;
+  // Client doc 2026-10-15 (I6) — what the customer already uploaded with the request counts here too.
+  const booking = {
+    ...found,
+    documents: await db.document.findMany({
+      where: { AND: [bookingDocumentsWhere(found), { purgedAt: null }] },
+      orderBy: { updatedAt: "desc" },
+      select: { id: true, passengerId: true, type: true, status: true, requestReason: true, rejectionReason: true },
+    }),
+  };
   // P18 — the OTB <-> Return Verified Ticket order (customer-safe fields only), as its own small query.
   const linkedBooking = booking.linkedBookingId
     ? await db.booking.findUnique({

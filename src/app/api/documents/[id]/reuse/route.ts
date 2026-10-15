@@ -8,6 +8,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { getReusableDocumentsForPassenger } from "@/lib/documents/reuse";
+import { documentLeadId } from "@/lib/documents/document-lead";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       data: {
         passengerId: parsed.data.passengerId ?? source.passengerId,
         bookingId: parsed.data.bookingId,
+        leadId: await documentLeadId(tx, { bookingId: parsed.data.bookingId, passengerId: parsed.data.passengerId ?? source.passengerId }),
         type: source.type,
         status: "RECEIVED",
         fileUrl: source.fileUrl,

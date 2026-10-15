@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const bookingId = checkout.booking.id;
   let statusNotifications: StatusNotification[] = [];
   const document = await db.$transaction(async (tx) => {
-    const created = await tx.document.create({ data: { bookingId, passengerId, type, status: "RECEIVED", fileUrl: source.fileUrl } });
+    const created = await tx.document.create({ data: { bookingId, leadId: checkout.booking.leadId, passengerId, type, status: "RECEIVED", fileUrl: source.fileUrl } });
     await writeAudit(tx, {
       entityType: "Document",
       entityId: created.id,

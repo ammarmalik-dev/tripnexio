@@ -13,6 +13,7 @@ import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
+import { documentLeadId } from "@/lib/documents/document-lead";
 
 /**
  * Two modes: pass `bookingId`/`passengerId` for the documents scoped to one
@@ -155,6 +156,7 @@ export async function POST(request: NextRequest) {
       data: {
         passengerId: parsed.data.passengerId,
         bookingId: parsed.data.bookingId,
+        leadId: await documentLeadId(tx, parsed.data),
         type: parsed.data.type,
         status: parsed.data.status ?? "REQUIRED",
       },

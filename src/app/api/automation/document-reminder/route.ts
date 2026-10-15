@@ -10,6 +10,7 @@ import { leadReference } from "@/lib/leads/reference";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { siteConfig } from "@/lib/site-config";
 import { OUTPUT_TYPES } from "@/lib/outputs/output-types";
+import { documentDisplayName, documentsByPassengerSummary } from "@/lib/documents/review-round";
 
 const REMINDER_EVENT = "DOCUMENT_REMINDER";
 const REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -39,14 +40,25 @@ export async function POST(request: NextRequest) {
         include: {
           lead: true,
           customer: true,
-          documents: { where: { status: { in: ["REQUIRED", "MISSING", "REJECTED"] }, type: { notIn: [...OUTPUT_TYPES] } }, select: { type: true } },
+          documents: {
+            where: { status: { in: ["REQUIRED", "MISSING", "REJECTED"] }, type: { notIn: [...OUTPUT_TYPES] } },
+            select: { type: true, passengerId: true, passenger: { select: { fullName: true } } },
+          },
         },
       });
 
       let remindersSent = 0;
       for (const booking of bookings) {
         if (await wasRecentlyReminded(REMINDER_EVENT, "Booking", booking.id, REMINDER_COOLDOWN_MS)) continue;
-        const names = [...new Set(booking.documents.map((doc) => doc.type))];
+        // Client doc 2026-10-15 (I6) — which passenger needs which document.
+        const multiplePassengers = new Set(booking.documents.map((doc) => doc.passengerId)).size > 1;
+        const seen = new Set<string>();
+        const outstanding = booking.documents.filter((doc) => {
+          const key = `${doc.passengerId}|${doc.type}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
         await notifyCustomer({
           event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
           emailTo: booking.customer.email,
@@ -54,7 +66,9 @@ export async function POST(request: NextRequest) {
           smsTo: toWhatsAppId(booking.customer.mobile),
           variables: {
             customerName: booking.customer.name,
-            documentName: names.join(", "),
+            documentName: documentsByPassengerSummary(
+              outstanding.map((doc) => ({ passengerName: multiplePassengers ? (doc.passenger?.fullName ?? null) : null, label: documentDisplayName(doc.type) }))
+            ),
             leadReference: leadReference(booking.lead),
             requestReason: "",
             uploadLink: booking.customerToken ? `${siteConfig.url}/pay/${booking.customerToken}` : `${siteConfig.url}/account`,

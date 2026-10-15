@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { documentDisplayName, reviewRoundOutcome } from "../src/lib/documents/review-round";
+import { documentDisplayName, documentsByPassengerSummary, reviewRoundOutcome } from "../src/lib/documents/review-round";
 
 const doc = (type: string, status: "REQUIRED" | "RECEIVED" | "VERIFIED" | "REJECTED" | "MISSING", rejectionReason: string | null = null) => ({ type, status, rejectionReason });
 
@@ -25,5 +25,20 @@ describe("document review round (client testing 2026-10-09, E10)", () => {
   it("makes a stored code readable", () => {
     expect(documentDisplayName("VISA_COPY")).toBe("Visa copy");
     expect(documentDisplayName("Passport Last Page")).toBe("Passport Last Page");
+  });
+});
+
+describe("documentsByPassengerSummary (client doc 2026-10-15, I6)", () => {
+  it("lists documents plainly for one passenger", () => {
+    expect(documentsByPassengerSummary([{ passengerName: "Rahul", label: "Passport" }, { passengerName: "Rahul", label: "Photo" }])).toBe("Passport; Photo");
+  });
+  it("groups by passenger when there are several", () => {
+    expect(
+      documentsByPassengerSummary([
+        { passengerName: "Rahul", label: "Passport (blurry)" },
+        { passengerName: "Priya", label: "Visa copy" },
+        { passengerName: "Rahul", label: "Photo" },
+      ])
+    ).toBe("Rahul: Passport (blurry), Photo; Priya: Visa copy");
   });
 });

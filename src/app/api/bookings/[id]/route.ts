@@ -18,6 +18,7 @@ import { passengerVisaStatus } from "@/lib/protection-plan/passenger-status";
 import { leadOperationalBlock, parseOperationalBlock } from "@/lib/visa-change/operational";
 import { getBookingTimeline } from "@/lib/audit/booking-timeline";
 import { getBookingDates } from "@/lib/crm/booking-dates";
+import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -29,11 +30,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
 
   const { id } = await params;
 
-  const booking = await db.booking.findUnique({
+  const found = await db.booking.findUnique({
     where: { id },
     include: {
       payments: { include: { refunds: true }, orderBy: { createdAt: "desc" } },
-      documents: { orderBy: { createdAt: "desc" } },
       lead: { include: { quotations: { where: { isSelected: true } }, assignedStaff: { select: { name: true, active: true } }, country: { select: { name: true } } } },
       customer: { include: { passengers: true } },
       // CRM.md §12 (Step 14) — this booking's own passengers, each with an
@@ -50,7 +50,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       extensions: { select: { id: true, bookingId: true, status: true, createdAt: true }, orderBy: { createdAt: "asc" } },
     },
   });
-  if (!booking) return jsonError(404, "Booking not found.");
+  if (!found) return jsonError(404, "Booking not found.");
+  // Client doc 2026-10-15 (I6) — one Booking Documents set: the booking's own and the ones uploaded with the request.
+  const booking = { ...found, documents: await db.document.findMany({ where: bookingDocumentsWhere(found), orderBy: { createdAt: "desc" } }) };
   const scopeError = assertServiceAccess(auth.session, booking.lead.serviceType);
   if (scopeError) return scopeError;
   const ownershipError = assertOwnsRecord(auth.session, booking.lead.assignedStaffId);

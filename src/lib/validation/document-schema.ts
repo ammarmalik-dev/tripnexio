@@ -7,6 +7,8 @@ export const createDocumentSchema = z
   .object({
     passengerId: z.string().min(1).optional(),
     bookingId: z.string().min(1).optional(),
+    /** Client doc 2026-10-15 (I6) — the lead a lead-stage document belongs to. */
+    leadId: z.string().min(1).optional(),
     type: z.string().trim().min(1, "Enter a document type"),
     status: z.enum(documentStatusValues).optional(),
   })

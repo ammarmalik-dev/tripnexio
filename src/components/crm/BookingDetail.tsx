@@ -635,7 +635,7 @@ export function BookingDetail({
                   title={
                     <span className="flex flex-col">
                       Booking Documents
-                      <span className="text-xs font-normal text-ink-tertiary">All travellers&rsquo; documents for this booking, each traveller with its own status.</span>
+                      <span className="text-xs font-normal text-ink-tertiary">Every traveller&rsquo;s documents — uploaded with the request or after booking — each with its own status.</span>
                     </span>
                   }
                   action={
