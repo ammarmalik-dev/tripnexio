@@ -28,19 +28,19 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [ ] B7. Duplicate confirmations for Visa Change, New Visa and Extension: send one message. The Visa Change text is: "Your Visa Change request has been received. Our team will check availability and share an update with you."
 
 ## C. Leads / CRM general
-- [ ] C1. Website leads appear in CRM search immediately (all services).
-- [ ] C2. Lead serial numbers: no duplicates or gaps between website and WhatsApp.
-- [ ] C3. Country flag + short code for Extension, Return Ticket, OTB and Flights. The Indian flag for domestic flights within India.
-- [ ] C4. List layout for Leads, Bookings, Quotations, Payments, Invoices, Tasks and Follow-ups:
+- [x] C1. Website leads appear in CRM search immediately (all services).
+- [x] C2. Lead serial numbers: no duplicates or gaps between website and WhatsApp.
+- [x] C3. Country flag + short code for Extension, Return Ticket, OTB and Flights. The Indian flag for domestic flights within India.
+- [x] C4. List layout for Leads, Bookings, Quotations, Payments, Invoices, Tasks and Follow-ups:
   - Normal/Urgent under the booking ID.
   - Sub-service column: visa type for visas, airline for flights.
   - 10 rows per page; darker header line.
   - Less top space.
   - One centred search bar; filters within two lines.
-- [ ] C5. Sidebar expand/collapse controls in CRM and Admin.
-- [ ] C6. Staff cannot assign each other's leads or bookings.
-- [ ] C7. No previous booking / lead / quotation communication or timeline inside a new one; history stays in Customer 360.
-- [ ] C8. Website form text alignment after submission.
+- [x] C5. Sidebar expand/collapse controls in CRM and Admin.
+- [x] C6. Staff cannot assign each other's leads or bookings.
+- [x] C7. No previous booking / lead / quotation communication or timeline inside a new one; history stays in Customer 360.
+- [x] C8. Website form text alignment after submission.
 
 ## D. Visa Extension
 - [x] D1. Costing:
