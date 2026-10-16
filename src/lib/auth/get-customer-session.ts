@@ -25,7 +25,8 @@ export async function getCustomerSession(): Promise<CustomerSession | null> {
   if (!payload) return null;
 
   const customer = await db.customer.findUnique({ where: { id: payload.sub } });
-  if (!customer) return null;
+  // Client doc 2026-10-15 (J7) — a deleted account has no working session.
+  if (!customer || customer.accountDeletedAt) return null;
 
   return { id: customer.id, name: customer.name, email: customer.email, mobile: customer.mobile };
 }

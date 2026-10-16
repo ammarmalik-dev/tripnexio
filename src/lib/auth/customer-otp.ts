@@ -15,7 +15,14 @@ export function maskEmailForDisplay(email: string): string {
 }
 
 /** Creates a fresh 6-digit code (older unused codes for the same purpose are voided) and emails it to `email`. */
-export async function issueCustomerOtp(customerId: string, email: string, name: string, purpose = GUEST_CLAIM_PURPOSE): Promise<void> {
+export async function issueCustomerOtp(
+  customerId: string,
+  email: string,
+  name: string,
+  purpose = GUEST_CLAIM_PURPOSE,
+  /** Client doc 2026-10-15 (J7) — what the code is for ("to confirm your new email address…"); default = account creation. */
+  reason?: string
+): Promise<void> {
   const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
   const codeHash = await bcrypt.hash(code, 10);
 
@@ -28,8 +35,8 @@ export async function issueCustomerOtp(customerId: string, email: string, name: 
     to: email,
     subject: "Your TripNexio verification code",
     html: `<p>Hi ${escapeHtml(name)},</p>
-<p>Your TripNexio verification code is <strong>${code}</strong>. It expires in 10 minutes.</p>
-<p>If you didn't try to create a TripNexio account, you can ignore this email.</p>`,
+<p>Your TripNexio verification code${reason ? ` ${escapeHtml(reason)}` : ""} is <strong>${code}</strong>. It expires in 10 minutes.</p>
+<p>${reason ? "If you didn't ask for this, you can ignore this email — nothing changes without the code." : "If you didn't try to create a TripNexio account, you can ignore this email."}</p>`,
   });
 }
 

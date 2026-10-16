@@ -12,12 +12,12 @@ import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { generateToken } from "../quotations/select-quotation";
 import { findCustomerByMobile } from "../customers/find-by-mobile";
 import { ABANDONED_DRAFT_SOURCE, findOpenDraftLead } from "./abandoned-draft";
-
-/** Client doc 2026-10-15 (C2) — how long an identical resubmission counts as the same request. */
-const DUPLICATE_WINDOW_MS = 5 * 60 * 1000;
 import { autoAssignLead } from "../staff/auto-assign";
 import { notifyStaff } from "@/lib/staff-notifications/notify";
 import { requestReceivedMessage } from "./request-received-message";
+
+/** Client doc 2026-10-15 (C2) — how long an identical resubmission counts as the same request. */
+const DUPLICATE_WINDOW_MS = 5 * 60 * 1000;
 
 /**
  * The services that go through a staff-prepared quotation the customer

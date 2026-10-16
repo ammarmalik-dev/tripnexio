@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { getCustomerSession } from "@/lib/auth/get-customer-session";
 import { db } from "@/lib/db";
 import { BillingDetailsForm } from "@/components/account/BillingDetailsForm";
+import { ContactChangeForm, DeleteAccountForm } from "@/components/account/AccountSettings";
 
 export const metadata: Metadata = { title: "My Profile", robots: { index: false, follow: false } };
 
@@ -15,10 +17,11 @@ export default async function AccountProfilePage() {
     select: { createdAt: true, passwordHash: true, billingAddress: true, billingStateCode: true, gstin: true },
   });
 
-  const rows: [string, string][] = [
+  // Client doc 2026-10-15 (J7) — mobile and email can be changed here (confirmed by an emailed code).
+  const rows: [string, string, ReactNode?][] = [
     ["Name", session.name],
-    ["Mobile", session.mobile],
-    ["Email", session.email ?? "—"],
+    ["Mobile", session.mobile, <ContactChangeForm key="mobile" field="mobile" current={session.mobile} />],
+    ["Email", session.email ?? "—", <ContactChangeForm key="email" field="email" current={session.email} />],
     ["Customer since", customer ? customer.createdAt.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—"],
   ];
 
@@ -27,15 +30,18 @@ export default async function AccountProfilePage() {
       <section className="rounded-xl border border-hairline bg-surface-1 p-6">
         <h2 className="text-lg font-semibold text-ink-heading">My Profile</h2>
         <dl className="mt-4 flex flex-col divide-y divide-hairline text-sm">
-          {rows.map(([label, value]) => (
-            <div key={label} className="flex flex-wrap justify-between gap-3 py-3">
+          {rows.map(([label, value, action]) => (
+            <div key={label} className="flex flex-wrap items-center justify-between gap-3 py-3">
               <dt className="text-ink-tertiary">{label}</dt>
-              <dd className="font-medium text-ink-primary">{value}</dd>
+              <dd className="flex flex-wrap items-center justify-end gap-3 font-medium text-ink-primary">
+                {value}
+                {action}
+              </dd>
             </div>
           ))}
         </dl>
         <p className="mt-4 text-xs text-ink-tertiary">
-          To change your name, mobile or email, please contact our <Link href="/contact" className="text-ink-accent underline">support team</Link> so your bookings stay linked to you.
+          To change your name, please contact our <Link href="/contact" className="text-ink-accent underline">support team</Link>. Your bookings stay linked when you change your mobile or email.
         </p>
       </section>
       <section className="rounded-xl border border-hairline bg-surface-1 p-6">
@@ -58,6 +64,12 @@ export default async function AccountProfilePage() {
         <Link href="/forgot-password" className="mt-3 inline-flex text-sm font-semibold text-ink-accent hover:underline">
           {customer?.passwordHash ? "Reset password" : "Set a password"}
         </Link>
+      </section>
+      <section className="rounded-xl border border-hairline bg-surface-1 p-6">
+        <h2 className="text-lg font-semibold text-ink-heading">Delete account</h2>
+        <div className="mt-2">
+          <DeleteAccountForm />
+        </div>
       </section>
     </div>
   );

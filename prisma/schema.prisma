@@ -181,6 +181,9 @@ model Customer {
   billingAddress   String?
   billingStateCode String?
   gstin            String?
+  /// Client doc 2026-10-15 (J7) — set when the customer deleted their account: no login or session works,
+  /// while bookings / payments / invoices stay as the law requires. Cleared if they sign up again.
+  accountDeletedAt DateTime?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

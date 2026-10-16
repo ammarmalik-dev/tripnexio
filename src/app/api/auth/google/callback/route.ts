@@ -63,7 +63,8 @@ export async function GET(request: NextRequest) {
   }
 
   const customer = await db.customer.findFirst({ where: { email: { equals: identity.email, mode: "insensitive" } } });
-  if (!customer) {
+  // Client doc 2026-10-15 (J7) — a deleted account isn't reopened by Google; the customer signs up again.
+  if (!customer || customer.accountDeletedAt) {
     const register = new URLSearchParams({ email: identity.email, name: identity.name, google: "new" });
     return redirectTo(`/register?${register.toString()}`);
   }

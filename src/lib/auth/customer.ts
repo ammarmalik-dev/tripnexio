@@ -91,7 +91,8 @@ export async function registerCustomer(input: {
     const customer = target
       ? await db.customer.update({
           where: { id: target.id },
-          data: { name: input.fullName, mobile: input.mobile, email: input.email, passwordHash },
+          // Client doc 2026-10-15 (J7) — signing up again after deleting the account starts a fresh login.
+          data: { name: input.fullName, mobile: input.mobile, email: input.email, passwordHash, accountDeletedAt: null },
         })
       : await db.customer.create({
           data: { name: input.fullName, mobile: input.mobile, email: input.email, passwordHash },
