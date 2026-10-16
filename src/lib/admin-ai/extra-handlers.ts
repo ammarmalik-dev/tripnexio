@@ -236,3 +236,124 @@ export async function leadList(param: string | null, ctx: CommandContext): Promi
     })),
   };
 }
+
+/**
+ * Client doc 2026-10-15 (J5) — passport details of travellers, found by name, passport number, mobile,
+ * or a lead / booking reference. Personal data: needs documents.view (Admin has it).
+ */
+export async function passportDetails(param: string | null, ctx: CommandContext): Promise<HandlerResult> {
+  if (!hasPermission(ctx.session, "documents.view")) return denied("passport details");
+  const query = (param ?? "").trim();
+  const reference = query.match(/\b(\d{5}[A-Z]{2}\d{2,4}(?:-\d+)?)\b/i)?.[1];
+  let passengerIds: string[] | null = null;
+  if (reference) {
+    const lead = await db.lead.findFirst({
+      where: { OR: [{ reference: { equals: reference, mode: "insensitive" } }, { bookings: { some: { bookingId: { equals: reference, mode: "insensitive" } } } }] },
+      select: { details: true },
+    });
+    const details = (lead?.details ?? {}) as Record<string, unknown>;
+    passengerIds = Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [];
+  }
+  const passengers = await db.passenger.findMany({
+    where: passengerIds
+      ? { id: { in: passengerIds } }
+      : query
+        ? {
+            OR: [
+              { fullName: { contains: query, mode: "insensitive" } },
+              { passportNumber: { contains: query.replace(/\s/g, ""), mode: "insensitive" } },
+              { customer: { mobile: { contains: query.replace(/[\s-]/g, "") } } },
+            ],
+          }
+        : {},
+    orderBy: { updatedAt: "desc" },
+    take: ROW_LIMIT,
+    select: { fullName: true, passportNumber: true, nationality: true, dob: true, paxType: true, updatedAt: true, customer: { select: { name: true, mobile: true } } },
+  });
+  return {
+    summary: passengers.length
+      ? `${passengers.length} traveller(s)${query ? ` for "${query}"` : ", most recently updated"}${passengers.length === ROW_LIMIT ? ` (first ${ROW_LIMIT})` : ""}.`
+      : `No traveller found${query ? ` for "${query}"` : ""}.`,
+    facts: passengers.map((passenger) => ({
+      traveller: passenger.fullName,
+      passportNumber: passenger.passportNumber,
+      nationality: passenger.nationality,
+      dateOfBirth: passenger.dob ? passenger.dob.toISOString().slice(0, 10) : null,
+      type: passenger.paxType,
+      customer: passenger.customer.name,
+      mobile: passenger.customer.mobile,
+    })),
+  };
+}
+
+/**
+ * Client doc 2026-10-15 (J5) — what staff did in a period: per staff member, leads assigned, bookings paid
+ * on their leads and actions logged (or one staff member's own log when named). Needs staff.manage.
+ */
+export async function staffActivity(param: string | null, ctx: CommandContext): Promise<HandlerResult> {
+  if (!hasPermission(ctx.session, "staff.manage")) return denied("staff activity");
+  const text = `${param ?? ""} ${ctx.question}`;
+  const period = parsePeriod(text);
+  const staff = await db.user.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+  // A named staff member: full name, else a distinctive first name as a whole word (never "staff", "team"…).
+  const lower = text.toLowerCase();
+  const GENERIC = new Set(["staff", "team", "admin", "user", "all", "the"]);
+  const named =
+    staff.find((user) => lower.includes(user.name.toLowerCase())) ??
+    staff.find((user) => {
+      const first = user.name.toLowerCase().split(" ")[0];
+      return first.length >= 3 && !GENERIC.has(first) && lower.split(/[^a-z]+/).includes(first);
+    });
+  const people = named ? [named] : staff;
+  const rows = [];
+  for (const person of people) {
+    const [leads, paidBookings, actions] = await runSequentially([
+      () => db.lead.count({ where: { assignedStaffId: person.id, createdAt: { gte: period.from, lt: period.to } } }),
+      () => db.payment.count({ where: { status: "SUCCESS", updatedAt: { gte: period.from, lt: period.to }, booking: { lead: { assignedStaffId: person.id } } } }),
+      () => db.auditTrail.count({ where: { byUserId: person.id, timestamp: { gte: period.from, lt: period.to } } }),
+    ]);
+    rows.push({ staff: person.name, leadsAssigned: leads, bookingsPaid: paidBookings, actionsLogged: actions });
+  }
+  rows.sort((a, b) => b.actionsLogged - a.actionsLogged);
+  if (named) {
+    const recent = await db.auditTrail.findMany({
+      where: { byUserId: named.id, timestamp: { gte: period.from, lt: period.to } },
+      orderBy: { timestamp: "desc" },
+      take: ROW_LIMIT,
+      select: { timestamp: true, entityType: true, action: true, note: true },
+    });
+    return {
+      summary: `${named.name}, ${period.label}: ${rows[0].leadsAssigned} lead(s) assigned, ${rows[0].bookingsPaid} booking(s) paid, ${rows[0].actionsLogged} action(s) logged.`,
+      facts: { summary: rows, recentActions: recent.map((row) => ({ when: row.timestamp.toISOString(), record: row.entityType, action: row.action, note: row.note })) },
+    };
+  }
+  return { summary: `Staff activity, ${period.label} (${rows.length} active staff).`, facts: rows };
+}
+
+/** Client doc 2026-10-15 (J5) — the active airports (Admin → Airports), optionally for one country or city. */
+export async function activeAirports(param: string | null, ctx: CommandContext): Promise<HandlerResult> {
+  if (!hasPermission(ctx.session, "masters.manage")) return denied("airports");
+  const query = (param ?? "").trim();
+  const airports = await db.airport.findMany({
+    where: {
+      active: true,
+      ...(query
+        ? { OR: [{ country: { contains: query, mode: "insensitive" } }, { city: { contains: query, mode: "insensitive" } }, { code: { equals: query, mode: "insensitive" } }] }
+        : {}),
+    },
+    orderBy: [{ country: "asc" }, { city: "asc" }],
+    take: 500,
+    select: { code: true, name: true, city: true, country: true, activeForA2AEntry: true, activeForA2AExit: true },
+  });
+  return {
+    summary: `${airports.length} active airport(s)${query ? ` matching "${query}"` : ""}.`,
+    facts: airports.map((airport) => ({
+      code: airport.code,
+      airport: airport.name,
+      city: airport.city,
+      country: airport.country,
+      a2aEntry: airport.activeForA2AEntry ? "Yes" : "No",
+      a2aExit: airport.activeForA2AExit ? "Yes" : "No",
+    })),
+  };
+}

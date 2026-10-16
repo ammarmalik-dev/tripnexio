@@ -75,6 +75,18 @@ export class KeywordCommandProvider implements AdminCommandProvider {
       return { commandType: "SERVICE_FUNNEL", param: serviceMatch?.[1] ?? null, confidence: serviceMatch ? 0.6 : 0.3 };
     }
 
+    // Client doc 2026-10-15 (J5) — passport details, staff logs, active airports.
+    if (/passport/.test(text)) {
+      const subject = text.match(/(?:of|for)\s+(.+)$/);
+      return { commandType: "PASSPORT_DETAILS", param: subject?.[1]?.trim() ?? null, confidence: 0.55 };
+    }
+    if (/staff (log|activity|report|bookings)|what did \w+ do/.test(text)) {
+      return { commandType: "STAFF_ACTIVITY", param: text, confidence: 0.55 };
+    }
+    if (/airports?/.test(text)) {
+      const where = text.match(/airports? (?:in|of|for)\s+(.+)$/);
+      return { commandType: "ACTIVE_AIRPORTS", param: where?.[1]?.trim() ?? null, confidence: 0.55 };
+    }
     return { commandType: "NOT_AVAILABLE", param: null, confidence: 0 };
   }
 }

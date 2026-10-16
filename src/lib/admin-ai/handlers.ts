@@ -5,7 +5,7 @@ import { parseLeadReference, leadReference } from "@/lib/leads/reference";
 import { SERVICE_TYPE_LABELS, LEAD_STATUS_LABELS } from "@/lib/crm/labels";
 import type { ServiceType, BookingStatus } from "@/generated/prisma/enums";
 import type { CommandTypeKey } from "./command-types";
-import { auditLog, bookingLog, leadList, periodSummary, runReport, systemLogs, type CommandContext } from "./extra-handlers";
+import { auditLog, bookingLog, leadList, passportDetails, staffActivity, activeAirports, periodSummary, runReport, systemLogs, type CommandContext } from "./extra-handlers";
 
 const TERMINAL_BOOKING_STATUSES: BookingStatus[] = ["COMPLETED", "CANCELLED", "REFUNDED"];
 const CONFIG_ENTITY_TYPES = [
@@ -370,7 +370,7 @@ async function serviceFunnel(param: string | null): Promise<HandlerResult> {
 function notAvailable(): HandlerResult {
   return {
     summary:
-      "That isn't available yet. I can answer read-only questions about leads, bookings, payments, refunds, staff workload, booking/lead logs, the audit log, system errors, integration health and the Finance & MIS reports. Website/visitor analytics, ad tracking and any action that creates, changes or disables something aren't available here.",
+      "That isn't available yet. I can answer read-only questions about leads, bookings, payments, refunds, staff workload and staff logs, booking/lead logs, passport details, active airports, the audit log, system errors, integration health and the Finance & MIS reports (any table downloads to Excel). Website/visitor analytics, ad tracking and any action that creates, changes or disables something aren't available here.",
     facts: null,
   };
 }
@@ -392,6 +392,9 @@ const HANDLERS: Record<CommandTypeKey, (param: string | null, ctx: CommandContex
   SYSTEM_LOGS: systemLogs,
   RUN_REPORT: runReport,
   LEAD_LIST: leadList,
+  PASSPORT_DETAILS: passportDetails,
+  STAFF_ACTIVITY: staffActivity,
+  ACTIVE_AIRPORTS: activeAirports,
   NOT_AVAILABLE: async () => notAvailable(),
 };
 

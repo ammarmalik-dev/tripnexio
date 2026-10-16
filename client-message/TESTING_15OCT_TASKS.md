@@ -124,11 +124,11 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 ## J. Admin / site misc
 - [x] J1. Coupons: no lead code / booking id required to create one.
 - [x] J2. Blog: new photo and category options; search above the articles.
-- [ ] J3. Editable photos and content for the Home, Visa Change, Visa Extension, OTB, Flight and Return Ticket pages.
-- [ ] J4. OCR cross-checks:
+- [x] J3. Editable photos and content for the Home, Visa Change, Visa Extension, OTB, Flight and Return Ticket pages.
+- [x] J4. OCR cross-checks:
   - The uploaded passport, visa and ticket against the entered data (passport number, name, DOB, visa expiry); flag "manual validation required" on a mismatch.
   - Capture the ticket PNR and flight details.
-- [ ] J5. AI Command Center: booking logs, passport details, staff logs, active airports, reports with visuals and Excel.
+- [x] J5. AI Command Center: booking logs, passport details, staff logs, active airports, reports with visuals and Excel.
 - [x] J6. Holidays: edit and delete.
 - [x] J7. Customer account: deletion, and changing mobile / email after signup.
 - [x] J8. Less top space on every website / service page.

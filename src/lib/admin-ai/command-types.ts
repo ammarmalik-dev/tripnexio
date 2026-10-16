@@ -103,6 +103,24 @@ export const COMMAND_TYPES = {
     riskLevel: "read",
     requiresParam: "filters",
   },
+  PASSPORT_DETAILS: {
+    description:
+      "Passport details of travellers (name, passport number, nationality, date of birth). Matches 'show passport details of X', 'all passport details for booking X', 'passport of mobile 98…'. `query` parameter: the name, passport number, mobile or lead / booking reference mentioned, or null for the most recent.",
+    riskLevel: "read",
+    requiresParam: "query",
+  },
+  STAFF_ACTIVITY: {
+    description:
+      "Staff activity / staff logs for a period: per staff member, leads assigned, bookings paid and actions logged; with a name, that person's own recent actions. Matches 'staff logs this week', 'what did Rahul do today', 'staff bookings report last month'. `query` parameter: the staff name and/or period words, or null.",
+    riskLevel: "read",
+    requiresParam: "query",
+  },
+  ACTIVE_AIRPORTS: {
+    description:
+      "List the active airports configured in Admin, optionally for one country or city. Matches 'show all active airports', 'active airports in UAE'. `query` parameter: the country / city / code mentioned, or null.",
+    riskLevel: "read",
+    requiresParam: "query",
+  },
   NOT_AVAILABLE: {
     description:
       "Use this for anything not covered above: website/visitor analytics, Meta/Google ad tracking, TAT/SLA records, vendor-recommendation reasoning (there is no automated vendor recommendation — every vendor choice is staff-entered), or ANY action that would create/modify/disable something (mutating actions aren't available in this version yet).",

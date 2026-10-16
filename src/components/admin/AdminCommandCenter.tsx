@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Send, Sparkles, AlertTriangle } from "lucide-react";
+import { Send, Sparkles, AlertTriangle, Download } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -26,6 +26,9 @@ const EXAMPLE_QUESTIONS = [
   "Show all pending refunds",
   "Show staff workload",
   "Check WhatsApp",
+  "Staff logs this week",
+  "Show all active airports",
+  "Passport details for booking …",
 ];
 
 type Row = Record<string, unknown>;
@@ -117,8 +120,67 @@ function FactsView({ facts }: { facts: unknown }) {
   return <pre className="max-h-80 overflow-auto rounded-md bg-surface-2 p-3 text-[11px] whitespace-pre-wrap text-ink-secondary">{JSON.stringify(facts, null, 2)}</pre>;
 }
 
+/** The main table of an answer (the rows themselves, `rows`, or the first nested table) — for the chart and the Excel download. */
+function primaryRows(facts: unknown): { rows: Row[]; columns?: string[] } | null {
+  if (isRowArray(facts)) return { rows: facts };
+  if (facts && typeof facts === "object" && !Array.isArray(facts)) {
+    const record = facts as Row;
+    if (isRowArray(record.rows)) return { rows: record.rows, columns: Array.isArray(record.columns) ? (record.columns as string[]) : undefined };
+    for (const value of Object.values(record)) if (isRowArray(value)) return { rows: value };
+  }
+  return null;
+}
+
+/** Client doc 2026-10-15 (J5) — any table answer downloads as a spreadsheet (CSV, opens in Excel). */
+function downloadExcel(table: { rows: Row[]; columns?: string[] }, name: string) {
+  const keys = Object.keys(table.rows[0] ?? {});
+  const escape = (value: unknown) => {
+    const text = value === null || value === undefined ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+    return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  };
+  const header = keys.map((key, index) => escape(table.columns?.[index] ?? humanize(key))).join(",");
+  const body = table.rows.map((row) => keys.map((key) => escape(row[key])).join(",")).join("\r\n");
+  // The byte-order mark makes Excel read ₹ and other non-ASCII text correctly.
+  const blob = new Blob([`\uFEFF${header}\r\n${body}`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${name.toLowerCase().replace(/_/g, "-")}-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** Client doc 2026-10-15 (J5) — a quick bar chart when an answer is a short list of labels with numbers. */
+function FactsChart({ rows }: { rows: Row[] }) {
+  if (rows.length < 2 || rows.length > 30) return null;
+  const keys = Object.keys(rows[0]);
+  const labelKey = keys.find((key) => rows.every((row) => typeof row[key] === "string"));
+  const valueKey = keys.find((key) => rows.every((row) => typeof row[key] === "number" || (typeof row[key] === "string" && /^-?[\d,.]+$/.test(row[key] as string) && key !== labelKey)));
+  if (!labelKey || !valueKey) return null;
+  const values = rows.map((row) => Number(String(row[valueKey]).replace(/,/g, "")) || 0);
+  const max = Math.max(...values, 0);
+  if (max <= 0) return null;
+  return (
+    <figure className="flex flex-col gap-1.5 rounded-lg border border-hairline p-3">
+      <figcaption className="text-xs font-semibold text-ink-heading">{humanize(valueKey)} by {humanize(labelKey).toLowerCase()}</figcaption>
+      {rows.map((row, index) => (
+        <div key={index} className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)_auto] items-center gap-2 text-xs">
+          <span className="truncate text-ink-secondary" title={String(row[labelKey])}>
+            {String(row[labelKey])}
+          </span>
+          <span className="h-2.5 rounded-full bg-surface-2">
+            <span className="block h-2.5 rounded-full bg-accent" style={{ width: `${Math.max(2, (values[index] / max) * 100)}%` }} />
+          </span>
+          <span className="font-medium text-ink-primary">{String(row[valueKey])}</span>
+        </div>
+      ))}
+    </figure>
+  );
+}
+
 function ResultCard({ result }: { result: CommandResponse }) {
   const hasFacts = result.facts !== null && result.facts !== undefined && !(Array.isArray(result.facts) && result.facts.length === 0);
+  const table = hasFacts ? primaryRows(result.facts) : null;
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
       <p className="text-sm font-medium text-ink-primary">{result.question}</p>
@@ -135,8 +197,17 @@ function ResultCard({ result }: { result: CommandResponse }) {
         )}
         <span>{result.summary}</span>
       </div>
+      {table ? <FactsChart rows={table.rows} /> : null}
       {hasFacts ? <FactsView facts={result.facts} /> : null}
-      <span className="text-[11px] tracking-wide text-ink-tertiary uppercase">{result.commandType.replaceAll("_", " ")}</span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[11px] tracking-wide text-ink-tertiary uppercase">{result.commandType.replaceAll("_", " ")}</span>
+        {table ? (
+          <Button type="button" size="sm" variant="ghost" onClick={() => downloadExcel(table, result.commandType)}>
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
+            Download Excel
+          </Button>
+        ) : null}
+      </div>
     </div>
   );
 }
