@@ -19,7 +19,7 @@ import { useListFilterOptions } from "./useListFilterOptions";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
-import { FlagIcon } from "@/components/ui/FlagIcon";
+import { CountryCell, ProcessingTag } from "./ListCells";
 
 type QuotationStatus = "SELECTED" | "EXPIRED" | "PENDING";
 
@@ -52,6 +52,9 @@ interface QuotationListItem {
   countryFlag: string | null;
   paxCount: number | null;
   subService: string | null;
+  /** Client doc 2026-10-15 (C4) — Normal / Urgent / Express. */
+  processing: string | null;
+  countryCode: string | null;
   serviceDetails: string | null;
   travelDate: string | null;
   poc: { name: string; active: boolean } | null;
@@ -164,7 +167,7 @@ export function QuotationsTable() {
             setAssignedStaffId(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All POCs</option>
           <option value="unassigned">Unassigned</option>
@@ -185,7 +188,7 @@ export function QuotationsTable() {
             setCountryId(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All countries</option>
           {filterOptions.countries.map((option) => (
@@ -208,7 +211,7 @@ export function QuotationsTable() {
               setTravelFrom(event.target.value);
               resetPage();
             }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
           />
           <span className="text-xs text-ink-tertiary">to</span>
           <input
@@ -219,7 +222,7 @@ export function QuotationsTable() {
               setTravelTo(event.target.value);
               resetPage();
             }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
           />
         </div>
 
@@ -233,7 +236,7 @@ export function QuotationsTable() {
             setServiceType(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All services</option>
           {SERVICE_TYPE_OPTIONS.map((option) => (
@@ -253,7 +256,7 @@ export function QuotationsTable() {
             setStatus(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All statuses</option>
           {STATUS_OPTIONS.map((option) => (
@@ -273,7 +276,7 @@ export function QuotationsTable() {
             setSort(event.target.value as SortOption);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
@@ -282,7 +285,7 @@ export function QuotationsTable() {
         <Button
           type="button"
           variant="ghost"
-          size="md"
+          size="sm"
           onClick={() => setRefreshNonce((current) => current + 1)}
           disabled={state === "loading"}
         >
@@ -378,6 +381,7 @@ export function QuotationsTable() {
                     <Link href={`/crm/leads/${quotation.leadId}#tab-quotation`} className="font-semibold text-ink-accent hover:underline">
                       {quotation.leadReferenceId}
                     </Link>
+                    <ProcessingTag label={quotation.processing} />
                     <span className="block text-xs text-ink-tertiary">{quotation.paxCount ?? "—"} PAX</span>
                   </td>
                   <td className="px-4 py-3">
@@ -386,14 +390,7 @@ export function QuotationsTable() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{quotation.customer.mobile}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
-                    {quotation.countryName ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <FlagIcon value={quotation.countryFlag} />
-                        {quotation.countryName}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
+                    <CountryCell name={quotation.countryName} code={quotation.countryCode} flag={quotation.countryFlag} />
                   </td>
                   <td className="px-4 py-3">
                     <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[quotation.serviceType]}</span>

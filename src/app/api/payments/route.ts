@@ -6,7 +6,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { countryFlagEmoji } from "@/lib/countries/flag";
-import { subServiceLabel } from "@/lib/leads/sub-service-label";
+import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("payments.view");
@@ -49,7 +49,8 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
-  const items = payments.map((payment) => ({
+  const subServices = await resolveSubServices(payments.map((payment) => ({ serviceType: payment.booking.lead.serviceType, details: payment.booking.lead.details })));
+  const items = payments.map((payment, index) => ({
     id: payment.id,
     amount: payment.amount,
     gstAmount: payment.gstAmount,
@@ -64,10 +65,12 @@ export async function GET(request: NextRequest) {
     customer: { name: payment.booking.customer.name, mobile: payment.booking.customer.mobile, email: payment.booking.customer.email },
     // Client testing 2026-10-09 (E13) — the shared list layout.
     serviceType: payment.booking.lead.serviceType,
-    subService: subServiceLabel(payment.booking.lead.details),
+    subService: subServices[index],
+    processing: processingLabel(payment.booking.lead.serviceType, payment.booking.lead.details),
     paxCount: payment.booking.lead.paxCount,
     countryName: payment.booking.lead.country?.name ?? null,
     countryFlag: payment.booking.lead.country ? countryFlagEmoji(payment.booking.lead.country) : null,
+    countryCode: payment.booking.lead.country?.code ?? null,
   }));
 
   return jsonSuccess({ items, total, page, pageSize });

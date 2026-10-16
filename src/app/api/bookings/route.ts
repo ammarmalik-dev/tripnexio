@@ -10,10 +10,10 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { isUrgentRequest } from "@/lib/crm/urgency";
 import { bookingListWhere } from "@/lib/bookings/list-where";
-import { subServiceLabel } from "@/lib/leads/sub-service-label";
 import { serviceDetailsLine } from "@/lib/crm/service-details";
 import { DIRECT_VENDOR_NAME } from "@/lib/bookings/vendor-names";
 import { countryFlagEmoji } from "@/lib/countries/flag";
+import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("bookings.view");
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
           include: {
             country: { select: { name: true, code: true, flagOverride: true } },
             assignedStaff: { select: { name: true, active: true } },
-            quotations: { where: { isSelected: true }, take: 1, select: { vendor: { select: { name: true } } } },
+            quotations: { where: { isSelected: true }, take: 1, select: { airline: true, vendor: { select: { name: true } } } },
           },
         },
         serviceStatus: { select: { name: true, customerLabel: true } },
@@ -60,14 +60,19 @@ export async function GET(request: NextRequest) {
     airlineCodes.length > 0 ? (await db.airline.findMany({ where: { code: { in: airlineCodes } }, select: { code: true, name: true } })).map((airline) => [airline.code, airline.name]) : []
   );
 
+  // Client doc 2026-10-15 (C4) — visa type / airline (the selected flight quote's for Special Fare).
+  const subServices = await resolveSubServices(
+    bookings.map((booking) => ({ serviceType: booking.lead.serviceType, details: booking.lead.details, airline: booking.lead.quotations[0]?.airline }))
+  );
   // Client corrections 2026-10-05 — the full operational table.
-  const items = bookings.map((booking) => ({
+  const items = bookings.map((booking, index) => ({
     id: booking.id,
     bookingId: booking.bookingId,
     status: booking.status,
     createdAt: booking.createdAt,
     serviceType: booking.lead.serviceType,
-    subService: subServiceLabel(booking.lead.details),
+    subService: subServices[index],
+    processing: processingLabel(booking.lead.serviceType, booking.lead.details),
     urgent: isUrgentRequest(booking.lead.serviceType, booking.lead.details),
     leadId: booking.leadId,
     leadReferenceId: leadReference(booking.lead),

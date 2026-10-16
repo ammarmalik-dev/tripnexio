@@ -116,7 +116,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
             setType(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[180px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All task types</option>
           {TASK_TYPE_OPTIONS.map((option) => (
@@ -136,7 +136,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
             setStatus(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All statuses</option>
           {TASK_STATUS_OPTIONS.map((option) => (
@@ -156,7 +156,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
             setPriority(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All priorities</option>
           {TASK_PRIORITY_OPTIONS.map((option) => (
@@ -176,7 +176,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
             setSort(event.target.value as SortOption);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
@@ -186,7 +186,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
         <Button
           type="button"
           variant="ghost"
-          size="md"
+          size="sm"
           onClick={() => setRefreshNonce((current) => current + 1)}
           disabled={state === "loading"}
         >

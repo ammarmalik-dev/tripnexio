@@ -31,7 +31,7 @@ import { resolveSectorFlight } from "@/lib/special-fare/sector-flight";
 import type { Quotation } from "@/generated/prisma/client";
 import { serviceDetailsLine } from "@/lib/crm/service-details";
 import { countryFlagEmoji } from "@/lib/countries/flag";
-import { subServiceLabel } from "@/lib/leads/sub-service-label";
+import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
 
 /**
  * SELECTED/EXPIRED/PENDING is derived — Quotation only stores
@@ -162,7 +162,10 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
-  const items = quotations.map((quotation) => ({
+  const subServices = await resolveSubServices(
+    quotations.map((quotation) => ({ serviceType: quotation.lead.serviceType, details: quotation.lead.details, airline: quotation.airline }))
+  );
+  const items = quotations.map((quotation, index) => ({
     id: quotation.id,
     leadId: quotation.leadId,
     leadReferenceId: leadReference(quotation.lead),
@@ -175,8 +178,10 @@ export async function GET(request: NextRequest) {
     countryName: quotation.lead.country?.name ?? null,
     // Client testing 2026-10-09 (E13) — the shared list layout: PAX, flag, sub-service, service details.
     countryFlag: quotation.lead.country ? countryFlagEmoji(quotation.lead.country) : null,
+    countryCode: quotation.lead.country?.code ?? null,
     paxCount: quotation.lead.paxCount,
-    subService: subServiceLabel(quotation.lead.details),
+    subService: subServices[index],
+    processing: processingLabel(quotation.lead.serviceType, quotation.lead.details),
     serviceDetails: serviceDetailsLine(quotation.lead.serviceType, quotation.lead.details),
     travelDate: quotation.lead.travelDate ? quotation.lead.travelDate.toISOString().slice(0, 10) : null,
     poc: quotation.lead.assignedStaff ? { name: quotation.lead.assignedStaff.name, active: quotation.lead.assignedStaff.active } : null,

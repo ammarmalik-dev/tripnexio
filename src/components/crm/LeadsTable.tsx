@@ -14,7 +14,6 @@ import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { LeadTemperatureBadge } from "./LeadTemperatureBadge";
-import { UrgentBadge } from "./UrgentBadge";
 import { ListPagination } from "./ListPagination";
 import { usePaginationState } from "./usePagination";
 import { useListFilterOptions } from "./useListFilterOptions";
@@ -22,7 +21,7 @@ import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TE
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, LeadStatus, LeadTemperature, PaymentStatus } from "../../generated/prisma/enums";
-import { FlagIcon } from "@/components/ui/FlagIcon";
+import { CountryCell, ProcessingTag } from "./ListCells";
 
 interface LeadListItem {
   id: string;
@@ -38,6 +37,9 @@ interface LeadListItem {
   travelDate: string | null;
   paxCount: number | null;
   subService: string | null;
+  /** Client doc 2026-10-15 (C4) — Normal / Urgent / Express. */
+  processing: string | null;
+  countryCode: string | null;
   urgent: boolean;
   abandoned: boolean;
   paymentFailedStatus: PaymentStatus | null;
@@ -182,7 +184,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setServiceType(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All services</option>
           {SERVICE_TYPE_OPTIONS.map((option) => (
@@ -202,7 +204,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setStatus(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All statuses</option>
           {LEAD_STATUS_OPTIONS.map((option) => (
@@ -222,7 +224,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setTemperature(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All temperatures</option>
           {LEAD_TEMPERATURE_OPTIONS.map((option) => (
@@ -242,7 +244,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setPaymentFailed(event.target.value === "1");
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All payments</option>
           <option value="1">Payment failed</option>
@@ -258,7 +260,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setAssignedStaffId(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All POCs</option>
           <option value="unassigned">Unassigned</option>
@@ -279,7 +281,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setCountryId(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All countries</option>
           {filterOptions.countries.map((option) => (
@@ -302,7 +304,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
               setTravelFrom(event.target.value);
               setPage(1);
             }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
           />
           <span className="text-xs text-ink-tertiary">to</span>
           <input
@@ -313,7 +315,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
               setTravelTo(event.target.value);
               setPage(1);
             }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
           />
         </div>
 
@@ -327,7 +329,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setSort(event.target.value as SortOption);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
@@ -336,7 +338,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
         <Button
           type="button"
           variant="ghost"
-          size="md"
+          size="sm"
           onClick={() => setRefreshNonce((current) => current + 1)}
           disabled={state === "loading"}
         >
@@ -415,8 +417,9 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
                     <Link href={`/crm/leads/${lead.id}`} className="font-semibold text-ink-accent hover:underline">
                       {lead.referenceId}
                     </Link>
+                    <ProcessingTag label={lead.processing} />
                     <span className="block text-xs text-ink-tertiary">{lead.paxCount ?? "—"} PAX</span>
-                    {lead.urgent || lead.paymentFailedStatus || lead.abandoned ? (
+                    {lead.paymentFailedStatus || lead.abandoned ? (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {lead.abandoned ? (
                           <span
@@ -426,7 +429,6 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
                             Abandoned
                           </span>
                         ) : null}
-                        {lead.urgent ? <UrgentBadge serviceType={lead.serviceType} /> : null}
                         {lead.paymentFailedStatus ? (
                           <span
                             className="inline-flex items-center whitespace-nowrap rounded-full bg-error/10 px-2 py-0.5 text-xs font-medium text-error"
@@ -448,14 +450,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{lead.customer.mobile}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
-                    {lead.countryName ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <FlagIcon value={lead.countryFlag} />
-                        {lead.countryName}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
+                    <CountryCell name={lead.countryName} code={lead.countryCode} flag={lead.countryFlag} />
                   </td>
                   <td className="px-4 py-3">
                     <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[lead.serviceType]}</span>

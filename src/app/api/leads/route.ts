@@ -8,10 +8,10 @@ import { leadReference } from "@/lib/leads/reference";
 import { isAbandonedDraftDetails } from "@/lib/leads/abandoned-draft";
 import { isUrgentRequest } from "@/lib/crm/urgency";
 import { leadListWhere } from "@/lib/leads/list-where";
-import { subServiceLabel } from "@/lib/leads/sub-service-label";
 import { PAYMENT_FAILED_STATUSES, latestBookingPaymentSelect, latestPaymentFailedStatus } from "@/lib/crm/payment-failed";
 import { serviceDetailsLine } from "@/lib/crm/service-details";
 import { countryFlagEmoji } from "@/lib/countries/flag";
+import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
 
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("leads.view");
@@ -55,7 +55,9 @@ export async function GET(request: NextRequest) {
     }),
   ]);
 
-  const items = leads.map((lead) => ({
+  // Client doc 2026-10-15 (C4) — visa type / airline in the Sub-service column.
+  const subServices = await resolveSubServices(leads.map((lead) => ({ serviceType: lead.serviceType, details: lead.details })));
+  const items = leads.map((lead, index) => ({
     id: lead.id,
     // Client doc 2026-10-15 (C2) — an abandoned draft has no lead number until the form is submitted.
     referenceId: lead.reference ?? (isAbandonedDraftDetails(lead.details) ? "Draft" : leadReference(lead)),
@@ -67,10 +69,12 @@ export async function GET(request: NextRequest) {
     countryName: lead.country?.name ?? null,
     // Client testing 2026-10-09 (E13) — flag next to the country and the service details line.
     countryFlag: lead.country ? countryFlagEmoji(lead.country) : null,
+    countryCode: lead.country?.code ?? null,
     serviceDetails: serviceDetailsLine(lead.serviceType, lead.details),
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paxCount: lead.paxCount,
-    subService: subServiceLabel(lead.details),
+    subService: subServices[index],
+    processing: processingLabel(lead.serviceType, lead.details),
     urgent: isUrgentRequest(lead.serviceType, lead.details),
     /** P21 item 3 — a step-1-only draft from an abandoned website form. */
     abandoned: isAbandonedDraftDetails(lead.details),

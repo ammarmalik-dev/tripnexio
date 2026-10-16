@@ -329,8 +329,20 @@ body {
   box-shadow: var(--shadow-glass-2);
 }
 
+/* Client doc 2026-10-15 (C4) — a darker, readable header line on every CRM / Admin table. */
 .crm-shell main table thead tr {
-  background: color-mix(in srgb, var(--accent) 5%, var(--surface-1));
+  background: color-mix(in srgb, var(--ink-heading) 9%, var(--surface-1));
+  border-bottom: 1px solid color-mix(in srgb, var(--ink-heading) 22%, transparent);
+}
+
+.crm-shell main table thead th {
+  color: var(--ink-heading);
+}
+
+/* Client doc 2026-10-15 (C4) — the main header of an open lead / booking reads a shade darker too. */
+.crm-shell main .record-header-card {
+  background-color: color-mix(in srgb, var(--ink-heading) 7%, var(--surface-1));
+  border: 1px solid color-mix(in srgb, var(--ink-heading) 18%, transparent);
 }
 
 .crm-shell main table tbody tr {

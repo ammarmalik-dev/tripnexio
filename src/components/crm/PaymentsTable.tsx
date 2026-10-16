@@ -20,7 +20,7 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { PaymentStatus, ServiceType } from "../../generated/prisma/enums";
-import { FlagIcon } from "@/components/ui/FlagIcon";
+import { CountryCell, ProcessingTag } from "./ListCells";
 
 interface PaymentListItem {
   id: string;
@@ -37,6 +37,9 @@ interface PaymentListItem {
   customer: { name: string; mobile: string; email: string | null };
   serviceType: ServiceType;
   subService: string | null;
+  /** Client doc 2026-10-15 (C4) — Normal / Urgent / Express. */
+  processing: string | null;
+  countryCode: string | null;
   paxCount: number | null;
   countryName: string | null;
   countryFlag: string | null;
@@ -150,7 +153,7 @@ export function PaymentsTable() {
             setStatus(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="">All statuses</option>
           {PAYMENT_STATUS_OPTIONS.map((option) => (
@@ -170,7 +173,7 @@ export function PaymentsTable() {
             setSort(event.target.value as SortOption);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
@@ -179,7 +182,7 @@ export function PaymentsTable() {
         <Button
           type="button"
           variant="ghost"
-          size="md"
+          size="sm"
           onClick={() => setRefreshNonce((current) => current + 1)}
           disabled={state === "loading"}
         >
@@ -269,6 +272,7 @@ export function PaymentsTable() {
                     <Link href={`/crm/bookings/${payment.bookingId}`} className="font-semibold text-ink-accent hover:underline">
                       {payment.bookingDisplayId}
                     </Link>
+                    <ProcessingTag label={payment.processing} />
                     <span className="block text-xs text-ink-tertiary">{payment.paxCount ?? "—"} PAX</span>
                   </td>
                   <td className="px-4 py-3">
@@ -277,14 +281,7 @@ export function PaymentsTable() {
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{payment.customer.mobile}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
-                    {payment.countryName ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <FlagIcon value={payment.countryFlag} />
-                        {payment.countryName}
-                      </span>
-                    ) : (
-                      "—"
-                    )}
+                    <CountryCell name={payment.countryName} code={payment.countryCode} flag={payment.countryFlag} />
                   </td>
                   <td className="px-4 py-3">
                     <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[payment.serviceType]}</span>

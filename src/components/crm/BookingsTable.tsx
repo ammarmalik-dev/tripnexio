@@ -15,7 +15,6 @@ import { DashboardFilterChip } from "./DashboardFilterChip";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
-import { UrgentBadge } from "./UrgentBadge";
 import { StatusPill } from "./StatusPill";
 import {
   SERVICE_TYPE_LABELS,
@@ -29,7 +28,7 @@ import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, PaymentStatus } from "../../generated/prisma/enums";
-import { FlagIcon } from "@/components/ui/FlagIcon";
+import { CountryCell, ProcessingTag } from "./ListCells";
 
 interface BookingListItem {
   id: string;
@@ -38,6 +37,8 @@ interface BookingListItem {
   createdAt: string;
   serviceType: ServiceType;
   subService: string | null;
+  /** Client doc 2026-10-15 (C4) — Normal / Urgent / Express. */
+  processing: string | null;
   urgent: boolean;
   leadReferenceId: string;
   customer: { name: string; mobile: string; email: string | null };
@@ -85,7 +86,7 @@ function formatDay(day: string | null): string {
     : "—";
 }
 
-const selectClass = cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[140px]");
+const selectClass = cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm");
 
 /**
  * Client corrections 2026-10-05 — the full operational Bookings table, shared
@@ -108,8 +109,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
   const [travelFrom, setTravelFrom] = useState(() => param("travelFrom"));
   const [travelTo, setTravelTo] = useState(() => param("travelTo"));
   // Client testing 2026-10-09 (E13) — search by Booking ID, name, mobile, email or passport.
-  const [search, setSearch] = useState(() => param("search"));
-  const [searchDraft, setSearchDraft] = useState(() => param("search"));
+  const [search] = useState(() => param("search"));
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(param("dateFrom"), param("dateTo"));
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
@@ -219,36 +219,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
 
   return (
     <div className="flex flex-col gap-4">
-      <form
-        role="search"
-        className="flex w-full max-w-xl items-center gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setSearch(searchDraft.trim());
-          resetPage();
-        }}
-      >
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
-          <input
-            type="search"
-            aria-label="Search bookings"
-            placeholder="Search booking ID, name, mobile, email, passport…"
-            value={searchDraft}
-            onChange={(event) => {
-              setSearchDraft(event.target.value);
-              if (event.target.value === "") {
-                setSearch("");
-                resetPage();
-              }
-            }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "pl-10")}
-          />
-        </div>
-        <Button type="submit" size="md">
-          Search
-        </Button>
-      </form>
+      {/* Client doc 2026-10-15 (C4) — one search bar: the 360 search in the top bar (a ?search= link still lands filtered). */}
 
       <div className="flex flex-wrap items-center gap-2.5">
         {filterSelect("filter-booking-service", "Filter by service", serviceType, (next) => {
@@ -323,7 +294,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
               setTravelFrom(event.target.value);
               resetPage();
             }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
           />
           <span className="text-xs text-ink-tertiary">to</span>
           <input
@@ -334,7 +305,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
               setTravelTo(event.target.value);
               resetPage();
             }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
           />
         </div>
 
@@ -354,7 +325,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
           <option value="createdAt_asc">Oldest first</option>
         </select>
 
-        <Button type="button" variant="ghost" size="md" onClick={() => setRefreshNonce((current) => current + 1)} disabled={state === "loading"}>
+        <Button type="button" variant="ghost" size="sm" onClick={() => setRefreshNonce((current) => current + 1)} disabled={state === "loading"}>
           <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
           Refresh
         </Button>
@@ -452,12 +423,8 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                       <Link href={href} className="font-semibold text-ink-accent hover:underline">
                         {booking.bookingId}
                       </Link>
+                      <ProcessingTag label={booking.processing} />
                       <span className="block text-xs text-ink-tertiary">{booking.paxCount ?? "—"} PAX</span>
-                      {booking.urgent ? (
-                        <div className="mt-1">
-                          <UrgentBadge serviceType={booking.serviceType} />
-                        </div>
-                      ) : null}
                     </td>
                     <td className="px-3 py-3">
                       <span className="block font-semibold text-ink-heading">{booking.customer.name}</span>
@@ -465,14 +432,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{booking.customer.mobile}</td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
-                      {booking.countryName ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <FlagIcon value={booking.countryFlag} />
-                          {booking.countryName}
-                        </span>
-                      ) : (
-                        "—"
-                      )}
+                      <CountryCell name={booking.countryName} code={booking.countryCode} flag={booking.countryFlag} />
                     </td>
                     <td className="px-3 py-3">
                       <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[booking.serviceType]}</span>

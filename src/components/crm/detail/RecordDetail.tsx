@@ -52,7 +52,7 @@ export function RecordHeader({
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
         {backLabel}
       </Link>
-      <div className="glass-liquid flex flex-col gap-4 rounded-2xl p-4 sm:p-5">
+      <div className="glass-liquid record-header-card flex flex-col gap-4 rounded-2xl p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 flex-col gap-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-medium tracking-wide text-ink-tertiary uppercase">{eyebrow}</div>
