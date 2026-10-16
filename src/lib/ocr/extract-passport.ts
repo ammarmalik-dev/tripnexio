@@ -8,6 +8,7 @@ import { createTask } from "../tasks/create-task";
 import { flagPurchasedPlansFromOcr } from "../protection-plan/lifecycle";
 import type { PassportOcrFields } from "./types";
 import type { DocumentExtraction } from "../../generated/prisma/client";
+import { crossCheckExtraction } from "./cross-check";
 
 /**
  * Runs OCR on an already-uploaded passport Document and records the result
@@ -88,6 +89,8 @@ export async function runPassportExtraction(documentId: string): Promise<Documen
     await flagPurchasedPlansFromOcr(document.passengerId, mrz ? "Passport OCR: MRZ checksum mismatch" : "Passport OCR: no MRZ could be read");
   }
 
+  // Client doc 2026-10-15 (J4) — compare with what the customer entered (never throws).
+  await crossCheckExtraction(extraction.id);
   return extraction;
 }
 

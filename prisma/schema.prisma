@@ -891,6 +891,9 @@ model DocumentExtraction {
   /// TICKET/VISA (no MRZ on those document types).
   mrzRaw           String?
   mrzValid         Boolean                @default(false)
+  /// Client doc 2026-10-15 (J4) — the check against what the customer entered:
+  /// { status: VALIDATED | MISMATCH | UNCHECKED, checked: [...], mismatches: [{ field, entered, document }] }.
+  crossCheck       Json?
   reviewedByUserId String?
   reviewedAt       DateTime?
   createdAt        DateTime               @default(now())

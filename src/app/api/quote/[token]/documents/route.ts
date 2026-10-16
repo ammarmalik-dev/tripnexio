@@ -9,6 +9,7 @@ import { describeError } from "@/lib/api/describe-error";
 import { notifyDocumentUploaded } from "@/lib/staff-notifications/triggers";
 import { rateLimitByIp } from "@/lib/auth/rate-limit";
 import { LEAD_UPLOAD_SERVICES, LEAD_UPLOAD_TYPES } from "@/lib/quotations/lead-document-upload";
+import { runOcrForDocument } from "@/lib/ocr/run-for-document";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -72,6 +73,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
     await notifyDocumentUploaded(document.id);
     if (existing?.fileUrl) await deleteUploadedFile(existing.fileUrl);
+    // Client doc 2026-10-15 (J4) — OCR + check against the entered details, in the background (never delays the upload).
+    void runOcrForDocument(document.id);
     return jsonSuccess({ id: document.id, passengerId, type, status: document.status }, 201);
   } catch (error) {
     console.error("[api/quote/documents]", describeError(error));

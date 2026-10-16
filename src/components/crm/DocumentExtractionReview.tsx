@@ -8,6 +8,7 @@ import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { DOCUMENT_UPLOAD_ACCEPT, documentUploadError } from "@/lib/uploads/document-rules";
+import { OcrCrossCheck } from "./OcrCrossCheck";
 
 type ExtractionType = "TICKET" | "VISA";
 type ExtractedFields = Record<string, string | undefined>;
@@ -19,6 +20,8 @@ interface ExtractionData {
   status: "PENDING_REVIEW" | "CONFIRMED" | "REJECTED";
   extractedFields: ExtractedFields;
   createdAt: string;
+  /** Client doc 2026-10-15 (J4) — the check against the entered details. */
+  crossCheck?: unknown;
 }
 
 
@@ -99,6 +102,7 @@ function ReviewCard({ extraction, onResolved }: { extraction: ExtractionData; on
         <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
         {extraction.extractionType === "TICKET" ? "Ticket" : "Visa"} details extracted — review before confirming
       </span>
+      <OcrCrossCheck value={extraction.crossCheck} />
       {isPlaceholderProvider ? (
         <p className="rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
           SAMPLE data — no real OCR provider configured yet, this is placeholder output, not read from the uploaded document.

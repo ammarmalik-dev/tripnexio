@@ -11,6 +11,7 @@ import { deleteUploadedFile, saveUploadedFile } from "@/lib/storage/local-file-s
 import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 import { describeError } from "@/lib/api/describe-error";
 import { notifyDocumentUploaded } from "@/lib/staff-notifications/triggers";
+import { runOcrForDocument } from "@/lib/ocr/run-for-document";
 
 interface RouteParams {
   params: Promise<{ token: string }>;
@@ -91,6 +92,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     await notifyDocumentUploaded(document.id);
     if (existing?.fileUrl) await deleteUploadedFile(existing.fileUrl);
 
+    // Client doc 2026-10-15 (J4) — OCR + check against the entered details, in the background (never delays the upload).
+    void runOcrForDocument(document.id);
     return jsonSuccess({ id: document.id, passengerId, type, status: document.status }, 201);
   } catch (error) {
     console.error("[api/pay/documents]", describeError(error));

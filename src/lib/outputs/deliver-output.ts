@@ -10,6 +10,7 @@ import { leadReference } from "../leads/reference";
 import { toWhatsAppId } from "../whatsapp/phone";
 import { siteConfig } from "../site-config";
 import { offerPostTicketCrossSell } from "../cross-sell/post-ticket";
+import { runOcrForDocument } from "../ocr/run-for-document";
 
 /**
  * P09 — records an already-stored output file as delivered: a VERIFIED
@@ -76,5 +77,8 @@ export async function deliverOutput(input: {
     await offerPostTicketCrossSell({ bookingId: booking.id, leadId: booking.leadId, serviceType: booking.lead.serviceType });
   }
 
+  // Client doc 2026-10-15 (J4) — read the delivered ticket / visa (PNR, flight and visa details) and check
+  // its name / passport against the passenger, in the background.
+  if (/ticket|visa/i.test(outputType)) void runOcrForDocument(document.id);
   return document;
 }

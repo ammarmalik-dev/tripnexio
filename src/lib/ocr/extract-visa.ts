@@ -5,6 +5,7 @@ import { getOcrProvider } from "./get-provider";
 import { callOcrProviderWithFailureAudit } from "./call-with-failure-audit";
 import { createTask } from "../tasks/create-task";
 import type { DocumentExtraction } from "../../generated/prisma/client";
+import { crossCheckExtraction } from "./cross-check";
 
 /**
  * CRM.md §18 (Step 16): "When a visa PDF is uploaded, CRM should extract
@@ -61,5 +62,7 @@ export async function runVisaExtraction(documentId: string): Promise<DocumentExt
     return created;
   });
 
+  // Client doc 2026-10-15 (J4) — compare with what the customer entered (never throws).
+  await crossCheckExtraction(extraction.id);
   return extraction;
 }
