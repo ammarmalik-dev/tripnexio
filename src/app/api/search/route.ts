@@ -15,7 +15,7 @@ interface SearchResultItem {
 }
 
 const RESULT_LIMIT_PER_QUERY_DIMENSION = 5;
-const TOTAL_RESULT_LIMIT = 10;
+const TOTAL_RESULT_LIMIT = 15;
 
 /**
  * Step 24 (audit §4.6) — ADMIN.md §9's "global search/command experience,"
@@ -68,6 +68,8 @@ export async function GET(request: NextRequest) {
         ],
       },
       include: { customer: true },
+      // Client doc 2026-10-15 (C1) — newest first, so a lead created a moment ago is never cut off by older matches.
+      orderBy: { createdAt: "desc" },
       take: RESULT_LIMIT_PER_QUERY_DIMENSION,
     });
     for (const lead of leads) {
@@ -87,6 +89,7 @@ export async function GET(request: NextRequest) {
     const bookings = await db.booking.findMany({
       where: { bookingId: { contains: query, mode: "insensitive" } },
       include: { customer: true, lead: true },
+      orderBy: { createdAt: "desc" },
       take: RESULT_LIMIT_PER_QUERY_DIMENSION,
     });
     for (const booking of bookings) {
@@ -117,11 +120,28 @@ export async function GET(request: NextRequest) {
           { passengers: { some: { passportNumber: { contains: query, mode: "insensitive" } } } },
         ],
       },
-      select: { id: true, name: true, mobile: true, email: true },
+      select: {
+        id: true,
+        name: true,
+        mobile: true,
+        email: true,
+        // Client doc 2026-10-15 (C1) — the customer's latest requests open straight from the search too.
+        leads: { orderBy: { createdAt: "desc" }, take: 3, select: { id: true, reference: true, serviceType: true } },
+      },
       orderBy: { createdAt: "desc" },
       take: RESULT_LIMIT_PER_QUERY_DIMENSION,
     });
     for (const customer of customers) {
+      for (const lead of customer.leads) {
+        if (leadResults.has(lead.id)) continue;
+        leadResults.set(lead.id, {
+          type: "lead",
+          id: lead.id,
+          title: leadReference(lead),
+          subtitle: `${customer.name} · ${SERVICE_TYPE_LABELS[lead.serviceType]}`,
+          href: `/crm/leads/${lead.id}`,
+        });
+      }
       customerResults.set(customer.id, {
         type: "customer",
         id: customer.id,
@@ -132,6 +152,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const results = [...customerResults.values(), ...leadResults.values(), ...bookingResults.values()].slice(0, TOTAL_RESULT_LIMIT);
+  // Leads first (what staff are usually looking for), then bookings, then the Customer 360 pages.
+  const results = [...leadResults.values(), ...bookingResults.values(), ...customerResults.values()].slice(0, TOTAL_RESULT_LIMIT);
   return jsonSuccess({ query, results });
 }

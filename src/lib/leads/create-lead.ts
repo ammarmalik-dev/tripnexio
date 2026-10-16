@@ -11,7 +11,10 @@ import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { generateToken } from "../quotations/select-quotation";
 import { findCustomerByMobile } from "../customers/find-by-mobile";
-import { findOpenDraftLead } from "./abandoned-draft";
+import { ABANDONED_DRAFT_SOURCE, findOpenDraftLead } from "./abandoned-draft";
+
+/** Client doc 2026-10-15 (C2) — how long an identical resubmission counts as the same request. */
+const DUPLICATE_WINDOW_MS = 5 * 60 * 1000;
 import { autoAssignLead } from "../staff/auto-assign";
 import { notifyStaff } from "@/lib/staff-notifications/notify";
 import { requestReceivedMessage } from "./request-received-message";
@@ -70,6 +73,27 @@ export interface CreateLeadResult {
   status: string;
   /** In submission order, matching `input.passengers` (or the single default passenger derived from `contact.fullName`). */
   passengerIds: string[];
+  /**
+   * Client doc 2026-10-15 (C2) — true when this exact request had just been submitted (double tap,
+   * a retried message): the earlier lead is returned and nothing new is created or sent.
+   */
+  duplicate?: boolean;
+}
+
+/** Same request = same details, ignoring the fields the pipeline adds itself. Key order doesn't matter. */
+function sameRequestDetails(stored: unknown, submitted: Record<string, unknown>): boolean {
+  const stable = (value: unknown): string => {
+    if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
+    if (value && typeof value === "object") {
+      return `{${Object.keys(value)
+        .filter((key) => key !== "passengerIds" && key !== "completedFromDraft")
+        .sort()
+        .map((key) => `${JSON.stringify(key)}:${stable((value as Record<string, unknown>)[key])}`)
+        .join(",")}}`;
+    }
+    return JSON.stringify(value ?? null);
+  };
+  return stable(stored) === stable(submitted);
 }
 
 /** Reuses an existing Customer by normalised mobile (primary) or email so returning customers keep their history. */
@@ -178,6 +202,29 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     // same reference, staff's existing notes/assignment/status kept;
     // details are replaced by the real submission (which clears
     // `abandonedDraft`) and `source` becomes the real source.
+    // Client doc 2026-10-15 (C2) — the same request again within a few minutes (double submit, a retried
+    // WhatsApp message) returns the lead already created, so it never takes a second lead number.
+    const recent = await tx.lead.findMany({
+      where: { customerId: customer.id, serviceType, createdAt: { gte: new Date(Date.now() - DUPLICATE_WINDOW_MS) }, source: { not: ABANDONED_DRAFT_SOURCE } },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+    const duplicateOf = recent.find((row) => row.reference && sameRequestDetails(row.details, safeDetails as Record<string, unknown>));
+    if (duplicateOf) {
+      return {
+        leadId: duplicateOf.id,
+        referenceId: duplicateOf.reference as string,
+        customerId: customer.id,
+        status: duplicateOf.status,
+        customerName: customer.name,
+        customerEmail: customer.email,
+        customerMobile: customer.mobile,
+        passengerIds,
+        assignedStaffId: duplicateOf.assignedStaffId,
+        duplicate: true,
+      };
+    }
+
     const draft = await findOpenDraftLead(tx, customer.id, serviceType);
     let lead: Lead;
     let reference: string;
@@ -248,6 +295,10 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
   // carry `abandonedDraft`); a bare draft never reaches this function —
   // createOrRefreshDraftLead() is separate and deliberately not assigned.
   // Never throws; no eligible staff → the lead stays unassigned.
+  if ("duplicate" in result && result.duplicate) {
+    return { leadId: result.leadId, referenceId: result.referenceId, customerId: result.customerId, status: result.status, passengerIds: result.passengerIds, duplicate: true };
+  }
+
   let assigneeId = result.assignedStaffId;
   if (!assigneeId) {
     const autoAssigned = await autoAssignLead(result.leadId, serviceType);

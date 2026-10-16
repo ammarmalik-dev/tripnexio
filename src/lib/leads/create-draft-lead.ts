@@ -3,7 +3,6 @@ import { db } from "../db";
 import type { Prisma, ServiceType } from "../../generated/prisma/client";
 import { findOrCreateCustomer, type LeadContact } from "./create-lead";
 import { ABANDONED_DRAFT_SOURCE, findOpenDraftLead } from "./abandoned-draft";
-import { nextLeadReference } from "./reference";
 import { getInitialServiceStatusId } from "../service-status/engine";
 import { writeAudit } from "../audit/log";
 
@@ -43,7 +42,8 @@ export async function createOrRefreshDraftLead(serviceType: ServiceType, contact
         customerId: customer.id,
         serviceType,
         source: ABANDONED_DRAFT_SOURCE,
-        reference: await nextLeadReference(tx, serviceType),
+        // Client doc 2026-10-15 (C2) — a draft takes no lead number: it gets one only when the form is
+        // submitted (createLeadFromSubmission), so abandoned forms never leave gaps in the sequence.
         serviceStatusId: await getInitialServiceStatusId(tx, serviceType, "LEAD"),
         details: draftDetails,
         ...(await leadListFacts(tx, draftDetails)),

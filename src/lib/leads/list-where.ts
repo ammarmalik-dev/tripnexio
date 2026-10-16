@@ -34,14 +34,17 @@ export function leadListWhere(
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),
+    // Client doc 2026-10-15 (C1) — one search box finds a lead by its number (e.g. 11026VE040), booking ID,
+    // customer name, mobile or email, the moment it is created (website, WhatsApp or staff).
     ...(search
       ? {
-          customer: {
-            OR: [
-              { name: { contains: search, mode: "insensitive" as const } },
-              { mobile: { contains: search, mode: "insensitive" as const } },
-            ],
-          },
+          OR: [
+            { reference: { contains: search, mode: "insensitive" as const } },
+            { bookings: { some: { bookingId: { contains: search, mode: "insensitive" as const } } } },
+            { customer: { name: { contains: search, mode: "insensitive" as const } } },
+            { customer: { mobile: { contains: search.replace(/[\s-]/g, ""), mode: "insensitive" as const } } },
+            { customer: { email: { contains: search, mode: "insensitive" as const } } },
+          ],
         }
       : {}),
     ...extra,

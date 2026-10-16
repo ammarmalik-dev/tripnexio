@@ -59,6 +59,13 @@ export async function createAutoCheckout(input: {
 
   const lead = await db.lead.findUnique({ where: { id: leadId }, include: { customer: true } });
   if (!lead) return null;
+  // Client doc 2026-10-15 (C2) — one automatic checkout per lead: a repeated submission reuses it.
+  const existingBooking = await db.booking.findFirst({
+    where: { leadId, customerToken: { not: null }, status: { notIn: ["CANCELLED", "REFUNDED"] } },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, customerToken: true },
+  });
+  if (existingBooking?.customerToken) return { token: existingBooking.customerToken, bookingId: existingBooking.id };
 
   const grossSellingPrice = totalPrice + extraCharges;
   let appliedCoupon: { couponId: string; couponCode: string; discountAmount: number } | null = null;

@@ -57,7 +57,8 @@ export async function GET(request: NextRequest) {
 
   const items = leads.map((lead) => ({
     id: lead.id,
-    referenceId: leadReference(lead),
+    // Client doc 2026-10-15 (C2) — an abandoned draft has no lead number until the form is submitted.
+    referenceId: lead.reference ?? (isAbandonedDraftDetails(lead.details) ? "Draft" : leadReference(lead)),
     serviceType: lead.serviceType,
     status: lead.status,
     temperature: lead.temperature,

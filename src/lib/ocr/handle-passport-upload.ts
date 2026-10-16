@@ -26,11 +26,18 @@ export async function handleOptionalPassportUpload(input: {
 }): Promise<void> {
   if (!input.imageBase64 || !input.mimeType) return;
   const documentType = input.documentType ?? "PASSPORT";
-
   try {
+    // Client doc 2026-10-15 (C2) — a repeated submission of the same request doesn't store the file twice.
+    const leadId = await documentLeadId(db, { passengerId: input.passengerId });
+    const recentCopy = await db.document.findFirst({
+      where: { passengerId: input.passengerId, leadId, type: documentType, createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } },
+      select: { id: true },
+    });
+    if (recentCopy) return;
+
     const { url } = await saveUploadedFile(input.imageBase64);
     const document = await db.document.create({
-      data: { passengerId: input.passengerId, leadId: await documentLeadId(db, { passengerId: input.passengerId }), type: documentType, status: "RECEIVED", fileUrl: url },
+      data: { passengerId: input.passengerId, leadId, type: documentType, status: "RECEIVED", fileUrl: url },
     });
     await writeAudit(db, {
       entityType: "Document",
