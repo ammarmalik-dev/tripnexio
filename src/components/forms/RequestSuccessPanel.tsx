@@ -17,9 +17,10 @@ export function RequestSuccessPanel({ title, description, referenceId, cta }: Re
       <div className="flex h-14 w-14 items-center justify-center rounded-full bg-success/10 text-success">
         <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
       </div>
-      <div className="flex flex-col gap-1">
+      {/* Client doc 2026-10-15 (C8) — the message block is centred under the title (it sat left-aligned in a wider column). */}
+      <div className="flex w-full flex-col items-center gap-1">
         <p className="text-lg font-semibold text-ink-heading">{title}</p>
-        <p className="max-w-sm text-sm text-ink-secondary">{description}</p>
+        <p className="mx-auto max-w-md text-sm leading-relaxed text-balance text-ink-secondary">{description}</p>
       </div>
       <p className="rounded-md bg-surface-2 px-4 py-2 text-sm font-medium text-ink-primary">
         Reference ID: <span className="text-ink-accent">{referenceId}</span>
