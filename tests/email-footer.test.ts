@@ -30,7 +30,9 @@ describe("email footer", () => {
   it("wraps the body in the branded layout with the footer below it", () => {
     const html = renderEmailLayout({ ...base, bodyHtml: "<p>Hi</p>", footerText: "Do not reply." });
     expect(html.indexOf("<p>Hi</p>")).toBeLessThan(html.indexOf("Do not reply."));
-    expect(html).toContain("https://tripnexio.com/email/logo-symbol.png");
+    // Client doc 2026-10-15 (H1) — the white logo on the dark-navy header, then "Follow Us On" above the one-line note.
+    expect(html).toContain("https://tripnexio.com/email/logo-white.png");
+    expect(html.indexOf("Follow Us On")).toBeLessThan(html.indexOf("This is an automated email."));
     expect(html).toContain("Need assistance?");
   });
 
