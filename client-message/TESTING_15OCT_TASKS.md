@@ -98,14 +98,14 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [x] H3. "Follow Us On" icons (Instagram, Facebook, LinkedIn, X, Threads); responsive.
 
 ## I. Status, documents, refunds
-- [ ] I1. Per-service status flows enforced server-side (no backward moves; e.g. an approved OTB can't be rejected).
-- [ ] I2. Automatic statuses:
+- [x] I1. Per-service status flows enforced server-side (no backward moves; e.g. an approved OTB can't be rejected).
+- [x] I2. Automatic statuses:
   - "Documents Validated" when every document is validated, with a notification.
   - "PDF Delivered" when the visa PDF is uploaded.
-- [ ] I3. OTB:
+- [x] I3. OTB:
   - No OTB document upload.
   - OTB statuses; a rejection shows "Rejected", not "Cancelled", everywhere.
-- [ ] I4. Passenger-level partial approval, rejection and cancellation ("Partially Approved" / "Partially Cancelled"), with the selling, cancellation and refund amounts.
+- [x] I4. Passenger-level partial approval, rejection and cancellation ("Partially Approved" / "Partially Cancelled"), with the selling, cancellation and refund amounts.
 - [x] I5. Refunds:
   - Admin approval, then automatic gateway refund; the refund id is fetched.
   - Status follows the real refund result (Cancelled / Partially Cancelled).
@@ -119,7 +119,7 @@ Client message: "implement all corrections… consistently to avoid repeated cor
   - OTB / New Visa / Return Ticket: the vendor is picked from the enabled vendors after all documents are validated; P&L from the buying rate.
   - Visa Change / Visa Extension / Special Fare: the vendor comes from the selected quotation.
 - [x] I8. Upload button in colour; PDF / PNG / JPG under 3 MB.
-- [ ] I9. Admin can refund at any status, and move a status or document back, with audit.
+- [x] I9. Admin can refund at any status, and move a status or document back, with audit.
 
 ## J. Admin / site misc
 - [x] J1. Coupons: no lead code / booking id required to create one.
