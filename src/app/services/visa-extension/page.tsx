@@ -15,6 +15,7 @@ import { DocumentsPaymentSection } from "@/components/services/visa-extension/la
 import { AfterPaymentOutcomesSection } from "@/components/services/visa-extension/landing/AfterPaymentOutcomesSection";
 import { db } from "@/lib/db";
 import { getDefaultPaymentLinkHours } from "@/lib/settings/system-config";
+import { getSitePageContent } from "@/lib/site-content/get-page-content";
 
 // P19 — FAQ block + Admin-configured payment-link validity are read from the DB.
 export const revalidate = 300;
@@ -68,12 +69,14 @@ async function loadPaymentLinkHours(): Promise<number> {
 }
 
 export default async function VisaExtensionLandingPage() {
+  // Client doc 2026-10-15 (J3) — photo and main wording from Admin → Website Pages (blank = this copy).
+  const content = await getSitePageContent("visa-extension");
   const paymentLinkHours = await loadPaymentLinkHours();
 
   return (
     <>
       <section className="relative overflow-hidden">
-        <ServiceHeroBackdrop service="VISA_EXTENSION" />
+        <ServiceHeroBackdrop service="VISA_EXTENSION" imageSrc={content.heroImageUrl} />
         <Container className="relative flex flex-col items-center gap-6 pb-14 pt-8 text-center sm:pb-20 sm:pt-10">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
@@ -81,27 +84,20 @@ export default async function VisaExtensionLandingPage() {
             </span>
           </MotionReveal>
           <MotionReveal delay={0.04}>
-            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">UAE Visa Extension</span>
+            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">{content.text("heroEyebrow")}</span>
           </MotionReveal>
           <MotionReveal delay={0.06}>
-            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
-              Extend Your UAE Visa
-            </h1>
+            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">{content.text("heroTitle")}</h1>
           </MotionReveal>
           <MotionReveal delay={0.12}>
-            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              Extend an existing UAE visa originally issued through TripNexio. Submit your details online — our
-              team verifies your visa and handles the extension process from there.
-            </p>
+            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">{content.text("heroSubtitle")}</p>
           </MotionReveal>
           <MotionReveal delay={0.15}>
             <p className="text-sm font-medium text-ink-tertiary">30-Day Extension • Online Request • Guided Process</p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
-              <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">
-                Apply for Visa Extension
-              </ButtonLink>
+              <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status
               </ButtonLink>
@@ -132,7 +128,7 @@ export default async function VisaExtensionLandingPage() {
           <MotionReveal>
             <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
           </MotionReveal>
-          <VisaProcessSteps steps={visaProcessSteps} />
+          <VisaProcessSteps steps={content.steps(visaProcessSteps)} />
         </Container>
       </section>
 
@@ -149,9 +145,7 @@ export default async function VisaExtensionLandingPage() {
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-ink-on-dark-primary">
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
-                Need more time in the UAE?
-              </h2>
+              <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">{content.text("ctaHeading")}</h2>
               <p className="max-w-xl text-sm text-ink-on-dark-secondary sm:text-base">
                 Check your extension eligibility and submit your request online.
               </p>

@@ -26,6 +26,7 @@ import {
 } from "@/components/services/flight-special-fare/landing/TicketingSections";
 import { getServiceTimelineRules } from "@/lib/settings/service-timeline-config";
 import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES } from "@/lib/quotations/pricing";
+import { getSitePageContent } from "@/lib/site-content/get-page-content";
 
 export const metadata: Metadata = {
   title: "Flight Special Fare",
@@ -86,11 +87,13 @@ const visaProcessSteps = [
 ];
 
 export default async function FlightSpecialFareLandingPage() {
+  // Client doc 2026-10-15 (J3) — photo and main wording from Admin → Website Pages (blank = this copy).
+  const content = await getSitePageContent("flight-special-fare");
   const config = await loadFlightLandingConfig();
   return (
     <>
       <section className="relative overflow-hidden">
-        <ServiceHeroBackdrop service="FLIGHT_SPECIAL_FARE" />
+        <ServiceHeroBackdrop service="FLIGHT_SPECIAL_FARE" imageSrc={content.heroImageUrl} />
         <Container className="relative flex flex-col items-center gap-6 pb-14 pt-8 text-center sm:pb-20 sm:pt-10">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
@@ -98,19 +101,13 @@ export default async function FlightSpecialFareLandingPage() {
             </span>
           </MotionReveal>
           <MotionReveal delay={0.04}>
-            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">Flight Special Fare</span>
+            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">{content.text("heroEyebrow")}</span>
           </MotionReveal>
           <MotionReveal delay={0.06}>
-            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
-              Special Fares, Made Simple
-            </h1>
+            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">{content.text("heroTitle")}</h1>
           </MotionReveal>
           <MotionReveal delay={0.12}>
-            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              Offline special fares sourced through our airline and partners for major domestic cities in India
-              and destinations worldwide. Share your route, travel date and passenger details — our team checks
-              available airline and agency inventory and sends you the best available options.
-            </p>
+            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">{content.text("heroSubtitle")}</p>
           </MotionReveal>
           <MotionReveal delay={0.15}>
             <ul className="flex flex-wrap items-center justify-center gap-2 text-sm font-medium text-ink-secondary">
@@ -123,9 +120,7 @@ export default async function FlightSpecialFareLandingPage() {
           </MotionReveal>
           <MotionReveal delay={0.18}>
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
-              <ButtonLink href="/services/flight-special-fare/request" variant="primary" size="lg">
-                Request a Fare Quote
-              </ButtonLink>
+              <ButtonLink href="/services/flight-special-fare/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status
               </ButtonLink>
@@ -178,7 +173,7 @@ export default async function FlightSpecialFareLandingPage() {
           <MotionReveal>
             <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
           </MotionReveal>
-          <VisaProcessSteps steps={visaProcessSteps} />
+          <VisaProcessSteps steps={content.steps(visaProcessSteps)} />
         </Container>
       </section>
 
@@ -198,12 +193,8 @@ export default async function FlightSpecialFareLandingPage() {
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-ink-on-dark-primary">
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
-                Ready to check special fares for your trip?
-              </h2>
-              <ButtonLink href="/services/flight-special-fare/request" variant="primary" size="lg">
-                Request a Fare Quote
-              </ButtonLink>
+              <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">{content.text("ctaHeading")}</h2>
+              <ButtonLink href="/services/flight-special-fare/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
             </div>
           </MotionReveal>
         </Container>

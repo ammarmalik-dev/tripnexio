@@ -19,6 +19,7 @@ import { utilityLinks } from "@/lib/nav-config";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
 import { ServiceRequirementsSection } from "@/components/services/ServiceRequirementsSection";
+import { getSitePageContent } from "@/lib/site-content/get-page-content";
 
 // FAQs (Admin Faq rows) are DB-backed. No prices on this page (client correction 2026-10-05).
 export const revalidate = 300;
@@ -74,11 +75,13 @@ const otbProcessSteps = [
   { step: "04", icon: BadgeCheck, headline: "Get Your OTB Confirmation", supportingCopy: "Once the airline confirms the OTB, we share the confirmation/reference with you and update your status via WhatsApp and email." },
 ];
 
-export default function OtbLandingPage() {
+export default async function OtbLandingPage() {
+  // Client doc 2026-10-15 (J3) — photo and main wording from Admin → Website Pages (blank = this copy).
+  const content = await getSitePageContent("otb");
   return (
     <>
       <section className="relative overflow-hidden">
-        <ServiceHeroBackdrop service="OTB" />
+        <ServiceHeroBackdrop service="OTB" imageSrc={content.heroImageUrl} />
         <Container className="relative flex flex-col items-center gap-6 pb-14 pt-8 text-center sm:pb-20 sm:pt-10">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
@@ -86,35 +89,27 @@ export default function OtbLandingPage() {
             </span>
           </MotionReveal>
           <MotionReveal delay={0.04}>
-            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">OK to Board</span>
+            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">{content.text("heroEyebrow")}</span>
           </MotionReveal>
           <MotionReveal delay={0.05}>
             {/* P18 — OTB Page Content v3 hero badge. */}
             <span className="inline-flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1 text-xs font-semibold text-accent-on-light">
               <BadgeCheck className="h-3.5 w-3.5" aria-hidden="true" />
-              Official OTB Partner
+              {content.text("heroBadge")}
             </span>
           </MotionReveal>
           <MotionReveal delay={0.06}>
-            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
-              OK to Board, Made Simple
-            </h1>
+            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">{content.text("heroTitle")}</h1>
           </MotionReveal>
           <MotionReveal delay={0.12}>
-            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              Travelling from India with an ECR passport? Get your OTB arranged before your flight and travel with
-              greater peace of mind. TripNexio coordinates the OTB process with the relevant airline and keeps you
-              updated until completion.
-            </p>
+            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">{content.text("heroSubtitle")}</p>
           </MotionReveal>
           <MotionReveal delay={0.15}>
-            <p className="text-sm font-medium text-ink-tertiary">India-Based Processing · Airline-Specific Timelines · Status Updates</p>
+            <p className="text-sm font-medium text-ink-tertiary">{content.text("heroTagline")}</p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
-              <ButtonLink href="/services/otb/request" variant="primary" size="lg">
-                Apply for OTB
-              </ButtonLink>
+              <ButtonLink href="/services/otb/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status
               </ButtonLink>
@@ -258,7 +253,7 @@ export default function OtbLandingPage() {
           <MotionReveal>
             <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
           </MotionReveal>
-          <VisaProcessSteps steps={otbProcessSteps} />
+          <VisaProcessSteps steps={content.steps(otbProcessSteps)} />
         </Container>
       </section>
 
@@ -337,13 +332,9 @@ export default function OtbLandingPage() {
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-ink-on-dark-primary">
                 <PlaneTakeoff className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
-                Ready to request your OTB?
-              </h2>
+              <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">{content.text("ctaHeading")}</h2>
               <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
-                <ButtonLink href="/services/otb/request" variant="primary" size="lg">
-                  Apply for OTB
-                </ButtonLink>
+                <ButtonLink href="/services/otb/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
                 <ButtonLink href="/services/return-ticket" variant="ghost" size="lg" className="border-white/40 text-white hover:border-white/70 hover:bg-white/5">
                   Get Return Ticket
                 </ButtonLink>

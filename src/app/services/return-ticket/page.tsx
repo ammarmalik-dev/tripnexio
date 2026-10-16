@@ -20,6 +20,7 @@ import {
 } from "@/components/services/return-ticket/landing/CancellationRefundSection";
 import { DisclaimerAfterTravelSection } from "@/components/services/return-ticket/landing/DisclaimerAfterTravelSection";
 import { db } from "@/lib/db";
+import { getSitePageContent } from "@/lib/site-content/get-page-content";
 
 // Admin-managed documents/destinations are read at request time, cached 5 min.
 export const revalidate = 300;
@@ -99,11 +100,13 @@ async function loadDestinations(): Promise<ReturnTicketLandingDestination[] | nu
 }
 
 export default async function ReturnTicketLandingPage() {
+  // Client doc 2026-10-15 (J3) — photo and main wording from Admin → Website Pages (blank = this copy).
+  const content = await getSitePageContent("return-ticket");
   const [documents, destinations] = await Promise.all([loadDocuments(), loadDestinations()]);
   return (
     <>
       <section className="relative overflow-hidden">
-        <ServiceHeroBackdrop service="RETURN_TICKET" />
+        <ServiceHeroBackdrop service="RETURN_TICKET" imageSrc={content.heroImageUrl} />
         <Container className="relative flex flex-col items-center gap-6 pb-14 pt-8 text-center sm:pb-20 sm:pt-10">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
@@ -111,24 +114,17 @@ export default async function ReturnTicketLandingPage() {
             </span>
           </MotionReveal>
           <MotionReveal delay={0.04}>
-            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">International Return Ticket</span>
+            <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">{content.text("heroEyebrow")}</span>
           </MotionReveal>
           <MotionReveal delay={0.06}>
-            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">
-              Return Ticket, Made Simple
-            </h1>
+            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-ink-heading sm:text-5xl">{content.text("heroTitle")}</h1>
           </MotionReveal>
           <MotionReveal delay={0.12}>
-            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">
-              Get a verifiable return ticket reservation for international travel. Share your destination and
-              travel date — we take care of the rest.
-            </p>
+            <p className="max-w-xl text-base text-ink-secondary sm:text-lg">{content.text("heroSubtitle")}</p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
-              <ButtonLink href="/services/return-ticket/request" variant="primary" size="lg">
-                Reserve Your Ticket
-              </ButtonLink>
+              <ButtonLink href="/services/return-ticket/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
                 Track Status
               </ButtonLink>
@@ -198,7 +194,7 @@ export default async function ReturnTicketLandingPage() {
           <MotionReveal>
             <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
           </MotionReveal>
-          <VisaProcessSteps steps={visaProcessSteps} />
+          <VisaProcessSteps steps={content.steps(visaProcessSteps)} />
         </Container>
       </section>
 
@@ -217,12 +213,8 @@ export default async function ReturnTicketLandingPage() {
               <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-ink-on-dark-primary">
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
-                Ready to reserve your return ticket?
-              </h2>
-              <ButtonLink href="/services/return-ticket/request" variant="primary" size="lg">
-                Reserve Your Ticket
-              </ButtonLink>
+              <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">{content.text("ctaHeading")}</h2>
+              <ButtonLink href="/services/return-ticket/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
             </div>
           </MotionReveal>
         </Container>
