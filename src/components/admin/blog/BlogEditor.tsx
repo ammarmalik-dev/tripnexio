@@ -16,7 +16,7 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { toast } from "@/components/ui/Toaster";
 import { ApiError, deleteJson, patchJson, postJson } from "@/lib/api/client";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
-import { BLOG_CATEGORIES, BUILT_IN_COVERS, blogPostSchema, readingMinutes, slugify } from "@/lib/blog/blog";
+import { BLOG_CATEGORIES, blogCategoryOptions, BUILT_IN_COVERS, blogPostSchema, readingMinutes, slugify } from "@/lib/blog/blog";
 import { cn } from "@/lib/cn";
 
 /** The editor's form: tags typed as one comma-separated line, everything else as in blogPostSchema. */
@@ -64,7 +64,7 @@ function readAsBase64(file: File): Promise<string> {
  * New posts are saved as drafts; Publish / Unpublish / Delete are separate,
  * audited actions.
  */
-export function BlogEditor({ post }: { post: BlogPostData | null }) {
+export function BlogEditor({ post, usedCategories = [] }: { post: BlogPostData | null; usedCategories?: string[] }) {
   const router = useRouter();
   const { confirm, dialog } = useConfirmAction();
   const [saved, setSaved] = useState<BlogPostData | null>(post);
@@ -264,7 +264,7 @@ export function BlogEditor({ post }: { post: BlogPostData | null }) {
               error={errors.category?.message}
             />
             <datalist id="blog-category-options">
-              {BLOG_CATEGORIES.map((category) => (
+              {blogCategoryOptions(usedCategories).map((category) => (
                 <option key={category} value={category} />
               ))}
             </datalist>

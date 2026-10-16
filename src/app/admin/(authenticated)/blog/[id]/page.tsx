@@ -16,5 +16,6 @@ export default async function AdminBlogPostPage({ params }: AdminBlogPostPagePro
   const { id } = await params;
   const post = await db.blogPost.findUnique({ where: { id } });
   if (!post) notFound();
-  return <BlogEditor post={{ ...post, publishedAt: post.publishedAt?.toISOString() ?? null }} />;
+  const used = await db.blogPost.findMany({ distinct: ["category"], select: { category: true } });
+  return <BlogEditor post={{ ...post, publishedAt: post.publishedAt?.toISOString() ?? null }} usedCategories={used.map((row) => row.category)} />;
 }

@@ -25,6 +25,11 @@ export const BUILT_IN_COVERS: { url: string; label: string }[] = [
 /** Suggested categories; Admin can also type a new one (client testing 2026-10-09, F9). */
 export const BLOG_CATEGORIES = ["Visa Guides", "Flights & OTB", "Travel Tips", "TripNexio Updates"] as const;
 
+/** Client doc 2026-10-15 (J2) — the built-in categories plus every category already used on a post, for the editor's suggestions. */
+export function blogCategoryOptions(used: string[]): string[] {
+  return [...new Set([...BLOG_CATEGORIES, ...used.map((category) => category.trim()).filter(Boolean)])];
+}
+
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const blogPostSchema = z.object({
