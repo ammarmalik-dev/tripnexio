@@ -506,14 +506,16 @@ export function BookingDetail({
                   </RecordSection>
                 ) : null}
 
-                <DeliverOutputSection
-                  bookingId={booking.id}
-                  passengers={booking.passengers}
-                  documents={booking.documents}
-                  onDelivered={refresh}
-                  defaultOutputType={DEFAULT_OUTPUT_BY_SERVICE[booking.serviceType]}
-                  allowedOutputTypes={OUTPUTS_BY_SERVICE[booking.serviceType]}
-                />
+                {OUTPUTS_BY_SERVICE[booking.serviceType].length > 0 ? (
+                  <DeliverOutputSection
+                    bookingId={booking.id}
+                    passengers={booking.passengers}
+                    documents={booking.documents}
+                    onDelivered={refresh}
+                    defaultOutputType={DEFAULT_OUTPUT_BY_SERVICE[booking.serviceType]}
+                    allowedOutputTypes={OUTPUTS_BY_SERVICE[booking.serviceType]}
+                  />
+                ) : null}
               </div>
             ),
           },

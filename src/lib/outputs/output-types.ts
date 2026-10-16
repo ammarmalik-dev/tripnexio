@@ -39,7 +39,8 @@ export const OUTPUTS_BY_SERVICE: Record<ServiceType, readonly OutputType[]> = {
   VISA_CHANGE: ["PACKAGE_PDF", "VISA_PDF"],
   FLIGHT_SPECIAL_FARE: ["TICKET_PDF"],
   RETURN_TICKET: ["RESERVATION_PDF", "TICKET_PDF"],
-  OTB: ["OTB_CONFIRMATION"],
+  // Client doc 2026-10-15 (I3) — an OTB is the airline's confirmation (recorded with its PNR in the OTB actions), not a document to upload.
+  OTB: [],
   OTHER: OUTPUT_TYPES,
 };
 
