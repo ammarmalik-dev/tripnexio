@@ -6,6 +6,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { assertValidBookingTransition } from "@/lib/bookings/transitions";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string; passengerId: string }>;
@@ -23,6 +24,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id: bookingId, passengerId } = await params;
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+  const ownershipError = await assertOwnsEntity(auth.session, "booking", bookingId);
+  if (ownershipError) return ownershipError;
 
   let body: unknown;
   try {

@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { saveUploadedFile } from "@/lib/storage/local-file-storage";
 import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -32,6 +33,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id } = await params;
+
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+
+  const ownershipError = await assertOwnsEntity(auth.session, "payment", id);
+
+  if (ownershipError) return ownershipError;
 
   const payment = await db.payment.findUnique({ where: { id }, include: { booking: { include: { lead: true } } } });
   if (!payment) return jsonError(404, "Payment not found.");

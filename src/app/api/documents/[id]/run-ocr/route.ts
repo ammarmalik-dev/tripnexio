@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -19,6 +20,12 @@ export async function POST(_request: Request, { params }: RouteParams) {
   if (auth.error) return auth.error;
 
   const { id } = await params;
+
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+
+  const ownershipError = await assertOwnsEntity(auth.session, "document", id);
+
+  if (ownershipError) return ownershipError;
 
   const document = await db.document.findUnique({ where: { id }, include: { booking: { include: { lead: true } } } });
   if (!document) return jsonError(404, "Document not found.");

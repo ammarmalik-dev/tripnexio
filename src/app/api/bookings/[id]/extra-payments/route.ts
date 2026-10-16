@@ -7,6 +7,7 @@ import { createExtraPayment } from "@/lib/payments/create-payment";
 import { createExtraPaymentSchema } from "@/lib/validation/extra-payment-schema";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -29,6 +30,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id: bookingId } = await params;
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+  const ownershipError = await assertOwnsEntity(auth.session, "booking", bookingId);
+  if (ownershipError) return ownershipError;
 
   const booking = await db.booking.findUnique({ where: { id: bookingId }, include: { customer: true, lead: true } });
   if (!booking) return jsonError(404, "Booking not found.");

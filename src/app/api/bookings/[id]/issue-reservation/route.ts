@@ -6,6 +6,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { canIssueReservation, computeReservationExpiry } from "@/lib/bookings/reservation";
 import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { linkedOtbState } from "@/lib/return-ticket/operations";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,6 +25,12 @@ export async function PATCH(_request: Request, { params }: RouteParams) {
   const { session } = auth;
 
   const { id } = await params;
+
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+
+  const ownershipError = await assertOwnsEntity(auth.session, "booking", id);
+
+  if (ownershipError) return ownershipError;
 
   const booking = await db.booking.findUnique({ where: { id }, include: { lead: true } });
   if (!booking) return jsonError(404, "Booking not found.");

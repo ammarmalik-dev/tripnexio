@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { createPendingBankTransferPayment } from "@/lib/payments/create-bank-transfer-payment";
 import { isExpiredNow, syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -23,6 +24,9 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id: bookingId } = await params;
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+  const ownershipError = await assertOwnsEntity(auth.session, "booking", bookingId);
+  if (ownershipError) return ownershipError;
 
   const booking = await db.booking.findUnique({
     where: { id: bookingId },

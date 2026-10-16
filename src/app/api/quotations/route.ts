@@ -32,6 +32,7 @@ import type { Quotation } from "@/generated/prisma/client";
 import { serviceDetailsLine } from "@/lib/crm/service-details";
 import { countryFlagEmoji } from "@/lib/countries/flag";
 import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 /**
  * SELECTED/EXPIRED/PENDING is derived — Quotation only stores
@@ -213,6 +214,9 @@ export async function POST(request: NextRequest) {
   // Client doc 2026-10-14 — its selling price and vendor cost come from the
   // per-passenger rates × the lead's Adult / Child / Infant counts, and the
   // vendor cost is the non-taxable (airline) part of the invoice.
+  // Client doc 2026-10-15 (C6) — only the lead's own staff (or a manager / Admin) can quote it.
+  const ownershipError = await assertOwnsEntity(session, "lead", parsed.data.leadId);
+  if (ownershipError) return ownershipError;
   const sfLead = await db.lead.findUnique({ where: { id: parsed.data.leadId }, select: { serviceType: true, details: true, paxCount: true } });
   if (sfLead?.serviceType === "FLIGHT_SPECIAL_FARE") {
     if (parsed.data.itinerary && parsed.data.itinerary.length > 0) {

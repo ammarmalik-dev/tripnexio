@@ -10,6 +10,7 @@ import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
 import { isAirportToAirportLead, parseOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
 import { applyQuotationSentEffects, notifyQuoteReady } from "@/lib/quotations/send-quotation";
 import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -33,6 +34,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (auth.error) return auth.error;
   const { session } = auth;
   const { id } = await params;
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+  const ownershipError = await assertOwnsEntity(auth.session, "quotation", id);
+  if (ownershipError) return ownershipError;
 
   let body: unknown = {};
   try {

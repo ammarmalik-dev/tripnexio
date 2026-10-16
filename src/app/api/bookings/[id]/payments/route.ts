@@ -7,6 +7,7 @@ import { createPendingPayment } from "@/lib/payments/create-payment";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { assertQuotationPayable } from "@/lib/payments/quotation-payable";
 import { PaymentGatewayConfigError } from "@/lib/payments/get-gateway";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,6 +19,9 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id: bookingId } = await params;
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+  const ownershipError = await assertOwnsEntity(auth.session, "booking", bookingId);
+  if (ownershipError) return ownershipError;
 
   const booking = await db.booking.findUnique({
     where: { id: bookingId },

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { selectQuotation } from "@/lib/quotations/select-quotation";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -16,6 +17,12 @@ export async function PATCH(_request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id } = await params;
+
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+
+  const ownershipError = await assertOwnsEntity(auth.session, "quotation", id);
+
+  if (ownershipError) return ownershipError;
 
   const quotation = await db.quotation.findUnique({ where: { id }, include: { lead: true } });
   if (!quotation) return jsonError(404, "Quotation not found.");

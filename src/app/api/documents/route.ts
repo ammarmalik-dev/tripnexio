@@ -14,6 +14,7 @@ import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { documentLeadId } from "@/lib/documents/document-lead";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 /**
  * Two modes: pass `bookingId`/`passengerId` for the documents scoped to one
@@ -135,6 +136,13 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can add its documents.
+  const ownershipError = parsed.data.bookingId
+    ? await assertOwnsEntity(session, "booking", parsed.data.bookingId)
+    : parsed.data.leadId
+      ? await assertOwnsEntity(session, "lead", parsed.data.leadId)
+      : null;
+  if (ownershipError) return ownershipError;
   if (parsed.data.passengerId) {
     const passenger = await db.passenger.findUnique({ where: { id: parsed.data.passengerId } });
     if (!passenger) {

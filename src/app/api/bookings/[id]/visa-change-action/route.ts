@@ -8,6 +8,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import { EXIT_METHOD_LABELS, VISA_CHANGE_ACTIONS, VISA_CHANGE_ACTION_KEYS } from "@/lib/visa-change/staff-actions";
 import type { Prisma } from "@/generated/prisma/client";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -41,6 +42,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (auth.error) return auth.error;
   const { session } = auth;
   const { id } = await params;
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+  const ownershipError = await assertOwnsEntity(auth.session, "booking", id);
+  if (ownershipError) return ownershipError;
 
   let body: unknown;
   try {

@@ -8,6 +8,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import type { Prisma } from "@/generated/prisma/client";
 import { computeEligibilityOutcome } from "@/lib/visa-extension/rules";
 import { computeUrgentDeadline, extensionToday } from "@/lib/visa-extension/urgency";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 const verifyExpirySchema = z.object({
   verifiedExpiryDate: z
@@ -34,6 +35,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id } = await params;
+
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+
+  const ownershipError = await assertOwnsEntity(auth.session, "lead", id);
+
+  if (ownershipError) return ownershipError;
 
   let body: unknown;
   try {

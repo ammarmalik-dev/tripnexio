@@ -12,6 +12,7 @@ import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/
 import { returnTicketCancellationFee } from "@/lib/return-ticket/operations";
 import { getRefundConfig } from "@/lib/refunds/config";
 import { notifyRefundsRaised } from "@/lib/staff-notifications/triggers";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -29,6 +30,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id: paymentId } = await params;
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+  const ownershipError = await assertOwnsEntity(auth.session, "payment", paymentId);
+  if (ownershipError) return ownershipError;
 
   let body: unknown;
   try {

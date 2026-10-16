@@ -9,6 +9,7 @@ import { getEmailSender } from "@/lib/email/get-sender";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { sanitizeBasicHtml } from "@/lib/html/escape";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 const WHATSAPP_SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
@@ -32,6 +33,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id } = await params;
+
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+
+  const ownershipError = await assertOwnsEntity(auth.session, "lead", id);
+
+  if (ownershipError) return ownershipError;
 
   let body: unknown;
   try {

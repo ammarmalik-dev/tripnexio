@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import type { Prisma } from "@/generated/prisma/client";
 import type { BorderBlock } from "@/lib/visa-change/operational";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 const phone = z.string().trim().regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid contact number");
 const optionalText = (max: number) =>
@@ -50,6 +51,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id } = await params;
+
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+
+  const ownershipError = await assertOwnsEntity(auth.session, "lead", id);
+
+  if (ownershipError) return ownershipError;
 
   let body: unknown;
   try {

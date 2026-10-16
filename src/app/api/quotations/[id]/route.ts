@@ -23,6 +23,7 @@ import { buildA2ABlockForQuote } from "@/lib/visa-change/build-a2a-block";
 import { notifyQuoteReady } from "@/lib/quotations/send-quotation";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -116,6 +117,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const { session } = auth;
 
   const { id } = await params;
+
+  // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
+
+  const ownershipError = await assertOwnsEntity(auth.session, "quotation", id);
+
+  if (ownershipError) return ownershipError;
 
   let body: unknown;
   try {
