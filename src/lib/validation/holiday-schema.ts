@@ -9,5 +9,7 @@ export const createHolidaySchema = z.object({
 
 export const updateHolidaySchema = z.object({
   name: z.string().trim().min(2, "Enter the holiday name").max(80, "Name is too long").optional(),
+  /** Client doc 2026-10-15 (J6) — a holiday's date can be corrected too. */
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date").optional(),
   active: z.boolean().optional(),
 });

@@ -8,7 +8,9 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
+import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/client";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { CountryWorkingDays } from "./CountryWorkingDays";
@@ -36,8 +38,45 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-function HolidayRow({ holiday, onSaved }: { holiday: HolidayData; onSaved: (h: HolidayData) => void }) {
+function HolidayRow({ holiday, onSaved, onDeleted }: { holiday: HolidayData; onSaved: (h: HolidayData) => void; onDeleted: (id: string) => void }) {
   const [busy, setBusy] = useState(false);
+  // Client doc 2026-10-15 (J6) — edit the name / date, or delete a holiday added by mistake.
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(holiday.name);
+  const [date, setDate] = useState(holiday.date.slice(0, 10));
+  const { confirm, dialog } = useConfirmAction();
+
+  const save = async () => {
+    setBusy(true);
+    try {
+      const updated = await patchJson<HolidayData>(`/api/admin/holidays/${holiday.id}`, { name: name.trim(), date });
+      toast.success(`"${updated.name}" saved.`);
+      onSaved({ ...updated, countryName: holiday.countryName });
+      setEditing(false);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't save this holiday. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    const reason = await confirm({
+      title: `Delete "${holiday.name}"?`,
+      description: `${formatDate(holiday.date)} stops being a holiday for ${holiday.countryName}. Working-day timelines count it as a normal day again.`,
+      confirmLabel: "Delete Holiday",
+    });
+    if (!reason) return;
+    setBusy(true);
+    try {
+      await deleteJson(withReasonQuery(`/api/admin/holidays/${holiday.id}`, reason));
+      toast.success(`"${holiday.name}" deleted.`);
+      onDeleted(holiday.id);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't delete this holiday. Please try again.");
+      setBusy(false);
+    }
+  };
 
   const toggle = async () => {
     setBusy(true);
@@ -70,12 +109,43 @@ function HolidayRow({ holiday, onSaved }: { holiday: HolidayData; onSaved: (h: H
           </span>
         </div>
         <p className="mt-1 text-xs text-ink-tertiary">{formatDate(holiday.date)}</p>
+        {editing ? (
+          <div className="mt-3 flex flex-wrap items-end gap-2">
+            <TextField label="Date" name={`holiday-date-${holiday.id}`} type="date" value={date} onChange={(e) => setDate(e.target.value)} disabled={busy} />
+            <TextField label="Holiday name" name={`holiday-name-${holiday.id}`} value={name} onChange={(e) => setName(e.target.value)} disabled={busy} />
+            <Button type="button" size="sm" onClick={() => void save()} isLoading={busy} disabled={!date || name.trim().length < 2}>
+              Save
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              disabled={busy}
+              onClick={() => {
+                setEditing(false);
+                setName(holiday.name);
+                setDate(holiday.date.slice(0, 10));
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        ) : null}
       </div>
       <div className="flex items-center gap-1">
+        {editing ? null : (
+          <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(true)} disabled={busy}>
+            Edit
+          </Button>
+        )}
         <Button type="button" size="sm" variant="ghost" onClick={() => void toggle()} isLoading={busy}>
           {holiday.active ? "Disable" : "Enable"}
         </Button>
+        <Button type="button" size="sm" variant="ghost" className="text-error" onClick={() => void remove()} disabled={busy}>
+          Delete
+        </Button>
       </div>
+      {dialog}
     </div>
   );
 }
@@ -346,6 +416,7 @@ export function HolidaysManager() {
               key={item.id}
               holiday={item}
               onSaved={(updated) => setItems((current) => current.map((h) => (h.id === updated.id ? updated : h)))}
+              onDeleted={(id) => setItems((current) => current.filter((h) => h.id !== id))}
             />
           ))}
         </div>
