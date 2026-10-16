@@ -21,7 +21,7 @@ export function ApplyChoice({ children, googleEnabled }: { children: ReactNode; 
   const next = `${pathname}${query ? `?${query}` : ""}`;
 
   return (
-    <Container className="py-16 sm:py-24">
+    <Container className="pb-16 pt-8 sm:pb-24 sm:pt-10">
       <GlassCard tier={2} className="mx-auto flex max-w-xl flex-col gap-6 p-6 sm:p-8">
         <div className="flex flex-col gap-2 text-center">
           <h1 className="text-2xl font-semibold tracking-tight text-ink-heading">How would you like to continue?</h1>

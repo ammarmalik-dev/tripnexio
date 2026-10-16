@@ -38,7 +38,7 @@ export default async function NewVisaDestinationsPage() {
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="NEW_VISA" />
-        <Container className="relative flex flex-col items-center gap-5 py-12 text-center sm:py-16">
+        <Container className="relative flex flex-col items-center gap-5 pb-12 pt-8 text-center sm:pb-16 sm:pt-10">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
               <FileText className="h-6 w-6" aria-hidden="true" />

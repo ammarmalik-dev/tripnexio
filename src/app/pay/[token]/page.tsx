@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function PayPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   return (
-    <Container className="py-16 sm:py-24">
+    <Container className="pb-16 pt-8 sm:pb-24 sm:pt-10">
       <div className="mx-auto max-w-2xl">
         <CheckoutPanel token={token} />
       </div>

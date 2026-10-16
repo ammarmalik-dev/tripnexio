@@ -16,7 +16,7 @@ export default function Home() {
     <>
       <section className="relative overflow-hidden">
         <HeroImage />
-        <Container className="relative flex flex-col items-center gap-8 pb-16 pt-20 text-center sm:pb-24 sm:pt-28">
+        <Container className="relative flex flex-col items-center gap-8 pb-16 pt-12 text-center sm:pb-24 sm:pt-16">
           <MotionReveal>
             <span className="text-xs font-semibold tracking-wide text-ink-accent">
               Visa &middot; Flights &middot; OTB

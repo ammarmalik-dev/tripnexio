@@ -85,7 +85,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="NEW_VISA" imageSrc={countryPageImageUrl(page.heroImageFileId)} />
-        <Container className="relative flex flex-col items-center gap-6 py-14 text-center sm:py-20">
+        <Container className="relative flex flex-col items-center gap-6 pb-14 pt-8 text-center sm:pb-20 sm:pt-10">
           <MotionReveal>
             <Link
               href="/services/new-visa"

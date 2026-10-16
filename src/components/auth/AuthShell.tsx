@@ -16,7 +16,7 @@ interface AuthShellProps {
 /** Shared centered glass-card chrome for the login and register pages. */
 export function AuthShell({ eyebrow, title, subtitle, children, footer }: AuthShellProps) {
   return (
-    <section className="relative overflow-hidden py-16 sm:py-24">
+    <section className="relative overflow-hidden pb-16 pt-10 sm:pb-24 sm:pt-12">
       <GradientMesh />
       <Container className="relative flex justify-center">
         <MotionReveal className="w-full max-w-md">

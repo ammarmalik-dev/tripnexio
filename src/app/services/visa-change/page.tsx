@@ -37,7 +37,7 @@ export default function VisaChangeLandingPage() {
     <>
       <section className="relative overflow-hidden">
         <ServiceHeroBackdrop service="VISA_CHANGE" />
-        <Container className="relative flex flex-col items-center gap-6 py-14 text-center sm:py-20">
+        <Container className="relative flex flex-col items-center gap-6 pb-14 pt-8 text-center sm:pb-20 sm:pt-10">
           <MotionReveal>
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
               <ArrowLeftRight className="h-6 w-6" aria-hidden="true" />

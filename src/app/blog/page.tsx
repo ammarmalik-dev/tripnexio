@@ -47,7 +47,7 @@ export default async function BlogPage({ searchParams }: BlogPageProps) {
   );
 
   return (
-    <Container className="py-14 sm:py-20">
+    <Container className="pb-14 pt-8 sm:pb-20 sm:pt-10">
       <header className="mx-auto max-w-3xl text-center">
         <p className="text-sm font-semibold tracking-wide text-ink-accent uppercase">TripNexio Blog</p>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink-heading sm:text-5xl">Travel &amp; visa guides</h1>

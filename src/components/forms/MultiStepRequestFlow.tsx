@@ -160,7 +160,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
 
   if (submitState === "success" && referenceId) {
     return (
-      <Container className="py-16 sm:py-24">
+      <Container className="pb-16 pt-8 sm:pb-24 sm:pt-10">
         <div className="mx-auto max-w-xl">
           <RequestSuccessPanel
             title={successTitle}
@@ -175,7 +175,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
 
   if (submitState === "ineligible" && ineligibleOutcome) {
     return (
-      <Container className="py-16 sm:py-24">
+      <Container className="pb-16 pt-8 sm:pb-24 sm:pt-10">
         <div className="mx-auto max-w-xl">
           <RequestInfoPanel
             title={ineligibleOutcome.message}
@@ -192,7 +192,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
   const direction = shouldReduceMotion ? 0 : 1;
 
   return (
-    <Container className="py-16 sm:py-24">
+    <Container className="pb-16 pt-8 sm:pb-24 sm:pt-10">
       <div className="mx-auto flex max-w-xl flex-col gap-10">
         <div className="flex flex-col gap-2 text-center">
           <span className="text-sm font-medium tracking-wide text-ink-accent">{eyebrow}</span>
