@@ -5,6 +5,7 @@ import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormFiel
 import { Skeleton } from "@/components/ui/Skeleton";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { cn } from "@/lib/cn";
 
 interface StatusOption {
@@ -18,6 +19,8 @@ interface StatusState {
   allowed: StatusOption[];
   /** Client testing 2026-10-09 (E9) — every status of this service, in order. */
   all?: (StatusOption & { isTerminal: boolean })[];
+  /** Client doc 2026-10-15 (I9) — the viewer is an Admin and may move to any status (with a reason). */
+  canOverride?: boolean;
 }
 
 /**
@@ -41,6 +44,7 @@ export function ServiceStatusControl<TCoarse extends string>({
   const [loadError, setLoadError] = useState(false);
   const [pending, setPending] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const { confirm, dialog } = useConfirmAction();
 
   useEffect(() => {
     let cancelled = false;
@@ -77,8 +81,32 @@ export function ServiceStatusControl<TCoarse extends string>({
     }
   };
 
+  // Client doc 2026-10-15 (I9) — Admin moves a record to any status (e.g. back after a staff mistake), with a reason.
+  const handleOverride = async (serviceStatusId: string) => {
+    const target = state?.all?.find((option) => option.id === serviceStatusId);
+    if (!target) return;
+    const reason = await confirm({
+      title: `Admin override: move to "${target.name}"?`,
+      description: "This skips the normal status flow (including moving back or out of a final status). The customer is notified as usual, and your reason is saved in the audit log.",
+      confirmLabel: "Override status",
+    });
+    if (!reason) return;
+    setPending(true);
+    try {
+      const updated = await patchJson<{ status: TCoarse }>(endpoint, { serviceStatusId, override: true, note: reason });
+      toast.success(`Status moved to ${target.name} (Admin override)`);
+      onChanged(updated.status);
+      setReloadNonce((n) => n + 1);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't override the status.");
+    } finally {
+      setPending(false);
+    }
+  };
+
   return (
     <div className="flex flex-wrap items-center justify-end gap-3">
+      {dialog}
       {badge}
       {loadError ? (
         <button type="button" className="text-xs text-error underline" onClick={() => setReloadNonce((n) => n + 1)}>
@@ -123,6 +151,31 @@ export function ServiceStatusControl<TCoarse extends string>({
           ) : (
             <span className="text-xs text-ink-tertiary">Final status — no further transitions</span>
           )}
+          {state.canOverride && state.all && state.all.length > 0 ? (
+            <>
+              <label htmlFor={`${selectId}-override`} className="sr-only">
+                Admin override — move to any status
+              </label>
+              <select
+                id={`${selectId}-override`}
+                value=""
+                disabled={pending}
+                onChange={(event) => void handleOverride(event.target.value)}
+                className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[160px] border-warning/50 text-sm text-warning")}
+              >
+                <option value="" disabled>
+                  Admin override…
+                </option>
+                {state.all
+                  .filter((option) => option.id !== state.current?.id)
+                  .map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+              </select>
+            </>
+          ) : null}
           {state.all && state.all.length > 0 ? (
             <details className="relative text-left">
               <summary className="cursor-pointer text-xs font-medium text-ink-accent select-none">All statuses</summary>

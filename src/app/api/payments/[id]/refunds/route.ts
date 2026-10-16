@@ -5,10 +5,11 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { computeRefundAmount } from "@/lib/refunds/pricing";
 import { paymentTotal } from "@/lib/payments/totals";
-import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
+import { evaluateRefundRule, documentsValidated, packageGenerated, adminRefundOverride } from "@/lib/refunds/rules";
 import { returnTicketCancellationFee } from "@/lib/return-ticket/operations";
 import { getRefundConfig } from "@/lib/refunds/config";
 import { notifyRefundsRaised } from "@/lib/staff-notifications/triggers";
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // timestamp column, and this row is otherwise only ever updated by the
   // PENDING->SUCCESS transition (completePaymentSuccess), so it's a
   // reasonable proxy.
-  const rule = evaluateRefundRule({
+  const rule = adminRefundOverride(evaluateRefundRule({
     serviceType: payment.booking.lead.serviceType,
     bookingStatus: payment.booking.status,
     blocksRefund: payment.booking.serviceStatus?.blocksRefund ?? null,
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     extensionOutcome: payment.booking.extensionOutcome,
     paymentSucceededAt: payment.updatedAt,
     cancellationFee: payment.booking.lead.serviceType === "RETURN_TICKET" ? await returnTicketCancellationFee(payment.booking.lead.details) : null,
-  }, await getRefundConfig(payment.booking.lead.serviceType));
+  }, await getRefundConfig(payment.booking.lead.serviceType)), session.permissions.includes(ADMIN_FULL_PERMISSION));
   if (!rule.allowed) {
     return jsonError(409, rule.label);
   }

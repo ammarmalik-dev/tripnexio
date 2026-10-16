@@ -9,7 +9,8 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { buildApplicantRows } from "@/lib/new-visa/applicants";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
-import { evaluateRefundRule, documentsValidated, packageGenerated } from "@/lib/refunds/rules";
+import { evaluateRefundRule, documentsValidated, packageGenerated, adminRefundOverride } from "@/lib/refunds/rules";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { linkedOtbState, returnTicketCancellationFee } from "@/lib/return-ticket/operations";
 import { expectedOtbCompletion } from "@/lib/otb/staff-actions";
 import { canIssueReservation } from "@/lib/bookings/reservation";
@@ -91,7 +92,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     ...payment,
     refundRule:
       payment.status === "SUCCESS"
-        ? evaluateRefundRule({
+        ? adminRefundOverride(evaluateRefundRule({
             serviceType: booking.lead.serviceType,
             bookingStatus: synced.status,
             blocksRefund: booking.serviceStatus?.blocksRefund ?? null,
@@ -100,7 +101,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             extensionOutcome: synced.extensionOutcome,
             paymentSucceededAt: payment.updatedAt,
             cancellationFee,
-          }, refundConfig)
+          }, refundConfig), auth.session.permissions.includes(ADMIN_FULL_PERMISSION))
         : null,
   }));
 

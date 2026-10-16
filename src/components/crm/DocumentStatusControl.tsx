@@ -10,6 +10,7 @@ import { patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import type { DocumentStatus } from "../../generated/prisma/enums";
+import { useHasPermission } from "./StaffPermissions";
 
 interface DocumentStatusControlProps {
   documentId: string;
@@ -24,6 +25,23 @@ export function DocumentStatusControl({ documentId, status, rejectionReason, onC
   const [pending, setPending] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const nextStatuses = getAllowedNextDocumentStatuses(status);
+  // Client doc 2026-10-15 (I9) — an Admin can move a validated / rejected document back for re-validation.
+  const isAdmin = useHasPermission("admin.full");
+  const [movingBack, setMovingBack] = useState(false);
+
+  const moveBack = async (reason: string) => {
+    setPending(true);
+    try {
+      await patchJson(`/api/documents/${documentId}/status`, { status: "RECEIVED", override: true, overrideReason: reason });
+      toast.success("Document moved back to Received (validation pending).");
+      onChanged("RECEIVED", null);
+      setMovingBack(false);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't move the document back.");
+    } finally {
+      setPending(false);
+    }
+  };
 
   const submit = async (nextStatus: DocumentStatus, reason?: string) => {
     setPending(true);
@@ -75,6 +93,11 @@ export function DocumentStatusControl({ documentId, status, rejectionReason, onC
             </select>
           </>
         ) : null}
+        {isAdmin && (status === "VERIFIED" || status === "REJECTED") ? (
+          <button type="button" onClick={() => setMovingBack(true)} disabled={pending} className="text-xs font-medium text-warning hover:underline">
+            Move back
+          </button>
+        ) : null}
       </div>
       {status === "REJECTED" && rejectionReason ? <p className="text-xs text-error">Reason: {rejectionReason}</p> : null}
       {rejecting ? (
@@ -85,6 +108,16 @@ export function DocumentStatusControl({ documentId, status, rejectionReason, onC
           pending={pending}
           onConfirm={(reason) => void submit("REJECTED", reason)}
           onCancel={() => setRejecting(false)}
+        />
+      ) : null}
+      {movingBack ? (
+        <ConfirmActionDialog
+          title="Move this document back to Received?"
+          description="Admin override: the document goes back to validation pending so it can be checked again. Your reason is saved in the audit log."
+          confirmLabel="Move Back"
+          pending={pending}
+          onConfirm={(reason) => void moveBack(reason)}
+          onCancel={() => setMovingBack(false)}
         />
       ) : null}
     </div>

@@ -22,6 +22,9 @@ export const updateDocumentStatusSchema = z
     status: z.enum(documentStatusValues, { error: "Select a valid document status" }),
     /** Mandatory when rejecting — shown to the customer. */
     rejectionReason: z.string().trim().max(500, "Keep the reason under 500 characters").optional(),
+    /** Client doc 2026-10-15 (I9) — Admin moves a document to any status (e.g. Validated back to Received). */
+    override: z.boolean().optional(),
+    overrideReason: z.string().trim().max(500).optional(),
   })
   .refine((values) => values.status !== "REJECTED" || (values.rejectionReason?.length ?? 0) >= 5, {
     message: "Enter a rejection reason (at least 5 characters).",

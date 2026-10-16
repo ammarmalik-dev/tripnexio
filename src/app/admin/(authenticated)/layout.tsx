@@ -4,6 +4,7 @@ import { getStaffSession } from "@/lib/auth/staff-session";
 import { canAccessAdminSection } from "@/lib/auth/permissions";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { CrmTopbar } from "@/components/crm/CrmTopbar";
+import { StaffPermissionsProvider } from "@/components/crm/StaffPermissions";
 
 /**
  * Authoritative Admin gate — the fast Edge check in src/proxy.ts only
@@ -26,6 +27,7 @@ export default async function AdminAuthenticatedLayout({ children }: { children:
   }
 
   return (
+    <StaffPermissionsProvider permissions={session.permissions}>
     <div className="crm-shell flex min-h-screen">
       <AdminSidebar permissions={session.permissions} />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -33,5 +35,6 @@ export default async function AdminAuthenticatedLayout({ children }: { children:
         <main className="flex-1 overflow-y-auto px-6 pb-6 pt-4">{children}</main>
       </div>
     </div>
+    </StaffPermissionsProvider>
   );
 }

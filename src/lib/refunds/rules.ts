@@ -119,3 +119,12 @@ export function evaluateRefundRule(context: RefundRuleContext, config: RefundCon
   }
   return { allowed: true, fixedDeduction: 0, label: "Gateway charges and any entered cancellation charge only — no service-specific deduction applies." };
 }
+
+/**
+ * Client doc 2026-10-15 (I9) — an Admin can refund at any status (e.g. after an approval or a rejection a staff
+ * member recorded by mistake): a blocked rule becomes allowed with no fixed deduction, and says why.
+ */
+export function adminRefundOverride<T extends { allowed: boolean; label: string; fixedDeduction: number }>(rule: T, isAdmin: boolean): T {
+  if (rule.allowed || !isAdmin) return rule;
+  return { ...rule, allowed: true, fixedDeduction: 0, label: `Admin refund outside the normal rule — ${rule.label}` };
+}

@@ -4,6 +4,7 @@ import { getStaffSession } from "@/lib/auth/staff-session";
 import { canAccessAdminSection } from "@/lib/auth/permissions";
 import { CrmSidebar } from "@/components/crm/CrmSidebar";
 import { CrmTopbar } from "@/components/crm/CrmTopbar";
+import { StaffPermissionsProvider } from "@/components/crm/StaffPermissions";
 
 export default async function CrmAuthenticatedLayout({ children }: { children: ReactNode }) {
   const session = await getStaffSession();
@@ -12,6 +13,7 @@ export default async function CrmAuthenticatedLayout({ children }: { children: R
   }
 
   return (
+    <StaffPermissionsProvider permissions={session.permissions}>
     <div className="crm-shell flex min-h-screen">
       <CrmSidebar showAdminLink={canAccessAdminSection(session)} permissions={session.permissions} />
       <div className="flex min-w-0 flex-1 flex-col">
@@ -19,5 +21,6 @@ export default async function CrmAuthenticatedLayout({ children }: { children: R
         <main className="flex-1 overflow-y-auto px-6 pb-6 pt-4">{children}</main>
       </div>
     </div>
+    </StaffPermissionsProvider>
   );
 }

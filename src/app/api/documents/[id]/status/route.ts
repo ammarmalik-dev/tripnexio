@@ -13,6 +13,7 @@ import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { createTask, autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
 import { assertValidDocumentTransition } from "@/lib/documents/transitions";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { notifyDocumentRejected } from "@/lib/staff-notifications/triggers";
 import { reviewRoundOutcome } from "@/lib/documents/review-round";
 import { isOutputType } from "@/lib/outputs/output-types";
@@ -51,8 +52,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const existing = await db.document.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "Document not found.");
 
-  const transitionError = assertValidDocumentTransition(existing.status, parsed.data.status);
-  if (transitionError) return jsonError(409, transitionError);
+  // Client doc 2026-10-15 (I9) — an Admin may move a document anywhere (e.g. Validated back to Received), with a reason.
+  const override = parsed.data.override === true;
+  if (override) {
+    if (!session.permissions.includes(ADMIN_FULL_PERMISSION)) return jsonError(403, "Only an Admin can move a document back.");
+    if ((parsed.data.overrideReason?.length ?? 0) < 5) return jsonError(400, "Give a reason (at least 5 characters).", { overrideReason: ["Reason required"] });
+    if (existing.status === parsed.data.status) return jsonError(409, `This document is already ${parsed.data.status.toLowerCase()}.`);
+  } else {
+    const transitionError = assertValidDocumentTransition(existing.status, parsed.data.status);
+    if (transitionError) return jsonError(409, transitionError);
+  }
   const rejectionReason = parsed.data.status === "REJECTED" ? parsed.data.rejectionReason! : null;
 
   // Resolved once up front (not inside the transaction) since it's only
@@ -76,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       entityId: id,
       action: "STATUS_CHANGE",
       byUserId: session.id,
-      note: `${existing.status} -> ${parsed.data.status}${rejectionReason ? `: ${rejectionReason}` : ""} (by ${session.name})`,
+      note: `${override ? "Admin override: " : ""}${existing.status} -> ${parsed.data.status}${rejectionReason ? `: ${rejectionReason}` : ""}${override ? ` — reason: ${parsed.data.overrideReason}` : ""} (by ${session.name})`,
     });
 
     // A document flagged MISSING notifies the customer (see the email

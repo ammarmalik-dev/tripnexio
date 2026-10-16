@@ -3,6 +3,7 @@ import { serviceStatusChangeSchema } from "@/lib/validation/service-status-chang
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { dispatchStatusNotifications, getAllowedNextServiceStatuses, setServiceStatus } from "@/lib/service-status/engine";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -22,7 +23,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const scopeError = assertServiceAccess(auth.session, lead.serviceType);
   if (scopeError) return scopeError;
 
-  return jsonSuccess(await getAllowedNextServiceStatuses("LEAD", id));
+  const state = await getAllowedNextServiceStatuses("LEAD", id);
+  // Client doc 2026-10-15 (I9) — an Admin may override the flow (the PATCH re-checks).
+  return jsonSuccess(state ? { ...state, canOverride: auth.session.permissions.includes(ADMIN_FULL_PERMISSION) } : state);
 }
 
 /** Staff Change Status — only a transition configured for this service is accepted (P08). */
@@ -52,6 +55,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const scopeError = assertServiceAccess(auth.session, lead.serviceType);
   if (scopeError) return scopeError;
 
+  // Client doc 2026-10-15 (I9) — only an Admin may override, and always with a reason.
+  const adminOverride = parsed.data.override === true;
+  if (adminOverride && !session.permissions.includes(ADMIN_FULL_PERMISSION)) return jsonError(403, "Only an Admin can override the status flow.");
+  if (adminOverride && (parsed.data.note?.length ?? 0) < 5) return jsonError(400, "Give a reason for the override (at least 5 characters).", { note: ["Reason required"] });
+
   const result = await db.$transaction((tx) =>
     setServiceStatus(tx, {
       scope: "LEAD",
@@ -60,6 +68,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       note: parsed.data.note,
       userId: session.id,
       actorLabel: `by ${session.name}`,
+      adminOverride,
     })
   );
   if (!result.ok) return jsonError(result.httpStatus, result.error);

@@ -61,20 +61,54 @@ export async function getInitialServiceStatusId(tx: Tx, serviceType: ServiceType
 }
 
 /** The statuses a record may move to next, per the Admin-configured transitions. */
+const STAGE_RANK: Record<string, number> = { PENDING: 0, NEW: 0, CONTACTED: 1, QUALIFIED: 1, CONFIRMED: 1, QUOTED: 2, PROCESSING: 2, QUOTATION_ACCEPTED: 3, COMPLETED: 4 };
+const END_STAGES = new Set(["CANCELLED", "REFUNDED", "LOST", "CLOSED", "CONVERTED"]);
+
+type StatusShape = Pick<ServiceStatus, "name" | "isTerminal" | "systemEvent" | "mapsToBookingStatus" | "mapsToLeadStatus">;
+
+/**
+ * Client doc 2026-10-15 (I1) — the moves staff may never make, even when a transition is configured:
+ *   - out of a final status, except on to a refund (e.g. Rejected -> Refund Processing);
+ *   - from an approved / extended / delivered status to a rejection or cancellation (e.g. OTB Approved -> Rejected);
+ *   - back to an earlier stage (e.g. Processing -> Confirmed). Re-review loops within one stage and On Hold stay allowed.
+ * Only an Admin override (I9) can make these moves. Returns the reason, or null when the move is fine.
+ */
+export function staffMoveBlock(scope: StatusScope, from: StatusShape | null, to: StatusShape): string | null {
+  if (!from || from.systemEvent === HOLD_MARKER || to.systemEvent === HOLD_MARKER) return null;
+  const coarse = (status: StatusShape) => (scope === "LEAD" ? status.mapsToLeadStatus : status.mapsToBookingStatus) ?? null;
+  const toCoarse = coarse(to);
+  const fromCoarse = coarse(from);
+  if (from.isTerminal && toCoarse !== "REFUNDED") return `"${from.name}" is final — only an Admin can move it.`;
+  if (/approved|extended|delivered|completed/i.test(from.name) && (toCoarse === "CANCELLED" || /reject/i.test(to.name))) {
+    return `"${from.name}" can't be changed to "${to.name}" — only an Admin can do that.`;
+  }
+  if (fromCoarse && toCoarse && !END_STAGES.has(toCoarse) && !END_STAGES.has(fromCoarse) && (STAGE_RANK[toCoarse] ?? 0) < (STAGE_RANK[fromCoarse] ?? 0)) {
+    return `A record can't go back from "${from.name}" to "${to.name}" — only an Admin can do that.`;
+  }
+  return null;
+}
+
 export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId: string) {
   const entity = await loadEntity(db, scope, entityId);
   if (!entity) return null;
   const current = entity.serviceStatusId
-    ? await db.serviceStatus.findUnique({ where: { id: entity.serviceStatusId }, select: { id: true, name: true, customerLabel: true, isTerminal: true } })
+    ? await db.serviceStatus.findUnique({
+        where: { id: entity.serviceStatusId },
+        select: { id: true, name: true, customerLabel: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true },
+      })
     : null;
   const allowed = current
     ? (
         await db.serviceStatusTransition.findMany({
           where: { fromStatusId: current.id, to: { active: true } },
-          select: { to: { select: { id: true, name: true, customerLabel: true, displayOrder: true } } },
+          select: {
+            to: { select: { id: true, name: true, customerLabel: true, displayOrder: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true } },
+          },
         })
       )
         .map((transition) => transition.to)
+        // Client doc 2026-10-15 (I1) — only the moves staff may actually make.
+        .filter((to) => staffMoveBlock(scope, current, to) === null)
         .sort((a, b) => a.displayOrder - b.displayOrder)
     : // A record that predates the engine (no status yet) may be placed on any status of its list.
       await db.serviceStatus.findMany({
@@ -89,7 +123,11 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true, customerLabel: true, isTerminal: true },
   });
-  return { current, allowed: allowed.map(({ id, name, customerLabel }) => ({ id, name, customerLabel })), all };
+  return {
+    current: current ? { id: current.id, name: current.name, customerLabel: current.customerLabel, isTerminal: current.isTerminal } : null,
+    allowed: allowed.map(({ id, name, customerLabel }) => ({ id, name, customerLabel })),
+    all,
+  };
 }
 
 async function applyStatus(
@@ -139,7 +177,16 @@ async function applyStatus(
  */
 export async function setServiceStatus(
   tx: Tx,
-  input: { scope: StatusScope; entityId: string; toStatusId: string; note?: string; userId?: string; actorLabel: string }
+  input: {
+    scope: StatusScope;
+    entityId: string;
+    toStatusId: string;
+    note?: string;
+    userId?: string;
+    actorLabel: string;
+    /** Client doc 2026-10-15 (I9) — an Admin moves the record to any status of its service (reason required, audited). */
+    adminOverride?: boolean;
+  }
 ): Promise<SetServiceStatusResult> {
   const entity = await loadEntity(tx, input.scope, input.entityId);
   if (!entity) return { ok: false, httpStatus: 404, error: "Record not found." };
@@ -151,11 +198,21 @@ export async function setServiceStatus(
   if (entity.serviceStatusId === to.id) return { ok: true, changed: false, notification: null };
 
   const from = entity.serviceStatusId ? await tx.serviceStatus.findUnique({ where: { id: entity.serviceStatusId } }) : null;
-  if (from) {
+  if (input.adminOverride) {
+    await writeAudit(tx, {
+      entityType: input.scope === "LEAD" ? "Lead" : "Booking",
+      entityId: entity.id,
+      action: "SERVICE_STATUS_OVERRIDE",
+      byUserId: input.userId,
+      note: `Admin override: ${from?.name ?? "(none)"} -> ${to.name}${input.note ? `: ${input.note}` : ""} (${input.actorLabel})`,
+    });
+  } else if (from) {
     const allowed = await tx.serviceStatusTransition.findUnique({
       where: { fromStatusId_toStatusId: { fromStatusId: from.id, toStatusId: to.id } },
     });
     if (!allowed) return { ok: false, httpStatus: 409, error: `Can't move from "${from.name}" to "${to.name}".` };
+    const blocked = staffMoveBlock(input.scope, from, to);
+    if (blocked) return { ok: false, httpStatus: 409, error: blocked };
   }
 
   const notification = await applyStatus(tx, input.scope, entity, from, to, input);
