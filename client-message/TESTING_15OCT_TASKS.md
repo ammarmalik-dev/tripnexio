@@ -134,4 +134,4 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [x] J8. Less top space on every website / service page.
 - [x] J9. Admin can add or remove required documents and edit T&C for every service (New Visa via its country page).
 - [x] J10. Remove OTB, Return Ticket, Special Fare, Visa Change and Extension from the Service Configuration page (managed in the Pricing Dashboard / Airlines).
-- [ ] J11. All new countries: payment first, then documents.
+- [x] J11. All new countries: payment first, then documents. (Already so: New Visa for every country pays by direct link first; passport and documents are uploaded after payment.)
