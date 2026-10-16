@@ -5,27 +5,27 @@ Source: `client-message/new-doc-from-client-15-oct/TripNexio Project.docx`. It h
 Client message: "implement all corrections… consistently to avoid repeated corrections". Email and Meta templates and any missing service statuses come tomorrow. The display name was rejected twice.
 
 ## A. Business / Meta
-- [ ] A1. WhatsApp display name "TripNexio" rejected twice. Guide the client:
+- [x] A1. WhatsApp display name "TripNexio" rejected twice. Guide the client:
   - Meta Business Verification with the GST certificate (trade name TRIPNEXIO, GSTIN 09ALTPR2177H1ZE).
   - The name must match the website, which needs the legal details visible.
   - Then re-submit.
-- [ ] A2. GST is registered. Enable 18% on the service charge only. GSTIN and legal entity go on the invoice and the website (SystemConfig).
-- [ ] A3. Share the Meta template format again.
+- [x] A2. (Admin sets 18% in Tax & Fees — no longer blocked once the GSTIN is set; commit d36d1f5.) GST is registered. Enable 18% on the service charge only. GSTIN and legal entity go on the invoice and the website (SystemConfig).
+- [x] A3. Share the Meta template format again.
 
 ## B. WhatsApp bot
-- [ ] B1. New greeting:
+- [x] B1. New greeting:
   - Short text with a "See Options" button.
   - Product names only, and only Admin-enabled services.
   - English and Hinglish; "Agent" reaches staff.
-- [ ] B2. Customer outside the UAE: offer only New Visa. Inside the UAE: offer Visa Change when the current visa is not from TripNexio. When no TripNexio visa is found, show "TripNexio Visa Not Found" and offer New Visa or Visa Change.
-- [ ] B3. After lead creation: a thank-you message with a link to upload the passport and visa copies; the team validates and shares the quotation.
-- [ ] B4. Multiple passengers: name, passport number and expiry. No DOB on WhatsApp.
-- [ ] B5. Visa Change: ask the number of adults and children, plus "Add another passenger".
-- [ ] B6. New Visa:
+- [x] B2. Customer outside the UAE: offer only New Visa. Inside the UAE: offer Visa Change when the current visa is not from TripNexio. When no TripNexio visa is found, show "TripNexio Visa Not Found" and offer New Visa or Visa Change.
+- [x] B3. After lead creation: a thank-you message with a link to upload the passport and visa copies; the team validates and shares the quotation.
+- [x] B4. Multiple passengers: name, passport number and expiry. No DOB on WhatsApp.
+- [x] B5. Visa Change: ask the number of adults and children, plus "Add another passenger".
+- [x] B6. New Visa:
   - Only Admin-enabled countries (website as well).
   - Ask stay duration / category and passenger count, with Adult (18+) and Child only (no infant).
   - Payment first, then documents.
-- [ ] B7. Duplicate confirmations for Visa Change, New Visa and Extension: send one message. The Visa Change text is: "Your Visa Change request has been received. Our team will check availability and share an update with you."
+- [x] B7. Duplicate confirmations for Visa Change, New Visa and Extension: send one message. The Visa Change text is: "Your Visa Change request has been received. Our team will check availability and share an update with you."
 
 ## C. Leads / CRM general
 - [x] C1. Website leads appear in CRM search immediately (all services).
