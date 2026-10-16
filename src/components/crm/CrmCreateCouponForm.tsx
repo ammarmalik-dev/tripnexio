@@ -19,7 +19,8 @@ interface CreatedCoupon {
 
 function buildSchema(cap: number) {
   return z.object({
-    leadReference: z.string().trim().min(3, "Enter the lead reference"),
+    // Client doc 2026-10-15 (J1) — optional: blank = usable once on any request.
+    leadReference: z.string().trim().max(40),
     amount: z.number({ error: "Enter the discount" }).int("Use a whole rupee amount").min(1, "Enter the discount").max(cap, `Max ₹${cap}`),
     validDays: z.number({ error: "Enter the days" }).int().min(1, "At least 1 day").max(30, "At most 30 days"),
   });
@@ -56,14 +57,19 @@ export function CrmCreateCouponForm({ cap }: { cap: number }) {
       <div>
         <h2 className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
           <Ticket className="h-4 w-4 text-ink-accent" aria-hidden="true" />
-          Create a coupon for a lead
+          Create a coupon
         </h2>
         <p className="text-xs text-ink-tertiary">
-          Up to ₹{cap.toLocaleString("en-IN")} off, single use, only on that lead. No Admin approval needed. Apply the code on the lead&apos;s quotation or payment link.
+          Up to ₹{cap.toLocaleString("en-IN")} off, single use. Leave the lead reference blank for any request, or enter one to limit it to that lead. No Admin approval needed. Apply the code on the quotation or payment link.
         </p>
       </div>
       <form onSubmit={onSubmit} noValidate className="grid grid-cols-1 gap-4 sm:grid-cols-[2fr_1fr_1fr_auto] sm:items-end">
-        <TextField label="Lead reference" placeholder="e.g. 11026VC010" required error={errors.leadReference?.message} {...register("leadReference")} />
+        <TextField
+          label="Lead reference (optional)"
+          placeholder="Blank = any request, e.g. 11026VC010"
+          error={errors.leadReference?.message}
+          {...register("leadReference")}
+        />
         <TextField label="Discount (₹)" type="number" min={1} max={cap} required error={errors.amount?.message} {...register("amount", asNumber)} />
         <TextField label="Valid for (days)" type="number" min={1} max={30} required error={errors.validDays?.message} {...register("validDays", asNumber)} />
         <Button type="submit" isLoading={isSubmitting}>
@@ -73,7 +79,7 @@ export function CrmCreateCouponForm({ cap }: { cap: number }) {
       {created ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm">
           <span className="text-ink-primary">
-            <span className="font-mono font-semibold">{created.code}</span> · ₹{created.amount.toLocaleString("en-IN")} off · lead {created.leadReference} · valid until{" "}
+            <span className="font-mono font-semibold">{created.code}</span> · ₹{created.amount.toLocaleString("en-IN")} off · {created.leadReference ? `lead ${created.leadReference}` : "any request"} · valid until{" "}
             {new Date(created.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
           </span>
           <Button

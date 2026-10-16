@@ -93,9 +93,9 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [x] G6. Admin can edit an invoice later (cost, service fee, GST).
 
 ## H. Email template
-- [ ] H1. Light-blue body; dark header with logo, name and tagline.
-- [ ] H2. Aligned contacts; single-line "automated email" note.
-- [ ] H3. "Follow Us On" icons (Instagram, Facebook, LinkedIn, X, Threads); responsive.
+- [x] H1. Light-blue body; dark header with logo, name and tagline.
+- [x] H2. Aligned contacts; single-line "automated email" note.
+- [x] H3. "Follow Us On" icons (Instagram, Facebook, LinkedIn, X, Threads); responsive.
 
 ## I. Status, documents, refunds
 - [ ] I1. Per-service status flows enforced server-side (no backward moves; e.g. an approved OTB can't be rejected).

@@ -30,7 +30,8 @@ export async function GET() {
 }
 
 const createSchema = z.object({
-  leadReference: z.string().trim().min(3, "Enter the lead reference").max(40),
+  // Client doc 2026-10-15 (J1) — optional: blank = a single-use coupon for any request, no lead code needed.
+  leadReference: z.string().trim().max(40).optional(),
   amount: z.number().int("Use a whole rupee amount").min(1, "Enter the discount"),
   validDays: z.number().int().min(1).max(30).default(7),
 });
@@ -67,16 +68,20 @@ export async function POST(request: NextRequest) {
     if (amount > cap) {
       return jsonError(400, `Staff coupons can be up to ₹${cap.toLocaleString("en-IN")}. Ask Admin for a bigger discount.`, { amount: [`Max ₹${cap}`] });
     }
-    const lead = await db.lead.findFirst({
-      where: { reference: { equals: leadReference, mode: "insensitive" } },
-      select: { id: true, reference: true, serviceType: true, assignedStaffId: true },
-    });
-    if (!lead) return jsonError(404, "No lead found with that reference.", { leadReference: ["Not found"] });
-    const scopeError = assertServiceAccess(session, lead.serviceType);
-    if (scopeError) return scopeError;
-    const ownershipError = assertOwnsRecord(session, lead.assignedStaffId);
-    if (ownershipError) return ownershipError;
-    if (isFlightQuote(lead.serviceType)) return jsonError(400, "Coupons don't apply to Flight Special Fare.");
+    const lead = leadReference
+      ? await db.lead.findFirst({
+          where: { reference: { equals: leadReference, mode: "insensitive" } },
+          select: { id: true, reference: true, serviceType: true, assignedStaffId: true },
+        })
+      : null;
+    if (leadReference && !lead) return jsonError(404, "No lead found with that reference.", { leadReference: ["Not found"] });
+    if (lead) {
+      const scopeError = assertServiceAccess(session, lead.serviceType);
+      if (scopeError) return scopeError;
+      const ownershipError = assertOwnsRecord(session, lead.assignedStaffId);
+      if (ownershipError) return ownershipError;
+      if (isFlightQuote(lead.serviceType)) return jsonError(400, "Coupons don't apply to Flight Special Fare.");
+    }
 
     const now = new Date();
     const validUntil = new Date(now.getTime() + validDays * 24 * 60 * 60 * 1000);
@@ -93,7 +98,7 @@ export async function POST(request: NextRequest) {
               validFrom: now,
               validUntil,
               usageLimit: 1,
-              leadId: lead.id,
+              leadId: lead?.id ?? null,
             },
           });
           await writeAudit(tx, {
@@ -101,18 +106,20 @@ export async function POST(request: NextRequest) {
             entityId: created.id,
             action: "CREATE",
             byUserId: session.id,
-            note: `Staff coupon ${created.code}: ₹${amount} off, single use, lead ${lead.reference ?? lead.id}, valid ${validDays} day(s) (by ${session.name})`,
+            note: `Staff coupon ${created.code}: ₹${amount} off, single use, ${lead ? `lead ${lead.reference ?? lead.id}` : "any request"}, valid ${validDays} day(s) (by ${session.name})`,
           });
-          await writeAudit(tx, {
-            entityType: "Lead",
-            entityId: lead.id,
-            action: "COUPON_CREATED",
-            byUserId: session.id,
-            note: `Coupon ${created.code} (₹${amount} off) created for this lead (by ${session.name})`,
-          });
+          if (lead) {
+            await writeAudit(tx, {
+              entityType: "Lead",
+              entityId: lead.id,
+              action: "COUPON_CREATED",
+              byUserId: session.id,
+              note: `Coupon ${created.code} (₹${amount} off) created for this lead (by ${session.name})`,
+            });
+          }
           return created;
         });
-        return jsonSuccess({ code: coupon.code, amount, validUntil: coupon.validUntil.toISOString(), leadReference: lead.reference }, 201);
+        return jsonSuccess({ code: coupon.code, amount, validUntil: coupon.validUntil.toISOString(), leadReference: lead?.reference ?? null }, 201);
       } catch (error) {
         if ((error as { code?: string }).code !== "P2002") throw error;
       }
