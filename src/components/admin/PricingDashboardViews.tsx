@@ -6,23 +6,18 @@ import { PricingDashboard } from "./PricingDashboard";
 import { OtbPricesManager } from "./OtbPricesManager";
 import { ReturnTicketDestinationsManager } from "./ReturnTicketDestinationsManager";
 import { VendorServiceRatesManager } from "./VendorServiceRatesManager";
+import { OtbRulesManager } from "./OtbRulesManager";
 import { cn } from "@/lib/cn";
+import { PRICING_DASHBOARD_VIEWS as VIEWS, type PricingDashboardView } from "@/lib/admin/pricing-dashboard-views";
 
-const VIEWS = [
-  { id: "countries", label: "By country" },
-  { id: "table", label: "All prices (table)" },
-  { id: "otb", label: "OTB (country × airline)" },
-  { id: "return-ticket", label: "Return Ticket (country)" },
-  { id: "vendor-rates", label: "Vendor rates (OTB / Return Ticket)" },
-] as const;
 
 /**
  * Client corrections 2026-10-05 §31 — country cards by default; the filterable table stays one click away.
  * Client reply 2026-10-13 — OTB (per country and airline) and Return Ticket (per country) prices are set here too,
  * with the same managers as Service Configuration.
  */
-export function PricingDashboardViews() {
-  const [view, setView] = useState<(typeof VIEWS)[number]["id"]>("countries");
+export function PricingDashboardViews({ initialView = "countries" }: { initialView?: PricingDashboardView }) {
+  const [view, setView] = useState<PricingDashboardView>(initialView);
   return (
     <div className="flex flex-col gap-4">
       <div role="tablist" aria-label="Pricing views" className="glass-1 flex w-fit max-w-full flex-wrap gap-1 rounded-xl p-1">
@@ -44,7 +39,14 @@ export function PricingDashboardViews() {
       </div>
       {view === "countries" ? <PricingCountryCards /> : null}
       {view === "table" ? <PricingDashboard /> : null}
-      {view === "otb" ? <OtbPricesManager /> : null}
+      {view === "otb" ? (
+        // Client doc 2026-10-15 (J10) — OTB rates and the standard / urgent TAT fallback live here now
+        // (each airline's own TAT is on the Airline), not in Service Configuration.
+        <div className="flex flex-col gap-6">
+          <OtbPricesManager />
+          <OtbRulesManager />
+        </div>
+      ) : null}
       {view === "return-ticket" ? <ReturnTicketDestinationsManager /> : null}
       {view === "vendor-rates" ? <VendorServiceRatesManager /> : null}
     </div>

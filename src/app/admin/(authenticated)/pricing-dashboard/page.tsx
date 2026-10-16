@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { PricingDashboardViews } from "@/components/admin/PricingDashboardViews";
+import { parsePricingDashboardView } from "@/lib/admin/pricing-dashboard-views";
 
 export const metadata: Metadata = { title: "Pricing Dashboard | Admin" };
 
-export default function AdminPricingDashboardPage() {
+export default async function AdminPricingDashboardPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  const { view } = await searchParams;
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -14,7 +16,7 @@ export default function AdminPricingDashboardPage() {
           Vendor cost and margin are internal and shown here for Admin only.
         </p>
       </div>
-      <PricingDashboardViews />
+      <PricingDashboardViews initialView={parsePricingDashboardView(view)} />
     </div>
   );
 }

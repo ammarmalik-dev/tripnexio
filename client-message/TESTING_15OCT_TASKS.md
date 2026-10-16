@@ -122,16 +122,16 @@ Client message: "implement all corrections… consistently to avoid repeated cor
 - [ ] I9. Admin can refund at any status, and move a status or document back, with audit.
 
 ## J. Admin / site misc
-- [ ] J1. Coupons: no lead code / booking id required to create one.
-- [ ] J2. Blog: new photo and category options; search above the articles.
+- [x] J1. Coupons: no lead code / booking id required to create one.
+- [x] J2. Blog: new photo and category options; search above the articles.
 - [ ] J3. Editable photos and content for the Home, Visa Change, Visa Extension, OTB, Flight and Return Ticket pages.
 - [ ] J4. OCR cross-checks:
   - The uploaded passport, visa and ticket against the entered data (passport number, name, DOB, visa expiry); flag "manual validation required" on a mismatch.
   - Capture the ticket PNR and flight details.
 - [ ] J5. AI Command Center: booking logs, passport details, staff logs, active airports, reports with visuals and Excel.
-- [ ] J6. Holidays: edit and delete.
-- [ ] J7. Customer account: deletion, and changing mobile / email after signup.
-- [ ] J8. Less top space on every website / service page.
-- [ ] J9. Admin can add or remove required documents and edit T&C for every service (New Visa via its country page).
-- [ ] J10. Remove OTB, Return Ticket, Special Fare, Visa Change and Extension from the Service Configuration page (managed in the Pricing Dashboard / Airlines).
+- [x] J6. Holidays: edit and delete.
+- [x] J7. Customer account: deletion, and changing mobile / email after signup.
+- [x] J8. Less top space on every website / service page.
+- [x] J9. Admin can add or remove required documents and edit T&C for every service (New Visa via its country page).
+- [x] J10. Remove OTB, Return Ticket, Special Fare, Visa Change and Extension from the Service Configuration page (managed in the Pricing Dashboard / Airlines).
 - [ ] J11. All new countries: payment first, then documents.

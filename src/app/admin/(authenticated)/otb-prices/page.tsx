@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
-import { serviceConfigHref } from "@/lib/admin/service-configuration";
 
-/** P23 item 1 — merged into the central Service Configuration hub. */
+/** Client doc 2026-10-15 (J10) — these rates live in the Pricing Dashboard. */
 export default function AdminOtbPricesPage() {
-  redirect(serviceConfigHref("otb-prices", "OTB"));
+  redirect("/admin/pricing-dashboard?view=otb");
 }

@@ -76,8 +76,18 @@ export const COUNTRY_SCOPED_TABS: ReadonlySet<ServiceConfigTab> = new Set<Servic
  * Client doc 2026-10-15 — New Visa has no Sub-Service, and its documents are managed on each
  * country's New Visa page, so those two tabs aren't offered for it.
  */
+const QUOTED_OR_DASHBOARD_PRICED: ServiceConfigTab[] = ["pricing", "processing", "sub-services"];
 const HIDDEN_TABS: Partial<Record<ServiceType, ServiceConfigTab[]>> = {
   NEW_VISA: ["documents", "sub-services"],
+  // Client doc 2026-10-15 (J10) — rates and TAT for these live in the Pricing Dashboard (OTB country × airline,
+  // Return Ticket destinations, vendor rates) and on each Airline, and Visa Change / Extension / Special Fare are
+  // priced per quotation, so the duplicate pricing / processing / OTB rate & rule tabs are gone. What stays here
+  // is what has no other home (J9): Documents, Terms, Statuses, Refund config (and Timelines where they apply).
+  OTB: [...QUOTED_OR_DASHBOARD_PRICED, "timelines", "otb-prices", "otb-rules"],
+  RETURN_TICKET: [...QUOTED_OR_DASHBOARD_PRICED, "destinations"],
+  FLIGHT_SPECIAL_FARE: QUOTED_OR_DASHBOARD_PRICED,
+  VISA_CHANGE: QUOTED_OR_DASHBOARD_PRICED,
+  VISA_EXTENSION: QUOTED_OR_DASHBOARD_PRICED,
 };
 
 export function getServiceConfigTabs(service: ServiceType): ServiceConfigTab[] {
