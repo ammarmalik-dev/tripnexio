@@ -21,6 +21,7 @@ import { getBookingTimeline } from "@/lib/audit/booking-timeline";
 import { getBookingDates } from "@/lib/crm/booking-dates";
 import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
 import { vendorChoiceBlock } from "@/lib/bookings/set-vendor";
+import { bookingOutcomeLabel, passengerAmounts } from "@/lib/bookings/passenger-outcomes";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -84,6 +85,18 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   // parallel after the main one (never more nested includes above — that
   // query is already heavy enough to strain the local dev database).
   const selectedQuotation = booking.lead.quotations[0] ?? null;
+  const outcomeAmounts = passengerAmounts(
+    booking.passengers.map((row) => ({ passengerId: row.passenger.id, paxType: row.passenger.paxType, outcome: row.outcome })),
+    selectedQuotation
+      ? {
+          sellingPrice: Number(selectedQuotation.sellingPrice),
+          couponDiscount: selectedQuotation.couponDiscount != null ? Number(selectedQuotation.couponDiscount) : null,
+          cancellationCharge: selectedQuotation.cancellationCharge != null ? Number(selectedQuotation.cancellationCharge) : null,
+          paxCosting: selectedQuotation.paxCosting,
+          invoiceLines: selectedQuotation.invoiceLines,
+        }
+      : null
+  );
   const [selectedVendor, timeline] = await Promise.all([
     selectedQuotation ? db.vendor.findUnique({ where: { id: selectedQuotation.vendorId }, select: { id: true, name: true } }) : Promise.resolve(null),
     getBookingTimeline(booking),
@@ -253,7 +266,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       fullName: bookingPassenger.passenger.fullName,
       paxType: bookingPassenger.passenger.paxType,
       status: bookingPassenger.status,
+      // Client doc 2026-10-15 (I4) — this passenger's own result and amounts (selling / cancellation / refund).
+      outcome: bookingPassenger.outcome,
+      outcomeNote: bookingPassenger.outcomeNote,
+      amounts: outcomeAmounts.find((row) => row.passengerId === bookingPassenger.passenger.id) ?? null,
     })),
+    passengerOutcomeLabel: bookingOutcomeLabel(booking.passengers),
     payments: paymentsWithRule,
     documents: booking.documents,
     protectionPlans: booking.protectionPlans,

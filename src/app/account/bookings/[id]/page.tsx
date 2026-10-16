@@ -12,6 +12,7 @@ import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, type OutputType } from "@/lib/outputs
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { formatCurrency } from "@/lib/format-currency";
 import { PostTicketOfferCard } from "@/components/cross-sell/PostTicketOfferCard";
+import { bookingOutcomeLabel } from "@/lib/bookings/passenger-outcomes";
 
 export const metadata: Metadata = { title: "Booking Details", robots: { index: false, follow: false } };
 
@@ -37,7 +38,9 @@ export default async function AccountBookingPage({ params }: AccountBookingPageP
     where: { id, customerId: session.id, status: { not: "PENDING" } },
     include: {
       lead: { select: { serviceType: true, crossSellOptOut: true, reference: true, createdAt: true, id: true, travelDate: true } },
-      serviceStatus: { select: { customerLabel: true, systemEvent: true } },
+      serviceStatus: { select: { customerLabel: true, systemEvent: true, name: true } },
+      // Client doc 2026-10-15 (I4) — passenger-level results (Partially Approved / Partially Cancelled).
+      passengers: { select: { outcome: true } },
       linkedBooking: { select: { lead: { select: { serviceType: true } } } },
       payments: { where: { status: "SUCCESS" }, orderBy: { updatedAt: "desc" }, select: { id: true, invoiceNumber: true, updatedAt: true, amount: true, couponDiscount: true, gstAmount: true, gatewayFee: true } },
       documents: {
@@ -52,7 +55,8 @@ export default async function AccountBookingPage({ params }: AccountBookingPageP
 
   const passengers = await customerPassengerStatuses(booking.id);
   const serviceLabel = SERVICE_TYPE_LABELS[booking.lead.serviceType];
-  const status = customerStatusLabel("BOOKING", booking.serviceStatus, booking.status);
+  const outcomeLabel = bookingOutcomeLabel(booking.passengers);
+  const status = outcomeLabel ?? customerStatusLabel("BOOKING", booking.serviceStatus, booking.status);
   const ticketDelivered = booking.documents.some((document) => document.type === "TICKET_PDF");
 
   return (

@@ -45,9 +45,10 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { cn } from "@/lib/cn";
-import type { BookingStatus, DocumentStatus, ExtensionOutcome, PaxType, ProtectionPlanStatus, ServiceType } from "../../generated/prisma/enums";
+import type { BookingStatus, DocumentStatus, ExtensionOutcome, PassengerOutcome, PaxType, ProtectionPlanStatus, ServiceType } from "../../generated/prisma/enums";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { VENDOR_AFTER_DOCUMENTS_SERVICES } from "@/lib/bookings/vendor-names";
+import { PassengerOutcomeControl } from "./booking/PassengerOutcomeControl";
 
 interface DocumentItem {
   id: string;
@@ -69,6 +70,10 @@ interface BookingPassengerItem {
   paxType: PaxType;
   /** Independently settable from the booking-level status above — CRM.md §12 (Step 14). */
   status: BookingStatus;
+  /** Client doc 2026-10-15 (I4) — this passenger's own result and amounts. */
+  outcome: PassengerOutcome | null;
+  outcomeNote: string | null;
+  amounts: { selling: number; cancellation: number; refund: number } | null;
 }
 
 /** Step 23 (audit §7.6) — frozen at booking creation, never re-fetched live. */
@@ -112,6 +117,8 @@ interface BookingDetailResponse {
   };
   /** This booking's own passengers, each with an independent status and their own documents — distinct from customer.passengers (full Customer-360 history). */
   passengers: BookingPassengerItem[];
+  /** Client doc 2026-10-15 (I4) — Partially Approved / Partially Cancelled / …, or null. */
+  passengerOutcomeLabel: string | null;
   payments: PaymentData[];
   documents: DocumentItem[];
   /** New Visa only (Step 20, audit §7.1) — one per passenger, empty array for every other service. */
@@ -333,6 +340,9 @@ export function BookingDetail({
         eyebrow={
           <>
             <span>{SERVICE_TYPE_LABELS[booking.serviceType]}</span>
+            {booking.passengerOutcomeLabel ? (
+              <span className="rounded-full bg-warning/10 px-2 py-0.5 font-semibold text-warning">{booking.passengerOutcomeLabel}</span>
+            ) : null}
             <span>
               Lead{" "}
               <Link href={`/crm/leads/${booking.leadId}`} className="text-ink-accent hover:underline">
@@ -689,6 +699,14 @@ export function BookingDetail({
                                 }
                               />
                             </div>
+                            <PassengerOutcomeControl
+                              bookingId={booking.id}
+                              passengerId={passenger.id}
+                              outcome={passenger.outcome}
+                              outcomeNote={passenger.outcomeNote}
+                              amounts={passenger.amounts}
+                              onChanged={refresh}
+                            />
                             {checklist && checklist.requirements.length > 0 ? (
                               <div className="mt-2 border-t border-hairline pt-2">
                                 <p className="text-xs font-medium text-ink-tertiary">

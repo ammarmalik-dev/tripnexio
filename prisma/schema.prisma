@@ -609,6 +609,13 @@ enum ExtensionOutcome {
 /// own status workflow... only statuses configured by Admin... available")
 /// — that is a distinct, unbuilt feature (its own future roadmap step), not
 /// what this reuses or replaces.
+/// Client doc 2026-10-15 (I4) — a passenger-level result on a booking (partial approval / cancellation).
+enum PassengerOutcome {
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
 model BookingPassenger {
   id           String        @id @default(cuid())
   bookingId    String
@@ -616,6 +623,10 @@ model BookingPassenger {
   status       BookingStatus @default(PENDING)
   /// P16 — Special Fare: this passenger's ticket number once issued.
   ticketNumber String?
+  /// Client doc 2026-10-15 (I4) — this passenger's own result: approved, rejected or cancelled (null = in progress).
+  outcome      PassengerOutcome?
+  outcomeNote  String?
+  outcomeAt    DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
