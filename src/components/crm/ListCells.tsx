@@ -9,9 +9,11 @@ export function ProcessingTag({ label }: { label: string | null | undefined }) {
   if (!label) return null;
   if (label === "Normal") return <span className="block text-xs font-medium text-ink-secondary">Normal</span>;
   return (
-    <span className="mt-0.5 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-error/10 px-2 py-0.5 text-xs font-medium text-error" title={`${label} processing`}>
-      <Zap className="h-3 w-3" aria-hidden="true" />
-      {label}
+    <span className="mt-0.5 flex">
+      <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-error/10 px-2 py-0.5 text-xs font-medium text-error" title={`${label} processing`}>
+        <Zap className="h-3 w-3" aria-hidden="true" />
+        {label}
+      </span>
     </span>
   );
 }

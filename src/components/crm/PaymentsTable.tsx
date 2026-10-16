@@ -153,7 +153,7 @@ export function PaymentsTable() {
             setStatus(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All statuses</option>
           {PAYMENT_STATUS_OPTIONS.map((option) => (
@@ -173,7 +173,7 @@ export function PaymentsTable() {
             setSort(event.target.value as SortOption);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
@@ -191,29 +191,28 @@ export function PaymentsTable() {
         </Button>
 
         <ExportCsvButton href={`/api/payments/export?${buildFilterParams().toString()}`} />
+        <DateRangeFilter
+          idPrefix="payment"
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onPreset={(days) => {
+            applyPreset(days);
+            resetPage();
+          }}
+          onCustomFrom={(dateOnly) => {
+            applyCustomFrom(dateOnly);
+            resetPage();
+          }}
+          onCustomTo={(dateOnly) => {
+            applyCustomTo(dateOnly);
+            resetPage();
+          }}
+          onClear={() => {
+            clearDates();
+            resetPage();
+          }}
+        />
       </div>
-
-      <DateRangeFilter
-        idPrefix="payment"
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onPreset={(days) => {
-          applyPreset(days);
-          resetPage();
-        }}
-        onCustomFrom={(dateOnly) => {
-          applyCustomFrom(dateOnly);
-          resetPage();
-        }}
-        onCustomTo={(dateOnly) => {
-          applyCustomTo(dateOnly);
-          resetPage();
-        }}
-        onClear={() => {
-          clearDates();
-          resetPage();
-        }}
-      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

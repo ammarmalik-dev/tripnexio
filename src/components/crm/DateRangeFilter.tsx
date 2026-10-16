@@ -28,8 +28,9 @@ export function DateRangeFilter({ idPrefix, dateFrom, dateTo, onPreset, onCustom
 
   return (
     <div className="flex flex-wrap items-center gap-2">
+      <span className="text-xs text-ink-tertiary">Created (last)</span>
       {DATE_RANGE_PRESETS.map((preset) => (
-        <Button key={preset.days} type="button" variant="ghost" size="sm" onClick={() => onPreset(preset.days)}>
+        <Button key={preset.days} type="button" variant="ghost" size="sm" className="h-9 px-2.5" onClick={() => onPreset(preset.days)} aria-label={`Created in the last ${preset.days} days`}>
           {preset.label}
         </Button>
       ))}
@@ -43,7 +44,7 @@ export function DateRangeFilter({ idPrefix, dateFrom, dateTo, onPreset, onCustom
         value={fromValue}
         max={toValue || undefined}
         onChange={(event) => onCustomFrom(event.target.value)}
-        className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+        className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
       />
       <span className="text-xs text-ink-tertiary">to</span>
       <label htmlFor={`${idPrefix}-date-to`} className="sr-only">
@@ -55,7 +56,7 @@ export function DateRangeFilter({ idPrefix, dateFrom, dateTo, onPreset, onCustom
         value={toValue}
         min={fromValue || undefined}
         onChange={(event) => onCustomTo(event.target.value)}
-        className={cn(fieldControlClass, fieldBorderClass(false), "w-auto")}
+        className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
       />
 
       {hasRange ? (

@@ -155,9 +155,14 @@ function FactsChart({ rows }: { rows: Row[] }) {
   if (rows.length < 2 || rows.length > 30) return null;
   const keys = Object.keys(rows[0]);
   const labelKey = keys.find((key) => rows.every((row) => typeof row[key] === "string"));
-  const valueKey = keys.find((key) => rows.every((row) => typeof row[key] === "number" || (typeof row[key] === "string" && /^-?[\d,.]+$/.test(row[key] as string) && key !== labelKey)));
+  const toNumber = (value: unknown) => Number(String(value).replace(/,/g, "")) || 0;
+  const numericKeys = keys.filter(
+    (key) => key !== labelKey && rows.every((row) => typeof row[key] === "number" || (typeof row[key] === "string" && /^-?[\d,.]+$/.test(row[key] as string)))
+  );
+  // The numeric column with the biggest values (so an all-zero column never hides the chart).
+  const valueKey = numericKeys.sort((a, b) => Math.max(...rows.map((row) => toNumber(row[b]))) - Math.max(...rows.map((row) => toNumber(row[a]))))[0];
   if (!labelKey || !valueKey) return null;
-  const values = rows.map((row) => Number(String(row[valueKey]).replace(/,/g, "")) || 0);
+  const values = rows.map((row) => toNumber(row[valueKey]));
   const max = Math.max(...values, 0);
   if (max <= 0) return null;
   return (

@@ -86,7 +86,7 @@ function formatDay(day: string | null): string {
     : "—";
 }
 
-const selectClass = cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm");
+const selectClass = cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm");
 
 /**
  * Client corrections 2026-10-05 — the full operational Bookings table, shared
@@ -331,29 +331,28 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
         </Button>
 
         <ExportCsvButton href={`/api/bookings/export?${buildFilterParams().toString()}`} />
+        <DateRangeFilter
+          idPrefix="booking"
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onPreset={(days) => {
+            applyPreset(days);
+            resetPage();
+          }}
+          onCustomFrom={(dateOnly) => {
+            applyCustomFrom(dateOnly);
+            resetPage();
+          }}
+          onCustomTo={(dateOnly) => {
+            applyCustomTo(dateOnly);
+            resetPage();
+          }}
+          onClear={() => {
+            clearDates();
+            resetPage();
+          }}
+        />
       </div>
-
-      <DateRangeFilter
-        idPrefix="booking"
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onPreset={(days) => {
-          applyPreset(days);
-          resetPage();
-        }}
-        onCustomFrom={(dateOnly) => {
-          applyCustomFrom(dateOnly);
-          resetPage();
-        }}
-        onCustomTo={(dateOnly) => {
-          applyCustomTo(dateOnly);
-          resetPage();
-        }}
-        onClear={() => {
-          clearDates();
-          resetPage();
-        }}
-      />
 
       <DashboardFilterChip
         label={status.includes(",") ? status.split(",").map((s) => BOOKING_STATUS_LABELS[s as BookingStatus] ?? s).join(", ") : undefined}

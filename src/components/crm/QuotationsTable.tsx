@@ -167,7 +167,7 @@ export function QuotationsTable() {
             setAssignedStaffId(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All POCs</option>
           <option value="unassigned">Unassigned</option>
@@ -188,7 +188,7 @@ export function QuotationsTable() {
             setCountryId(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All countries</option>
           {filterOptions.countries.map((option) => (
@@ -236,7 +236,7 @@ export function QuotationsTable() {
             setServiceType(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All services</option>
           {SERVICE_TYPE_OPTIONS.map((option) => (
@@ -256,7 +256,7 @@ export function QuotationsTable() {
             setStatus(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All statuses</option>
           {STATUS_OPTIONS.map((option) => (
@@ -276,7 +276,7 @@ export function QuotationsTable() {
             setSort(event.target.value as SortOption);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
@@ -294,29 +294,28 @@ export function QuotationsTable() {
         </Button>
 
         <ExportCsvButton href={`/api/quotations/export?${buildFilterParams().toString()}`} />
+        <DateRangeFilter
+          idPrefix="quotation"
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onPreset={(days) => {
+            applyPreset(days);
+            resetPage();
+          }}
+          onCustomFrom={(dateOnly) => {
+            applyCustomFrom(dateOnly);
+            resetPage();
+          }}
+          onCustomTo={(dateOnly) => {
+            applyCustomTo(dateOnly);
+            resetPage();
+          }}
+          onClear={() => {
+            clearDates();
+            resetPage();
+          }}
+        />
       </div>
-
-      <DateRangeFilter
-        idPrefix="quotation"
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onPreset={(days) => {
-          applyPreset(days);
-          resetPage();
-        }}
-        onCustomFrom={(dateOnly) => {
-          applyCustomFrom(dateOnly);
-          resetPage();
-        }}
-        onCustomTo={(dateOnly) => {
-          applyCustomTo(dateOnly);
-          resetPage();
-        }}
-        onClear={() => {
-          clearDates();
-          resetPage();
-        }}
-      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

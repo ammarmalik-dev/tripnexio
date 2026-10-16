@@ -3,9 +3,9 @@
 import { useState } from "react";
 
 export const DATE_RANGE_PRESETS = [
-  { label: "Last 7 Days", days: 7 },
-  { label: "Last 30 Days", days: 30 },
-  { label: "Last 90 Days", days: 90 },
+  { label: "7 days", days: 7 },
+  { label: "30 days", days: 30 },
+  { label: "90 days", days: 90 },
 ] as const;
 
 /**

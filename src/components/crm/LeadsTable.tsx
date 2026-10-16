@@ -184,7 +184,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setServiceType(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All services</option>
           {SERVICE_TYPE_OPTIONS.map((option) => (
@@ -204,7 +204,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setStatus(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All statuses</option>
           {LEAD_STATUS_OPTIONS.map((option) => (
@@ -224,7 +224,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setTemperature(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All temperatures</option>
           {LEAD_TEMPERATURE_OPTIONS.map((option) => (
@@ -244,7 +244,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setPaymentFailed(event.target.value === "1");
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All payments</option>
           <option value="1">Payment failed</option>
@@ -260,7 +260,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setAssignedStaffId(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All POCs</option>
           <option value="unassigned">Unassigned</option>
@@ -281,7 +281,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setCountryId(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All countries</option>
           {filterOptions.countries.map((option) => (
@@ -291,6 +291,38 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
           ))}
         </select>
 
+        <label htmlFor="sort-leads" className="sr-only">
+          Sort by created date
+        </label>
+        <select
+          id="sort-leads"
+          value={sort}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            setPage(1);
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+        >
+          <option value="createdAt_desc">Newest first</option>
+          <option value="createdAt_asc">Oldest first</option>
+        </select>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setRefreshNonce((current) => current + 1)}
+          disabled={state === "loading"}
+        >
+          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
+          Refresh
+        </Button>
+
+        <ExportCsvButton href={`/api/leads/export?${buildFilterParams().toString()}`} />
+      </div>
+
+      {/* Client doc 2026-10-15 (C4) — every filter within two lines: the dropdowns, then dates, sort and actions. */}
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1.5">
           <label htmlFor="filter-travel-from" className="text-xs text-ink-tertiary">
             Travel
@@ -319,45 +351,17 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
           />
         </div>
 
-        <label htmlFor="sort-leads" className="sr-only">
-          Sort by created date
-        </label>
-        <select
-          id="sort-leads"
-          value={sort}
-          onChange={(event) => {
-            setSort(event.target.value as SortOption);
-            setPage(1);
-          }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] text-sm")}
-        >
-          <option value="createdAt_desc">Newest first</option>
-          <option value="createdAt_asc">Oldest first</option>
-        </select>
+        <DateRangeFilter
+          idPrefix="lead"
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onPreset={applyPreset}
+          onCustomFrom={applyCustomFrom}
+          onCustomTo={applyCustomTo}
+          onClear={clearDates}
+        />
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setRefreshNonce((current) => current + 1)}
-          disabled={state === "loading"}
-        >
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
-
-        <ExportCsvButton href={`/api/leads/export?${buildFilterParams().toString()}`} />
       </div>
-
-      <DateRangeFilter
-        idPrefix="lead"
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onPreset={applyPreset}
-        onCustomFrom={applyCustomFrom}
-        onCustomTo={applyCustomTo}
-        onClear={clearDates}
-      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">
