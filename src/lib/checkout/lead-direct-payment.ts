@@ -35,12 +35,14 @@ export async function priceLeadForDirectPayment(lead: {
   serviceType: ServiceType;
   details: unknown;
   paxCount: number | null;
+  /** Client doc 2026-10-20 (K1) — travellers by type before any passenger exists (Manual Lead preview). */
+  paxTypes?: PaxType[];
 }): Promise<DirectPaymentPrice> {
   if (!isFixedRateService(lead.serviceType)) {
     return { ok: false, error: "This service is priced by quotation — build a quote instead." };
   }
   const details = (lead.details ?? {}) as Record<string, unknown>;
-  const paxTypes = await leadPaxTypes(details, lead.paxCount);
+  const paxTypes = lead.paxTypes && lead.paxTypes.length > 0 ? lead.paxTypes : await leadPaxTypes(details, lead.paxCount);
   const processingType = details.processingType === "urgent" ? "urgent" : details.processingType === "normal" ? "normal" : null;
 
   if (lead.serviceType === "NEW_VISA") {

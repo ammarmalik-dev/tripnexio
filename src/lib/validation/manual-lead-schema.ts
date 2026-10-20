@@ -52,6 +52,11 @@ export const manualLeadSchema = z
     extraCharges: z.number().min(0).optional(),
     // New Visa pricing lookup
     destinationCountryCode: z.string().trim().optional(),
+    /** Client doc 2026-10-20 (K1) — the visa option (stay · entry · category) and nationality, as on the website. */
+    newVisaConfigId: z.string().trim().optional(),
+    nationalityId: z.string().trim().optional(),
+    /** Client doc 2026-10-20 (K1) — Visa Extension / Visa Change: the current visa's expiry date. */
+    visaExpiryDate: z.string().trim().optional(),
     // Shared by New Visa and OTB
     processingType: z.enum(["normal", "urgent"]).optional(),
     // OTB pricing lookup
@@ -68,6 +73,9 @@ export const manualLeadSchema = z
     if (data.serviceType === "NEW_VISA") {
       if (!data.destinationCountryCode) ctx.addIssue({ code: "custom", message: "Select a destination country", path: ["destinationCountryCode"] });
       if (!data.processingType) ctx.addIssue({ code: "custom", message: "Select a processing type", path: ["processingType"] });
+    }
+    if ((data.serviceType === "VISA_EXTENSION" || data.serviceType === "VISA_CHANGE") && !data.visaExpiryDate) {
+      ctx.addIssue({ code: "custom", message: "Select the visa expiry date", path: ["visaExpiryDate"] });
     }
     if (data.serviceType === "OTB") {
       if (!data.destinationCountryCode) ctx.addIssue({ code: "custom", message: "Select a destination country", path: ["destinationCountryCode"] });

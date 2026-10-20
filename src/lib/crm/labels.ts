@@ -64,8 +64,8 @@ export const LEAD_TEMPERATURE_OPTIONS: { value: LeadTemperature; label: string }
 /** Client doc 2026-10-15 (I6) — Pending, Received, Validated, Rejected, Additional Required. */
 export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
   REQUIRED: "Pending",
-  MISSING: "Additional Required",
-  RECEIVED: "Received",
+  MISSING: "Additional Documents Required",
+  RECEIVED: "Uploaded / Received",
   VERIFIED: "Validated",
   REJECTED: "Rejected",
 };

@@ -17,6 +17,9 @@ import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 import { defaultProcessingTypes } from "@/lib/processing-types/defaults";
+import { useNewVisaProducts } from "@/lib/new-visa/use-new-visa-products";
+import { useNationalities } from "@/lib/use-nationalities";
+import type { ManualLeadPricePreview } from "@/lib/leads/manual-lead-pricing";
 
 interface CountryOption {
   id: string;
@@ -57,6 +60,10 @@ const SERVICE_OPTIONS: { value: ServiceType; label: string }[] = (
  */
 export function ManualLeadForm() {
   const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [newVisaCountries, setNewVisaCountries] = useState<CountryOption[]>([]);
+  const { products } = useNewVisaProducts();
+  const { options: nationalities } = useNationalities();
+  const [preview, setPreview] = useState<ManualLeadPricePreview | null>(null);
   const [airlines, setAirlines] = useState<OtbAirlineOption[]>([]);
   const [destinations, setDestinations] = useState<ReturnTicketDestinationOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -64,6 +71,8 @@ export function ManualLeadForm() {
 
   useEffect(() => {
     void getJson<CountryOption[]>("/api/countries").then(setCountries).catch(() => undefined);
+    // Client doc 2026-10-20 (E5) — New Visa: only the destinations Admin made live.
+    void getJson<CountryOption[]>("/api/countries?service=NEW_VISA").then(setNewVisaCountries).catch(() => undefined);
     void getJson<OtbAirlineOption[]>("/api/otb/airlines").then(setAirlines).catch(() => undefined);
     void getJson<ReturnTicketDestinationOption[]>("/api/return-ticket/destinations").then(setDestinations).catch(() => undefined);
   }, []);
@@ -79,6 +88,44 @@ export function ManualLeadForm() {
   });
 
   const serviceType = watch("serviceType");
+  const destinationCountryCode = watch("destinationCountryCode");
+  const countryProducts = products.filter((product) => product.countryCode === destinationCountryCode);
+
+  // Client doc 2026-10-20 (K1) — the configured amount, service fee, extra charges, coupon and final payable, live.
+  const priceInputs = JSON.stringify({
+    serviceType,
+    adultCount: watch("adultCount"),
+    childCount: watch("childCount"),
+    infantCount: watch("infantCount"),
+    couponCode: watch("couponCode") || undefined,
+    extraCharges: watch("extraCharges"),
+    destinationCountryCode,
+    newVisaConfigId: watch("newVisaConfigId") || undefined,
+    nationalityId: watch("nationalityId") || undefined,
+    processingType: watch("processingType") || undefined,
+    airlineCode: watch("airlineCode") || undefined,
+    returnTicketDestinationCountryId: watch("returnTicketDestinationCountryId") || undefined,
+  });
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      async function load() {
+        const inputs = JSON.parse(priceInputs) as { serviceType?: string };
+        if (!inputs.serviceType) return;
+        try {
+          const result = await postJson<ManualLeadPricePreview>("/api/leads/manual/preview", inputs);
+          if (!cancelled) setPreview(result);
+        } catch {
+          if (!cancelled) setPreview({ available: false, reason: "Couldn't work out the price.", byQuotation: false });
+        }
+      }
+      void load();
+    }, 350);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [priceInputs]);
   // P23 — processing-type labels from the Admin master (codes stay normal/urgent).
   const processingService = serviceType === "NEW_VISA" || serviceType === "OTB" ? serviceType : undefined;
   const { state: processingState, options: processingMasterOptions } = useProcessingTypes(processingService);
@@ -88,7 +135,9 @@ export function ManualLeadForm() {
 
   const numberField = (name: "adultCount" | "childCount" | "infantCount" | "extraCharges") =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) });
-  const optionalField = (name: "email" | "otherServiceDescription" | "couponCode" | "destinationCountryCode" | "airlineCode" | "returnTicketDestinationCountryId" | "processingType") =>
+  const optionalField = (
+    name: "email" | "otherServiceDescription" | "couponCode" | "destinationCountryCode" | "airlineCode" | "returnTicketDestinationCountryId" | "processingType" | "newVisaConfigId" | "nationalityId"
+  ) =>
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
 
   const onSubmit = async (values: ManualLeadValues) => {
@@ -200,14 +249,38 @@ export function ManualLeadForm() {
               className={cn(fieldControlClass, fieldBorderClass(!!errors.destinationCountryCode))}
               {...optionalField("destinationCountryCode")}
             >
-              <option value="">{countries.length === 0 ? "No active countries configured" : "Select a country"}</option>
-              {countries.map((country) => (
-                <option key={country.id} value={country.code}>
+              <option value="">{newVisaCountries.length === 0 ? "No New Visa destinations configured" : "Select a country"}</option>
+              {newVisaCountries.map((country) => (
+                <option key={country.code} value={country.code}>
                   {country.name}
                 </option>
               ))}
             </select>
           </FormField>
+          {countryProducts.length > 0 ? (
+            <FormField label="Visa" htmlFor="newVisaConfigId" hint="Stay duration · Entry type · Visa category." error={errors.newVisaConfigId?.message}>
+              <select id="newVisaConfigId" defaultValue="" className={cn(fieldControlClass, fieldBorderClass(!!errors.newVisaConfigId))} {...optionalField("newVisaConfigId")}>
+                <option value="">Select the visa</option>
+                {countryProducts.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.label}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          ) : null}
+          {nationalities.length > 0 ? (
+            <FormField label="Nationality (as on passport)" htmlFor="nationalityId" hint="Prices can differ by nationality." error={errors.nationalityId?.message}>
+              <select id="nationalityId" defaultValue="" className={cn(fieldControlClass, fieldBorderClass(!!errors.nationalityId))} {...optionalField("nationalityId")}>
+                <option value="">Select the nationality</option>
+                {nationalities.map((nationality) => (
+                  <option key={nationality.id} value={nationality.id}>
+                    {nationality.name}
+                  </option>
+                ))}
+              </select>
+            </FormField>
+          ) : null}
           <FormField label="Processing Type" htmlFor="processingType" error={errors.processingType?.message} required>
             <select
               id="processingType"
@@ -308,6 +381,17 @@ export function ManualLeadForm() {
         </div>
       ) : null}
 
+      {serviceType === "VISA_EXTENSION" || serviceType === "VISA_CHANGE" ? (
+        // Client doc 2026-10-20 (K1) — the form follows the service: the current visa's expiry for VE / VC.
+        <DateField
+          {...register("visaExpiryDate")}
+          name="visaExpiryDate"
+          label="Visa Expiry Date"
+          error={errors.visaExpiryDate?.message}
+          required
+        />
+      ) : null}
+
       <DateField {...register("travelDate")} name="travelDate" label="Travel Date" error={errors.travelDate?.message} required />
 
       {/* OTB and Return Ticket have one rate for every passenger (client reply 2026-10-13): just a passenger count. */}
@@ -340,11 +424,59 @@ export function ManualLeadForm() {
         />
       </div>
 
+      {serviceType ? <ManualLeadPricePanel preview={preview} /> : null}
+
       <div className="flex justify-end">
         <Button type="submit" isLoading={submitting}>
           Create Lead
         </Button>
       </div>
     </form>
+  );
+}
+
+const rupees = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+
+/** Client doc 2026-10-20 (K1) — what the payment link will charge, before the lead is created. */
+function ManualLeadPricePanel({ preview }: { preview: ManualLeadPricePreview | null }) {
+  if (!preview) return null;
+  if (!preview.available) {
+    return (
+      <p className={cn("rounded-lg px-4 py-3 text-sm", preview.byQuotation ? "bg-surface-2 text-ink-secondary" : "bg-warning/10 text-warning")}>
+        {preview.byQuotation ? "This service is priced by a staff quotation — build it on the lead after creating it." : preview.reason}
+      </p>
+    );
+  }
+  return (
+    <dl className="flex flex-col gap-1.5 rounded-xl border border-hairline bg-surface-2/50 p-4 text-sm">
+      <div className="flex justify-between">
+        <dt className="text-ink-secondary">Configured amount (Admin)</dt>
+        <dd className="font-semibold text-ink-heading">{rupees(preview.configuredAmount)}</dd>
+      </div>
+      {preview.serviceFee !== null ? (
+        <div className="flex justify-between text-xs text-ink-tertiary">
+          <dt>of which service fee (GST applies on this)</dt>
+          <dd>{rupees(preview.serviceFee)}</dd>
+        </div>
+      ) : null}
+      {preview.extraCharges > 0 ? (
+        <div className="flex justify-between">
+          <dt className="text-ink-secondary">Extra charges</dt>
+          <dd>+ {rupees(preview.extraCharges)}</dd>
+        </div>
+      ) : null}
+      {preview.couponDiscount > 0 ? (
+        <div className="flex justify-between text-success">
+          <dt>Coupon discount</dt>
+          <dd>− {rupees(preview.couponDiscount)}</dd>
+        </div>
+      ) : null}
+      {preview.couponError ? <p className="text-xs text-error">{preview.couponError}</p> : null}
+      <div className="flex justify-between border-t border-hairline pt-1.5 text-base font-semibold text-ink-heading">
+        <dt>Final payable</dt>
+        <dd>{rupees(preview.finalPayable)}</dd>
+      </div>
+      <p className="text-[11px] text-ink-tertiary">GST and gateway fee, if configured, are added on the payment page.</p>
+    </dl>
   );
 }

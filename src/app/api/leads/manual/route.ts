@@ -2,13 +2,11 @@ import type { NextRequest } from "next/server";
 import { manualLeadSchema, isFixedRateService } from "@/lib/validation/manual-lead-schema";
 import { createLeadFromSubmission, type LeadPassengerInput } from "@/lib/leads/create-lead";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
-import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
-import { resolveOtbApplicantPrices } from "@/lib/otb/pricing";
+import { manualLeadServiceDetails, previewManualLeadPrice } from "@/lib/leads/manual-lead-pricing";
+import type { DirectPaymentPrice } from "@/lib/checkout/lead-direct-payment";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
-import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import type { PaxType } from "@/generated/prisma/enums";
 
 /** ADULT first, then CHILD, then INFANT — a reasonable, disclosed default order for passenger-list display; doesn't affect pricing. */
 function buildPlaceholderPassengers(fullName: string, adultCount: number, childCount: number, infantCount: number): LeadPassengerInput[] {
@@ -17,75 +15,6 @@ function buildPlaceholderPassengers(fullName: string, adultCount: number, childC
   for (let i = 1; i <= childCount; i++) passengers.push({ fullName: `${fullName} - Child ${i}`, paxType: "CHILD" });
   for (let i = 1; i <= infantCount; i++) passengers.push({ fullName: `${fullName} - Infant ${i}`, paxType: "INFANT" });
   return passengers;
-}
-
-interface ResolvedPricing {
-  totalPrice: number;
-  vendorCost?: number;
-  extraDetails: Record<string, unknown>;
-}
-
-/**
- * Resolves each fixed-rate service's own configured rate, exactly the way
- * that service's own public intake route already does — never fabricated.
- * Returns `null` (not a thrown error) for "valid service, just no
- * configured rate for this exact combo, or an invalid selection" — per
- * this step's own explicit "never lose the Lead" instruction, every one
- * of these outcomes here means "create the Lead anyway, route to
- * Quotations," not a hard rejection (unlike the equivalent public routes,
- * which reject an invalid selection outright since their dropdowns only
- * ever offer valid options to begin with — staff-entered data has no such
- * guarantee).
- */
-async function resolveFixedRatePricing(
-  data: import("@/lib/validation/manual-lead-schema").ManualLeadValues,
-  travellerPaxTypes: PaxType[]
-): Promise<{ pricing: ResolvedPricing | null; note?: string }> {
-  if (data.serviceType === "NEW_VISA") {
-    const price = await computeNewVisaPrice({
-      countryCode: data.destinationCountryCode!,
-      processingType: data.processingType as "normal" | "urgent",
-      travellerPaxTypes,
-    });
-    if (!price) return { pricing: null, note: `No configured rate for ${data.destinationCountryCode}/${data.processingType}.` };
-    return { pricing: { totalPrice: price.total, vendorCost: price.vendorCost, extraDetails: { destinationCountry: data.destinationCountryCode } } };
-  }
-
-  if (data.serviceType === "OTB") {
-    const airline = await db.airline.findFirst({ where: { code: data.airlineCode!, active: true } });
-    if (!airline) return { pricing: null, note: "That airline isn't available for OTB." };
-    // One rate for every passenger, from the OTB price for this airline + destination (client reply 2026-10-13).
-    const quotes = await resolveOtbApplicantPrices({
-      airline,
-      countryCode: data.destinationCountryCode!,
-      processingType: data.processingType as "normal" | "urgent",
-      paxTypes: travellerPaxTypes,
-    });
-    if (quotes.some((quote) => quote.price === null || !(quote.price > 0))) {
-      return { pricing: null, note: `No ${data.processingType} OTB price is configured for ${airline.name} to ${data.destinationCountryCode}.` };
-    }
-    const totalPrice = quotes.reduce((sum, quote) => sum + (quote.price ?? 0), 0);
-    return { pricing: { totalPrice, extraDetails: { airline: data.airlineCode, destinationCountry: data.destinationCountryCode } } };
-  }
-
-  // RETURN_TICKET
-  const destination = await db.returnTicketDestination.findFirst({
-    where: { countryId: data.returnTicketDestinationCountryId!, active: true, country: { active: true } },
-    include: { country: { select: { name: true } } },
-  });
-  if (!destination) return { pricing: null, note: "That destination isn't available." };
-  const ratePerApplicant = Number(destination.ratePerApplicant);
-  return {
-    pricing: {
-      totalPrice: ratePerApplicant * travellerPaxTypes.length,
-      extraDetails: {
-        destinationCountry: destination.country.name,
-        destinationCountryId: data.returnTicketDestinationCountryId,
-        // Client update (2026-09-24): the customer's/staff-entered target date — the actual issued ticket date is a separate, staff/availability-determined outcome.
-        expectedReturnDate: data.returnTicketExpectedReturnDate,
-      },
-    },
-  };
 }
 
 /**
@@ -136,17 +65,15 @@ export async function POST(request: NextRequest) {
   const passengers = buildPlaceholderPassengers(data.fullName, data.adultCount, data.childCount, data.infantCount);
   const travelerCount = data.adultCount + data.childCount + data.infantCount;
 
+  // Client doc 2026-10-20 (K1) — the same configured price as the website / direct payment link (New Visa option +
+  // nationality, OTB airline + destination, Return Ticket destination), with the service's own details.
+  const serviceDetails = await manualLeadServiceDetails(data);
   let pricingNote: string | undefined;
-  let extraDetails: Record<string, unknown> = {};
-  let resolvedPricing: ResolvedPricing | null = null;
+  let resolvedPrice: Extract<DirectPaymentPrice, { ok: true }> | null = null;
   if (isFixedRateService(data.serviceType)) {
-    const resolved = await resolveFixedRatePricing(
-      data,
-      passengers.map((p) => p.paxType ?? "ADULT")
-    );
-    resolvedPricing = resolved.pricing;
-    pricingNote = resolved.note;
-    if (resolved.pricing) extraDetails = resolved.pricing.extraDetails;
+    const { price } = await previewManualLeadPrice(data, serviceDetails);
+    if (price.ok) resolvedPrice = price;
+    else pricingNote = price.error;
   }
 
   const result = await createLeadFromSubmission({
@@ -164,18 +91,19 @@ export async function POST(request: NextRequest) {
       manualEntry: true,
       manualEntryBy: session.name,
       ...(data.serviceType === "OTHER" ? { otherServiceDescription: data.otherServiceDescription } : {}),
-      ...extraDetails,
+      ...serviceDetails,
     },
   });
 
   let bookingId: string | undefined;
-  if (resolvedPricing) {
+  if (resolvedPrice) {
     try {
       const checkout = await createAutoCheckout({
         leadId: result.leadId,
-        serviceType: data.serviceType as "NEW_VISA" | "OTB" | "RETURN_TICKET",
-        totalPrice: resolvedPricing.totalPrice,
-        vendorCost: resolvedPricing.vendorCost,
+        serviceType: resolvedPrice.serviceType,
+        totalPrice: resolvedPrice.totalPrice,
+        vendorCost: resolvedPrice.vendorCost,
+        invoiceLines: resolvedPrice.invoiceLines,
         extraCharges: data.extraCharges,
         couponCode: data.couponCode,
         skipAutoPayment: true,

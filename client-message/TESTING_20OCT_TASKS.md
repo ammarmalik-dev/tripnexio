@@ -117,17 +117,17 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
 - [x] J1. Invoice serial TNS/A2601 … TNS/A2699, then TNS/B2601 … TNS/Z2699 (letter changes after 99, then AA/AB…). The year part changes every financial year. — DONE: d95b05b (TNS/A2601)
 
 ## K. Manual lead / flows / documents
-- [ ] K1. Manual lead pricing + payment:
+- [x] K1. Manual lead pricing + payment: — DONE: live price panel (configured amount, service fee, extra charges, coupon, final payable) from the same pricing as the payment link; NV visa + nationality, VE/VC visa expiry
   - The configured amount is fetched from Admin.
   - The base / service amount is shown.
   - A per-service form (e.g. visa expiry for Visa Change / Extension).
   - Coupon, and a clear final payable.
   - Extra charges allowed (the configured amount is not a cap).
-- [ ] K2. New Visa: Lead → direct payment link → payment success → Booking → Documents → processing.
-- [ ] K3. All documents in one Booking Documents section (from Lead and Booking), per traveller.
-- [ ] K4. Document statuses: Pending, Uploaded / Received, Validated, Rejected, Additional Documents Required.
-- [ ] K5. One consolidated notification once all documents are validated, or one on reject / additional request listing pax + docs. Never per document.
-- [ ] K6. Booking 360 shows only the current booking's travellers' documents; history stays in Customer 360.
+- [x] K2. New Visa: Lead → direct payment link → payment success → Booking → Documents → processing. — DONE: Lead → direct payment link → payment → booking → documents (unchanged flow)
+- [x] K3. All documents in one Booking Documents section (from Lead and Booking), per traveller. — DONE: lead's Documents tab points to the one Booking Documents section
+- [x] K4. Document statuses: Pending, Uploaded / Received, Validated, Rejected, Additional Documents Required. — DONE: Pending / Uploaded-Received / Validated / Rejected / Additional Documents Required
+- [x] K5. One consolidated notification once all documents are validated, or one on reject / additional request listing pax + docs. Never per document. — DONE: one message per review round, listing passengers + documents
+- [x] K6. Booking 360 shows only the current booking's travellers' documents; history stays in Customer 360. — DONE: booking shows only its own travellers' documents
 
 ## L. CRM workflow
 - [x] L1. Coloured "Choose File" button; PDF / PNG / JPG only. — DONE: coloured Choose File on every CRM upload, PDF/PNG/JPG

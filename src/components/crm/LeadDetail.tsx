@@ -549,6 +549,17 @@ export function LeadDetail({
             count: documentCount,
             content: (
               <div className="flex flex-col gap-5">
+                {/* Client doc 2026-10-20 (K3) — once booked, every document (request + booking) lives in one Booking Documents section. */}
+                {lead.bookings.filter((booking) => booking.status !== "PENDING" && booking.status !== "CANCELLED").map((booking) => (
+                  <div key={booking.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/30 bg-accent/5 px-4 py-3 text-sm">
+                    <span className="text-ink-secondary">
+                      Booking <span className="font-semibold text-ink-heading">{booking.bookingId}</span> holds every traveller&rsquo;s documents — from this request and after booking.
+                    </span>
+                    <Link href={`/crm/bookings/${booking.id}#tab-documents`} className="inline-flex h-8 items-center rounded-md bg-accent px-3 text-xs font-semibold text-white">
+                      Open Booking Documents
+                    </Link>
+                  </div>
+                ))}
                 <RecordSection title="Applicants">
                   <ApplicantsTable applicants={lead.applicants} editable={{ leadId: lead.id, onChanged: refresh }} />
                 </RecordSection>
