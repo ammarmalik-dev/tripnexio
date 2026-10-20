@@ -116,17 +116,6 @@ function RateFields({
         disabled={disabled}
       />
       <TextField
-        label="Airline fee inside rate (₹)"
-        name={`${idPrefix}-airlineFee`}
-        type="number"
-        min={0}
-        hint="Shown apart on the invoice, no GST."
-        value={form.airlineFee}
-        onChange={(event) => onChange({ ...form, airlineFee: event.target.value })}
-        error={errors.airlineFeePerApplicant?.[0]}
-        disabled={disabled}
-      />
-      <TextField
         label="Display Order"
         name={`${idPrefix}-displayOrder`}
         type="number"

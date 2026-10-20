@@ -49,8 +49,9 @@ export async function createBookingFromQuotation(
     return { ok: false, status: 409, error: "This quotation has expired." };
   }
 
+  // Client doc 2026-10-20 (C6) — a paid booking (even one cancelled / refunded later) closes the lead for new bookings.
   const existingActiveBooking = await db.booking.findFirst({
-    where: { leadId: quotation.leadId, status: { not: "CANCELLED" } },
+    where: { leadId: quotation.leadId, OR: [{ status: { not: "CANCELLED" } }, { payments: { some: { status: "SUCCESS" } } }] },
   });
   if (existingActiveBooking) {
     return { ok: false, status: 409, error: "This lead already has an active booking." };

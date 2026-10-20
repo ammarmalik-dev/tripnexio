@@ -7,81 +7,81 @@ The client asked for every point to be done carefully so that no further correct
 Legend: `[x]` = done + verified (local tests, plus a live check after deploy where marked **live✓**).
 
 ## A. Flight Special Fare
-- [ ] A1. Every quote option shows:
+- [x] A1. Every quote option shows: — DONE: 1803042
   - airline name and flight number
   - departure / arrival city, date and time
   - baggage
   - fare type
   - quote validity
   - Booking / Reference ID
-- [ ] A2. The issued ticket shows the PNR, passenger details, airline, flight details and baggage, with the ticket PDF.
-- [ ] A3. Passenger type (Adult / Child / Infant) is worked out from the date of birth on the website, and the fare follows the type.
-- [ ] A4. Fix booking 11026FL080: it was submitted with 1 Adult + 1 Child + 1 Infant, but only 1 Adult appears and the fare is calculated wrong.
-- [ ] A5. Bring back the Government ID upload after a successful payment, for all passengers.
-- [ ] A6. Disclaimer: the customer name and passport number must match the government ID / passport exactly.
-- [ ] A7. Ticket details: remove Vendor Reference, Ticket Number and Issue Date/Time. Keep only the PNR.
-- [ ] A8. Several passengers' tickets: allow several uploads, or only the tickets issued so far. Track the ticket per passenger and show "Pending" for anyone not yet issued.
-- [ ] A9. Document upload:
+- [x] A2. The issued ticket shows the PNR, passenger details, airline, flight details and baggage, with the ticket PDF. — DONE: 1803042
+- [x] A3. Passenger type (Adult / Child / Infant) is worked out from the date of birth on the website, and the fare follows the type. — DONE: 1803042
+- [x] A4. Fix booking 11026FL080: it was submitted with 1 Adult + 1 Child + 1 Infant, but only 1 Adult appears and the fare is calculated wrong. — DONE: 1803042 (bot SF passengers per type)
+- [x] A5. Bring back the Government ID upload after a successful payment, for all passengers. — DONE: 1803042
+- [x] A6. Disclaimer: the customer name and passport number must match the government ID / passport exactly. — DONE: 1803042
+- [x] A7. Ticket details: remove Vendor Reference, Ticket Number and Issue Date/Time. Keep only the PNR. — DONE: 1803042
+- [x] A8. Several passengers' tickets: allow several uploads, or only the tickets issued so far. Track the ticket per passenger and show "Pending" for anyone not yet issued. — DONE: 1803042
+- [x] A9. Document upload: — DONE: 1803042
   - One delivery option only (no duplicate "Issue Ticket" + "Deliver to customer").
   - A coloured "Choose File" button.
   - The file types the workflow needs, with validation.
-- [ ] A10. After the ticket is delivered, staff can't move the booking to Unavailable (Admin correction only).
-- [ ] A11. Quotation: Vendor Cost and Selling Price for Adult / Child / Infant. The total is worked out from the passenger counts and rates (never Adult only).
-- [ ] A12. The alternative option uses the same form as the quote:
+- [x] A10. After the ticket is delivered, staff can't move the booking to Unavailable (Admin correction only). — DONE: 1803042
+- [x] A11. Quotation: Vendor Cost and Selling Price for Adult / Child / Infant. The total is worked out from the passenger counts and rates (never Adult only). — DONE: 1803042
+- [x] A12. The alternative option uses the same form as the quote: — DONE: 1803042
   - airport search, terminals, fare rules, date and time
   - new selling price, new cost and vendor name
-- [ ] A13. The ticket email body carries the "Important Information" block (domestic + international): reporting 2h / 4h, documents, terminal, web check-in, baggage, changes and refunds, travel requirements, the 12-hour verification disclaimer, closing line.
-- [ ] A14. A partial refund can be raised. The internal status moves when cancelled.
-- [ ] A15. Refund policy lives in one place only: Service Configuration (for all services, linked to CRM). Remove it from the Pricing Dashboard.
-- [ ] A16. After a refund the internal status can change, and the customer status follows automatically.
-- [ ] A17. Status changes happen automatically in all services, and every status in the client's lists is present in CRM.
-- [ ] A18. When travel is within 24 hours: create a task automatically and move the status to On Hold.
-- [ ] A24. Explain "Move to…" (document status) and "Set result…" (passenger result), and make the labels self-explanatory.
+- [x] A13. The ticket email body carries the "Important Information" block (domestic + international): reporting 2h / 4h, documents, terminal, web check-in, baggage, changes and refunds, travel requirements, the 12-hour verification disclaimer, closing line. — DONE: SF_15 template body
+- [x] A14. A partial refund can be raised. The internal status moves when cancelled. — DONE: 1803042
+- [x] A15. Refund policy lives in one place only: Service Configuration (for all services, linked to CRM). Remove it from the Pricing Dashboard. — DONE: 1803042
+- [x] A16. After a refund the internal status can change, and the customer status follows automatically. — DONE: c712ee2
+- [x] A17. Status changes happen automatically in all services, and every status in the client's lists is present in CRM. — DONE: c712ee2
+- [x] A18. When travel is within 24 hours: create a task automatically and move the status to On Hold. — DONE: 1803042
+- [x] A24. Explain "Move to…" (document status) and "Set result…" (passenger result), and make the labels self-explanatory. — DONE: labels renamed; explained in client message
 
 ## B. Return Verified Ticket
-- [ ] B1. Remove Vendor Reference from CRM. When a vendor rate is already set, don't ask for it again; ask for the vendor only when sending to the airline.
-- [ ] B2. When the vendor rate is set, don't ask for the airline fee.
-- [ ] B3. The Thailand + Etihad rate doesn't show on the Pricing Dashboard. Show only the airlines and destinations that are configured.
-- [ ] B4. Configured required documents show for every service (Return, OTB, New Visa, Ticket), so staff can upload them, together with anything already uploaded. The status sits on one side in every service.
-- [ ] B5. "Deliver to customer":
+- [x] B1. Remove Vendor Reference from CRM. When a vendor rate is already set, don't ask for it again; ask for the vendor only when sending to the airline. — DONE: d95b05b + vendor reference rows removed
+- [x] B2. When the vendor rate is set, don't ask for the airline fee. — DONE: airline-fee fields removed (service fee per service, F2)
+- [x] B3. The Thailand + Etihad rate doesn't show on the Pricing Dashboard. Show only the airlines and destinations that are configured. — DONE: pricing dashboard vendor rates
+- [x] B4. Configured required documents show for every service (Return, OTB, New Visa, Ticket), so staff can upload them, together with anything already uploaded. The status sits on one side in every service. — DONE: required-slots.ts
+- [x] B5. "Deliver to customer": — DONE: 1803042
   - Ask only for the Return Verified Ticket.
   - With several passengers, list them all; staff can pick the pending ones.
   - Coloured upload button; all file types; PDF upload currently fails.
-- [ ] B6. The Return Ticket email body carries "Important: Please verify your details" (4 hours) plus the disclaimer and closing.
+- [x] B6. The Return Ticket email body carries "Important: Please verify your details" (4 hours) plus the disclaimer and closing. — DONE: RVT_TICKET_ISSUED template body
 
 ## C. OTB
-- [ ] C1. Express TAT: an application at 22:30 on a Saturday (week-off) offers Monday 00:00, which is not a working hour.
-- [ ] C2. Show only the configured countries and airlines.
-- [ ] C3. Travel date and departure time on the same line (website).
-- [ ] C4. Remove Vendor Reference for OTB.
-- [ ] C5. Same as B2: no airline fee when the vendor rate is set.
-- [ ] C6. Once a booking is paid and booked, staff must not be offered "generate booking" again (all services).
+- [x] C1. Express TAT: an application at 22:30 on a Saturday (week-off) offers Monday 00:00, which is not a working hour. — DONE: null urgent TAT = 8 working hours
+- [x] C2. Show only the configured countries and airlines. — DONE: website + bot list only priced country × airline
+- [x] C3. Travel date and departure time on the same line (website). — DONE: one row
+- [x] C4. Remove Vendor Reference for OTB. — DONE: vendor reference removed
+- [x] C5. Same as B2: no airline fee when the vendor rate is set. — DONE: see B2
+- [x] C6. Once a booking is paid and booked, staff must not be offered "generate booking" again (all services). — DONE: paid booking closes the lead for new bookings
 
 ## D. Visa Change / Visa Extension
-- [ ] D1. Unable to draft and send a quotation.
-- [ ] D2. The visa expiry date/time is wrong at customer review and payment: verified 17 Oct, but urgency showed 19 Oct.
-- [ ] D3. Website: ask for the passport and visa copy on the same line.
-- [ ] D4. Form text alignment after submission (success panel).
-- [ ] D5. WhatsApp bot passenger details:
+- [x] D1. Unable to draft and send a quotation. — DONE: Border quote no longer blocked
+- [x] D2. The visa expiry date/time is wrong at customer review and payment: verified 17 Oct, but urgency showed 19 Oct. — DONE: urgency from verified expiry day
+- [x] D3. Website: ask for the passport and visa copy on the same line.
+- [x] D4. Form text alignment after submission (success panel).
+- [x] D5. WhatsApp bot passenger details:
   - Ask the number of adults and children, plus "Add another passenger".
   - Ask passport and visa expiry for everyone.
   - Label "Visa Expiry Date*".
-- [ ] D6. Can't save and share the itinerary for Border and A2A. Per-passenger cost / sale / fine is missing (tested with 2 people, but the price was set for one).
-- [ ] D7. Wording: "Our team will confirm the exact document checklist as per nationality once we review your request."
-- [ ] D8. By bus (Border):
+- [x] D6. Can't save and share the itinerary for Border and A2A. Per-passenger cost / sale / fine is missing (tested with 2 people, but the price was set for one). — DONE: per-passenger costing + border/A2A blocks save
+- [x] D7. Wording: "Our team will confirm the exact document checklist as per nationality once we review your request."
+- [x] D8. By bus (Border): — DONE: border on the quote, trip details on the booking
   - Remove "Border Exit Operational Details".
   - The quotation asks only the non-UAE border, rate, inclusions and exclusions.
   - After payment, ask the vendor-specific details (like A2A).
   - Remove Customer Contact Number, Drop / Border Location, Bus / Operator and Vendor / Sponsor.
-- [ ] D9. Visa Change submission: don't mention the destination country in the WhatsApp or email notification.
+- [x] D9. Visa Change submission: don't mention the destination country in the WhatsApp or email notification.
 - [ ] D10. Visa Change document management: Admin-configured documents per nationality, uploadable after payment.
-- [ ] D11. The Visa Change ticket / package email carries "Important Travel Instructions" (3 hours) plus the disclaimer.
+- [x] D11. The Visa Change ticket / package email carries "Important Travel Instructions" (3 hours) plus the disclaimer. — DONE: VC_PACKAGE_GENERATED template body
 
 ## E. New Visa
 - [ ] E1. Expected approval date and TAT follow the Admin working days, holidays, non-working days, country / service rules and blocked dates. It updates at once when Normal / Express changes. No hard-coded dates. (Screenshot: UAE / India / 5 Nov shows "Not offered" and "travel date too close".)
 - [ ] E2. The configured Adult / Child prices for Normal and Express show at once on the first form and update on switch.
 - [ ] E3. Remove "Choose your option and see the price instantly" for all countries.
-- [ ] E4. Vendor rates for Visa / OTB / Return Ticket show correctly (Visa is missing). New Visa vendor rates take Adult / Child × Normal / Express without forcing a visa type.
+- [x] E4. Vendor rates for Visa / OTB / Return Ticket show correctly (Visa is missing). New Visa vendor rates take Adult / Child × Normal / Express without forcing a visa type. — DONE: pricing dashboard vendor rates
 - [ ] E5. Only Admin-enabled destination countries on the website and the bot. No duplicates, disabled ones hidden. The UAE visa page shows destination countries only.
 - [ ] E6. Visa types per country, set up in Admin from the Master List:
   - Validity, Stay Duration, Entry Type (Single / Multiple) in the master.
@@ -93,10 +93,10 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
 - [ ] E10. The timeline / TAT configuration is respected on the website and in the bot.
 
 ## F. Invoice & profit
-- [ ] F1. An invoice cancelled or refunded after verification shows Cancelled / Refunded on the QR verify page, not Paid.
-- [ ] F2. Admin sets the service fee and GST % separately per service.
-- [ ] F3. The invoice shows only the configured service fee, with GST on that fee only (e.g. cost 1,000 / sell 1,200 / fee 20 → the invoice shows fee 20 + GST on 20).
-- [ ] F4. MIS / P&L show the actual profit (selling − cost = 200), never the service fee.
+- [x] F1. An invoice cancelled or refunded after verification shows Cancelled / Refunded on the QR verify page, not Paid. — DONE: d95b05b
+- [x] F2. Admin sets the service fee and GST % separately per service. — DONE: d95b05b
+- [x] F3. The invoice shows only the configured service fee, with GST on that fee only (e.g. cost 1,000 / sell 1,200 / fee 20 → the invoice shows fee 20 + GST on 20). — DONE: d95b05b
+- [x] F4. MIS / P&L show the actual profit (selling − cost = 200), never the service fee. — DONE: reports use the quotation margin, never the invoice fee
 
 ## G. WhatsApp chat & FAQ
 - [ ] G1. FAQ option in the WhatsApp menu, working.
@@ -106,15 +106,15 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
 - [ ] G5. The "Our team has this — they'll reach out shortly…" reply goes out only once at handover, not after every message.
 
 ## H. Emails
-- [ ] H1. "Best regards, Team TripNexio" appears twice. Keep it once, in the mail body before "Need assistance?".
-- [ ] H2. Header as in the client image: navy, "TripNexio" with the tagline line.
+- [x] H1. "Best regards, Team TripNexio" appears twice. Keep it once, in the mail body before "Need assistance?". — DONE: d95b05b
+- [x] H2. Header as in the client image: navy, "TripNexio" with the tagline line. — DONE: d95b05b
 
 ## I. Enquiries
-- [ ] I1. Contact form serial ENQ-TNA0001 … ENQ-TNZ9999.
-- [ ] I2. When an enquiry is closed or resolved, email the customer with the remark.
+- [x] I1. Contact form serial ENQ-TNA0001 … ENQ-TNZ9999. — DONE: d95b05b
+- [x] I2. When an enquiry is closed or resolved, email the customer with the remark. — DONE: d95b05b
 
 ## J. Invoice number
-- [ ] J1. Invoice serial TNS/A2601 … TNS/A2699, then TNS/B2601 … TNS/Z2699 (letter changes after 99, then AA/AB…). The year part changes every financial year.
+- [x] J1. Invoice serial TNS/A2601 … TNS/A2699, then TNS/B2601 … TNS/Z2699 (letter changes after 99, then AA/AB…). The year part changes every financial year. — DONE: d95b05b (TNS/A2601)
 
 ## K. Manual lead / flows / documents
 - [ ] K1. Manual lead pricing + payment:
@@ -143,7 +143,7 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
   - No Sub-service column (details under Service Details), and no repeated travel date.
   - Internal Status, Service Details and Applied to Embassy on one line.
   - Cells max 2 lines, auto column widths, horizontal scroll.
-- [ ] L7. Booking status: internal status buttons on the left. The internal status updates the customer status automatically. No reverting of critical statuses.
+- [x] L7. Booking status: internal status buttons on the left. The internal status updates the customer status automatically. No reverting of critical statuses. — DONE: c712ee2
 - [ ] L8. Payments: buttons and headings on one line; Service and Service Details in separate columns.
 - [ ] L9. Invoices: filters on one line.
 - [ ] L10. Refunds:
@@ -169,28 +169,28 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
   - Partly processed + partly refunded → the refund completes first, then the booking shows its fresh status.
 
 ## O. Status lists + Email / WhatsApp templates (client's final, per service)
-- [ ] O1. **New Visa**:
+- [x] O1. **New Visa**: — DONE: c712ee2
   - 22 statuses with customer labels and notify flags, per the matrix.
   - Separate email + WhatsApp template per notifying status (NV_*).
   - Pre-payment: Application ID only, Complete Payment CTA, no Booking ID or invoice.
   - The invoice is attached to the Payment Received email.
   - Visa Approved: PDF attached + secure link + travel instructions / disclaimer.
   - Internal-only statuses send nothing.
-- [ ] O2. **Visa Change**:
+- [x] O2. **Visa Change**: — DONE: c712ee2
   - 27 statuses (VC_*).
   - Package Generated → Exit Completed → Ready for Submission.
   - Package PDF attached.
   - No duplicate at Cancelled and Refunded.
-- [ ] O3. **Visa Extension**: 23 statuses (EXT_01–EXT_23) with their templates.
-- [ ] O4. **OTB**:
+- [x] O3. **Visa Extension**: 23 statuses (EXT_01–EXT_23) with their templates. — DONE: c712ee2
+- [x] O4. **OTB**: — DONE: c712ee2
   - 19 statuses (OTB_01–OTB_19).
   - Track Status CTA.
   - No OTB approval PDF.
-- [ ] O5. **Return Verified Ticket**:
+- [x] O5. **Return Verified Ticket**: — DONE: c712ee2
   - 15 statuses (rvt_*).
   - Ticket PDF attached / linked at Ticket Issued.
   - Partial cancellation scope per passenger.
-- [ ] O6. **Flight Special Fare**:
+- [x] O6. **Flight Special Fare**: — DONE: c712ee2
   - Lead, quotation, booking and cancellation statuses (SF-EM / SF-WA 01–29).
   - Expiring reminders every 10 minutes while the quote is valid.
   - Seat-unavailable and cancellation-quotation flows.

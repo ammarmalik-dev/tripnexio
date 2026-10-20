@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 
   const outcome = computeEligibilityOutcome(parsed.data.verifiedExpiryDate, await extensionToday());
-  const urgentDeadline = outcome === "URGENT_TODAY" ? await computeUrgentDeadline() : null;
+  const urgentDeadline = outcome === "URGENT_TODAY" ? await computeUrgentDeadline(new Date(), parsed.data.verifiedExpiryDate) : null;
   const { urgentDeadline: _previousDeadline, ...existingDetails } = (lead.details as Record<string, unknown>) ?? {};
   void _previousDeadline;
 

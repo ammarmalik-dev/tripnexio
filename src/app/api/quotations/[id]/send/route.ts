@@ -67,6 +67,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const visaChangeBlock = visaChangeQuoteBlockReason(lead.serviceType, lead.details);
   if (visaChangeBlock) return jsonError(409, visaChangeBlock);
   // B32 — an Airport-to-Airport option can't go to the customer without its own flights.
+  // Client doc 2026-10-20 (D8) — a Border Exit option needs its border before it goes to the customer.
+  if (lead.serviceType === "VISA_CHANGE" && !isAirportToAirportLead(lead.serviceType, lead.details) && parseOperationalBlock(quotation.operationalBlock)?.kind !== "BORDER") {
+    return jsonError(409, "Select the border (non-UAE side) for this option before sending it.");
+  }
   if (isAirportToAirportLead(lead.serviceType, lead.details) && parseOperationalBlock(quotation.operationalBlock)?.kind !== "A2A") {
     return jsonError(409, "Add the exit and re-entry flights to this option before sending it.");
   }

@@ -29,7 +29,8 @@ export function tripFacts(lead: TripLead): TripFact[] {
   if (lead.paxCount && lead.paxCount > 0) facts.push({ label: "Passengers", value: String(lead.paxCount) });
   const route = lead.serviceType === "FLIGHT_SPECIAL_FARE" ? requestedRouteFromDetails(lead.details) : null;
   if (route) facts.push({ label: "Route", value: route });
-  else if (lead.country?.name) facts.push({ label: "Destination", value: lead.country.name });
+  // Client doc 2026-10-20 (D9) — a Visa Change / Extension happens in the UAE: no "Destination" in its messages.
+  else if (lead.country?.name && lead.serviceType !== "VISA_CHANGE" && lead.serviceType !== "VISA_EXTENSION") facts.push({ label: "Destination", value: lead.country.name });
   if (lead.travelDate) facts.push({ label: "Travel date", value: formatTravelDate(lead.travelDate) });
   return facts;
 }

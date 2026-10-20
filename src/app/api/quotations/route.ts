@@ -8,7 +8,7 @@ import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schem
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import type { Prisma } from "@/generated/prisma/client";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
-import { isAirportToAirportLead, leadOperationalBlock, visaChangeQuoteBlockReason, type OperationalBlock } from "@/lib/visa-change/operational";
+import { borderQuoteBlock, isAirportToAirportLead, leadOperationalBlock, visaChangeQuoteBlockReason, type OperationalBlock } from "@/lib/visa-change/operational";
 import { buildA2ABlockForQuote } from "@/lib/visa-change/build-a2a-block";
 import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
@@ -279,6 +279,7 @@ export async function POST(request: NextRequest) {
     couponCode,
     itinerary,
     a2aFlights,
+    borderId,
     saveAsDraft,
   } = parsed.data;
   const isDraft = saveAsDraft === true;
@@ -369,6 +370,17 @@ export async function POST(request: NextRequest) {
   const margin = quotationMargin(lead.serviceType, resolvedSellingPrice, vendorCost, fineOrCharges);
   if (governmentFee !== undefined && governmentFee > resolvedSellingPrice) {
     return jsonError(400, "The government / airline fee can't be more than the total price.", { governmentFee: ["Can't exceed the total price."] });
+  }
+
+  // Client doc 2026-10-20 (D8) — a Border Exit option carries its own (non-UAE side) border; trip details follow after payment.
+  if (lead.serviceType === "VISA_CHANGE" && !isA2A) {
+    if (borderId) {
+      const border = await db.border.findFirst({ where: { id: borderId, active: true }, include: { country: { select: { name: true } } } });
+      if (!border) return jsonError(400, "Select a valid border.", { borderId: ["This border isn't available."] });
+      operationalBlock = borderQuoteBlock(border);
+    } else if (!operationalBlock && !isDraft) {
+      return jsonError(400, "Select the border (non-UAE side) for this option.", { borderId: ["Select the border."] });
+    }
   }
 
   // Client testing 2026-10-09 (B32) — an A2A option's exit + re-entry flights, with its own vendor, cost and price.

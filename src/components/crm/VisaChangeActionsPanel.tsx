@@ -11,6 +11,7 @@ import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { EXIT_METHOD_LABELS, VISA_CHANGE_ACTIONS, type ExitMethod, type VisaChangeAction } from "@/lib/visa-change/staff-actions";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
+import type { BorderTripView } from "./VisaChangeBorderDetailsPanel";
 
 export interface VisaChangeBookingView {
   changeType: ExitMethod | null;
@@ -21,6 +22,8 @@ export interface VisaChangeBookingView {
   exitDetails: { method: ExitMethod; location: string; notes: string | null; staffName: string } | null;
   /** Client corrections 2026-10-05 §8 — A2A flight PNR, recorded after confirmation. */
   pnr?: string | null;
+  /** Client doc 2026-10-20 (D8) — Border Exit trip details entered after payment. */
+  border?: BorderTripView | null;
 }
 
 function nowLocalInput(): string {

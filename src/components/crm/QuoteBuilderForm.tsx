@@ -272,6 +272,21 @@ export function QuoteBuilderForm({
   // Visa Change (hasItinerary is that service's own flag); staff still
   // types/confirms the final feeAmount, this just gives them a real
   // starting number instead of a blind guess.
+  // Client doc 2026-10-20 (D8) — Border Exit options pick their (non-UAE side) border from the Border master.
+  const [borders, setBorders] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    if (!hasItinerary || showFlightDetails) return;
+    let cancelled = false;
+    void getJson<{ id: string; name: string }[]>("/api/borders")
+      .then((list) => {
+        if (!cancelled) setBorders(list);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [hasItinerary, showFlightDetails]);
+
   const [feeSuggestion, setFeeSuggestion] = useState<VisaChangeFeeSuggestion | null>(null);
   useEffect(() => {
     if (!hasItinerary) return;
@@ -458,6 +473,19 @@ export function QuoteBuilderForm({
           <CouponCodeOptions id="crm-coupon-codes" />
         </div>
       )}
+
+      {hasItinerary && !isFlightQuote && !showFlightDetails ? (
+        <FormField label="Border (non-UAE side)" htmlFor={`quote-border-${leadId}`} error={errors.borderId?.message} required>
+          <select id={`quote-border-${leadId}`} className={cn(fieldControlClass, fieldBorderClass(!!errors.borderId), "sm:max-w-sm")} {...register("borderId")}>
+            <option value="">Select the border</option>
+            {borders.map((border) => (
+              <option key={border.id} value={border.id}>
+                {border.name}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      ) : null}
 
       {hasItinerary && !isFlightQuote ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

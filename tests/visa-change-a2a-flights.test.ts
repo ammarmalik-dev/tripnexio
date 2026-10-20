@@ -67,6 +67,8 @@ describe("Visa Change A2A per-option flights (B32)", () => {
 
   it("no longer needs lead-level details before quoting an A2A lead", () => {
     expect(visaChangeQuoteBlockReason("VISA_CHANGE", { changeType: "AIRPORT_TO_AIRPORT" })).toBeNull();
-    expect(visaChangeQuoteBlockReason("VISA_CHANGE", { changeType: "BORDER_EXIT" })).toMatch(/Border Exit/);
+    // Client doc 2026-10-20 (D1) — a Border Exit option carries its own border, so it is not blocked either.
+    expect(visaChangeQuoteBlockReason("VISA_CHANGE", { changeType: "BORDER_EXIT" })).toBeNull();
+    expect(visaChangeQuoteBlockReason("VISA_CHANGE", {})).toMatch(/Visa Change method/);
   });
 });

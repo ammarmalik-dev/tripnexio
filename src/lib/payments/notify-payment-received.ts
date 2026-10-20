@@ -10,6 +10,7 @@ import { paymentTotal } from "./totals";
 import { dispatchStatusNotifications, type StatusNotification } from "../service-status/engine";
 import { notifyStaffPaymentReceived } from "../staff-notifications/triggers";
 import { usesStatusTemplates } from "../notifications/status-template";
+import { ensureRequiredDocumentSlots } from "../documents/required-slots";
 
 /**
  * Called by the mark-success route and the gateway webhook route right
@@ -36,6 +37,8 @@ export async function notifyPaymentReceived(paymentId: string, statusNotificatio
     return;
   }
 
+  // Client doc 2026-10-20 (B4) — the booking's document checklist slots, per passenger.
+  await ensureRequiredDocumentSlots(payment.bookingId).catch(() => 0);
   const invoice = await buildInvoicePdfForPayment(paymentId);
   const total = invoice?.total ?? paymentTotal(payment);
   const invoiceAttachment = invoice ? [{ filename: `invoice-${payment.booking.bookingId}.pdf`, content: invoice.pdf }] : undefined;

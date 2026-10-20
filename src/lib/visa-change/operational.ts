@@ -55,26 +55,61 @@ export interface A2ABlock {
   instructions?: string | null;
 }
 
+/**
+ * Client doc 2026-10-20 (D8) — a Border Exit option is quoted with just the (non-UAE side) border, rate and
+ * inclusions / exclusions; the trip details (pickup, vehicle, reporting / travel time, pickup person) are the
+ * vendor's and are entered on the booking after payment. Older blocks may still carry the removed fields.
+ */
 export interface BorderBlock {
   kind: "BORDER";
   borderId: string;
   borderName: string;
-  /** Client corrections 2026-10-05 — the non-UAE side country (from the Border master; mandatory). */
+  /** Client corrections 2026-10-05 — the non-UAE side country (from the Border master). */
   borderCountryName?: string | null;
-  pickupLocation: string;
+  pickupLocation?: string | null;
   /** Client corrections 2026-10-05 — full pickup address and the vehicle number. */
   pickupAddress?: string | null;
   vehicleNumber?: string | null;
-  pickupPersonName: string;
+  pickupPersonName?: string | null;
   pickupPersonContact?: string | null;
-  customerContactNumber: string;
-  reportingTime: string;
-  travelTime: string;
+  /** Removed from the form (client doc 2026-10-20); kept for older blocks. */
+  customerContactNumber?: string | null;
+  reportingTime?: string | null;
+  travelTime?: string | null;
+  /** Removed from the form (client doc 2026-10-20); kept for older blocks. */
   dropLocation?: string | null;
   busOperator?: string | null;
   vendorId?: string | null;
   vendorName?: string | null;
   instructions?: string | null;
+}
+
+/** The trip details staff enter on a Border Exit booking after payment (client doc 2026-10-20, D8). */
+export function borderQuoteBlock(border: { id: string; name: string; country: { name: string } | null }): BorderBlock {
+  return { kind: "BORDER", borderId: border.id, borderName: border.name, borderCountryName: border.country?.name ?? null };
+}
+
+export const BORDER_TRIP_FIELDS = ["pickupLocation", "vehicleNumber", "reportingTime", "travelTime", "pickupPersonName", "pickupPersonContact", "instructions"] as const;
+export const BORDER_TRIP_REQUIRED = ["pickupLocation", "reportingTime", "travelTime", "pickupPersonName"] as const;
+
+/** True once the booking's border trip details are complete (needed for the package PDF). */
+export function borderTripComplete(block: BorderBlock): boolean {
+  return BORDER_TRIP_REQUIRED.every((key) => !!str(block[key]));
+}
+
+/** The quote's border block with the trip details saved on the lead after payment (lead.details.borderOperationalDetails). */
+export function withBorderTrip(block: OperationalBlock | null, details: unknown): OperationalBlock | null {
+  const trip = ((details ?? {}) as Record<string, unknown>).borderOperationalDetails;
+  if (!trip || typeof trip !== "object") return block;
+  const saved = trip as Record<string, unknown>;
+  if (!block) return parseOperationalBlock({ ...saved, kind: "BORDER" });
+  if (block.kind !== "BORDER") return block;
+  const merged: BorderBlock = { ...block };
+  for (const key of BORDER_TRIP_FIELDS) {
+    const value = str(saved[key]);
+    if (value) merged[key] = value;
+  }
+  return merged;
 }
 
 export type OperationalBlock = A2ABlock | BorderBlock;
@@ -92,8 +127,8 @@ export function parseOperationalBlock(raw: unknown): OperationalBlock | null {
     return data as unknown as A2ABlock;
   }
   if (data.kind === "BORDER") {
-    const required = ["borderId", "borderName", "pickupLocation", "pickupPersonName", "customerContactNumber", "reportingTime", "travelTime"];
-    if (required.some((key) => !str(data[key]))) return null;
+    // Client doc 2026-10-20 (D8) — the border is all an option needs; trip details follow after payment.
+    if (!str(data.borderId) || !str(data.borderName)) return null;
     return data as unknown as BorderBlock;
   }
   return null;
@@ -120,11 +155,9 @@ export function isAirportToAirportLead(serviceType: string, details: unknown): b
 export function visaChangeQuoteBlockReason(serviceType: string, details: unknown): string | null {
   if (serviceType !== "VISA_CHANGE") return null;
   const changeType = ((details ?? {}) as Record<string, unknown>).changeType;
-  if (changeType === "AIRPORT_TO_AIRPORT") return null;
-  if (leadOperationalBlock(details)) return null;
-  return changeType === "BORDER_EXIT"
-    ? "Complete the Border Exit operational details (including travel time) before quoting."
-    : "Choose the Visa Change method (Border Exit or Airport-to-Airport) before quoting.";
+  // Client doc 2026-10-20 (D1 / D8) — a Border Exit option is quoted with its border; no lead-level details first.
+  if (changeType === "AIRPORT_TO_AIRPORT" || changeType === "BORDER_EXIT") return null;
+  return "Choose the Visa Change method (Border Exit or Airport-to-Airport) before quoting.";
 }
 
 export function formatFlightDate(date: string): string {
@@ -183,8 +216,6 @@ export function customerBlockRows(block: OperationalBlock): { label: string; val
     { label: "Pickup Contact Number", value: block.pickupPersonContact },
     { label: "Reporting Time", value: block.reportingTime },
     { label: "Travel Time", value: block.travelTime },
-    { label: "Drop / Border Location", value: block.dropLocation },
-    { label: "Bus / Operator", value: block.busOperator },
   ];
   return rows.filter((row): row is { label: string; value: string } => Boolean(row.value));
 }

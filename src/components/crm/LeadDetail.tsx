@@ -26,7 +26,6 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { DocumentStatusControl } from "./DocumentStatusControl";
 import { PassportExtractionReview } from "./PassportExtractionReview";
 import { VisaExtensionEligibilityPanel } from "./VisaExtensionEligibilityPanel";
-import { VisaChangeBorderDetailsPanel } from "./VisaChangeBorderDetailsPanel";
 import { LeadTimeline } from "./LeadTimeline";
 import { CommunicationsPanel } from "./CommunicationsPanel";
 import { QuoteBuilder } from "./QuoteBuilder";
@@ -256,7 +255,8 @@ export function LeadDetail({
   // (New Visa/Visa Extension/Return Ticket store an applicant-wise list under details.applicants.)
   const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
   const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
-  const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED");
+  // Client doc 2026-10-20 (C6) — once a booking was paid (even if later cancelled / refunded) no new booking is offered.
+  const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED" || booking.payments.some((payment) => payment.status === "SUCCESS"));
 
   const handleCreateBooking = async () => {
     if (!selectedQuotation) return;
@@ -464,20 +464,6 @@ export function LeadDetail({
                     leadId={lead.id}
                     method={lead.details.changeType === "AIRPORT_TO_AIRPORT" || lead.details.changeType === "BORDER_EXIT" ? lead.details.changeType : null}
                     onChanged={refresh}
-                  />
-                ) : null}
-
-                {lead.serviceType === "VISA_CHANGE" && lead.details.changeType === "BORDER_EXIT" ? (
-                  <VisaChangeBorderDetailsPanel
-                    leadId={lead.id}
-                    existing={
-                      lead.details.borderOperationalDetails && typeof lead.details.borderOperationalDetails === "object"
-                        ? (lead.details.borderOperationalDetails as Record<string, unknown>)
-                        : undefined
-                    }
-                    onSaved={(details) =>
-                      setLead((current) => (current ? { ...current, details: { ...current.details, borderOperationalDetails: details } } : current))
-                    }
                   />
                 ) : null}
 

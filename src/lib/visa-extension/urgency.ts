@@ -14,11 +14,14 @@ export async function extensionToday(now = new Date()): Promise<string> {
  * when today isn't one or 6 PM has already passed. Flags UAE/India holidays
  * on the following day as an extra urgent warning.
  */
-export async function computeUrgentDeadline(now = new Date()): Promise<UrgentDeadline> {
+export async function computeUrgentDeadline(now = new Date(), verifiedExpiryDate?: string): Promise<UrgentDeadline> {
   const calendar = await getWorkingCalendar("UAE");
   const today = localDate(now, calendar);
   const todayDeadline = Date.parse(`${today}T${String(URGENT_DEADLINE_HOUR).padStart(2, "0")}:00:00Z`) - calendar.offsetMs;
-  const day = isWorkingDay(today, calendar) && now.getTime() < todayDeadline ? today : nextWorkingDay(today, calendar);
+  // Client doc 2026-10-20 (D2) — the deadline never runs past the visa's verified expiry day (a visa expiring on a
+  // Saturday is due that Saturday at 6 PM, not on Monday); only without a known expiry does it roll to the next working day.
+  const expiryDay = verifiedExpiryDate?.slice(0, 10);
+  const day = expiryDay ? expiryDay : isWorkingDay(today, calendar) && now.getTime() < todayDeadline ? today : nextWorkingDay(today, calendar);
   const at = new Date(Date.parse(`${day}T${String(URGENT_DEADLINE_HOUR).padStart(2, "0")}:00:00Z`) - calendar.offsetMs).toISOString();
 
   const nextDay = new Date(Date.parse(`${day}T00:00:00Z`) + DAY_MS);

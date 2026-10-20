@@ -6,7 +6,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { saveUploadedFile } from "@/lib/storage/local-file-storage";
 import { OUTPUT_TYPES } from "@/lib/outputs/output-types";
 import { deliverOutput } from "@/lib/outputs/deliver-output";
-import { leadOperationalBlock, parseOperationalBlock } from "@/lib/visa-change/operational";
+import { borderTripComplete, leadOperationalBlock, parseOperationalBlock, withBorderTrip } from "@/lib/visa-change/operational";
 import { renderVisaChangePackagePdf } from "@/lib/visa-change/package-pdf";
 import { getEffectiveTerms } from "@/lib/terms/service-terms";
 import { getInvoiceCompanyDetails } from "@/lib/invoices/company-config";
@@ -55,8 +55,12 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   }
   if (booking.payments.length === 0) return jsonError(409, "Payment hasn't been received for this booking yet.");
 
-  const block = parseOperationalBlock(booking.lead.quotations[0]?.operationalBlock) ?? leadOperationalBlock(booking.lead.details);
-  if (!block) return jsonError(409, "Complete the operational details on the lead before generating the package.");
+  // Client doc 2026-10-20 (D8) — the option's border plus the trip details staff entered on the booking.
+  const block = withBorderTrip(parseOperationalBlock(booking.lead.quotations[0]?.operationalBlock) ?? leadOperationalBlock(booking.lead.details), booking.lead.details);
+  if (!block) return jsonError(409, "The paid option has no Airport-to-Airport flights or border — revise the quotation first.");
+  if (block.kind === "BORDER" && !borderTripComplete(block)) {
+    return jsonError(409, "Enter the border trip details (pickup location, reporting and travel time, pickup person) on this booking first.");
+  }
 
   const passengerIds = booking.passengers.map((row) => row.passenger.id);
   const documents = await db.document.findMany({

@@ -58,11 +58,26 @@ interface OtbCountryPrice {
   active: boolean;
 }
 
+/** Client doc 2026-10-20 (B3 / E4) — a vendor's rate for this country (internal cost). */
+interface VendorRateRow {
+  id: string;
+  serviceType: keyof typeof SERVICE_TYPE_LABELS;
+  vendorName: string;
+  vendorActive: boolean;
+  airline: string | null;
+  processingType: string | null;
+  nationality: string | null;
+  paxType: string | null;
+  cost: number;
+  active: boolean;
+}
+
 interface CountryGroup {
   country: { id: string; name: string; code: string; flagOverride: string | null; active: boolean } | null;
   rules: CountryRule[];
   returnTicket: ReturnTicketPrice | null;
   otbPrices: OtbCountryPrice[];
+  vendorRates?: VendorRateRow[];
 }
 
 function money(value: number): string {
@@ -222,7 +237,7 @@ function PriceFieldsEditor({
   initialActive: boolean;
   confirmTitle: (values: Record<string, number | null>) => string;
   /** The fee that sits inside the price — can't be more than any of `priceKeys`. */
-  feeKey: string;
+  feeKey?: string;
   priceKeys: string[];
   onSubmit: (values: Record<string, number | null>, active: boolean, reason: string) => Promise<void>;
   onCancel: () => void;
@@ -249,8 +264,8 @@ function PriceFieldsEditor({
       if (!Number.isFinite(value) || value < 0) nextErrors[field.key] = "Enter 0 or more.";
       else numbers[field.key] = value;
     }
-    const fee = numbers[feeKey];
-    if (!nextErrors[feeKey] && typeof fee === "number" && priceKeys.some((key) => typeof numbers[key] === "number" && fee > (numbers[key] as number))) {
+    const fee = feeKey ? numbers[feeKey] : undefined;
+    if (feeKey && !nextErrors[feeKey] && typeof fee === "number" && priceKeys.some((key) => typeof numbers[key] === "number" && fee > (numbers[key] as number))) {
       nextErrors[feeKey] = "Can't be more than the price.";
     }
     setErrors(nextErrors);
@@ -312,7 +327,7 @@ function PriceFieldsEditor({
 }
 
 function priceCount(group: CountryGroup): number {
-  return group.rules.length + (group.returnTicket ? 1 : 0) + group.otbPrices.length;
+  return group.rules.length + (group.returnTicket ? 1 : 0) + group.otbPrices.length + (group.vendorRates?.length ?? 0);
 }
 
 interface RowProps<T> {
@@ -332,8 +347,7 @@ function ReturnTicketRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<R
           <p className={cn("text-sm", row.active ? "text-ink-primary" : "text-ink-tertiary line-through")}>Per applicant (website price)</p>
           <p className="text-xs text-ink-tertiary">
             {/* Client doc 2026-10-20 (A15) — the cancellation fee is refund policy (Service Configuration → Refund config). */}
-            {row.airlineFeePerApplicant > 0 ? `Airline fee ${money(row.airlineFeePerApplicant)}` : ""}
-            {!row.active ? " · disabled" : ""}
+            {!row.active ? "Disabled" : ""}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -343,25 +357,22 @@ function ReturnTicketRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<R
       </div>
       {editing ? (
         <PriceFieldsEditor
-          fields={[
-            { key: "ratePerApplicant", label: "Price (per applicant)" },
-            { key: "airlineFeePerApplicant", label: "Airline fee", hint: "Inside the price" },
-          ]}
-          initial={{ ratePerApplicant: row.ratePerApplicant, airlineFeePerApplicant: row.airlineFeePerApplicant }}
+          // Client doc 2026-10-20 (B2) — no "airline fee inside the price": the vendor rate is the cost and the
+          // invoice's service fee is set per service (Admin → Services).
+          fields={[{ key: "ratePerApplicant", label: "Price (per applicant)" }]}
+          initial={{ ratePerApplicant: row.ratePerApplicant }}
           initialActive={row.active}
-          feeKey="airlineFeePerApplicant"
           priceKeys={["ratePerApplicant"]}
           confirmTitle={(values) => `Change the Return Ticket price to ${money(values.ratePerApplicant ?? 0)}?`}
           onCancel={onCancel}
           onSubmit={async (values, active, reason) => {
             await patchJson(`/api/admin/return-ticket-destinations/${row.id}`, {
               ratePerApplicant: values.ratePerApplicant,
-              airlineFeePerApplicant: values.airlineFeePerApplicant,
               active,
               reason,
             });
             toast.success("Return Ticket price saved.");
-            onSaved({ ...row, ratePerApplicant: values.ratePerApplicant ?? 0, airlineFeePerApplicant: values.airlineFeePerApplicant ?? 0, active });
+            onSaved({ ...row, ratePerApplicant: values.ratePerApplicant ?? 0, active });
           }}
         />
       ) : null}
@@ -380,7 +391,6 @@ function OtbPriceRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<OtbCo
           </p>
           <p className="text-xs text-ink-tertiary">
             {row.urgentPrice !== null ? `Urgent ${money(row.urgentPrice)}` : "No urgent price"}
-            {row.airlineFee > 0 ? ` · Airline fee ${money(row.airlineFee)}` : ""}
             {!row.active ? " · disabled" : !row.airlineActive ? " · airline disabled" : ""}
           </p>
         </div>
@@ -396,11 +406,9 @@ function OtbPriceRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<OtbCo
           fields={[
             { key: "normalPrice", label: "Normal price" },
             { key: "urgentPrice", label: "Urgent price", hint: "Empty = no urgent", optional: true },
-            { key: "airlineFee", label: "Airline fee", hint: "Inside the price" },
           ]}
-          initial={{ normalPrice: row.normalPrice, urgentPrice: row.urgentPrice, airlineFee: row.airlineFee }}
+          initial={{ normalPrice: row.normalPrice, urgentPrice: row.urgentPrice }}
           initialActive={row.active}
-          feeKey="airlineFee"
           priceKeys={["normalPrice", "urgentPrice"]}
           confirmTitle={(values) => `Change the ${row.airlineName} OTB price to ${money(values.normalPrice ?? 0)}?`}
           onCancel={onCancel}
@@ -408,12 +416,11 @@ function OtbPriceRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<OtbCo
             await patchJson(`/api/admin/otb-prices/${row.id}`, {
               normalPrice: values.normalPrice,
               urgentPrice: values.urgentPrice,
-              airlineFee: values.airlineFee,
               active,
               reason,
             });
             toast.success("OTB price saved.");
-            onSaved({ ...row, normalPrice: values.normalPrice ?? 0, urgentPrice: values.urgentPrice, airlineFee: values.airlineFee ?? 0, active });
+            onSaved({ ...row, normalPrice: values.normalPrice ?? 0, urgentPrice: values.urgentPrice, active });
           }}
         />
       ) : null}
@@ -623,6 +630,31 @@ export function PricingCountryCards() {
                         />
                       ))}
                     </ul>
+                  </div>
+                ) : null}
+
+                {group.vendorRates && group.vendorRates.length > 0 ? (
+                  <div>
+                    <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">Vendor rates (internal cost)</p>
+                    <ul className="divide-y divide-hairline rounded-lg border border-hairline bg-surface-1">
+                      {group.vendorRates.map((row) => (
+                        <li key={row.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className={cn("text-sm", row.active && row.vendorActive ? "text-ink-primary" : "text-ink-tertiary line-through")}>
+                              {SERVICE_TYPE_LABELS[row.serviceType]} · {row.vendorName}
+                            </p>
+                            <p className="text-xs text-ink-tertiary">
+                              {[row.airline, row.processingType, row.nationality ? `Nationality: ${row.nationality}` : null, row.paxType ? PAX_TYPE_LABELS[row.paxType as keyof typeof PAX_TYPE_LABELS] : null]
+                                .filter(Boolean)
+                                .join(" · ") || "All"}
+                              {!row.active ? " · disabled" : ""}
+                            </p>
+                          </div>
+                          <span className="shrink-0 text-sm font-semibold text-ink-heading">{money(row.cost)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-1 text-xs text-ink-tertiary">Edit vendor rates under Vendors → the vendor → Rates.</p>
                   </div>
                 ) : null}
               </div>

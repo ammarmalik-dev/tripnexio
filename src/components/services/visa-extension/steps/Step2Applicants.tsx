@@ -65,22 +65,24 @@ export function Step2Applicants() {
                 {...register(`additionalApplicants.${index}.visaExpiryDate` as const)}
               />
             </div>
-            <PassportUploadField
-              base64FieldName={`additionalApplicants.${index}.passportImageBase64`}
-              mimeFieldName={`additionalApplicants.${index}.passportImageMimeType`}
-              label={`Passport copy — Applicant ${index + 2}`}
-              description="Upload a clear photo of this applicant's passport main page."
-              required
-              error={applicantErrors?.passportImageBase64?.message ?? applicantErrors?.passportImageMimeType?.message}
-            />
-            <PassportUploadField
-              base64FieldName={`additionalApplicants.${index}.visaImageBase64`}
-              mimeFieldName={`additionalApplicants.${index}.visaImageMimeType`}
-              label={`Visa copy — Applicant ${index + 2}`}
-              description="Upload a clear photo of this applicant's current visa page."
-              required
-              error={applicantErrors?.visaImageBase64?.message ?? applicantErrors?.visaImageMimeType?.message}
-            />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <PassportUploadField
+                base64FieldName={`additionalApplicants.${index}.passportImageBase64`}
+                mimeFieldName={`additionalApplicants.${index}.passportImageMimeType`}
+                label={`Passport copy — Applicant ${index + 2}`}
+                description="Upload a clear photo of this applicant's passport main page."
+                required
+                error={applicantErrors?.passportImageBase64?.message ?? applicantErrors?.passportImageMimeType?.message}
+              />
+              <PassportUploadField
+                base64FieldName={`additionalApplicants.${index}.visaImageBase64`}
+                mimeFieldName={`additionalApplicants.${index}.visaImageMimeType`}
+                label={`Visa copy — Applicant ${index + 2}`}
+                description="Upload a clear photo of this applicant's current visa page."
+                required
+                error={applicantErrors?.visaImageBase64?.message ?? applicantErrors?.visaImageMimeType?.message}
+              />
+            </div>
           </fieldset>
         );
       })}

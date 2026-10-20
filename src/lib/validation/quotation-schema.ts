@@ -78,6 +78,9 @@ export const createQuotationSchema = z.object({
   /** Client testing 2026-10-09 (B32) — Visa Change Airport-to-Airport: this option's exit and re-entry flights. */
   a2aFlights: a2aFlightsSchema.optional(),
 
+  /** Client doc 2026-10-20 (D8) — Visa Change Border Exit: this option's (non-UAE side) border from the Border master. */
+  borderId: z.string().trim().max(40).optional(),
+
   /**
    * P22 — true creates the quotation as an unsent draft (isDraft=true,
    * sentAt=null): no customer notification, no lead-status/engine event,

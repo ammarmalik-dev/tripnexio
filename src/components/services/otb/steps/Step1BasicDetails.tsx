@@ -102,21 +102,24 @@ export function Step1BasicDetails() {
         error={errors.airline?.message}
       />
       <div className="flex flex-col gap-3 sm:col-span-2">
-        <DateField
-          label="Travel Date"
-          required
-          min={earliest?.urgent ?? earliest?.normal ?? undefined}
-          hint={airline ? undefined : "Choose the airline first to see the earliest possible date."}
-          error={errors.travelDate?.message}
-          {...register("travelDate")}
-        />
-        <TextField
-          label="Flight departure time (optional)"
-          type="time"
-          hint="Travelling today? Same-day OTB is accepted on working days until 4 PM for flights at least 8 hours later — add your departure time."
-          error={errors.departureTime?.message}
-          {...register("departureTime")}
-        />
+        {/* Client doc 2026-10-20 (C3) — travel date and departure time on one line. */}
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <DateField
+            label="Travel Date"
+            required
+            min={earliest?.urgent ?? earliest?.normal ?? undefined}
+            hint={airline ? undefined : "Choose the airline first to see the earliest possible date."}
+            error={errors.travelDate?.message}
+            {...register("travelDate")}
+          />
+          <TextField
+            label="Flight departure time (optional)"
+            type="time"
+            hint="Travelling today? Same-day OTB is accepted on working days until 4 PM for flights at least 8 hours later — add your departure time."
+            error={errors.departureTime?.message}
+            {...register("departureTime")}
+          />
+        </div>
         {airline && earliest ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-accent/20 bg-ink-accent/[0.04] px-4 py-3 text-xs text-ink-secondary">
             <CalendarClock className="h-4 w-4 text-ink-accent" aria-hidden="true" />

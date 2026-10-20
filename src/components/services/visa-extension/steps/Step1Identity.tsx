@@ -51,22 +51,25 @@ export function Step1Identity() {
           {...register("visaExpiryDate")}
         />
       </div>
-      <PassportUploadField
-        base64FieldName="passportImageBase64"
-        mimeFieldName="passportImageMimeType"
-        label="Passport copy"
-        description="Upload a clear photo of your passport's main page. It's attached to your request so our team can validate it right away."
-        required
-        error={errors.passportImageBase64?.message ?? errors.passportImageMimeType?.message}
-      />
-      <PassportUploadField
-        base64FieldName="visaImageBase64"
-        mimeFieldName="visaImageMimeType"
-        label="Visa copy"
-        description="Upload a clear photo of your current visa page."
-        required
-        error={errors.visaImageBase64?.message ?? errors.visaImageMimeType?.message}
-      />
+      {/* Client doc 2026-10-20 (D3) — passport and visa copy side by side. */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <PassportUploadField
+          base64FieldName="passportImageBase64"
+          mimeFieldName="passportImageMimeType"
+          label="Passport copy"
+          description="Upload a clear photo of your passport's main page. It's attached to your request so our team can validate it right away."
+          required
+          error={errors.passportImageBase64?.message ?? errors.passportImageMimeType?.message}
+        />
+        <PassportUploadField
+          base64FieldName="visaImageBase64"
+          mimeFieldName="visaImageMimeType"
+          label="Visa copy"
+          description="Upload a clear photo of your current visa page."
+          required
+          error={errors.visaImageBase64?.message ?? errors.visaImageMimeType?.message}
+        />
+      </div>
     </div>
   );
 }

@@ -126,6 +126,11 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
       const block = parseOperationalBlock(quotation.operationalBlock);
       return (block?.kind === "A2A" ? a2aFlightsFromBlock(block) : null) ?? undefined;
     })(),
+    // Client doc 2026-10-20 (D8) — a Border Exit option's border.
+    borderId: (() => {
+      const block = parseOperationalBlock(quotation.operationalBlock);
+      return block?.kind === "BORDER" ? block.borderId : undefined;
+    })(),
     itinerary: parseStoredItinerary(quotation.itinerary).map((segment) => ({
       from: segment.from,
       to: segment.to,

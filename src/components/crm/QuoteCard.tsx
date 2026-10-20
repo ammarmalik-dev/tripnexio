@@ -252,7 +252,6 @@ export function QuoteCard({
               ["Terminal", quotation.terminal],
               ["Reporting Time", quotation.reportingTime],
               ["Booking Deadline", quotation.bookingDeadline ? formatDateTime(quotation.bookingDeadline) : null],
-              ["Vendor Ref (internal)", quotation.vendorReference],
               ["Cancellation", quotation.cancellationAllowed == null ? null : quotation.cancellationAllowed ? "Allowed" : "Not allowed (non-refundable)"],
               ["Cancellation Charge", money(quotation.cancellationCharge ?? null)],
               ["Charge Basis", quotation.chargeBasis],

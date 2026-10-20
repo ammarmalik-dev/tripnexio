@@ -18,7 +18,7 @@ import { Prisma, type Quotation } from "@/generated/prisma/client";
 import { isExpiredNow } from "@/lib/quotations/sync-expiry";
 import { normalizeItinerary, supportsMultiSectorItinerary } from "@/lib/quotations/itinerary";
 import { resolveSectorFlight } from "@/lib/special-fare/sector-flight";
-import { isAirportToAirportLead, parseOperationalBlock } from "@/lib/visa-change/operational";
+import { borderQuoteBlock, isAirportToAirportLead, parseOperationalBlock } from "@/lib/visa-change/operational";
 import { buildA2ABlockForQuote } from "@/lib/visa-change/build-a2a-block";
 import { notifyQuoteReady } from "@/lib/quotations/send-quotation";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
@@ -206,7 +206,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   // P22 — multi-sector itinerary: Visa Change / Flight Special Fare only
   // (service type derived from the lead server-side). An empty array clears it.
-  const { itinerary: itineraryInput, couponCode, a2aFlights, paxCosting: _paxCosting, ...restOfPatch } = parsed.data;
+  const { itinerary: itineraryInput, couponCode, a2aFlights, borderId, paxCosting: _paxCosting, ...restOfPatch } = parsed.data;
   void _paxCosting;
   const multiSector = supportsMultiSectorItinerary(lead.serviceType);
   if (itineraryInput && itineraryInput.length > 0 && !multiSector) {
@@ -316,6 +316,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   // (possibly changed) vendor, cost and price; without new flights the saved
   // block just takes the new commercial values.
   let operationalBlockField: Prisma.InputJsonValue | undefined;
+  // Client doc 2026-10-20 (D8) — a Border Exit option's border can be changed on revision.
+  if (lead.serviceType === "VISA_CHANGE" && !isAirportToAirportLead(lead.serviceType, lead.details) && borderId) {
+    const border = await db.border.findFirst({ where: { id: borderId, active: true }, include: { country: { select: { name: true } } } });
+    if (!border) return jsonError(400, "Select a valid border.", { borderId: ["This border isn't available."] });
+    operationalBlockField = borderQuoteBlock(border) as unknown as Prisma.InputJsonValue;
+  }
   if (isAirportToAirportLead(lead.serviceType, lead.details)) {
     const vendorId = parsed.data.vendorId ?? existing.vendorId;
     const vendor = await db.vendor.findUnique({ where: { id: vendorId }, select: { id: true, name: true } });

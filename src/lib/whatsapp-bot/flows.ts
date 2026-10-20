@@ -337,7 +337,8 @@ function passengerStep(
       return textStep(`pax${passenger.index}Passport`, `Passport number of ${passenger.fullName}?`, PASSPORT_VALIDATOR);
     }
     if (withVisaExpiry && !passenger.visaExpiryDate) {
-      return dateStep(`pax${passenger.index}Expiry`, `Current UAE visa expiry date of ${passenger.fullName}?`, visaExtensionRequestSchema.shape.visaExpiryDate);
+      // Client doc 2026-10-20 (D5) — the client's wording.
+      return dateStep(`pax${passenger.index}Expiry`, `Visa Expiry Date* — ${passenger.fullName}`, visaExtensionRequestSchema.shape.visaExpiryDate);
     }
   }
   return null;
@@ -467,7 +468,8 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         ]);
       }
       if (collected.insideUAE === "no") return null;
-      return passengerStep(collected, true, { sameRateForAll: true, withVisaExpiry: true });
+      // Client doc 2026-10-20 (D5) — adults and children, then each passenger's name, passport and visa expiry.
+      return passengerStep(collected, true, { noInfants: true, withVisaExpiry: true });
     }
 
     case "VISA_CHANGE": {
@@ -482,10 +484,11 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           { value: "BORDER_EXIT", label: "Border Exit" },
         ]);
       }
-      // Client doc 2026-10-15 — adults and children, then each passenger's name and passport.
-      const paxQuestion = passengerStep(collected, true, { noInfants: true });
+      // Client doc 2026-10-15 / 2026-10-20 (D5) — adults and children, then each passenger's name, passport and
+      // visa expiry date (the first passenger's is the request's visa last date).
+      const paxQuestion = passengerStep(collected, true, { noInfants: true, withVisaExpiry: true });
       if (paxQuestion) return paxQuestion;
-      if (!has("visaLastDate")) return dateStep("visaLastDate", "What's your current visa's last date?", visaChangeRequestSchema.shape.visaLastDate);
+      if (!has("visaLastDate") && !collected.pax1Expiry) return dateStep("visaLastDate", "Visa Expiry Date*", visaChangeRequestSchema.shape.visaLastDate);
       if (!has("nationalityId")) return nationalityStep();
       return null;
     }
@@ -608,7 +611,8 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
       // simplification, not a silent gap: staff can still see these raw answers.
       return {
         changeType: collected.changeType,
-        passengers: botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, visaLastDate: collected.visaLastDate })),
+        visaLastDate: collected.visaLastDate || collected.pax1Expiry,
+        passengers: botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, visaLastDate: p.visaExpiryDate || collected.visaLastDate })),
       };
     case "FLIGHT_SPECIAL_FARE":
       // Bot captures only the primary passenger's DOB (no dynamic

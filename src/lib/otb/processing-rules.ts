@@ -148,7 +148,9 @@ export function evaluateOtbTravelDate(
         from,
         calendar,
       )
-    : rules.urgentHours === null || workingHours >= rules.urgentHours;
+    : // Client doc 2026-10-20 (C1) — no TAT configured means the locked 8 working hours, never "no minimum"
+      // (a Saturday-night request could otherwise book Express for Monday 00:00 with no working hours in between).
+      workingHours >= (rules.urgentHours ?? DEFAULT_URGENT_PROCESSING_WORKING_HOURS);
   if (rules.urgentAvailable && urgentFits) {
     return {
       status: "URGENT_ONLY",
@@ -167,7 +169,7 @@ export function evaluateOtbTravelDate(
       ? "Same-day OTB isn't available for this airline."
       : sameDay
         ? `Same-day OTB is accepted on working days until ${OTB_SAME_DAY_CUTOFF_HOUR - 12}:00 PM, for flights at least ${rules.urgentHours ?? DEFAULT_URGENT_PROCESSING_WORKING_HOURS} hours later${departureTime ? "" : " — add your flight's departure time"}.`
-        : `Even urgent processing needs at least ${rules.urgentHours} working hours before departure for this airline${departureTime ? "" : " (add your flight's departure time if you travel soon)"}.`;
+        : `Even urgent processing needs at least ${rules.urgentHours ?? DEFAULT_URGENT_PROCESSING_WORKING_HOURS} working hours before departure for this airline${departureTime ? "" : " (add your flight's departure time if you travel soon)"}.`;
 
   return {
     status: "BLOCKED",

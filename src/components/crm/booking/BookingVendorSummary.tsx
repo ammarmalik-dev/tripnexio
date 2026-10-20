@@ -27,7 +27,6 @@ function money(value: string): string {
  * such a panel already shows them editable, to avoid two copies side by side.
  */
 export function BookingVendorSummary({ vendor, compact = false }: { vendor: BookingVendorSummaryData; compact?: boolean }) {
-  const reference = vendor.vendorReference ?? vendor.quotationVendorReference;
   const rows: [string, string][] = [
     ["Vendor", vendor.vendorName === DIRECT_VENDOR_NAME ? "Not chosen yet" : (vendor.vendorName ?? "Unknown vendor")],
     ["Selling Price", money(vendor.sellingPrice)],
@@ -35,7 +34,7 @@ export function BookingVendorSummary({ vendor, compact = false }: { vendor: Book
     ["Margin (internal)", money(vendor.margin)],
   ];
   if (!compact) {
-    rows.push(["Vendor Reference (internal)", reference ?? "Not recorded"]);
+    // Client doc 2026-10-20 (B1 / C4) — no vendor reference in CRM; only the PNR.
     rows.push(["PNR / Reference", vendor.pnr ?? "Not recorded"]);
   }
 

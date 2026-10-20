@@ -12,12 +12,13 @@ import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated, packageGenerated, adminRefundOverride } from "@/lib/refunds/rules";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { hasReachedStatusEvent } from "@/lib/service-status/engine";
+import { ensureRequiredDocumentSlots } from "@/lib/documents/required-slots";
 import { linkedOtbState, returnTicketCancellationFee } from "@/lib/return-ticket/operations";
 import { expectedOtbCompletion } from "@/lib/otb/staff-actions";
 import { canIssueReservation } from "@/lib/bookings/reservation";
 import { getRefundConfig } from "@/lib/refunds/config";
 import { passengerVisaStatus } from "@/lib/protection-plan/passenger-status";
-import { leadOperationalBlock, parseOperationalBlock } from "@/lib/visa-change/operational";
+import { borderTripComplete, leadOperationalBlock, parseOperationalBlock, withBorderTrip } from "@/lib/visa-change/operational";
 import { getBookingTimeline } from "@/lib/audit/booking-timeline";
 import { getBookingDates } from "@/lib/crm/booking-dates";
 import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
@@ -56,6 +57,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   });
   if (!found) return jsonError(404, "Booking not found.");
   // Client doc 2026-10-15 (I6) — one Booking Documents set: the booking's own and the ones uploaded with the request.
+  // Client doc 2026-10-20 (B4) — every configured document for every passenger shows (Pending until uploaded).
+  if (found.status !== "PENDING") await ensureRequiredDocumentSlots(found.id).catch(() => 0);
   const booking = { ...found, documents: await db.document.findMany({ where: bookingDocumentsWhere(found), orderBy: { createdAt: "desc" } }) };
   const ticketDocs = booking.documents.filter((doc) => doc.type === "TICKET_PDF" && doc.bookingId === booking.id && !doc.purgedAt);
   const scopeError = assertServiceAccess(auth.session, booking.lead.serviceType);
@@ -239,9 +242,24 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       booking.lead.serviceType === "VISA_CHANGE"
         ? (() => {
             const details = (booking.lead.details ?? {}) as Record<string, unknown>;
-            const block = parseOperationalBlock(booking.lead.quotations[0]?.operationalBlock) ?? leadOperationalBlock(details);
+            const block = withBorderTrip(parseOperationalBlock(booking.lead.quotations[0]?.operationalBlock) ?? leadOperationalBlock(details), details);
             return {
               changeType: details.changeType === "AIRPORT_TO_AIRPORT" || details.changeType === "BORDER_EXIT" ? details.changeType : null,
+              // Client doc 2026-10-20 (D8) — the Border Exit trip details entered after payment.
+              border:
+                block?.kind === "BORDER"
+                  ? {
+                      borderName: block.borderName,
+                      pickupLocation: block.pickupLocation ?? "",
+                      vehicleNumber: block.vehicleNumber ?? "",
+                      reportingTime: block.reportingTime ?? "",
+                      travelTime: block.travelTime ?? "",
+                      pickupPersonName: block.pickupPersonName ?? "",
+                      pickupPersonContact: block.pickupPersonContact ?? "",
+                      instructions: block.instructions ?? "",
+                      complete: borderTripComplete(block),
+                    }
+                  : null,
               packageGenerated: packageGenerated(booking.documents),
               defaultExitLocation: block ? (block.kind === "A2A" ? block.exitAirport : block.borderName) : null,
               exitCompletedAt: booking.exitCompletedAt,

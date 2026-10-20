@@ -6,7 +6,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import type { Prisma } from "@/generated/prisma/client";
-import type { BorderBlock } from "@/lib/visa-change/operational";
+import { borderQuoteBlock, leadOperationalBlock, parseOperationalBlock, type BorderBlock } from "@/lib/visa-change/operational";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 const phone = z.string().trim().regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid contact number");
@@ -19,25 +19,18 @@ const optionalText = (max: number) =>
     .transform((value) => (value ? value : null));
 
 /**
- * Visa_Change.md §9/§10, Locked Rules #10-13. Mandatory (§9): border,
- * pickup location, reporting time, departure/travel time, customer contact
- * number, pickup person name. Optional: pickup person contact, drop
- * location, bus/operator, vendor/sponsor, instructions. The route only ever
- * saves a complete set, so a saved block is always package-ready (P14).
+ * Client doc 2026-10-20 (D8) — a Border Exit booking's trip details, entered after payment from the vendor
+ * (every vendor has its own): pickup location, vehicle number, reporting and travel time, pickup person and
+ * their contact, instructions. The border itself comes from the paid option (quotation). No customer contact
+ * number, drop / border location, bus operator or vendor fields any more. Printed on the package PDF.
  */
-const borderDetailsSchema = z.object({
-  borderId: z.string().min(1, "Select a border crossing"),
+const borderTripSchema = z.object({
   pickupLocation: z.string().trim().min(2, "Enter the pickup location").max(200),
-  pickupAddress: optionalText(300),
   vehicleNumber: optionalText(40),
   reportingTime: z.string().trim().min(1, "Enter the reporting time").max(40),
   travelTime: z.string().trim().min(1, "Enter the departure/travel time").max(40),
   pickupPersonName: z.string().trim().min(2, "Enter the pickup person's name").max(80),
-  customerContactNumber: phone,
   pickupPersonContact: z.union([phone, z.literal("")]).optional().transform((value) => (value ? value : null)),
-  dropLocation: optionalText(200),
-  busOperator: optionalText(120),
-  vendorId: optionalText(40),
   instructions: optionalText(1500),
 });
 
@@ -49,13 +42,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("leads.edit");
   if (auth.error) return auth.error;
   const { session } = auth;
-
   const { id } = await params;
-
   // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
-
   const ownershipError = await assertOwnsEntity(auth.session, "lead", id);
-
   if (ownershipError) return ownershipError;
 
   let body: unknown;
@@ -64,73 +53,42 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   } catch {
     return jsonError(400, "Invalid request body.");
   }
+  const parsed = borderTripSchema.safeParse(body);
+  if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
 
-  const parsed = borderDetailsSchema.safeParse(body);
-  if (!parsed.success) {
-    return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
-  }
-
-  const lead = await db.lead.findUnique({ where: { id } });
+  const lead = await db.lead.findUnique({ where: { id }, include: { quotations: { where: { isSelected: true }, take: 1 } } });
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
-  if (lead.serviceType !== "VISA_CHANGE") {
-    return jsonError(409, "This action only applies to Visa Change leads.");
-  }
+  if (lead.serviceType !== "VISA_CHANGE") return jsonError(409, "This action only applies to Visa Change leads.");
 
-  const border = await db.border.findUnique({ where: { id: parsed.data.borderId }, include: { country: { select: { name: true } } } });
-  if (!border || !border.active) {
-    return jsonError(400, "Select a valid border crossing.", { borderId: ["This border crossing isn't available for Visa Change."] });
-  }
-  const vendor = parsed.data.vendorId ? await db.vendor.findUnique({ where: { id: parsed.data.vendorId } }) : null;
-  if (parsed.data.vendorId && (!vendor || !vendor.active)) {
-    return jsonError(400, "Select a valid, active vendor.", { vendorId: ["This vendor isn't available."] });
-  }
+  // The border of the paid option (or, for an older lead, the one saved on it).
+  const quoteBlock = parseOperationalBlock(lead.quotations[0]?.operationalBlock);
+  const legacy = leadOperationalBlock(lead.details);
+  const borderSource = quoteBlock?.kind === "BORDER" ? quoteBlock : legacy?.kind === "BORDER" ? legacy : null;
+  if (!borderSource) return jsonError(409, "Select a Border Exit option (with its border) first.");
+  const border = await db.border.findUnique({ where: { id: borderSource.borderId }, include: { country: { select: { name: true } } } });
+  const base = border ? borderQuoteBlock(border) : { kind: "BORDER" as const, borderId: borderSource.borderId, borderName: borderSource.borderName, borderCountryName: borderSource.borderCountryName ?? null };
 
-  const block: BorderBlock = {
-    kind: "BORDER",
-    borderId: border.id,
-    borderName: border.name,
-    borderCountryName: border.country.name,
-    pickupLocation: parsed.data.pickupLocation,
-    pickupAddress: parsed.data.pickupAddress,
-    vehicleNumber: parsed.data.vehicleNumber,
-    pickupPersonName: parsed.data.pickupPersonName,
-    pickupPersonContact: parsed.data.pickupPersonContact,
-    customerContactNumber: parsed.data.customerContactNumber,
-    reportingTime: parsed.data.reportingTime,
-    travelTime: parsed.data.travelTime,
-    dropLocation: parsed.data.dropLocation,
-    busOperator: parsed.data.busOperator,
-    vendorId: vendor?.id ?? null,
-    vendorName: vendor?.name ?? null,
-    instructions: parsed.data.instructions,
-  };
+  const block: BorderBlock = { ...base, ...parsed.data };
   const existingDetails = (lead.details as Record<string, unknown>) ?? {};
-
   try {
     const updated = await db.$transaction(async (tx) => {
       const result = await tx.lead.update({
         where: { id },
         data: {
-          details: {
-            ...existingDetails,
-            borderOperationalDetails: { ...block, confirmedByStaffId: session.id, confirmedAt: new Date().toISOString() },
-          } as unknown as Prisma.InputJsonValue,
+          details: { ...existingDetails, borderOperationalDetails: { ...block, confirmedByStaffId: session.id, confirmedAt: new Date().toISOString() } } as unknown as Prisma.InputJsonValue,
         },
       });
-
       await writeAudit(tx, {
         entityType: "Lead",
         entityId: id,
         action: "VISA_CHANGE_BORDER_DETAILS_CONFIRMED",
         byUserId: session.id,
-        note: `Border operational details confirmed: ${border.name}, reporting ${block.reportingTime}, travel ${block.travelTime} (by ${session.name})`,
+        note: `Border trip details saved: ${block.borderName}, pickup ${block.pickupLocation}, reporting ${block.reportingTime}, travel ${block.travelTime} (by ${session.name})`,
       });
-
       return result;
     });
-
     return jsonSuccess({ leadId: updated.id, borderOperationalDetails: (updated.details as Record<string, unknown>).borderOperationalDetails });
   } catch (error) {
     console.error("[leads/visa-change-border-details]", error);

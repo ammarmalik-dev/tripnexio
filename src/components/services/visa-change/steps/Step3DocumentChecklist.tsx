@@ -89,7 +89,7 @@ export function Step3DocumentChecklist() {
               </p>
               {items.length === 0 ? (
                 <p className="rounded-lg bg-surface-2 px-4 py-3 text-sm text-ink-secondary">
-                  Our team will confirm the exact document checklist for this nationality once we review your request.
+                  Our team will confirm the exact document checklist as per your nationality once we review your request.
                 </p>
               ) : (
                 <ul className="flex flex-col gap-2">

@@ -115,3 +115,15 @@ describe("earliest OTB travel dates (client corrections 2026-10-05)", () => {
     expect(earliestOtbTravelDates({ standardDays: 2, urgentHours: 8, urgentAvailable: false }, wed10, calendar).urgent).toBeNull();
   });
 });
+
+describe("OTB Express on a week-off night (client doc 2026-10-20, C1)", () => {
+  it("a Saturday 22:30 request can't book Express for Monday 00:00 — even with no TAT configured", async () => {
+    const { evaluateOtbTravelDate } = await import("../src/lib/otb/processing-rules");
+    const { DEFAULT_WORKING_CALENDAR } = await import("../src/lib/calendar/working-calendar");
+    const saturdayNight = new Date("2026-10-24T17:00:00Z"); // 22:30 IST
+    for (const urgentHours of [8, null]) {
+      const outcome = evaluateOtbTravelDate("2026-10-26", { standardDays: 2, urgentHours, urgentAvailable: true }, saturdayNight, DEFAULT_WORKING_CALENDAR, "00:00");
+      expect(outcome.status).toBe("BLOCKED");
+    }
+  });
+});

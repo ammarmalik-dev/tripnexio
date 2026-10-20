@@ -43,11 +43,23 @@ export async function GET() {
       orderBy: [{ airline: { name: "asc" } }, { paxType: "asc" }],
     });
 
+    // Client doc 2026-10-20 (B3 / E4) — the vendor rates (Visa / OTB / Return Ticket) set per country (and airline,
+    // processing type, nationality, Adult / Child) show on the country's card too.
+    const vendorRates = await db.vendorServiceRate.findMany({
+      include: {
+        country: countrySelect,
+        vendor: { select: { name: true, active: true } },
+        airline: { select: { name: true, code: true } },
+        nationality: { select: { name: true } },
+      },
+      orderBy: [{ serviceType: "asc" }, { vendor: { name: "asc" } }],
+    });
+
     type CountryInfo = { id: string; name: string; code: string; flagOverride: string | null; active: boolean };
-    const groups = new Map<string, { country: CountryInfo | null; rules: unknown[]; returnTicket: unknown; otbPrices: unknown[] }>();
+    const groups = new Map<string, { country: CountryInfo | null; rules: unknown[]; returnTicket: unknown; otbPrices: unknown[]; vendorRates: unknown[] }>();
     const groupFor = (country: CountryInfo | null) => {
       const key = country?.id ?? "__all__";
-      if (!groups.has(key)) groups.set(key, { country, rules: [], returnTicket: null, otbPrices: [] });
+      if (!groups.has(key)) groups.set(key, { country, rules: [], returnTicket: null, otbPrices: [], vendorRates: [] });
       return groups.get(key)!;
     };
     for (const rule of rules.slice(0, MAX_RULES)) {
@@ -91,6 +103,21 @@ export async function GET() {
         normalPrice: Number(row.normalPrice),
         urgentPrice: row.urgentPrice === null ? null : Number(row.urgentPrice),
         airlineFee: Number(row.airlineFee),
+        active: row.active,
+      });
+    }
+
+    for (const row of vendorRates) {
+      groupFor(row.country).vendorRates.push({
+        id: row.id,
+        serviceType: row.serviceType,
+        vendorName: row.vendor.name,
+        vendorActive: row.vendor.active,
+        airline: row.airline ? `${row.airline.name} (${row.airline.code})` : null,
+        processingType: row.processingType,
+        nationality: row.nationality?.name ?? null,
+        paxType: row.paxType,
+        cost: Number(row.cost),
         active: row.active,
       });
     }

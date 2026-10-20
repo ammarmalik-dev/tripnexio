@@ -23,6 +23,7 @@ import { PurgedFileTag } from "./PurgedFileTag";
 import { ApplicantsTable } from "./ApplicantsTable";
 import { EmbassyActionsPanel } from "./EmbassyActionsPanel";
 import { VisaChangeActionsPanel, type VisaChangeBookingView } from "./VisaChangeActionsPanel";
+import { VisaChangeBorderDetailsPanel } from "./VisaChangeBorderDetailsPanel";
 import { SpecialFareActionsPanel, type SpecialFareBookingView } from "./SpecialFareActionsPanel";
 import { ReturnTicketActionsPanel, type ReturnTicketBookingView } from "./ReturnTicketActionsPanel";
 import { LinkedBookingPanel, type LinkedBookingView } from "./LinkedBookingPanel";
@@ -486,6 +487,11 @@ export function BookingDetail({
                     rejectionReason={booking.visaRejectionReason}
                     onChanged={refresh}
                   />
+                ) : null}
+
+                {booking.serviceType === "VISA_CHANGE" && booking.visaChange?.changeType === "BORDER_EXIT" && booking.visaChange.border ? (
+                  // Client doc 2026-10-20 (D8) — the vendor's trip details, entered after payment.
+                  <VisaChangeBorderDetailsPanel leadId={booking.leadId} border={booking.visaChange.border} onSaved={refresh} />
                 ) : null}
 
                 {booking.passengerStatuses.length > 0 ? (
