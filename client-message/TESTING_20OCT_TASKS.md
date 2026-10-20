@@ -195,4 +195,4 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
   - Expiring reminders every 10 minutes while the quote is valid.
   - Seat-unavailable and cancellation-quotation flows.
   - Follow-up Due removed.
-- [ ] O7. Notifications fire once per real transition (deduplicated) and are logged with the template, recipient and outcome.
+- [x] O7. Notifications fire once per real transition (deduplicated) and are logged with the template, recipient and outcome. — DONE: status engine fires once per transition, every send audited (template, recipient, outcome); Meta submission list in META_WHATSAPP_TEMPLATES_20OCT.md/.csv
