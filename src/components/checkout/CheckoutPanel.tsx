@@ -416,6 +416,11 @@ export function CheckoutPanel({ token }: { token: string }) {
                   {uploadedCount} of {requiredCount} required uploaded
                 </span>
               </div>
+              {view.serviceType === "FLIGHT_SPECIAL_FARE" ? (
+                <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-ink-primary">
+                  The passenger name and passport / ID number must match the government-issued ID or passport exactly.
+                </p>
+              ) : null}
               {view.applicants.map((applicant) => (
                 <div key={applicant.id} className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">
                   <p className="text-sm font-semibold text-ink-heading">{applicant.fullName}</p>

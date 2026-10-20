@@ -128,6 +128,7 @@ function QuoteCard({
   onRequestNewQuote,
   requestingNewQuote,
   newQuoteRequested,
+  reference,
 }: {
   quote: QuoteOption;
   extension: ExtensionView | null;
@@ -139,6 +140,8 @@ function QuoteCard({
   onRequestNewQuote: () => void;
   requestingNewQuote: boolean;
   newQuoteRequested: boolean;
+  /** The request's reference (client doc 2026-10-20, A1). */
+  reference?: string;
 }) {
   const payable = quote.sellingPrice - (quote.couponDiscount ?? 0);
   // P15 — Special Fare: live countdown; at zero the card turns into the expired state.
@@ -157,8 +160,9 @@ function QuoteCard({
         <div className="flex flex-col gap-1">
           <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
             <AirlineLogo src={quote.airlineLogoUrl} name={quote.airline ?? "Airline"} />
-            {quote.airline ?? "Option"}
-            {quote.flightNumber && !multiSector ? ` ${quote.flightNumber}` : ""}
+            {/* Client doc 2026-10-20 (A1) — the airline's name (not only its code) and the flight number. */}
+            {quote.airline ? (quote.airlines?.[quote.airline.toUpperCase()]?.name ?? quote.airline) : "Option"}
+            {quote.flightNumber && !multiSector ? ` · ${quote.flightNumber}` : ""}
           </span>
           {quote.route ? (
             <span className="flex flex-wrap items-center gap-2 text-sm text-ink-secondary">
@@ -307,9 +311,10 @@ function QuoteCard({
           <Clock className="h-4 w-4" aria-hidden="true" />
           This fare is held for {formatCountdown(remainingMs)}
         </p>
-      ) : quote.validityExpiresAt && !specialFare ? (
-        <p className="text-xs text-ink-tertiary">Valid until {formatDateTime(quote.validityExpiresAt)}</p>
       ) : null}
+      {/* Client doc 2026-10-20 (A1) — every option shows its validity and the request's reference. */}
+      {quote.validityExpiresAt && !expired ? <p className="text-xs text-ink-tertiary">Quote valid until {formatDateTime(quote.validityExpiresAt)}</p> : null}
+      {reference ? <p className="text-xs text-ink-tertiary">Reference ID: {reference}</p> : null}
       {extension ? (
         <div className="flex flex-col gap-1 text-xs text-ink-tertiary">
           <p>
@@ -486,6 +491,7 @@ export function QuoteReviewPanel({ token }: { token: string }) {
                 onApprove={() => void handleApprove(quote.id)}
                 approving={approvingId === quote.id}
                 canApprove={termsAgreed}
+                reference={view.leadReference}
               />
             ))}
           </div>

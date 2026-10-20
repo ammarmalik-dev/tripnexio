@@ -31,10 +31,22 @@ const optionalText = (max: number) =>
     .optional()
     .transform((value) => (value ? value : null));
 
+/**
+ * Client doc 2026-10-20 (A12) — the alternative is entered like the quote itself: airports from the
+ * master (the route is built from them), airline, flight number, times, terminals, fare rules, the new
+ * selling price and cost, and the vendor.
+ */
 export const alternativeOptionSchema = z.object({
   airline: optionalText(10),
   flightNumber: optionalText(12),
-  route: z.string().trim().min(3, "Enter the alternative route").max(120),
+  fromAirport: optionalText(60),
+  toAirport: optionalText(60),
+  route: z.string().trim().min(3, "Enter the departure and arrival airports").max(120),
+  departTerminal: optionalText(30),
+  arriveTerminal: optionalText(30),
+  fareRules: optionalText(1000),
+  vendorId: optionalText(40),
+  vendorName: optionalText(120),
   flightDateTime: optionalText(40),
   arrivalDateTime: optionalText(40),
   baggageAllowance: optionalText(80),
@@ -91,6 +103,32 @@ type Result = { ok: true; notifications: (StatusNotification | null)[]; message:
 
 async function moveTo(tx: Tx, bookingId: string, event: Parameters<typeof setServiceStatusByEvent>[1]["event"], note: string, actor: Actor) {
   return setServiceStatusByEvent(tx, { scope: "BOOKING", entityId: bookingId, event, note, userId: actor.userId, actorLabel: actor.label });
+}
+
+/**
+ * Client doc 2026-10-20 (A12) — once an alternative is the flight the customer flies, its vendor and cost
+ * become the booking's (internal margin = new selling price − new cost), audited.
+ */
+async function applyAlternativeCost(tx: Tx, leadId: string, bookingId: string, offer: { vendorId?: string | null; vendorName?: string | null; vendorCost?: number | null; sellingPrice?: number }, actor: Actor) {
+  if (!offer.vendorId && (offer.vendorCost === null || offer.vendorCost === undefined)) return;
+  const quotation = await tx.quotation.findFirst({ where: { leadId, isSelected: true }, select: { id: true, vendorId: true } });
+  if (!quotation) return;
+  const vendor = offer.vendorId ? await tx.vendor.findUnique({ where: { id: offer.vendorId }, select: { id: true } }) : null;
+  const cost = offer.vendorCost ?? null;
+  await tx.quotation.update({
+    where: { id: quotation.id },
+    data: {
+      ...(vendor ? { vendorId: vendor.id } : {}),
+      ...(cost !== null ? { vendorCost: cost, ...(offer.sellingPrice ? { margin: round(offer.sellingPrice - cost) } : {}) } : {}),
+    },
+  });
+  await writeAudit(tx, {
+    entityType: "Booking",
+    entityId: bookingId,
+    action: "FSF_ALTERNATIVE_COST",
+    byUserId: actor.userId,
+    note: `Alternative flight's vendor${offer.vendorName ? ` ${offer.vendorName}` : ""}${cost !== null ? `, cost ₹${cost}` : ""} recorded on the booking (${actor.label})`,
+  });
 }
 
 /** What the customer paid for the original fare, before GST and gateway fee (selected quotation minus coupon). */
@@ -153,6 +191,7 @@ export async function markUnavailable(bookingId: string, alternative: Alternativ
     const moved = await moveTo(tx, bookingId, "FSF_AVAILABILITY_CONFIRMED", `Alternative ${alternative.route} confirmed (${direction === "LOWER" ? `₹${-difference} lower` : "same fare"})`, actor);
     if (!moved.ok) return moved;
     await tx.booking.update({ where: { id: bookingId }, data: { finalConfirmedAt: new Date() } });
+    await applyAlternativeCost(tx, booking.leadId, bookingId, alternative, actor);
     let note = `Flight unavailable; alternative ${alternative.route} at ₹${alternative.sellingPrice} — same fare, proceeding`;
     if (direction === "LOWER") {
       const primary = await tx.payment.findFirst({ where: { bookingId, status: "SUCCESS" }, orderBy: { createdAt: "asc" } });
@@ -229,6 +268,8 @@ export async function onSpecialFareExtraPaymentSuccess(tx: Tx, bookingId: string
   const moved = await moveTo(tx, bookingId, "FSF_AVAILABILITY_CONFIRMED", "Fare difference paid — alternative confirmed", { label: actorLabel });
   if (!moved.ok) return null;
   await tx.booking.update({ where: { id: bookingId }, data: { finalConfirmedAt: new Date() } });
+  const lead = await tx.booking.findUnique({ where: { id: bookingId }, select: { leadId: true } });
+  if (lead) await applyAlternativeCost(tx, lead.leadId, bookingId, offer, { label: actorLabel });
   return moved.notification;
 }
 
@@ -246,9 +287,12 @@ export async function recordPnr(bookingId: string, input: z.infer<typeof recordP
   });
 }
 
+/**
+ * Client doc 2026-10-20 (A7 / A8) — a ticket file for one or more passengers (only the tickets issued so far);
+ * the PNR is the only ticket detail kept (no ticket number / issue time / vendor reference fields).
+ */
 export const issueTicketSchema = z.object({
-  tickets: z.array(z.object({ passengerId: z.string().min(1), ticketNumber: z.string().trim().min(4, "Enter the ticket number").max(30) })).min(1),
-  issuedAt: z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), "Enter the issue time").optional(),
+  passengerIds: z.array(z.string().min(1)).min(1, "Select the passenger(s) this ticket is for"),
   baggage: optionalText(120),
-  fileBase64: z.string().min(1, "Choose the ticket PDF"),
+  fileBase64: z.string().min(1, "Choose the ticket file"),
 });

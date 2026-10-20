@@ -40,6 +40,8 @@ export const STATUS_VARIABLE_NAMES = [
   "requested_origin",
   "requested_destination",
   "airline_flight_number",
+  "pnr",
+  "baggage",
   "itinerary_summary",
   "quotation_id",
   "currency",
@@ -307,7 +309,9 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     destination,
     requested_origin: origin,
     requested_destination: destination,
-    airline_flight_number: flight,
+    airline_flight_number: flight || "as per your ticket",
+    pnr: booking?.pnr ?? "",
+    baggage: booking?.ticketBaggage ?? quotation?.baggageAllowance ?? "",
     itinerary_summary: [route, flight, flightTime].filter(Boolean).join(" · "),
     quotation_id: quotation ? `Q-${quotation.id.slice(-6).toUpperCase()}` : "",
     currency: "",
@@ -426,8 +430,10 @@ async function outputAttachments(bookingId: string, types: string[]): Promise<Em
   });
   const attachments: EmailAttachment[] = [];
   let size = 0;
+  const seen = new Set<string>();
   for (const doc of docs) {
-    if (!doc.fileUrl?.startsWith(FILE_URL_PREFIX)) continue;
+    if (!doc.fileUrl?.startsWith(FILE_URL_PREFIX) || seen.has(doc.fileUrl)) continue;
+    seen.add(doc.fileUrl); // one file can cover several passengers
     const file = await readStoredFile(doc.fileUrl.slice(FILE_URL_PREFIX.length)).catch(() => null);
     if (!file) continue;
     size += file.data.length;

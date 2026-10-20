@@ -1,16 +1,18 @@
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useState } from "react";
 import { Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { FilePickerButton } from "@/components/forms/FilePickerButton";
 import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, isOutputType, type OutputType } from "@/lib/outputs/output-types";
 import { cn } from "@/lib/cn";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"];
-const MAX_BYTES = 3 * 1024 * 1024;
+/** Client doc 2026-10-20 (L1) — PDF, PNG or JPG. */
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const MAX_BYTES = 8 * 1024 * 1024;
 
 function readAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -34,8 +36,10 @@ interface DeliveredDocument {
 /**
  * P09 — "Upload & Deliver" on Booking detail: pick what's being delivered and
  * for whom, upload the file, and the customer gets it by WhatsApp + email
- * (the booking also moves to its service's matching status). Lists what's
- * already been delivered, with the time.
+ * (the booking also moves to its service's matching status). Client doc
+ * 2026-10-20 (B5): every passenger is listed with Delivered / Pending, staff
+ * tick the pending ones this file is for (one file may cover several), with a
+ * coloured Choose File button.
  */
 export function DeliverOutputSection({
   bookingId,
@@ -55,40 +59,45 @@ export function DeliverOutputSection({
   allowedOutputTypes?: readonly OutputType[];
 }) {
   const [outputType, setOutputType] = useState<OutputType>(defaultOutputType);
-  const [passengerId, setPassengerId] = useState(passengers[0]?.id ?? "");
+  const [selected, setSelected] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [inputKey, setInputKey] = useState(0);
 
   const delivered = documents.filter((document) => isOutputType(document.type) && document.deliveredAt);
   const passengerName = (id: string | null) => passengers.find((p) => p.id === id)?.fullName ?? "Whole booking";
+  const deliveredFor = (passengerId: string) =>
+    delivered.some((document) => document.type === outputType && (document.passengerId === passengerId || document.passengerId === null));
+  const pendingIds = passengers.filter((passenger) => !deliveredFor(passenger.id)).map((passenger) => passenger.id);
+  // A single passenger / single pending passenger needs no choice.
+  const chosen = passengers.length <= 1 ? passengers.map((p) => p.id) : selected.length > 0 ? selected : pendingIds.length === 1 ? pendingIds : [];
 
-  const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const picked = event.target.files?.[0] ?? null;
+  const handleFile = (picked: File | null) => {
     setFileError(null);
     if (picked && !ALLOWED_TYPES.includes(picked.type)) {
-      setFileError("Use a PDF or an image (JPEG, PNG, GIF, WebP).");
+      setFileError("Use a PDF, PNG or JPG file.");
       setFile(null);
       return;
     }
     if (picked && picked.size > MAX_BYTES) {
-      setFileError("That file is larger than 3MB.");
+      setFileError("That file is larger than 8MB.");
       setFile(null);
       return;
     }
     setFile(picked);
   };
 
+  const toggle = (id: string) => setSelected((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
+
   const deliver = async () => {
-    if (!file) return;
+    if (!file || chosen.length === 0) return;
     setSending(true);
     try {
       const fileBase64 = await readAsBase64(file);
-      await postJson(`/api/bookings/${bookingId}/outputs`, { outputType, passengerId: passengerId || null, fileBase64 });
+      await postJson(`/api/bookings/${bookingId}/outputs`, { outputType, passengerId: chosen[0] ?? null, passengerIds: chosen, fileBase64 });
       toast.success(`${OUTPUT_TYPE_LABELS[outputType]} delivered to the customer.`);
       setFile(null);
-      setInputKey((n) => n + 1);
+      setSelected([]);
       onDelivered();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't deliver this document. Please try again.");
@@ -103,7 +112,7 @@ export function DeliverOutputSection({
         <h2 className="text-sm font-semibold text-ink-heading">Deliver to customer</h2>
         <span className="text-xs text-ink-tertiary">Sent by WhatsApp and email with a secure link.</span>
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:items-end">
+      <div className="flex flex-col gap-3">
         <FormField label="Document" htmlFor="deliver-type">
           {allowedOutputTypes.length === 1 ? (
             <p id="deliver-type" className={cn(fieldControlClass, fieldBorderClass(false), "flex items-center bg-surface-2 font-medium")}>
@@ -115,7 +124,7 @@ export function DeliverOutputSection({
               value={outputType}
               disabled={sending}
               onChange={(e) => setOutputType(e.target.value as OutputType)}
-              className={cn(fieldControlClass, fieldBorderClass(false))}
+              className={cn(fieldControlClass, fieldBorderClass(false), "sm:max-w-xs")}
             >
               {allowedOutputTypes.map((type) => (
                 <option key={type} value={type}>
@@ -125,36 +134,31 @@ export function DeliverOutputSection({
             </select>
           )}
         </FormField>
-        <FormField label="For" htmlFor="deliver-passenger">
-          <select
-            id="deliver-passenger"
-            value={passengerId}
-            disabled={sending}
-            onChange={(e) => setPassengerId(e.target.value)}
-            className={cn(fieldControlClass, fieldBorderClass(false))}
-          >
-            {passengers.map((passenger) => (
-              <option key={passenger.id} value={passenger.id}>
-                {passenger.fullName}
-              </option>
-            ))}
-            <option value="">Whole booking</option>
-          </select>
-        </FormField>
-        <FormField label="File" htmlFor="deliver-file" error={fileError ?? undefined}>
-          <input
-            key={inputKey}
-            id="deliver-file"
-            type="file"
-            accept={ALLOWED_TYPES.join(",")}
-            disabled={sending}
-            onChange={handleFile}
-            className="text-sm text-ink-secondary"
-          />
+
+        {passengers.length > 1 ? (
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="mb-1 text-sm font-medium text-ink-heading">For (tick the passengers this file is for)</legend>
+            {passengers.map((passenger) => {
+              const done = deliveredFor(passenger.id);
+              return (
+                <label key={passenger.id} className="flex items-center gap-2 text-sm text-ink-primary">
+                  <input type="checkbox" checked={chosen.includes(passenger.id)} disabled={sending || done} onChange={() => toggle(passenger.id)} />
+                  {passenger.fullName}
+                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", done ? "bg-success/10 text-success" : "bg-warning/10 text-warning")}>
+                    {done ? "Delivered" : "Pending"}
+                  </span>
+                </label>
+              );
+            })}
+          </fieldset>
+        ) : null}
+
+        <FormField label="File (PDF, PNG or JPG)" htmlFor="deliver-file" error={fileError ?? undefined}>
+          <FilePickerButton id="deliver-file" accept={ALLOWED_TYPES.join(",")} fileName={file?.name ?? null} onFile={handleFile} disabled={sending} />
         </FormField>
       </div>
       <div className="mt-3 flex justify-end">
-        <Button type="button" size="sm" onClick={() => void deliver()} isLoading={sending} disabled={!file}>
+        <Button type="button" size="sm" onClick={() => void deliver()} isLoading={sending} disabled={!file || chosen.length === 0}>
           <Send className="h-4 w-4" aria-hidden="true" />
           Upload &amp; Deliver
         </Button>

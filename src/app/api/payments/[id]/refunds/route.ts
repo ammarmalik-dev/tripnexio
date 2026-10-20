@@ -13,6 +13,7 @@ import { evaluateRefundRule, documentsValidated, packageGenerated, adminRefundOv
 import { returnTicketCancellationFee } from "@/lib/return-ticket/operations";
 import { getRefundConfig } from "@/lib/refunds/config";
 import { notifyRefundsRaised } from "@/lib/staff-notifications/triggers";
+import { passengerAmounts } from "@/lib/bookings/passenger-outcomes";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
@@ -102,7 +103,33 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(409, rule.label);
   }
 
-  const refundAmount = computeRefundAmount({ paidAmount, cancellationCharge, gatewayCharge, fixedDeduction: rule.fixedDeduction });
+  // Client doc 2026-10-20 (A14) — a refund for some passengers starts from their share of the payment (their
+  // selling price on the quotation, else an even split), not the whole amount, so a partial refund can be raised.
+  const selectedIds = (passengerIds ?? []).filter((pid) => bookingPassengerIds.has(pid));
+  let baseAmount = paidAmount;
+  if (selectedIds.length > 0 && selectedIds.length < bookingPassengerIds.size) {
+    const quotation = await db.quotation.findFirst({
+      where: { leadId: payment.booking.leadId, isSelected: true },
+      select: { sellingPrice: true, couponDiscount: true, cancellationCharge: true, paxCosting: true, invoiceLines: true },
+    });
+    const amounts = passengerAmounts(
+      payment.booking.passengers.map((row) => ({ passengerId: row.passengerId, paxType: row.passenger.paxType, outcome: row.outcome })),
+      quotation
+        ? {
+            sellingPrice: Number(quotation.sellingPrice),
+            couponDiscount: quotation.couponDiscount != null ? Number(quotation.couponDiscount) : null,
+            cancellationCharge: quotation.cancellationCharge != null ? Number(quotation.cancellationCharge) : null,
+            paxCosting: quotation.paxCosting,
+            invoiceLines: quotation.invoiceLines,
+          }
+        : null
+    );
+    const totalSelling = amounts.reduce((sum, row) => sum + row.selling, 0);
+    const selectedSelling = amounts.filter((row) => selectedIds.includes(row.passengerId)).reduce((sum, row) => sum + row.selling, 0);
+    const share = totalSelling > 0 ? selectedSelling / totalSelling : selectedIds.length / bookingPassengerIds.size;
+    baseAmount = Math.round(paidAmount * share * 100) / 100;
+  }
+  const refundAmount = computeRefundAmount({ paidAmount: baseAmount, cancellationCharge, gatewayCharge, fixedDeduction: rule.fixedDeduction });
 
   const ruleNote = rule.fixedDeduction > 0 ? ` (includes ₹${rule.fixedDeduction} per: ${rule.label})` : "";
 

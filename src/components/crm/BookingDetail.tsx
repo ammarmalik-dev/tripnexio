@@ -11,7 +11,6 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Button } from "@/components/ui/Button";
 import { BookingStatusControl } from "./BookingStatusControl";
 import { CopyPaymentLinkButton } from "./CopyPaymentLinkButton";
-import { BookingPassengerStatusControl } from "./BookingPassengerStatusControl";
 import { ExtensionOutcomeControl } from "./ExtensionOutcomeControl";
 import { PaymentPanel, type PaymentData } from "./PaymentPanel";
 import { DocumentStatusControl } from "./DocumentStatusControl";
@@ -516,7 +515,8 @@ export function BookingDetail({
                   </RecordSection>
                 ) : null}
 
-                {OUTPUTS_BY_SERVICE[booking.serviceType].length > 0 ? (
+                {/* Client doc 2026-10-20 (A9) — a Special Fare ticket is delivered from its own panel (one delivery option). */}
+                {OUTPUTS_BY_SERVICE[booking.serviceType].length > 0 && booking.serviceType !== "FLIGHT_SPECIAL_FARE" ? (
                   <DeliverOutputSection
                     bookingId={booking.id}
                     passengers={booking.passengers}
@@ -649,7 +649,7 @@ export function BookingDetail({
             content: (
               <div className="flex flex-col gap-5">
                 <RecordSection title="Applicants">
-                  <ApplicantsTable applicants={booking.applicants} />
+                  <ApplicantsTable applicants={booking.applicants} editable={{ leadId: booking.leadId, onChanged: refresh }} />
                 </RecordSection>
 
                 <RecordSection
@@ -686,19 +686,9 @@ export function BookingDetail({
                         const checklist = booking.documentChecklistSnapshot?.passengers.find((p) => p.passengerId === passenger.id);
                         return (
                           <div key={passenger.id} className="rounded-lg border border-hairline bg-surface-1/70 p-3">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <p className="text-sm font-medium text-ink-primary">{passenger.fullName}</p>
-                              <BookingPassengerStatusControl
-                                bookingId={booking.id}
-                                passengerId={passenger.id}
-                                status={passenger.status}
-                                onChanged={(status) =>
-                                  setBooking((current) =>
-                                    current ? { ...current, passengers: current.passengers.map((p) => (p.id === passenger.id ? { ...p, status } : p)) } : current
-                                  )
-                                }
-                              />
-                            </div>
+                            {/* Client doc 2026-10-20 (A24) — one per-passenger control: the passenger's result (the old per-passenger
+                                "Move to…" stage duplicated the booking status and is gone). */}
+                            <p className="text-sm font-medium text-ink-primary">{passenger.fullName}</p>
                             <PassengerOutcomeControl
                               bookingId={booking.id}
                               passengerId={passenger.id}

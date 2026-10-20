@@ -399,3 +399,19 @@ export async function hasReachedStatusEvent(bookingId: string, event: ServiceSta
   });
   return !!target && booking.serviceStatus.displayOrder >= target.displayOrder;
 }
+
+/**
+ * Client doc 2026-10-20 (A18) — puts a booking on its service's On Hold status from automation (e.g. the
+ * travel date passed a day ago and the service isn't finished), without a customer message: staff get a
+ * task and resume it. No-op when it's already on hold, final, or the service has no hold status.
+ */
+export async function holdBookingSilently(tx: Tx, bookingId: string, actorLabel: string, note: string): Promise<boolean> {
+  const entity = await loadEntity(tx, "BOOKING", bookingId);
+  if (!entity) return false;
+  const from = entity.serviceStatusId ? await tx.serviceStatus.findUnique({ where: { id: entity.serviceStatusId } }) : null;
+  if (from && (from.isTerminal || from.systemEvent === HOLD_MARKER)) return false;
+  const hold = await tx.serviceStatus.findFirst({ where: { serviceType: entity.serviceType, scope: "BOOKING", systemEvent: HOLD_MARKER, active: true } });
+  if (!hold) return false;
+  await applyStatus(tx, "BOOKING", entity, from, hold, { actorLabel, note, silent: true });
+  return true;
+}

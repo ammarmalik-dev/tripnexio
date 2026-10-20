@@ -24,6 +24,8 @@ export async function deliverOutput(input: {
   booking: Booking & { lead: Lead; customer: Customer };
   outputType: OutputType;
   passengerId: string | null;
+  /** Client doc 2026-10-20 (A8) — one file covering several passengers (a document is recorded for each). */
+  passengerIds?: string[];
   fileUrl: string;
   actor: { userId?: string; label: string };
   /** Audit wording, e.g. "delivered" or "generated and delivered". */
@@ -42,6 +44,11 @@ export async function deliverOutput(input: {
     const created = await tx.document.create({
       data: { bookingId: booking.id, leadId: booking.leadId, passengerId, type: outputType, status: "VERIFIED", fileUrl, deliveredAt: new Date() },
     });
+    for (const otherId of (input.passengerIds ?? []).filter((id) => id !== passengerId)) {
+      await tx.document.create({
+        data: { bookingId: booking.id, leadId: booking.leadId, passengerId: otherId, type: outputType, status: "VERIFIED", fileUrl, deliveredAt: new Date() },
+      });
+    }
     await writeAudit(tx, {
       entityType: "Document",
       entityId: created.id,
@@ -76,7 +83,18 @@ export async function deliverOutput(input: {
         outputType === "VISA_PDF"
           ? await statusTemplateFor(booking.lead.serviceType, "BOOKING", allCovered && !someNotApproved ? "DELIVERED_VISA_PDF" : "PARTIAL_APPROVED")
           : await statusTemplateFor(booking.lead.serviceType, "BOOKING", OUTPUT_DELIVERY_EVENT[outputType]);
-      if (template) await sendStatusTemplate({ event: template.event, scope: "BOOKING", entityId: booking.id, statusLabel: template.label });
+      if (template) {
+        // This delivery's passengers only (the others' visas / tickets come separately).
+        const ids = input.passengerIds?.length ? input.passengerIds : passengerId ? [passengerId] : [];
+        const names = ids.length ? (await db.passenger.findMany({ where: { id: { in: ids } }, select: { fullName: true } })).map((row) => row.fullName).join(", ") : "";
+        await sendStatusTemplate({
+          event: template.event,
+          scope: "BOOKING",
+          entityId: booking.id,
+          statusLabel: template.label,
+          extraVariables: names && outputType !== "VISA_PDF" ? { passenger_names: names } : undefined,
+        });
+      }
       else await notifyLegacyOutput(booking, outputType, fileUrl, document.id);
     }
   } else {

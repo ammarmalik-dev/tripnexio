@@ -102,6 +102,11 @@ export function Step2Passengers() {
         </Button>
       </div>
 
+      {/* Client doc 2026-10-20 (A6). */}
+      <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-ink-primary">
+        Enter each name exactly as on the passenger&apos;s government-issued ID or passport — the name and passport number must match it exactly.
+      </p>
+
       {typeof errors.passengers?.message === "string" ? (
         <p className="text-xs font-medium text-error">{errors.passengers.message}</p>
       ) : null}

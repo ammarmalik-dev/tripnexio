@@ -70,7 +70,7 @@ export function PaymentPanel({
   /** P16 — prefills the refund calculator (Special Fare: the selected quote's cancellation charge). */
   defaultCancellationCharge?: number;
   /** This booking's own passengers — passed through to the refund calculator's passenger-selection checkboxes (CRM.md §21, Step 14). */
-  passengers: { id: string; fullName: string }[];
+  passengers: { id: string; fullName: string; amounts?: { selling: number } | null }[];
   onChanged: () => void;
   canApproveRefunds: boolean;
   /** Step 51 — gates the "Approve Bank Transfer" button (payments.approve); uploading the slip itself only needs payments.edit, checked server-side, not here. */
@@ -299,7 +299,7 @@ export function PaymentPanel({
           defaultCancellationCharge={defaultCancellationCharge}
           defaultGatewayCharge={Number(payment.gatewayFee)}
           refundRule={payment.refundRule}
-          passengers={passengers}
+          passengers={passengers.map((passenger) => ({ id: passenger.id, fullName: passenger.fullName, selling: passenger.amounts?.selling ?? null }))}
           onSubmit={handleCreateRefund}
           onCancel={() => setShowRefundForm(false)}
           submitting={creatingRefund}

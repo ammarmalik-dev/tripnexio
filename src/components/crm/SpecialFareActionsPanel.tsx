@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
-import { postJson, ApiError } from "@/lib/api/client";
+import { Textarea } from "@/components/forms/Textarea";
+import { FormField, fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
+import { FilePickerButton } from "@/components/forms/FilePickerButton";
+import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { cn } from "@/lib/cn";
 
 export interface SpecialFareBookingView {
   finalConfirmedAt: string | null;
@@ -14,6 +18,7 @@ export interface SpecialFareBookingView {
     flightNumber?: string | null;
     sellingPrice?: number;
     vendorCost?: number | null;
+    vendorName?: string | null;
     direction: "HIGHER" | "LOWER" | "SAME" | "NONE";
     difference: number;
     decision: "PAY" | "REFUND" | null;
@@ -23,12 +28,28 @@ export interface SpecialFareBookingView {
   pnrRecordedAt: string | null;
   ticketIssuedAt: string | null;
   ticketBaggage: string | null;
-  /** The selected quote's baggage / vendor reference — the PNR and ticket fields start from these. */
+  /** The selected quote's baggage — the ticket step starts from it. */
   quoteBaggage: string | null;
   quoteVendorReference: string | null;
-  tickets: { passengerId: string; fullName: string; ticketNumber: string | null }[];
+  /** Client doc 2026-10-20 (A8) — each passenger's ticket: issued or still pending. */
+  tickets: { passengerId: string; fullName: string; ticketNumber: string | null; issued?: boolean }[];
+  /** Client doc 2026-10-20 (A10) — false once a ticket is delivered (only an Admin may then mark it unavailable). */
+  canMarkUnavailable?: boolean;
 }
 
+interface AirportOption {
+  code: string;
+  name: string;
+  city: string;
+  country: string;
+}
+interface NamedOption {
+  id: string;
+  code?: string;
+  name: string;
+}
+
+const ALLOWED_TICKET_TYPES = ["application/pdf", "image/png", "image/jpeg"];
 const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
 function fmt(value: string | null): string {
@@ -46,15 +67,33 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-const EMPTY_ALT = { route: "", airline: "", flightNumber: "", flightDateTime: "", arrivalDateTime: "", baggageAllowance: "", terminal: "", reportingTime: "", fareType: "", sellingPrice: "", vendorCost: "" };
+const EMPTY_ALT = {
+  fromAirport: "",
+  toAirport: "",
+  airline: "",
+  flightNumber: "",
+  flightDateTime: "",
+  arrivalDateTime: "",
+  departTerminal: "",
+  arriveTerminal: "",
+  reportingTime: "",
+  baggageAllowance: "",
+  fareType: "",
+  fareRules: "",
+  sellingPrice: "",
+  vendorCost: "",
+  vendorId: "",
+};
 
 /**
- * P16 — Flight Special Fare post-payment operations on Booking detail
- * (Flight_Special_Fare.md §17-20): Confirm Availability, Unavailable (enter an
- * alternative — the system works out higher / lower / same fare — or record
- * that there is none), Record PNR, then Issue Ticket (ticket number per
- * passenger, issue time, baggage, ticket PDF). Each action goes through the
- * status engine, so only steps valid from the current status succeed.
+ * P16 — Flight Special Fare post-payment operations on Booking detail. Client doc 2026-10-20:
+ * - Unavailable → the alternative is entered like the quote (airports from the master, airline,
+ *   times, terminals, fare rules, new selling price + cost and the vendor) (A12); once a ticket was
+ *   delivered only an Admin can mark the flight unavailable (A10).
+ * - Record PNR — the PNR only (A7).
+ * - Issue Ticket — upload the ticket for the passengers it covers; each passenger shows Issued /
+ *   Pending until everyone has theirs, then the booking is "Ticket Issued" (A8). One delivery
+ *   option, a coloured Choose File button (A9).
  */
 export function SpecialFareActionsPanel({
   bookingId,
@@ -71,11 +110,33 @@ export function SpecialFareActionsPanel({
   const [showAlternative, setShowAlternative] = useState(false);
   const [noAlternative, setNoAlternative] = useState(false);
   const [alt, setAlt] = useState(EMPTY_ALT);
-  const [pnr, setPnr] = useState({ pnr: "", vendorReference: view.quoteVendorReference ?? "" });
-  const [ticketNumbers, setTicketNumbers] = useState<Record<string, string>>({});
-  const [issuedAt, setIssuedAt] = useState("");
+  const [pnr, setPnr] = useState("");
   const [baggage, setBaggage] = useState(view.quoteBaggage ?? "");
   const [ticketFile, setTicketFile] = useState<File | null>(null);
+  const [ticketFor, setTicketFor] = useState<string[]>([]);
+  const [options, setOptions] = useState<{ airports: AirportOption[]; airlines: NamedOption[]; vendors: NamedOption[] } | null>(null);
+
+  // The alternative form's lists (Airport / Airline masters, Special Fare vendors), loaded when it opens.
+  useEffect(() => {
+    if (!showAlternative || options) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const [airports, airlines, vendors] = await Promise.all([
+          getJson<AirportOption[]>("/api/crm/airports"),
+          getJson<NamedOption[]>("/api/airlines"),
+          getJson<NamedOption[]>("/api/vendors?service=FLIGHT_SPECIAL_FARE"),
+        ]);
+        if (!cancelled) setOptions({ airports, airlines, vendors });
+      } catch {
+        if (!cancelled) setOptions({ airports: [], airlines: [], vendors: [] });
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [showAlternative, options]);
 
   const run = async (key: string, body: Record<string, unknown>) => {
     setPending(key);
@@ -83,6 +144,8 @@ export function SpecialFareActionsPanel({
       const result = await postJson<{ message: string }>(`/api/bookings/${bookingId}/special-fare-action`, body);
       toast.success(result.message);
       setShowAlternative(false);
+      setTicketFile(null);
+      setTicketFor([]);
       onChanged();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't complete this action. Please try again.");
@@ -91,46 +154,60 @@ export function SpecialFareActionsPanel({
     }
   };
 
+  const airportLabel = (code: string) => {
+    const airport = options?.airports.find((row) => row.code === code.trim().toUpperCase());
+    return airport ? `${airport.city} (${airport.code})` : code.trim().toUpperCase();
+  };
+
   const submitUnavailable = () => {
     if (noAlternative) return void run("UNAVAILABLE", { action: "UNAVAILABLE", alternative: null });
     const num = (value: string) => (value.trim() === "" ? undefined : Number(value));
     const text = (value: string) => (value.trim() === "" ? undefined : value.trim());
+    const vendor = options?.vendors.find((row) => row.id === alt.vendorId);
     void run("UNAVAILABLE", {
       action: "UNAVAILABLE",
       alternative: {
-        route: alt.route.trim(),
+        fromAirport: text(alt.fromAirport.toUpperCase()),
+        toAirport: text(alt.toAirport.toUpperCase()),
+        route: `${airportLabel(alt.fromAirport)} → ${airportLabel(alt.toAirport)}`,
         airline: text(alt.airline),
         flightNumber: text(alt.flightNumber),
         flightDateTime: text(alt.flightDateTime),
         arrivalDateTime: text(alt.arrivalDateTime),
-        baggageAllowance: text(alt.baggageAllowance),
-        terminal: text(alt.terminal),
+        departTerminal: text(alt.departTerminal),
+        arriveTerminal: text(alt.arriveTerminal),
+        terminal: text([alt.departTerminal, alt.arriveTerminal].filter(Boolean).join(" → ")),
         reportingTime: text(alt.reportingTime),
+        baggageAllowance: text(alt.baggageAllowance),
         fareType: text(alt.fareType),
+        fareRules: text(alt.fareRules),
         sellingPrice: num(alt.sellingPrice),
         vendorCost: num(alt.vendorCost),
+        vendorId: text(alt.vendorId),
+        vendorName: vendor?.name,
       },
     });
   };
 
+  const pendingTickets = view.tickets.filter((ticket) => !ticket.issued);
+  const chosen = view.tickets.length <= 1 || pendingTickets.length === 1 ? pendingTickets.map((ticket) => ticket.passengerId) : ticketFor;
+
   const submitTicket = async () => {
-    if (!ticketFile) return;
+    if (!ticketFile || chosen.length === 0) return;
+    if (!ALLOWED_TICKET_TYPES.includes(ticketFile.type)) {
+      toast.error("Use a PDF, PNG or JPG ticket file.");
+      return;
+    }
     if (ticketFile.size > MAX_FILE_BYTES) {
       toast.error("The ticket file is too large (8MB max).");
       return;
     }
-    const fileBase64 = await readAsBase64(ticketFile);
-    await run("ISSUE_TICKET", {
-      action: "ISSUE_TICKET",
-      tickets: view.tickets.map((t) => ({ passengerId: t.passengerId, ticketNumber: (ticketNumbers[t.passengerId] ?? "").trim() })),
-      issuedAt: issuedAt ? new Date(issuedAt).toISOString() : undefined,
-      baggage: baggage.trim() || undefined,
-      fileBase64,
-    });
+    await run("ISSUE_TICKET", { action: "ISSUE_TICKET", passengerIds: chosen, baggage: baggage.trim() || undefined, fileBase64: await readAsBase64(ticketFile) });
   };
 
   const offer = view.alternativeOffer;
-  const allTicketNumbers = view.tickets.every((t) => (ticketNumbers[t.passengerId] ?? "").trim().length >= 4);
+  const altValid = noAlternative || (alt.fromAirport.trim().length >= 3 && alt.toAirport.trim().length >= 3 && Number(alt.sellingPrice) > 0);
+  const set = (key: keyof typeof EMPTY_ALT) => (event: { target: { value: string } }) => setAlt((current) => ({ ...current, [key]: event.target.value }));
 
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
@@ -146,16 +223,19 @@ export function SpecialFareActionsPanel({
         </div>
         <div>
           <dt className="text-xs text-ink-tertiary">PNR</dt>
-          <dd className="font-medium text-ink-primary">
-            {view.pnr ?? "—"}
-            {view.pnrVendorReference ? ` · vendor ref ${view.pnrVendorReference}` : ""}
-          </dd>
+          <dd className="font-medium text-ink-primary">{view.pnr ?? "—"}</dd>
         </div>
         <div>
-          <dt className="text-xs text-ink-tertiary">Ticket issued</dt>
-          <dd className="font-medium text-ink-primary">
-            {fmt(view.ticketIssuedAt)}
-            {view.ticketBaggage ? ` · ${view.ticketBaggage}` : ""}
+          <dt className="text-xs text-ink-tertiary">Tickets</dt>
+          <dd className="flex flex-col gap-0.5">
+            {view.tickets.map((ticket) => (
+              <span key={ticket.passengerId} className="flex items-center gap-2 text-ink-primary">
+                {ticket.fullName}
+                <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", ticket.issued ? "bg-success/10 text-success" : "bg-warning/10 text-warning")}>
+                  {ticket.issued ? "Issued" : "Pending"}
+                </span>
+              </span>
+            ))}
           </dd>
         </div>
       </dl>
@@ -164,19 +244,20 @@ export function SpecialFareActionsPanel({
         <p className="rounded-lg bg-surface-2 px-4 py-3 text-sm text-ink-secondary">
           {offer.direction === "NONE"
             ? "Flight unavailable — no suitable alternative; full refund raised."
-            : `Alternative ${[offer.airline, offer.flightNumber].filter(Boolean).join(" ")} ${offer.route ?? ""} at ₹${offer.sellingPrice ?? "—"}${offer.vendorCost != null ? ` (vendor cost ₹${offer.vendorCost}, internal)` : ""} — ${
+            : `Alternative ${[offer.airline, offer.flightNumber].filter(Boolean).join(" ")} ${offer.route ?? ""} at ₹${offer.sellingPrice ?? "—"}${offer.vendorCost != null ? ` (cost ₹${offer.vendorCost}${offer.vendorName ? `, ${offer.vendorName}` : ""} — internal)` : ""} — ${
                 offer.direction === "HIGHER" ? `₹${offer.difference} higher` : offer.direction === "LOWER" ? `₹${-offer.difference} lower (difference refund raised)` : "same fare"
               }${offer.direction === "HIGHER" ? ` · customer: ${offer.decision === "PAY" ? "paying the difference" : offer.decision === "REFUND" ? "requested refund" : "not decided yet"}` : ""}`}
         </p>
       ) : null}
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="glass" onClick={() => void run("CONFIRM", { action: "CONFIRM_AVAILABILITY" })} isLoading={pending === "CONFIRM"} disabled={pending !== null}>
           Confirm Availability
         </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => setShowAlternative((v) => !v)} disabled={pending !== null}>
+        <Button type="button" size="sm" variant="ghost" onClick={() => setShowAlternative((v) => !v)} disabled={pending !== null || view.canMarkUnavailable === false}>
           Unavailable…
         </Button>
+        {view.canMarkUnavailable === false ? <span className="text-xs text-ink-tertiary">A ticket was delivered — only an Admin can mark it unavailable.</span> : null}
       </div>
 
       {showAlternative ? (
@@ -186,32 +267,57 @@ export function SpecialFareActionsPanel({
             No suitable alternative (full refund)
           </label>
           {!noAlternative ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <TextField label="Alternative route" name="altRoute" placeholder="e.g. Delhi → Dubai" value={alt.route} onChange={(e) => setAlt({ ...alt, route: e.target.value })} required />
-              <TextField label="Airline code" name="altAirline" value={alt.airline} onChange={(e) => setAlt({ ...alt, airline: e.target.value })} />
-              <TextField label="Flight number" name="altFlight" value={alt.flightNumber} onChange={(e) => setAlt({ ...alt, flightNumber: e.target.value })} />
-              <TextField label="Fare type" name="altFareType" value={alt.fareType} onChange={(e) => setAlt({ ...alt, fareType: e.target.value })} />
-              <TextField label="Departure" name="altDep" type="datetime-local" value={alt.flightDateTime} onChange={(e) => setAlt({ ...alt, flightDateTime: e.target.value })} />
-              <TextField label="Arrival" name="altArr" type="datetime-local" value={alt.arrivalDateTime} onChange={(e) => setAlt({ ...alt, arrivalDateTime: e.target.value })} />
-              <TextField label="Terminal" name="altTerminal" value={alt.terminal} onChange={(e) => setAlt({ ...alt, terminal: e.target.value })} />
-              <TextField label="Reporting time" name="altReporting" value={alt.reportingTime} onChange={(e) => setAlt({ ...alt, reportingTime: e.target.value })} />
-              <TextField label="Baggage" name="altBaggage" value={alt.baggageAllowance} onChange={(e) => setAlt({ ...alt, baggageAllowance: e.target.value })} />
-              <TextField label="New selling price (₹)" name="altPrice" type="number" step="0.01" value={alt.sellingPrice} onChange={(e) => setAlt({ ...alt, sellingPrice: e.target.value })} required />
-              <TextField label="Vendor cost (₹, internal)" name="altCost" type="number" step="0.01" value={alt.vendorCost} onChange={(e) => setAlt({ ...alt, vendorCost: e.target.value })} />
-            </div>
+            <>
+              <datalist id={`sf-alt-airports-${bookingId}`}>
+                {(options?.airports ?? []).map((airport) => (
+                  <option key={airport.code} value={airport.code}>
+                    {`${airport.city} — ${airport.name} (${airport.code}), ${airport.country}`}
+                  </option>
+                ))}
+              </datalist>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <TextField label="Departure airport" name="altFrom" list={`sf-alt-airports-${bookingId}`} autoComplete="off" placeholder="City, airport or code" value={alt.fromAirport} onChange={set("fromAirport")} required />
+                <TextField label="Arrival airport" name="altTo" list={`sf-alt-airports-${bookingId}`} autoComplete="off" placeholder="City, airport or code" value={alt.toAirport} onChange={set("toAirport")} required />
+                <TextField label="Departure date & time" name="altDep" type="datetime-local" value={alt.flightDateTime} onChange={set("flightDateTime")} />
+                <TextField label="Arrival date & time" name="altArr" type="datetime-local" value={alt.arrivalDateTime} onChange={set("arrivalDateTime")} />
+                <FormField label="Airline" htmlFor={`sf-alt-airline-${bookingId}`}>
+                  <select id={`sf-alt-airline-${bookingId}`} value={alt.airline} onChange={set("airline")} className={cn(fieldControlClass, fieldBorderClass(false))}>
+                    <option value="">Select an airline</option>
+                    {(options?.airlines ?? []).map((airline) => (
+                      <option key={airline.id} value={airline.code}>
+                        {airline.name} ({airline.code})
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <TextField label="Flight number" name="altFlight" placeholder="e.g. 6E 21" value={alt.flightNumber} onChange={set("flightNumber")} />
+                <TextField label="Departure terminal" name="altDepTerminal" placeholder="e.g. T3" value={alt.departTerminal} onChange={set("departTerminal")} />
+                <TextField label="Arrival terminal" name="altArrTerminal" placeholder="e.g. T1" value={alt.arriveTerminal} onChange={set("arriveTerminal")} />
+                <TextField label="Reporting time" name="altReporting" value={alt.reportingTime} onChange={set("reportingTime")} />
+                <TextField label="Baggage allowance" name="altBaggage" value={alt.baggageAllowance} onChange={set("baggageAllowance")} />
+                <TextField label="Fare type" name="altFareType" value={alt.fareType} onChange={set("fareType")} />
+                <FormField label="Vendor" htmlFor={`sf-alt-vendor-${bookingId}`}>
+                  <select id={`sf-alt-vendor-${bookingId}`} value={alt.vendorId} onChange={set("vendorId")} className={cn(fieldControlClass, fieldBorderClass(false))}>
+                    <option value="">Select the vendor</option>
+                    {(options?.vendors ?? []).map((vendor) => (
+                      <option key={vendor.id} value={vendor.id}>
+                        {vendor.name}
+                      </option>
+                    ))}
+                  </select>
+                </FormField>
+                <TextField label="New selling price (₹)" name="altPrice" type="number" step="0.01" value={alt.sellingPrice} onChange={set("sellingPrice")} required />
+                <TextField label="New vendor cost (₹, internal)" name="altCost" type="number" step="0.01" value={alt.vendorCost} onChange={set("vendorCost")} />
+              </div>
+              <Textarea label="Fare rules" name="altFareRules" rows={2} value={alt.fareRules} onChange={set("fareRules")} hint="Date change, baggage and other airline fare rules." />
+            </>
           ) : null}
           <p className="text-xs text-ink-tertiary">
             Higher fare: the customer chooses to pay the difference or get a refund. Lower fare: the difference refund is raised automatically. Refunds still
             need approval in Refunds.
           </p>
           <div className="flex justify-end">
-            <Button
-              type="button"
-              size="sm"
-              onClick={submitUnavailable}
-              isLoading={pending === "UNAVAILABLE"}
-              disabled={pending !== null || (!noAlternative && (alt.route.trim().length < 3 || !(Number(alt.sellingPrice) > 0)))}
-            >
+            <Button type="button" size="sm" onClick={submitUnavailable} isLoading={pending === "UNAVAILABLE"} disabled={pending !== null || !altValid}>
               Record unavailability
             </Button>
           </div>
@@ -221,57 +327,53 @@ export function SpecialFareActionsPanel({
       {!view.pnr ? (
         <div className="flex flex-col gap-3 border-t border-hairline pt-4">
           <p className="text-sm font-medium text-ink-heading">Record PNR</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <TextField label="PNR" name="pnr" value={pnr.pnr} onChange={(e) => setPnr({ ...pnr, pnr: e.target.value })} required />
-            <TextField label="Vendor reference" name="pnrVendorRef" value={pnr.vendorReference} onChange={(e) => setPnr({ ...pnr, vendorReference: e.target.value })} hint="From the quote — change only if it's different." />
-          </div>
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-end gap-3">
+            <TextField label="PNR" name="pnr" value={pnr} onChange={(e) => setPnr(e.target.value)} required className="sm:max-w-xs" />
             <Button
               type="button"
               size="sm"
-              onClick={() => void run("PNR", { action: "RECORD_PNR", pnr: pnr.pnr.trim(), vendorReference: pnr.vendorReference.trim() || undefined })}
+              onClick={() => void run("PNR", { action: "RECORD_PNR", pnr: pnr.trim() })}
               isLoading={pending === "PNR"}
-              disabled={pending !== null || pnr.pnr.trim().length < 4}
+              disabled={pending !== null || pnr.trim().length < 4}
             >
               Record PNR
             </Button>
           </div>
         </div>
-      ) : !view.ticketIssuedAt ? (
+      ) : pendingTickets.length > 0 ? (
         <div className="flex flex-col gap-3 border-t border-hairline pt-4">
           <p className="text-sm font-medium text-ink-heading">Issue Ticket</p>
+          {view.tickets.length > 1 && pendingTickets.length > 1 ? (
+            <fieldset className="flex flex-col gap-1.5">
+              <legend className="mb-1 text-xs text-ink-secondary">This ticket file is for (tick one or more — upload only the tickets issued so far):</legend>
+              {pendingTickets.map((ticket) => (
+                <label key={ticket.passengerId} className="flex items-center gap-2 text-sm text-ink-primary">
+                  <input
+                    type="checkbox"
+                    checked={ticketFor.includes(ticket.passengerId)}
+                    onChange={() =>
+                      setTicketFor((current) => (current.includes(ticket.passengerId) ? current.filter((id) => id !== ticket.passengerId) : [...current, ticket.passengerId]))
+                    }
+                  />
+                  {ticket.fullName}
+                </label>
+              ))}
+            </fieldset>
+          ) : null}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {view.tickets.map((t) => (
-              <TextField
-                key={t.passengerId}
-                label={`Ticket number — ${t.fullName}`}
-                name={`ticket-${t.passengerId}`}
-                value={ticketNumbers[t.passengerId] ?? ""}
-                onChange={(e) => setTicketNumbers({ ...ticketNumbers, [t.passengerId]: e.target.value })}
-                required
-              />
-            ))}
-            <TextField label="Issue time" name="issuedAt" type="datetime-local" value={issuedAt} onChange={(e) => setIssuedAt(e.target.value)} hint="Defaults to now." />
             <TextField label="Baggage" name="ticketBaggage" value={baggage} onChange={(e) => setBaggage(e.target.value)} hint="From the quote — change only if it's different." />
-            <label className="flex flex-col gap-1 text-sm text-ink-secondary">
-              Ticket PDF
-              <input type="file" accept="application/pdf,image/*" onChange={(e) => setTicketFile(e.target.files?.[0] ?? null)} />
-            </label>
+            <FormField label="Ticket file (PDF, PNG or JPG)" htmlFor={`sf-ticket-${bookingId}`}>
+              <FilePickerButton id={`sf-ticket-${bookingId}`} accept={ALLOWED_TICKET_TYPES.join(",")} fileName={ticketFile?.name ?? null} onFile={setTicketFile} disabled={pending !== null} />
+            </FormField>
           </div>
           <div className="flex justify-end">
-            <Button type="button" size="sm" onClick={() => void submitTicket()} isLoading={pending === "ISSUE_TICKET"} disabled={pending !== null || !allTicketNumbers || !ticketFile}>
-              Issue & Deliver Ticket
+            <Button type="button" size="sm" onClick={() => void submitTicket()} isLoading={pending === "ISSUE_TICKET"} disabled={pending !== null || !ticketFile || chosen.length === 0}>
+              Upload &amp; Deliver Ticket
             </Button>
           </div>
         </div>
       ) : (
-        <ul className="flex flex-col gap-1 border-t border-hairline pt-4 text-sm text-ink-secondary">
-          {view.tickets.map((t) => (
-            <li key={t.passengerId}>
-              {t.fullName}: <span className="font-medium text-ink-primary">{t.ticketNumber ?? "—"}</span>
-            </li>
-          ))}
-        </ul>
+        <p className="border-t border-hairline pt-4 text-sm text-ink-secondary">Every passenger&apos;s ticket has been delivered{view.ticketIssuedAt ? ` (${fmt(view.ticketIssuedAt)})` : ""}.</p>
       )}
     </section>
   );

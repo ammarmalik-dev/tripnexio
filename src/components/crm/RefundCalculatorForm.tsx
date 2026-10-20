@@ -19,7 +19,7 @@ interface RefundCalculatorFormProps {
   /** Step 15 (audit §7.4) — the applicable per-service refund rule, computed server-side (see GET /api/bookings/[id]). Always `allowed` here — PaymentPanel hides this form entirely when it isn't. */
   refundRule: RefundRuleResult;
   /** This booking's own passengers — CRM.md §21 (Step 14) passenger-level partial refund selection. Empty selection = whole-booking refund, unchanged from before this step. */
-  passengers: { id: string; fullName: string }[];
+  passengers: { id: string; fullName: string; selling?: number | null }[];
   onSubmit: (values: CreateRefundValues) => Promise<void>;
   onCancel: () => void;
   submitting: boolean;
@@ -57,7 +57,12 @@ export function RefundCalculatorForm({
 
   const watched = watch();
   // Computed by the server from the payment itself; shown read-only here.
-  const paidAmount = defaultPaidAmount;
+  // Client doc 2026-10-20 (A14) — some passengers selected: their share of the payment (as the server works it out).
+  const partial = selectedPassengerIds.length > 0 && selectedPassengerIds.length < passengers.length;
+  const totalSelling = passengers.reduce((sum, passenger) => sum + (passenger.selling ?? 0), 0);
+  const selectedSelling = passengers.filter((passenger) => selectedPassengerIds.includes(passenger.id)).reduce((sum, passenger) => sum + (passenger.selling ?? 0), 0);
+  const share = partial ? (totalSelling > 0 ? selectedSelling / totalSelling : selectedPassengerIds.length / passengers.length) : 1;
+  const paidAmount = Math.round(defaultPaidAmount * share * 100) / 100;
   const cancellationCharge = Number(watched.cancellationCharge) || 0;
   const gatewayCharge = Number(watched.gatewayCharge) || 0;
   const previewAmount = computeRefundAmount({
@@ -107,7 +112,7 @@ export function RefundCalculatorForm({
       ) : null}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <FormField label="Paid Amount (₹)" htmlFor="refund-paid-amount">
+        <FormField label={partial ? "Selected passengers' share (₹)" : "Paid Amount (₹)"} htmlFor="refund-paid-amount">
           <div id="refund-paid-amount" className="rounded-md border border-hairline bg-surface-2 px-3.5 py-2.5 text-sm font-medium text-ink-primary">
             ₹{paidAmount.toLocaleString("en-IN")}
           </div>

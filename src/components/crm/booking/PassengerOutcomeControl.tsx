@@ -60,7 +60,9 @@ export function PassengerOutcomeControl({
   return (
     <div className="mt-2 flex flex-col gap-1.5 border-t border-hairline pt-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs font-medium text-ink-tertiary">Passenger result</span>
+        <span className="text-xs font-medium text-ink-tertiary" title="This passenger's own outcome — used for partial approval / cancellation and their refund share">
+          Result for this passenger
+        </span>
         <div className="flex items-center gap-2">
           {outcome ? <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", OUTCOME_STYLE[outcome])}>{PASSENGER_OUTCOME_LABELS[outcome]}</span> : null}
           <label htmlFor={`outcome-${passengerId}`} className="sr-only">
@@ -74,7 +76,7 @@ export function PassengerOutcomeControl({
             className={cn(fieldControlClass, fieldBorderClass(false), "h-8 w-auto min-w-[120px] text-xs")}
           >
             <option value="" disabled>
-              {outcome ? "Change…" : "Set result…"}
+              {outcome ? "Change result…" : "Approved / Rejected / Cancelled…"}
             </option>
             {(Object.keys(PASSENGER_OUTCOME_LABELS) as PassengerOutcome[])
               .filter((value) => value !== outcome)

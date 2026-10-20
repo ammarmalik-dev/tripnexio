@@ -663,6 +663,19 @@ export async function buildLeadPassengers(
       ? list.map((p) => ({ fullName: p.fullName ?? collected.fullName, passportNumber: p.passportNumber, paxType: p.paxType }))
       : undefined;
   }
+  // Client doc 2026-10-20 (A4) — a Special Fare request keeps one passenger per Adult / Child / Infant it was asked
+  // for (the contact first; the others named by type until staff add their names), so fares and tickets
+  // count every traveller — not a single adult.
+  if (serviceType === "FLIGHT_SPECIAL_FARE") {
+    const list = botPassengers(collected);
+    if (list.length <= 1) return undefined;
+    const typeLabel = { ADULT: "Adult", CHILD: "Child", INFANT: "Infant" } as const;
+    const seen = { ADULT: 0, CHILD: 0, INFANT: 0 };
+    return list.map((p, index) => {
+      seen[p.paxType] += 1;
+      return { fullName: index === 0 ? collected.fullName : `${typeLabel[p.paxType]} ${seen[p.paxType]} (name to be confirmed)`, paxType: p.paxType };
+    });
+  }
   if (serviceType !== "VISA_CHANGE") return undefined;
   const nationality = collected.nationalityId
     ? await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } })

@@ -10,6 +10,7 @@ import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-fil
 import { deliverOutput } from "@/lib/outputs/deliver-output";
 import { describeError } from "@/lib/api/describe-error";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import {
   alternativeOptionSchema,
   confirmAvailability,
@@ -33,8 +34,8 @@ const actionSchema = z.discriminatedUnion("action", [
 /**
  * P16 — Flight Special Fare post-payment staff actions (Flight_Special_Fare.md
  * §17-20): Confirm Availability, Unavailable (with an alternative option or
- * none), Record PNR, Issue Ticket (ticket number per passenger, issue time,
- * baggage, ticket PDF -> P09 delivery -> Ticket Issued). Status moves go
+ * none), Record PNR, Issue Ticket (client doc 2026-10-20: the ticket file per
+ * passenger, PNR only -> P09 delivery -> Ticket Issued once all are issued). Status moves go
  * through the service status engine, so the configured transitions decide
  * what's allowed from the booking's current status.
  */
@@ -70,12 +71,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     if (input.action === "ISSUE_TICKET") {
       if (!booking.pnr) return jsonError(409, "Record the PNR first — PNR and ticket issuance are separate steps.");
-      if (booking.ticketIssuedAt) return jsonError(409, "The ticket was already issued for this booking.");
       const bookingPassengerIds = new Set(booking.passengers.map((row) => row.passengerId));
-      const given = new Map(input.tickets.map((ticket) => [ticket.passengerId, ticket.ticketNumber]));
-      if ([...given.keys()].some((pid) => !bookingPassengerIds.has(pid)) || [...bookingPassengerIds].some((pid) => !given.get(pid))) {
-        return jsonError(400, "Enter a ticket number for every passenger on this booking.", { tickets: ["One ticket number per passenger."] });
+      if (input.passengerIds.some((pid) => !bookingPassengerIds.has(pid))) {
+        return jsonError(400, "That passenger isn't on this booking.", { passengerIds: ["Select passengers on this booking."] });
       }
+      // Client doc 2026-10-20 (A8) — only the tickets issued so far; each passenger's ticket is tracked on its own.
+      const already = await db.document.findMany({ where: { bookingId: id, type: "TICKET_PDF", purgedAt: null }, select: { passengerId: true } });
+      const issuedIds = new Set(already.map((row) => row.passengerId));
+      if (issuedIds.has(null)) return jsonError(409, "A ticket for every passenger was already delivered.");
+      const pending = input.passengerIds.filter((pid) => !issuedIds.has(pid));
+      if (pending.length === 0) return jsonError(409, "Those passengers already have their ticket.");
       let fileUrl: string;
       try {
         fileUrl = (await saveUploadedFile(input.fileBase64)).url;
@@ -83,23 +88,30 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         if (error instanceof UploadValidationError) return jsonError(error.status, error.message);
         throw error;
       }
-      const issuedAt = input.issuedAt ? new Date(input.issuedAt) : new Date();
+      const names = booking.passengers.filter((row) => pending.includes(row.passengerId)).map((row) => row.passenger.fullName);
+      const coversRest = pending.length + [...issuedIds].length >= booking.passengers.length;
       await db.$transaction(async (tx) => {
-        for (const row of booking.passengers) {
-          await tx.bookingPassenger.update({ where: { id: row.id }, data: { ticketNumber: given.get(row.passengerId) } });
-        }
-        await tx.booking.update({ where: { id }, data: { ticketIssuedAt: issuedAt, ticketBaggage: input.baggage } });
+        await tx.booking.update({
+          where: { id },
+          data: { ...(coversRest ? { ticketIssuedAt: new Date() } : {}), ...(input.baggage ? { ticketBaggage: input.baggage } : {}) },
+        });
         await writeAudit(tx, {
           entityType: "Booking",
           entityId: id,
           action: "FSF_TICKET_ISSUED",
           byUserId: session.id,
-          note: `Ticket issued ${issuedAt.toISOString()} — ${booking.passengers.map((row) => `${row.passenger.fullName}: ${given.get(row.passengerId)}`).join(", ")}${input.baggage ? `; baggage ${input.baggage}` : ""} (by ${session.name})`,
+          note: `Ticket delivered for ${names.join(", ")}${input.baggage ? `; baggage ${input.baggage}` : ""} (by ${session.name})`,
         });
       });
-      // P09 delivery -> DELIVERED_TICKET_PDF -> "Ticket Issued" (completed), customer notified.
-      await deliverOutput({ booking, outputType: "TICKET_PDF", passengerId: null, fileUrl, actor, verb: "issued and delivered" });
-      return jsonSuccess({ message: "Ticket issued and delivered to the customer." });
+      // P09 delivery -> once every passenger has a ticket, DELIVERED_TICKET_PDF -> "Ticket Issued"; the customer gets each ticket.
+      await deliverOutput({ booking, outputType: "TICKET_PDF", passengerId: pending[0], passengerIds: pending, fileUrl, actor, verb: "issued and delivered" });
+      return jsonSuccess({ message: coversRest ? "Ticket delivered — every passenger now has a ticket." : `Ticket delivered for ${names.join(", ")}.` });
+    }
+
+    // Client doc 2026-10-20 (A10) — once a ticket is delivered, only an Admin may record the flight as unavailable.
+    if (input.action === "UNAVAILABLE" && !session.permissions.includes(ADMIN_FULL_PERMISSION)) {
+      const delivered = await db.document.count({ where: { bookingId: id, type: "TICKET_PDF" } });
+      if (delivered > 0) return jsonError(409, "A ticket has already been delivered — only an Admin can mark this booking unavailable.");
     }
 
     const result =

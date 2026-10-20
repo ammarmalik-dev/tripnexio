@@ -63,12 +63,19 @@ function toPayload(form: FormState) {
   };
 }
 
+/**
+ * Client doc 2026-10-20 (A15) — the refund policy lives in one place: the cancellation fee is edited under
+ * Service Configuration → Refund config ("refund"), the rates under the Pricing Dashboard ("pricing").
+ */
+type Focus = "pricing" | "refund";
+
 function RateFields({
   idPrefix,
   form,
   onChange,
   errors,
   disabled,
+  focus,
 }: {
   /** Keeps control ids unique when several cards are on screen at once. */
   idPrefix: string;
@@ -76,9 +83,28 @@ function RateFields({
   onChange: (next: FormState) => void;
   errors: FieldErrors;
   disabled: boolean;
+  focus: Focus;
 }) {
+  if (focus === "refund") {
+    return (
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <TextField
+          label="Cancellation fee per booking (₹)"
+          name={`${idPrefix}-cancellationFee`}
+          type="number"
+          min={0}
+          placeholder="Not set"
+          hint="Shown before payment; deducted on cancellation before forwarding."
+          value={form.cancellationFee}
+          onChange={(event) => onChange({ ...form, cancellationFee: event.target.value })}
+          error={errors.cancellationFee?.[0]}
+          disabled={disabled}
+        />
+      </div>
+    );
+  }
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <TextField
         label="Rate per applicant (₹)"
         name={`${idPrefix}-rate`}
@@ -101,18 +127,6 @@ function RateFields({
         disabled={disabled}
       />
       <TextField
-        label="Cancellation fee per booking (₹)"
-        name={`${idPrefix}-cancellationFee`}
-        type="number"
-        min={0}
-        placeholder="Not set"
-        hint="Shown before payment; deducted on cancellation before forwarding."
-        value={form.cancellationFee}
-        onChange={(event) => onChange({ ...form, cancellationFee: event.target.value })}
-        error={errors.cancellationFee?.[0]}
-        disabled={disabled}
-      />
-      <TextField
         label="Display Order"
         name={`${idPrefix}-displayOrder`}
         type="number"
@@ -125,7 +139,7 @@ function RateFields({
   );
 }
 
-function DestinationCard({ destination, onSaved }: { destination: DestinationData; onSaved: (d: DestinationData) => void }) {
+function DestinationCard({ destination, onSaved, focus }: { destination: DestinationData; onSaved: (d: DestinationData) => void; focus: Focus }) {
   const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState>(toFormState(destination));
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -199,7 +213,7 @@ function DestinationCard({ destination, onSaved }: { destination: DestinationDat
           {destination.active ? "Disable" : "Enable"}
         </Button>
       </div>
-      <RateFields idPrefix={`destination-${destination.id}`} form={form} onChange={setForm} errors={errors} disabled={saving} />
+      <RateFields idPrefix={`destination-${destination.id}`} form={form} onChange={setForm} errors={errors} disabled={saving} focus={focus} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -265,7 +279,7 @@ function NewDestinationForm({
         error={errors.countryId?.[0]}
         disabled={creating || availableCountries.length === 0}
       />
-      <RateFields idPrefix="new-destination" form={form} onChange={setForm} errors={errors} disabled={creating} />
+      <RateFields idPrefix="new-destination" form={form} onChange={setForm} errors={errors} disabled={creating} focus="pricing" />
       <div className="flex justify-end">
         <Button
           type="button"
@@ -288,7 +302,7 @@ function NewDestinationForm({
  * that country's destination and pre-selects it on the add form when it isn't
  * set up yet. Absent = every destination, as before.
  */
-export function ReturnTicketDestinationsManager({ countryId }: { countryId?: string } = {}) {
+export function ReturnTicketDestinationsManager({ countryId, focus = "pricing" }: { countryId?: string; focus?: Focus } = {}) {
   const [state, setState] = useState<FetchState>("loading");
   const [destinations, setDestinations] = useState<DestinationData[]>([]);
   const [countries, setCountries] = useState<CountryData[]>([]);
@@ -435,6 +449,7 @@ export function ReturnTicketDestinationsManager({ countryId }: { countryId?: str
               {pageItems.map((destination) => (
                 <DestinationCard
                   key={destination.id}
+                  focus={focus}
                   destination={destination}
                   onSaved={(updated) => setDestinations((current) => current.map((d) => (d.id === updated.id ? updated : d)))}
                 />
@@ -444,12 +459,14 @@ export function ReturnTicketDestinationsManager({ countryId }: { countryId?: str
           )}
         </>
       )}
-      <NewDestinationForm
-        key={`${defaultCountryId ?? ""}-${destinations.length}`}
-        defaultCountryId={defaultCountryId}
-        availableCountries={availableCountries}
-        onCreated={(created) => setDestinations((current) => [...current, created])}
-      />
+      {focus === "refund" ? null : (
+        <NewDestinationForm
+          key={`${defaultCountryId ?? ""}-${destinations.length}`}
+          defaultCountryId={defaultCountryId}
+          availableCountries={availableCountries}
+          onCreated={(created) => setDestinations((current) => [...current, created])}
+        />
+      )}
     </div>
   );
 }

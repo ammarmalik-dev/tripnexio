@@ -7,6 +7,8 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
 import { OUTPUT_TYPES, OUTPUTS_BY_SERVICE } from "@/lib/outputs/output-types";
 import { hasReachedStatusEvent } from "@/lib/service-status/engine";
+import { linkedOtbState } from "@/lib/return-ticket/operations";
+import { computeReservationExpiry } from "@/lib/bookings/reservation";
 import { deliverOutput } from "@/lib/outputs/deliver-output";
 import { describeError } from "@/lib/api/describe-error";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -19,6 +21,8 @@ const deliverSchema = z.object({
   outputType: z.enum(OUTPUT_TYPES, { error: "Select what you're delivering" }),
   /** The passenger this output belongs to; omit for a booking-level output (e.g. a group package). */
   passengerId: z.string().min(1).nullable().optional(),
+  /** Client doc 2026-10-20 (B5) — one file for several passengers. */
+  passengerIds: z.array(z.string().min(1)).max(50).optional(),
   fileBase64: z.string().min(1, "Choose a file"),
 });
 
@@ -74,21 +78,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" && parsed.data.outputType === "TICKET_PDF" && !booking.pnr) {
     return jsonError(409, "Record the PNR first, then use Issue Ticket.");
   }
-  // P17 — a Return Ticket PDF is delivered only after Issue Reservation (which itself waits for a linked OTB's approval).
-  if (
-    booking.lead.serviceType === "RETURN_TICKET" &&
-    (parsed.data.outputType === "RESERVATION_PDF" || parsed.data.outputType === "TICKET_PDF") &&
-    !booking.reservationIssuedAt
-  ) {
-    return jsonError(409, "Issue the reservation first, then upload the reservation PDF.");
+  // P17 — a Return Ticket is never issued before a linked OTB is approved. Client doc 2026-10-20 (B5): uploading the
+  // ticket records the reservation as issued if staff hadn't pressed "Issue Reservation" (no separate step needed).
+  const issuesReservation =
+    booking.lead.serviceType === "RETURN_TICKET" && (parsed.data.outputType === "RESERVATION_PDF" || parsed.data.outputType === "TICKET_PDF") && !booking.reservationIssuedAt;
+  if (issuesReservation) {
+    const otbState = await linkedOtbState(id);
+    if (!otbState.issuanceAllowed) {
+      return jsonError(409, `The linked OTB booking ${otbState.otb?.bookingId} isn't approved yet — the ticket can't be issued before OTB approval.`);
+    }
   }
   // P13 — the extended visa PDF follows a recorded "Extended" outcome.
   if (booking.lead.serviceType === "VISA_EXTENSION" && parsed.data.outputType === "EXTENDED_VISA_PDF" && booking.extensionOutcome !== "EXTENDED") {
     return jsonError(409, "Record the extension outcome as Extended before delivering the extended visa PDF.");
   }
 
-  const passengerId = parsed.data.passengerId ?? null;
-  if (passengerId && !booking.passengers.some((row) => row.passengerId === passengerId)) {
+  const passengerIds = parsed.data.passengerIds?.length ? parsed.data.passengerIds : parsed.data.passengerId ? [parsed.data.passengerId] : [];
+  const passengerId = passengerIds[0] ?? null;
+  if (passengerIds.some((pid) => !booking.passengers.some((row) => row.passengerId === pid))) {
     return jsonError(400, "That passenger isn't on this booking.", { passengerId: ["Select a passenger on this booking."] });
   }
 
@@ -101,10 +108,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(500, "Couldn't save the file. Please try again.");
   }
 
+  if (issuesReservation) {
+    const issuedAt = new Date();
+    await db.booking.update({ where: { id }, data: { reservationIssuedAt: issuedAt, reservationExpiresAt: computeReservationExpiry(issuedAt), reservationExpired: false } });
+  }
+
   const document = await deliverOutput({
     booking,
     outputType: parsed.data.outputType,
     passengerId,
+    passengerIds,
     fileUrl,
     actor: { userId: session.id, label: `by ${session.name}` },
   });

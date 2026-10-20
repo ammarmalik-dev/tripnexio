@@ -7,6 +7,8 @@ import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log"
 import { getOpenDelayRecords, type DelayRecord } from "@/lib/crm/delays";
 import { notifyStaff } from "@/lib/staff-notifications/notify";
 import { leadOwnerOrPermission } from "@/lib/staff-notifications/triggers";
+import { holdBookingSilently } from "@/lib/service-status/engine";
+import { createTask } from "@/lib/tasks/create-task";
 
 const HOUR_MS = 60 * 60 * 1000;
 /** A due/overdue task re-notifies at most once a day while it stays open. */
@@ -18,6 +20,7 @@ const IST_OFFSET_MS = 330 * 60 * 1000;
 
 const FOLLOW_UP_EVENT = "STAFF_FOLLOW_UP_DUE";
 const DELAY_EVENT = "STAFF_DELAY";
+const TRAVEL_PASSED_EVENT = "TRAVEL_DATE_PASSED";
 
 /** The instant the current IST calendar day ends. */
 function endOfTodayIst(now: Date): Date {
@@ -113,11 +116,47 @@ export async function POST(request: NextRequest) {
         delaysNotified++;
       }
 
+      // --- TRAVEL DATE PASSED (client doc 2026-10-20, A18) ---------------------
+      // A paid booking whose travel date is more than 24 hours behind and that isn't finished: a task for its
+      // staff and the booking On Hold (internal — no customer message), once per booking.
+      const travelCutoff = new Date(now.getTime() - 24 * HOUR_MS);
+      const stale = await db.booking.findMany({
+        where: {
+          status: { in: ["CONFIRMED", "PROCESSING"] },
+          lead: { travelDate: { lt: travelCutoff } },
+          OR: [{ serviceStatusId: null }, { serviceStatus: { isTerminal: false, OR: [{ systemEvent: null }, { systemEvent: { not: "ON_HOLD" } }] } }],
+        },
+        select: { id: true, bookingId: true, leadId: true, lead: { select: { serviceType: true, travelDate: true } } },
+        take: 200,
+      });
+      let travelHolds = 0;
+      for (const booking of stale) {
+        if (await wasRecentlyReminded(TRAVEL_PASSED_EVENT, "Booking", booking.id, 365 * 24 * HOUR_MS)) continue;
+        const held = await db.$transaction(async (tx) => {
+          const moved = await holdBookingSilently(tx, booking.id, "automatic hold", `travel date ${booking.lead.travelDate?.toISOString().slice(0, 10)} passed more than 24 hours ago`);
+          await createTask(tx, {
+            type: "MANUAL_VERIFICATION",
+            priority: "HIGH",
+            title: `Travel date passed — check booking ${booking.bookingId}`,
+            reason: "The travel date passed more than 24 hours ago and the service isn't finished; the booking was put On Hold.",
+            entityType: "Booking",
+            entityId: booking.id,
+            leadId: booking.leadId,
+            bookingId: booking.id,
+            serviceType: booking.lead.serviceType,
+          });
+          return moved;
+        });
+        await logReminder(TRAVEL_PASSED_EVENT, "Booking", booking.id);
+        if (held) travelHolds++;
+      }
+
       return {
         dueTasksChecked: dueTasks.length,
         followUpsNotified,
         delayedBookingsChecked: byBooking.size,
         delaysNotified,
+        travelHolds,
       };
     });
 

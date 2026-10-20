@@ -4693,6 +4693,7 @@ VALUES ('nt_' || md5('RVT_TICKET_ISSUED/EMAIL'), 'RVT_TICKET_ISSUED', 'EMAIL', '
 Your Return Verified Ticket reservation for request {{booking_id}} has been issued.
 Passenger(s): {{passenger_names}}
 Travel date: {{travel_date}}
+PNR: {{pnr}}
 
 Your ticket/reservation PDF is attached.
 Please check the details carefully. Acceptance is subject to the relevant airline and authority requirements.
@@ -4984,6 +4985,8 @@ Your ticket for {{booking_id}} has been issued.
 Passenger(s): {{passenger_names}}
 Route: {{origin}} → {{destination}} | Date: {{travel_date}}
 Flight: {{airline_flight_number}}
+PNR: {{pnr}}
+Baggage: {{baggage}}
 Check all details immediately and report errors within 12 hours of ticket issuance.
 
 Airport Reporting: Arrive at least 2 hours before domestic flights and 4 hours before international flights.
@@ -5001,7 +5004,7 @@ ON CONFLICT ("event", "channel") DO NOTHING;
 INSERT INTO "NotificationTemplate" ("id", "event", "channel", "subject", "body", "active", "heading", "ctaLabel", "ctaLink", "createdAt", "updatedAt")
 VALUES ('nt_' || md5('SF_15/WHATSAPP'), 'SF_15', 'WHATSAPP', NULL, 'Hi {{customer_name}},
 
-Your ticket for {{booking_id}} has been issued. Route: {{origin}} → {{destination}} | Date: {{travel_date}} | Flight: {{airline_flight_number}}. Download and check all details immediately; report errors within 12 hours. Arrive at least 2 hours before domestic flights and 4 hours before international flights. Carry required ID/passport, visas and transit documents; confirm terminal, flight status, check-in and baggage rules with the airline. Passengers are responsible for visa, transit, immigration and OTB requirements where applicable. Have a safe and pleasant journey with TripNexio!', true, NULL, 'Download Ticket', 'ticket_download_link', now(), now())
+Your ticket for {{booking_id}} has been issued. Route: {{origin}} → {{destination}} | Date: {{travel_date}} | Flight: {{airline_flight_number}} | PNR: {{pnr}} | Baggage: {{baggage}}. Download and check all details immediately; report errors within 12 hours. Arrive at least 2 hours before domestic flights and 4 hours before international flights. Carry required ID/passport, visas and transit documents; confirm terminal, flight status, check-in and baggage rules with the airline. Passengers are responsible for visa, transit, immigration and OTB requirements where applicable. Have a safe and pleasant journey with TripNexio!', true, NULL, 'Download Ticket', 'ticket_download_link', now(), now())
 ON CONFLICT ("event", "channel") DO NOTHING;
 
 INSERT INTO "NotificationTemplate" ("id", "event", "channel", "subject", "body", "active", "heading", "ctaLabel", "ctaLink", "createdAt", "updatedAt")

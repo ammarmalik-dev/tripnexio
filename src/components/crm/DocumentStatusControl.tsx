@@ -83,7 +83,7 @@ export function DocumentStatusControl({ documentId, status, rejectionReason, onC
               className={cn(fieldControlClass, fieldBorderClass(false), "h-8 w-auto min-w-[130px] text-xs")}
             >
               <option value="" disabled>
-                Move to…
+                Change document status…
               </option>
               {nextStatuses.map((next) => (
                 <option key={next} value={next}>

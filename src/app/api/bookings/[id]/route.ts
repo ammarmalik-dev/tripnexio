@@ -56,6 +56,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   if (!found) return jsonError(404, "Booking not found.");
   // Client doc 2026-10-15 (I6) — one Booking Documents set: the booking's own and the ones uploaded with the request.
   const booking = { ...found, documents: await db.document.findMany({ where: bookingDocumentsWhere(found), orderBy: { createdAt: "desc" } }) };
+  const ticketDocs = booking.documents.filter((doc) => doc.type === "TICKET_PDF" && doc.bookingId === booking.id && !doc.purgedAt);
   const scopeError = assertServiceAccess(auth.session, booking.lead.serviceType);
   if (scopeError) return scopeError;
   const ownershipError = assertOwnsRecord(auth.session, booking.lead.assignedStaffId);
@@ -181,7 +182,14 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             // Client 2026-10-13 — PNR / ticket steps start from what the selected quote already says (no re-typing).
             quoteBaggage: selectedQuotation?.baggageAllowance ?? null,
             quoteVendorReference: selectedQuotation?.vendorReference ?? null,
-            tickets: booking.passengers.map((row) => ({ passengerId: row.passenger.id, fullName: row.passenger.fullName, ticketNumber: row.ticketNumber })),
+            // Client doc 2026-10-20 (A8) — each passenger's ticket: issued (a delivered ticket file) or pending.
+            tickets: booking.passengers.map((row) => ({
+              passengerId: row.passenger.id,
+              fullName: row.passenger.fullName,
+              ticketNumber: row.ticketNumber,
+              issued: ticketDocs.some((doc) => doc.passengerId === null || doc.passengerId === row.passenger.id),
+            })),
+            canMarkUnavailable: ticketDocs.length === 0 || auth.session.permissions.includes(ADMIN_FULL_PERMISSION),
           }
         : null,
     // P18 — OTB airline timeline for the staff actions panel.

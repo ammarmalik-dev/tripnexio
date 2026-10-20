@@ -331,8 +331,8 @@ function ReturnTicketRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<R
         <div className="min-w-0">
           <p className={cn("text-sm", row.active ? "text-ink-primary" : "text-ink-tertiary line-through")}>Per applicant (website price)</p>
           <p className="text-xs text-ink-tertiary">
-            {row.airlineFeePerApplicant > 0 ? `Airline fee ${money(row.airlineFeePerApplicant)} · ` : ""}
-            {row.cancellationFee !== null ? `Cancellation fee ${money(row.cancellationFee)}` : "No cancellation fee"}
+            {/* Client doc 2026-10-20 (A15) — the cancellation fee is refund policy (Service Configuration → Refund config). */}
+            {row.airlineFeePerApplicant > 0 ? `Airline fee ${money(row.airlineFeePerApplicant)}` : ""}
             {!row.active ? " · disabled" : ""}
           </p>
         </div>

@@ -9,8 +9,15 @@ export interface CheckoutDocumentType {
   required: boolean;
 }
 
-/** Services whose customer uploads documents on the checkout page after payment. */
-const CHECKOUT_SERVICES: ReadonlySet<ServiceType> = new Set<ServiceType>(["NEW_VISA", "RETURN_TICKET", "OTB"]);
+/**
+ * Services whose customer uploads documents on the checkout page after payment. Client doc 2026-10-20:
+ * Special Fare (the Government ID of every passenger, A5) and Visa Change (the documents Admin configured
+ * for the passengers' nationality, D10) too.
+ */
+const CHECKOUT_SERVICES: ReadonlySet<ServiceType> = new Set<ServiceType>(["NEW_VISA", "RETURN_TICKET", "OTB", "FLIGHT_SPECIAL_FARE", "VISA_CHANGE"]);
+
+/** Client doc 2026-10-20 (A5) — what a Special Fare passenger uploads when Admin hasn't listed documents for the service. */
+const SPECIAL_FARE_DEFAULT_DOCUMENT: CheckoutDocumentType = { type: "Government ID", label: "Government ID / Passport", required: true };
 
 /**
  * Return Ticket/OTB documents were a hard-coded list before P06, stored with
@@ -103,6 +110,34 @@ export async function getNewVisaPageDocuments(countryId?: string | null): Promis
   return (page?.documents ?? []).map((name) => name.trim()).filter(Boolean);
 }
 
+/**
+ * Client doc 2026-10-20 (D10) — a Visa Change booking's documents: Admin's Visa Change document rows that apply
+ * to every nationality or to one of the booking's passengers' nationalities.
+ */
+async function getVisaChangeDocumentTypes(bookingId: string | undefined): Promise<CheckoutDocumentType[]> {
+  const passengers = bookingId
+    ? await db.bookingPassenger.findMany({ where: { bookingId }, select: { passenger: { select: { nationality: true, nationalityId: true } } } })
+    : [];
+  const nationalityIds = passengers.map((row) => row.passenger.nationalityId).filter((id): id is string => !!id);
+  const nationalityNames = passengers.map((row) => row.passenger.nationality?.trim()).filter((name): name is string => !!name);
+  const requirements = await db.documentRequirement.findMany({
+    where: {
+      serviceType: "VISA_CHANGE",
+      active: true,
+      OR: [
+        { nationality: null, nationalityId: null },
+        ...(nationalityIds.length ? [{ nationalityId: { in: nationalityIds } }] : []),
+        ...nationalityNames.map((name) => ({ nationalityId: null, nationality: { equals: name, mode: "insensitive" as const } })),
+      ],
+    },
+    orderBy: [{ required: "desc" }, { documentName: "asc" }],
+  });
+  const seen = new Set<string>();
+  return requirements
+    .filter((requirement) => (seen.has(requirement.documentName) ? false : (seen.add(requirement.documentName), true)))
+    .map((requirement) => ({ type: LEGACY_TYPE_CODES[requirement.documentName.trim().toLowerCase()] ?? requirement.documentName, label: requirement.documentName, required: requirement.required }));
+}
+
 export function isCheckoutService(serviceType: ServiceType): boolean {
   return CHECKOUT_SERVICES.has(serviceType);
 }
@@ -139,7 +174,9 @@ export async function resolveCheckoutDocumentTypes(booking: {
     ? await db.country.findFirst({ where: { code: { equals: countryCode, mode: "insensitive" } } })
     : null;
   if (serviceType === "NEW_VISA") return getNewVisaCheckoutDocumentTypes(country?.id ?? null);
+  if (serviceType === "VISA_CHANGE") return getVisaChangeDocumentTypes(booking.id);
   const types = await getRequirementDocumentTypes(serviceType, country?.id ?? null);
+  if (serviceType === "FLIGHT_SPECIAL_FARE") return types.length > 0 ? types : [SPECIAL_FARE_DEFAULT_DOCUMENT];
   return serviceType === "OTB" ? markTicketsTripNexioProvides(types, booking) : types;
 }
 

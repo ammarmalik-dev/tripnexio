@@ -108,7 +108,8 @@ export function SpecialFareQuoteFields({
     register(name, { setValueAs: (value: string) => (value === "" ? undefined : value) });
 
   const sectorErrors = errors.itinerary;
-  const shownRows = PAX_ROWS.filter((row) => row.key === "adult" || paxCounts[row.key] > 0);
+  // Client doc 2026-10-20 (A11) — vendor cost and selling price for Adult, Child and Infant are always offered.
+  const shownRows = PAX_ROWS;
 
   return (
     <div className="flex flex-col gap-4">

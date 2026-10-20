@@ -106,7 +106,18 @@ function TabPanelContent({ service, country, tab }: { service: ServiceType; coun
     case "sub-services":
       return <SubServicesManager serviceType={service} />;
     case "refunds":
-      return <RefundConfigManager serviceType={service} />;
+      // Client doc 2026-10-20 (A15) — every refund rule in one place, incl. the Return Ticket cancellation fee per destination.
+      return service === "RETURN_TICKET" ? (
+        <div className="flex flex-col gap-6">
+          <RefundConfigManager serviceType={service} />
+          <div className="flex flex-col gap-2">
+            <h3 className="text-sm font-semibold text-ink-heading">Cancellation fee per destination</h3>
+            <ReturnTicketDestinationsManager focus="refund" />
+          </div>
+        </div>
+      ) : (
+        <RefundConfigManager serviceType={service} />
+      );
     case "protection-plan":
       return (
         <div className="flex flex-col gap-6">

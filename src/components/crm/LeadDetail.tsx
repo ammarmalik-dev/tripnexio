@@ -564,7 +564,7 @@ export function LeadDetail({
             content: (
               <div className="flex flex-col gap-5">
                 <RecordSection title="Applicants">
-                  <ApplicantsTable applicants={lead.applicants} />
+                  <ApplicantsTable applicants={lead.applicants} editable={{ leadId: lead.id, onChanged: refresh }} />
                 </RecordSection>
                 <RecordSection title="Passengers & Documents">
                   {lead.passengers.length > 0 ? (

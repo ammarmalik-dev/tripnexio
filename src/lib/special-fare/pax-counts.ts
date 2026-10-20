@@ -19,10 +19,13 @@ function count(value: unknown): number {
  */
 export async function specialFarePaxCounts(lead: { details: unknown; paxCount: number | null }): Promise<PaxCounts> {
   const details = (lead.details ?? {}) as Record<string, unknown>;
+  // The counts the customer gave (bot / manual lead) — client doc 2026-10-20 (A4): never fewer travellers than these.
+  const asked = { adult: count(details.adultCount ?? details.adults), child: count(details.childCount ?? details.children), infant: count(details.infantCount ?? details.infants) };
+  const askedTotal = asked.adult + asked.child + asked.infant;
   const ids = Array.isArray(details.passengerIds) ? details.passengerIds.filter((id): id is string => typeof id === "string") : [];
   if (ids.length > 0) {
     const passengers = await db.passenger.findMany({ where: { id: { in: ids } }, select: { paxType: true } });
-    if (passengers.length > 0) {
+    if (passengers.length > 0 && passengers.length >= askedTotal) {
       return {
         adult: passengers.filter((p) => (p.paxType ?? "ADULT") === "ADULT").length,
         child: passengers.filter((p) => p.paxType === "CHILD").length,
@@ -30,10 +33,7 @@ export async function specialFarePaxCounts(lead: { details: unknown; paxCount: n
       };
     }
   }
-  const adult = count(details.adultCount ?? details.adults);
-  const child = count(details.childCount ?? details.children);
-  const infant = count(details.infantCount ?? details.infants);
-  if (adult + child + infant > 0) return { adult, child, infant };
+  if (askedTotal > 0) return asked;
   return { adult: Math.max(1, lead.paxCount ?? 1), child: 0, infant: 0 };
 }
 
