@@ -37,6 +37,7 @@ interface PaymentListItem {
   customer: { name: string; mobile: string; email: string | null };
   serviceType: ServiceType;
   subService: string | null;
+  serviceDetails?: string | null;
   /** Client doc 2026-10-15 (C4) — Normal / Urgent / Express. */
   processing: string | null;
   countryCode: string | null;
@@ -141,8 +142,8 @@ export function PaymentsTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-
+      {/* Client doc 2026-10-20 (L8) — filters and buttons on one line. */}
+      <div className="flex flex-wrap items-center gap-3 xl:flex-nowrap">
         <label htmlFor="filter-payment-status" className="sr-only">
           Filter by status
         </label>
@@ -244,7 +245,7 @@ export function PaymentsTable() {
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[1150px] border-collapse text-sm">
+          <table className="w-max min-w-full border-collapse text-sm [&_td]:max-w-[16rem] [&_th]:whitespace-nowrap">
             <thead>
               {/* Client testing 2026-10-09 (E13) — same layout as the Bookings table. */}
               <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
@@ -252,10 +253,8 @@ export function PaymentsTable() {
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Mobile</th>
                 <th className="px-4 py-3">Country</th>
-                <th className="px-4 py-3">
-                  Service
-                  <span className="block font-normal text-ink-tertiary">Sub-Service</span>
-                </th>
+                <th className="px-4 py-3">Service</th>
+                <th className="px-4 py-3">Service Details</th>
                 <th className="px-4 py-3">Base</th>
                 <th className="px-4 py-3">GST</th>
                 <th className="px-4 py-3">Gateway Fee</th>
@@ -282,17 +281,17 @@ export function PaymentsTable() {
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
                     <CountryCell name={payment.countryName} code={payment.countryCode} flag={payment.countryFlag} />
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[payment.serviceType]}</span>
-                    {payment.subService ? <span className="block text-xs text-ink-tertiary">{payment.subService}</span> : null}
+                  <td className="px-4 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[payment.serviceType]}</td>
+                  <td className="px-4 py-3 text-ink-secondary">
+                    <span className="line-clamp-2">{[payment.subService, payment.serviceDetails].filter(Boolean).join(" · ") || "—"}</span>
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">{money(payment.amount)}</td>
-                  <td className="px-4 py-3 text-ink-secondary">{money(payment.gstAmount)}</td>
-                  <td className="px-4 py-3 text-ink-secondary">{money(payment.gatewayFee)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{money(payment.amount)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{money(payment.gstAmount)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{money(payment.gatewayFee)}</td>
                   <td className="px-4 py-3">
                     <PaymentStatusBadge status={payment.status} />
                   </td>
-                  <td className="px-4 py-3 text-ink-tertiary">{formatDate(payment.createdAt)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(payment.createdAt)}</td>
                   <td className="px-4 py-3">
                     {payment.status === "PENDING" && payment.method === "GATEWAY" ? (
                       <Button

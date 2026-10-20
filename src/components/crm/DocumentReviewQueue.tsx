@@ -53,7 +53,7 @@ export function DocumentReviewQueue() {
   // lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
-  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
+  const { dateFrom, dateTo, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
   );
@@ -68,7 +68,6 @@ export function DocumentReviewQueue() {
   const { page, pageSize, resetPage, paginationHandlers } = usePaginationState();
   const [statusOverrides, setStatusOverrides] = useState<Record<string, DocumentStatus>>({});
   const [reasonOverrides, setReasonOverrides] = useState<Record<string, string | null>>({});
-
 
   useEffect(() => {
     let cancelled = false;
@@ -115,8 +114,8 @@ export function DocumentReviewQueue() {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3">
-
+      {/* Client doc 2026-10-20 (L11) — every document filter on one line. */}
+      <div className="flex flex-wrap items-center gap-2.5 xl:flex-nowrap">
         <label htmlFor="filter-document-status" className="sr-only">
           Filter by status
         </label>
@@ -127,7 +126,7 @@ export function DocumentReviewQueue() {
             setStatus(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All statuses</option>
           {DOCUMENT_STATUS_OPTIONS.map((option) => (
@@ -147,7 +146,7 @@ export function DocumentReviewQueue() {
             setSort(event.target.value as SortOption);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
@@ -156,36 +155,32 @@ export function DocumentReviewQueue() {
         <Button
           type="button"
           variant="ghost"
-          size="md"
+          size="sm"
           onClick={() => setRefreshNonce((current) => current + 1)}
           disabled={state === "loading"}
         >
           <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
           Refresh
         </Button>
-      </div>
 
-      <DateRangeFilter
-        idPrefix="document"
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onPreset={(days) => {
-          applyPreset(days);
-          resetPage();
-        }}
-        onCustomFrom={(dateOnly) => {
-          applyCustomFrom(dateOnly);
-          resetPage();
-        }}
-        onCustomTo={(dateOnly) => {
-          applyCustomTo(dateOnly);
-          resetPage();
-        }}
-        onClear={() => {
-          clearDates();
-          resetPage();
-        }}
-      />
+        <DateRangeFilter
+          idPrefix="document"
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onCustomFrom={(dateOnly) => {
+            applyCustomFrom(dateOnly);
+            resetPage();
+          }}
+          onCustomTo={(dateOnly) => {
+            applyCustomTo(dateOnly);
+            resetPage();
+          }}
+          onClear={() => {
+            clearDates();
+            resetPage();
+          }}
+        />
+      </div>
 
       <DashboardFilterChip
         label={status.includes(",") ? status.split(",").map((s) => DOCUMENT_STATUS_LABELS[s as DocumentStatus] ?? s).join(", ") : undefined}

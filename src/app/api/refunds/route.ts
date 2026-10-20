@@ -75,6 +75,9 @@ export async function GET(request: NextRequest) {
     gatewayRefundStatus: refund.gatewayRefundStatus,
     createdAt: refund.createdAt,
     bookingDisplayId: refund.payment.booking.bookingId,
+    bookingId: refund.payment.booking.id,
+    // Client doc 2026-10-20 (L10) — the same Refund ID the customer's messages quote.
+    refundReference: refund.gatewayRefundId ?? `RF-${refund.id.slice(-8).toUpperCase()}`,
     leadReferenceId: leadReference(refund.payment.booking.lead),
     customer: { name: refund.payment.booking.customer.name, mobile: refund.payment.booking.customer.mobile },
   }));

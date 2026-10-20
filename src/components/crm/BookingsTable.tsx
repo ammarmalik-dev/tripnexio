@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/Button";
 import { BookingStatusBadge } from "./BookingStatusBadge";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { DashboardFilterChip } from "./DashboardFilterChip";
-import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { StatusPill } from "./StatusPill";
@@ -110,7 +109,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
   const [travelTo, setTravelTo] = useState(() => param("travelTo"));
   // Client testing 2026-10-09 (E13) — search by Booking ID, name, mobile, email or passport.
   const [search] = useState(() => param("search"));
-  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(param("dateFrom"), param("dateTo"));
+  const { dateFrom, dateTo, applyCustomFrom, applyCustomTo } = useDateRangeFilter(param("dateFrom"), param("dateTo"));
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<BookingListItem[]>([]);
@@ -281,6 +280,10 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
           options.vendors.map((vendor) => ({ value: vendor.id, label: vendor.active ? vendor.name : `${vendor.name} (inactive)` }))
         )}
 
+      </div>
+
+      {/* Client doc 2026-10-20 (L6) — filters in two rows: dropdowns, then dates, sort and actions. */}
+      <div className="flex flex-wrap items-center gap-2.5">
         <div className="flex items-center gap-1.5">
           <label htmlFor="filter-booking-travel-from" className="text-xs text-ink-tertiary">
             Travel
@@ -325,33 +328,44 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
           <option value="createdAt_asc">Oldest first</option>
         </select>
 
-        <Button type="button" variant="ghost" size="sm" onClick={() => setRefreshNonce((current) => current + 1)} disabled={state === "loading"}>
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
+        {/* Client doc 2026-10-20 (L6) — creation date From / To (no 7 / 30 / 90-day buttons). */}
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="filter-booking-created-from" className="text-xs text-ink-tertiary">
+            Created
+          </label>
+          <input
+            id="filter-booking-created-from"
+            type="date"
+            aria-label="Created from"
+            value={dateFrom ? dateFrom.slice(0, 10) : ""}
+            max={dateTo ? dateTo.slice(0, 10) : undefined}
+            onChange={(event) => {
+              applyCustomFrom(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
+          />
+          <span className="text-xs text-ink-tertiary">to</span>
+          <input
+            type="date"
+            aria-label="Created to"
+            value={dateTo ? dateTo.slice(0, 10) : ""}
+            min={dateFrom ? dateFrom.slice(0, 10) : undefined}
+            onChange={(event) => {
+              applyCustomTo(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto text-sm")}
+          />
+        </div>
 
-        <ExportCsvButton href={`/api/bookings/export?${buildFilterParams().toString()}`} />
-        <DateRangeFilter
-          idPrefix="booking"
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onPreset={(days) => {
-            applyPreset(days);
-            resetPage();
-          }}
-          onCustomFrom={(dateOnly) => {
-            applyCustomFrom(dateOnly);
-            resetPage();
-          }}
-          onCustomTo={(dateOnly) => {
-            applyCustomTo(dateOnly);
-            resetPage();
-          }}
-          onClear={() => {
-            clearDates();
-            resetPage();
-          }}
-        />
+        <div className="ml-auto flex items-center gap-2">
+          <Button type="button" variant="ghost" size="sm" onClick={() => setRefreshNonce((current) => current + 1)} disabled={state === "loading"}>
+            <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
+            Refresh
+          </Button>
+          <ExportCsvButton href={`/api/bookings/export?${buildFilterParams().toString()}`} />
+        </div>
       </div>
 
       <DashboardFilterChip
@@ -389,7 +403,8 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[1500px] border-collapse text-sm">
+          {/* Client doc 2026-10-20 (L6) — auto column widths, one-line headers, cells at most two lines, horizontal scroll. */}
+          <table className="w-max min-w-full border-collapse text-sm [&_td]:max-w-[16rem] [&_th]:whitespace-nowrap">
             <thead>
               {/* Client testing 2026-10-09 (E13) — the client's table: Title Case headers, PAX under the Booking ID. */}
               <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
@@ -397,10 +412,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                 <th className="px-3 py-3">Customer</th>
                 <th className="px-3 py-3">Mobile</th>
                 <th className="px-3 py-3">Country</th>
-                <th className="px-3 py-3">
-                  Service
-                  <span className="block font-normal text-ink-tertiary">Sub-Service</span>
-                </th>
+                <th className="px-3 py-3">Service</th>
                 <th className="px-3 py-3">Service Details</th>
                 <th className="px-3 py-3">Travel Date</th>
                 <th className="px-3 py-3">Booking Date</th>
@@ -426,18 +438,19 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                       <span className="block text-xs text-ink-tertiary">{booking.paxCount ?? "—"} PAX</span>
                     </td>
                     <td className="px-3 py-3">
-                      <span className="block font-semibold text-ink-heading">{booking.customer.name}</span>
-                      {booking.customer.email ? <span className="block text-xs text-ink-tertiary">{booking.customer.email}</span> : null}
+                      <span className="block truncate font-semibold text-ink-heading">{booking.customer.name}</span>
+                      {booking.customer.email ? <span className="block truncate text-xs text-ink-tertiary">{booking.customer.email}</span> : null}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{booking.customer.mobile}</td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                       <CountryCell name={booking.countryName} code={booking.countryCode} flag={booking.countryFlag} />
                     </td>
-                    <td className="px-3 py-3">
-                      <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[booking.serviceType]}</span>
-                      {booking.subService ? <span className="block text-xs text-ink-tertiary">{booking.subService}</span> : null}
+                    <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[booking.serviceType]}</td>
+                    <td className="px-3 py-3 text-ink-secondary">
+                      <span className="line-clamp-2" title={[booking.subService, booking.serviceDetails].filter(Boolean).join(" · ")}>
+                        {[booking.subService, booking.serviceDetails].filter(Boolean).join(" · ") || "—"}
+                      </span>
                     </td>
-                    <td className="max-w-[14rem] px-3 py-3 text-ink-secondary">{booking.serviceDetails ?? "—"}</td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{formatDay(booking.travelDate)}</td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                       {formatDate(booking.createdAt)}
@@ -446,16 +459,18 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                     <td className="px-3 py-3">
                       {booking.customerStatus ? <StatusPill label={booking.customerStatus} /> : <BookingStatusBadge status={booking.status} />}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <StatusPill label={booking.internalStatus} />
                     </td>
                     <td className="px-3 py-3">
                       {booking.latestPayment ? <PaymentStatusBadge status={booking.latestPayment.status} /> : <span className="text-xs text-ink-tertiary">—</span>}
                     </td>
                     <td className="px-3 py-3 text-ink-secondary">
-                      {booking.poc ? (booking.poc.active ? booking.poc.name : `Unassigned (was ${booking.poc.name})`) : "Unassigned"}
+                      <span className="line-clamp-2">{booking.poc ? (booking.poc.active ? booking.poc.name : `Unassigned (was ${booking.poc.name})`) : "Unassigned"}</span>
                     </td>
-                    <td className="px-3 py-3 text-ink-secondary">{booking.vendorName ?? "—"}</td>
+                    <td className="px-3 py-3 text-ink-secondary">
+                      <span className="line-clamp-2">{booking.vendorName ?? "—"}</span>
+                    </td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{booking.appliedAt ? formatDate(booking.appliedAt) : "—"}</td>
                     <td className="px-3 py-3 text-right">
                       <Link

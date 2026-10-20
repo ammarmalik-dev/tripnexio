@@ -56,7 +56,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
   const [status, setStatus] = useState("");
   const [type, setType] = useState("");
   const [priority, setPriority] = useState("");
-  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
+  const { dateFrom, dateTo, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<TaskListItem[]>([]);
@@ -105,7 +105,8 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Client doc 2026-10-20 (L11) — every task filter on one line. */}
+      <div className="flex flex-wrap items-center gap-2.5 xl:flex-nowrap">
         <label htmlFor="filter-task-type" className="sr-only">
           Filter by task type
         </label>
@@ -194,6 +195,24 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
           Refresh
         </Button>
 
+        <DateRangeFilter
+          idPrefix="task"
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onCustomFrom={(dateOnly) => {
+            applyCustomFrom(dateOnly);
+            resetPage();
+          }}
+          onCustomTo={(dateOnly) => {
+            applyCustomTo(dateOnly);
+            resetPage();
+          }}
+          onClear={() => {
+            clearDates();
+            resetPage();
+          }}
+        />
+
         {canCreate ? (
           <Button type="button" size="md" className="ml-auto" onClick={() => setShowCreate((current) => !current)} aria-expanded={showCreate}>
             {showCreate ? <X className="h-4 w-4" aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
@@ -214,28 +233,6 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
           />
         </div>
       ) : null}
-
-      <DateRangeFilter
-        idPrefix="task"
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onPreset={(days) => {
-          applyPreset(days);
-          resetPage();
-        }}
-        onCustomFrom={(dateOnly) => {
-          applyCustomFrom(dateOnly);
-          resetPage();
-        }}
-        onCustomTo={(dateOnly) => {
-          applyCustomTo(dateOnly);
-          resetPage();
-        }}
-        onClear={() => {
-          clearDates();
-          resetPage();
-        }}
-      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

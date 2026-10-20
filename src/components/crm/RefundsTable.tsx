@@ -33,6 +33,8 @@ interface RefundListItem {
   createdAt: string;
   paymentId: string;
   bookingDisplayId: string;
+  bookingId?: string;
+  refundReference?: string;
   leadReferenceId: string;
   customer: { name: string; mobile: string };
 }
@@ -57,7 +59,7 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
   // Step 53 — read once on mount, so the "Refunds Raised" KPI card's link lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
-  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
+  const { dateFrom, dateTo, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
   );
@@ -119,7 +121,8 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Client doc 2026-10-20 (L10) — every refund filter on one line. */}
+      <div className="flex flex-wrap items-center gap-2.5 xl:flex-nowrap">
 
         <label htmlFor="filter-refund-status" className="sr-only">
           Filter by status
@@ -131,7 +134,7 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
             setStatus(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="">All statuses</option>
           {REFUND_STATUS_OPTIONS.map((option) => (
@@ -151,47 +154,44 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
             setSort(event.target.value as SortOption);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[160px]")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
         </select>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          onClick={() => setRefreshNonce((current) => current + 1)}
-          disabled={state === "loading"}
-        >
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
+        <DateRangeFilter
+          idPrefix="refund"
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onCustomFrom={(dateOnly) => {
+            applyCustomFrom(dateOnly);
+            resetPage();
+          }}
+          onCustomTo={(dateOnly) => {
+            applyCustomTo(dateOnly);
+            resetPage();
+          }}
+          onClear={() => {
+            clearDates();
+            resetPage();
+          }}
+        />
 
-        <ExportCsvButton href={`/api/refunds/export?${buildFilterParams().toString()}`} />
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRefreshNonce((current) => current + 1)}
+            disabled={state === "loading"}
+          >
+            <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
+            Refresh
+          </Button>
+          <ExportCsvButton href={`/api/refunds/export?${buildFilterParams().toString()}`} />
+        </div>
       </div>
-
-      <DateRangeFilter
-        idPrefix="refund"
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onPreset={(days) => {
-          applyPreset(days);
-          resetPage();
-        }}
-        onCustomFrom={(dateOnly) => {
-          applyCustomFrom(dateOnly);
-          resetPage();
-        }}
-        onCustomTo={(dateOnly) => {
-          applyCustomTo(dateOnly);
-          resetPage();
-        }}
-        onClear={() => {
-          clearDates();
-          resetPage();
-        }}
-      />
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">
@@ -223,13 +223,15 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[860px] border-collapse text-sm">
+          <table className="w-max min-w-full border-collapse text-sm [&_th]:whitespace-nowrap">
             <thead>
               <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
                 <th className="px-4 py-3">Booking</th>
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Breakdown</th>
                 <th className="px-4 py-3">Refund Amount</th>
+                <th className="px-4 py-3">Reason</th>
+                <th className="px-4 py-3">Refund ID</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
               </tr>
@@ -238,7 +240,7 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
               {items.map((refund) => (
                 <tr key={refund.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
                   <td className="px-4 py-3 font-medium">
-                    <Link href={`/crm/bookings`} className="text-ink-accent hover:underline">
+                    <Link href={refund.bookingId ? `/crm/bookings/${refund.bookingId}` : "/crm/bookings"} className="text-ink-accent hover:underline">
                       {refund.bookingDisplayId}
                     </Link>
                     <div className="text-xs text-ink-tertiary">{refund.leadReferenceId}</div>
@@ -249,11 +251,16 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
                       <span className="text-xs text-ink-tertiary">{refund.customer.mobile}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-ink-tertiary">
+                  <td className="px-4 py-3 text-xs whitespace-nowrap text-ink-tertiary">
                     Paid {money(refund.paidAmount)} − Cancel {money(refund.cancellationCharge)} − Gateway {money(refund.gatewayCharge)}
-                    {refund.reason ? <div className="mt-0.5">{refund.reason}</div> : null}
                   </td>
-                  <td className="px-4 py-3 font-semibold text-ink-heading">{money(refund.refundAmount)}</td>
+                  <td className="px-4 py-3 font-semibold whitespace-nowrap text-ink-heading">{money(refund.refundAmount)}</td>
+                  <td className="max-w-[16rem] px-4 py-3 text-xs text-ink-secondary">
+                    <span className="line-clamp-2" title={refund.reason ?? undefined}>
+                      {refund.reason ?? "—"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 font-mono text-xs whitespace-nowrap text-ink-secondary">{refund.refundReference ?? "—"}</td>
                   <td className="px-4 py-3">
                     <RefundStatusControl
                       refundId={refund.id}
@@ -264,7 +271,7 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
                       gatewayRefundStatus={refund.gatewayRefundStatus}
                     />
                   </td>
-                  <td className="px-4 py-3 text-ink-tertiary">{formatDate(refund.createdAt)}</td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(refund.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

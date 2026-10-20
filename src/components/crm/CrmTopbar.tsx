@@ -30,7 +30,7 @@ export function CrmTopbar({ staffName, staffRole }: CrmTopbarProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-hairline bg-white/85 px-6 backdrop-blur-md">
+    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-hairline bg-white/85 px-6 backdrop-blur-md">
       {/* Client doc 2026-10-15 (C4) — one 360 search, centred, wide enough to read its full prompt. */}
       <div className="flex min-w-0 flex-1 justify-center">
         <GlobalSearch />

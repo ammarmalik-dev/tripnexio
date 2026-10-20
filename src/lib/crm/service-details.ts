@@ -35,15 +35,18 @@ export function serviceDetailsLine(serviceType: ServiceType, details: unknown, e
     const kept = parts.filter((part): part is string => Boolean(part));
     return kept.length > 0 ? kept.join(separator) : null;
   };
-  const travel = day(data.travelDate);
 
   switch (serviceType) {
     case "NEW_VISA": {
+      // Client doc 2026-10-20 (E7) — the option already ends with its category; don't repeat it.
       const visaType = text(data.visaType);
-      return join([visaType ? capitalise(visaType) : null, text(data.visaOption)], " | ");
+      const option = text(data.visaOption);
+      const repeated = visaType && option?.toLowerCase().includes(visaType.toLowerCase());
+      return join([visaType && !repeated ? capitalise(visaType) : null, option], " | ");
     }
     case "OTB":
-      return join([extra.airlineName ?? text(data.airline), travel ? `Travel ${travel}` : null]);
+      // Client doc 2026-10-20 (L6) — the travel date has its own column; not repeated here.
+      return join([extra.airlineName ?? text(data.airline)]);
     case "RETURN_TICKET": {
       const returnDay = day(data.expectedReturnDate);
       return join([text(data.destinationCountry) ? `To ${text(data.destinationCountry)}` : null, returnDay ? `Return ${returnDay}` : null]);
@@ -51,7 +54,7 @@ export function serviceDetailsLine(serviceType: ServiceType, details: unknown, e
     case "FLIGHT_SPECIAL_FARE": {
       const from = place(data.origin);
       const to = place(data.destination);
-      return join([from && to ? `${from} – ${to}` : (from ?? to), travel ? `Travel ${travel}` : null]);
+      return join([from && to ? `${from} – ${to}` : (from ?? to)]);
     }
     case "VISA_EXTENSION": {
       const expiry = day(data.visaExpiryDate);
@@ -59,7 +62,7 @@ export function serviceDetailsLine(serviceType: ServiceType, details: unknown, e
     }
     case "VISA_CHANGE": {
       const nationality = text(data.nationalityName) ?? text(data.nationality);
-      return join([nationality, travel ? `Travel ${travel}` : null]);
+      return join([nationality]);
     }
     default:
       return null;

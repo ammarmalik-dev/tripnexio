@@ -4,13 +4,13 @@ import { X } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import { DATE_RANGE_PRESETS } from "./useDateRangeFilter";
 
 interface DateRangeFilterProps {
   idPrefix: string;
   dateFrom: string;
   dateTo: string;
-  onPreset: (days: number) => void;
+  /** Kept for callers; the quick 7 / 30 / 90-day buttons were removed (client doc 2026-10-20, L6). */
+  onPreset?: (days: number) => void;
   onCustomFrom: (dateOnly: string) => void;
   onCustomTo: (dateOnly: string) => void;
   onClear: () => void;
@@ -18,22 +18,18 @@ interface DateRangeFilterProps {
 
 /**
  * Step 54 — the one date-range filter UI reused across every CRM list
- * screen: Last 7/30/90 Days quick buttons plus a custom From/To range.
- * Pairs with the `useDateRangeFilter` hook, which owns the actual state.
+ * screen. Client doc 2026-10-20 (L6 / L8–L12) — a compact "Created From / To"
+ * calendar pair (no 7 / 30 / 90-day buttons) so each list's filters fit on
+ * one line. Pairs with the `useDateRangeFilter` hook, which owns the state.
  */
-export function DateRangeFilter({ idPrefix, dateFrom, dateTo, onPreset, onCustomFrom, onCustomTo, onClear }: DateRangeFilterProps) {
+export function DateRangeFilter({ idPrefix, dateFrom, dateTo, onCustomFrom, onCustomTo, onClear }: DateRangeFilterProps) {
   const fromValue = dateFrom ? dateFrom.slice(0, 10) : "";
   const toValue = dateTo ? dateTo.slice(0, 10) : "";
   const hasRange = Boolean(dateFrom || dateTo);
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs text-ink-tertiary">Created (last)</span>
-      {DATE_RANGE_PRESETS.map((preset) => (
-        <Button key={preset.days} type="button" variant="ghost" size="sm" className="h-9 px-2.5" onClick={() => onPreset(preset.days)} aria-label={`Created in the last ${preset.days} days`}>
-          {preset.label}
-        </Button>
-      ))}
+    <div className="flex items-center gap-1.5">
+      <span className="text-xs text-ink-tertiary">Created</span>
 
       <label htmlFor={`${idPrefix}-date-from`} className="sr-only">
         From date
@@ -60,9 +56,8 @@ export function DateRangeFilter({ idPrefix, dateFrom, dateTo, onPreset, onCustom
       />
 
       {hasRange ? (
-        <Button type="button" variant="ghost" size="sm" onClick={onClear}>
+        <Button type="button" variant="ghost" size="sm" className="h-9 px-2" onClick={onClear} aria-label="Clear dates" title="Clear dates">
           <X className="h-3.5 w-3.5" aria-hidden="true" />
-          Clear dates
         </Button>
       ) : null}
     </div>

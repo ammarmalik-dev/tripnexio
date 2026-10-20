@@ -137,22 +137,22 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
   - Remove Refresh; add Search.
   - CRM can delete a customer account and edit the name, email and mobile.
 - [x] L5. Restore email OTP verification at account creation. — DONE: every new signup confirms the email with a 6-digit code
-- [ ] L6. Bookings table:
+- [x] L6. Bookings table: — DONE: Created From/To, two filter rows, sub-service under Service Details, no repeated travel date, one-line headers, 2-line cells, auto widths + scroll
   - Creation-date From / To calendar instead of 7/30/90.
   - Filters within 2 rows.
   - No Sub-service column (details under Service Details), and no repeated travel date.
   - Internal Status, Service Details and Applied to Embassy on one line.
   - Cells max 2 lines, auto column widths, horizontal scroll.
 - [x] L7. Booking status: internal status buttons on the left. The internal status updates the customer status automatically. No reverting of critical statuses. — DONE: c712ee2
-- [ ] L8. Payments: buttons and headings on one line; Service and Service Details in separate columns.
-- [ ] L9. Invoices: filters on one line.
-- [ ] L10. Refunds:
+- [x] L8. Payments: buttons and headings on one line; Service and Service Details in separate columns. — DONE: one-line filters/buttons; Service and Service Details columns
+- [x] L9. Invoices: filters on one line. — DONE: all invoice filters on one line
+- [x] L10. Refunds: — DONE: one-line filters; Amount / Reason / Refund ID columns
   - Filters on one line.
   - Amount, Reason and Refund ID on one line, with reason and ID in separate columns.
-- [ ] L11. Documents & Tasks: filters on one line.
-- [ ] L12. Follow-ups: filters within 2 rows.
-- [ ] L13. Global: compact, no duplicate fields / headings / buttons.
-- [ ] L14. (Screenshot) The Notifications panel is hidden behind the record tabs (z-index).
+- [x] L11. Documents & Tasks: filters on one line. — DONE: documents + tasks filters on one line
+- [x] L12. Follow-ups: filters within 2 rows. — DONE: follow-ups filters in two rows
+- [x] L13. Global: compact, no duplicate fields / headings / buttons. — DONE: compact shared date filter (no 7/30/90 buttons) across lists
+- [x] L14. (Screenshot) The Notifications panel is hidden behind the record tabs (z-index). — DONE: topbar above the record tabs
 
 ## M. Site / Admin
 - [x] M1. Admin Live Activity: every bottom line on a single line. — DONE: compact one-line pagination + single-line rows

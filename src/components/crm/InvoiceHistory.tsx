@@ -61,7 +61,7 @@ const SORT_LABELS: Record<InvoiceSort, string> = {
   total_asc: "Lowest total",
 };
 
-const selectClass = cn(fieldControlClass, fieldBorderClass(false), "w-full sm:w-auto sm:min-w-[150px]");
+const selectClass = cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm");
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -146,7 +146,7 @@ function FilterSelect({ id, label, value, onChange, children }: { id: string; la
 export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) {
   const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null);
   const { page, pageSize, setPage, resetPage, paginationHandlers } = usePaginationState();
-  const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
+  const { dateFrom, dateTo, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
   // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
   const search = "";
   const [serviceType, setServiceType] = useState("");
@@ -299,8 +299,9 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
         <StatCard label="Net" value={money(summary?.net ?? 0)} hint="Invoiced − refunded" loading={loading && !summary} emphasis />
       </section>
 
-      <section aria-label="Invoice filters" className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+      {/* Client doc 2026-10-20 (L9) — every invoice filter on one line. */}
+      <section aria-label="Invoice filters" className="rounded-xl border border-hairline bg-surface-1/70 p-3">
+        <div className="flex flex-wrap items-center gap-2 2xl:flex-nowrap">
 
           <FilterSelect id="invoice-service" label="Filter by service" value={serviceType} onChange={onFilter(setServiceType)}>
             <option value="">All services</option>
@@ -327,9 +328,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
               </option>
             ))}
           </FilterSelect>
-        </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <FilterSelect id="invoice-method" label="Filter by payment method" value={method} onChange={onFilter(setMethod)}>
             <option value="">All methods</option>
             <option value="GATEWAY">Payment gateway</option>
@@ -351,26 +350,25 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
             ))}
           </FilterSelect>
 
+          <DateRangeFilter
+            idPrefix="invoice"
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onCustomFrom={onFilter(applyCustomFrom)}
+            onCustomTo={onFilter(applyCustomTo)}
+            onClear={() => {
+              clearDates();
+              resetPage();
+            }}
+          />
+
           {hasFilters ? (
-            <Button type="button" variant="ghost" size="sm" onClick={clearFilters} className="self-start sm:self-auto">
+            <Button type="button" variant="ghost" size="sm" onClick={clearFilters} className="whitespace-nowrap">
               <X className="h-3.5 w-3.5" aria-hidden="true" />
               Clear filters
             </Button>
           ) : null}
         </div>
-
-        <DateRangeFilter
-          idPrefix="invoice"
-          dateFrom={dateFrom}
-          dateTo={dateTo}
-          onPreset={onFilter(applyPreset)}
-          onCustomFrom={onFilter(applyCustomFrom)}
-          onCustomTo={onFilter(applyCustomTo)}
-          onClear={() => {
-            clearDates();
-            resetPage();
-          }}
-        />
       </section>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

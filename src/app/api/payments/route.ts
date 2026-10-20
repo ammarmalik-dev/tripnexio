@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { serviceDetailsLine } from "@/lib/crm/service-details";
 import { paymentListQuerySchema } from "@/lib/validation/payment-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -50,6 +51,11 @@ export async function GET(request: NextRequest) {
   ]);
 
   const subServices = await resolveSubServices(payments.map((payment) => ({ serviceType: payment.booking.lead.serviceType, details: payment.booking.lead.details })));
+  // Client doc 2026-10-20 (L8) — Service Details in its own column, as on the Bookings table.
+  const airlineCodes = [...new Set(payments.map((payment) => (payment.booking.lead.details as Record<string, unknown> | null)?.airline).filter((code): code is string => typeof code === "string"))];
+  const airlineNames = new Map(
+    airlineCodes.length > 0 ? (await db.airline.findMany({ where: { code: { in: airlineCodes } }, select: { code: true, name: true } })).map((airline) => [airline.code, airline.name]) : []
+  );
   const items = payments.map((payment, index) => ({
     id: payment.id,
     amount: payment.amount,
@@ -66,6 +72,9 @@ export async function GET(request: NextRequest) {
     // Client testing 2026-10-09 (E13) — the shared list layout.
     serviceType: payment.booking.lead.serviceType,
     subService: subServices[index],
+    serviceDetails: serviceDetailsLine(payment.booking.lead.serviceType, payment.booking.lead.details, {
+      airlineName: airlineNames.get(String((payment.booking.lead.details as Record<string, unknown> | null)?.airline ?? "")) ?? null,
+    }),
     processing: processingLabel(payment.booking.lead.serviceType, payment.booking.lead.details),
     paxCount: payment.booking.lead.paxCount,
     countryName: payment.booking.lead.country?.name ?? null,

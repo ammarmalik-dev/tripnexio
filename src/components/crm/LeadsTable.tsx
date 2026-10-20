@@ -291,21 +291,6 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
           ))}
         </select>
 
-        <label htmlFor="sort-leads" className="sr-only">
-          Sort by created date
-        </label>
-        <select
-          id="sort-leads"
-          value={sort}
-          onChange={(event) => {
-            setSort(event.target.value as SortOption);
-            setPage(1);
-          }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
-        >
-          <option value="createdAt_desc">Newest first</option>
-          <option value="createdAt_asc">Oldest first</option>
-        </select>
 
       </div>
 
@@ -348,6 +333,22 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
           onCustomTo={applyCustomTo}
           onClear={clearDates}
         />
+
+        <label htmlFor="sort-leads" className="sr-only">
+          Sort by created date
+        </label>
+        <select
+          id="sort-leads"
+          value={sort}
+          onChange={(event) => {
+            setSort(event.target.value as SortOption);
+            setPage(1);
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+        >
+          <option value="createdAt_desc">Newest first</option>
+          <option value="createdAt_asc">Oldest first</option>
+        </select>
 
         {/* Client doc 2026-10-20 (L3) — Refresh and Export sit in the second row. */}
         <div className="ml-auto flex items-center gap-2">
