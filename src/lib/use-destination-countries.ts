@@ -18,7 +18,8 @@ import { countryOptionLabel } from "@/lib/countries/flag";
  * native <select> option can't render an image.
  */
 /** `service: "OTB"` limits the list to the countries Admin priced OTB for (client testing 2026-10-09). */
-export function useDestinationCountryOptions(service?: "OTB"): SelectOption[] {
+/** `service: "NEW_VISA"` limits it to the New Visa destinations Admin made live (client doc 2026-10-20, E5). */
+export function useDestinationCountryOptions(service?: "OTB" | "NEW_VISA"): SelectOption[] {
   const [options, setOptions] = useState<SelectOption[]>([]);
 
   useEffect(() => {

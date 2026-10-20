@@ -575,13 +575,6 @@ function PageEditor({
         {area("introBody", "Text", { rows: 5 })}
       </Section>
 
-      <Section title="Visa options & prices" description="Above the option / price picker. Leave empty to use the standard wording.">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {text("selectorEyebrow", "Small label", { placeholder: "e.g. UAE visa options" })}
-          {text("selectorHeading", "Heading", { placeholder: "Choose your visa and see the price instantly" })}
-        </div>
-      </Section>
-
       <Section title="Who can apply" description="Leave both empty to hide this section.">
         {text("applicantsHeading", "Heading", { placeholder: "e.g. UAE Visa Applications From Across India" })}
         {area("applicantsBody", "Text", { rows: 2 })}

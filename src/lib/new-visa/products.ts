@@ -18,8 +18,19 @@ export function productEntryLabel(config: { entryKind: NewVisaEntryKind | null; 
   return config.entryKind ? ENTRY_KIND_LABELS[config.entryKind] : config.entryType;
 }
 
-export function productLabel(config: { stayDays: number | null; duration: string; entryKind: NewVisaEntryKind | null; entryType: string }): string {
-  return `${productStayLabel(config)} · ${productEntryLabel(config)}`;
+/**
+ * Client doc 2026-10-20 (E7) — one line, in this order: Stay Duration · Entry Type · Visa Category
+ * (website, WhatsApp bot and lead details alike).
+ */
+export function productLabel(config: {
+  stayDays: number | null;
+  duration: string;
+  entryKind: NewVisaEntryKind | null;
+  entryType: string;
+  visaCategory?: string | null;
+}): string {
+  const category = config.visaCategory?.trim();
+  return [productStayLabel(config), productEntryLabel(config), ...(category ? [category] : [])].join(" · ");
 }
 
 /** P10 defaults (UAE Visa Page Content FINAL §14): Normal needs 7 working days before travel, Express 3. Admin can change them in Timelines / SLA. */

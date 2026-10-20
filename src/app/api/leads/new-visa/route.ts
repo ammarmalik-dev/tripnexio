@@ -6,6 +6,7 @@ import { getActiveVisaTypes } from "@/lib/visa-types/active-visa-types";
 import { db } from "@/lib/db";
 import { allowedProcessingTypes, productLabel } from "@/lib/new-visa/products";
 import { getNewVisaTravelRules } from "@/lib/new-visa/travel-rules";
+import { getNewVisaDestinations } from "@/lib/new-visa/destinations";
 import { getWorkingCalendarForCountry } from "@/lib/calendar/get-working-calendar";
 import { workingDaysBetween } from "@/lib/calendar/working-calendar";
 import { flagShortPassportValidity } from "@/lib/new-visa/flag-passport-validity";
@@ -121,23 +122,33 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Visa type comes from the Admin master for this destination (P06): never
-  // trust the client's own `visaTypeRequired` flag — re-derive it here.
-  const visaTypeOptions = await getActiveVisaTypes(destinationCountry);
-  const pickedVisaType = visaType ? visaTypeOptions.find((option) => option.id === visaType) : undefined;
-  if (visaType ? !pickedVisaType : visaTypeOptions.length > 0) {
-    return jsonError(400, "Select a visa type.", { visaType: ["Select a visa type"] });
+  // Client doc 2026-10-20 (E5) — only a New Visa destination Admin made live.
+  const destinations = await getNewVisaDestinations();
+  if (!destinations.some((country) => country.code.toLowerCase() === destinationCountry.toLowerCase())) {
+    return jsonError(400, "We don't offer this visa right now.", { destinationCountry: ["Select a destination from the list."] });
   }
 
-  // P10 — the product (stay duration + entry type) must be an active one of
+  // P10 — the product (stay duration + entry type + visa category) must be an active one of
   // this destination, required whenever the destination has any.
   const products = await db.newVisaCountryConfig.findMany({
     where: { active: true, country: { active: true, code: { equals: destinationCountry, mode: "insensitive" } } },
-    select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true },
+    select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true },
   });
   const product = newVisaConfigId ? products.find((option) => option.id === newVisaConfigId) : undefined;
   if (newVisaConfigId ? !product : products.length > 0) {
     return jsonError(400, "Select a visa option.", { newVisaConfigId: ["Select a visa option"] });
+  }
+
+  // Client doc 2026-10-20 (E6) — the visa category is part of the product; the separate Visa Type
+  // (Admin master, P06) is asked only for a destination without products. Never trust the client's flag.
+  const visaTypeOptions = await getActiveVisaTypes(destinationCountry);
+  const pickedVisaType = visaType
+    ? visaTypeOptions.find((option) => option.id === visaType)
+    : product
+      ? visaTypeOptions.find((option) => option.name.trim().toLowerCase() === product.visaCategory.trim().toLowerCase())
+      : undefined;
+  if (visaType ? !pickedVisaType : !product && visaTypeOptions.length > 0) {
+    return jsonError(400, "Select a visa type.", { visaType: ["Select a visa type"] });
   }
 
   // P23 — the processing type must be an active option in the Admin master
@@ -184,7 +195,7 @@ export async function POST(request: NextRequest) {
       details: {
         destinationCountry,
         ...(nationality ? { nationalityId: nationality.id, nationality: nationality.name } : {}),
-        ...(pickedVisaType ? { visaType: pickedVisaType.name, visaTypeId: pickedVisaType.id } : {}),
+        ...(pickedVisaType ? { visaType: pickedVisaType.name, visaTypeId: pickedVisaType.id } : product ? { visaType: product.visaCategory } : {}),
         ...(product ? { newVisaConfigId: product.id, visaOption: productLabel(product) } : {}),
         travelers: String(travellers.length),
         travelDate,

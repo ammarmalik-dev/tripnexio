@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
+import { getNewVisaDestinations } from "@/lib/new-visa/destinations";
 
 /**
  * Public, unauthenticated — read-only reference data for customer-facing
@@ -12,6 +13,11 @@ export async function GET(request: NextRequest) {
   // priced OTB for (any active OTB airline). OTB is priced only per country ×
   // airline (client reply 2026-10-13), so an unpriced country can't be booked.
   const service = request.nextUrl.searchParams.get("service");
+  // Client doc 2026-10-20 (E5) — ?service=NEW_VISA: only the New Visa destinations Admin made live.
+  if (service === "NEW_VISA") {
+    const destinations = await getNewVisaDestinations();
+    return jsonSuccess(destinations.map(({ code, name, flagOverride }) => ({ code, name, flagOverride })));
+  }
   let otbCountryIds: string[] | null = null;
   if (service === "OTB") {
     const priced = await db.otbPrice.findMany({

@@ -125,7 +125,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 export function Step3Summary() {
   const { getValues } = useFormContext<NewVisaRequestValues>();
   const values = getValues();
-  const destinationCountryOptions = useDestinationCountryOptions();
+  const destinationCountryOptions = useDestinationCountryOptions("NEW_VISA");
   const destinationLabel =
     destinationCountryOptions.find((option) => option.value === values.destinationCountry)?.label ??
     values.destinationCountry;

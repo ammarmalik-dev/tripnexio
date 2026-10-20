@@ -9,7 +9,6 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { ServiceHeroBackdrop } from "@/components/services/ServiceHeroBackdrop";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { utilityLinks } from "@/lib/nav-config";
-import { NewVisaProductSelector } from "@/components/services/new-visa/NewVisaProductSelector";
 import { VisaProcessSteps } from "@/components/services/VisaProcessSteps";
 import { ServiceFaqSection } from "@/components/services/ServiceFaqSection";
 import { ServiceRequirementsSection } from "@/components/services/ServiceRequirementsSection";
@@ -137,23 +136,8 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
         </section>
       ) : null}
 
-      <section className="py-10 sm:py-14">
-        <Container className="flex flex-col gap-6">
-          <MotionReveal>
-            <SectionHeading
-              align="center"
-              eyebrow={page.selectorEyebrow ?? `${product} options`}
-              title={page.selectorHeading ?? "Choose your option and see the price instantly"}
-              className="mx-auto"
-            />
-          </MotionReveal>
-          <MotionReveal delay={0.08}>
-            <div className="mx-auto w-full max-w-2xl">
-              <NewVisaProductSelector countryCode={page.country.code} />
-            </div>
-          </MotionReveal>
-        </Container>
-      </section>
+      {/* Client doc 2026-10-20 (E3) — no option / price picker on the country page: the request form's first
+          step shows the configured options and Adult / Child prices instead. */}
 
       {page.applicantsHeading || page.applicantsBody ? (
         <section className="py-10 sm:py-14">

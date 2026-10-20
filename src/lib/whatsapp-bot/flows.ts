@@ -12,10 +12,11 @@ import { getProcessingTypeOptions } from "../processing-types/get";
 import { getOtbGlobalRules, resolveAirlineRules } from "../otb/get-otb-rules";
 import { otbUrgentAvailable } from "../otb/pricing";
 import { evaluateOtbTravelDate } from "../otb/processing-rules";
-import { getWorkingCalendar } from "../calendar/get-working-calendar";
+import { getWorkingCalendar, getWorkingCalendarForCountry } from "../calendar/get-working-calendar";
 import type { LeadPassengerInput } from "../leads/create-lead";
 import { getNewVisaTravelRules } from "../new-visa/travel-rules";
 import { allowedProcessingTypes, productLabel } from "../new-visa/products";
+import { getNewVisaDestinations } from "../new-visa/destinations";
 import { workingDaysBetween } from "../calendar/working-calendar";
 
 export interface ParseResult {
@@ -355,17 +356,9 @@ async function getOtbDestinationOptions() {
   return priced.map((row) => ({ value: row.country.code, label: row.country.name }));
 }
 
-/** Client doc 2026-10-15 — only the countries Admin enabled for New Visa (an active product), each once — same as the website. */
+/** Client doc 2026-10-20 (E5 / E8) — the New Visa destinations Admin made live, each once — the same list as the website. */
 async function getNewVisaCountryOptions() {
-  const configs = await db.newVisaCountryConfig.findMany({
-    where: { active: true, country: { active: true } },
-    distinct: ["countryId"],
-    select: { country: { select: { code: true, name: true, displayOrder: true } } },
-  });
-  return configs
-    .map((config) => config.country)
-    .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name))
-    .map((country) => ({ value: country.code, label: country.name }));
+  return (await getNewVisaDestinations()).map((country) => ({ value: country.code, label: country.name }));
 }
 
 /** New Visa products (stay × entry) Admin configured for the country; empty = price by the country-wide rules. */
@@ -421,8 +414,11 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       if (!has("destinationCountry")) {
         return numberedChoiceStep("destinationCountry", "Which country is this visa for?", await getNewVisaCountryOptions());
       }
-      if (!has("visaType")) {
-        // Admin-managed per destination; skipped when none is configured (the website hides it too).
+      // Client doc 2026-10-20 (E7) — one line per option: Stay Duration · Entry Type · Visa Category.
+      const products = await getNewVisaProductOptions(collected.destinationCountry);
+      if (!has("newVisaConfigId") && products.length > 1) return numberedChoiceStep("newVisaConfigId", "Which visa do you need?", products);
+      if (!has("visaType") && products.length === 0) {
+        // Only for a destination without products (the category is part of a product); same as the website.
         const visaTypes = await getActiveVisaTypes(collected.destinationCountry);
         if (visaTypes.length > 0) {
           return numberedChoiceStep(
@@ -432,15 +428,12 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           );
         }
       }
-      if (!has("newVisaConfigId")) {
-        const products = await getNewVisaProductOptions(collected.destinationCountry);
-        if (products.length > 1) return numberedChoiceStep("newVisaConfigId", "Which visa option?", products);
-      }
       // Client testing 2026-10-09 (C4) — travel date checked against the
       // Admin TAT (working days): a date too soon for Normal only offers
-      // Express; too soon for both asks for a later date.
+      // Express; too soon for both asks for a later date. Client doc 2026-10-20 (E10) — counted on the
+      // destination's own calendar (weekend + holidays), as the website does.
       const rules = await getNewVisaTravelRules(collected.destinationCountry);
-      const calendar = await getWorkingCalendar("UAE");
+      const calendar = await getWorkingCalendarForCountry(collected.destinationCountry);
       const allowedFor = (iso: string) => allowedProcessingTypes(workingDaysBetween(iso, new Date(), calendar), rules);
       if (!has("travelDate")) {
         return dateStep("travelDate", "What's your expected travel date?", newVisaRequestSchema.shape.travelDate, (iso) =>

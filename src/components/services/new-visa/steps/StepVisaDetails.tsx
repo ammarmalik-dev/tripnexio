@@ -40,7 +40,7 @@ export function StepVisaDetails() {
     control,
     formState: { errors },
   } = useFormContext<NewVisaRequestValues>();
-  const destinationCountryOptions = useDestinationCountryOptions();
+  const destinationCountryOptions = useDestinationCountryOptions("NEW_VISA");
   const destinationCountry = useWatch({ control, name: "destinationCountry" });
   const newVisaConfigId = useWatch({ control, name: "newVisaConfigId" });
   const visaTypeValue = useWatch({ control, name: "visaType" });
@@ -64,7 +64,10 @@ export function StepVisaDetails() {
   const showSelection = arrivedPreselected && !changingSelection && (productsLoading || Boolean(preselectedProduct));
   const [arrivedWithVisaType] = useState(() => Boolean(getValues("visaType")));
   const preselectedVisaType = visaTypes.find((visaType) => visaType.id === visaTypeValue);
-  const askVisaType = visaTypes.length > 1 && !(arrivedWithVisaType && !changingSelection && preselectedVisaType);
+  // Client doc 2026-10-20 (E6 / E7) — the visa category is part of each option (Stay · Entry · Category), so a
+  // separate Visa Type is asked only for a destination without options.
+  const usesProducts = countryProducts.length > 0;
+  const askVisaType = !usesProducts && visaTypes.length > 1 && !(arrivedWithVisaType && !changingSelection && preselectedVisaType);
   const countryName = destinationCountryOptions.find((option) => option.value === destinationCountry)?.label ?? destinationCountry;
 
   // P10 — the visa option (stay duration + entry type) must be one this destination offers.
@@ -83,20 +86,29 @@ export function StepVisaDetails() {
     if (!nationalitiesLoading) setValue("nationalityRequired", nationalities.length > 0);
   }, [nationalities, nationalitiesLoading, setValue]);
 
-  // Admin-managed per destination: required only when this destination has visa types.
+  // Admin-managed per destination: required only when this destination has visa types and no options.
   useEffect(() => {
-    if (visaTypesLoading) return;
+    if (visaTypesLoading || productsLoading) return;
+    if (usesProducts) {
+      setValue("visaTypeRequired", false);
+      setValue("visaType", "");
+      return;
+    }
     setValue("visaTypeRequired", visaTypes.length > 0);
     const current = getValues("visaType");
     if (current && !visaTypes.some((visaType) => visaType.id === current)) setValue("visaType", "");
     if (visaTypes.length === 1 && !getValues("visaType")) setValue("visaType", visaTypes[0].id);
-  }, [visaTypes, visaTypesLoading, setValue, getValues]);
+  }, [visaTypes, visaTypesLoading, productsLoading, usesProducts, setValue, getValues]);
 
   // The request schema stores only these codes; a code Admin disabled isn't offered (and the server rejects it).
   const masterOptions = allMasterOptions.filter((option) => option.code === "normal" || option.code === "urgent");
-  const offered = (code: "normal" | "urgent") => !rates || rates[code].adult !== null || rates[code].child !== null;
+  // Client doc 2026-10-20 (E1 / E2) — prices are judged only once the option (and nationality, where asked) is
+  // chosen: before that a product-specific price would wrongly read "Not offered" / "travel date too close".
+  const pricesReady = (countryProducts.length <= 1 || Boolean(newVisaConfigId)) && (nationalities.length === 0 || Boolean(nationalityId));
+  const offered = (code: "normal" | "urgent") => !pricesReady || !rates || rates[code].adult !== null || rates[code].child !== null;
   const workingDays = travelDate ? workingDaysBetween(travelDate, new Date(), calendar) : Number.POSITIVE_INFINITY;
-  const allowed = allowedProcessingTypes(workingDays, rules).filter((code) => masterOptions.some((option) => option.code === code) && offered(code));
+  const byDate = allowedProcessingTypes(workingDays, rules).filter((code) => masterOptions.some((option) => option.code === code));
+  const allowed = byDate.filter((code) => offered(code));
   const allowedKey = allowed.join(",");
 
   // A choice made before the travel date (or the option) changed may no longer be possible.
@@ -141,11 +153,11 @@ export function StepVisaDetails() {
               error={errors.destinationCountry?.message}
               {...register("destinationCountry")}
             />
-            {countryProducts.length > 1 ? (
+            {countryProducts.length > 0 ? (
               <SelectField
-                label="Visa Option"
+                label="Visa"
                 required
-                hint="Stay duration and entry type."
+                hint="Stay duration · Entry type · Visa category."
                 options={countryProducts.map((product) => ({ value: product.id, label: product.label }))}
                 error={errors.newVisaConfigId?.message}
                 {...register("newVisaConfigId")}
@@ -190,7 +202,13 @@ export function StepVisaDetails() {
             const code = option.code as "normal" | "urgent";
             const isAllowed = allowed.includes(code);
             const minDays = code === "urgent" ? rules.minTravelDaysExpress : rules.minTravelDaysNormal;
-            const prices = rates ? `Adult ${money(rates[code].adult)} · Child ${money(rates[code].child)}` : "Loading prices…";
+            const prices = !pricesReady
+              ? nationalities.length > 0 && !nationalityId
+                ? "Choose your visa and nationality to see the price."
+                : "Choose your visa to see the price."
+              : rates
+                ? `Adult ${money(rates[code].adult)} · Child ${money(rates[code].child)}`
+                : "Loading prices…";
             return {
               value: option.code,
               label: option.label,
@@ -212,7 +230,7 @@ export function StepVisaDetails() {
           calendar={calendar}
         />
       ) : null}
-      {travelDate && allowed.length === 0 && optionsState !== "loading" ? (
+      {travelDate && byDate.length === 0 && optionsState !== "loading" ? (
         <p role="alert" className="rounded-lg bg-error/10 px-4 py-3 text-sm text-error">
           Your travel date is too close for us to process this visa in time. Please choose a later travel date, or message us on WhatsApp and
           our team will check what&apos;s possible.

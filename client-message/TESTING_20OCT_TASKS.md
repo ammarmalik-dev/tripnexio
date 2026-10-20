@@ -74,23 +74,23 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
   - After payment, ask the vendor-specific details (like A2A).
   - Remove Customer Contact Number, Drop / Border Location, Bus / Operator and Vendor / Sponsor.
 - [x] D9. Visa Change submission: don't mention the destination country in the WhatsApp or email notification.
-- [ ] D10. Visa Change document management: Admin-configured documents per nationality, uploadable after payment.
+- [x] D10. Visa Change document management: Admin-configured documents per nationality, uploadable after payment. — DONE: VC types per nationality + booking slots after payment
 - [x] D11. The Visa Change ticket / package email carries "Important Travel Instructions" (3 hours) plus the disclaimer. — DONE: VC_PACKAGE_GENERATED template body
 
 ## E. New Visa
-- [ ] E1. Expected approval date and TAT follow the Admin working days, holidays, non-working days, country / service rules and blocked dates. It updates at once when Normal / Express changes. No hard-coded dates. (Screenshot: UAE / India / 5 Nov shows "Not offered" and "travel date too close".)
-- [ ] E2. The configured Adult / Child prices for Normal and Express show at once on the first form and update on switch.
-- [ ] E3. Remove "Choose your option and see the price instantly" for all countries.
+- [x] E1. Expected approval date and TAT follow the Admin working days, holidays, non-working days, country / service rules and blocked dates. It updates at once when Normal / Express changes. No hard-coded dates. (Screenshot: UAE / India / 5 Nov shows "Not offered" and "travel date too close".) — DONE: prices/availability judged only after the option + nationality are chosen; approval date on the destination calendar
+- [x] E2. The configured Adult / Child prices for Normal and Express show at once on the first form and update on switch. — DONE: Adult/Child per Normal/Express on the first form
+- [x] E3. Remove "Choose your option and see the price instantly" for all countries. — DONE: selector section removed from country pages
 - [x] E4. Vendor rates for Visa / OTB / Return Ticket show correctly (Visa is missing). New Visa vendor rates take Adult / Child × Normal / Express without forcing a visa type. — DONE: pricing dashboard vendor rates
-- [ ] E5. Only Admin-enabled destination countries on the website and the bot. No duplicates, disabled ones hidden. The UAE visa page shows destination countries only.
-- [ ] E6. Visa types per country, set up in Admin from the Master List:
+- [x] E5. Only Admin-enabled destination countries on the website and the bot. No duplicates, disabled ones hidden. The UAE visa page shows destination countries only. — DONE: one destination list (published page or active product) for form, server and bot
+- [x] E6. Visa types per country, set up in Admin from the Master List: — DONE: product = stay · entry · category; no separate Visa Type
   - Validity, Stay Duration, Entry Type (Single / Multiple) in the master.
   - Category (Tourist, Transit, Business, Arrival Card).
   - Only enabled countries.
-- [ ] E7. Website + bot show the options in one line: Stay Duration → Entry Type → Visa Category. Only configured options.
-- [ ] E8. The bot's Oman New Visa option is missing. The bot shows every enabled country and its visa types, as the website does.
-- [ ] E9. New Visa: application details + payment first; the document upload opens only after payment (website + bot).
-- [ ] E10. The timeline / TAT configuration is respected on the website and in the bot.
+- [x] E7. Website + bot show the options in one line: Stay Duration → Entry Type → Visa Category. Only configured options. — DONE: one-line option label, website + bot
+- [x] E8. The bot's Oman New Visa option is missing. The bot shows every enabled country and its visa types, as the website does. — DONE: bot uses the same destination list (Oman)
+- [x] E9. New Visa: application details + payment first; the document upload opens only after payment (website + bot). — DONE: documents only after payment (website + bot)
+- [x] E10. The timeline / TAT configuration is respected on the website and in the bot. — DONE: bot counts on the destination calendar
 
 ## F. Invoice & profit
 - [x] F1. An invoice cancelled or refunded after verification shows Cancelled / Refunded on the QR verify page, not Paid. — DONE: d95b05b
