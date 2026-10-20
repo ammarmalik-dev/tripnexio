@@ -1,5 +1,7 @@
 "use client";
 
+import { FILE_BUTTON_CLASS } from "@/components/forms/FilePickerButton";
+import { cn } from "@/lib/cn";
 import { useState, type ChangeEvent } from "react";
 import { Upload } from "lucide-react";
 import { patchJson, ApiError } from "@/lib/api/client";
@@ -47,7 +49,7 @@ export function DocumentUploadButton({ documentId, hasFile, onUploaded }: { docu
   };
 
   return (
-    <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-ink-accent hover:underline">
+    <label className={cn(FILE_BUTTON_CLASS, busy && "pointer-events-none opacity-60")}>
       <Upload className="h-3.5 w-3.5" aria-hidden="true" />
       {busy ? "Uploading…" : hasFile ? "Replace file" : "Upload file"}
       <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="sr-only" disabled={busy} onChange={(event) => void handleChange(event)} />

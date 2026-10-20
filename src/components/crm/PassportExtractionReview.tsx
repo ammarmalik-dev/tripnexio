@@ -1,5 +1,6 @@
 "use client";
 
+import { FILE_BUTTON_CLASS } from "@/components/forms/FilePickerButton";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { ScanLine, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -196,7 +197,7 @@ export function PassportExtractionReview({ passengerId }: { passengerId: string 
       {pending ? (
         <ReviewCard extraction={pending} onResolved={() => void reload()} />
       ) : (
-        <label className="flex w-fit cursor-pointer items-center gap-1.5 rounded-md border border-hairline px-2.5 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:border-glass-border hover:bg-white/[0.03]">
+        <label className={cn(FILE_BUTTON_CLASS, uploading && "pointer-events-none opacity-60")}>
           <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
           {uploading ? "Uploading..." : "Upload Passport Photo (auto-extract)"}
           <input type="file" accept={ALLOWED_TYPES.join(",")} className="hidden" disabled={uploading} onChange={(e) => void handleUpload(e)} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerAccountControls } from "./CustomerAccountControls";
 import { BillingDetailsForm } from "@/components/account/BillingDetailsForm";
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -208,6 +209,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
           <Stat label="Passengers" value={passengers.length} />
           <Stat label="Documents" value={documents ? documents.length : "—"} />
         </dl>
+        <CustomerAccountControls key={customer.updatedAt} customer={customer} onChanged={() => setReloadNonce((current) => current + 1)} />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

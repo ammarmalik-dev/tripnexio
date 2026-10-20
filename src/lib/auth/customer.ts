@@ -52,9 +52,26 @@ export async function registerCustomer(input: {
     };
   }
 
-  const target = existingByMobile ?? existingByEmail;
+  let target = existingByMobile ?? existingByEmail;
   if (target?.passwordHash) {
     return { ok: false, error: "An account with this mobile number or email already exists. Try logging in instead.", field: "email" };
+  }
+
+  // Client doc 2026-10-20 (L5) — every new account proves its email with the 6-digit code: a first-time
+  // customer is saved as a password-less (guest) record and the code goes to the email they entered.
+  if (!target) {
+    try {
+      target = await db.customer.create({ data: { name: input.fullName, mobile: input.mobile, email: input.email } });
+    } catch {
+      return { ok: false, error: "That mobile number or email is already in use.", field: "email" };
+    }
+    await issueCustomerOtp(target.id, input.email, input.fullName);
+    return {
+      ok: false,
+      otpRequired: true,
+      maskedEmail: maskEmailForDisplay(input.email),
+      error: "Enter the 6-digit code we just emailed to confirm your email address.",
+    };
   }
 
   if (target) {
@@ -92,7 +109,8 @@ export async function registerCustomer(input: {
       ? await db.customer.update({
           where: { id: target.id },
           // Client doc 2026-10-15 (J7) — signing up again after deleting the account starts a fresh login.
-          data: { name: input.fullName, mobile: input.mobile, email: input.email, passwordHash, accountDeletedAt: null },
+          // The email kept is the one the code proved (a changed email is updated later from My Profile, with its own code).
+          data: { name: input.fullName, mobile: input.mobile, email: target.email ?? input.email, passwordHash, accountDeletedAt: null },
         })
       : await db.customer.create({
           data: { name: input.fullName, mobile: input.mobile, email: input.email, passwordHash },

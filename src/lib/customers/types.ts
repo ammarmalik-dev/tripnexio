@@ -170,6 +170,8 @@ export interface Customer360Response {
     mobile: string;
     email: string | null;
     hasAccount: boolean;
+    /** Client doc 2026-10-20 (L4) — the account was deleted (by the customer or from CRM). */
+    accountDeleted: boolean;
     /** Client corrections 2026-10-05 — invoice billing details. */
     billingAddress: string | null;
     billingStateCode: string | null;

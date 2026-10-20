@@ -1,5 +1,8 @@
 "use client";
 
+import { FILE_BUTTON_CLASS } from "@/components/forms/FilePickerButton";
+import { cn } from "@/lib/cn";
+import { DOCUMENT_UPLOAD_ACCEPT } from "@/lib/uploads/document-rules";
 import { useState, type ChangeEvent } from "react";
 import { AlertTriangle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -254,10 +257,10 @@ export function PaymentPanel({
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              <label className="inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-md border border-hairline px-3 py-1.5 font-medium text-ink-primary hover:bg-white/[0.03]">
+              <label className={cn(FILE_BUTTON_CLASS, uploadingSlip && "pointer-events-none opacity-60")}>
                 <Upload className="h-3.5 w-3.5" aria-hidden="true" />
                 {uploadingSlip ? "Uploading…" : "Upload Slip"}
-                <input type="file" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf" className="hidden" disabled={uploadingSlip} onChange={(event) => void handleSlipChange(event)} />
+                <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="hidden" disabled={uploadingSlip} onChange={(event) => void handleSlipChange(event)} />
               </label>
               {slipError ? <span className="text-error">{slipError}</span> : null}
             </div>

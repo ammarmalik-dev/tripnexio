@@ -1,5 +1,6 @@
 "use client";
 
+import { FILE_BUTTON_CLASS } from "@/components/forms/FilePickerButton";
 import { useEffect, useState, type ChangeEvent } from "react";
 import { ScanLine, CheckCircle2, XCircle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -223,7 +224,7 @@ export function DocumentExtractionReview({
       ) : (
         <label
           className={cn(
-            "flex w-fit cursor-pointer items-center gap-1.5 rounded-md border border-hairline px-2.5 py-1.5 text-xs font-medium text-ink-secondary transition-colors hover:border-glass-border hover:bg-white/[0.03]",
+            FILE_BUTTON_CLASS,
             uploading && "pointer-events-none opacity-60"
           )}
         >

@@ -307,18 +307,6 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
           <option value="createdAt_asc">Oldest first</option>
         </select>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setRefreshNonce((current) => current + 1)}
-          disabled={state === "loading"}
-        >
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
-
-        <ExportCsvButton href={`/api/leads/export?${buildFilterParams().toString()}`} />
       </div>
 
       {/* Client doc 2026-10-15 (C4) — every filter within two lines: the dropdowns, then dates, sort and actions. */}
@@ -361,6 +349,20 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
           onClear={clearDates}
         />
 
+        {/* Client doc 2026-10-20 (L3) — Refresh and Export sit in the second row. */}
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setRefreshNonce((current) => current + 1)}
+            disabled={state === "loading"}
+          >
+            <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
+            Refresh
+          </Button>
+          <ExportCsvButton href={`/api/leads/export?${buildFilterParams().toString()}`} />
+        </div>
       </div>
 
       {state === "loading" ? (

@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { RotateCw, Search, Users } from "lucide-react";
+import { Search, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import type { CustomerListItem, CustomerListResponse } from "@/lib/customers/types";
 import { formatCrmDate } from "./format";
 import { ListPagination } from "../ListPagination";
@@ -18,9 +19,10 @@ type FetchState = "loading" | "success" | "error";
 
 /** CRM.md §23 — Customers list: server-side search + pagination. */
 export function CustomersTable() {
-  // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
-  const search = "";
-  const { page, pageSize, paginationHandlers } = usePaginationState();
+  // Client doc 2026-10-20 (L4) — a Search box (name, email, mobile) instead of Refresh.
+  const [query, setQuery] = useState("");
+  const [search, setSearch] = useState("");
+  const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<CustomerListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -28,6 +30,13 @@ export function CustomersTable() {
   const [refreshNonce, setRefreshNonce] = useState(0);
 
   // Debounce typing; a new search always starts back on page 1.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setSearch(query.trim());
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query, setPage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,17 +68,19 @@ export function CustomersTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          onClick={() => setRefreshNonce((current) => current + 1)}
-          disabled={state === "loading"}
-        >
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
+      <div className="relative w-full max-w-sm">
+        <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
+        <label htmlFor="customer-search" className="sr-only">
+          Search customers
+        </label>
+        <input
+          id="customer-search"
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search by name, email or mobile"
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 pl-9 text-sm")}
+        />
       </div>
 
       {state === "loading" ? (

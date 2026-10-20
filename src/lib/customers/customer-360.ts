@@ -50,7 +50,7 @@ function refsFor(entityType: string, ids: string[]): Prisma.AuditTrailWhereInput
 export async function loadCustomer360(session: StaffSession, customerId: string): Promise<Customer360Result> {
   const customer = await db.customer.findUnique({
     where: { id: customerId },
-    select: { id: true, name: true, mobile: true, email: true, passwordHash: true, billingAddress: true, billingStateCode: true, gstin: true, createdAt: true, updatedAt: true },
+    select: { id: true, name: true, mobile: true, email: true, passwordHash: true, accountDeletedAt: true, billingAddress: true, billingStateCode: true, gstin: true, createdAt: true, updatedAt: true },
   });
   if (!customer) return { kind: "not_found" };
 
@@ -268,6 +268,7 @@ export async function loadCustomer360(session: StaffSession, customerId: string)
       mobile: customer.mobile,
       email: customer.email,
       hasAccount: customer.passwordHash !== null,
+      accountDeleted: customer.accountDeletedAt !== null,
       billingAddress: customer.billingAddress,
       billingStateCode: customer.billingStateCode,
       gstin: customer.gstin,

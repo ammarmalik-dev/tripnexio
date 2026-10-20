@@ -4,6 +4,10 @@ import { useId, useRef, type ChangeEvent } from "react";
 import { Paperclip } from "lucide-react";
 import { cn } from "@/lib/cn";
 
+/** Client doc 2026-10-20 (L1) — the coloured "Choose File" look, for upload labels that wrap their own input. */
+export const FILE_BUTTON_CLASS =
+  "inline-flex w-fit cursor-pointer items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-ink-on-dark-primary shadow-sm transition-opacity duration-150 hover:opacity-90 focus-within:ring-2 focus-within:ring-accent focus-within:ring-offset-2";
+
 /**
  * Client doc 2026-10-20 (A9 / B5 / L1) — the one file picker used across CRM: a coloured "Choose File"
  * button (not the browser's grey control) with the chosen file's name next to it. The parent validates

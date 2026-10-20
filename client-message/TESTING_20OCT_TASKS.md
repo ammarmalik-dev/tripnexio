@@ -130,13 +130,13 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
 - [ ] K6. Booking 360 shows only the current booking's travellers' documents; history stays in Customer 360.
 
 ## L. CRM workflow
-- [ ] L1. Coloured "Choose File" button; PDF / PNG / JPG only.
-- [ ] L2. CRM and Admin: remove the per-group collapse/expand buttons; keep only the sidebar toggle.
-- [ ] L3. Leads: Refresh and Export buttons in the second row.
-- [ ] L4. Customers:
+- [x] L1. Coloured "Choose File" button; PDF / PNG / JPG only. — DONE: coloured Choose File on every CRM upload, PDF/PNG/JPG
+- [x] L2. CRM and Admin: remove the per-group collapse/expand buttons; keep only the sidebar toggle. — DONE: only the sidebar toggle
+- [x] L3. Leads: Refresh and Export buttons in the second row. — DONE: second row, right side
+- [x] L4. Customers: — DONE: Search instead of Refresh; Edit details + Delete account in Customer 360
   - Remove Refresh; add Search.
   - CRM can delete a customer account and edit the name, email and mobile.
-- [ ] L5. Restore email OTP verification at account creation.
+- [x] L5. Restore email OTP verification at account creation. — DONE: every new signup confirms the email with a 6-digit code
 - [ ] L6. Bookings table:
   - Creation-date From / To calendar instead of 7/30/90.
   - Filters within 2 rows.
