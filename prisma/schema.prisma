@@ -652,6 +652,9 @@ model Payment {
   /// line even after a coupon is applied.
   amount               Decimal        @db.Decimal(10, 2)
   gstAmount            Decimal        @db.Decimal(10, 2)
+  /// Client doc 2026-10-20 (F3) — the service fee the invoice shows for this payment (snapshot of the service's
+  /// configured fee at payment time; GST was charged on it only). Null = the quotation's split applies.
+  invoiceServiceFee  Decimal? @db.Decimal(10, 2)
   gatewayFee           Decimal        @db.Decimal(10, 2)
   /// Client doc 2026-10-15 (G5) — the gateway charge TripNexio bears when it isn't charged to the customer (our expense).
   gatewayFeeAbsorbed Decimal @default(0) @db.Decimal(10, 2)
@@ -1291,6 +1294,13 @@ model Service {
   /// invoices (blank = Invoice Settings' default SAC). Admin-editable; never
   /// guessed — hard rule #1.
   sacCode          String?
+  /// Client doc 2026-10-20 (F2/F3) — the service fee shown on the customer's invoice (GST applies to it only;
+  /// the rest of the price is the Govt./Airline/Vendor fee). Null = the fee is worked out from the quotation as before.
+  invoiceServiceFee            Decimal? @db.Decimal(10, 2)
+  /// true = invoiceServiceFee per passenger, false = per booking.
+  invoiceServiceFeePerPassenger Boolean  @default(true)
+  /// This service's GST % on the service fee; null = the Tax & Fees rate.
+  gstRatePercent               Decimal? @db.Decimal(5, 2)
   iconName         String
   active           Boolean  @default(true)
   displayOrder     Int      @default(0)

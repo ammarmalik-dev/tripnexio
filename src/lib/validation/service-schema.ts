@@ -28,6 +28,11 @@ export const createServiceSchema = z.object({
     .trim()
     .regex(/^[A-Za-z]{2}$/, "Use exactly two letters, e.g. VI")
     .transform((value) => value.toUpperCase()),
+  /** Client doc 2026-10-20 (F2/F3) — the invoice's service fee (GST on it only); null = worked out from the quotation. */
+  invoiceServiceFee: z.number().nonnegative("Can't be negative").max(1_000_000).nullable().optional(),
+  invoiceServiceFeePerPassenger: z.boolean().optional(),
+  /** GST % on the service fee for this service; null = the Tax & Fees rate. */
+  gstRatePercent: z.number().min(0, "Can't be negative").max(28, "GST is at most 28%").nullable().optional(),
   iconName: z.string().min(1, "Select an icon"),
   displayOrder: z.number().int().default(0),
   active: z.boolean().default(true),

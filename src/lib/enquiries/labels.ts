@@ -28,3 +28,19 @@ export const ENQUIRY_MANUAL_STATUSES: EnquiryStatus[] = ["NEW", "IN_PROGRESS", "
 export function enquiryReference(id: string, category: EnquiryCategory): string {
   return `${category === "COMPLAINT" ? "CMP" : "ENQ"}-${id.slice(-6).toUpperCase()}`;
 }
+
+/**
+ * Client doc 2026-10-20 (I1) — the Contact form's serial for the n-th enquiry (1-based): ENQ-TNA0001 … ENQ-TNA9999,
+ * then ENQ-TNB0001 … ENQ-TNZ9999 (and on past Z, two letters).
+ */
+export function enquirySerial(sequence: number): string {
+  const n = Math.max(1, Math.floor(sequence));
+  let block = Math.floor((n - 1) / 9999) + 1;
+  let letters = "";
+  while (block > 0) {
+    const rem = (block - 1) % 26;
+    letters = String.fromCharCode(65 + rem) + letters;
+    block = Math.floor((block - 1) / 26);
+  }
+  return `ENQ-TN${letters}${String(((n - 1) % 9999) + 1).padStart(4, "0")}`;
+}

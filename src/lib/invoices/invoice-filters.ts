@@ -64,13 +64,16 @@ export function invoiceSeriesPrefix(label: string): string {
   return `TNS${label.slice(2, 4)}/A`;
 }
 
-/** "TNS26/A01" <-> "TNS26-A01": the verify link's path form, since a "/" can't sit inside one URL segment. */
+/**
+ * "TNS26/A01" <-> "TNS26-A01" and "TNS/A2601" <-> "TNS-A2601": the verify link's path form, since a "/" can't sit
+ * inside one URL segment.
+ */
 export function invoiceNumberToSlug(invoiceNumber: string): string {
-  return /^TNS\d{2}\/A\d+$/.test(invoiceNumber) ? invoiceNumber.replace("/", "-") : invoiceNumber;
+  return /^TNS\d{2}\/A\d+$/.test(invoiceNumber) || /^TNS\/[A-Z]+\d{4}$/.test(invoiceNumber) ? invoiceNumber.replace("/", "-") : invoiceNumber;
 }
 
 export function invoiceNumberFromSlug(slug: string): string {
-  return /^TNS\d{2}-A\d+$/.test(slug) ? slug.replace("-", "/") : slug;
+  return /^TNS\d{2}-A\d+$/.test(slug) || /^TNS-[A-Z]+\d{4}$/.test(slug) ? slug.replace("-", "/") : slug;
 }
 
 /** Every invoice-number prefix that carries this financial year: the TNS series and the older "INV-2026-27-". */

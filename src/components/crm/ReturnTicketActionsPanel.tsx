@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
-import { getJson, patchJson, postJson, ApiError } from "@/lib/api/client";
+import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { cn } from "@/lib/cn";
@@ -18,6 +18,8 @@ export interface ReturnTicketBookingView {
   vendorReference: string | null;
   pnr: string | null;
   deliveredAt: string | null;
+  /** Client doc 2026-10-20 (B1) — already sent to the airline (the vendor was picked then). */
+  sentToAirlines?: boolean;
 }
 
 function fmt(value: string | null): string {
@@ -27,12 +29,10 @@ function fmt(value: string | null): string {
 }
 
 /**
- * P17 — Return Verified Ticket operations on Booking detail
- * (Return_Verified_Ticket.md §7, §18-21; CRM.md §15): Issue Reservation
- * (only inside the 24h-before-travel window and never before a linked OTB is
- * approved) with its issue time and expected expiry, the vendor / vendor
- * cost / vendor reference / PNR staff record, and the delivery time. The
- * reservation PDF itself goes through Upload & Deliver below.
+ * P17 — Return Verified Ticket operations on Booking detail (Return_Verified_Ticket.md §18-21; CRM.md §15).
+ * Client doc 2026-10-20 (B1): "Send to Airlines" picks the vendor (its rate sets the cost — no re-typing, no
+ * vendor reference) and moves the booking on; never before a linked OTB is approved. The ticket itself goes
+ * through Deliver to customer below.
  */
 export function ReturnTicketActionsPanel({
   bookingId,
@@ -49,7 +49,7 @@ export function ReturnTicketActionsPanel({
   reservationExpired: boolean;
   onChanged: () => void;
 }) {
-  const [issuing, setIssuing] = useState(false);
+  const [sending, setSending] = useState(false);
   const [saving, setSaving] = useState(false);
   const [vendors, setVendors] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState({
@@ -80,24 +80,20 @@ export function ReturnTicketActionsPanel({
     };
   }, [view.vendor]);
 
-  const issueBlockedReason = reservationIssuedAt
-    ? null
-    : view.otbApprovalPending
-      ? "Waiting for the linked OTB to be approved."
-      : !view.withinIssueWindow
-        ? "Opens 24 hours before travel."
-        : null;
+  const sendBlockedReason = view.otbApprovalPending ? "Waiting for the linked OTB to be approved." : !form.vendorId ? "Select the vendor first." : null;
 
-  const issue = async () => {
-    setIssuing(true);
+  const sendToAirlines = async () => {
+    setSending(true);
+    setErrors({});
     try {
-      await patchJson(`/api/bookings/${bookingId}/issue-reservation`, {});
-      toast.success("Reservation issued. Upload the reservation PDF below to deliver it.");
+      await postJson(`/api/bookings/${bookingId}/return-ticket-action`, { action: "SEND_TO_AIRLINES", vendorId: form.vendorId, pnr: form.pnr.trim() || undefined });
+      toast.success("Sent to airlines — the customer has been told. Upload the ticket below once it's issued.");
       onChanged();
     } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Couldn't issue the reservation.");
+      if (error instanceof ApiError) setErrors(error.fieldErrors ?? {});
+      toast.error(error instanceof ApiError ? error.message : "Couldn't send it to the airline.");
     } finally {
-      setIssuing(false);
+      setSending(false);
     }
   };
 
@@ -122,7 +118,7 @@ export function ReturnTicketActionsPanel({
         action: "SAVE_VENDOR",
         vendorId: form.vendorId,
         vendorCost: form.vendorCost.trim() === "" ? Number.NaN : Number(form.vendorCost),
-        vendorReference: form.vendorReference,
+        vendorReference: "",
         pnr: form.pnr,
         reason,
       });
@@ -151,13 +147,14 @@ export function ReturnTicketActionsPanel({
 
       <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
         <div>
-          <dt className="text-xs text-ink-tertiary">Issued</dt>
-          <dd className="font-medium text-ink-primary">{fmt(reservationIssuedAt)}</dd>
+          <dt className="text-xs text-ink-tertiary">Sent to airlines</dt>
+          <dd className="font-medium text-ink-primary">{view.sentToAirlines ? "Yes" : "Not yet"}</dd>
         </div>
         <div>
-          <dt className="text-xs text-ink-tertiary">Expected expiry (internal)</dt>
+          <dt className="text-xs text-ink-tertiary">Ticket issued</dt>
           <dd className={cn("font-medium", reservationExpired ? "text-error" : "text-ink-primary")}>
-            {fmt(reservationExpiresAt)}
+            {fmt(reservationIssuedAt)}
+            {reservationExpiresAt ? ` · valid till ${fmt(reservationExpiresAt)}` : ""}
             {reservationExpired ? " · expired" : ""}
           </dd>
         </div>
@@ -167,17 +164,9 @@ export function ReturnTicketActionsPanel({
         </div>
       </dl>
 
-      {!reservationIssuedAt ? (
-        <div className="flex flex-wrap items-center gap-3">
-          <Button type="button" size="sm" onClick={() => void issue()} isLoading={issuing} disabled={issueBlockedReason !== null}>
-            Issue Reservation
-          </Button>
-          {issueBlockedReason ? <span className="text-xs text-warning">{issueBlockedReason}</span> : null}
-        </div>
-      ) : null}
-
       <div className="flex flex-col gap-3 border-t border-hairline pt-4">
         <h3 className="text-xs font-semibold tracking-wide text-ink-tertiary uppercase">Vendor (internal)</h3>
+        <p className="text-xs text-ink-tertiary">The vendor&apos;s rate (Pricing Dashboard → vendor rates) sets the cost — pick the vendor as you send the request to the airline.</p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-sm text-ink-secondary">
             Vendor
@@ -197,24 +186,6 @@ export function ReturnTicketActionsPanel({
             {errors.vendorId?.[0] ? <span className="text-xs text-error">{errors.vendorId[0]}</span> : null}
           </label>
           <TextField
-            label="Vendor cost (₹)"
-            name="rt-vendor-cost"
-            type="number"
-            min={0}
-            value={form.vendorCost}
-            onChange={(event) => setForm({ ...form, vendorCost: event.target.value })}
-            error={errors.vendorCost?.[0]}
-            disabled={saving}
-          />
-          <TextField
-            label="Vendor reference"
-            name="rt-vendor-ref"
-            value={form.vendorReference}
-            onChange={(event) => setForm({ ...form, vendorReference: event.target.value })}
-            error={errors.vendorReference?.[0]}
-            disabled={saving}
-          />
-          <TextField
             label="PNR / reservation reference"
             name="rt-pnr"
             value={form.pnr}
@@ -223,10 +194,18 @@ export function ReturnTicketActionsPanel({
             disabled={saving}
           />
         </div>
-        <div className="flex justify-end">
-          <Button type="button" size="sm" variant="ghost" onClick={() => void saveVendor()} isLoading={saving}>
-            Save vendor details
-          </Button>
+        {view.vendorCost !== null ? <p className="text-xs text-ink-tertiary">Current vendor cost (internal): ₹{view.vendorCost.toLocaleString("en-IN")}</p> : null}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {sendBlockedReason && !view.sentToAirlines ? <span className="text-xs text-warning">{sendBlockedReason}</span> : null}
+          {view.sentToAirlines ? (
+            <Button type="button" size="sm" variant="ghost" onClick={() => void saveVendor()} isLoading={saving}>
+              Save vendor / PNR
+            </Button>
+          ) : (
+            <Button type="button" size="sm" onClick={() => void sendToAirlines()} isLoading={sending} disabled={sendBlockedReason !== null}>
+              Send to Airlines
+            </Button>
+          )}
         </div>
       </div>
       {dialog}

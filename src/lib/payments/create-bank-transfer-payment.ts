@@ -1,4 +1,5 @@
 import { nonTaxableQuotationAmount } from "../invoices/invoice-document";
+import { serviceInvoiceFee } from "../invoices/service-fee";
 import type { Booking, Customer, Lead, Quotation } from "../../generated/prisma/client";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
@@ -33,9 +34,16 @@ export async function createPendingBankTransferPayment(input: {
   const amount = roundToPaise(Number(quotation.sellingPrice) + protectionPlans.amount);
   const couponDiscount = Number(quotation.couponDiscount ?? 0);
   const netAmount = Math.max(0, amount - couponDiscount);
-  const { gstRate } = await getTaxFeeRates();
+  const { gstRate: defaultGstRate } = await getTaxFeeRates();
+  // Client doc 2026-10-20 (F2/F3) — the service's configured invoice fee is the taxable part, as for gateway payments.
+  const passengerCount = await db.bookingPassenger.count({ where: { bookingId: booking.id } });
+  const configured = await serviceInvoiceFee(booking.lead.serviceType, passengerCount || booking.lead.paxCount || 1);
+  const gstRate = configured.gstRate ?? defaultGstRate;
+  const invoiceServiceFee = configured.fee === null ? null : roundToPaise(Math.min(configured.fee, Math.max(0, netAmount - protectionPlans.amount)));
   // No GST on the Govt./Airline/Vendor fee (and Visa Change / Extension fines) — same rule as gateway payments.
-  const gstAmount = roundToPaise(Math.max(0, netAmount - nonTaxableQuotationAmount(booking.lead.serviceType, quotation)) * gstRate);
+  const gstAmount = roundToPaise(
+    (invoiceServiceFee !== null ? invoiceServiceFee + protectionPlans.amount : Math.max(0, netAmount - nonTaxableQuotationAmount(booking.lead.serviceType, quotation))) * gstRate
+  );
 
   return db.$transaction(async (tx) => {
     const created = await tx.payment.create({
@@ -43,6 +51,7 @@ export async function createPendingBankTransferPayment(input: {
         bookingId: booking.id,
         amount,
         gstAmount,
+        invoiceServiceFee,
         gatewayFee: 0,
         couponId: quotation.couponId,
         couponCode: quotation.couponCode,

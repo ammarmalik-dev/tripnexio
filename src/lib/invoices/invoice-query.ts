@@ -22,7 +22,9 @@ const methodValues = Object.values(PaymentMethod) as [PaymentMethodType, ...Paym
 const purposeValues = Object.values(PaymentPurpose) as [PaymentPurposeType, ...PaymentPurposeType[]];
 
 /** Every sequential invoice number carries its FY ("TNS26/A01", or P07's "INV-2026-27-0001"); legacy random ones don't. */
-const SEQUENTIAL_INVOICE_PREFIXES = ["TNS", "INV-20"];
+// The year-in-the-number series ("TNS26/A01", "INV-2026-27-…"). The "TNS/A2601" series (client doc 2026-10-20, J1)
+// puts the letters first, so it's matched on its issued date like an unnumbered invoice.
+const SEQUENTIAL_INVOICE_PREFIXES = ["TNS2", "TNS3", "INV-20"];
 
 const isoInstant = z
   .string()

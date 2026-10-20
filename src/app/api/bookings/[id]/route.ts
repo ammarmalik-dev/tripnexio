@@ -11,6 +11,7 @@ import { buildApplicantRows } from "@/lib/new-visa/applicants";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { evaluateRefundRule, documentsValidated, packageGenerated, adminRefundOverride } from "@/lib/refunds/rules";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
+import { hasReachedStatusEvent } from "@/lib/service-status/engine";
 import { linkedOtbState, returnTicketCancellationFee } from "@/lib/return-ticket/operations";
 import { expectedOtbCompletion } from "@/lib/otb/staff-actions";
 import { canIssueReservation } from "@/lib/bookings/reservation";
@@ -228,6 +229,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             vendorReference: booking.pnrVendorReference,
             pnr: booking.pnr,
             deliveredAt: delivered?.deliveredAt ?? null,
+            // Client doc 2026-10-20 (B1) — the vendor is picked when the request goes to the airline.
+            sentToAirlines: await hasReachedStatusEvent(booking.id, "SENT_TO_AIRLINES"),
           };
         })()
       : null,

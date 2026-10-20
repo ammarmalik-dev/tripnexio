@@ -6,7 +6,9 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { writeAudit } from "@/lib/audit/log";
 import { describeError } from "@/lib/api/describe-error";
-import { linkServiceBookings, returnTicketVendorSchema } from "@/lib/return-ticket/operations";
+import { linkedOtbState, linkServiceBookings, returnTicketVendorSchema } from "@/lib/return-ticket/operations";
+import { setBookingVendor } from "@/lib/bookings/set-vendor";
+import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -18,6 +20,12 @@ interface RouteParams {
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("LINK_BOOKING"), otherBookingId: z.string().trim().min(3, "Enter the other booking's ID").max(60) }),
   z.object({ action: z.literal("SAVE_VENDOR") }).extend(returnTicketVendorSchema.shape),
+  // Client doc 2026-10-20 (B1) — pick the vendor as the request goes to the airline; its rate sets the cost.
+  z.object({
+    action: z.literal("SEND_TO_AIRLINES"),
+    vendorId: z.string().trim().min(1, "Select the vendor"),
+    pnr: z.string().trim().max(40).optional(),
+  }),
 ]);
 
 /**
@@ -74,6 +82,23 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
       if (!result.ok) return jsonError(result.httpStatus, result.error);
       return jsonSuccess({ linked: true });
+    }
+
+    if (data.action === "SEND_TO_AIRLINES") {
+      if (booking.lead.serviceType !== "RETURN_TICKET") return jsonError(409, "This is for Return Verified Ticket bookings.");
+      const vendor = await db.vendor.findUnique({ where: { id: data.vendorId }, select: { id: true, name: true, active: true } });
+      if (!vendor || !vendor.active) return jsonError(400, "Select an active vendor.", { vendorId: ["Select an active vendor."] });
+      const otb = await linkedOtbState(id);
+      if (!otb.issuanceAllowed) return jsonError(409, `The linked OTB booking ${otb.otb?.bookingId} isn't approved yet.`);
+      const result = await db.$transaction(async (tx) => {
+        const vendorError = await setBookingVendor(tx, { bookingId: id, leadId: booking.leadId, vendor, actor: { userId: session.id, name: session.name } });
+        if (vendorError) return { ok: false as const, httpStatus: 409, error: vendorError };
+        if (data.pnr) await tx.booking.update({ where: { id }, data: { pnr: data.pnr.toUpperCase() } });
+        return setServiceStatusByEvent(tx, { scope: "BOOKING", entityId: id, event: "SENT_TO_AIRLINES", note: `vendor ${vendor.name}`, userId: session.id, actorLabel: `by ${session.name}` });
+      });
+      if (!result.ok) return jsonError(result.httpStatus, result.error);
+      await dispatchStatusNotifications([result.notification]);
+      return jsonSuccess({ sent: true });
     }
 
     // SAVE_VENDOR

@@ -34,6 +34,8 @@ export const NOTIFICATION_EVENTS = {
   OTB_APPROVED: "OTB_APPROVED",
   ABANDONED_QUOTE_COUPON: "ABANDONED_QUOTE_COUPON",
   ENQUIRY_RECEIVED: "ENQUIRY_RECEIVED",
+  /** Client doc 2026-10-20 (I2) — an enquiry / complaint was resolved or closed, with staff's remark. */
+  ENQUIRY_RESOLVED: "ENQUIRY_RESOLVED",
   COMPLAINT_RECEIVED: "COMPLAINT_RECEIVED",
 } as const;
 
@@ -233,6 +235,13 @@ export const NOTIFICATION_EVENT_CATALOG: {
     variables: ["customerName", "enquiryReference", "subject", "category"],
     wired: true,
     sampleVariables: { customerName: "Sample Customer", enquiryReference: "ENQ-SAMPLE", subject: "Question about visa documents", category: "General Enquiry" },
+  },
+  {
+    event: NOTIFICATION_EVENTS.ENQUIRY_RESOLVED,
+    label: "Contact form: enquiry resolved / closed",
+    variables: ["customerName", "enquiryReference", "subject", "statusWord", "resolutionNote"],
+    wired: true,
+    sampleVariables: { customerName: "Sample Customer", enquiryReference: "ENQ-TNA0001", subject: "Question about visa documents", statusWord: "resolved", resolutionNote: "We've shared the document checklist on WhatsApp." },
   },
   {
     event: NOTIFICATION_EVENTS.COMPLAINT_RECEIVED,

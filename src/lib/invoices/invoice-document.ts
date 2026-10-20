@@ -257,7 +257,20 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
   const planAmount = Number(payment.protectionPlanAmount ?? 0);
   const serviceAmount = round2(Math.max(0, amount - planAmount));
   const baseLines: Omit<InvoiceDocumentLine, "gstAmount">[] = [];
-  if (serviceAmount >= 0.005) {
+  // Client doc 2026-10-20 (F3) — a payment taken with the service's configured invoice fee shows only that fee as the
+  // service fee (GST on it); the rest of the price is the Govt./Airline/Vendor fee.
+  const snapshotFee = payment.invoiceServiceFee != null ? Number(payment.invoiceServiceFee) : null;
+  const defaultDescription = subService ? `${serviceLabel} — ${subService}` : serviceLabel;
+  if (serviceAmount >= 0.005 && snapshotFee !== null) {
+    const fee = round2(Math.min(snapshotFee, serviceAmount));
+    baseLines.push({
+      description: payment.purpose === "EXTRA" ? (payment.description ?? "Extra Payment") : defaultDescription,
+      sac,
+      quantity: 1,
+      governmentFee: round2(serviceAmount - fee),
+      serviceFee: fee,
+    });
+  } else if (serviceAmount >= 0.005) {
     if (payment.purpose === "EXTRA") {
       baseLines.push({ description: payment.description ?? "Extra Payment", sac, quantity: 1, governmentFee: 0, serviceFee: serviceAmount });
     } else {
@@ -266,7 +279,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
           serviceType: lead.serviceType,
           quotation: lead.quotations[0] ?? null,
           serviceAmount,
-          defaultDescription: subService ? `${serviceLabel} — ${subService}` : serviceLabel,
+          defaultDescription,
           sac,
         })
       );
@@ -286,7 +299,8 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
     gstAmount
   );
   const lineTotal = round2(lines.reduce((sum, line) => sum + line.governmentFee + line.serviceFee, 0));
-  const taxable = Math.max(0, lines.reduce((sum, line) => sum + line.serviceFee, 0) - couponDiscount);
+  // A coupon comes off the pass-through fee when the service fee is a fixed configured amount.
+  const taxable = Math.max(0, lines.reduce((sum, line) => sum + line.serviceFee, 0) - (snapshotFee !== null && !override ? 0 : couponDiscount));
   const grandTotal = round2((override ? lineTotal : amount) - couponDiscount + gstAmount + gatewayFee);
 
   // Client doc 2026-10-15 (G2) — Refunded once a refund completed (Partially Refunded when it was less

@@ -70,7 +70,13 @@ export function escapeEmailText(text: string): string {
  */
 export function stripTrailingSignature(bodyHtml: string, companyName: string): string {
   const name = companyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return bodyHtml.replace(new RegExp(`(?:<br\\s*/?>|\\s)*(?:—|–|-{1,2})\\s*(?:Team\\s+)?${name}\\.?(?:<br\\s*/?>|\\s)*$`, "i"), "");
+  return (
+    bodyHtml
+      .replace(new RegExp(`(?:<br\\s*/?>|\\s)*(?:—|–|-{1,2})\\s*(?:Team\\s+)?${name}\\.?(?:<br\\s*/?>|\\s)*$`, "i"), "")
+      // Client doc 2026-10-20 (H1) — a template's own "Best regards, Team TripNexio" / "Regards, TripNexio Support":
+      // the layout signs every email once, right after the message.
+      .replace(new RegExp(`(?:<br\\s*/?>|\\s)*(?:Best\\s+)?regards,?(?:<br\\s*/?>|\\s)*(?:Team\\s+)?${name}(?:\\s+Support)?\\.?(?:<br\\s*/?>|\\s)*$`, "i"), "")
+  );
 }
 
 /** A bulletproof (table-based, Outlook-safe) button — "Pay Now", "Download"… (client 2026-10-14: buttons, not bare links). */
@@ -161,15 +167,20 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
 <body style="margin:0;padding:0;background:${PAGE}">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${PAGE}"><tr><td align="center" style="padding:16px 8px">
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#FFFFFF;border-radius:16px;overflow:hidden">
-  <tr><td align="center" style="background:${NAVY};padding:16px 18px">
-    <div style="display:inline-block;vertical-align:middle;margin:2px 8px"><img src="${site}/email/logo-white.png" width="170" alt="${esc(input.companyName)}" style="display:block;width:170px;max-width:100%;height:auto;border:0"></div>
-    <div style="${FONT}display:inline-block;vertical-align:middle;margin:2px 8px;font-size:14px;font-weight:600;color:#C9D6EE">${esc(input.tagline)}</div>
+  <tr><td align="center" style="background:${NAVY};padding:22px 18px">
+    <!-- Client doc 2026-10-20 (H2): the name on top, the tagline under it, centred. The alt text reads as the name when images are off. -->
+    <img src="${site}/email/logo-white.png" width="180" alt="${esc(input.companyName)}" style="${FONT}display:block;margin:0 auto;width:180px;max-width:100%;height:auto;border:0;color:#FFFFFF;font-size:30px;font-weight:700;line-height:1.2">
+    ${input.tagline.trim() ? `<p style="${FONT}margin:8px 0 0;font-size:15px;line-height:1.4;color:#DCE6F7">${esc(input.tagline)}</p>` : ""}
   </td></tr>
   <tr><td style="padding:0 20px">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
   ${hero}
   ${summaryCard}
   <tr><td style="${FONT}padding:18px 2px 0;color:${INK};font-size:15px;line-height:1.6">${body}</td></tr>
+  <tr><td style="${FONT}padding:16px 2px 0;color:${INK}">
+    <p style="margin:0;font-size:15px;color:${MUTED}">Best regards,</p>
+    <p style="margin:2px 0 0;font-size:18px;font-weight:700;color:${NAVY}">Team ${esc(input.companyName)}</p>
+  </td></tr>
   ${divider}
   <tr><td style="padding:16px 0 0">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${CARD};border-radius:14px">
@@ -184,11 +195,6 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
       </td></tr>
       <tr><td style="padding:6px 16px 12px">${contacts}</td></tr>
     </table>
-  </td></tr>
-  ${divider}
-  <tr><td style="${FONT}padding:16px 2px 0;color:${INK}">
-    <p style="margin:0;font-size:15px;color:${MUTED}">Best regards,</p>
-    <p style="margin:2px 0 0;font-size:18px;font-weight:700;color:${NAVY}">Team ${esc(input.companyName)}</p>
   </td></tr>
   </table>
   </td></tr>

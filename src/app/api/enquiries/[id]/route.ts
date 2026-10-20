@@ -8,6 +8,9 @@ import { notifyStaff } from "@/lib/staff-notifications/notify";
 import { enquiryUpdateSchema } from "@/lib/enquiries/schemas";
 import { ENQUIRY_CATEGORY_LABELS, ENQUIRY_STATUS_LABELS } from "@/lib/enquiries/labels";
 import { leadReference } from "@/lib/leads/reference";
+import { notifyCustomer } from "@/lib/notifications/notify";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
+import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -131,6 +134,24 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         entityType: "Enquiry",
         entityId: id,
         recipients: { userIds: [changes.assignedStaffId] },
+      });
+    }
+
+    // Client doc 2026-10-20 (I2) — the customer is told when their enquiry is resolved or closed, with the remark.
+    if (closing) {
+      await notifyCustomer({
+        event: NOTIFICATION_EVENTS.ENQUIRY_RESOLVED,
+        emailTo: existing.email,
+        whatsappTo: toWhatsAppId(existing.mobile),
+        smsTo: null,
+        variables: {
+          customerName: existing.fullName,
+          enquiryReference: existing.reference,
+          subject: existing.subject,
+          statusWord: status === "RESOLVED" ? "resolved" : "closed",
+          resolutionNote: resolutionNote ?? "",
+        },
+        auditTarget: { entityType: "Enquiry", entityId: id },
       });
     }
 

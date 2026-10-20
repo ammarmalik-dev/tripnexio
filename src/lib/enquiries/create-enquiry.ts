@@ -4,7 +4,7 @@ import { findCustomerByMobile } from "../customers/find-by-mobile";
 import { notifyStaff } from "../staff-notifications/notify";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
-import { ENQUIRY_CATEGORY_LABELS, enquiryReference } from "./labels";
+import { ENQUIRY_CATEGORY_LABELS, enquiryReference, enquirySerial } from "./labels";
 import type { EnquiryCategory } from "../../generated/prisma/enums";
 
 export interface CreateEnquiryInput {
@@ -44,9 +44,15 @@ export async function createEnquiry(input: CreateEnquiryInput): Promise<{ id: st
         escalatedAt: isComplaint ? new Date() : null,
       },
     });
+    // Client doc 2026-10-20 (I1) — a sequential serial (ENQ-TNA0001…), race-safe through the shared counter table.
+    const counter = await tx.$queryRaw<{ lastValue: number }[]>`
+      INSERT INTO "ReferenceCounter" ("period", "lastValue", "updatedAt")
+      VALUES ('ENQUIRY', 1, CURRENT_TIMESTAMP)
+      ON CONFLICT ("period") DO UPDATE SET "lastValue" = "ReferenceCounter"."lastValue" + 1, "updatedAt" = CURRENT_TIMESTAMP
+      RETURNING "lastValue"`;
     const withReference = await tx.enquiry.update({
       where: { id: created.id },
-      data: { reference: enquiryReference(created.id, input.category) },
+      data: { reference: counter[0] ? enquirySerial(Number(counter[0].lastValue)) : enquiryReference(created.id, input.category) },
     });
     await writeAudit(tx, {
       entityType: "Enquiry",

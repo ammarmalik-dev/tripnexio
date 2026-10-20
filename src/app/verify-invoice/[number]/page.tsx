@@ -44,7 +44,8 @@ export default async function VerifyInvoicePage({ params, searchParams }: Verify
           couponDiscount: true,
           gstAmount: true,
           gatewayFee: true,
-          booking: { select: { bookingId: true, customer: { select: { name: true } }, lead: { select: { serviceType: true } } } },
+          booking: { select: { bookingId: true, status: true, customer: { select: { name: true } }, lead: { select: { serviceType: true } } } },
+          refunds: { where: { status: "COMPLETED" }, select: { refundAmount: true } },
         },
       })
     : null;
@@ -52,6 +53,12 @@ export default async function VerifyInvoicePage({ params, searchParams }: Verify
   const total = payment
     ? Number(payment.amount) - Number(payment.couponDiscount ?? 0) + Number(payment.gstAmount) + Number(payment.gatewayFee)
     : 0;
+  // Client doc 2026-10-20 (F1) — the same status the invoice itself carries: Cancelled once the booking is
+  // cancelled, Refunded / Partially Refunded once a refund completed; never "Paid" after that.
+  const refunded = payment ? payment.refunds.reduce((sum, refund) => sum + Number(refund.refundAmount), 0) : 0;
+  const cancelled = payment ? payment.booking.status === "CANCELLED" || payment.booking.status === "REFUNDED" : false;
+  const invoiceStatus =
+    refunded > 0 ? (refunded + 0.01 >= total - Number(payment?.gatewayFee ?? 0) || cancelled ? "Refunded" : "Partially Refunded") : cancelled ? "Cancelled" : "Paid";
 
   return (
     <Container className="flex min-h-[60vh] items-center justify-center py-16">
@@ -62,7 +69,10 @@ export default async function VerifyInvoicePage({ params, searchParams }: Verify
               <BadgeCheck className="h-8 w-8 text-success" aria-hidden="true" />
               <div>
                 <h1 className="text-lg font-semibold text-ink-heading">Genuine TripNexio invoice</h1>
-                <p className="text-sm text-ink-tertiary">This invoice was issued by TripNexio and the payment was received.</p>
+                <p className="text-sm text-ink-tertiary">
+                  This invoice was issued by TripNexio and the payment was received
+                  {invoiceStatus === "Paid" ? "." : invoiceStatus === "Cancelled" ? " — the booking was later cancelled." : " — it was later refunded."}
+                </p>
               </div>
             </div>
             <dl className="flex flex-col divide-y divide-hairline text-sm">
@@ -73,10 +83,11 @@ export default async function VerifyInvoicePage({ params, searchParams }: Verify
                 ["Service", SERVICE_TYPE_LABELS[payment.booking.lead.serviceType]],
                 ["Billed To", maskName(payment.booking.customer.name)],
                 ["Amount", formatCurrency(total)],
+                ["Status", invoiceStatus],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-4 py-2">
                   <dt className="text-ink-tertiary">{label}</dt>
-                  <dd className="font-medium text-ink-primary">{value}</dd>
+                  <dd className={label === "Status" && value !== "Paid" ? "font-semibold text-error" : "font-medium text-ink-primary"}>{value}</dd>
                 </div>
               ))}
             </dl>

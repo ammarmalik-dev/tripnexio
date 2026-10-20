@@ -31,6 +31,9 @@ interface ServiceData {
   iconName: string;
   displayOrder: number;
   active: boolean;
+  invoiceServiceFee: string | number | null;
+  invoiceServiceFeePerPassenger: boolean;
+  gstRatePercent: string | number | null;
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -44,6 +47,9 @@ interface ServiceFormState {
   referenceCode: string;
   iconName: string;
   displayOrder: string;
+  invoiceServiceFee: string;
+  invoiceServiceFeePerPassenger: boolean;
+  gstRatePercent: string;
 }
 
 const EMPTY_FORM: ServiceFormState = {
@@ -55,6 +61,9 @@ const EMPTY_FORM: ServiceFormState = {
   referenceCode: "",
   iconName: SERVICE_ICON_OPTIONS[0],
   displayOrder: "0",
+  invoiceServiceFee: "",
+  invoiceServiceFeePerPassenger: true,
+  gstRatePercent: "",
 };
 
 function toFormState(service: ServiceData): ServiceFormState {
@@ -67,6 +76,9 @@ function toFormState(service: ServiceData): ServiceFormState {
     referenceCode: service.referenceCode,
     iconName: service.iconName,
     displayOrder: String(service.displayOrder),
+    invoiceServiceFee: service.invoiceServiceFee === null ? "" : String(Number(service.invoiceServiceFee)),
+    invoiceServiceFeePerPassenger: service.invoiceServiceFeePerPassenger,
+    gstRatePercent: service.gstRatePercent === null ? "" : String(Number(service.gstRatePercent)),
   };
 }
 
@@ -149,6 +161,47 @@ function ServiceFields({
         error={errors.sacCode?.[0]}
         disabled={disabled}
       />
+      {/* Client doc 2026-10-20 (F2/F3) — the invoice shows only this fee as the service fee, GST on it only. */}
+      <div className="grid grid-cols-1 gap-3 rounded-lg border border-dashed border-hairline p-3 sm:col-span-2 sm:grid-cols-3">
+        <TextField
+          label="Invoice service fee (₹)"
+          name={id("invoiceServiceFee")}
+          type="number"
+          min={0}
+          step="0.01"
+          placeholder="Blank = from the quotation"
+          value={form.invoiceServiceFee}
+          onChange={(event) => onChange({ ...form, invoiceServiceFee: event.target.value })}
+          error={errors.invoiceServiceFee?.[0]}
+          disabled={disabled}
+          hint="GST applies to this fee only; the rest of the price is the Govt./Airline/Vendor fee. Profit reports still use selling − cost."
+        />
+        <FormField label="Charged" htmlFor={id("invoiceServiceFeePerPassenger")}>
+          <select
+            id={id("invoiceServiceFeePerPassenger")}
+            value={form.invoiceServiceFeePerPassenger ? "pax" : "booking"}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...form, invoiceServiceFeePerPassenger: event.target.value === "pax" })}
+            className={cn(fieldControlClass, fieldBorderClass(false))}
+          >
+            <option value="pax">Per passenger</option>
+            <option value="booking">Per booking</option>
+          </select>
+        </FormField>
+        <TextField
+          label="GST % on the service fee"
+          name={id("gstRatePercent")}
+          type="number"
+          min={0}
+          max={28}
+          step="0.01"
+          placeholder="Blank = Tax & Fees rate"
+          value={form.gstRatePercent}
+          onChange={(event) => onChange({ ...form, gstRatePercent: event.target.value })}
+          error={errors.gstRatePercent?.[0]}
+          disabled={disabled}
+        />
+      </div>
       <TextField
         label="Reference Code"
         name={id("referenceCode")}
@@ -200,6 +253,9 @@ function buildPayload(form: ServiceFormState) {
     referenceCode: form.referenceCode.trim().toUpperCase(),
     iconName: form.iconName,
     displayOrder: Number(form.displayOrder) || 0,
+    invoiceServiceFee: form.invoiceServiceFee.trim() === "" ? null : Number(form.invoiceServiceFee),
+    invoiceServiceFeePerPassenger: form.invoiceServiceFeePerPassenger,
+    gstRatePercent: form.gstRatePercent.trim() === "" ? null : Number(form.gstRatePercent),
   };
 }
 

@@ -117,16 +117,16 @@ describe("invoice numbering", () => {
     expect(financialYear(new Date("2099-06-01T00:00:00Z"), IST)).toBe("2099-00");
   });
 
-  it("numbers invoices TNS<yy>/A01, A02... per financial year (G7)", async () => {
+  it("numbers invoices TNS/A<yy>01 … per financial year (client doc 2026-10-20, J1)", async () => {
     const { tx, counters } = fakeTx({ timezoneOffsetMinutes: IST });
-    counters.set("2026-27", 41); // the older INV series' counter is not reused
-    expect(await nextInvoiceNumber(tx, new Date("2026-03-30T10:00:00Z"))).toBe("TNS25/A01");
-    expect(await nextInvoiceNumber(tx, new Date("2026-04-02T10:00:00Z"))).toBe("TNS26/A01");
-    expect(await nextInvoiceNumber(tx, new Date("2026-09-30T10:00:00Z"))).toBe("TNS26/A02");
-    counters.set("TNS-2026-27", 98);
-    expect(await nextInvoiceNumber(tx, new Date("2026-09-30T10:00:00Z"))).toBe("TNS26/A99");
-    expect(await nextInvoiceNumber(tx, new Date("2026-09-30T10:00:00Z"))).toBe("TNS26/A100");
-    expect(await nextInvoiceNumber(tx, new Date("2027-04-01T10:00:00Z"))).toBe("TNS27/A01");
+    counters.set("TNS-2026-27", 41); // the older TNS26/A.. series' counter is not reused
+    expect(await nextInvoiceNumber(tx, new Date("2026-03-30T10:00:00Z"))).toBe("TNS/A2501");
+    expect(await nextInvoiceNumber(tx, new Date("2026-04-02T10:00:00Z"))).toBe("TNS/A2601");
+    expect(await nextInvoiceNumber(tx, new Date("2026-09-30T10:00:00Z"))).toBe("TNS/A2602");
+    counters.set("TNSJ1-2026-27", 98);
+    expect(await nextInvoiceNumber(tx, new Date("2026-09-30T10:00:00Z"))).toBe("TNS/A2699");
+    expect(await nextInvoiceNumber(tx, new Date("2026-09-30T10:00:00Z"))).toBe("TNS/B2601");
+    expect(await nextInvoiceNumber(tx, new Date("2027-04-01T10:00:00Z"))).toBe("TNS/A2701");
   });
 });
 

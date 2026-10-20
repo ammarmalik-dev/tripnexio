@@ -8,6 +8,7 @@ import { getDefaultPaymentLinkHours } from "../settings/system-config";
 import { usableGateways, type UsableGateway } from "./accounts";
 import { notifyPaymentLinkReady } from "./notify-payment-link";
 import { nonTaxableQuotationAmount } from "../invoices/invoice-document";
+import { serviceInvoiceFee } from "../invoices/service-fee";
 import { leadReference } from "../leads/reference";
 import { siteConfig } from "../site-config";
 
@@ -68,8 +69,16 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   // CRM.md §10: "...− Coupon + Gateway Charge = Customer Payable." GST and the
   // gateway fee are computed on the amount AFTER the coupon discount.
   const netAmount = Math.max(0, baseAmount - couponDiscount);
-  const { gstRate, gatewayFeeRate, absorbedGatewayFeeRate } = await getTaxFeeRates();
-  const taxableAmount = Math.max(0, netAmount - (input.nonTaxableAmount ?? 0));
+  const { gstRate: defaultGstRate, gatewayFeeRate, absorbedGatewayFeeRate } = await getTaxFeeRates();
+  // Client doc 2026-10-20 (F2/F3) — a service with an Admin-set invoice service fee charges GST on that fee only
+  // (a Protection Plan stays a taxable service); an extra payment (fare difference, fines) is a pass-through fee.
+  const passengerCount = await db.bookingPassenger.count({ where: { bookingId: booking.id } });
+  const configured = await serviceInvoiceFee(booking.lead.serviceType, passengerCount || booking.lead.paxCount || 1);
+  const gstRate = configured.gstRate ?? defaultGstRate;
+  const planAmount = protectionPlans?.amount ?? 0;
+  const invoiceServiceFee =
+    configured.fee === null ? null : purpose === "EXTRA" ? 0 : roundToPaise(Math.min(configured.fee, Math.max(0, netAmount - planAmount)));
+  const taxableAmount = invoiceServiceFee !== null ? invoiceServiceFee + (purpose === "EXTRA" ? 0 : planAmount) : Math.max(0, netAmount - (input.nonTaxableAmount ?? 0));
   const gstAmount = roundToPaise(taxableAmount * gstRate);
   const gatewayFee = roundToPaise(netAmount * gatewayFeeRate);
   const totalAmount = roundToPaise(netAmount + gstAmount + gatewayFee);
@@ -146,6 +155,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
         bookingId: booking.id,
         amount: baseAmount,
         gstAmount,
+        invoiceServiceFee,
         gatewayFee,
         gatewayFeeAbsorbed,
         couponId,
