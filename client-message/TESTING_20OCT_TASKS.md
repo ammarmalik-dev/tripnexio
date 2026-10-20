@@ -155,11 +155,11 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
 - [ ] L14. (Screenshot) The Notifications panel is hidden behind the record tabs (z-index).
 
 ## M. Site / Admin
-- [ ] M1. Admin Live Activity: every bottom line on a single line.
-- [ ] M2. Footer bottom: only "© 2026 TripNexio. All rights reserved."
-- [ ] M3. The cookie banner shows once; it doesn't come back after a choice.
-- [ ] M4. WhatsApp Support number correct, on one line on mobile, working link.
-- [ ] M5. Company / Support / Legal pages: justified text, consistent spacing, responsive.
+- [x] M1. Admin Live Activity: every bottom line on a single line. — DONE: compact one-line pagination + single-line rows
+- [x] M2. Footer bottom: only "© 2026 TripNexio. All rights reserved." — DONE: only the copyright line; Cookie settings moved to the Cookie Policy page
+- [x] M3. The cookie banner shows once; it doesn't come back after a choice. — DONE: choice kept on the whole domain + localStorage copy
+- [x] M4. WhatsApp Support number correct, on one line on mobile, working link. — DONE: live WhatsApp Business number +91 81161 22850 fallback, no wrap
+- [x] M5. Company / Support / Legal pages: justified text, consistent spacing, responsive. — DONE: justified text on Company / Support / Legal pages
 
 ## N. Booking status filter
 - [ ] N1. Booking-level statuses: Confirmed, Processing, Partial Approved, Completed, Cancelled, Partial Refund, Cancelled (Refunded).

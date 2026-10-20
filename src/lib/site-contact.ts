@@ -53,7 +53,7 @@ export const STATIC_SITE_CONTACT: SiteContact = {
   phoneHref: siteConfig.contact.phoneHref,
   email: siteConfig.contact.email,
   emailHref: siteConfig.contact.emailHref,
-  whatsapp: siteConfig.contact.phone,
+  whatsapp: siteConfig.contact.whatsapp,
   whatsappHref: siteConfig.contact.whatsappHref,
   socials: { ...siteConfig.socials },
 };

@@ -26,7 +26,7 @@ export default async function WhatsAppSupportPage() {
     >
       <div className="flex flex-col items-start gap-3 rounded-xl border border-hairline bg-surface-1 p-6">
         <p className="text-sm text-ink-secondary">
-          Official TripNexio WhatsApp: <strong className="text-ink-primary">{phone}</strong>
+          Official TripNexio WhatsApp: <strong className="whitespace-nowrap text-ink-primary">{phone}</strong>
         </p>
         <a
           href={href}

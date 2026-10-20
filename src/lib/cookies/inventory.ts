@@ -35,7 +35,7 @@ export const CONSENT_COOKIE_NAME = "tnx_cookie_consent";
 export const CONSENT_COOKIE_MAX_AGE_DAYS = 180;
 
 export const COOKIE_INVENTORY: CookieInventoryEntry[] = [
-  { name: CONSENT_COOKIE_NAME, category: "necessary", provider: "TripNexio", purpose: "Remembers your cookie choices.", duration: `${CONSENT_COOKIE_MAX_AGE_DAYS} days` },
+  { name: CONSENT_COOKIE_NAME, category: "necessary", provider: "TripNexio", purpose: "Remembers your cookie choices (a copy is kept in your browser's local storage).", duration: `${CONSENT_COOKIE_MAX_AGE_DAYS} days` },
   { name: "tnx_customer_session", category: "necessary", provider: "TripNexio", purpose: "Keeps you signed in to your TripNexio account (HttpOnly, Secure).", duration: "Session length set at sign-in" },
   { name: "tnx_google_oauth", category: "necessary", provider: "TripNexio", purpose: "Protects the Google Sign-In flow (short-lived state check).", duration: "Minutes" },
   { name: "tnx_staff_session", category: "necessary", provider: "TripNexio", purpose: "Staff sign-in for the internal CRM only (HttpOnly, Secure).", duration: "8 hours" },

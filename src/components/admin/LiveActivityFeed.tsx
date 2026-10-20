@@ -102,7 +102,7 @@ function ActivityCard<T extends { id: string }>({ title, noun, icon, items, rend
               </li>
             ))}
           </ul>
-          <ListPagination noun={noun} {...paginationProps} className="m-3 mt-auto" />
+          <ListPagination noun={noun} {...paginationProps} compact className="m-3 mt-auto" />
         </>
       )}
     </section>
@@ -205,7 +205,7 @@ export function LiveActivityFeed() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <LeadStatusBadge status={lead.status} />
-                    <span className="text-xs text-ink-tertiary">{formatDateTime(lead.createdAt)}</span>
+                    <span className="whitespace-nowrap text-xs text-ink-tertiary">{formatDateTime(lead.createdAt)}</span>
                   </div>
                 </>
               )}
@@ -229,7 +229,7 @@ export function LiveActivityFeed() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <PaymentStatusBadge status={payment.status} />
-                    <span className="text-xs text-ink-tertiary">{formatDateTime(payment.createdAt)}</span>
+                    <span className="whitespace-nowrap text-xs text-ink-tertiary">{formatDateTime(payment.createdAt)}</span>
                   </div>
                 </>
               )}
@@ -252,7 +252,7 @@ export function LiveActivityFeed() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <BookingStatusBadge status={booking.status} />
-                    <span className="text-xs text-ink-tertiary">{formatDateTime(booking.createdAt)}</span>
+                    <span className="whitespace-nowrap text-xs text-ink-tertiary">{formatDateTime(booking.createdAt)}</span>
                   </div>
                 </>
               )}
@@ -270,14 +270,14 @@ export function LiveActivityFeed() {
                       {conversation.customerName ?? "Unknown"} <span className="text-xs font-normal text-ink-tertiary">{conversation.maskedNumber}</span>
                     </div>
                     {conversation.latestMessage ? (
-                      <p className="line-clamp-2 text-xs text-ink-secondary">
+                      <p className="truncate text-xs text-ink-secondary">
                         <span className="font-medium">{conversation.latestMessage.direction === "INBOUND" ? "Customer: " : "TripNexio: "}</span>
                         {conversation.latestMessage.preview ?? ""}
                       </p>
                     ) : (
                       <p className="text-xs text-ink-tertiary">No messages logged</p>
                     )}
-                    <div className="text-xs text-ink-tertiary">
+                    <div className="truncate text-xs text-ink-tertiary">
                       {conversation.state}
                       {conversation.serviceType ? ` · ${SERVICE_TYPE_LABELS[conversation.serviceType]}` : ""}
                       {conversation.leadId ? (
@@ -290,7 +290,7 @@ export function LiveActivityFeed() {
                       ) : null}
                     </div>
                   </div>
-                  <span className="shrink-0 text-xs text-ink-tertiary">
+                  <span className="shrink-0 whitespace-nowrap text-xs text-ink-tertiary">
                     {formatDateTime(conversation.latestMessage?.createdAt ?? conversation.updatedAt)}
                   </span>
                 </>
@@ -327,7 +327,7 @@ export function LiveActivityFeed() {
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span className="text-xs font-medium text-ink-secondary">{OCR_STATUS_LABELS[job.status]}</span>
-                    <span className="text-xs text-ink-tertiary">{formatDateTime(job.createdAt)}</span>
+                    <span className="whitespace-nowrap text-xs text-ink-tertiary">{formatDateTime(job.createdAt)}</span>
                   </div>
                 </>
               )}
@@ -342,7 +342,7 @@ export function LiveActivityFeed() {
                 <>
                   <div className="min-w-0">
                     <div className="font-medium text-ink-primary">{email.entityType}</div>
-                    <p className="line-clamp-2 text-xs text-ink-secondary">{email.note ?? ""}</p>
+                    <p className="truncate text-xs text-ink-secondary">{email.note ?? ""}</p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <span
@@ -353,7 +353,7 @@ export function LiveActivityFeed() {
                     >
                       {email.action === "EMAIL_SENT" ? "Sent" : email.action === "EMAIL_FAILED" ? "Failed" : "Skipped"}
                     </span>
-                    <span className="text-xs text-ink-tertiary">{formatDateTime(email.timestamp)}</span>
+                    <span className="whitespace-nowrap text-xs text-ink-tertiary">{formatDateTime(email.timestamp)}</span>
                   </div>
                 </>
               )}

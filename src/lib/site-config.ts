@@ -20,7 +20,9 @@ export const siteConfig = {
     // number above rather than a pasted Facebook Page CTA link — those carry
     // a session/token-bound URL (exp claim + fbclid tracking param) that
     // isn't meant to be embedded permanently on the site.
-    whatsappHref: "https://wa.me/919238184005",
+    whatsappHref: "https://wa.me/918116122850",
+    // Client doc 2026-10-20 (M4) — the live WhatsApp Business number (bot + agent chat), apart from the call number.
+    whatsapp: "+91 81161 22850",
   },
   socials: {
     instagram: "https://instagram.com/tripnexio",

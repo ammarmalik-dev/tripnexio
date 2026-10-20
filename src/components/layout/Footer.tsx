@@ -3,13 +3,12 @@ import { Logo } from "./Logo";
 import { Container } from "@/components/ui/Container";
 import { SocialIcon, SOCIAL_HOVER_CLASS } from "@/components/ui/SocialIcon";
 import { utilityLinks } from "@/lib/nav-config";
-import { getSiteContact, getSystemConfig } from "@/lib/settings/system-config";
+import { getSiteContact } from "@/lib/settings/system-config";
 import { socialLinksFor } from "@/lib/site-contact";
 import { getActiveServices } from "@/lib/services/active-services";
 import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import type { ServiceType } from "../../generated/prisma/enums";
-import { CookieSettingsLink } from "@/components/cookies/CookieConsent";
 
 // Locked footer structure — Homepage_FINAL_Locked_1of1.docx §11: Careers removed, Blog kept.
 const companyLinks = [
@@ -77,13 +76,8 @@ function FooterColumn({
 }
 
 export async function Footer() {
-  const config = await getSystemConfig();
   const contact = await getSiteContact();
   const serviceLinks = await loadServiceLinks();
-  const companyName = config.companyName?.trim();
-  const legalLine = [config.legalEntityName?.trim(), config.gstin?.trim() ? `GSTIN ${config.gstin.trim()}` : null].filter(Boolean).join(" · ");
-  const companyPhone = config.companyPhone?.trim();
-  const companyEmail = config.companyEmail?.trim();
 
   return (
     <footer className="surface-dark-block">
@@ -113,30 +107,10 @@ export async function Footer() {
         <FooterColumn title="Legal" links={legalLinks} />
       </Container>
 
+      {/* Client doc 2026-10-20 (M2) — the bottom line is only the copyright. */}
       <div className="border-t border-hairline-on-dark">
-        <Container className="flex flex-col items-center justify-between gap-2 py-6 text-xs text-ink-on-dark-muted sm:flex-row">
-          {companyName || legalLine ? (
-            <p className="text-center sm:text-left">
-              {companyName ? <>&copy; {new Date().getFullYear()} {companyName}. All rights reserved.</> : null}
-              {/* Client doc 2026-10-15 — the registered business details (System Configuration), shown when filled in. */}
-              {legalLine ? <span className="block sm:inline sm:ml-2">{legalLine}</span> : null}
-            </p>
-          ) : null}
-          <CookieSettingsLink className="hover:text-ink-on-dark-primary focus-visible:outline-none focus-visible:underline" />
-          {companyPhone || companyEmail ? (
-            <p className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              {companyPhone ? (
-                <a href={contact.phoneHref} className="hover:text-ink-on-dark-primary">
-                  {contact.phone}
-                </a>
-              ) : null}
-              {companyEmail ? (
-                <a href={contact.emailHref} className="hover:text-ink-on-dark-primary">
-                  {contact.email}
-                </a>
-              ) : null}
-            </p>
-          ) : null}
+        <Container className="py-6 text-center text-xs text-ink-on-dark-muted">
+          <p>&copy; {new Date().getFullYear()} TripNexio. All rights reserved.</p>
         </Container>
       </div>
     </footer>

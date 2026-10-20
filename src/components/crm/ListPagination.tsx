@@ -15,6 +15,8 @@ interface ListPaginationProps {
   onPageSizeChange?: (pageSize: number) => void;
   pageSizeOptions?: readonly number[];
   className?: string;
+  /** Client doc 2026-10-20 (M1) — one line for narrow panels: no rows-per-page label, Prev / Next only. */
+  compact?: boolean;
 }
 
 const pagerButton =
@@ -37,6 +39,7 @@ export function ListPagination({
   onPageSizeChange,
   pageSizeOptions = PAGE_SIZE_OPTIONS,
   className,
+  compact = false,
 }: ListPaginationProps) {
   if (total === 0) return null;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
@@ -49,12 +52,13 @@ export function ListPagination({
     <nav
       className={cn(
         "flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1/70 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between",
+        compact && "flex-row items-center justify-between gap-2 whitespace-nowrap",
         className
       )}
       aria-label={`${noun} list pagination`}
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-ink-tertiary">
-        {onPageSizeChange ? (
+      <div className={cn("flex items-center gap-x-4 gap-y-2 text-xs text-ink-tertiary", compact ? "min-w-0 flex-nowrap" : "flex-wrap")}>
+        {onPageSizeChange && !compact ? (
           <div className="flex items-center gap-2">
             <label htmlFor={selectId}>Rows per page</label>
             <select
@@ -82,7 +86,7 @@ export function ListPagination({
       </div>
 
       {totalPages > 1 ? (
-        <div className="flex flex-wrap items-center gap-1">
+        <div className={cn("flex items-center gap-1", compact ? "flex-nowrap" : "flex-wrap")}>
           <button
             type="button"
             className={cn(pagerButton, "hidden sm:inline-flex")}
@@ -101,7 +105,12 @@ export function ListPagination({
           >
             <ChevronLeft className="h-4 w-4" aria-hidden="true" />
           </button>
-          {pageWindow(page, totalPages).map((entry, index) =>
+          {compact ? (
+            <span className="px-1 text-xs text-ink-tertiary">
+              {page} / {totalPages}
+            </span>
+          ) : null}
+          {(compact ? [] : pageWindow(page, totalPages)).map((entry, index) =>
             entry === "gap" ? (
               <span key={`gap-${index}`} className="px-1 text-sm text-ink-muted" aria-hidden="true">
                 …
