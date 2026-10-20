@@ -81,7 +81,23 @@ export async function applyRefundStatus(
     // Client doc 2026-10-20 — then the final "Cancelled and Refunded" state, with no second message.
     await applySystemEvent(tx, { scope: "BOOKING", entityId: booking.id, event: "CANCELLED_AND_REFUNDED", userId: actor.userId, actorLabel: actor.label, silent: true });
   } else {
-    // Client doc 2026-10-20 (N2) — a partial refund done: the remaining passengers carry on from where the booking was.
+    // Client doc 2026-10-20 (N2) — a partial refund shows its passengers as cancelled (no undecided passenger
+    // is left looking active), then the remaining passengers carry on from where the booking was.
+    if (refund.passengerIds.length > 0) {
+      const cancelledRows = await tx.bookingPassenger.updateMany({
+        where: { bookingId: booking.id, passengerId: { in: refund.passengerIds }, outcome: null },
+        data: { outcome: "CANCELLED" },
+      });
+      if (cancelledRows.count > 0) {
+        await writeAudit(tx, {
+          entityType: "Booking",
+          entityId: booking.id,
+          action: "PASSENGER_OUTCOME",
+          byUserId: actor.userId,
+          note: `${cancelledRows.count} passenger(s) marked Cancelled by the completed partial refund (${actor.label})`,
+        });
+      }
+    }
     await resumeAfterCancellation(tx, booking.id, actor.label, actor.userId);
   }
 

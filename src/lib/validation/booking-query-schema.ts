@@ -20,10 +20,14 @@ const isoDay = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
  * value is just a 1-element list, so every existing caller/link keeps
  * working unchanged) and parses straight to `BookingStatus[]`.
  */
+/** Client doc 2026-10-20 (N1) — booking-level filter values worked out from passengers / refunds, not stored. */
+export const DERIVED_BOOKING_FILTERS = ["PARTIAL_APPROVED", "PARTIAL_REFUND"] as const;
+export type DerivedBookingFilter = (typeof DERIVED_BOOKING_FILTERS)[number];
+
 const statusListSchema = z
   .string()
   .transform((value) => value.split(",").map((part) => part.trim()))
-  .pipe(z.array(z.enum(bookingStatusValues)).min(1));
+  .pipe(z.array(z.enum([...bookingStatusValues, ...DERIVED_BOOKING_FILTERS])).min(1));
 
 export const bookingListQuerySchema = z.object({
   status: statusListSchema.optional(),

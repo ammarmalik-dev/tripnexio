@@ -2,7 +2,8 @@ import { leadOwnershipWhere } from "../auth/ownership";
 import type { Prisma } from "../../generated/prisma/client";
 import { isServiceScopeUnrestricted, serviceTypeCondition } from "../auth/service-scope";
 import type { StaffSession } from "../auth/staff-session";
-import type { BookingListQueryValues } from "../validation/booking-query-schema";
+import { DERIVED_BOOKING_FILTERS, type BookingListQueryValues } from "../validation/booking-query-schema";
+import type { BookingStatus } from "../../generated/prisma/enums";
 
 /**
  * The Bookings list's where clause, shared by GET /api/bookings and its CSV
@@ -15,7 +16,22 @@ export function bookingListWhere(session: StaffSession, query: BookingListQueryV
   const { status, serviceType, search, dateFrom, dateTo, assignedStaffId, countryId, travelFrom, travelTo, paymentStatus, vendorId, serviceStatusId, customerStatus } =
     query;
 
-  const statuses = (status ?? []).filter((value) => value !== "PENDING");
+  const picked = status ?? [];
+  const statuses = picked.filter((value): value is BookingStatus => value !== "PENDING" && !(DERIVED_BOOKING_FILTERS as readonly string[]).includes(value));
+  // Client doc 2026-10-20 (N1 / N2) — Partial Approved: some passengers approved, others still in process;
+  // Partial Refund: a completed refund on a booking that isn't fully refunded (its passengers show Cancelled).
+  const derived: Prisma.BookingWhereInput[] = [
+    ...(picked.includes("PARTIAL_APPROVED")
+      ? [{ status: { in: ["CONFIRMED", "PROCESSING"] as BookingStatus[] }, AND: [{ passengers: { some: { outcome: "APPROVED" as const } } }, { passengers: { some: { outcome: null } } }] }]
+      : []),
+    ...(picked.includes("PARTIAL_REFUND")
+      ? [{ status: { notIn: ["PENDING", "REFUNDED"] as BookingStatus[] }, payments: { some: { refunds: { some: { status: "COMPLETED" as const } } } } }]
+      : []),
+  ];
+  const statusWhere: Prisma.BookingWhereInput =
+    derived.length === 0
+      ? { status: statuses.length > 0 ? { in: statuses } : { not: "PENDING" } }
+      : { AND: [{ OR: [...(statuses.length > 0 ? [{ status: { in: statuses } }] : []), ...derived] }] }; // AND, so the search's own OR still applies
   const lead: Prisma.LeadWhereInput = {
     ...(serviceType || !isServiceScopeUnrestricted(session) ? serviceTypeCondition(session, serviceType) : {}),
     ...(assignedStaffId ? { assignedStaffId: assignedStaffId === "unassigned" ? null : assignedStaffId } : {}),
@@ -34,7 +50,7 @@ export function bookingListWhere(session: StaffSession, query: BookingListQueryV
   };
 
   return {
-    status: statuses.length > 0 ? { in: statuses } : { not: "PENDING" },
+    ...statusWhere,
     ...(Object.keys(lead).length > 0 ? { lead } : {}),
     ...(serviceStatusId ? { serviceStatusId } : customerStatus ? { serviceStatus: { customerLabel: customerStatus } } : {}),
     ...(paymentStatus ? { payments: { some: { status: paymentStatus } } } : {}),

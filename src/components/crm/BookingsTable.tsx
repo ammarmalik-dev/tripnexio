@@ -18,7 +18,6 @@ import { StatusPill } from "./StatusPill";
 import {
   SERVICE_TYPE_LABELS,
   SERVICE_TYPE_OPTIONS,
-  BOOKING_STATUS_OPTIONS,
   BOOKING_STATUS_LABELS,
   PAYMENT_STATUS_OPTIONS,
 } from "@/lib/crm/labels";
@@ -231,7 +230,16 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
           status,
           setStatus,
           "All booking statuses",
-          BOOKING_STATUS_OPTIONS.filter((option) => option.value !== "PENDING")
+          // Client doc 2026-10-20 (N1) — the client's booking-level list, in this order.
+          [
+            { value: "CONFIRMED", label: BOOKING_STATUS_LABELS.CONFIRMED },
+            { value: "PROCESSING", label: BOOKING_STATUS_LABELS.PROCESSING },
+            { value: "PARTIAL_APPROVED", label: "Partial Approved" },
+            { value: "COMPLETED", label: BOOKING_STATUS_LABELS.COMPLETED },
+            { value: "CANCELLED", label: BOOKING_STATUS_LABELS.CANCELLED },
+            { value: "PARTIAL_REFUND", label: "Partial Refund" },
+            { value: "REFUNDED", label: BOOKING_STATUS_LABELS.REFUNDED },
+          ]
         )}
         {filterSelect(
           "filter-booking-customer-status",

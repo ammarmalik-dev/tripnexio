@@ -162,8 +162,8 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
 - [x] M5. Company / Support / Legal pages: justified text, consistent spacing, responsive. — DONE: justified text on Company / Support / Legal pages
 
 ## N. Booking status filter
-- [ ] N1. Booking-level statuses: Confirmed, Processing, Partial Approved, Completed, Cancelled, Partial Refund, Cancelled (Refunded).
-- [ ] N2. Rules:
+- [x] N1. Booking-level statuses: Confirmed, Processing, Partial Approved, Completed, Cancelled, Partial Refund, Cancelled (Refunded). — DONE: Confirmed / Processing / Partial Approved / Completed / Cancelled / Partial Refund / Cancelled (Refunded) in the client's order
+- [x] N2. Rules: — DONE: partial refund marks its passengers Cancelled, then the booking resumes its own status; approved+rejected = Completed
   - A partial refund shows that the passenger was cancelled.
   - Some passengers approved and some rejected → Completed.
   - Partly processed + partly refunded → the refund completes first, then the booking shows its fresh status.
