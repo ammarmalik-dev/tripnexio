@@ -81,7 +81,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
   try {
     const result = await db.$transaction(async (tx) => {
-      const outcome = await setServiceStatusByEvent(tx, { scope: "BOOKING", entityId: id, event, note, userId: session.id, actorLabel: `by ${session.name}` });
+      const outcome = await setServiceStatusByEvent(tx, {
+        scope: "BOOKING",
+        entityId: id,
+        event,
+        note,
+        userId: session.id,
+        actorLabel: `by ${session.name}`,
+        inputs: reason ? { reason } : undefined,
+      });
       if (!outcome.ok) return outcome;
       if (action === "EXIT_COMPLETED" && exit) {
         const exitAt = new Date(exit.exitAt);

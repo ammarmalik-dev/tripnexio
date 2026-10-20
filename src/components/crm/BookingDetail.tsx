@@ -371,7 +371,7 @@ export function BookingDetail({
           { label: "Payment", value: latestPayment ? <PaymentStatusBadge status={latestPayment.status} /> : <span className="text-ink-tertiary">No payment</span> },
         ]}
         status={
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col gap-2">
             <BookingStatusControl
               bookingId={booking.id}
               status={booking.status}

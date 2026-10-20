@@ -28,8 +28,7 @@ const actionSchema = z.object({
  * P11 — New Visa embassy actions on a booking, through the per-service status
  * engine (transitions validated, audited, customer notified if configured).
  * Applied to Embassy stores its date; Rejected needs a reason the customer
- * will see. Visa Approved is followed by delivering the visa PDF (Deliver to
- * customer), which moves it to Visa Delivered, and only then Completed.
+ * will see. Approval is recorded by delivering the visa PDF (Deliver to customer, client doc 2026-10-20).
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("bookings.edit");
@@ -80,6 +79,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       note: reason ? `${label}: ${reason}` : label,
       userId: session.id,
       actorLabel: `by ${session.name}`,
+      inputs: reason ? { reason } : undefined,
     });
     if (!outcome.ok) return outcome;
     if (action === "APPLIED") {

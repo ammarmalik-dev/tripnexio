@@ -76,11 +76,12 @@ export async function PATCH(_request: Request, { params }: RouteParams) {
       byUserId: session.id,
       note: `Reservation issued, valid until ${expiresAt.toISOString()} (by ${session.name})`,
     });
-    // P17 — the booking moves to "Ticket Issued"; the RESERVATION_PDF delivery then moves it to "Delivered".
+    // Client doc 2026-10-20 — issuing the reservation sends it on ("Sent to Airlines"); delivering the
+    // reservation PDF then marks it "Ticket Issued" (PDF attached to the customer's email).
     statusNotification = await applySystemEvent(tx, {
       scope: "BOOKING",
       entityId: id,
-      event: "RT_RESERVATION_ISSUED",
+      event: "SENT_TO_AIRLINES",
       userId: session.id,
       actorLabel: `by ${session.name}`,
     });

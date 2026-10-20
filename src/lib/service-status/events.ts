@@ -51,6 +51,21 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   // Client doc 2026-10-15 (I5) — the gateway / Admin completed a refund: everything paid, or only part of it.
   "REFUND_COMPLETED",
   "REFUND_PARTIALLY_COMPLETED",
+  // Client doc 2026-10-20 — the steps of the client's final status lists.
+  "DOCUMENTS_REJECTED",
+  "READY_FOR_SUBMISSION",
+  "ADDITIONAL_DOCUMENTS_RECEIVED",
+  "ADDITIONAL_DOCUMENTS_VALIDATED",
+  "PARTIAL_APPROVED",
+  "SENT_TO_AIRLINES",
+  "CANCELLED",
+  "REFUND_RAISED",
+  "REFUND_APPROVED",
+  "CANCELLED_AND_REFUNDED",
+  "QUOTE_EXPIRING",
+  "QUOTE_EXPIRED",
+  "NEW_QUOTE_REQUESTED",
+  "FSF_SEAT_UNAVAILABLE",
 ] as const;
 
 export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[number];
@@ -97,5 +112,19 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   OTB_UNABLE_TO_PROCESS: "OTB: unable to process (TripNexio)",
   REFUND_COMPLETED: "Refund completed (full amount) — e.g. Cancelled",
   REFUND_PARTIALLY_COMPLETED: "Refund completed (part of the amount) — e.g. Partially Cancelled",
+  DOCUMENTS_REJECTED: "A document was rejected / is missing",
+  READY_FOR_SUBMISSION: "Ready for submission",
+  ADDITIONAL_DOCUMENTS_RECEIVED: "Additional documents received",
+  ADDITIONAL_DOCUMENTS_VALIDATED: "Additional documents validated",
+  PARTIAL_APPROVED: "Approved for some passengers only",
+  SENT_TO_AIRLINES: "Sent to airlines",
+  CANCELLED: "Cancelled (confirmed)",
+  REFUND_RAISED: "Refund raised (pending)",
+  REFUND_APPROVED: "Refund approved (processing)",
+  CANCELLED_AND_REFUNDED: "Cancelled and refunded (final)",
+  QUOTE_EXPIRING: "Quotation expiring soon",
+  QUOTE_EXPIRED: "Quotation expired",
+  NEW_QUOTE_REQUESTED: "Customer asked for a new quotation",
+  FSF_SEAT_UNAVAILABLE: "Special Fare: requested flight unavailable",
   ON_HOLD: "On Hold (marker)",
 };

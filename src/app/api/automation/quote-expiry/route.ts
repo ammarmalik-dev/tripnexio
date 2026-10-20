@@ -5,6 +5,8 @@ import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
+import { sendStatusTemplate, usesStatusTemplates } from "@/lib/notifications/status-template";
+import { applySystemEvent } from "@/lib/service-status/engine";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { leadReference } from "@/lib/leads/reference";
@@ -72,7 +74,17 @@ export async function POST(request: NextRequest) {
           ? !(await wasRecentlyReminded("QUOTE_REMINDER", "Quotation", quotation.id, FLIGHT_REMINDER_COOLDOWN_MS))
           : msLeft <= REMINDER_WINDOW_MS && !(await wasRecentlyReminded("QUOTE_REMINDER", "Quotation", quotation.id, REMINDER_COOLDOWN_MS));
 
-        if (dueForReminder) {
+        // Client doc 2026-10-20 — a Special Fare quote reminds every 10 minutes with the client's "Quotation Expiring"
+        // template (from 10 minutes after it was sent), and the lead shows "Quotation Expiring Soon".
+        if (dueForReminder && isFlight && (await usesStatusTemplates(quotation.lead.serviceType))) {
+          const sentAt = (quotation.sentAt ?? quotation.createdAt).getTime();
+          if (now - sentAt >= FLIGHT_REMINDER_COOLDOWN_MS) {
+            await db.$transaction((tx) => applySystemEvent(tx, { scope: "LEAD", entityId: quotation.leadId, event: "QUOTE_EXPIRING", actorLabel: "quotation expiring", silent: true }));
+            await sendStatusTemplate({ event: "SF_04", scope: "LEAD", entityId: quotation.leadId, statusLabel: "Quotation Expiring Soon" });
+            await logReminder("QUOTE_REMINDER", "Quotation", quotation.id);
+            remindersSent++;
+          }
+        } else if (dueForReminder) {
           await notifyCustomer({
             event: NOTIFICATION_EVENTS.QUOTE_REMINDER,
             emailTo: quotation.lead.customer.email,

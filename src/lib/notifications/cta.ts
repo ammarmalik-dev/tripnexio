@@ -14,9 +14,17 @@ export const EVENT_CTA: Record<string, { variable: string; label: string }> = {
   DOCUMENTS_REQUIRED: { variable: "uploadLink", label: "Upload Documents" },
 };
 
-/** The event's button when its link variable is filled in, else null. */
-export function ctaFor(event: string, variables: Record<string, string>): { label: string; url: string; variable: string } | null {
-  const cta = EVENT_CTA[event];
+/**
+ * The message's button when its link variable is filled in, else null. A template's own button
+ * (client doc 2026-10-20: NotificationTemplate.ctaLabel + ctaLink) wins over the event default.
+ */
+export function ctaFor(
+  event: string,
+  variables: Record<string, string>,
+  template?: { ctaLabel?: string | null; ctaLink?: string | null } | null
+): { label: string; url: string; variable: string } | null {
+  const own = template?.ctaLabel?.trim() && template.ctaLink?.trim() ? { label: template.ctaLabel.trim(), variable: template.ctaLink.trim() } : null;
+  const cta = own ?? EVENT_CTA[event];
   const url = cta ? variables[cta.variable]?.trim() : "";
   return cta && url && /^https?:\/\//i.test(url) ? { label: cta.label, url, variable: cta.variable } : null;
 }

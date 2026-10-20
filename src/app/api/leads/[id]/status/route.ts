@@ -69,6 +69,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       userId: session.id,
       actorLabel: `by ${session.name}`,
       adminOverride,
+      inputs: parsed.data.inputs,
     })
   );
   if (!result.ok) return jsonError(result.httpStatus, result.error);

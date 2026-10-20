@@ -102,7 +102,7 @@ export function VisaChangeActionsPanel({
     }
   };
 
-  const laterActions: VisaChangeAction[] = ["NEW_VISA_PROCESSING", "ADDITIONAL_DOCS", "APPROVED", "REJECTED"];
+  const laterActions: VisaChangeAction[] = ["READY", "APPLIED", "ADDITIONAL_DOCS", "REJECTED"];
 
   return (
     <section className="rounded-xl border border-hairline bg-surface-1 p-5">

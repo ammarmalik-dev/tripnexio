@@ -3,6 +3,7 @@ import { tripSummaryForLead } from "../leads/trip-summary";
 import { leadReference } from "../leads/reference";
 import { money } from "../invoices/render-invoice";
 import { notifyCustomer } from "../notifications/notify";
+import { sendCurrentStatusTemplate, usesStatusTemplates } from "../notifications/status-template";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
@@ -24,6 +25,19 @@ export async function notifyPaymentLinkReady(paymentId: string, options: { skipW
     });
     if (!payment || !payment.booking.customerToken) return;
     const booking = payment.booking;
+    // Client doc 2026-10-20 — a booking payment on the client's status templates goes out as the lead's own
+    // status message ("request received — Complete Payment"), not a separate payment-link message. A
+    // Special Fare difference payment is announced by its "Additional Payment Required" status.
+    if (await usesStatusTemplates(booking.lead.serviceType)) {
+      if (payment.purpose !== "EXTRA") {
+        // Only a new request's first link (New Visa / OTB / Return Ticket) — a quotation's link was in "Quotation Approved".
+        const leadStatus = await db.serviceStatus.findFirst({ where: { leads: { some: { id: booking.leadId } } }, select: { displayOrder: true, systemEvent: true } });
+        if (leadStatus && leadStatus.displayOrder === 0) await sendCurrentStatusTemplate("LEAD", booking.leadId, { skipWhatsApp: options.skipWhatsApp });
+        return;
+      }
+      const current = await db.serviceStatus.findFirst({ where: { bookings: { some: { id: booking.id } } }, select: { systemEvent: true } });
+      if (current?.systemEvent === "FSF_ADDITIONAL_PAYMENT_PENDING") return;
+    }
     await notifyCustomer({
       event: NOTIFICATION_EVENTS.PAYMENT_LINK_READY,
       emailTo: booking.customer.email,

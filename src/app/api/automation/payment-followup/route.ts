@@ -5,6 +5,7 @@ import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
 import { failPayment } from "@/lib/payments/complete-payment";
+import { sendPaymentReminderTemplate } from "@/lib/notifications/status-template";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { leadReference } from "@/lib/leads/reference";
@@ -53,6 +54,12 @@ export async function POST(request: NextRequest) {
         const alreadyReminded = await wasRecentlyReminded("PAYMENT_REMINDER", "Payment", payment.id, REMINDER_COOLDOWN_MS);
         if (alreadyReminded) continue;
 
+        // Client doc 2026-10-20 — services on the client's templates remind with their "Payment Pending" message.
+        if (payment.purpose !== "EXTRA" && (await sendPaymentReminderTemplate(payment.booking.leadId))) {
+          await logReminder("PAYMENT_REMINDER", "Payment", payment.id);
+          remindersSent++;
+          continue;
+        }
         const total = paymentTotal(payment);
         await notifyCustomer({
           event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,

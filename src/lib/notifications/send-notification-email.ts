@@ -6,7 +6,7 @@ import { ctaFor } from "./cta";
 import { emailButtonHtml } from "../email/layout";
 import { writeAudit } from "../audit/log";
 import { getEmailSender } from "../email/get-sender";
-import { renderTemplate, withRequiredLines } from "./render-template";
+import { dropEmptyPlaceholderLines, renderTemplate, tidyRenderedText, withRequiredLines } from "./render-template";
 import { emailHeroFor } from "./email-hero";
 import type { EmailAttachment } from "../email/sender";
 
@@ -78,16 +78,17 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
       return;
     }
 
-    const subject = renderTemplate(template.subject ?? event, variables, { escape: false });
+    const subject = tidyRenderedText(renderTemplate(template.subject ?? event, variables, { escape: false }));
     // Client 2026-10-14 — the event's link (Pay Now, Download…) is a button, not a bare URL.
-    const cta = ctaFor(event, variables);
+    const cta = ctaFor(event, variables, template);
     const CTA_MARKER = "@@TN_CTA@@";
-    let bodyText = withRequiredLines(template.body, variables);
+    // Client doc 2026-10-20 — a line with nothing filled in is left out, never sent as "Reason: ".
+    let bodyText = dropEmptyPlaceholderLines(withRequiredLines(template.body, variables), variables);
     if (cta) {
       const placeholder = new RegExp(`\\{\\{\\s*${cta.variable}\\s*\\}\\}`, "g");
       bodyText = placeholder.test(bodyText) ? bodyText.replace(placeholder, CTA_MARKER) : `${bodyText}\n${CTA_MARKER}`;
     }
-    const body = renderTemplate(bodyText, variables)
+    const body = tidyRenderedText(renderTemplate(bodyText, variables))
       .replace(/\n/g, "<br>")
       .replace(CTA_MARKER, cta ? emailButtonHtml(cta.label, cta.url) : "")
       .replaceAll(CTA_MARKER, "");
@@ -101,7 +102,7 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
         : body;
 
     const sender = getEmailSender();
-    const hero = await emailHeroFor(event, auditTarget, variables);
+    const hero = await emailHeroFor(event, auditTarget, variables, template.heading);
     const result = await sender.send({ to, subject, html, attachments, hero });
 
     await writeAudit(db, {

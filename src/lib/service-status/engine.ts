@@ -5,6 +5,8 @@ import { writeAudit } from "../audit/log";
 import { notifyCustomer } from "../notifications/notify";
 import { toWhatsAppId } from "../whatsapp/phone";
 import { leadReference } from "../leads/reference";
+import { sendStatusTemplate, statusInputsFor, type StatusInputs } from "../notifications/status-template";
+import type { EmailAttachment } from "../email/sender";
 import { HOLD_MARKER, type ServiceStatusSystemEvent } from "./events";
 import { customerStatusLabel } from "./customer-label";
 
@@ -32,6 +34,34 @@ export interface StatusNotification {
   scope: StatusScope;
   entityId: string;
   statusLabel: string;
+  /** Client doc 2026-10-20 — what staff typed for the customer (reason, next step, charges…). */
+  inputs?: StatusInputs;
+}
+
+/** Client doc 2026-10-20 — refund steps a final status (e.g. Rejected, Cancelled) may still move on to. */
+const REFUND_STEP_EVENTS = new Set(["REFUND_RAISED", "REFUND_APPROVED", "REFUND_COMPLETED", "CANCELLED_AND_REFUNDED"]);
+
+/**
+ * Client doc 2026-10-20 — system events that may move a record BACK within one stage: a rejected
+ * document after upload ("Documents Required" again), a fresh quotation after one expired or a new
+ * one was requested. Keyed by the event, the value is the systemEvent of the statuses it may leave.
+ */
+const LOOP_BACK_FROM: Partial<Record<ServiceStatusSystemEvent, Set<string>>> = {
+  DOCUMENTS_REJECTED: new Set(["DOCUMENTS_RECEIVED", "DOCUMENTS_REQUESTED", "DOCUMENTS_VALIDATED"]),
+  DOCUMENTS_REQUESTED: new Set(["DOCUMENTS_RECEIVED", "DOCUMENTS_REJECTED", "DOCUMENTS_VALIDATED"]),
+  QUOTATION_CREATED: new Set(["QUOTE_EXPIRING", "QUOTE_EXPIRED", "NEW_QUOTE_REQUESTED"]),
+  QUOTE_EXPIRING: new Set(["QUOTATION_CREATED"]),
+};
+
+/** Once past the main document stage, received / validated documents are the "additional" ones (client lists). */
+const ADDITIONAL_ALIAS: Partial<Record<ServiceStatusSystemEvent, ServiceStatusSystemEvent>> = {
+  DOCUMENTS_RECEIVED: "ADDITIONAL_DOCUMENTS_RECEIVED",
+  DOCUMENTS_VALIDATED: "ADDITIONAL_DOCUMENTS_VALIDATED",
+};
+
+/** A cancellation step (Cancellation Requested, Partially Cancelled…) — the booking remembers where it came from. */
+function isCancellationStep(status: Pick<ServiceStatus, "name" | "systemEvent">): boolean {
+  return /cancel/i.test(status.name) && !REFUND_STEP_EVENTS.has(status.systemEvent ?? "");
 }
 
 export type SetServiceStatusResult =
@@ -78,7 +108,7 @@ export function staffMoveBlock(scope: StatusScope, from: StatusShape | null, to:
   const coarse = (status: StatusShape) => (scope === "LEAD" ? status.mapsToLeadStatus : status.mapsToBookingStatus) ?? null;
   const toCoarse = coarse(to);
   const fromCoarse = coarse(from);
-  if (from.isTerminal && toCoarse !== "REFUNDED") return `"${from.name}" is final — only an Admin can move it.`;
+  if (from.isTerminal && toCoarse !== "REFUNDED" && !REFUND_STEP_EVENTS.has(to.systemEvent ?? "")) return `"${from.name}" is final — only an Admin can move it.`;
   if (/approved|extended|delivered|completed/i.test(from.name) && (toCoarse === "CANCELLED" || /reject/i.test(to.name))) {
     return `"${from.name}" can't be changed to "${to.name}" — only an Admin can do that.`;
   }
@@ -102,7 +132,9 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
         await db.serviceStatusTransition.findMany({
           where: { fromStatusId: current.id, to: { active: true } },
           select: {
-            to: { select: { id: true, name: true, customerLabel: true, displayOrder: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true } },
+            to: {
+              select: { id: true, name: true, customerLabel: true, displayOrder: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true, notificationEvent: true },
+            },
           },
         })
       )
@@ -114,7 +146,7 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
       await db.serviceStatus.findMany({
         where: { serviceType: entity.serviceType, scope, active: true },
         orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-        select: { id: true, name: true, customerLabel: true, displayOrder: true },
+        select: { id: true, name: true, customerLabel: true, displayOrder: true, notificationEvent: true },
       });
   // Client testing 2026-10-09 (E9) — the service's whole status list (internal name
   // + what the customer sees), so staff can see where a record is and what comes next.
@@ -123,9 +155,17 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true, customerLabel: true, isTerminal: true },
   });
+  // Client doc 2026-10-20 — per next status: does the customer get a message, and what must staff enter for it.
+  const inputs = await statusInputsFor(allowed.map((status) => status.notificationEvent ?? ""));
   return {
     current: current ? { id: current.id, name: current.name, customerLabel: current.customerLabel, isTerminal: current.isTerminal } : null,
-    allowed: allowed.map(({ id, name, customerLabel }) => ({ id, name, customerLabel })),
+    allowed: allowed.map(({ id, name, customerLabel, notificationEvent }) => ({
+      id,
+      name,
+      customerLabel,
+      notifies: !!notificationEvent,
+      inputs: notificationEvent ? (inputs[notificationEvent] ?? []) : [],
+    })),
     all,
   };
 }
@@ -136,10 +176,16 @@ async function applyStatus(
   entity: EntityState,
   from: ServiceStatus | null,
   to: ServiceStatus,
-  actor: { userId?: string; actorLabel: string; note?: string }
+  actor: { userId?: string; actorLabel: string; note?: string; inputs?: StatusInputs; silent?: boolean }
 ): Promise<StatusNotification | null> {
   const coarseTarget = scope === "LEAD" ? to.mapsToLeadStatus : to.mapsToBookingStatus;
   const coarseChanged = coarseTarget !== null && coarseTarget !== entity.coarseStatus;
+
+  // Client doc 2026-10-20 (N2) — entering a cancellation step remembers the operational status, so a
+  // partial cancellation (or a rejected one) can put the booking back on it.
+  if (scope === "BOOKING" && isCancellationStep(to) && (!from || (!isCancellationStep(from) && !REFUND_STEP_EVENTS.has(from.systemEvent ?? "")))) {
+    await tx.booking.update({ where: { id: entity.id }, data: { resumeServiceStatusId: from?.id ?? null } });
+  }
 
   if (scope === "LEAD") {
     await tx.lead.update({
@@ -165,9 +211,9 @@ async function applyStatus(
       ` (${actor.actorLabel})`,
   });
 
-  if (!to.notificationEvent) return null;
+  if (!to.notificationEvent || actor.silent) return null;
   const coarseAfter = (coarseChanged ? coarseTarget : entity.coarseStatus) as LeadStatus | BookingStatus;
-  return { event: to.notificationEvent, scope, entityId: entity.id, statusLabel: customerStatusLabel(scope, to, coarseAfter) };
+  return { event: to.notificationEvent, scope, entityId: entity.id, statusLabel: customerStatusLabel(scope, to, coarseAfter), inputs: actor.inputs };
 }
 
 /**
@@ -186,6 +232,8 @@ export async function setServiceStatus(
     actorLabel: string;
     /** Client doc 2026-10-15 (I9) — an Admin moves the record to any status of its service (reason required, audited). */
     adminOverride?: boolean;
+    /** Client doc 2026-10-20 — the customer-safe reason / next step / charges for the status's message. */
+    inputs?: StatusInputs;
   }
 ): Promise<SetServiceStatusResult> {
   const entity = await loadEntity(tx, input.scope, input.entityId);
@@ -228,27 +276,74 @@ export async function setServiceStatus(
  */
 export async function applySystemEvent(
   tx: Tx,
-  input: { scope: StatusScope; entityId: string; event: ServiceStatusSystemEvent; userId?: string; actorLabel: string }
+  input: { scope: StatusScope; entityId: string; event: ServiceStatusSystemEvent; userId?: string; actorLabel: string; inputs?: StatusInputs; silent?: boolean }
 ): Promise<StatusNotification | null> {
   const entity = await loadEntity(tx, input.scope, input.entityId);
   if (!entity) return null;
 
-  const to = await tx.serviceStatus.findFirst({
-    where: { serviceType: entity.serviceType, scope: input.scope, systemEvent: input.event, active: true },
-    orderBy: [{ displayOrder: "asc" }],
-  });
+  const findTarget = (event: ServiceStatusSystemEvent) =>
+    tx.serviceStatus.findFirst({
+      where: { serviceType: entity.serviceType, scope: input.scope, systemEvent: event, active: true },
+      orderBy: [{ displayOrder: "asc" }],
+    });
+  const from = entity.serviceStatusId ? await tx.serviceStatus.findUnique({ where: { id: entity.serviceStatusId } }) : null;
+  let to = await findTarget(input.event);
+  // Client doc 2026-10-20 — past the main document stage, documents received / validated are the additional ones.
+  const alias = ADDITIONAL_ALIAS[input.event];
+  if (alias && from && (!to || from.displayOrder >= to.displayOrder)) {
+    const additional = await findTarget(alias);
+    if (additional) to = additional;
+  }
   if (!to || entity.serviceStatusId === to.id) return null;
 
-  const from = entity.serviceStatusId ? await tx.serviceStatus.findUnique({ where: { id: entity.serviceStatusId } }) : null;
-  if (from && (from.isTerminal || from.systemEvent === HOLD_MARKER || from.displayOrder >= to.displayOrder)) return null;
+  if (from && from.systemEvent === HOLD_MARKER) return null;
+  if (from && from.isTerminal && !REFUND_STEP_EVENTS.has(input.event)) return null;
+  const loopsBack = !!from?.systemEvent && !!LOOP_BACK_FROM[input.event]?.has(from.systemEvent);
+  if (from && from.displayOrder >= to.displayOrder && !loopsBack) return null;
 
   return applyStatus(tx, input.scope, entity, from, to, { ...input, note: `system event ${input.event}` });
 }
 
-/** Sends the customer messages collected from status changes — call after the transaction commits. Never throws. */
-export async function dispatchStatusNotifications(notifications: (StatusNotification | null | undefined)[]): Promise<void> {
+/**
+ * Client doc 2026-10-20 (N2) — puts a booking back on the operational status it had before a
+ * cancellation step (a partial cancellation whose refund completed, or a rejected cancellation),
+ * without a customer message. No-op when there is nothing to resume.
+ */
+export async function resumeAfterCancellation(tx: Tx, bookingId: string, actorLabel: string, userId?: string): Promise<void> {
+  const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { resumeServiceStatusId: true } });
+  if (!booking?.resumeServiceStatusId) return;
+  const entity = await loadEntity(tx, "BOOKING", bookingId);
+  const to = await tx.serviceStatus.findUnique({ where: { id: booking.resumeServiceStatusId } });
+  if (!entity || !to || !to.active || entity.serviceStatusId === to.id) return;
+  const from = entity.serviceStatusId ? await tx.serviceStatus.findUnique({ where: { id: entity.serviceStatusId } }) : null;
+  await applyStatus(tx, "BOOKING", entity, from, to, { userId, actorLabel, note: "back to where it was before the cancellation step", silent: true });
+  await tx.booking.update({ where: { id: bookingId }, data: { resumeServiceStatusId: null } });
+}
+
+/**
+ * Sends the customer messages collected from status changes — call after the transaction commits. Never throws.
+ * A status with one of the client's templates (client doc 2026-10-20) sends it with the booking's own details;
+ * `attachments` go on its email (e.g. the invoice with Paid). Returns how many were sent.
+ */
+export async function dispatchStatusNotifications(
+  notifications: (StatusNotification | null | undefined)[],
+  options: { attachments?: EmailAttachment[] } = {}
+): Promise<number> {
+  let sent = 0;
   for (const notification of notifications) {
     if (!notification) continue;
+    if (notification.event !== "SERVICE_STATUS_UPDATE") {
+      await sendStatusTemplate({
+        event: notification.event,
+        scope: notification.scope,
+        entityId: notification.entityId,
+        statusLabel: notification.statusLabel,
+        inputs: notification.inputs,
+        attachments: options.attachments,
+      });
+      sent += 1;
+      continue;
+    }
     try {
       const lead =
         notification.scope === "LEAD"
@@ -263,10 +358,12 @@ export async function dispatchStatusNotifications(notifications: (StatusNotifica
         variables: { customerName: lead.customer.name, leadReference: leadReference(lead), status: notification.statusLabel },
         auditTarget: { entityType: notification.scope === "LEAD" ? "Lead" : "Booking", entityId: notification.entityId },
       });
+      sent += 1;
     } catch (error) {
       console.error("[service-status] status notification failed", error);
     }
   }
+  return sent;
 }
 
 /**
@@ -277,7 +374,7 @@ export async function dispatchStatusNotifications(notifications: (StatusNotifica
  */
 export async function setServiceStatusByEvent(
   tx: Tx,
-  input: { scope: StatusScope; entityId: string; event: ServiceStatusSystemEvent; note?: string; userId?: string; actorLabel: string }
+  input: { scope: StatusScope; entityId: string; event: ServiceStatusSystemEvent; note?: string; userId?: string; actorLabel: string; inputs?: StatusInputs }
 ): Promise<SetServiceStatusResult> {
   const entity = await loadEntity(tx, input.scope, input.entityId);
   if (!entity) return { ok: false, httpStatus: 404, error: "Record not found." };

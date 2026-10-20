@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
+import { sendDocumentsStatusTemplate } from "@/lib/notifications/status-template";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { leadReference } from "@/lib/leads/reference";
@@ -59,6 +60,12 @@ export async function POST(request: NextRequest) {
           seen.add(key);
           return true;
         });
+        // Client doc 2026-10-20 — services on the client's templates get their own "Documents Pending" message.
+        if (await sendDocumentsStatusTemplate(booking.id, "REQUESTED")) {
+          await logReminder(REMINDER_EVENT, "Booking", booking.id);
+          remindersSent++;
+          continue;
+        }
         await notifyCustomer({
           event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
           emailTo: booking.customer.email,

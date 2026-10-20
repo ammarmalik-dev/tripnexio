@@ -9,6 +9,7 @@ import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { PASSENGER_OUTCOME_LABELS, bookingOutcomeLabel } from "@/lib/bookings/passenger-outcomes";
 import { describeError } from "@/lib/api/describe-error";
+import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 
 interface RouteParams {
   params: Promise<{ id: string; passengerId: string }>;
@@ -57,6 +58,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const label = (value: string | null) => (value ? PASSENGER_OUTCOME_LABELS[value as keyof typeof PASSENGER_OUTCOME_LABELS] : "In progress");
+    const after = booking.passengers.map((passenger) => (passenger.passengerId === passengerId ? { outcome: parsed.data.outcome } : { outcome: passenger.outcome }));
+    let statusNotification: StatusNotification | null = null;
     await db.$transaction(async (tx) => {
       await tx.bookingPassenger.update({
         where: { bookingId_passengerId: { bookingId, passengerId } },
@@ -69,8 +72,22 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         byUserId: session.id,
         note: `${row.passenger.fullName}: ${label(row.outcome)} -> ${label(parsed.data.outcome)} — reason: ${parsed.data.reason} (by ${session.name})`,
       });
+      // Client doc 2026-10-20 — some passengers approved, others not: "Approved for partial applicants" (its message
+      // names who was approved and the others' outcomes). Once every passenger has a result and at least one was
+      // approved, the booking reads Completed (N2).
+      const approved = after.filter((entry) => entry.outcome === "APPROVED").length;
+      if (approved > 0 && approved < after.length) {
+        statusNotification = await applySystemEvent(tx, { scope: "BOOKING", entityId: bookingId, event: "PARTIAL_APPROVED", userId: session.id, actorLabel: `by ${session.name}` });
+      }
+      if (approved > 0 && after.every((entry) => entry.outcome !== null)) {
+        const current = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, select: { status: true } });
+        if (current.status !== "COMPLETED" && current.status !== "REFUNDED") {
+          await tx.booking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
+          await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "STATUS_CHANGE", byUserId: session.id, note: `${current.status} -> COMPLETED — every passenger has a result (by ${session.name})` });
+        }
+      }
     });
-    const after = booking.passengers.map((passenger) => (passenger.passengerId === passengerId ? { outcome: parsed.data.outcome } : { outcome: passenger.outcome }));
+    await dispatchStatusNotifications([statusNotification]);
     return jsonSuccess({ passengerId, outcome: parsed.data.outcome, bookingOutcome: bookingOutcomeLabel(after) });
   } catch (error) {
     console.error("[api/bookings/passengers/outcome]", describeError(error));

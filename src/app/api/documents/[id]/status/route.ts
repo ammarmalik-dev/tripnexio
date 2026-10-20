@@ -3,6 +3,7 @@ import { updateDocumentStatusSchema } from "@/lib/validation/document-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { sendDocumentsStatusTemplate, usesStatusTemplates } from "@/lib/notifications/status-template";
 import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -124,7 +125,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     statusNotifications = await applyBookingDocumentEvent(tx, countsTowardsBookingId, { userId: session.id, actorLabel: `by ${session.name}` });
     return result;
   });
-  await dispatchStatusNotifications(statusNotifications);
+  const statusMessages = await dispatchStatusNotifications(statusNotifications);
   if (updated.status === "REJECTED") await notifyDocumentRejected(updated.id, session.id);
 
   // Client testing 2026-10-09 (E10) — one customer message per review round
@@ -144,6 +145,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     .filter((document) => !isOutputType(document.type) && !document.purgedAt)
     .map((document) => ({ ...document, passengerName: document.passenger?.fullName ?? null }));
   const outcome = reviewRoundOutcome(roundDocuments);
+  // Client doc 2026-10-20 (K5) — on the client's templates the review round is announced by the booking's
+  // status ("Documents Validated" / "Documents Required"); when the status didn't move (e.g. an additional
+  // document rejected later on) the "Documents Required" message lists what's needed.
+  const bookingIdForRound = booking?.id ?? null;
+  if (bookingIdForRound && (await usesStatusTemplates(booking!.lead.serviceType))) {
+    if (statusMessages === 0 && outcome.kind === "ACTION_REQUIRED") await sendDocumentsStatusTemplate(bookingIdForRound, "REJECTED");
+    return jsonSuccess(updated);
+  }
   if (outcome.kind !== "IN_PROGRESS") {
     const recipient = await resolveDocumentRecipient(updated);
     if (recipient) {

@@ -1,5 +1,7 @@
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
+import { statusTemplateFor } from "../notifications/status-template";
+import { applySystemEvent, dispatchStatusNotifications } from "../service-status/engine";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { leadReference } from "../leads/reference";
@@ -60,6 +62,16 @@ export async function syncExpiredQuotations<T extends Quotation>(quotations: T[]
   for (const quotation of dueToExpire) {
     const lead = await db.lead.findUnique({ where: { id: quotation.leadId }, include: { customer: true } });
     if (!lead) continue;
+    // Client doc 2026-10-20 — a Special Fare lead moves to "Quotation Expired" (its own template, with a
+    // New Quotation button) once no other quotation on it is still open.
+    if (await statusTemplateFor(lead.serviceType, "LEAD", "QUOTE_EXPIRED")) {
+      const stillOpen = await db.quotation.count({ where: { leadId: lead.id, isDraft: false, isExpired: false } });
+      if (stillOpen === 0) {
+        const notification = await db.$transaction((tx) => applySystemEvent(tx, { scope: "LEAD", entityId: lead.id, event: "QUOTE_EXPIRED", actorLabel: "quotation expired" }));
+        await dispatchStatusNotifications([notification]);
+      }
+      continue;
+    }
     await notifyCustomer({
       event: NOTIFICATION_EVENTS.QUOTE_EXPIRED,
       emailTo: lead.customer.email,

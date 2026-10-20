@@ -3,9 +3,10 @@ import type { ServiceStatusSystemEvent } from "../service-status/events";
 /** P14 — Visa Change staff actions after the package; each lands on the booking status tagged with that event. */
 export const VISA_CHANGE_ACTIONS = {
   EXIT_COMPLETED: { event: "VC_EXIT_COMPLETED", label: "Exit Completed" },
-  NEW_VISA_PROCESSING: { event: "EMBASSY_APPLIED", label: "New Visa Processing" },
+  // Client doc 2026-10-20 — after the exit: Ready for Submission → Applied to Embassy; approval is the visa PDF (Deliver to customer).
+  READY: { event: "READY_FOR_SUBMISSION", label: "Ready for Submission" },
+  APPLIED: { event: "EMBASSY_APPLIED", label: "Applied to Embassy" },
   ADDITIONAL_DOCS: { event: "EMBASSY_ADDITIONAL_DOCS", label: "Additional Documents Required" },
-  APPROVED: { event: "EMBASSY_APPROVED", label: "Visa Approved" },
   REJECTED: { event: "EMBASSY_REJECTED", label: "Visa Rejected" },
 } as const satisfies Record<string, { event: ServiceStatusSystemEvent; label: string }>;
 

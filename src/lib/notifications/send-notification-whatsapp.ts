@@ -2,7 +2,7 @@ import { db } from "../db";
 import { ctaFor, ctaUrlSuffix, withoutLinkPlaceholder } from "./cta";
 import { writeAudit } from "../audit/log";
 import { getWhatsAppGateway } from "../whatsapp/get-gateway";
-import { renderTemplate, withRequiredLines } from "./render-template";
+import { dropEmptyPlaceholderLines, renderTemplate, tidyRenderedText, withRequiredLines } from "./render-template";
 
 /** Meta lets a business send free-text messages for 24 hours after the customer's last message. */
 const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -78,10 +78,10 @@ export async function sendNotificationWhatsApp(input: SendNotificationWhatsAppIn
     // required (below).
     const conversation = await db.whatsAppConversation.findUnique({ where: { waId: to }, select: { lastInboundAt: true } });
     // Client 2026-10-14 — the event's link (Pay Now, Download…) goes as a tappable button, not a bare URL.
-    const cta = ctaFor(event, variables);
+    const cta = ctaFor(event, variables, template);
     if (conversation?.lastInboundAt && conversation.lastInboundAt.getTime() > Date.now() - SESSION_WINDOW_MS) {
       const body = cta ? withoutLinkPlaceholder(template.body, cta.variable) : template.body;
-      const text = renderTemplate(withRequiredLines(body, variables), variables, { escape: false })
+      const text = tidyRenderedText(renderTemplate(dropEmptyPlaceholderLines(withRequiredLines(body, variables), variables), variables, { escape: false }))
         .replace(/<[^>]+>/g, "")
         .trim();
       const gateway = getWhatsAppGateway();
@@ -108,7 +108,8 @@ export async function sendNotificationWhatsApp(input: SendNotificationWhatsAppIn
     }
 
     const orderedVariableNames = extractOrderedVariableNames(template.body);
-    const bodyParameters = orderedVariableNames.map((name) => variables[name] ?? "");
+    // Meta rejects an empty parameter — a blank value goes as "-".
+    const bodyParameters = orderedVariableNames.map((name) => variables[name]?.trim() || "-");
 
     const gateway = getWhatsAppGateway();
     // A body without the link placeholder means the Meta template carries the link as its

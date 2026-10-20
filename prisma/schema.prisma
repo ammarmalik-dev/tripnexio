@@ -516,6 +516,10 @@ model Booking {
   /// those existing consumers need to change. See ServiceStatus's own
   /// schema comment for the full design rationale.
   serviceStatusId           String?
+  /// Client doc 2026-10-20 (N2) — the operational status a booking had before it entered a cancellation
+  /// step (Cancellation Requested / Partially Cancelled…). A partial cancellation whose refund completes,
+  /// or a rejected cancellation, puts the booking back on it so the remaining passengers carry on.
+  resumeServiceStatusId     String?
   /// Step 23 (audit §7.6) — ADMIN.md §19/§40/§46(#11): admin config changes
   /// apply immediately to new work, but a paid booking must retain what it
   /// was created against. Pricing/GST already behave this way by accident
@@ -1800,6 +1804,12 @@ model NotificationTemplate {
   /// than guessed at.
   metaTemplateName     String?
   metaTemplateLanguage String?
+  /// Client doc 2026-10-20 — the email's heading (hero title); blank = the event's default heading.
+  heading              String?
+  /// Client doc 2026-10-20 — the button under the message ("Upload Documents", "Download Visa"…) and the
+  /// variable that holds its secure link (e.g. "secure_upload_link"); both blank = no button.
+  ctaLabel             String?
+  ctaLink              String?
   createdAt            DateTime            @default(now())
   updatedAt            DateTime            @updatedAt
 

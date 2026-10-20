@@ -3,6 +3,7 @@ import { TRIP_LEAD_SELECT, tripFacts, type TripFact, type TripLead } from "../le
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import type { EmailHero, EmailIllustration } from "../email/layout";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { renderTemplate } from "./render-template";
 
 /**
  * Client corrections 2026-10-05 — the illustration + heading + status pill on
@@ -90,6 +91,16 @@ export function illustrationFor(event: string, serviceType: ServiceType | null, 
   return serviceType === null ? "general" : isFlight ? "flight" : "visa";
 }
 
+/** The picture for one of the client's status templates (client doc 2026-10-20), from the customer status shown. */
+function statusIllustration(serviceType: ServiceType | null, status: string): EmailIllustration | null {
+  const isFlight = serviceType !== null && FLIGHT_SERVICES.has(serviceType);
+  if (/request received|new request|extension request/i.test(status)) return "request";
+  if (/quotation|quote/i.test(status)) return "quote";
+  if (/payment|paid/i.test(status)) return "payment";
+  if (/approved|issued|package ready/i.test(status) && !/reject/i.test(status)) return isFlight ? "boarding" : "approved";
+  return null;
+}
+
 /**
  * The airline on a flight booking/quote email: the quotation's own airline
  * (a Quotation target), else the lead's selected — or latest sent — quote.
@@ -127,11 +138,18 @@ async function airlineFor(target: { entityType: string; entityId: string }): Pro
   }
 }
 
-export async function emailHeroFor(event: string, target: { entityType: string; entityId: string }, variables: Record<string, string>): Promise<EmailHero | null> {
+export async function emailHeroFor(
+  event: string,
+  target: { entityType: string; entityId: string },
+  variables: Record<string, string>,
+  /** Client doc 2026-10-20 — the template's own heading (e.g. "Documents validated"); the status goes in the pill. */
+  headingOverride?: string | null
+): Promise<EmailHero | null> {
   const info = await leadInfoFor(target);
   const serviceType = info?.serviceType ?? null;
   const isFlight = serviceType !== null && FLIGHT_SERVICES.has(serviceType);
-  const illustration = illustrationFor(event, serviceType, variables.status || null);
+  const legacyIllustration = illustrationFor(event, serviceType, variables.status || null);
+  const illustration = headingOverride?.trim() ? (statusIllustration(serviceType, variables.status || headingOverride) ?? legacyIllustration) : legacyIllustration;
   const serviceLabel = serviceType ? SERVICE_TYPE_LABELS[serviceType] : null;
   const airline = isFlight ? await airlineFor(target) : null;
   // Client testing 2026-10-09 (H) — the Booking ID / Service card.
@@ -144,6 +162,9 @@ export async function emailHeroFor(event: string, target: { entityType: string; 
   // Client 2026-10-14 — passengers, route / destination and travel date on every email's card.
   const summary = reference || service ? { reference, service, trip: info?.trip ?? [] } : null;
 
+  if (headingOverride?.trim()) {
+    return { heading: renderTemplate(headingOverride.trim(), variables, { escape: false }), badge: variables.status || null, illustration, airline, summary };
+  }
   if (STATUS_EVENTS.has(event) || (!EVENT_HEADINGS[event] && serviceLabel)) {
     return {
       heading: serviceLabel ? `${serviceLabel} ${isFlight ? "Booking" : "Application"} Status` : "Status Update",

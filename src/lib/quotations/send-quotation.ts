@@ -10,6 +10,7 @@ import { ensureLeadCustomerToken } from "./select-quotation";
 import { resolveNewQuoteRequest } from "./new-quote-request";
 import { formatBusinessDateTime } from "../format-business-time";
 import { applySystemEvent, type StatusNotification } from "../service-status/engine";
+import { sendStatusTemplate, statusTemplateFor } from "../notifications/status-template";
 
 /**
  * P22 item 7 — the side effects of a quotation becoming visible to the
@@ -51,12 +52,15 @@ export async function applyQuotationSentEffects(
       note: `${lead.status} -> QUOTATION_CREATED (quotation sent by ${actor.name})`,
     });
   }
+  // Client doc 2026-10-20 — the "Quotation Sent" message goes out from notifyQuoteReady (every quote, revisions
+  // and alternatives included), so the status move itself stays silent.
   const notification = await applySystemEvent(tx, {
     scope: "LEAD",
     entityId: lead.id,
     event: "QUOTATION_CREATED",
     userId: actor.byUserId,
     actorLabel: `by ${actor.name}`,
+    silent: true,
   });
   // P15 — a new (sent) quote answers a customer's "Request New Quote".
   await resolveNewQuoteRequest(tx, lead.id, `New quotation sent (by ${actor.name})`);
@@ -74,6 +78,12 @@ export async function notifyQuoteReady(
 ): Promise<void> {
   const payable = Number(quotation.sellingPrice) - Number(quotation.couponDiscount ?? 0);
   const reviewToken = await ensureLeadCustomerToken(lead);
+  // Client doc 2026-10-20 — services on the client's templates send their "Quotation Sent" status message.
+  const statusTemplate = await statusTemplateFor(lead.serviceType, "LEAD", "QUOTATION_CREATED");
+  if (statusTemplate) {
+    await sendStatusTemplate({ event: statusTemplate.event, scope: "LEAD", entityId: lead.id, statusLabel: statusTemplate.label });
+    return;
+  }
   await notifyCustomer({
     event: NOTIFICATION_EVENTS.QUOTE_READY,
     emailTo: lead.customer.email,

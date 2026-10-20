@@ -62,14 +62,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "That document type isn't delivered for this service.", { outputType: ["Not available for this service."] });
   }
 
-  // P11 — a New Visa's visa PDF follows the embassy's approval.
-  if (booking.lead.serviceType === "NEW_VISA" && parsed.data.outputType === "VISA_PDF" && !(await hasReachedStatusEvent(booking.id, "EMBASSY_APPROVED"))) {
-    return jsonError(409, "Mark the visa as Approved before delivering the visa PDF.");
-  }
-  // P14 — Visa Change: the new visa PDF follows Visa Approved (never a rejected
-  // one), and the package is only ever the generated one (Generate Package).
-  if (booking.lead.serviceType === "VISA_CHANGE" && parsed.data.outputType === "VISA_PDF" && (booking.visaRejectionReason || !(await hasReachedStatusEvent(booking.id, "EMBASSY_APPROVED")))) {
-    return jsonError(409, "Mark the visa as Approved before delivering the visa PDF.");
+  // P11 / client doc 2026-10-20 — a visa PDF is delivered once the application is with the embassy;
+  // delivering it records the approval ("Visa Approved", or "Approved for partial applicants").
+  if ((booking.lead.serviceType === "NEW_VISA" || booking.lead.serviceType === "VISA_CHANGE") && parsed.data.outputType === "VISA_PDF") {
+    if (!(await hasReachedStatusEvent(booking.id, "EMBASSY_APPLIED"))) return jsonError(409, "Mark the application Applied to Embassy before delivering the visa.");
   }
   if (booking.lead.serviceType === "VISA_CHANGE" && parsed.data.outputType === "PACKAGE_PDF") {
     return jsonError(409, "Use Generate Package — the Visa Change package is generated from the operational details.");

@@ -4,6 +4,7 @@ import { writeAudit } from "../audit/log";
 import { setServiceStatusByEvent, type StatusNotification } from "../service-status/engine";
 import { raiseFullRefundForBooking } from "../refunds/raise-refund";
 import { notifyRefundsRaised } from "../staff-notifications/triggers";
+import { usesStatusTemplates } from "../notifications/status-template";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { toWhatsAppId } from "../whatsapp/phone";
@@ -39,10 +40,9 @@ const reasonField = z.string().trim().min(5, "Enter the reason (at least 5 chara
 
 /** P18 — OTB.md §10-15 staff actions on an OTB booking. */
 export const otbActionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("STAFF_VERIFICATION") }),
   z.object({ action: z.literal("SUBMIT_TO_AIRLINE") }),
-  z.object({ action: z.literal("AIRLINE_PROCESSING") }),
-  z.object({ action: z.literal("ADDITIONAL_DOCUMENTS"), reason: reasonField }),
+  // Client doc 2026-10-20 — the additional documents the customer uploaded (and staff validated) went to the airline.
+  z.object({ action: z.literal("ADDITIONAL_DOCUMENTS") }),
   z.object({ action: z.literal("APPROVE"), otbReference: z.string().trim().min(3, "Enter the OTB PNR / reference").max(40, "Too long") }),
   z.object({ action: z.literal("REJECT"), reason: reasonField }),
   z.object({ action: z.literal("UNABLE_TO_PROCESS"), reason: reasonField }),
@@ -50,14 +50,13 @@ export const otbActionSchema = z.discriminatedUnion("action", [
 
 export type OtbActionInput = z.infer<typeof otbActionSchema>;
 
+/** Client doc 2026-10-20 — each action lands on the client's OTB status (Unable to Process = Cancelled, with a full refund). */
 const ACTION_EVENT: Record<OtbActionInput["action"], ServiceStatusSystemEvent> = {
-  STAFF_VERIFICATION: "OTB_STAFF_VERIFICATION",
   SUBMIT_TO_AIRLINE: "OTB_SUBMITTED",
-  AIRLINE_PROCESSING: "OTB_AIRLINE_PROCESSING",
   ADDITIONAL_DOCUMENTS: "OTB_ADDITIONAL_DOCUMENTS",
   APPROVE: "OTB_APPROVED",
   REJECT: "OTB_REJECTED",
-  UNABLE_TO_PROCESS: "OTB_UNABLE_TO_PROCESS",
+  UNABLE_TO_PROCESS: "CANCELLED",
 };
 
 export type OtbActionResult =
@@ -96,6 +95,7 @@ export async function runOtbAction(
       note,
       userId: actor.userId,
       actorLabel: actor.label,
+      inputs: "reason" in input ? { reason: input.reason } : undefined,
     });
     if (!moved.ok) return { ok: false, httpStatus: moved.httpStatus, error: moved.error };
 
@@ -105,8 +105,7 @@ export async function runOtbAction(
         await tx.booking.update({ where: { id: bookingId }, data: { otbSubmittedAt: now } });
         return { ok: true, message: "Submitted to the airline.", notification: moved.notification };
       case "ADDITIONAL_DOCUMENTS":
-        await tx.booking.update({ where: { id: bookingId }, data: { otbOutcomeNote: input.reason } });
-        return { ok: true, message: "Marked as additional documents required.", notification: moved.notification };
+        return { ok: true, message: "Additional documents marked as sent to the airline.", notification: moved.notification };
       case "APPROVE":
         await tx.booking.update({
           where: { id: bookingId },
@@ -159,7 +158,9 @@ export async function afterOtbApproved(bookingId: string, actorLabel: string): P
     });
     if (!booking) return;
     const hasReturnTicket = booking.linkedBooking?.lead.serviceType === "RETURN_TICKET";
-    await notifyCustomer({
+    // Client doc 2026-10-20 — the "OTB Approved" status sends the client's own template instead.
+    const statusDriven = await usesStatusTemplates("OTB");
+    if (!statusDriven) await notifyCustomer({
       event: NOTIFICATION_EVENTS.OTB_APPROVED,
       emailTo: booking.lead.customer.email,
       whatsappTo: toWhatsAppId(booking.lead.customer.mobile),

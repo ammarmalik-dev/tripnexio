@@ -56,18 +56,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (scopeError) return scopeError;
 
   // P11/P13/P14 — a New Visa, Visa Change or Visa Extension booking completes only after its visa PDF was delivered.
-  const requiredOutput =
-    booking.lead.serviceType === "NEW_VISA" || booking.lead.serviceType === "VISA_CHANGE"
-      ? "VISA_PDF"
-      : booking.lead.serviceType === "VISA_EXTENSION"
-        ? "EXTENDED_VISA_PDF"
-        : null;
+  // Client doc 2026-10-20 — a Visa Extension is approved before its copy arrives ("shared once received"), so only
+  // New Visa / Visa Change need the visa PDF delivered first.
+  const requiredOutput = booking.lead.serviceType === "NEW_VISA" || booking.lead.serviceType === "VISA_CHANGE" ? "VISA_PDF" : null;
   if (requiredOutput) {
     const target = await db.serviceStatus.findUnique({ where: { id: parsed.data.serviceStatusId }, select: { mapsToBookingStatus: true } });
     if (target?.mapsToBookingStatus === "COMPLETED") {
       const delivered = await db.document.count({ where: { bookingId: id, type: requiredOutput, deliveredAt: { not: null } } });
       if (delivered === 0) {
-        return jsonError(409, `Deliver the ${requiredOutput === "VISA_PDF" ? "visa" : "extended visa"} PDF to the customer before completing this booking.`);
+        return jsonError(409, "Deliver the visa PDF to the customer (Deliver to customer) — that records the approval.");
       }
     }
   }
@@ -86,6 +83,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       userId: session.id,
       actorLabel: `by ${session.name}`,
       adminOverride,
+      inputs: parsed.data.inputs,
     })
   );
   if (!result.ok) return jsonError(result.httpStatus, result.error);

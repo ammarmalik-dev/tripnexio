@@ -27,6 +27,9 @@ interface TemplateData {
   active: boolean;
   metaTemplateName: string | null;
   metaTemplateLanguage: string | null;
+  heading: string | null;
+  ctaLabel: string | null;
+  ctaLink: string | null;
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -39,9 +42,26 @@ interface FormState {
   body: string;
   metaTemplateName: string;
   metaTemplateLanguage: string;
+  heading: string;
+  ctaLabel: string;
+  ctaLink: string;
 }
 
-const EMPTY_FORM: FormState = { event: "", channel: "", subject: "", body: "", metaTemplateName: "", metaTemplateLanguage: "" };
+const EMPTY_FORM: FormState = { event: "", channel: "", subject: "", body: "", metaTemplateName: "", metaTemplateLanguage: "", heading: "", ctaLabel: "", ctaLink: "" };
+
+/** Client doc 2026-10-20 — the secure links a message button can open (filled in per booking). */
+const CTA_LINK_OPTIONS = [
+  { value: "", label: "No button" },
+  { value: "secure_link", label: "Booking page (status / view booking)" },
+  { value: "secure_upload_link", label: "Upload documents" },
+  { value: "payment_link", label: "Payment" },
+  { value: "quote_link", label: "Quotation" },
+  { value: "visa_download_url", label: "Download visa" },
+  { value: "ticket_download_link", label: "Download ticket" },
+  { value: "secure_package_link", label: "Download package" },
+  { value: "new_quote_link", label: "Request a new quotation" },
+  { value: "support_link", label: "Contact support" },
+];
 
 function toFormState(template: TemplateData): FormState {
   return {
@@ -51,6 +71,9 @@ function toFormState(template: TemplateData): FormState {
     body: template.body,
     metaTemplateName: template.metaTemplateName ?? "",
     metaTemplateLanguage: template.metaTemplateLanguage ?? "",
+    heading: template.heading ?? "",
+    ctaLabel: template.ctaLabel ?? "",
+    ctaLink: template.ctaLink ?? "",
   };
 }
 
@@ -62,6 +85,9 @@ function buildPayload(form: FormState) {
     body: form.body,
     metaTemplateName: form.channel === "WHATSAPP" ? form.metaTemplateName.trim() : "",
     metaTemplateLanguage: form.channel === "WHATSAPP" ? form.metaTemplateLanguage.trim() : "",
+    heading: form.channel === "EMAIL" ? form.heading.trim() : "",
+    ctaLabel: form.ctaLink ? form.ctaLabel.trim() : "",
+    ctaLink: form.ctaLabel.trim() ? form.ctaLink : "",
   };
 }
 
@@ -108,15 +134,51 @@ function TemplateFields({
         </FormField>
       </div>
       {form.channel === "EMAIL" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <TextField
+            label="Subject"
+            name="subject"
+            value={form.subject}
+            onChange={(event) => onChange({ ...form, subject: event.target.value })}
+            error={errors.subject?.[0]}
+            disabled={disabled}
+          />
+          <TextField
+            label="Email heading (optional)"
+            name="heading"
+            value={form.heading}
+            onChange={(event) => onChange({ ...form, heading: event.target.value })}
+            error={errors.heading?.[0]}
+            disabled={disabled}
+          />
+        </div>
+      ) : null}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField
-          label="Subject"
-          name="subject"
-          value={form.subject}
-          onChange={(event) => onChange({ ...form, subject: event.target.value })}
-          error={errors.subject?.[0]}
+          label="Button text"
+          name="ctaLabel"
+          placeholder="e.g. Upload Documents"
+          value={form.ctaLabel}
+          onChange={(event) => onChange({ ...form, ctaLabel: event.target.value })}
+          error={errors.ctaLabel?.[0]}
           disabled={disabled}
         />
-      ) : null}
+        <FormField label="Button opens" htmlFor={`ctaLink-${form.event}-${form.channel}`} error={errors.ctaLink?.[0]}>
+          <select
+            id={`ctaLink-${form.event}-${form.channel}`}
+            value={form.ctaLink}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...form, ctaLink: event.target.value })}
+            className={cn(fieldControlClass, fieldBorderClass(!!errors.ctaLink))}
+          >
+            {CTA_LINK_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      </div>
       <Textarea
         label="Message Body"
         name="body"

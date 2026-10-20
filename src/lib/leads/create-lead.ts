@@ -5,6 +5,7 @@ import { Prisma, type Lead, type ServiceType } from "../../generated/prisma/clie
 import { leadReference, nextLeadReference } from "./reference";
 import { getInitialServiceStatusId } from "../service-status/engine";
 import { writeAudit } from "../audit/log";
+import { sendCurrentStatusTemplate } from "../notifications/status-template";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
@@ -348,6 +349,8 @@ async function sendLeadReceivedNotice(input: {
   /** The WhatsApp bot's own reply already confirms the request (client doc 2026-10-15). */
   skipWhatsApp?: boolean;
 }): Promise<void> {
+  // Client doc 2026-10-20 — services on the client's status templates send their "New" status message instead.
+  if (await sendCurrentStatusTemplate("LEAD", input.leadId, { skipWhatsApp: input.skipWhatsApp })) return;
   await notifyCustomer({
     event: NOTIFICATION_EVENTS.LEAD_RECEIVED,
     emailTo: input.customerEmail,

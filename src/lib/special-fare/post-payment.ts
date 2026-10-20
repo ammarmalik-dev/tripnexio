@@ -124,7 +124,8 @@ export async function markUnavailable(bookingId: string, alternative: Alternativ
     const now = new Date().toISOString();
 
     if (!alternative) {
-      const moved = await moveTo(tx, bookingId, "FSF_REFUND_PENDING", "Flight unavailable — no suitable alternative", actor);
+      // Client doc 2026-10-20 — no suitable alternative: a full refund (Refund Pending).
+      const moved = await moveTo(tx, bookingId, "REFUND_RAISED", "Flight unavailable — no suitable alternative", actor);
       if (!moved.ok) return moved;
       const offer: AlternativeOffer = { direction: "NONE", difference: 0, offeredAt: now, decision: null, decidedAt: null };
       await tx.booking.update({ where: { id: bookingId }, data: { alternativeOffer: offer as unknown as Prisma.InputJsonValue } });
@@ -195,7 +196,7 @@ export async function recordCustomerDecision(bookingId: string, decision: "PAY" 
     const moved =
       decision === "PAY"
         ? await moveTo(tx, bookingId, "FSF_ADDITIONAL_PAYMENT_PENDING", `Customer chose to pay the ₹${offer.difference} difference`, actor)
-        : await moveTo(tx, bookingId, "FSF_REFUND_PENDING", "Customer declined the higher-fare alternative", actor);
+        : await moveTo(tx, bookingId, "REFUND_RAISED", "Customer declined the higher-fare alternative", actor);
     if (!moved.ok) return moved;
     const updated: AlternativeOffer = { ...offer, decision, decidedAt: new Date().toISOString() };
     await tx.booking.update({ where: { id: bookingId }, data: { alternativeOffer: updated as unknown as Prisma.InputJsonValue } });
@@ -236,14 +237,12 @@ export const recordPnrSchema = z.object({
   vendorReference: optionalText(120),
 });
 
-/** Staff: PNR / vendor reference — a separate state before ticket issuance. */
+/** Staff: the PNR, recorded before ticket issuance (client doc 2026-10-20: a detail, not a status of its own). */
 export async function recordPnr(bookingId: string, input: z.infer<typeof recordPnrSchema>, actor: Actor): Promise<Result> {
   return db.$transaction(async (tx) => {
-    const moved = await moveTo(tx, bookingId, "FSF_PNR_RECORDED", `PNR ${input.pnr}`, actor);
-    if (!moved.ok) return moved;
     await tx.booking.update({ where: { id: bookingId }, data: { pnr: input.pnr, pnrVendorReference: input.vendorReference, pnrRecordedAt: new Date() } });
     await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_PNR_RECORDED", byUserId: actor.userId, note: `PNR ${input.pnr}${input.vendorReference ? `, vendor ref ${input.vendorReference}` : ""} (${actor.label})` });
-    return { ok: true as const, notifications: [moved.notification], message: "PNR recorded." };
+    return { ok: true as const, notifications: [], message: "PNR recorded." };
   });
 }
 

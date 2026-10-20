@@ -14,6 +14,15 @@ export const createNotificationTemplateSchema = z.object({
   /** WhatsApp only — the exact name/language of the Meta-APPROVED Message Template this row maps to. Empty means "not yet approved" (sends are skipped, not attempted). */
   metaTemplateName: z.string().trim().max(512).optional(),
   metaTemplateLanguage: z.string().trim().max(20).optional(),
+  /** Client doc 2026-10-20 — the email heading and the button (label + the variable holding its link). */
+  heading: z.string().trim().max(160).optional(),
+  ctaLabel: z.string().trim().max(60).optional(),
+  ctaLink: z
+    .string()
+    .trim()
+    .max(60)
+    .regex(/^\w*$/, "Use a link variable name, e.g. secure_link")
+    .optional(),
 });
 
 export const updateNotificationTemplateSchema = partialUpdateSchema(createNotificationTemplateSchema);

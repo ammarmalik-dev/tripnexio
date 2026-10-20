@@ -7,6 +7,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { writeAudit } from "@/lib/audit/log";
 import { createTask } from "@/lib/tasks/create-task";
 import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { sendDocumentsStatusTemplate } from "@/lib/notifications/status-template";
 import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
@@ -105,7 +106,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   );
   const reason = [...new Set(items.map((item) => item.reason))].join("; ");
 
-  await dispatchStatusNotifications(statusNotifications);
+  const sent = await dispatchStatusNotifications(statusNotifications);
+  // Client doc 2026-10-20 (K5) — services on the client's templates get one documents message (the status's,
+  // or the "Documents Pending" one when the booking is already past the document stage).
+  if (sent > 0 || (await sendDocumentsStatusTemplate(booking.id, "REQUESTED"))) {
+    return jsonSuccess(documents.length === 1 ? documents[0] : documents, 201);
+  }
   await notifyCustomer({
     event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
     emailTo: booking.customer.email,

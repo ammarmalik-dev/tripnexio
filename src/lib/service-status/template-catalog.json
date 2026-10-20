@@ -1,0 +1,2301 @@
+[
+ {
+  "event": "NV_COUNTRY_REQUEST_PAYMENT_PENDING",
+  "channel": "EMAIL",
+  "subject": "New Visa {{country_name}} request received — Complete payment",
+  "heading": "New Visa {{country_name}} request received",
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio!\n\nWe've received your New Visa request for {{country_name}}, but your payment is still pending. Please complete your payment to proceed with the application.\n\nApplication ID: {{application_id}}\nCountry: {{country_name}}\n\nIf you have already paid, please disregard this message.",
+  "ctaLabel": "Complete Payment",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "NV_COUNTRY_REQUEST_PAYMENT_PENDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio!\n\nYour New Visa {{country_name}} request has been received. Please complete your payment to proceed.\n\nApplication ID: {{application_id}}\nCountry: {{country_name}}\n\nIf you have already paid, please disregard this message.",
+  "ctaLabel": "Complete Payment",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "NV_COUNTRY_REQUEST_PAYMENT_PENDING_WA"
+ },
+ {
+  "event": "NV_PAYMENT_RECEIVED",
+  "channel": "EMAIL",
+  "subject": "Thanks for choosing TripNexio! Your booking is received — {{booking_id}}",
+  "heading": "Payment Received",
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio! We've received your payment and your New Visa booking is confirmed as received. Your payment invoice is attached to this email.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nVisa type/duration: {{visa_type}} / {{visa_duration}}\nPassengers: {{passenger_count}}\n\nOur team will review the application and documents and contact you if anything else is required.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_PAYMENT_RECEIVED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio! Your New Visa Payment has been received.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassengers: {{passenger_count}}\nWe'll update you when there is a next step.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_PAYMENT_RECEIVED_WA"
+ },
+ {
+  "event": "NV_USER_NOT_RESPONDING",
+  "channel": "EMAIL",
+  "subject": "Response needed for your New Visa booking — {{booking_id}}",
+  "heading": "We're waiting for your response",
+  "body": "Hi {{customer_name}},\n\nWe're waiting for your response to continue your New Visa request.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\n\nPlease open your booking and complete the requested action. If you've already responded, please disregard this reminder.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_USER_NOT_RESPONDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, we're waiting for your response to continue your New Visa request.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPlease review your booking and respond when you can.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_USER_NOT_RESPONDING_WA"
+ },
+ {
+  "event": "NV_DOCUMENTS_PENDING",
+  "channel": "EMAIL",
+  "subject": "Upload documents for your New Visa booking — {{booking_id}}",
+  "heading": "Documents pending",
+  "body": "Hi {{customer_name}},\n\nPlease upload the required documents to continue your New Visa application.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger: {{passenger_name}}\nFollowing documents are required:\n{{required_documents}}\n\nPlease upload clear, complete copies.\n\nUse the Upload Documents button below to open the secure upload page.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "NV_DOCUMENTS_PENDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nPlease upload the following required documents for your New Visa booking:\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger: {{passenger_name}}\nPlease upload: {{required_documents}}",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "NV_DOCUMENTS_UPLOAD_WA"
+ },
+ {
+  "event": "NV_DOCUMENTS_REQUIRED",
+  "channel": "EMAIL",
+  "subject": "Documents missing or requiring correction — {{booking_id}}",
+  "heading": "Documents required",
+  "body": "Hi {{customer_name}},\n\nWe can't complete the initial document validation because the following documents are missing or need correction\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger and document details:\n{{required_documents}}\n\nPlease review the notes for each item and upload corrected or missing documents.\n\nUse the Upload / Correct Documents button below to upload the following documents.",
+  "ctaLabel": "Upload / Correct Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "NV_DOCUMENTS_REQUIRED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe following documents are missing or need correction for your New Visa booking:\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger: {{passenger_name}}\nPlease upload/correct: {{required_documents}}",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "NV_DOCUMENTS_REQUIRED_WA"
+ },
+ {
+  "event": "NV_DOCUMENTS_VALIDATED",
+  "channel": "EMAIL",
+  "subject": "Your documents have been validated — {{booking_id}}",
+  "heading": "Documents validated",
+  "body": "Hi {{customer_name}},\n\nThe documents for your New Visa booking have passed our document validation step. This is not a visa approval. We'll continue with the next stage and share an update when available.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_DOCUMENTS_VALIDATED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour documents have been validated for booking {{booking_id}} ({{country_name}}). This is not visa approval. We'll update you on the next stage.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_DOCUMENTS_VALIDATED_WA"
+ },
+ {
+  "event": "NV_APPLIED_TO_EMBASSY",
+  "channel": "EMAIL",
+  "subject": "Your visa application has been submitted — {{booking_id}}",
+  "heading": "Visa application submitted",
+  "body": "Hi {{customer_name}},\n\nYour New Visa application for {{country_name}} has been submitted to the relevant embassy/authority. Processing and decisions are controlled by that authority.\n\nBooking ID: {{booking_id}}\nWe'll share another update when available.",
+  "ctaLabel": "Track Application",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_APPLIED_TO_EMBASSY",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour visa application for {{country_name}} has been submitted to the relevant embassy/authority.\nBooking ID: {{booking_id}}\nWe'll update you when more information is available.",
+  "ctaLabel": "Track Application",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_APPLIED_TO_EMBASSY_WA"
+ },
+ {
+  "event": "NV_ADDITIONAL_DOCUMENTS_REQUIRED",
+  "channel": "EMAIL",
+  "subject": "Additional documents requested by the embassy/immigration authority — {{booking_id}}",
+  "heading": "Additional documents required",
+  "body": "Hi {{customer_name}},\n\nThe {{requesting_authority}} has requested the following additional documents to continue processing your New Visa application.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger and required documents:\n{{required_documents}}\nReason/request details: {{additional_document_reason}}\n\nPlease submit the listed documents as soon as possible, and follow any deadline shown in your booking.\n\nUse the Submit Additional Documents button below to upload the requested documents.",
+  "ctaLabel": "Submit Additional Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "NV_ADDITIONAL_DOCUMENTS_REQUIRED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe embassy/immigration authority has requested the following additional documents for your New Visa application:\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger: {{passenger_name}}\nRequired: {{required_documents}}\nReason: {{additional_document_reason}}",
+  "ctaLabel": "Submit Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "NV_ADDITIONAL_DOCUMENTS_REQUIRED_WA"
+ },
+ {
+  "event": "NV_ADDITIONAL_DOCUMENTS_SUBMITTED",
+  "channel": "EMAIL",
+  "subject": "Additional documents received — {{booking_id}}",
+  "heading": "Additional documents submitted",
+  "body": "Hi {{customer_name}},\n\nWe've received the additional documents submitted for your New Visa application. Our team will validate them and continue processing.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger: {{passenger_name}}\nSubmitted documents:\n{{required_documents}}",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_ADDITIONAL_DOCUMENTS_SUBMITTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received the additional documents for booking {{booking_id}}.\nCountry: {{country_name}}\nPassenger: {{passenger_name}}\nSubmitted: {{required_documents}}\nOur team will validate them.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_ADDITIONAL_DOCUMENTS_SUBMITTED_WA"
+ },
+ {
+  "event": "NV_PARTIAL_APPROVAL",
+  "channel": "EMAIL",
+  "subject": "Visa approval update for your booking — {{booking_id}}",
+  "heading": "Visa approved for some applicants",
+  "body": "Hi {{customer_name}},\n\nA visa decision has been recorded for some passengers in your booking.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nApproved passengers:\n{{approved_passenger_names}}\nOther passenger outcomes:\n{{other_passenger_outcomes}}\n\nThis approval applies only to the passengers listed as approved. It does not mean every passenger has been approved.\n\nYou can also download available visa files from your TripNexio account.\n\nImportant: Please verify the visa details against the passport carefully. Report any spelling errors, incorrect visa type, or discrepancies to TripNexio within 24 hours of receiving this email for correction, where applicable. TripNexio will not be responsible for travel disruptions or related issues arising from discrepancies not reported within this period.\n\nImportant Travel Instructions:\n• Check that all passenger and travel details are correct.\n• Carry your original passport and all required travel documents.\n• Check your flight status and reach the airport at least 3 hours before departure.\n• Arrive at the designated reporting point at the specified reporting time.\n• Ensure you meet all applicable visa, immigration, and border requirements. If additional documents are requested by immigration authorities, you must provide them.\n\nDisclaimer: Visa approval and entry are subject to the relevant authorities. TripNexio does not guarantee approval, boarding, or entry. If you miss your scheduled flight or transport, the booking is non-refundable. If the airline or transport provider cancels the service, TripNexio will try to arrange an alternative; if none is available, a refund will be processed according to the applicable policy.\n\nPlease review all details carefully to help avoid last-minute issues.\nHave a safe and pleasant journey with TripNexio!",
+  "ctaLabel": "View Approved Visas",
+  "ctaLink": "visa_download_url"
+ },
+ {
+  "event": "NV_PARTIAL_APPROVAL",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nVisa approval update for booking {{booking_id}} ({{country_name}}).\nApproved passenger(s): {{approved_passenger_names}}\nOther outcomes: {{other_passenger_outcomes}}\n\nYou can also download available visa files from your TripNexio account.",
+  "ctaLabel": "Download Visa",
+  "ctaLink": "visa_download_url",
+  "suggestedMetaName": "NV_PARTIAL_APPROVAL_WA"
+ },
+ {
+  "event": "NV_VISA_APPROVED",
+  "channel": "EMAIL",
+  "subject": "Your visa is approved — {{booking_id}}",
+  "heading": "Visa approved",
+  "body": "Hi {{customer_name}},\n\nGood news! The visa approval has been confirmed for the passenger(s) listed below.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nApproved passenger(s):\n{{approved_passenger_names}}\n\nYour visa PDF is attached to this email where supported.\nAvailable visa files can also be downloaded from your TripNexio account.\n\nImportant: Please verify the visa details against the passport carefully. Report any spelling errors, incorrect visa type, or discrepancies to TripNexio within 24 hours of receiving this email for correction, where applicable. TripNexio will not be responsible for travel disruptions or related issues arising from discrepancies not reported within this period.\n\nImportant Travel Instructions:\n• Check that all passenger and travel details are correct.\n• Carry your original passport and all required travel documents.\n• Check your flight status and reach the airport at least 3 hours before departure.\n• Arrive at the designated reporting point at the specified reporting time.\n• Ensure you meet all applicable visa, immigration, and border requirements. If additional documents are requested by immigration authorities, you must provide them.\n\nDisclaimer: Visa approval and entry are subject to the relevant authorities. TripNexio does not guarantee approval, boarding, or entry. If you miss your scheduled flight or transport, the booking is non-refundable. If the airline or transport provider cancels the service, TripNexio will try to arrange an alternative; if none is available, a refund will be processed according to the applicable policy.\n\nPlease review all details carefully to help avoid last-minute issues.\nHave a safe and pleasant journey with TripNexio!",
+  "ctaLabel": "Download Visa",
+  "ctaLink": "visa_download_url"
+ },
+ {
+  "event": "NV_VISA_APPROVED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nGood news! Your visa is approved.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger(s): {{approved_passenger_names}}\n\nYou can also download it from your TripNexio account.\nPlease verify it against the passport and report any spelling, visa type or other discrepancy within 24 hours. Full travel instructions and disclaimer are in your email.",
+  "ctaLabel": "Download Visa",
+  "ctaLink": "visa_download_url",
+  "suggestedMetaName": "NV_VISA_APPROVED_WA"
+ },
+ {
+  "event": "NV_VISA_REJECTED",
+  "channel": "EMAIL",
+  "subject": "Visa application decision — {{booking_id}}",
+  "heading": "Visa application rejected",
+  "body": "Hi {{customer_name}},\n\nA visa application has been rejected for the passenger(s) listed below.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nAffected passenger(s): {{rejected_passenger_names}}\nReason provided: {{rejection_reason}}\n\nPlease contact support if you need assistance.",
+  "ctaLabel": "View Details",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_VISA_REJECTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nVisa application decision for booking {{booking_id}} ({{country_name}}).\nRejected passenger(s): {{rejected_passenger_names}}\nReason: {{rejection_reason}}\nPlease contact TripNexio support if you need assistance.",
+  "ctaLabel": "View Details",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_VISA_REJECTED_WA"
+ },
+ {
+  "event": "NV_ON_HOLD",
+  "channel": "EMAIL",
+  "subject": "Your visa application is on hold — {{booking_id}}",
+  "heading": "Application on hold",
+  "body": "Hi {{customer_name}},\n\nYour New Visa application is currently on hold.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nReason: {{hold_reason}}\nRequired next step, if any: {{hold_next_action}}\n\nWe'll update you when the next step is confirmed.",
+  "ctaLabel": "View Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_ON_HOLD",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour New Visa application is on hold.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nReason: {{hold_reason}}\nNext step: {{hold_next_action}}",
+  "ctaLabel": "View Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_ON_HOLD_WA"
+ },
+ {
+  "event": "NV_CANCELLATION_REQUESTED",
+  "channel": "EMAIL",
+  "subject": "We've received your cancellation request — {{booking_id}}",
+  "heading": "Cancellation under review",
+  "body": "Hi {{customer_name}},\n\nWe've received your request to cancel your New Visa booking. The request is under review; cancellation is not confirmed yet.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger(s) requested for cancellation: {{cancellation_passenger_names}}\n\nIf the cancellation is approved, any eligible refund will be processed according to the applicable refund policy and approval.",
+  "ctaLabel": "View Cancellation Request",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_CANCELLATION_REQUESTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your cancellation request for booking {{booking_id}}.\nCountry: {{country_name}}\nPassenger(s): {{cancellation_passenger_names}}\nCancellation is under review. If approved, any eligible refund will follow the applicable refund policy and approval.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_CANCELLATION_REQUESTED_WA"
+ },
+ {
+  "event": "NV_PARTIAL_CANCELLATION",
+  "channel": "EMAIL",
+  "subject": "Partial cancellation update — {{booking_id}}",
+  "heading": "Some passengers have been cancelled",
+  "body": "Hi {{customer_name}},\n\nThe cancellation has been confirmed for the passengers listed below. Other passengers may remain active under this booking.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nOther passenger outcomes: {{other_passenger_outcomes}}\n\nAny eligible refund will be processed according to the applicable refund policy and approval. Refund status will be communicated separately.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_PARTIAL_CANCELLATION",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nPartial cancellation confirmed for booking {{booking_id}}.\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nOther outcomes: {{other_passenger_outcomes}}\nAny eligible refund is subject to refund policy and approval.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_PARTIAL_CANCELLATION_WA"
+ },
+ {
+  "event": "NV_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "Your New Visa booking has been cancelled — {{booking_id}}",
+  "heading": "Booking cancelled",
+  "body": "Hi {{customer_name}},\n\nYour New Visa booking has been cancelled.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\n\nAny eligible refund will be processed according to the applicable refund policy and approval. Refund processing is not confirmed by this cancellation notice.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour New Visa booking {{booking_id}} has been cancelled.\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nAny eligible refund will be processed according to the applicable refund policy and approval.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_CANCELLED_WA"
+ },
+ {
+  "event": "NV_REFUND_COMPLETED",
+  "channel": "EMAIL",
+  "subject": "Your refund has been processed — {{booking_id}}",
+  "heading": "Refund completed",
+  "body": "Hi {{customer_name}},\n\nThe refund for your New Visa booking has been confirmed as processed.\n\nBooking ID: {{booking_id}}\nRefund ID: {{refund_id}}\nRefund amount: {{refund_amount}}\nPayment source: Original payment method\nExpected posting time: 5–7 working days, depending on your bank/payment provider.\nAffected passenger(s), if applicable: {{refund_passenger_names}}\n\nPlease keep this email for your records.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "NV_REFUND_COMPLETED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour refund has been processed.\nBooking ID: {{booking_id}}\nRefund ID: {{refund_id}}\nAmount: {{refund_amount}}\nThe amount is expected to reach your original payment source within 5–7 working days, depending on your bank/payment provider.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "NV_REFUND_COMPLETED_WA"
+ },
+ {
+  "event": "VC_NEW",
+  "channel": "EMAIL",
+  "subject": "We've received your Visa Change request",
+  "heading": "Your Visa Change request has been received",
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio!\n\nWe've received your Visa Change request and our team will review it.\n\nApplication ID: {{application_id}}\nPassenger(s): {{passenger_names}}\nVisa Change method: {{visa_change_method}}\n\nWe'll update you when your quotation is ready.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_NEW",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio! We've received your Visa Change request. Application ID: {{application_id}}. Our team will review it and update you when your quotation is ready.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_NEW_WA"
+ },
+ {
+  "event": "VC_QUOTATION_SENT",
+  "channel": "EMAIL",
+  "subject": "Your Visa Change quotation is ready",
+  "heading": "Your Visa Change quotation is ready",
+  "body": "Hi {{customer_name}},\n\nYour Visa Change quotation is ready.\n\nApplication ID: {{application_id}}\nPassenger(s): {{passenger_names}}\nMethod: {{visa_change_method}}\nQuotation reference: {{quotation_id}}\nTotal payable: {{currency}} {{total_amount}}\nPackage: {{package_summary}}\nEligibility/validity: {{eligibility_and_validity}}\n\nPlease review the quotation, applicable charges, validity and refund terms before proceeding.",
+  "ctaLabel": "Review Quotation",
+  "ctaLink": "quote_link"
+ },
+ {
+  "event": "VC_QUOTATION_SENT",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Change quotation is ready. Application ID: {{application_id}}. Reference: {{quotation_id}}. Total: {{currency}} {{total_amount}}. Please review the package, charges, validity and refund terms.",
+  "ctaLabel": "Review Quotation",
+  "ctaLink": "quote_link",
+  "suggestedMetaName": "VC_QUOTATION_SENT_WA"
+ },
+ {
+  "event": "VC_QUOTATION_APPROVED",
+  "channel": "EMAIL",
+  "subject": "Your Visa Change quotation is approved",
+  "heading": "Quotation approved",
+  "body": "Hi {{customer_name}},\n\nWe've recorded your approval of the Visa Change quotation.\n\nApplication ID: {{application_id}}\nQuotation reference: {{quotation_id}}\nApproved total: {{currency}} {{total_amount}}\n\nPlease complete payment using the secure link below. Your booking will be confirmed only after successful payment.",
+  "ctaLabel": "Proceed to Payment",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "VC_QUOTATION_APPROVED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, Your Visa Change quotation is approved. Application ID: {{application_id}}. Please complete payment using the secure button below. Booking confirmation follows successful payment.",
+  "ctaLabel": "Proceed to Payment",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "VC_QUOTATION_APPROVED_WA"
+ },
+ {
+  "event": "VC_PAYMENT_PENDING",
+  "channel": "EMAIL",
+  "subject": "Complete payment for your Visa Change request",
+  "heading": "Payment is pending",
+  "body": "Hi {{customer_name}},\n\nPayment for your Visa Change quotation is still pending.\n\nApplication ID: {{application_id}}\nQuotation reference: {{quotation_id}}\nAmount due: {{currency}} {{total_amount}}\n\nPlease complete payment using the secure link below. If you have already paid, please disregard this reminder while we confirm the transaction.",
+  "ctaLabel": "Complete Payment",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "VC_PAYMENT_PENDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nReminder: payment for your Visa Change request is pending. Application ID: {{application_id}}. Amount due: {{currency}} {{total_amount}}. Please complete payment using the secure button below. If already paid, please disregard this reminder.",
+  "ctaLabel": "Complete Payment",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "VC_PAYMENT_PENDING_WA"
+ },
+ {
+  "event": "VC_PAID",
+  "channel": "EMAIL",
+  "subject": "Visa Change Payment received — {{booking_id}}",
+  "heading": "Thanks for choosing TripNexio! Your Payment is received",
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio! Your Visa Change booking is received and payment is confirmed.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nMethod: {{visa_change_method}}\nAmount paid: {{currency}} {{amount_paid}}\n\nYour payment invoice is attached. Please follow the document instructions in your TripNexio account.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_PAID",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, Thanks for choosing TripNexio! Your Visa Change booking is received and payment is confirmed. Booking ID: {{booking_id}}. Please check your email for the invoice and next steps.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_PAID_WA"
+ },
+ {
+  "event": "VC_DOCUMENTS_PENDING",
+  "channel": "EMAIL",
+  "subject": "Documents required for Visa Change booking {{booking_id}}",
+  "heading": "Following documents are required",
+  "body": "Hi {{customer_name}},\n\nFollowing documents are required for your Visa Change booking:\n\nBooking ID: {{booking_id}}\nPassenger(s): {{affected_passenger_names}}\nDocuments required: {{required_document_list}}\n\nPlease upload the listed documents securely. Ensure each file is clear, valid and belongs to the correct passenger.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "VC_DOCUMENTS_PENDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nFollowing documents are required for Visa Change booking {{booking_id}}. Passenger(s): {{affected_passenger_names}}. Documents: {{required_document_list}}. Please upload them securely using the button below.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "VC_DOCUMENTS_PENDING_WA"
+ },
+ {
+  "event": "VC_DOCUMENTS_REQUIRED",
+  "channel": "EMAIL",
+  "subject": "Action required: documents for Visa Change booking {{booking_id}}",
+  "heading": "Following documents are required",
+  "body": "Hi {{customer_name}},\n\nFollowing documents are required for your Visa Change booking:\n\nBooking ID: {{booking_id}}\nPassenger(s): {{affected_passenger_names}}\nDocuments/action required: {{document_issue_list}}\n\nPlease upload missing documents or correct rejected documents using the secure link below. Processing may be delayed until the documents are accepted.",
+  "ctaLabel": "Upload / Correct Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "VC_DOCUMENTS_REQUIRED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nFollowing documents are required for Visa Change booking {{booking_id}}. Passenger(s): {{affected_passenger_names}}. Please provide/correct: {{document_issue_list}}. Use the secure upload button below.",
+  "ctaLabel": "Upload / Correct Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "VC_DOCUMENTS_REQUIRED_WA"
+ },
+ {
+  "event": "VC_DOCUMENTS_VALIDATED",
+  "channel": "EMAIL",
+  "subject": "Your Visa Change documents have been validated",
+  "heading": "Documents validated",
+  "body": "Hi {{customer_name}},\n\nThe documents for your Visa Change booking have been validated.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\n\nWe'll update you when the next confirmed stage is reached. Document validation does not mean visa approval.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_DOCUMENTS_VALIDATED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Change documents have been validated. Booking ID: {{booking_id}}. We'll update you when the next confirmed stage is reached. This is not visa approval.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_DOCUMENTS_VALIDATED_WA"
+ },
+ {
+  "event": "VC_PACKAGE_GENERATED",
+  "channel": "EMAIL",
+  "subject": "Your Visa Change package is ready — {{booking_id}}",
+  "heading": "Your Visa Change package is ready",
+  "body": "Hi {{customer_name}},\n\nYour Visa Change package is ready.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nExit method: {{visa_change_method}}\nPackage reference: {{package_reference}}\n\nPlease review the attached package PDF and use the secure link below to access it. Follow only the confirmed travel, pickup and reporting details shown in your package.\n\nImportant Travel Instructions:\n• Check that all passenger and travel details are correct.\n• Carry your original passport and all required travel documents.\n• Check your flight status and reach the airport at least 3 hours before departure.\n• Arrive at the designated reporting point at the specified reporting time.\n• Ensure you meet all applicable visa, immigration, and border requirements. If additional documents are requested by immigration authorities, you must provide them.\n\nDisclaimer: Visa approval and entry are subject to the relevant authorities. TripNexio does not guarantee approval, boarding, or entry. If you miss your scheduled flight or transport, the booking is non-refundable. If the airline or transport provider cancels the service, TripNexio will try to arrange an alternative; if none is available, a refund will be processed according to the applicable policy.\n\nPlease review all details carefully to help avoid last-minute issues.\nHave a safe and pleasant journey with TripNexio!",
+  "ctaLabel": "Download Package",
+  "ctaLink": "secure_package_link"
+ },
+ {
+  "event": "VC_PACKAGE_GENERATED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Change package is ready. Booking ID: {{booking_id}}. Passenger(s): {{passenger_names}}.",
+  "ctaLabel": "Download Package",
+  "ctaLink": "secure_package_link",
+  "suggestedMetaName": "VC_PACKAGE_GENERATED_WA"
+ },
+ {
+  "event": "VC_EXIT_COMPLETED",
+  "channel": "EMAIL",
+  "subject": "Exit completed — {{booking_id}}",
+  "heading": "Your exit has been marked completed",
+  "body": "Hi {{customer_name}},\n\nThe exit step for your Visa Change booking has been marked as completed.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nExit method: {{visa_change_method}}\n\nThe next step is preparing your application for submission. We'll notify you when the status changes.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_EXIT_COMPLETED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe exit step for Visa Change booking {{booking_id}} is completed. Passenger(s): {{passenger_names}}. The next step is preparing your application for submission.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_EXIT_COMPLETED_WA"
+ },
+ {
+  "event": "VC_APPLIED_TO_EMBASSY",
+  "channel": "EMAIL",
+  "subject": "Visa application submitted — {{booking_id}}",
+  "heading": "Your visa application has been submitted",
+  "body": "Hi {{customer_name}},\n\nYour Visa Change application has been submitted to the relevant authority/processing channel.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nSubmission date: {{submission_date}}\n\nWe'll notify you when there is a verified update. Decisions remain subject to the relevant authorities.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_APPLIED_TO_EMBASSY",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Change application has been submitted. Booking ID: {{booking_id}}. We'll notify you when there is a verified update. Decisions remain subject to the relevant authorities.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_APPLIED_TO_EMBASSY_WA"
+ },
+ {
+  "event": "VC_ADDITIONAL_DOCUMENTS_REQUIRED",
+  "channel": "EMAIL",
+  "subject": "Additional documents required — {{booking_id}}",
+  "heading": "Additional documents are required",
+  "body": "Hi {{customer_name}},\n\nAdditional documents have been requested for your Visa Change booking.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{affected_passenger_names}}\nRequested by: {{requesting_authority}}\nDocuments required: {{additional_document_list}}\nRequest details: {{customer_safe_request_reason}}\n\nPlease submit the requested documents securely as soon as possible.",
+  "ctaLabel": "Submit Additional Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "VC_ADDITIONAL_DOCUMENTS_REQUIRED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nAdditional documents are required for Visa Change booking {{booking_id}}. Passenger(s): {{affected_passenger_names}}. Documents: {{additional_document_list}}. Details: {{customer_safe_request_reason}}. Please submit securely using the button below.",
+  "ctaLabel": "Submit Additional Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "VC_ADDITIONAL_DOCUMENTS_REQUIRED_WA"
+ },
+ {
+  "event": "VC_ADDITIONAL_DOCUMENTS_SUBMITTED",
+  "channel": "EMAIL",
+  "subject": "Additional documents received — {{booking_id}}",
+  "heading": "We've received your additional documents",
+  "body": "Hi {{customer_name}},\n\nWe've received the additional documents for your Visa Change booking. They are awaiting review.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{affected_passenger_names}}\nDocuments received: {{submitted_document_list}}\n\nWe'll update you when the review is complete.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_ADDITIONAL_DOCUMENTS_SUBMITTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received the additional documents for Visa Change booking {{booking_id}}. They are awaiting review. We'll update you when the review is complete.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_ADDITIONAL_DOCUMENTS_SUBMITTED_WA"
+ },
+ {
+  "event": "VC_VISA_APPROVED_PARTIAL_APPLICANTS",
+  "channel": "EMAIL",
+  "subject": "Partial visa approval — {{booking_id}}",
+  "heading": "Visa approval update for your booking",
+  "body": "Hi {{customer_name}},\n\nThere is an update on your Visa Change booking.\n\nBooking ID: {{booking_id}}\nApproved passenger(s): {{approved_passenger_names}}\nOther passenger outcome(s): {{other_passenger_outcomes}}\n\nIssued visa file(s) for approved passenger(s) are attached where available and can also be downloaded securely using the button below.\n\nImportant: Please verify each issued visa against the corresponding passport. Report any spelling error, incorrect visa type or discrepancy to TripNexio within 24 hours of receiving this email for review and correction where applicable. TripNexio will not be responsible for travel disruptions or related issues arising from discrepancies not reported within this period.\n\nImportant Travel Instructions:\n• Check that all passenger and travel details are correct.\n• Carry your original passport and all required travel documents.\n• Check your flight status and reach the airport at least 3 hours before departure.\n• Arrive at the designated reporting point at the specified reporting time.\n• Ensure you meet all applicable visa, immigration, and border requirements. If additional documents are requested by immigration authorities, you must provide them.\n\nDisclaimer: Visa approval and entry are subject to the relevant authorities. TripNexio does not guarantee approval, boarding, or entry. If you miss your scheduled flight or transport, the booking is non-refundable. If the airline or transport provider cancels the service, TripNexio will try to arrange an alternative; if none is available, a refund will be processed according to the applicable policy.\n\nPlease review all details carefully to help avoid last-minute issues.\nHave a safe and pleasant journey with TripNexio!",
+  "ctaLabel": "Download Approved Visa(s)",
+  "ctaLink": "visa_download_url"
+ },
+ {
+  "event": "VC_VISA_APPROVED_PARTIAL_APPLICANTS",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nVisa approval update for Visa Change booking {{booking_id}}. Approved passenger(s): {{approved_passenger_names}}. Other passenger outcome(s): {{other_passenger_outcomes}}. Please check each visa against the matching passport and report discrepancies within 24 hours. Full disclaimer is in your email.",
+  "ctaLabel": "Download Approved Visa(s)",
+  "ctaLink": "visa_download_url",
+  "suggestedMetaName": "VC_VISA_APPROVED_PARTIAL_APPLICANTS_WA"
+ },
+ {
+  "event": "VC_VISA_APPROVED",
+  "channel": "EMAIL",
+  "subject": "Your Visa Change visa is approved — {{booking_id}}",
+  "heading": "Your visa has been issued",
+  "body": "Hi {{customer_name}},\n\nGood news! Your visa is approved.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger(s): {{approved_passenger_names}}\n\nYou can also download it from your TripNexio account.\nPlease verify it against the passport and report any spelling, visa type or other discrepancy within 24 hours. Full travel instructions and disclaimer are in your email.\n\nImportant Travel Instructions:\n• Check that all passenger and travel details are correct.\n• Carry your original passport and all required travel documents.\n• Check your flight status and reach the airport at least 3 hours before departure.\n• Arrive at the designated reporting point at the specified reporting time.\n• Ensure you meet all applicable visa, immigration, and border requirements. If additional documents are requested by immigration authorities, you must provide them.\n\nDisclaimer: Visa approval and entry are subject to the relevant authorities. TripNexio does not guarantee approval, boarding, or entry. If you miss your scheduled flight or transport, the booking is non-refundable. If the airline or transport provider cancels the service, TripNexio will try to arrange an alternative; if none is available, a refund will be processed according to the applicable policy.\n\nPlease review all details carefully to help avoid last-minute issues.\nHave a safe and pleasant journey with TripNexio!",
+  "ctaLabel": "Download Visa",
+  "ctaLink": "visa_download_url"
+ },
+ {
+  "event": "VC_VISA_APPROVED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nGood news! Your visa is approved.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger(s): {{approved_passenger_names}}\n\nYou can also download it from your TripNexio account.\nPlease verify it against the passport and report any spelling, visa type or other discrepancy within 24 hours. Full travel instructions and disclaimer are in your email.",
+  "ctaLabel": "Download Visa",
+  "ctaLink": "visa_download_url",
+  "suggestedMetaName": "VC_VISA_APPROVED_WA"
+ },
+ {
+  "event": "VC_VISA_REJECTED",
+  "channel": "EMAIL",
+  "subject": "Visa application update — {{booking_id}}",
+  "heading": "An update on your Visa Change application",
+  "body": "Hi {{customer_name}},\n\nUnfortunately, the visa application for the passenger(s) listed below was rejected by the relevant authority.\n\nBooking ID: {{booking_id}}\nAffected passenger(s): {{rejected_passenger_names}}\nReason, if officially shared and safe to disclose: {{customer_safe_rejection_reason}}",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_VISA_REJECTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nVisa application update for booking {{booking_id}}: the application for {{rejected_passenger_names}} was rejected. Reason, if available: {{customer_safe_rejection_reason}}.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_VISA_REJECTED_WA"
+ },
+ {
+  "event": "VC_ON_HOLD",
+  "channel": "EMAIL",
+  "subject": "Visa Change application on hold — {{booking_id}}",
+  "heading": "Your application is temporarily on hold",
+  "body": "Hi {{customer_name}},\n\nYour Visa Change application is temporarily on hold.\n\nBooking ID: {{booking_id}}\nAffected passenger(s): {{affected_passenger_names}}\nReason / next step: {{customer_safe_hold_reason}}\n\nPlease follow the action requested, if any. We'll update you when the status changes.",
+  "ctaLabel": "View Details",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_ON_HOLD",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nVisa Change booking {{booking_id}} is temporarily on hold. Passenger(s): {{affected_passenger_names}}. Reason/next step: {{customer_safe_hold_reason}}. We'll update you when the status changes.",
+  "ctaLabel": "View Details",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_ON_HOLD_WA"
+ },
+ {
+  "event": "VC_CANCELLATION_REQUESTED",
+  "channel": "EMAIL",
+  "subject": "Cancellation request received — {{booking_id}}",
+  "heading": "Your cancellation request is under review",
+  "body": "Hi {{customer_name}},\n\nWe've received your cancellation request. It is under review and is not final until confirmed by TripNexio.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{cancellation_passenger_names}}\n\nAny eligible refund is subject to the applicable refund policy and approval.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_CANCELLATION_REQUESTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your cancellation request for Visa Change booking {{booking_id}}. It is under review and is not final until confirmed. Any eligible refund is subject to policy and approval.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_CANCELLATION_REQUESTED_WA"
+ },
+ {
+  "event": "VC_PARTIALLY_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "Partial cancellation update — {{booking_id}}",
+  "heading": "Your booking has been partially cancelled",
+  "body": "Hi {{customer_name}},\n\nThe cancellation is confirmed for some passengers in your Visa Change booking.\n\nBooking ID: {{booking_id}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nRemaining active passenger(s): {{active_passenger_names}}\n\nAny eligible refund is subject to the applicable refund policy and approval. Remaining active services are not cancelled by this update.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_PARTIALLY_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nVisa Change booking {{booking_id}} has been partially cancelled. Cancelled: {{cancelled_passenger_names}}. Still active: {{active_passenger_names}}. Any eligible refund is subject to policy and approval.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_PARTIALLY_CANCELLED_WA"
+ },
+ {
+  "event": "VC_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "Visa Change booking cancelled — {{booking_id}}",
+  "heading": "Your booking cancellation is confirmed",
+  "body": "Hi {{customer_name}},\n\nThe cancellation of your Visa Change booking has been confirmed.\n\nBooking ID: {{booking_id}}\nCancelled passenger(s): {{cancelled_passenger_names}}\n\nAny eligible refund will be handled according to the applicable refund policy and approval process. We'll notify you when the refund status is confirmed.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nVisa Change booking {{booking_id}} has been cancelled. Any eligible refund is subject to the applicable refund policy and approval.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_CANCELLED_WA"
+ },
+ {
+  "event": "VC_REFUND_COMPLETED",
+  "channel": "EMAIL",
+  "subject": "Refund completed — {{booking_id}}",
+  "heading": "Your refund has been processed",
+  "body": "Hi {{customer_name}},\n\nThe refund for your Visa Change booking has been processed.\n\nBooking ID: {{booking_id}}\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}\n\nThe amount is expected to reach your original payment source within 5–7 working days, depending on your bank or payment provider.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "VC_REFUND_COMPLETED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour refund for Visa Change booking {{booking_id}} has been processed. Refund ID: {{refund_id}}. Amount: {{currency}} {{refund_amount}}. Expected in 5–7 working days, depending on your bank/payment provider.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "VC_REFUND_COMPLETED_WA"
+ },
+ {
+  "event": "EXT_01",
+  "channel": "EMAIL",
+  "subject": "Visa Extension request received — {{lead_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your Visa Extension request. Reference: {{lead_id}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_01",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received your Visa Extension request. Reference: {{lead_id}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_01_WA"
+ },
+ {
+  "event": "EXT_02",
+  "channel": "EMAIL",
+  "subject": "Eligibility review update — {{lead_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Extension request is under eligibility review. We'll update you when complete.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_02",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension request is under eligibility review.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_02_WA"
+ },
+ {
+  "event": "EXT_03",
+  "channel": "EMAIL",
+  "subject": "Visa Extension eligibility update — {{lead_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe're unable to proceed with this Visa Extension request. Reason: {{verified_customer_safe_reason}}. Contact support for guidance.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link"
+ },
+ {
+  "event": "EXT_03",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We're unable to proceed with your Visa Extension request. Reason: {{verified_customer_safe_reason}}.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link",
+  "suggestedMetaName": "EXT_03_WA"
+ },
+ {
+  "event": "EXT_04",
+  "channel": "EMAIL",
+  "subject": "Your Visa Extension quotation is ready — {{lead_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour quotation for a Visa Extension is ready. Passenger: {{passenger_name}}. Fee: {{extension_fee}}. Fine: {{verified_fine_amount}}. Other charges: {{other_charges}}. Total: {{total_amount}}. Deadline: {{payment_deadline}}.",
+  "ctaLabel": "Review Quotation",
+  "ctaLink": "quote_link"
+ },
+ {
+  "event": "EXT_04",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension quotation is ready. Total: {{total_amount}}.",
+  "ctaLabel": "Review Quotation",
+  "ctaLink": "quote_link",
+  "suggestedMetaName": "EXT_04_WA"
+ },
+ {
+  "event": "EXT_05",
+  "channel": "EMAIL",
+  "subject": "Visa Extension quotation approved — {{lead_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYou approved the quotation for your Visa Extension. Complete payment before {{payment_deadline}}.",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "EXT_05",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension quotation is approved.",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "EXT_05_WA"
+ },
+ {
+  "event": "EXT_06",
+  "channel": "EMAIL",
+  "subject": "Payment pending — {{lead_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nPayment is pending for your Visa Extension. Total: {{total_amount}}. Deadline: {{payment_deadline}}. Processing starts only after successful payment.",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "EXT_06",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Payment is pending for your Visa Extension. Total: {{total_amount}}.",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "EXT_06_WA"
+ },
+ {
+  "event": "EXT_07",
+  "channel": "EMAIL",
+  "subject": "Payment received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nPayment received for your Visa Extension. Booking ID: {{booking_id}}. Amount: {{amount_paid}}. Processing will now begin. Invoice attached where supported.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_07",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Payment received for your Visa Extension. Booking ID: {{booking_id}}. We'll update you as processing progresses.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_07_WA"
+ },
+ {
+  "event": "EXT_08",
+  "channel": "EMAIL",
+  "subject": "Ready for submission — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Extension is ready for submission. We'll update you when submission is confirmed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_08",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension is ready for submission. Booking ID: {{booking_id}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_08_WA"
+ },
+ {
+  "event": "EXT_09",
+  "channel": "EMAIL",
+  "subject": "Application submitted — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Extension application has been submitted to the relevant authority, as applicable. Approval and timing are determined by the authority and are not guaranteed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_09",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension application has been submitted. Approval and timing depend on the authority.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_09_WA"
+ },
+ {
+  "event": "EXT_10",
+  "channel": "EMAIL",
+  "subject": "Immigration update — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nImmigration has not accepted your Visa Extension request. Verified reason: {{verified_customer_safe_reason}}. Refund eligibility is reviewed separately.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link"
+ },
+ {
+  "event": "EXT_10",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Immigration has not accepted your Visa Extension request. Reason: {{verified_customer_safe_reason}}. Refund eligibility is reviewed separately.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link",
+  "suggestedMetaName": "EXT_10_WA"
+ },
+ {
+  "event": "EXT_11",
+  "channel": "EMAIL",
+  "subject": "Additional documents required — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nTo continue the Visa Extension for {{passenger_name}}, provide: {{requested_items}}. Due date: {{due_date}}. Submit securely below.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "EXT_11",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Additional documents required for {{passenger_name}}: {{requested_items}}.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "EXT_11_WA"
+ },
+ {
+  "event": "EXT_12",
+  "channel": "EMAIL",
+  "subject": "Additional documents received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received the additional documents for {{passenger_name}}'s Visa Extension. Our team will validate them.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_12",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received the additional documents for {{passenger_name}}'s Visa Extension.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_12_WA"
+ },
+ {
+  "event": "EXT_13",
+  "channel": "EMAIL",
+  "subject": "Additional documents validated — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe additional documents for {{passenger_name}}'s Visa Extension have been validated. Processing will continue.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_13",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The additional documents for {{passenger_name}}'s Visa Extension have been validated.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_13_WA"
+ },
+ {
+  "event": "EXT_14",
+  "channel": "EMAIL",
+  "subject": "Partial approval update — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nApproved applicants: {{approved_passengers}}. Other applicants: {{pending_or_not_approved_passengers}}. Only listed applicants are approved. Visa files are shared only after receipt and verification.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_14",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Partial approval for {{booking_id}}. Approved: {{approved_passengers}}. Other applicants: {{pending_or_not_approved_passengers}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_14_WA"
+ },
+ {
+  "event": "EXT_15",
+  "channel": "EMAIL",
+  "subject": "Visa Extension approved — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe authority approved the Visa Extension for {{passenger_name}}. The extended visa copy will be shared only after receipt and verification.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_15",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension has been approved. We'll share the copy once received and verified.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_15_WA"
+ },
+ {
+  "event": "EXT_16",
+  "channel": "EMAIL",
+  "subject": "Visa Extension outcome — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe authority rejected the Visa Extension request. Reason: {{verified_customer_safe_reason_or_authority_provided_no_reason}}. Refund treatment is assessed separately under applicable policy.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link"
+ },
+ {
+  "event": "EXT_16",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension request was rejected. {{verified_customer_safe_reason_or_authority_provided_no_reason}}",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link",
+  "suggestedMetaName": "EXT_16_WA"
+ },
+ {
+  "event": "EXT_17",
+  "channel": "EMAIL",
+  "subject": "Visa Extension status update — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Extension request is on hold. Update: {{verified_customer_safe_reason}}. This does not confirm approval or rejection.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_17",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension request is on hold. Update: {{verified_customer_safe_reason}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_17_WA"
+ },
+ {
+  "event": "EXT_18",
+  "channel": "EMAIL",
+  "subject": "Cancellation request received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe received your cancellation request for booking {{booking_id}}. Cancellation is not final until confirmed. Refund eligibility, if any, will be reviewed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_18",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We received your cancellation request for {{booking_id}}. Cancellation is not final until confirmed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_18_WA"
+ },
+ {
+  "event": "EXT_19",
+  "channel": "EMAIL",
+  "subject": "Partial cancellation update — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nBooking partially cancelled. Cancelled: {{cancelled_passengers_or_items}}. Remaining active: {{remaining_passengers_or_items}}. Any refund is assessed separately.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_19",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Booking {{booking_id}} is partially cancelled. Cancelled: {{cancelled_passengers_or_items}}. Remaining: {{remaining_passengers_or_items}}.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_19_WA"
+ },
+ {
+  "event": "EXT_20",
+  "channel": "EMAIL",
+  "subject": "Visa Extension cancelled — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour Visa Extension booking {{booking_id}} has been cancelled. Details: {{verified_cancellation_details}}. Refund eligibility is subject to policy and confirmation.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_20",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Visa Extension booking {{booking_id}} has been cancelled. Any refund is reviewed separately.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_20_WA"
+ },
+ {
+  "event": "EXT_21",
+  "channel": "EMAIL",
+  "subject": "Refund update — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nRefund for booking {{booking_id}} is pending review/processing. Confirmed amount, if available: {{confirmed_refund_amount}}. This does not mean refund is completed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_21",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Refund for {{booking_id}} is pending. Amount, if confirmed: {{confirmed_refund_amount}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_21_WA"
+ },
+ {
+  "event": "EXT_22",
+  "channel": "EMAIL",
+  "subject": "Refund completed — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nRefund processed for booking {{booking_id}}. Refund ID: {{refund_id}}. Amount: {{confirmed_refund_amount}}. Bank/payment-provider posting may take around 5–7 working days where applicable.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "EXT_22",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Refund completed for {{booking_id}}. Refund ID: {{refund_id}}. Amount: {{confirmed_refund_amount}}. Posting times vary.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "EXT_22_WA"
+ },
+ {
+  "event": "OTB_01_NEW",
+  "channel": "EMAIL",
+  "subject": "OTB request received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your OK to Board (OTB) request.\nBooking reference: {{booking_id}}\nPassenger(s): {{passenger_names}}\nWe'll notify you when there is an update. Receipt of a request does not guarantee airline approval.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_01_NEW",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received your OK to Board (OTB) request. Booking reference: {{booking_id}}. We'll update you as your request progresses.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_01_NEW_WA"
+ },
+ {
+  "event": "OTB_02_PAYMENT_SUCCESSFUL",
+  "channel": "EMAIL",
+  "subject": "Payment confirmed for OTB — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've confirmed your payment for OTB booking {{booking_id}}.\nAmount: {{payment_amount}}\nPayment reference: {{payment_reference}}\nPayment confirmation does not mean OTB approval. Your request proceeds subject to document validation and airline requirements.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_02_PAYMENT_SUCCESSFUL",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your payment for OTB booking {{booking_id}} is confirmed. Amount: {{payment_amount}}. Payment confirmation does not mean OTB approval.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_02_PAYMENT_SUCCESSFUL_WA"
+ },
+ {
+  "event": "OTB_03_DOCUMENT_REQUIRED",
+  "channel": "EMAIL",
+  "subject": "Documents required for OTB — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe need the following document(s) to continue your OTB request.\nBooking reference: {{booking_id}}\nRequired document(s): {{required_documents}}\nPlease upload the documents using the button below.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_03_DOCUMENT_REQUIRED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We need the following document(s) for OTB booking {{booking_id}}: {{required_documents}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_03_DOCUMENT_REQUIRED_WA"
+ },
+ {
+  "event": "OTB_04_DOCUMENTS_RECEIVED",
+  "channel": "EMAIL",
+  "subject": "OTB documents received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received the following document(s): {{document_name}}\nBooking reference: {{booking_id}}\nThe documents still need to be checked. We'll update you when validation is complete.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_04_DOCUMENTS_RECEIVED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received the document(s) for OTB booking {{booking_id}}: {{document_name}}. They still need to be validated.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_04_DOCUMENTS_RECEIVED_WA"
+ },
+ {
+  "event": "OTB_05_DOCUMENTS_VALIDATED",
+  "channel": "EMAIL",
+  "subject": "OTB documents validated — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe submitted documents for OTB booking {{booking_id}} have been validated. Your request can proceed to the next applicable step. Validation does not guarantee airline approval.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_05_DOCUMENTS_VALIDATED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The submitted documents for OTB booking {{booking_id}} have been validated. This does not guarantee airline approval.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_05_DOCUMENTS_VALIDATED_WA"
+ },
+ {
+  "event": "OTB_06_SENT_TO_AIRLINES",
+  "channel": "EMAIL",
+  "subject": "OTB request sent to airline — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour OTB request has been sent to the airline.\nBooking reference: {{booking_id}}\nPassenger(s): {{passenger_names}}\nThe airline determines the outcome and response time. We'll share an update when we receive one.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_06_SENT_TO_AIRLINES",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your OTB request for booking {{booking_id}} has been sent to the airline. The airline controls the decision and response time.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_06_SENT_TO_AIRLINES_WA"
+ },
+ {
+  "event": "OTB_07_ADDITIONAL_DOCUMENTS_RECEIVED",
+  "channel": "EMAIL",
+  "subject": "Additional OTB documents received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received the additional document(s): {{document_name}}\nBooking reference: {{booking_id}}\nThese documents still need validation. We'll update you when the next step is completed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_07_ADDITIONAL_DOCUMENTS_RECEIVED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received the additional document(s) for OTB booking {{booking_id}}: {{document_name}}. They still need validation.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_07_ADDITIONAL_DOCUMENTS_RECEIVED_WA"
+ },
+ {
+  "event": "OTB_08_ADDITIONAL_DOCUMENTS_VALIDATED",
+  "channel": "EMAIL",
+  "subject": "Additional OTB documents validated — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe additional documents for OTB booking {{booking_id}} have been validated. Validation does not itself mean OTB approval.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_08_ADDITIONAL_DOCUMENTS_VALIDATED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The additional documents for OTB booking {{booking_id}} have been validated.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_08_ADDITIONAL_DOCUMENTS_VALIDATED_WA"
+ },
+ {
+  "event": "OTB_09_ADDITIONAL_DOCUMENTS_SUBMITTED",
+  "channel": "EMAIL",
+  "subject": "Additional OTB documents sent to airline — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe additional documents for OTB booking {{booking_id}} have been submitted to the airline. The airline controls the outcome and response time.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_09_ADDITIONAL_DOCUMENTS_SUBMITTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The additional documents for OTB booking {{booking_id}} have been submitted to the airline. The airline controls the decision and response time.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_09_ADDITIONAL_DOCUMENTS_SUBMITTED_WA"
+ },
+ {
+  "event": "OTB_10_OTB_APPROVED",
+  "channel": "EMAIL",
+  "subject": "OTB approved — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe airline has approved the OTB request for: {{passenger_names}}\nBooking reference: {{booking_id}}\nThis is an approval status update. TripNexio does not generate a separate OTB approval PDF. Please follow instructions from the airline and airport authorities.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_10_OTB_APPROVED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The airline has approved the OTB request for {{passenger_names}} under booking {{booking_id}}. This is a status notification; TripNexio does not issue a separate OTB approval PDF.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_10_OTB_APPROVED_WA"
+ },
+ {
+  "event": "OTB_11_PARTIALLY_APPROVED",
+  "channel": "EMAIL",
+  "subject": "Partial OTB outcome — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe airline has provided a partial outcome for booking {{booking_id}}.\nApproved passenger(s): {{approved_passengers}}\nOther passenger(s)/outcome: {{pending_or_rejected_passengers}}\nOnly passengers explicitly listed as approved have an approved OTB status.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_11_PARTIALLY_APPROVED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "There is a partial outcome for OTB booking {{booking_id}}. Approved passenger(s): {{approved_passengers}}. Other passenger(s)/outcome: {{pending_or_rejected_passengers}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_11_PARTIALLY_APPROVED_WA"
+ },
+ {
+  "event": "OTB_12_REJECTED",
+  "channel": "EMAIL",
+  "subject": "OTB outcome update — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe OTB request for {{passenger_names}} under booking {{booking_id}} was not approved by the airline.\nReason: {{verified_reason}}",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_12_REJECTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The OTB request for {{passenger_names}} under booking {{booking_id}} was not approved by the airline. Reason: {{verified_reason}}. For assistance, contact support@tripnexio.com.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_12_REJECTED_WA"
+ },
+ {
+  "event": "OTB_13_PARTIALLY_CANCELLATION_REQUESTED",
+  "channel": "EMAIL",
+  "subject": "Partial cancellation request received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your request to partially cancel these passenger(s) in booking {{booking_id}}: {{cancelled_passengers}}\nThe request is under review and is not final until confirmed in the booking status. Any refund update will be based on confirmed records.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_13_PARTIALLY_CANCELLATION_REQUESTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received the partial cancellation request for {{cancelled_passengers}} under booking {{booking_id}}. It is under review; cancellation is not final yet.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_13_PARTIALLY_CANCELLATION_REQUESTED_WA"
+ },
+ {
+  "event": "OTB_14_PARTIALLY_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "Partial cancellation confirmed — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nPartial cancellation is confirmed for these passenger(s) in booking {{booking_id}}: {{cancelled_passengers}}\nOther passengers are not included in this cancellation. Any applicable refund amount and status will be communicated based on confirmed records.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_14_PARTIALLY_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Booking {{booking_id}} has been partially cancelled for: {{cancelled_passengers}}. Other passengers, if any, are not included. Any refund update will be sent when confirmed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_14_PARTIALLY_CANCELLED_WA"
+ },
+ {
+  "event": "OTB_15_CANCELLATION_REQUESTED",
+  "channel": "EMAIL",
+  "subject": "Cancellation request received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your cancellation request for OTB booking {{booking_id}}. It is under review; the booking is not yet confirmed as cancelled.\nRefund eligibility, amount, and timing can only be confirmed after the relevant records are checked.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_15_CANCELLATION_REQUESTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received the cancellation request for OTB booking {{booking_id}}. It is under review and is not yet confirmed as cancelled.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_15_CANCELLATION_REQUESTED_WA"
+ },
+ {
+  "event": "OTB_16_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "OTB booking cancelled — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nOTB booking {{booking_id}} is now marked as cancelled. Cancellation does not itself confirm that a refund is complete. We'll update you if a refund applies and when its status is confirmed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_16_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "OTB booking {{booking_id}} is now marked as cancelled. Any applicable refund will be updated separately once confirmed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_16_CANCELLED_WA"
+ },
+ {
+  "event": "OTB_17_REFUND_PENDING",
+  "channel": "EMAIL",
+  "subject": "Refund processing update — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe refund for OTB booking {{booking_id}} is being processed.\nConfirmed refund amount: {{refund_amount}}\nThe refund is not yet marked completed. We'll notify you when the transaction is confirmed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_17_REFUND_PENDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The refund for OTB booking {{booking_id}} is being processed. Confirmed amount: {{refund_amount}}. We'll notify you when completion is confirmed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_17_REFUND_PENDING_WA"
+ },
+ {
+  "event": "OTB_18_REFUND_COMPLETED",
+  "channel": "EMAIL",
+  "subject": "Refund completed — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe refund for OTB booking {{booking_id}} has been completed in our records.\nRefund amount: {{refund_amount}}\nRefund reference: {{refund_reference}}\nYour bank or payment provider may require additional time to reflect the funds.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_18_REFUND_COMPLETED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The refund for OTB booking {{booking_id}} is completed. Amount: {{refund_amount}}. Refund reference: {{refund_reference}}. Your bank/payment provider may take additional time to display funds.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_18_REFUND_COMPLETED_WA"
+ },
+ {
+  "event": "OTB_19_CANCELLED_AND_REFUNDED",
+  "channel": "EMAIL",
+  "subject": "Booking cancelled and refund completed — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nOTB booking {{booking_id}} has been cancelled and the refund is marked completed.\nRefund amount: {{refund_amount}}\nRefund reference: {{refund_reference}}\nYour bank or payment provider may require additional time to reflect the funds.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "OTB_19_CANCELLED_AND_REFUNDED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "OTB booking {{booking_id}} has been cancelled and the refund is completed. Amount: {{refund_amount}}. Refund reference: {{refund_reference}}.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "OTB_19_CANCELLED_AND_REFUNDED_WA"
+ },
+ {
+  "event": "RVT_NEW",
+  "channel": "EMAIL",
+  "subject": "Your Return Verified Ticket request has been received — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nWe have received your Return Verified Ticket request.\nRequest ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nTravel date: {{travel_date}}\n\nWe will review the request and share the next update. You can check the current status using the button below.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_NEW",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your Return Verified Ticket request {{booking_id}} has been received. We'll review the details and update you on the next step.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_new"
+ },
+ {
+  "event": "RVT_PAID",
+  "channel": "EMAIL",
+  "subject": "Payment Completed — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nWe have confirmed your payment for Return Verified Ticket request {{booking_id}}.\nAmount paid: {{amount_paid}}\nPayment reference: {{payment_reference}}\n\nWe will proceed with the next step. If any document or information is required, we will contact you.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_PAID",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Payment for request {{booking_id}} is completed. We'll proceed with the next step and notify you if any document or information is required.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_paid"
+ },
+ {
+  "event": "RVT_DOCUMENT_PENDING",
+  "channel": "EMAIL",
+  "subject": "Document Validation Pending — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nYour Return Verified Ticket request {{booking_id}} is currently awaiting document review/validation.\nPlease review the request in your customer portal.\n\nIf documents are requested, upload them through the portal so we can continue processing.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "RVT_DOCUMENT_PENDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your request {{booking_id}} is awaiting document review/validation.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "rvt_document_pending"
+ },
+ {
+  "event": "RVT_DOCUMENT_REQUIRED",
+  "channel": "EMAIL",
+  "subject": "Action Required: Documents Required — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nWe need the following document(s) or correction(s) to continue request {{booking_id}}:\n{{missing_or_incorrect_documents}}\n\nPlease complete the action using the button below.\n\nProcessing can continue after the required items are received and reviewed.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "RVT_DOCUMENT_REQUIRED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Action required for {{booking_id}}: {{missing_or_incorrect_documents}}. Processing continues after review.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "rvt_document_required"
+ },
+ {
+  "event": "RVT_DOCUMENTS_UPLOADED",
+  "channel": "EMAIL",
+  "subject": "Documents Received — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nWe have received the documents uploaded for request {{booking_id}}. They are now awaiting validation. Please note that receipt does not mean the documents have been approved.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_DOCUMENTS_UPLOADED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received the documents for {{booking_id}}. They are awaiting validation; upload does not mean approval.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_documents_uploaded"
+ },
+ {
+  "event": "RVT_DOCUMENTS_VALIDATED",
+  "channel": "EMAIL",
+  "subject": "Documents Validated — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nThe required documents for Return Verified Ticket request {{booking_id}} have been validated. We will now proceed to the next processing step.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_DOCUMENTS_VALIDATED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Documents for {{booking_id}} have been validated. We'll move to the next processing step and keep you updated.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_documents_validated"
+ },
+ {
+  "event": "RVT_UNABLE_TO_PROCESS",
+  "channel": "EMAIL",
+  "subject": "Update on Your Request — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nWe are unable to proceed with Return Verified Ticket request {{booking_id}} at this time.\nReason: {{customer_safe_reason}}\nNext step: {{next_step}}\n\nIf you need assistance, contact {{support_email}}.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link"
+ },
+ {
+  "event": "RVT_UNABLE_TO_PROCESS",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We're unable to proceed with request {{booking_id}} at this time. Reason: {{customer_safe_reason}}. Next step, if available: {{next_step}}. Contact {{support_email}} for help.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link",
+  "suggestedMetaName": "rvt_unable_to_process"
+ },
+ {
+  "event": "RVT_SENT_TO_AIRLINES",
+  "channel": "EMAIL",
+  "subject": "Sent to Airlines — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nYour Return Verified Ticket request {{booking_id}} has been sent to the airlines for processing.\nWe will share another update when the status changes. Please note that this update does not mean the ticket/reservation has been issued.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_SENT_TO_AIRLINES",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Update for {{booking_id}}: your request has been sent to the airlines for processing. We'll notify you when there is a further update.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_sent_to_airlines"
+ },
+ {
+  "event": "RVT_TICKET_ISSUED",
+  "channel": "EMAIL",
+  "subject": "Ticket Issued — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nYour Return Verified Ticket reservation for request {{booking_id}} has been issued.\nPassenger(s): {{passenger_names}}\nTravel date: {{travel_date}}\n\nYour ticket/reservation PDF is attached.\nPlease check the details carefully. Acceptance is subject to the relevant airline and authority requirements.\n\n⚠️ Important: Please Verify Your Details\nKindly check your name, travel dates, route, and all reservation details carefully. If you notice any errors, inform us within 4 hours of receiving this message. After this period a new ticket is required at an additional cost.\n\nDisclaimer:\n• A return ticket or reservation does not guarantee boarding, visa approval, immigration clearance, or entry into any country.\n• Final decisions regarding boarding and entry rest with the airline and relevant immigration authorities.\n• Please ensure you meet all visa, passport, and travel requirements before departure.\n\nWe recommend verifying all details promptly to avoid last-minute issues.\nHave a safe and pleasant journey with TripNexio!",
+  "ctaLabel": "Download Ticket",
+  "ctaLink": "ticket_download_link"
+ },
+ {
+  "event": "RVT_TICKET_ISSUED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Your ticket/reservation for {{booking_id}} has been issued. Please check passenger and travel details.",
+  "ctaLabel": "Download Ticket",
+  "ctaLink": "ticket_download_link",
+  "suggestedMetaName": "rvt_ticket_issued"
+ },
+ {
+  "event": "RVT_CANCELLATION_REQUESTED",
+  "channel": "EMAIL",
+  "subject": "Cancellation Request Under Review — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nWe have received your cancellation request for {{booking_id}}. The request is under review; this is not confirmation that the booking has been cancelled.\nRequested passenger(s)/segment: {{cancellation_scope}}\n\nWe will update you after review. Any refund eligibility will be assessed under the applicable booking terms and service stage.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_CANCELLATION_REQUESTED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "We've received the cancellation request for {{booking_id}}. It is under review and is not confirmed yet. We'll update you once reviewed.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_cancellation_requested"
+ },
+ {
+  "event": "RVT_PARTIALLY_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "Partial Cancellation Confirmed — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nA partial cancellation has been confirmed for request {{booking_id}}.\nCancelled passenger(s)/segment(s): {{cancelled_scope}}\nRemaining active passenger(s)/segment(s): {{remaining_scope}}\nRefund status, if applicable: {{refund_status}}\n\nThis update applies only to the items listed above. Please review your booking details.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_PARTIALLY_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Partial cancellation confirmed for {{booking_id}}. Cancelled passenger(s)/segment(s): {{cancelled_scope}}. Remaining active passenger(s)/segment(s): {{remaining_scope}}.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_partially_cancelled"
+ },
+ {
+  "event": "RVT_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "Cancellation Confirmed — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nCancellation has been confirmed for request {{booking_id}}.\nCancelled passenger(s)/segment(s): {{cancelled_scope}}\nRefund status, if applicable: {{refund_status}}\n\nPlease note that cancellation and refund are separate outcomes; a refund is not confirmed unless we explicitly mark it completed.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Cancellation for {{booking_id}} is confirmed. Cancelled scope: {{cancelled_scope}}. Refund status, if applicable: {{refund_status}}.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_cancelled"
+ },
+ {
+  "event": "RVT_REFUND_PENDING",
+  "channel": "EMAIL",
+  "subject": "Refund Processing — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nAn eligible refund for request {{booking_id}} is being processed.\nRefund amount: {{refund_amount}}\nRefund reference: {{refund_reference}}\n\nProcessing time may depend on the payment provider/bank. We will notify you once completion is confirmed.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_REFUND_PENDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "An eligible refund for {{booking_id}} is being processed. Amount: {{refund_amount}}. We'll update you after completion. Reference: {{refund_reference}}",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_refund_pending"
+ },
+ {
+  "event": "RVT_REFUND_COMPLETED",
+  "channel": "EMAIL",
+  "subject": "Refund Completed — {{booking_id}}",
+  "heading": null,
+  "body": "Dear {{customer_name}},\n\nWe confirm that the refund for request {{booking_id}} has been completed.\nRefund amount: {{refund_amount}}\nRefund reference: {{refund_reference}}\n\nYour bank or payment provider may require additional time to reflect the amount in your account.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "RVT_REFUND_COMPLETED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "The refund for {{booking_id}} has been completed. Amount: {{refund_amount}}. Reference: {{refund_reference}}. Please allow your bank/payment provider time to reflect it.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "rvt_refund_completed"
+ },
+ {
+  "event": "SF_01",
+  "channel": "EMAIL",
+  "subject": "We've received your special fare request — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your TripNexio special fare request {{booking_id}} for {{origin}} → {{destination}} on {{travel_date}}. Our team will review it and update you if a suitable fare is available.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_01",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your TripNexio special fare request {{booking_id}} for {{origin}} → {{destination}} on {{travel_date}}. Our team will review it and update you if a suitable fare is available.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_01_WA"
+ },
+ {
+  "event": "SF_02",
+  "channel": "EMAIL",
+  "subject": "Your special fare quotation is ready — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour special fare quotation is ready.\nRoute: {{origin}} → {{destination}} | Date: {{travel_date}}\nItinerary: {{itinerary_summary}}\nTotal: {{currency}} {{quoted_amount}}\nValid until: {{quote_expiry_time}}\nFare is subject to final availability. Payment must be completed before expiry; payment does not confirm ticket issuance.",
+  "ctaLabel": "Review Quotation",
+  "ctaLink": "quote_link"
+ },
+ {
+  "event": "SF_02",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour special fare quotation is ready.\nRoute: {{origin}} → {{destination}} | Date: {{travel_date}}\nItinerary: {{itinerary_summary}}\nTotal: {{currency}} {{quoted_amount}}\nValid until: {{quote_expiry_time}}\nFare is subject to final availability. Payment must be completed before expiry; payment does not confirm ticket issuance.",
+  "ctaLabel": "Review Quotation",
+  "ctaLink": "quote_link",
+  "suggestedMetaName": "SF_02_WA"
+ },
+ {
+  "event": "SF_03",
+  "channel": "EMAIL",
+  "subject": "Your quotation has been approved — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour quotation {{booking_id}} is approved. Total: {{currency}} {{quoted_amount}}. Please complete payment before {{quote_expiry_time}}.",
+  "ctaLabel": "Continue to Payment",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "SF_03",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour quotation {{booking_id}} is approved. Total: {{currency}} {{quoted_amount}}. Please complete payment before {{quote_expiry_time}}.",
+  "ctaLabel": "Continue to Payment",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "SF_03_WA"
+ },
+ {
+  "event": "SF_04",
+  "channel": "EMAIL",
+  "subject": "Your quotation is expiring soon — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nReminder: quotation {{booking_id}} expires at {{quote_expiry_time}}. Amount: {{currency}} {{quoted_amount}}. Please pay before expiry if you wish to proceed.",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "SF_04",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nReminder: quotation {{booking_id}} expires at {{quote_expiry_time}}. Amount: {{currency}} {{quoted_amount}}. Please pay before expiry if you wish to proceed.",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "SF_04_WA"
+ },
+ {
+  "event": "SF_05",
+  "channel": "EMAIL",
+  "subject": "Your quotation has expired — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour quotation {{booking_id}} has expired and the fare is no longer guaranteed. Request a fresh quotation if you'd like us to check again.",
+  "ctaLabel": "New Quotation",
+  "ctaLink": "new_quote_link"
+ },
+ {
+  "event": "SF_05",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour quotation {{booking_id}} has expired and the fare is no longer guaranteed. Request a fresh quotation if you'd like us to check again.",
+  "ctaLabel": "New Quotation",
+  "ctaLink": "new_quote_link",
+  "suggestedMetaName": "SF_05_WA"
+ },
+ {
+  "event": "SF_06",
+  "channel": "EMAIL",
+  "subject": "New Quotation Requested — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your request for an updated quotation for {{booking_id}}. Our team will review current options and update you.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_06",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your request for an updated quotation for {{booking_id}}. Our team will review current options and update you.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_06_WA"
+ },
+ {
+  "event": "SF_07",
+  "channel": "EMAIL",
+  "subject": "Complete payment for your special fare — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nQuotation {{booking_id}} is awaiting payment. Amount: {{currency}} {{amount_due}}. Payment must be completed before {{quote_expiry_time}}.",
+  "ctaLabel": "Complete Payment",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "SF_07",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nQuotation {{booking_id}} is awaiting payment. Amount: {{currency}} {{amount_due}}. Payment must be completed before {{quote_expiry_time}}.",
+  "ctaLabel": "Complete Payment",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "SF_07_WA"
+ },
+ {
+  "event": "SF_08",
+  "channel": "EMAIL",
+  "subject": "Payment received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nPayment received for {{booking_id}}: {{currency}} {{paid_amount}}. We'll check final availability now. Your ticket has not yet been issued.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_08",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nPayment received for {{booking_id}}: {{currency}} {{paid_amount}}. We'll check final availability now. Your ticket has not yet been issued.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_08_WA"
+ },
+ {
+  "event": "SF_09",
+  "channel": "EMAIL",
+  "subject": "Final Availability — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe're checking final availability for {{origin}} → {{destination}} on {{travel_date}}. Your ticket is not yet issued.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_09",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe're checking final availability for {{origin}} → {{destination}} on {{travel_date}}. Your ticket is not yet issued.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_09_WA"
+ },
+ {
+  "event": "SF_10",
+  "channel": "EMAIL",
+  "subject": "Documents Required — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nDocuments required for {{booking_id}}:\n{{missing_documents_list}}\nPassengers: {{passengers_requiring_documents}}\nPlease upload clear, valid copies.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "SF_10",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nDocuments required for {{booking_id}}:\n{{missing_documents_list}}\nPassengers: {{passengers_requiring_documents}}\nPlease upload clear, valid copies.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
+  "suggestedMetaName": "SF_10_WA"
+ },
+ {
+  "event": "SF_11",
+  "channel": "EMAIL",
+  "subject": "Documents Validated — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nDocuments for booking {{booking_id}} have been validated. We'll continue processing and update you.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_11",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nDocuments for booking {{booking_id}} have been validated. We'll continue processing and update you.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_11_WA"
+ },
+ {
+  "event": "SF_12",
+  "channel": "EMAIL",
+  "subject": "Sent to Airlines — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nBooking {{booking_id}} has been sent to the airline for processing. The ticket has not yet been issued.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_12",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nBooking {{booking_id}} has been sent to the airline for processing. The ticket has not yet been issued.",
+  "ctaLabel": "Track Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_12_WA"
+ },
+ {
+  "event": "SF_13",
+  "channel": "EMAIL",
+  "subject": "Alternative Offered — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe requested flight is unavailable.\nRequested: {{requested_origin}} → {{requested_destination}}\nAlternative: {{alternative_origin}} → {{alternative_destination}}\nItinerary: {{alternative_itinerary}}\nFare: {{currency}} {{alternative_amount}} | Difference: {{currency}} {{fare_difference}}\nPlease review route and itinerary. Not confirmed until accepted and any required payment is complete.",
+  "ctaLabel": "Review Alternative",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_13",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe requested flight is unavailable.\nRequested: {{requested_origin}} → {{requested_destination}}\nAlternative: {{alternative_origin}} → {{alternative_destination}}\nItinerary: {{alternative_itinerary}}\nFare: {{currency}} {{alternative_amount}} | Difference: {{currency}} {{fare_difference}}\nPlease review route and itinerary. Not confirmed until accepted and any required payment is complete.",
+  "ctaLabel": "Review Alternative",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_13_WA"
+ },
+ {
+  "event": "SF_14",
+  "channel": "EMAIL",
+  "subject": "Additional Payment — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour approved alternative requires an additional payment of {{currency}} {{additional_amount}} by {{payment_deadline}}. Availability is not guaranteed until confirmed.",
+  "ctaLabel": "Pay Difference",
+  "ctaLink": "payment_link"
+ },
+ {
+  "event": "SF_14",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour approved alternative requires an additional payment of {{currency}} {{additional_amount}} by {{payment_deadline}}. Availability is not guaranteed until confirmed.",
+  "ctaLabel": "Pay Difference",
+  "ctaLink": "payment_link",
+  "suggestedMetaName": "SF_14_WA"
+ },
+ {
+  "event": "SF_15",
+  "channel": "EMAIL",
+  "subject": "Your flight ticket is issued — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour ticket for {{booking_id}} has been issued.\nPassenger(s): {{passenger_names}}\nRoute: {{origin}} → {{destination}} | Date: {{travel_date}}\nFlight: {{airline_flight_number}}\nCheck all details immediately and report errors within 12 hours of ticket issuance.\n\nAirport Reporting: Arrive at least 2 hours before domestic flights and 4 hours before international flights.\n1. Travel Documents: Carry a valid government-issued photo ID for domestic travel. International travellers must carry a valid passport, applicable visas and transit documents.\n2. Terminal & Timings: Confirm the departure terminal and latest flight status with the airline. All timings are local to the respective airports.\n3. Web Check-in: Complete airline web check-in and obtain your boarding pass where required.\n4. Baggage: Check the baggage allowance mentioned on your ticket.\n5. Changes & Refunds: Cancellations, refunds and rescheduling are subject to airline fare rules and applicable charges.\n6. Travel Requirements: Passengers are responsible for meeting visa, transit, immigration and OTB requirements, where applicable.\n7. Ticket Verification Disclaimer: Please check all ticket details, including passenger names, travel dates, flight timings and routes, immediately upon receipt. Report any errors to TripNexio within 12 hours of ticket issuance. Later corrections will be subject to airline rules, availability and applicable charges.\n\nHave a safe and pleasant journey with TripNexio!",
+  "ctaLabel": "Download Ticket",
+  "ctaLink": "ticket_download_link"
+ },
+ {
+  "event": "SF_15",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour ticket for {{booking_id}} has been issued. Route: {{origin}} → {{destination}} | Date: {{travel_date}} | Flight: {{airline_flight_number}}. Download and check all details immediately; report errors within 12 hours. Arrive at least 2 hours before domestic flights and 4 hours before international flights. Carry required ID/passport, visas and transit documents; confirm terminal, flight status, check-in and baggage rules with the airline. Passengers are responsible for visa, transit, immigration and OTB requirements where applicable. Have a safe and pleasant journey with TripNexio!",
+  "ctaLabel": "Download Ticket",
+  "ctaLink": "ticket_download_link",
+  "suggestedMetaName": "SF_15_WA"
+ },
+ {
+  "event": "SF_16",
+  "channel": "EMAIL",
+  "subject": "On Hold — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nBooking {{booking_id}} is temporarily on hold.\nReason: {{customer_safe_hold_reason}}\nWe'll update you when there is progress.",
+  "ctaLabel": "View Status",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_16",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nBooking {{booking_id}} is temporarily on hold.\nReason: {{customer_safe_hold_reason}}\nWe'll update you when there is progress.",
+  "ctaLabel": "View Status",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_16_WA"
+ },
+ {
+  "event": "SF_17",
+  "channel": "EMAIL",
+  "subject": "Cancellation request received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your ticket cancellation request for {{booking_id}}. Passengers/segments: {{cancellation_scope}}. The ticket is not yet cancelled.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_17",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your ticket cancellation request for {{booking_id}}. Passengers/segments: {{cancellation_scope}}. The ticket is not yet cancelled.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_17_WA"
+ },
+ {
+  "event": "SF_18",
+  "channel": "EMAIL",
+  "subject": "Cancellation request sent to airline — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour cancellation request for {{booking_id}} has been submitted to the airline. Cancellation is not confirmed until airline processing is complete.",
+  "ctaLabel": "Track Cancellation",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_18",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour cancellation request for {{booking_id}} has been submitted to the airline. Cancellation is not confirmed until airline processing is complete.",
+  "ctaLabel": "Track Cancellation",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_18_WA"
+ },
+ {
+  "event": "SF_19",
+  "channel": "EMAIL",
+  "subject": "Cancellation charges and refund estimate — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nCancellation quotation for {{booking_id}}:\nCancellation charges: {{currency}} {{cancellation_charges}}\nEstimated refund: {{currency}} {{estimated_refund}}\nValid until: {{cancellation_quote_expiry}}\nPlease review. Cancellation proceeds only after your approval and remains subject to airline rules.",
+  "ctaLabel": "Review Cancellation Quote",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_19",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nCancellation quotation for {{booking_id}}:\nCancellation charges: {{currency}} {{cancellation_charges}}\nEstimated refund: {{currency}} {{estimated_refund}}\nValid until: {{cancellation_quote_expiry}}\nPlease review. Cancellation proceeds only after your approval and remains subject to airline rules.",
+  "ctaLabel": "Review Cancellation Quote",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_19_WA"
+ },
+ {
+  "event": "SF_20",
+  "channel": "EMAIL",
+  "subject": "Cancellation quotation approved — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour approval of the cancellation quotation for {{booking_id}} has been received. We'll submit the approved cancellation to the airline. The ticket is not yet confirmed cancelled.",
+  "ctaLabel": "Track Cancellation",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_20",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour approval of the cancellation quotation for {{booking_id}} has been received. We'll submit the approved cancellation to the airline. The ticket is not yet confirmed cancelled.",
+  "ctaLabel": "Track Cancellation",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_20_WA"
+ },
+ {
+  "event": "SF_21",
+  "channel": "EMAIL",
+  "subject": "Update on your cancellation request — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour cancellation request for {{booking_id}} cannot proceed at this stage.\nReason: {{customer_safe_rejection_reason}}\nPlease contact support if you need clarification.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link"
+ },
+ {
+  "event": "SF_21",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nYour cancellation request for {{booking_id}} cannot proceed at this stage.\nReason: {{customer_safe_rejection_reason}}\nPlease contact support if you need clarification.",
+  "ctaLabel": "Contact Support",
+  "ctaLink": "support_link",
+  "suggestedMetaName": "SF_21_WA"
+ },
+ {
+  "event": "SF_22",
+  "channel": "EMAIL",
+  "subject": "Your ticket has been cancelled — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe airline has confirmed cancellation of booking {{booking_id}}.\nPassengers/segments: {{cancellation_scope}}\nEstimated refund: {{currency}} {{estimated_refund}}\nWe'll update you as the refund progresses.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_22",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe airline has confirmed cancellation of booking {{booking_id}}.\nPassengers/segments: {{cancellation_scope}}\nEstimated refund: {{currency}} {{estimated_refund}}\nWe'll update you as the refund progresses.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_22_WA"
+ },
+ {
+  "event": "SF_23",
+  "channel": "EMAIL",
+  "subject": "Refund pending — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nRefund for booking {{booking_id}} is pending. Amount, if confirmed: {{currency}} {{refund_amount}}. We'll update you when processing begins.",
+  "ctaLabel": "Track Refund",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_23",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nRefund for booking {{booking_id}} is pending. Amount, if confirmed: {{currency}} {{refund_amount}}. We'll update you when processing begins.",
+  "ctaLabel": "Track Refund",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_23_WA"
+ },
+ {
+  "event": "SF_24",
+  "channel": "EMAIL",
+  "subject": "Your refund is being processed — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nRefund for booking {{booking_id}} is being processed.\nAmount: {{currency}} {{refund_amount}}\nReference: {{refund_reference}}\nYour bank/payment provider may need additional time to post it.",
+  "ctaLabel": "Track Refund",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_24",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nRefund for booking {{booking_id}} is being processed.\nAmount: {{currency}} {{refund_amount}}\nReference: {{refund_reference}}\nYour bank/payment provider may need additional time to post it.",
+  "ctaLabel": "Track Refund",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_24_WA"
+ },
+ {
+  "event": "SF_25",
+  "channel": "EMAIL",
+  "subject": "Refund completed — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nRefund for booking {{booking_id}} has been completed from our side.\nAmount: {{currency}} {{refund_amount}}\nReference: {{refund_reference}}\nPlease allow your bank/payment provider its usual processing time.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_25",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nRefund for booking {{booking_id}} has been completed from our side.\nAmount: {{currency}} {{refund_amount}}\nReference: {{refund_reference}}\nPlease allow your bank/payment provider its usual processing time.",
+  "ctaLabel": "View Refund Details",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_25_WA"
+ },
+ {
+  "event": "SF_27",
+  "channel": "EMAIL",
+  "subject": "Flight unavailable — choose an alternative or cancellation",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe requested flight for booking {{booking_id}} is no longer available at final confirmation. We're sorry for the inconvenience.\nAvailable alternative: {{alternative_summary}}\nPlease choose an alternative or request cancellation. No ticket has been issued.",
+  "ctaLabel": "Review Options",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_27",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, the requested flight for booking {{booking_id}} is unavailable at final confirmation. Sorry for the inconvenience. Alternative: {{alternative_summary}}. Please review the options and choose an alternative or request cancellation. No ticket has been issued.",
+  "ctaLabel": "Review Options",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_27_WA"
+ },
+ {
+  "event": "SF_28",
+  "channel": "EMAIL",
+  "subject": "Cancellation request received — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nWe've received your normal cancellation request for booking {{booking_id}}. The ticket is not yet cancelled. Airline cancellation charges and the estimated refund will be shared for approval before final cancellation.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_28",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, we've received your normal cancellation request for booking {{booking_id}}. The ticket is not yet cancelled. We'll share airline cancellation charges and the estimated refund for approval before final cancellation.",
+  "ctaLabel": "View Request",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_28_WA"
+ },
+ {
+  "event": "SF_29",
+  "channel": "EMAIL",
+  "subject": "Your ticket has been cancelled — {{booking_id}}",
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nThe airline has confirmed that booking {{booking_id}} has been cancelled.\nPassengers/segments: {{cancellation_scope}}\nEstimated refund: {{currency}} {{estimated_refund}}\nWe'll update you when the refund progresses.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_29",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, the airline has confirmed cancellation of booking {{booking_id}}. Passengers/segments: {{cancellation_scope}}. Estimated refund: {{currency}} {{estimated_refund}}. We'll update you as the refund progresses.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "secure_link",
+  "suggestedMetaName": "SF_29_WA"
+ }
+]

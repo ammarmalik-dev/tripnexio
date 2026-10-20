@@ -6,12 +6,14 @@ import { bookingDocumentsWhere } from "../documents/document-lead";
 
 /**
  * P08 — after any write to a booking's documents, moves the booking's
- * per-service status to match the documents as a whole:
- *   - something still to upload (REQUIRED / MISSING / REJECTED) -> DOCUMENTS_REQUESTED
- *   - everything uploaded, not all verified yet                  -> DOCUMENTS_RECEIVED
+ * per-service status to match the documents as a whole (client doc 2026-10-20):
+ *   - something uploaded and waiting for staff (RECEIVED)        -> DOCUMENTS_RECEIVED ("Documents Uploaded")
+ *   - review done, something rejected                             -> DOCUMENTS_REJECTED ("Documents Required")
+ *   - something still to upload (REQUIRED / MISSING)              -> DOCUMENTS_REQUESTED ("Documents Pending")
  *   - every document verified                                     -> DOCUMENTS_VALIDATED
- * applySystemEvent is forward-only, so a later request for one more document
- * never pulls a booking that's already further along back down.
+ * so the customer hears once per review round, never per document. applySystemEvent only moves back
+ * within the document stage; past it (e.g. Applied to Embassy) received / validated documents are the
+ * "additional" ones.
  */
 export async function applyBookingDocumentEvent(
   tx: Prisma.TransactionClient,
@@ -30,14 +32,15 @@ export async function applyBookingDocumentEvent(
   if (documents.length === 0) return [];
 
   let event: ServiceStatusSystemEvent;
-  if (documents.some((document) => document.status === "REQUIRED" || document.status === "MISSING" || document.status === "REJECTED")) {
-    event = "DOCUMENTS_REQUESTED";
-  } else if (documents.every((document) => document.status === "VERIFIED")) {
-    event = "DOCUMENTS_VALIDATED";
-  } else {
-    event = "DOCUMENTS_RECEIVED";
-  }
+  if (documents.some((document) => document.status === "RECEIVED")) event = "DOCUMENTS_RECEIVED";
+  else if (documents.some((document) => document.status === "REJECTED")) event = "DOCUMENTS_REJECTED";
+  else if (documents.some((document) => document.status === "REQUIRED" || document.status === "MISSING")) event = "DOCUMENTS_REQUESTED";
+  else event = "DOCUMENTS_VALIDATED";
 
-  const notification = await applySystemEvent(tx, { scope: "BOOKING", entityId: bookingId, event, ...actor });
+  let notification = await applySystemEvent(tx, { scope: "BOOKING", entityId: bookingId, event, ...actor });
+  // A service without a separate "Documents Required" status (e.g. Special Fare) uses its Documents Pending one.
+  if (!notification && event === "DOCUMENTS_REJECTED") {
+    notification = await applySystemEvent(tx, { scope: "BOOKING", entityId: bookingId, event: "DOCUMENTS_REQUESTED", ...actor });
+  }
   return notification ? [notification] : [];
 }

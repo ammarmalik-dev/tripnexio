@@ -21,10 +21,9 @@ function fmt(value: string | null): string {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-type ReasonAction = "ADDITIONAL_DOCUMENTS" | "REJECT" | "UNABLE_TO_PROCESS";
+type ReasonAction = "REJECT" | "UNABLE_TO_PROCESS";
 
 const REASON_COPY: Record<ReasonAction, { label: string; button: string; hint: string }> = {
-  ADDITIONAL_DOCUMENTS: { label: "What the airline asked for", button: "Additional Documents Required", hint: "Use Request Document below for each file the customer must upload." },
   REJECT: { label: "Airline's rejection reason", button: "OTB Rejected", hint: "The airline's decision — no refund after airline processing." },
   UNABLE_TO_PROCESS: { label: "Why TripNexio can't process it", button: "Unable to Process", hint: "Before airline processing only. Raises a refund for approval; never shown as an airline rejection." },
 };
@@ -101,14 +100,12 @@ export function OtbActionsPanel({
       {view.outcomeNote ? <p className="text-xs text-ink-secondary">Airline response / reason: {view.outcomeNote}</p> : null}
 
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="ghost" isLoading={pending === "STAFF_VERIFICATION"} onClick={() => void run("STAFF_VERIFICATION", { action: "STAFF_VERIFICATION" })}>
-          Staff Verification
-        </Button>
         <Button type="button" size="sm" variant="ghost" isLoading={pending === "SUBMIT_TO_AIRLINE"} onClick={() => void run("SUBMIT_TO_AIRLINE", { action: "SUBMIT_TO_AIRLINE" })}>
-          Submitted to Airline
+          Sent to Airlines
         </Button>
-        <Button type="button" size="sm" variant="ghost" isLoading={pending === "AIRLINE_PROCESSING"} onClick={() => void run("AIRLINE_PROCESSING", { action: "AIRLINE_PROCESSING" })}>
-          Airline Processing
+        {/* Client doc 2026-10-20 — airline asked for more: request the documents (Booking Documents), then send them on. */}
+        <Button type="button" size="sm" variant="ghost" isLoading={pending === "ADDITIONAL_DOCUMENTS"} onClick={() => void run("ADDITIONAL_DOCUMENTS", { action: "ADDITIONAL_DOCUMENTS" })}>
+          Additional Documents Sent to Airline
         </Button>
         {(Object.keys(REASON_COPY) as ReasonAction[]).map((action) => (
           <Button key={action} type="button" size="sm" variant="ghost" onClick={() => setReasonAction(reasonAction === action ? null : action)}>

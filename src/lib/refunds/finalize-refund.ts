@@ -4,7 +4,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { paymentTotal } from "../payments/totals";
 import { syncPlanWithRefund } from "../protection-plan/lifecycle";
-import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "../service-status/engine";
+import { applySystemEvent, dispatchStatusNotifications, resumeAfterCancellation, type StatusNotification } from "../service-status/engine";
 import { gatewayForPayment } from "../payments/accounts";
 import { notifyCustomerRefund } from "./notify-customer";
 
@@ -77,6 +77,13 @@ export async function applyRefundStatus(
     actorLabel: actor.label,
   });
   if (statusNotification) notifications.push(statusNotification);
+  if (fullyRefunded) {
+    // Client doc 2026-10-20 — then the final "Cancelled and Refunded" state, with no second message.
+    await applySystemEvent(tx, { scope: "BOOKING", entityId: booking.id, event: "CANCELLED_AND_REFUNDED", userId: actor.userId, actorLabel: actor.label, silent: true });
+  } else {
+    // Client doc 2026-10-20 (N2) — a partial refund done: the remaining passengers carry on from where the booking was.
+    await resumeAfterCancellation(tx, booking.id, actor.label, actor.userId);
+  }
 
   if (fullyRefunded && booking.status !== "REFUNDED") {
     await tx.booking.update({ where: { id: booking.id }, data: { status: "REFUNDED" } });

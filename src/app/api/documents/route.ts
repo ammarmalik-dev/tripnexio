@@ -4,6 +4,7 @@ import { documentListQuerySchema } from "@/lib/validation/document-query-schema"
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
+import { usesStatusTemplates } from "@/lib/notifications/status-template";
 import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -183,7 +184,11 @@ export async function POST(request: NextRequest) {
   });
   await dispatchStatusNotifications(statusNotifications);
 
-  const recipient = await resolveDocumentRecipient(document);
+  // Client doc 2026-10-20 (K5) — on the client's templates a single added document never sends its own
+  // message; the booking's status message (or "Request documents") tells the customer once.
+  const owningBooking = document.bookingId ? await db.booking.findUnique({ where: { id: document.bookingId }, select: { lead: { select: { serviceType: true } } } }) : null;
+  const statusDriven = owningBooking ? await usesStatusTemplates(owningBooking.lead.serviceType) : false;
+  const recipient = statusDriven ? null : await resolveDocumentRecipient(document);
   if (recipient) {
     await notifyCustomer({
       event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,
