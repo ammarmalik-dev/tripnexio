@@ -26,7 +26,7 @@ const MENU_LINES = [
 /** Client doc 2026-10-15 — the WhatsApp greeting, word for word (the tappable list in menu.ts uses it too). */
 export const WELCOME_TEXT =
   "👋 Welcome to TripNexio!\n" +
-  "How can we help you today? Choose a service below or type your request in your own words.\n\n" +
+  "How can we help you today? Choose a service below or type your request in your own words.\n" +
   "✈️ Visa & Travel Services\n" +
   "💬 Type Agent anytime to speak with our team.\n" +
   "👇 Tap See Options to get started.";
@@ -34,7 +34,7 @@ export const WELCOME_TEXT =
 /** The plain-text greeting (message log / console gateway); the real message is the tappable list in menu.ts. */
 export function welcomeMenu(profileName?: string | null): string {
   void profileName;
-  return `${WELCOME_TEXT}\n\n${MENU_LINES.join("\n")}`;
+  return `${WELCOME_TEXT}\n${MENU_LINES.join("\n")}`;
 }
 
 /** Client doc 2026-10-15 — Visa Extension asked from outside the UAE: only New Visa applies. */
@@ -95,8 +95,10 @@ export function handoff(reason: string): string {
   );
 }
 
-export function stillHandedOff(): string {
-  return `Our team has this — they'll reach out shortly. Need anything else in the meantime? Type "menu" to start over.`;
+/** Client doc 2026-10-20 (G1) — the FAQs list: numbered questions, or type your own. */
+export function faqList(questions: string[]): string {
+  if (questions.length === 0) return `❓ *FAQs*\nType your question and I'll find the answer. Type "menu" to go back.`;
+  return `❓ *FAQs*\nReply with a number, or type your own question:\n${questions.map((question, index) => `${index + 1}. ${question}`).join("\n")}\nType "menu" to go back.`;
 }
 
 export function faqFooter(): string {

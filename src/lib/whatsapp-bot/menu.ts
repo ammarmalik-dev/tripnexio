@@ -7,6 +7,8 @@ import type { ServiceType } from "../../generated/prisma/enums";
 const MENU_ROW_PREFIX = "MENU_";
 export const MENU_TRACK_ID = `${MENU_ROW_PREFIX}TRACK`;
 export const MENU_AGENT_ID = `${MENU_ROW_PREFIX}AGENT`;
+/** Client doc 2026-10-20 (G1) — the FAQs row. */
+export const MENU_FAQ_ID = `${MENU_ROW_PREFIX}FAQ`;
 
 /** A tapped service row's id, e.g. "MENU_NEW_VISA" -> "NEW_VISA" — null for a non-service row or an id that isn't a recognized ServiceType. */
 export function serviceTypeFromMenuId(id: string, validServiceTypes: readonly string[]): ServiceType | null {
@@ -52,6 +54,7 @@ export async function buildWelcomeMenu(options: { only?: ServiceType[]; bodyText
         title: "Other",
         rows: [
           { id: MENU_TRACK_ID, title: "Track my request" },
+          { id: MENU_FAQ_ID, title: "FAQs" },
           { id: MENU_AGENT_ID, title: "Talk to our team" },
         ],
       },

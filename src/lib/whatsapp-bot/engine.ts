@@ -5,7 +5,7 @@ import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getAiProvider } from "./get-ai-provider";
 import { answerFaqQuestion } from "@/lib/faq/answer-faq";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
-import { buildWelcomeMenu, serviceTypeFromMenuId, MENU_TRACK_ID, MENU_AGENT_ID } from "./menu";
+import { buildWelcomeMenu, serviceTypeFromMenuId, MENU_TRACK_ID, MENU_AGENT_ID, MENU_FAQ_ID } from "./menu";
 import { getNextField, buildLeadDetails, buildLeadPassengers, botPassengers } from "./flows";
 import { whatsappStatusReply } from "./status-reply";
 import { priceLeadForDirectPayment } from "../checkout/lead-direct-payment";
@@ -26,6 +26,7 @@ const TRACK_RE = /^(status|track|tracking|my status|check status|track (my )?(re
 import type { WhatsAppConversation } from "../../generated/prisma/client";
 
 export interface EngineResult {
+  /** Empty = no reply (a chat that is with the team). */
   replyText: string;
   /** Present only for the greeting menu — the webhook route sends this as a real tappable WhatsApp list instead of (not in addition to) replyText, which stays as the plain-text fallback for the message log/console gateway. */
   replyMenu?: Awaited<ReturnType<typeof buildWelcomeMenu>>;
@@ -48,6 +49,8 @@ async function greetingReply(profileName: string | null): Promise<EngineResult> 
 }
 
 const RESTART_RE = /^(restart|start over|menu|hi|hello|hey)$/i;
+const FAQ_STATE = "FAQ";
+const FAQ_LIST_SIZE = 9;
 
 /**
  * The bot's whole conversational state machine, in one place: given the
@@ -76,9 +79,11 @@ export async function handleInboundMessage(
       return await greetingReply(profileName);
     }
 
+    // Client doc 2026-10-20 (G5) — the "Our team has this" reply went out once, at handover; after that the
+    // bot stays quiet while the team chats (each message alerts the POC instead — see the webhook).
     if (conversation.state === "HANDED_OFF") {
       return {
-        replyText: messages.stillHandedOff(),
+        replyText: "",
         nextState: "HANDED_OFF",
         nextServiceType: conversation.serviceType,
         nextCollectedFields: conversation.collectedFields as Record<string, string>,
@@ -91,6 +96,17 @@ export async function handleInboundMessage(
     }
 
     const effectiveState = conversation.state === "COMPLETED" ? "GREETING" : conversation.state;
+
+    // Client doc 2026-10-20 (G1) — in the FAQs list: a number opens that answer, anything else is a question.
+    if (effectiveState === FAQ_STATE && !serviceTypeFromMenuId(trimmed, SERVICE_TYPES) && !trimmed.startsWith("MENU_")) {
+      const ids = ((conversation.collectedFields ?? {}) as Record<string, string>).faqIds?.split(",").filter(Boolean) ?? [];
+      const n = /^\d{1,2}$/.test(trimmed) ? Number(trimmed) : 0;
+      if (n >= 1 && n <= ids.length) {
+        const faq = await db.faq.findFirst({ where: { id: ids[n - 1], active: true, published: true }, select: { answer: true } });
+        if (faq) return { replyText: `${faq.answer}\n\n${messages.faqFooter()}`, nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
+      }
+      return await answerFaqOrHandoff(trimmed);
+    }
 
     if (effectiveState === "COLLECTING" && conversation.serviceType) {
       return await continueCollecting(conversation.serviceType, conversation.waId, conversation.collectedFields as Record<string, string>, trimmed);
@@ -110,6 +126,20 @@ export async function handleInboundMessage(
     // Client testing 2026-10-09 (C5) — status answered inside the chat (no website redirect).
     if (trimmed === MENU_TRACK_ID || TRACK_RE.test(trimmed)) {
       return { replyText: await whatsappStatusReply(conversation.waId), nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
+    }
+    if (trimmed === MENU_FAQ_ID || /^(faq|faqs)$/i.test(trimmed)) {
+      const faqs = await db.faq.findMany({
+        where: { active: true, published: true, serviceType: null, countryId: null },
+        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
+        take: FAQ_LIST_SIZE,
+        select: { id: true, question: true },
+      });
+      return {
+        replyText: messages.faqList(faqs.map((faq) => faq.question)),
+        nextState: FAQ_STATE,
+        nextServiceType: null,
+        nextCollectedFields: { faqIds: faqs.map((faq) => faq.id).join(",") },
+      };
     }
     if (trimmed === MENU_AGENT_ID) {
       return { replyText: messages.handoff("Sure —"), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };

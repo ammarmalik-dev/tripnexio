@@ -1,5 +1,6 @@
 import {
   PanelsTopLeft,
+  MessageCircle,
   Inbox,
   Newspaper,
   FileStack,
@@ -126,6 +127,8 @@ export const crmNavGroups: CrmNavGroup[] = [
     items: [
       // Contact-form messages (client request 2026-10-03); complaints are a tab on the same screen.
       { label: "Enquiries & Complaints", href: "/crm/enquiries", icon: Inbox, permission: "leads.view" },
+      // Client doc 2026-10-20 (G3) — WhatsApp conversations, agent requests first.
+      { label: "WhatsApp Chats", href: "/crm/whatsapp", icon: MessageCircle, permission: "leads.view" },
     ],
   },
   {

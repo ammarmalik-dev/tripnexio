@@ -23,7 +23,9 @@ export type StaffNotificationType =
   | "FOLLOW_UP_DUE"
   | "DELAY"
   | "NEW_ENQUIRY"
-  | "COMPLAINT";
+  | "COMPLAINT"
+  /** Client doc 2026-10-20 (G3) — a WhatsApp customer asked for an agent, or wrote while the chat is with the team. */
+  | "WHATSAPP_CHAT";
 
 export interface NotifyStaffInput {
   type: StaffNotificationType;

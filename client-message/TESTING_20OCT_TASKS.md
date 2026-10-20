@@ -99,11 +99,11 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
 - [x] F4. MIS / P&L show the actual profit (selling − cost = 200), never the service fee. — DONE: reports use the quotation margin, never the invoice fee
 
 ## G. WhatsApp chat & FAQ
-- [ ] G1. FAQ option in the WhatsApp menu, working.
-- [ ] G2. All menu options are clear, with no blank gaps.
-- [ ] G3. When a customer connects to an agent, show an alert in the assigned POC's chat section, plus a chat window in CRM.
-- [ ] G4. Keep the booking open while the agent chats (no need to search again).
-- [ ] G5. The "Our team has this — they'll reach out shortly…" reply goes out only once at handover, not after every message.
+- [x] G1. FAQ option in the WhatsApp menu, working. — DONE: FAQs row + numbered list, number or own question
+- [x] G2. All menu options are clear, with no blank gaps. — DONE: no blank gap lines; 9 clear rows
+- [x] G3. When a customer connects to an agent, show an alert in the assigned POC's chat section, plus a chat window in CRM. — DONE: POC alert on handover and on each chat message; CRM → WhatsApp Chats
+- [x] G4. Keep the booking open while the agent chats (no need to search again). — DONE: alert + chat window open the customer's booking on its chat tab
+- [x] G5. The "Our team has this — they'll reach out shortly…" reply goes out only once at handover, not after every message. — DONE: no bot reply after handover
 
 ## H. Emails
 - [x] H1. "Best regards, Team TripNexio" appears twice. Keep it once, in the mail body before "Need assistance?". — DONE: d95b05b

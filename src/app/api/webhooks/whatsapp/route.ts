@@ -1,4 +1,4 @@
-import { captureWhatsAppHandoff } from "@/lib/whatsapp-bot/capture-lead";
+import { captureWhatsAppHandoff, notifyWhatsAppChatMessage } from "@/lib/whatsapp-bot/capture-lead";
 import type { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
@@ -121,7 +121,10 @@ export async function POST(request: NextRequest) {
   // for a document (the visa copy); otherwise the customer is asked to type.
   const result: EngineResult = text
     ? await handleInboundMessage(conversation, text, profileName)
-    : conversation.state === AWAITING_VISA_COPY
+    : conversation.state === "HANDED_OFF"
+      ? // A file sent to the team while they chat — no bot reply, the POC is alerted (G5).
+        { replyText: "", nextState: conversation.state, nextServiceType: conversation.serviceType, nextCollectedFields: conversation.collectedFields as Record<string, string> }
+      : conversation.state === AWAITING_VISA_COPY
       ? await receiveVisaCopy(conversation.collectedFields as Record<string, string>, await safeDownload(gateway, mediaId!))
       : {
           replyText: attachmentNotExpected(),
@@ -134,6 +137,12 @@ export async function POST(request: NextRequest) {
     where: { waId },
     data: { state: result.nextState, serviceType: result.nextServiceType, collectedFields: result.nextCollectedFields },
   });
+
+  // Client doc 2026-10-20 (G5) — a chat that's with the team gets no bot reply; the POC is alerted instead.
+  if (!result.replyText && !result.replyMenu) {
+    if (conversation.state === "HANDED_OFF") await notifyWhatsAppChatMessage({ waId, profileName, text: loggedText });
+    return new Response("OK", { status: 200 });
+  }
 
   await db.whatsAppMessageLog.create({ data: { waId, direction: "OUTBOUND", body: result.replyText } });
 
