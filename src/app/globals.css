@@ -323,6 +323,14 @@ body {
   backdrop-filter: blur(var(--blur-glass-2));
 }
 
+/* Client 2026-10-21 — backdrop-filter makes every card its own stacking layer, so a popup inside one
+   (All statuses, airport / searchable dropdowns) slid under the next card or the sticky tab bar.
+   The card holding an open popup is lifted above its neighbours while it is open. */
+.crm-shell main :is(.rounded-xl, .rounded-2xl, .glass-liquid, .glass-1):has(details[data-popover][open], [role="combobox"][aria-expanded="true"]) {
+  position: relative;
+  z-index: 40;
+}
+
 /* Table cards: near-opaque white so rows read like paper, soft depth around. */
 .crm-shell main .overflow-x-auto.rounded-xl.border:has(> table) {
   background-color: var(--surface-glass-3);

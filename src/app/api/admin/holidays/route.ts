@@ -40,22 +40,39 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
 
-  const date = new Date(`${parsed.data.date}T00:00:00Z`);
+  const from = new Date(`${parsed.data.date}T00:00:00Z`);
+  const to = parsed.data.toDate ? new Date(`${parsed.data.toDate}T00:00:00Z`) : from;
+  if (to < from) return jsonError(400, "Please check the highlighted fields.", { toDate: ["The end date must be on or after the start date."] });
+  const DAY = 24 * 60 * 60 * 1000;
+  const days = Math.round((to.getTime() - from.getTime()) / DAY) + 1;
+  if (days > 92) return jsonError(400, "Please check the highlighted fields.", { toDate: ["Block at most 92 days at a time."] });
   const country = await db.country.findFirst({ where: { id: parsed.data.countryId, active: true }, select: { id: true, name: true } });
   if (!country) return jsonError(400, "Please check the highlighted fields.", { countryId: ["Select an active country."] });
-  const existing = await db.holiday.findUnique({ where: { date_countryId: { date, countryId: country.id } } });
-  if (existing) return jsonError(400, "That date is already a holiday for this country.", { date: ["Already in the calendar."] });
+  const dates = Array.from({ length: days }, (_, index) => new Date(from.getTime() + index * DAY));
+  const existing = await db.holiday.findMany({ where: { countryId: country.id, date: { in: dates } }, select: { date: true } });
+  const taken = new Set(existing.map((row) => row.date.getTime()));
+  const fresh = dates.filter((date) => !taken.has(date.getTime()));
+  if (fresh.length === 0) {
+    return jsonError(400, days === 1 ? "That date is already a holiday for this country." : "Every date in that range is already a holiday for this country.", { date: ["Already in the calendar."] });
+  }
 
   const created = await db.$transaction(async (tx) => {
-    const row = await tx.holiday.create({ data: { date, countryId: country.id, name: parsed.data.name } });
+    const rows = [];
+    for (const date of fresh) {
+      const row = await tx.holiday.create({ data: { date, countryId: country.id, name: parsed.data.name } });
+      rows.push(row);
+    }
     await writeAudit(tx, {
       entityType: "Holiday",
-      entityId: row.id,
+      entityId: rows[0].id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Holiday "${row.name}" (${country.name}, ${parsed.data.date}) added (by ${session.name})`,
+      note:
+        rows.length === 1
+          ? `Holiday "${parsed.data.name}" (${country.name}, ${parsed.data.date}) added (by ${session.name})`
+          : `Holiday "${parsed.data.name}" (${country.name}, ${parsed.data.date} to ${parsed.data.toDate}) added for ${rows.length} dates${dates.length > rows.length ? `, ${dates.length - rows.length} already in the calendar` : ""} (by ${session.name})`,
     });
-    return row;
+    return rows;
   });
-  return jsonSuccess({ ...created, countryName: country.name }, 201);
+  return jsonSuccess({ created: created.map((row) => ({ ...row, countryName: country.name })), skipped: dates.length - created.length }, 201);
 }

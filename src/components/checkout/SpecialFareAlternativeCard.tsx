@@ -17,6 +17,13 @@ export interface SpecialFareAlternativeView {
   terminal: string | null;
   reportingTime: string | null;
   fareType: string | null;
+  /** Client 2026-10-21 — the alternative is entered like a quote: its sectors, fare rules and cancellation terms. */
+  itinerary?: { from: string; to: string; departAt?: string; arriveAt?: string; airline?: string; flightNumber?: string }[];
+  fareRules?: string | null;
+  cancellationAllowed?: boolean | null;
+  cancellationCharge?: number | null;
+  noShowCharge?: number | null;
+  customerCancellationPolicy?: string | null;
   direction: "HIGHER" | "LOWER" | "SAME";
   difference: number;
   decision: "PAY" | "REFUND" | null;
@@ -72,6 +79,28 @@ export function SpecialFareAlternativeCard({ token, offer, onChanged }: { token:
         {offer.terminal ? <p>Terminal: {offer.terminal}</p> : null}
         {offer.reportingTime ? <p>Reporting time: {offer.reportingTime}</p> : null}
         {offer.baggageAllowance ? <p>Baggage: {offer.baggageAllowance}</p> : null}
+        {offer.itinerary && offer.itinerary.length > 1 ? (
+          <ol className="mt-1 flex flex-col gap-0.5">
+            {offer.itinerary.map((sector, index) => (
+              <li key={`${sector.from}-${sector.to}-${index}`}>
+                Sector {index + 1}: {sector.from} → {sector.to}
+                {sector.airline || sector.flightNumber ? ` · ${[sector.airline, sector.flightNumber].filter(Boolean).join(" ")}` : ""}
+                {sector.departAt ? ` · ${formatDateTime(sector.departAt)}` : ""}
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        {offer.fareRules ? <p>Fare rules: {offer.fareRules}</p> : null}
+        {offer.cancellationAllowed === false ? (
+          <p>Cancellation: non-refundable</p>
+        ) : offer.cancellationCharge != null || offer.noShowCharge != null ? (
+          <p>
+            {offer.cancellationCharge != null ? `Cancellation charge: ${formatRupees(offer.cancellationCharge)}` : ""}
+            {offer.cancellationCharge != null && offer.noShowCharge != null ? " · " : ""}
+            {offer.noShowCharge != null ? `No-show charge: ${formatRupees(offer.noShowCharge)}` : ""}
+          </p>
+        ) : null}
+        {offer.customerCancellationPolicy ? <p>{offer.customerCancellationPolicy}</p> : null}
       </div>
 
       {offer.direction === "HIGHER" && !offer.decision ? (

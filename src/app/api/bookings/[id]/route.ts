@@ -24,6 +24,7 @@ import { getBookingDates } from "@/lib/crm/booking-dates";
 import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
 import { vendorChoiceBlock } from "@/lib/bookings/set-vendor";
 import { bookingOutcomeLabel, passengerAmounts } from "@/lib/bookings/passenger-outcomes";
+import { specialFarePaxCounts } from "@/lib/special-fare/pax-counts";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -194,6 +195,10 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
               issued: ticketDocs.some((doc) => doc.passengerId === null || doc.passengerId === row.passenger.id),
             })),
             canMarkUnavailable: ticketDocs.length === 0 || auth.session.permissions.includes(ADMIN_FULL_PERMISSION),
+            // Client 2026-10-21 — the alternative uses the quote form: traveller counts + the quote's airports to start from.
+            paxCounts: await specialFarePaxCounts(booking.lead),
+            quoteFromAirport: selectedQuotation?.fromAirportCode ?? null,
+            quoteToAirport: selectedQuotation?.toAirportCode ?? null,
           }
         : null,
     // P18 — OTB airline timeline for the staff actions panel.

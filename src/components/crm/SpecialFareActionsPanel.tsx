@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
-import { Textarea } from "@/components/forms/Textarea";
-import { FormField, fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
+import { FormField } from "@/components/forms/FormField";
 import { FilePickerButton } from "@/components/forms/FilePickerButton";
 import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
+import { SpecialFareAlternativeForm } from "./SpecialFareAlternativeForm";
 
 export interface SpecialFareBookingView {
   finalConfirmedAt: string | null;
@@ -35,6 +35,10 @@ export interface SpecialFareBookingView {
   tickets: { passengerId: string; fullName: string; ticketNumber: string | null; issued?: boolean }[];
   /** Client doc 2026-10-20 (A10) — false once a ticket is delivered (only an Admin may then mark it unavailable). */
   canMarkUnavailable?: boolean;
+  /** Client 2026-10-21 — the alternative uses the quote form: traveller counts + the paid quote's airports. */
+  paxCounts?: { adult: number; child: number; infant: number };
+  quoteFromAirport?: string | null;
+  quoteToAirport?: string | null;
 }
 
 interface AirportOption {
@@ -67,29 +71,11 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-const EMPTY_ALT = {
-  fromAirport: "",
-  toAirport: "",
-  airline: "",
-  flightNumber: "",
-  flightDateTime: "",
-  arrivalDateTime: "",
-  departTerminal: "",
-  arriveTerminal: "",
-  reportingTime: "",
-  baggageAllowance: "",
-  fareType: "",
-  fareRules: "",
-  sellingPrice: "",
-  vendorCost: "",
-  vendorId: "",
-};
-
 /**
  * P16 — Flight Special Fare post-payment operations on Booking detail. Client doc 2026-10-20:
- * - Unavailable → the alternative is entered like the quote (airports from the master, airline,
- *   times, terminals, fare rules, new selling price + cost and the vendor) (A12); once a ticket was
- *   delivered only an Admin can mark the flight unavailable (A10).
+ * - Unavailable → the alternative is entered on the quote's own form (SpecialFareAlternativeForm:
+ *   sectors, fare rules, cancellation, cost + price per passenger type, the vendor) (A12); once a
+ *   ticket was delivered only an Admin can mark the flight unavailable (A10).
  * - Record PNR — the PNR only (A7).
  * - Issue Ticket — upload the ticket for the passengers it covers; each passenger shows Issued /
  *   Pending until everyone has theirs, then the booking is "Ticket Issued" (A8). One delivery
@@ -109,7 +95,6 @@ export function SpecialFareActionsPanel({
   const [pending, setPending] = useState<string | null>(null);
   const [showAlternative, setShowAlternative] = useState(false);
   const [noAlternative, setNoAlternative] = useState(false);
-  const [alt, setAlt] = useState(EMPTY_ALT);
   const [pnr, setPnr] = useState("");
   const [baggage, setBaggage] = useState(view.quoteBaggage ?? "");
   const [ticketFile, setTicketFile] = useState<File | null>(null);
@@ -154,40 +139,7 @@ export function SpecialFareActionsPanel({
     }
   };
 
-  const airportLabel = (code: string) => {
-    const airport = options?.airports.find((row) => row.code === code.trim().toUpperCase());
-    return airport ? `${airport.city} (${airport.code})` : code.trim().toUpperCase();
-  };
-
-  const submitUnavailable = () => {
-    if (noAlternative) return void run("UNAVAILABLE", { action: "UNAVAILABLE", alternative: null });
-    const num = (value: string) => (value.trim() === "" ? undefined : Number(value));
-    const text = (value: string) => (value.trim() === "" ? undefined : value.trim());
-    const vendor = options?.vendors.find((row) => row.id === alt.vendorId);
-    void run("UNAVAILABLE", {
-      action: "UNAVAILABLE",
-      alternative: {
-        fromAirport: text(alt.fromAirport.toUpperCase()),
-        toAirport: text(alt.toAirport.toUpperCase()),
-        route: `${airportLabel(alt.fromAirport)} → ${airportLabel(alt.toAirport)}`,
-        airline: text(alt.airline),
-        flightNumber: text(alt.flightNumber),
-        flightDateTime: text(alt.flightDateTime),
-        arrivalDateTime: text(alt.arrivalDateTime),
-        departTerminal: text(alt.departTerminal),
-        arriveTerminal: text(alt.arriveTerminal),
-        terminal: text([alt.departTerminal, alt.arriveTerminal].filter(Boolean).join(" → ")),
-        reportingTime: text(alt.reportingTime),
-        baggageAllowance: text(alt.baggageAllowance),
-        fareType: text(alt.fareType),
-        fareRules: text(alt.fareRules),
-        sellingPrice: num(alt.sellingPrice),
-        vendorCost: num(alt.vendorCost),
-        vendorId: text(alt.vendorId),
-        vendorName: vendor?.name,
-      },
-    });
-  };
+  const submitUnavailable = (alternative: Record<string, unknown> | null) => void run("UNAVAILABLE", { action: "UNAVAILABLE", alternative });
 
   const pendingTickets = view.tickets.filter((ticket) => !ticket.issued);
   const chosen = view.tickets.length <= 1 || pendingTickets.length === 1 ? pendingTickets.map((ticket) => ticket.passengerId) : ticketFor;
@@ -206,8 +158,6 @@ export function SpecialFareActionsPanel({
   };
 
   const offer = view.alternativeOffer;
-  const altValid = noAlternative || (alt.fromAirport.trim().length >= 3 && alt.toAirport.trim().length >= 3 && Number(alt.sellingPrice) > 0);
-  const set = (key: keyof typeof EMPTY_ALT) => (event: { target: { value: string } }) => setAlt((current) => ({ ...current, [key]: event.target.value }));
 
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
@@ -267,60 +217,32 @@ export function SpecialFareActionsPanel({
             No suitable alternative (full refund)
           </label>
           {!noAlternative ? (
-            <>
-              <datalist id={`sf-alt-airports-${bookingId}`}>
-                {(options?.airports ?? []).map((airport) => (
-                  <option key={airport.code} value={airport.code}>
-                    {`${airport.city} — ${airport.name} (${airport.code}), ${airport.country}`}
-                  </option>
-                ))}
-              </datalist>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <TextField label="Departure airport" name="altFrom" list={`sf-alt-airports-${bookingId}`} autoComplete="off" placeholder="City, airport or code" value={alt.fromAirport} onChange={set("fromAirport")} required />
-                <TextField label="Arrival airport" name="altTo" list={`sf-alt-airports-${bookingId}`} autoComplete="off" placeholder="City, airport or code" value={alt.toAirport} onChange={set("toAirport")} required />
-                <TextField label="Departure date & time" name="altDep" type="datetime-local" value={alt.flightDateTime} onChange={set("flightDateTime")} />
-                <TextField label="Arrival date & time" name="altArr" type="datetime-local" value={alt.arrivalDateTime} onChange={set("arrivalDateTime")} />
-                <FormField label="Airline" htmlFor={`sf-alt-airline-${bookingId}`}>
-                  <select id={`sf-alt-airline-${bookingId}`} value={alt.airline} onChange={set("airline")} className={cn(fieldControlClass, fieldBorderClass(false))}>
-                    <option value="">Select an airline</option>
-                    {(options?.airlines ?? []).map((airline) => (
-                      <option key={airline.id} value={airline.code}>
-                        {airline.name} ({airline.code})
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-                <TextField label="Flight number" name="altFlight" placeholder="e.g. 6E 21" value={alt.flightNumber} onChange={set("flightNumber")} />
-                <TextField label="Departure terminal" name="altDepTerminal" placeholder="e.g. T3" value={alt.departTerminal} onChange={set("departTerminal")} />
-                <TextField label="Arrival terminal" name="altArrTerminal" placeholder="e.g. T1" value={alt.arriveTerminal} onChange={set("arriveTerminal")} />
-                <TextField label="Reporting time" name="altReporting" value={alt.reportingTime} onChange={set("reportingTime")} />
-                <TextField label="Baggage allowance" name="altBaggage" value={alt.baggageAllowance} onChange={set("baggageAllowance")} />
-                <TextField label="Fare type" name="altFareType" value={alt.fareType} onChange={set("fareType")} />
-                <FormField label="Vendor" htmlFor={`sf-alt-vendor-${bookingId}`}>
-                  <select id={`sf-alt-vendor-${bookingId}`} value={alt.vendorId} onChange={set("vendorId")} className={cn(fieldControlClass, fieldBorderClass(false))}>
-                    <option value="">Select the vendor</option>
-                    {(options?.vendors ?? []).map((vendor) => (
-                      <option key={vendor.id} value={vendor.id}>
-                        {vendor.name}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-                <TextField label="New selling price (₹)" name="altPrice" type="number" step="0.01" value={alt.sellingPrice} onChange={set("sellingPrice")} required />
-                <TextField label="New vendor cost (₹, internal)" name="altCost" type="number" step="0.01" value={alt.vendorCost} onChange={set("vendorCost")} />
-              </div>
-              <Textarea label="Fare rules" name="altFareRules" rows={2} value={alt.fareRules} onChange={set("fareRules")} hint="Date change, baggage and other airline fare rules." />
-            </>
+            options ? (
+              <SpecialFareAlternativeForm
+                bookingId={bookingId}
+                airports={options.airports}
+                airlines={options.airlines}
+                vendors={options.vendors}
+                paxCounts={view.paxCounts ?? { adult: Math.max(1, view.tickets.length), child: 0, infant: 0 }}
+                startFrom={{ from: view.quoteFromAirport ?? null, to: view.quoteToAirport ?? null }}
+                pending={pending !== null}
+                onSubmit={submitUnavailable}
+              />
+            ) : (
+              <p className="text-sm text-ink-tertiary">Loading the form…</p>
+            )
           ) : null}
           <p className="text-xs text-ink-tertiary">
             Higher fare: the customer chooses to pay the difference or get a refund. Lower fare: the difference refund is raised automatically. Refunds still
             need approval in Refunds.
           </p>
-          <div className="flex justify-end">
-            <Button type="button" size="sm" onClick={submitUnavailable} isLoading={pending === "UNAVAILABLE"} disabled={pending !== null || !altValid}>
-              Record unavailability
-            </Button>
-          </div>
+          {noAlternative ? (
+            <div className="flex justify-end">
+              <Button type="button" size="sm" onClick={() => submitUnavailable(null)} isLoading={pending === "UNAVAILABLE"} disabled={pending !== null}>
+                Record unavailability
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

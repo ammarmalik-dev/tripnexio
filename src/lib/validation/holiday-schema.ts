@@ -5,6 +5,8 @@ export const createHolidaySchema = z.object({
   /** Client corrections 2026-10-05 — any enabled Country master row. */
   countryId: z.string().trim().min(1, "Select a country"),
   name: z.string().trim().min(2, "Enter the holiday name").max(80, "Name is too long"),
+  /** Client doc 2026-10-20 (E1/E10) — block a whole range (e.g. November) at once: one holiday per date, up to 92 days. */
+  toDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date").optional(),
 });
 
 export const updateHolidaySchema = z.object({

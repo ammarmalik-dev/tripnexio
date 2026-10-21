@@ -150,8 +150,9 @@ function HolidayRow({ holiday, onSaved, onDeleted }: { holiday: HolidayData; onS
   );
 }
 
-function NewHolidayForm({ onCreated, countries }: { onCreated: (h: HolidayData) => void; countries: CountryOption[] }) {
+function NewHolidayForm({ onCreated, countries }: { onCreated: (h: HolidayData[]) => void; countries: CountryOption[] }) {
   const [date, setDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [countryId, setCountryId] = useState("");
   const [name, setName] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -161,9 +162,18 @@ function NewHolidayForm({ onCreated, countries }: { onCreated: (h: HolidayData) 
     setCreating(true);
     setErrors({});
     try {
-      const created = await postJson<HolidayData>("/api/admin/holidays", { date, countryId, name: name.trim() });
-      toast.success(`"${created.name}" added.`);
-      onCreated(created);
+      const result = await postJson<{ created: HolidayData[]; skipped: number }>("/api/admin/holidays", {
+        date,
+        countryId,
+        name: name.trim(),
+        ...(toDate && toDate !== date ? { toDate } : {}),
+      });
+      const count = result.created.length;
+      toast.success(
+        count === 1 ? `"${name.trim()}" added.` : `"${name.trim()}" added for ${count} dates${result.skipped > 0 ? ` (${result.skipped} already in the calendar)` : ""}.`
+      );
+      onCreated(result.created);
+      setToDate("");
       setName("");
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) setErrors(err.fieldErrors);
@@ -175,8 +185,19 @@ function NewHolidayForm({ onCreated, countries }: { onCreated: (h: HolidayData) 
 
   return (
     <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
-      <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <TextField label="Date" name="holiday-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} error={errors.date?.[0]} disabled={creating} />
+        <TextField
+          label="To date (optional)"
+          name="holiday-to-date"
+          type="date"
+          min={date || undefined}
+          value={toDate}
+          onChange={(e) => setToDate(e.target.value)}
+          error={errors.toDate?.[0]}
+          hint="Blocks every date in the range."
+          disabled={creating}
+        />
         <FormField label="Country" htmlFor="holiday-country" error={errors.countryId?.[0]}>
           <select
             id="holiday-country"
@@ -306,8 +327,9 @@ export function HolidaysManager() {
             <NewHolidayForm
               countries={countries}
               onCreated={(created) => {
-                if (new Date(created.date).getUTCFullYear() === year) {
-                  setItems((current) => [created, ...current]);
+                const thisYear = created.filter((row) => new Date(row.date).getUTCFullYear() === year);
+                if (thisYear.length > 0) {
+                  setItems((current) => [...thisYear, ...current]);
                   clearFilters();
                 }
               }}

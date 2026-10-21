@@ -6,6 +6,8 @@ import { setServiceStatusByEvent, type StatusNotification } from "../service-sta
 import { raiseFullRefundForBooking, raiseRefund } from "../refunds/raise-refund";
 import { paymentTotal } from "../payments/totals";
 import { notifyRefundsRaised } from "../staff-notifications/triggers";
+import { flightFieldsFromSectors, itinerarySchema, normalizeItinerary, type StoredItinerarySegment } from "../quotations/itinerary";
+import { specialFarePaxCounts, specialFareTotals } from "./pax-counts";
 
 type Tx = Prisma.TransactionClient;
 
@@ -34,9 +36,22 @@ const optionalText = (max: number) =>
 /**
  * Client doc 2026-10-20 (A12) — the alternative is entered like the quote itself: airports from the
  * master (the route is built from them), airline, flight number, times, terminals, fare rules, the new
- * selling price and cost, and the vendor.
+ * selling price and cost, and the vendor. Client 2026-10-21 — the very same form as the quote: Direct /
+ * Connecting sectors, Adult / Child / Infant cost + price and the cancellation / no-show charges.
  */
+const optionalAmount = z.number().nonnegative().optional();
 export const alternativeOptionSchema = z.object({
+  itinerary: itinerarySchema.optional(),
+  adultFare: optionalAmount,
+  childFare: optionalAmount,
+  infantFare: optionalAmount,
+  adultVendorCost: optionalAmount,
+  childVendorCost: optionalAmount,
+  infantVendorCost: optionalAmount,
+  cancellationAllowed: z.boolean().optional(),
+  cancellationCharge: optionalAmount,
+  noShowCharge: optionalAmount,
+  customerCancellationPolicy: optionalText(1000),
   airline: optionalText(10),
   flightNumber: optionalText(12),
   fromAirport: optionalText(60),
@@ -61,8 +76,9 @@ export type AlternativeOptionInput = z.infer<typeof alternativeOptionSchema>;
 
 export type AlternativeDirection = "HIGHER" | "LOWER" | "SAME" | "NONE";
 
-export interface AlternativeOffer extends Partial<Omit<AlternativeOptionInput, "vendorCost">> {
+export interface AlternativeOffer extends Partial<Omit<AlternativeOptionInput, "vendorCost" | "itinerary">> {
   vendorCost?: number | null;
+  itinerary?: StoredItinerarySegment[];
   direction: AlternativeDirection;
   /** Alternative selling price minus what was paid for the original fare (before GST/gateway). */
   difference: number;
@@ -90,6 +106,12 @@ export function customerAlternativeOffer(offer: AlternativeOffer | null) {
     terminal: offer.terminal ?? null,
     reportingTime: offer.reportingTime ?? null,
     fareType: offer.fareType ?? null,
+    itinerary: offer.itinerary ?? [],
+    fareRules: offer.fareRules ?? null,
+    cancellationAllowed: offer.cancellationAllowed ?? null,
+    cancellationCharge: offer.cancellationCharge ?? null,
+    noShowCharge: offer.noShowCharge ?? null,
+    customerCancellationPolicy: offer.customerCancellationPolicy ?? null,
     direction: offer.direction,
     difference: offer.difference,
     decision: offer.decision,
@@ -150,10 +172,43 @@ export async function confirmAvailability(bookingId: string, actor: Actor): Prom
 }
 
 /**
+ * Client 2026-10-21 — an alternative entered as sectors + per-passenger rates (the quote form): the route,
+ * airline, flight and times come from the sectors and the totals from rates × the booking's travellers,
+ * exactly as a quote's are. Looked up before the transaction (no global db inside it).
+ */
+async function resolveAlternative(bookingId: string, input: AlternativeOptionInput): Promise<Omit<AlternativeOffer, "direction" | "difference" | "offeredAt" | "decision" | "decidedAt"> & { sellingPrice: number }> {
+  const { itinerary, ...rest } = input;
+  const sectors = itinerary && itinerary.length > 0 ? normalizeItinerary(itinerary) : undefined;
+  const flight = sectors ? flightFieldsFromSectors(sectors) : null;
+  const lead = await db.booking.findUnique({ where: { id: bookingId }, select: { lead: { select: { details: true, paxCount: true } } } });
+  const totals = lead ? specialFareTotals(rest, await specialFarePaxCounts(lead.lead)) : {};
+  return {
+    ...rest,
+    ...(sectors ? { itinerary: sectors } : {}),
+    ...(flight
+      ? {
+          fromAirport: flight.fromAirportCode,
+          toAirport: flight.toAirportCode,
+          airline: flight.airline ?? null,
+          flightNumber: flight.flightNumber ?? null,
+          flightDateTime: flight.flightDateTime ?? null,
+          arrivalDateTime: flight.arrivalDateTime ?? null,
+          departTerminal: sectors?.[0]?.departTerminal ?? null,
+          arriveTerminal: sectors?.[sectors.length - 1]?.arriveTerminal ?? null,
+          terminal: [sectors?.[0]?.departTerminal, sectors?.[sectors.length - 1]?.arriveTerminal].filter(Boolean).join(" → ") || null,
+        }
+      : {}),
+    sellingPrice: totals.sellingPrice ?? rest.sellingPrice,
+    ...(totals.vendorCost !== undefined ? { vendorCost: totals.vendorCost } : {}),
+  };
+}
+
+/**
  * Staff: the paid flight is unavailable. With an alternative, the fare
  * difference decides the path; without one, a full refund is raised.
  */
-export async function markUnavailable(bookingId: string, alternative: AlternativeOptionInput | null, actor: Actor): Promise<Result> {
+export async function markUnavailable(bookingId: string, input: AlternativeOptionInput | null, actor: Actor): Promise<Result> {
+  const alternative = input ? await resolveAlternative(bookingId, input) : null;
   // P22 — refunds raised inside the transaction are announced to refunds.approve staff once it commits.
   const raisedRefundIds: string[] = [];
   const result = await db.$transaction(async (tx): Promise<Result> => {
