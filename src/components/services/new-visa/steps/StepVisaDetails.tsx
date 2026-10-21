@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { SelectField } from "@/components/forms/SelectField";
+import { useSyncSelectValue } from "@/components/forms/useSyncSelectValue";
 import { DateField } from "@/components/forms/DateField";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -51,7 +52,10 @@ export function StepVisaDetails() {
   const { options: visaTypes, loading: visaTypesLoading } = useVisaTypes(destinationCountry);
   const { products, loading: productsLoading } = useNewVisaProducts();
   const { options: nationalities, loading: nationalitiesLoading } = useNationalities();
-  const countryProducts = products.filter((product) => product.countryCode === destinationCountry);
+  const countryProducts = useMemo(() => products.filter((product) => product.countryCode === destinationCountry), [products, destinationCountry]);
+  const productOptions = useMemo(() => countryProducts.map((product) => ({ value: product.id, label: product.label })), [countryProducts]);
+  const nationalityOptions = useMemo(() => nationalities.map((nationality) => ({ value: nationality.id, label: nationality.name })), [nationalities]);
+  const visaTypeOptions = useMemo(() => visaTypes.map((visaType) => ({ value: visaType.id, label: visaType.name })), [visaTypes]);
   const calendar = useCountryWorkingCalendar(destinationCountry);
   const rules = useNewVisaTravelRules(destinationCountry);
   const rates = useNewVisaRates(destinationCountry, newVisaConfigId, nationalityId ?? "");
@@ -69,6 +73,12 @@ export function StepVisaDetails() {
   const usesProducts = countryProducts.length > 0;
   const askVisaType = !usesProducts && visaTypes.length > 1 && !(arrivedWithVisaType && !changingSelection && preselectedVisaType);
   const countryName = destinationCountryOptions.find((option) => option.value === destinationCountry)?.label ?? destinationCountry;
+
+  // Live check 2026-10-21 — a ?country= link / Back sets these before their lists load; show the real choice.
+  useSyncSelectValue<NewVisaRequestValues>("destinationCountry", destinationCountryOptions, true);
+  useSyncSelectValue<NewVisaRequestValues>("nationalityId", nationalityOptions);
+  useSyncSelectValue<NewVisaRequestValues>("newVisaConfigId", productOptions);
+  useSyncSelectValue<NewVisaRequestValues>("visaType", visaTypeOptions);
 
   // P10 — the visa option (stay duration + entry type) must be one this destination offers.
   useEffect(() => {
@@ -158,7 +168,7 @@ export function StepVisaDetails() {
                 label="Visa"
                 required
                 hint="Stay duration · Entry type · Visa category."
-                options={countryProducts.map((product) => ({ value: product.id, label: product.label }))}
+                options={productOptions}
                 error={errors.newVisaConfigId?.message}
                 {...register("newVisaConfigId")}
               />
@@ -169,7 +179,7 @@ export function StepVisaDetails() {
           <SelectField
             label="Visa Type"
             required
-            options={visaTypes.map((visaType) => ({ value: visaType.id, label: visaType.name }))}
+            options={visaTypeOptions}
             error={errors.visaType?.message}
             {...register("visaType")}
           />
@@ -180,7 +190,7 @@ export function StepVisaDetails() {
             required
             placeholder="Select your nationality"
             hint="Prices can differ by nationality."
-            options={nationalities.map((nationality) => ({ value: nationality.id, label: nationality.name }))}
+            options={nationalityOptions}
             error={errors.nationalityId?.message}
             {...register("nationalityId")}
           />

@@ -8,6 +8,7 @@ import { earliestOtbTravelDates } from "@/lib/otb/processing-rules";
 import { Step2ProcessingType } from "./Step2ProcessingType";
 import { TextField } from "@/components/forms/TextField";
 import { SelectField } from "@/components/forms/SelectField";
+import { useSyncSelectValue } from "@/components/forms/useSyncSelectValue";
 import { SearchableSelectField } from "@/components/forms/SearchableSelectField";
 import { DateField } from "@/components/forms/DateField";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -45,6 +46,8 @@ export function Step1BasicDetails() {
   const earliest = airline ? earliestOtbTravelDates(otbRulesForCountry(airline, destinationCountry ?? ""), new Date(), calendar) : null;
   const fmt = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
   const destinationCountryOptions = useDestinationCountryOptions("OTB");
+  // Live check 2026-10-21 — coming Back to this step, show the chosen country once the list loads.
+  useSyncSelectValue<OtbRequestValues>("destinationCountry", destinationCountryOptions);
 
   if (state === "loading") return <Skeleton className="h-64 w-full" />;
   if (airlines.length === 0) {
