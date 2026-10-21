@@ -88,6 +88,8 @@ export function NewVisaRequestFlow() {
       extraStepValidation={{ 0: findNewVisaStep1Issues, 2: findNewVisaTravellerIssues }}
       onSubmit={submitNewVisaRequest}
       draftServiceType="NEW_VISA"
+      // Live check 2026-10-21 — contact details are step 2 (Basic Details) since the client doc of 2026-10-15.
+      draftStepIndex={1}
       successTitle="Request submitted"
       successDescription={requestReceivedMessage("NEW_VISA")}
     />
