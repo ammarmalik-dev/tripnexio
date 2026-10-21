@@ -214,3 +214,10 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
   - Return Ticket: only configured destinations (Bahrain / UAE / Oman), price ₹1 × 1, cancellation note.
   - OTB: travel date + departure time on one row (C3), country → priced airlines, indicative ₹2, return-ticket question.
 - Fixed during the walk: the OTB earliest-date note said "Express" while the cards (Admin label) said "Urgent" (3a84483); an abandoned New Visa form never created a draft lead (fcb91a9) — verified live, drafts now exist for all six services.
+
+## Follow-up 2026-10-21 (client screenshot + re-audit of the doc)
+- CRM "All statuses" list (and airport / searchable dropdowns) hid behind the next card / tab bar — fixed: the card with an open popup is lifted above its neighbours. DONE (f538d11, live).
+- A12 re-checked: the Special Fare alternative now uses the quote's own form (Direct / Connecting sectors, fare rules, cancellation / no-show, Adult / Child / Infant cost + price, vendor); the customer's payment page shows the sectors and terms. DONE (f538d11, live).
+- E1/E10 "November blocking dates": Admin → Holidays has an optional To date that blocks a whole range (max 92 days). DONE (f538d11, live).
+- Meta WhatsApp templates: all 121 submitted through the API (no repeated variables, no variable at the start/end); approvals pending with Meta.
+- To confirm with the client: A18 meaning ("travel after 24 hrs" = travel date already 24 h past, as built, or travel within 24 h); OTB_19 "Cancelled and Refunded" template not sent separately (no duplicate with Refund Completed); send retries / template versioning (O global rules); email tagline "Travel Made Simple" vs "Travel Made Easy".
