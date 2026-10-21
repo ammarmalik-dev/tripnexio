@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { otbRulesForCountry, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
+import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 
 export function Step1BasicDetails() {
@@ -46,6 +47,9 @@ export function Step1BasicDetails() {
   const earliest = airline ? earliestOtbTravelDates(otbRulesForCountry(airline, destinationCountry ?? ""), new Date(), calendar) : null;
   const fmt = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
   const destinationCountryOptions = useDestinationCountryOptions("OTB");
+  // Live check 2026-10-21 — the earliest-date note uses the same Admin labels as the Processing Type cards.
+  const { options: processingOptions } = useProcessingTypes("OTB");
+  const typeLabel = (code: "normal" | "urgent") => processingOptions.find((option) => option.code === code)?.label ?? (code === "urgent" ? "Express" : "Normal");
   // Live check 2026-10-21 — coming Back to this step, show the chosen country once the list loads.
   useSyncSelectValue<OtbRequestValues>("destinationCountry", destinationCountryOptions);
 
@@ -127,11 +131,11 @@ export function Step1BasicDetails() {
           <div className="flex flex-wrap items-center gap-3 rounded-xl border border-ink-accent/20 bg-ink-accent/[0.04] px-4 py-3 text-xs text-ink-secondary">
             <CalendarClock className="h-4 w-4 text-ink-accent" aria-hidden="true" />
             <span>
-              <span className="font-semibold text-ink-heading">Normal:</span> travel from {earliest.normal ? fmt(earliest.normal) : "—"}
+              <span className="font-semibold text-ink-heading">{typeLabel("normal")}:</span> travel from {earliest.normal ? fmt(earliest.normal) : "—"}
             </span>
             {earliest.urgent ? (
               <span>
-                <span className="font-semibold text-ink-heading">Express:</span> travel from {fmt(earliest.urgent)}
+                <span className="font-semibold text-ink-heading">{typeLabel("urgent")}:</span> travel from {fmt(earliest.urgent)}
               </span>
             ) : null}
             <span className="text-ink-tertiary">Based on {airline.name}&apos;s processing time; weekends and holidays excluded.</span>

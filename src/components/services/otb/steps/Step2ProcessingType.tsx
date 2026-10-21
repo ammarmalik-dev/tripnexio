@@ -52,7 +52,7 @@ export function Step2ProcessingType() {
   }, [allowedKey, optionsState, processingType, setValue]);
 
   if (state === "loading" || optionsState === "loading") return <Skeleton className="h-40 w-full" />;
-  if (!airline || !outcome || !travelDate) return <p className="text-sm text-ink-tertiary">Choose the airline and travel date to see Normal / Express.</p>;
+  if (!airline || !outcome || !travelDate) return <p className="text-sm text-ink-tertiary">Choose the airline and travel date to see the processing options.</p>;
 
   const priceNote = (price: number | null) => (price === null ? "" : ` ${formatOtbRupees(price)} per applicant.`);
   const options = masterOptions
