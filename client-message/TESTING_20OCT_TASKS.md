@@ -196,3 +196,12 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
   - Seat-unavailable and cancellation-quotation flows.
   - Follow-up Due removed.
 - [x] O7. Notifications fire once per real transition (deduplicated) and are logged with the template, recipient and outcome. — DONE: status engine fires once per transition, every send audited (template, recipient, outcome); Meta submission list in META_WHATSAPP_TEMPLATES_20OCT.md/.csv
+
+## Live verification — 2026-10-21 (tripnexio.com, commits f589029 → 3ea219d)
+- Deploy: DB backed up before each deploy; migrations `20261021090000_client_status_lists`, `20261021120000_service_invoice_fee`, `20261021130000_enquiry_resolved_template` applied.
+- Public: all main pages 200; footer = copyright only; cookie settings on the Cookie Policy page; legal text justified; New Visa form lists UAE / Oman / Thailand, the Visa option reads "30 Days · Single Entry · Tourist" with no separate visa type.
+- CRM: Leads / Customers / Bookings / Payments / Invoices / Refunds / Documents / Tasks / Enquiries / WhatsApp Chats / Quotations all load; Bookings filter has Partial Approved + Partial Refund (1 partial-refund booking found); Payments Service Details column; Refunds Reason + Refund ID columns; WhatsApp Chats lists conversations with "Wants an agent".
+- Manual Lead live price (OTB, 2 pax): 999 × 2 = 1998 + 150 extra = 2148, wrong coupon shows its error; VC says "priced by quotation".
+- Admin → Services: Invoice service fee (per passenger / per booking) + GST % fields present; 244 status templates loaded.
+- Fixed during the live check: Bookings dropdowns spilled to a third row; New Visa Service Details blank for older/manual leads; document types shown as codes (VISA_COPY); invoice filter text cut off.
+- Open (client data): Admin → System Configuration WhatsApp = +91 81161 22851 (site links go there; live WhatsApp Business number is …850). No New Visa prices or invoice service fees are set yet.
