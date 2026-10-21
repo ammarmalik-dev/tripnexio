@@ -356,7 +356,7 @@ Following documents are required for Visa Change booking {{2}}. Passenger(s): {{
 - Event: `VC_DOCUMENTS_REQUIRED`
 - Variables: {{1}} = customer_name, {{2}} = booking_id, {{3}} = affected_passenger_names, {{4}} = document_issue_list
 - Sample values: {{1}} = Rahul Sharma, {{2}} = 11026VI001, {{3}} = Affected Passenger Names, {{4}} = Document Issue List
-- Button: URL button "Upload / Correct Documents" → https://tripnexio.com/{{1}}
+- Button: URL button "Upload Documents" → https://tripnexio.com/{{1}}
 
 ```
 Hi {{1}},
@@ -416,7 +416,7 @@ Your Visa Change application has been submitted. Booking ID: {{2}}. We'll notify
 - Event: `VC_ADDITIONAL_DOCUMENTS_REQUIRED`
 - Variables: {{1}} = customer_name, {{2}} = booking_id, {{3}} = affected_passenger_names, {{4}} = additional_document_list, {{5}} = customer_safe_request_reason
 - Sample values: {{1}} = Rahul Sharma, {{2}} = 11026VI001, {{3}} = Affected Passenger Names, {{4}} = Additional Document List, {{5}} = Customer Safe Request Reason
-- Button: URL button "Submit Additional Documents" → https://tripnexio.com/{{1}}
+- Button: URL button "Upload Documents" → https://tripnexio.com/{{1}}
 
 ```
 Hi {{1}},
