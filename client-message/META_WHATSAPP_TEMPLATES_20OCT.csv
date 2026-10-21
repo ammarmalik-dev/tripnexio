@@ -6,7 +6,6 @@ Thanks for choosing TripNexio!
 Your New Visa {{2}} request has been received. Please complete your payment to proceed.
 
 Application ID: {{3}}
-Country: {{2}}
 
 If you have already paid, please disregard this message.","{{1}} = customer_name, {{2}} = country_name, {{3}} = application_id","{{1}} = Rahul Sharma, {{2}} = United Arab Emirates, {{3}} = 11026VI001","URL button ""Complete Payment"" → https://tripnexio.com/{{1}}"
 New Visa,NV_PAYMENT_RECEIVED,nv_payment_received_wa,UTILITY,en,"Hi {{1}},
@@ -282,7 +281,7 @@ The requested flight is unavailable.
 Requested: {{2}} → {{3}}
 Alternative: {{4}} → {{5}}
 Itinerary: {{6}}
-Fare: {{7}} {{8}} | Difference: {{7}} {{9}}
+Fare ({{7}}): {{8}} | Difference: {{9}}
 Please review route and itinerary. Not confirmed until accepted and any required payment is complete.","{{1}} = customer_name, {{2}} = requested_origin, {{3}} = requested_destination, {{4}} = alternative_origin, {{5}} = alternative_destination, {{6}} = alternative_itinerary, {{7}} = currency, {{8}} = alternative_amount, {{9}} = fare_difference","{{1}} = Rahul Sharma, {{2}} = Requested Origin, {{3}} = Requested Destination, {{4}} = Alternative Origin, {{5}} = Alternative Destination, {{6}} = Alternative Itinerary, {{7}} = Currency, {{8}} = Alternative Amount, {{9}} = Fare Difference","URL button ""Review Alternative"" → https://tripnexio.com/{{1}}"
 Flight Special Fare,SF_14,sf_14_wa,UTILITY,en,"Hi {{1}},
 
@@ -304,8 +303,8 @@ Your cancellation request for {{2}} has been submitted to the airline. Cancellat
 Flight Special Fare,SF_19,sf_19_wa,UTILITY,en,"Hi {{1}},
 
 Cancellation quotation for {{2}}:
-Cancellation charges: {{3}} {{4}}
-Estimated refund: {{3}} {{5}}
+Cancellation charges ({{3}}): {{4}}
+Estimated refund: {{5}}
 Valid until: {{6}}
 Please review. Cancellation proceeds only after your approval and remains subject to airline rules.","{{1}} = customer_name, {{2}} = booking_id, {{3}} = currency, {{4}} = cancellation_charges, {{5}} = estimated_refund, {{6}} = cancellation_quote_expiry","{{1}} = Rahul Sharma, {{2}} = 11026VI001, {{3}} = Currency, {{4}} = Cancellation Charges, {{5}} = Estimated Refund, {{6}} = Cancellation Quote Expiry","URL button ""Review Cancellation Quote"" → https://tripnexio.com/{{1}}"
 Flight Special Fare,SF_20,sf_20_wa,UTILITY,en,"Hi {{1}},

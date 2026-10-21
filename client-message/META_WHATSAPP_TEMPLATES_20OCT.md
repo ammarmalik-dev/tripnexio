@@ -4,6 +4,15 @@
 
 The same list as a spreadsheet: `META_WHATSAPP_TEMPLATES_20OCT.csv`.
 
+**How to fill the Meta form (checked with the first template, 21 Oct):**
+1. Category **Utility** → **Default** (not Order Details / Order Status / Flows).
+2. Name = exact name below, language English, **Type of variable: Number**, media None, header empty.
+3. Body = the text below exactly, no quote marks. Each variable appears only once (Meta rejects a repeated variable).
+4. Variable samples = the "Sample values" below, in the same order.
+5. Footer "Thanks" is fine (optional).
+6. Button: Visit website → button text below → URL type **Dynamic** → Website URL **only** `https://tripnexio.com/` (Meta adds {{1}} itself) → Sample URL `https://tripnexio.com/track`.
+7. Message validity period: ON, 12 hours.
+
 
 ## New Visa
 
@@ -21,7 +30,6 @@ Thanks for choosing TripNexio!
 Your New Visa {{2}} request has been received. Please complete your payment to proceed.
 
 Application ID: {{3}}
-Country: {{2}}
 
 If you have already paid, please disregard this message.
 ```
@@ -1257,7 +1265,7 @@ The requested flight is unavailable.
 Requested: {{2}} → {{3}}
 Alternative: {{4}} → {{5}}
 Itinerary: {{6}}
-Fare: {{7}} {{8}} | Difference: {{7}} {{9}}
+Fare ({{7}}): {{8}} | Difference: {{9}}
 Please review route and itinerary. Not confirmed until accepted and any required payment is complete.
 ```
 
@@ -1333,8 +1341,8 @@ Your cancellation request for {{2}} has been submitted to the airline. Cancellat
 Hi {{1}},
 
 Cancellation quotation for {{2}}:
-Cancellation charges: {{3}} {{4}}
-Estimated refund: {{3}} {{5}}
+Cancellation charges ({{3}}): {{4}}
+Estimated refund: {{5}}
 Valid until: {{6}}
 Please review. Cancellation proceeds only after your approval and remains subject to airline rules.
 ```
