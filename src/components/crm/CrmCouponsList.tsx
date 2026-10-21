@@ -73,7 +73,7 @@ export function CrmCouponsList() {
           </p>
           <p className="text-xs text-ink-tertiary">
             Valid till {new Date(coupon.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-            {coupon.usageLimit ? ` · ${coupon.usageLimit - coupon.usageCount} uses left` : ""}
+            {coupon.usageLimit ? ` · ${coupon.usageLimit - coupon.usageCount} ${coupon.usageLimit - coupon.usageCount === 1 ? "use" : "uses"} left` : ""}
           </p>
           <Button
             type="button"

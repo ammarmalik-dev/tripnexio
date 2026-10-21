@@ -10,8 +10,7 @@ export default function AdminBordersPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Borders</h1>
         <p className="text-sm text-ink-tertiary">
-          Manage border crossing points used for Visa Change (Border Exit). A clearly-labeled SAMPLE row is seeded
-          for development — propose the real list for review before it replaces it.
+          Manage border crossing points used for Visa Change (Border Exit).
         </p>
       </div>
       <CsvImportPanel entity="borders" />

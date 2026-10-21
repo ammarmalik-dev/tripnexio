@@ -50,7 +50,7 @@ export async function runTicketExtraction(documentId: string): Promise<DocumentE
     await createTask(tx, {
       type: "MANUAL_VERIFICATION",
       title: "Review ticket OCR extraction",
-      reason: `${result.provider} extraction pending staff review`,
+      reason: "Details were read automatically from the upload. Check them and confirm.",
       entityType: "DocumentExtraction",
       entityId: created.id,
       leadId: document.booking?.leadId,

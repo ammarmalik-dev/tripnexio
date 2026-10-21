@@ -19,6 +19,7 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 import { unusedRuleMessage, usesPricingRules } from "@/lib/pricing/price-sources";
+import { formatRupees } from "@/lib/format-currency";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
 /** Used only for a service with no Processing Types configured yet (the pre-P23 codes). */
@@ -501,7 +502,7 @@ function PricingRuleHistoryPanel({ rule, lookups }: { rule: PricingRuleData; loo
       case "validityUntil":
         return text.slice(0, 10);
       default:
-        return MONEY_FIELDS.has(field) ? `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}` : undefined;
+        return MONEY_FIELDS.has(field) ? formatRupees(Number(value)) : undefined;
     }
   };
 

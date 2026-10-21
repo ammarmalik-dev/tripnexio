@@ -20,6 +20,7 @@ import { FormField, fieldControlClass, fieldBorderClass } from "@/components/for
 import { ChangeHistoryList, type ChangeHistoryEntry, type HistoryJson } from "./ChangeHistoryList";
 import type { ServiceType } from "../../generated/prisma/enums";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { formatRupees } from "@/lib/format-currency";
 
 interface VendorService {
   id: string;
@@ -404,7 +405,7 @@ const RATE_FIELD_LABELS: Record<string, string> = { cost: "Vendor cost", rate: "
 
 function formatRateValue(field: string, value: HistoryJson): string | undefined {
   if (value === null || value === "") return undefined;
-  if (field === "cost" || field === "rate") return `₹${Number(value).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  if (field === "cost" || field === "rate") return formatRupees(Number(value));
   return undefined;
 }
 

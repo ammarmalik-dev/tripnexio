@@ -28,6 +28,13 @@ function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+/** A date-only "2026-10-12" as "12 Oct 2026", like every other CRM list. */
+function formatDay(day: string | null): string {
+  if (!day) return "—";
+  const date = new Date(`${day.slice(0, 10)}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? day : date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
+
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div className="flex flex-col gap-1 rounded-xl border border-hairline bg-surface-1 p-4">
@@ -260,7 +267,7 @@ export function DelayAnalysisView() {
                         <div className="text-xs text-ink-tertiary">{record.serviceLabel}</div>
                       </td>
                       <td className="px-4 py-3 text-ink-primary">{record.customerName}</td>
-                      <td className="px-4 py-3 text-ink-secondary">{record.serviceDate ?? "—"}</td>
+                      <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{formatDay(record.serviceDate)}</td>
                       <td className="px-4 py-3 text-ink-tertiary">{formatDateTime(record.startedAt)}</td>
                       <td className="px-4 py-3 font-medium text-ink-primary">
                         {formatDuration(record.delayHours)}

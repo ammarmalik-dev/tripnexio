@@ -26,7 +26,7 @@ import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, PaymentStatus } from "../../generated/prisma/enums";
-import { CountryCell, ProcessingTag } from "./ListCells";
+import { CountryCell, ProcessingTag, serviceDetailsText } from "./ListCells";
 
 interface BookingListItem {
   id: string;
@@ -456,8 +456,8 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[booking.serviceType]}</td>
                     <td className="px-3 py-3 text-ink-secondary">
-                      <span className="line-clamp-2" title={[booking.subService, booking.serviceDetails].filter(Boolean).join(" · ")}>
-                        {[booking.subService, booking.serviceDetails].filter(Boolean).join(" · ") || "—"}
+                      <span className="line-clamp-2" title={serviceDetailsText(booking.subService, booking.serviceDetails)}>
+                        {serviceDetailsText(booking.subService, booking.serviceDetails)}
                       </span>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{formatDay(booking.travelDate)}</td>

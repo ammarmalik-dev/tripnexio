@@ -8,6 +8,7 @@ import { ApiError, patchJson } from "@/lib/api/client";
 import { PASSENGER_OUTCOME_LABELS } from "@/lib/bookings/passenger-outcomes";
 import { cn } from "@/lib/cn";
 import type { PassengerOutcome } from "../../../generated/prisma/enums";
+import { formatRupees } from "@/lib/format-currency";
 
 const OUTCOME_STYLE: Record<PassengerOutcome, string> = {
   APPROVED: "bg-success/10 text-success",
@@ -16,7 +17,7 @@ const OUTCOME_STYLE: Record<PassengerOutcome, string> = {
 };
 
 function money(value: number): string {
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return formatRupees(value);
 }
 
 /**

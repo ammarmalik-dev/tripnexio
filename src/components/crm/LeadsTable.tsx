@@ -21,7 +21,7 @@ import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, LEAD_STATUS_OPTIONS, LEAD_TE
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, LeadStatus, LeadTemperature, PaymentStatus } from "../../generated/prisma/enums";
-import { CountryCell, ProcessingTag } from "./ListCells";
+import { CountryCell, ProcessingTag, serviceDetailsText } from "./ListCells";
 
 interface LeadListItem {
   id: string;
@@ -184,7 +184,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setServiceType(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[13rem] text-sm")}
         >
           <option value="">All services</option>
           {SERVICE_TYPE_OPTIONS.map((option) => (
@@ -204,7 +204,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setStatus(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[13rem] text-sm")}
         >
           <option value="">All statuses</option>
           {LEAD_STATUS_OPTIONS.map((option) => (
@@ -224,7 +224,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setTemperature(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[13rem] text-sm")}
         >
           <option value="">All temperatures</option>
           {LEAD_TEMPERATURE_OPTIONS.map((option) => (
@@ -244,7 +244,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setPaymentFailed(event.target.value === "1");
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[13rem] text-sm")}
         >
           <option value="">All payments</option>
           <option value="1">Payment failed</option>
@@ -260,7 +260,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setAssignedStaffId(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[13rem] text-sm")}
         >
           <option value="">All POCs</option>
           <option value="unassigned">Unassigned</option>
@@ -281,7 +281,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setCountryId(event.target.value);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[13rem] text-sm")}
         >
           <option value="">All countries</option>
           {filterOptions.countries.map((option) => (
@@ -344,7 +344,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
             setSort(event.target.value as SortOption);
             setPage(1);
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[13rem] text-sm")}
         >
           <option value="createdAt_desc">Newest first</option>
           <option value="createdAt_asc">Oldest first</option>
@@ -396,31 +396,28 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[1250px] border-collapse text-sm">
+          <table className="w-max min-w-full border-collapse text-sm [&_td]:max-w-[16rem] [&_th]:whitespace-nowrap">
             <thead>
               {/* Client testing 2026-10-09 (E13) — same layout as the Bookings table: Title Case, PAX under the ID. */}
               <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
-                <th className="px-4 py-3">Lead ID</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Mobile</th>
-                <th className="px-4 py-3">Country</th>
-                <th className="px-4 py-3">
-                  Service
-                  <span className="block font-normal text-ink-tertiary">Sub-Service</span>
-                </th>
-                <th className="px-4 py-3">Service Details</th>
-                <th className="px-4 py-3">Travel Date</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Temperature</th>
-                <th className="px-4 py-3">POC</th>
-                <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3 text-right">Action</th>
+                <th className="px-3 py-3">Lead ID</th>
+                <th className="px-3 py-3">Customer</th>
+                <th className="px-3 py-3">Mobile</th>
+                <th className="px-3 py-3">Country</th>
+                <th className="px-3 py-3">Service</th>
+                <th className="px-3 py-3">Service Details</th>
+                <th className="px-3 py-3">Travel Date</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="px-3 py-3">Temperature</th>
+                <th className="px-3 py-3">POC</th>
+                <th className="px-3 py-3">Created</th>
+                <th className="px-3 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {items.map((lead) => (
                 <tr key={lead.id} className="border-b border-hairline align-top last:border-b-0 hover:bg-ink-primary/[0.02]">
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-3 py-3 whitespace-nowrap">
                     <Link href={`/crm/leads/${lead.id}`} className="font-semibold text-ink-accent hover:underline">
                       {lead.referenceId}
                     </Link>
@@ -451,27 +448,28 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
                       </div>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="block font-semibold text-ink-heading">{lead.customer.name}</span>
-                    {lead.customer.email ? <span className="block text-xs text-ink-tertiary">{lead.customer.email}</span> : null}
+                  <td className="px-3 py-3">
+                    <span className="block truncate font-semibold text-ink-heading">{lead.customer.name}</span>
+                    {lead.customer.email ? <span className="block truncate text-xs text-ink-tertiary">{lead.customer.email}</span> : null}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{lead.customer.mobile}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{lead.customer.mobile}</td>
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                     <CountryCell name={lead.countryName} code={lead.countryCode} flag={lead.countryFlag} />
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[lead.serviceType]}</span>
-                    {lead.subService ? <span className="block text-xs text-ink-tertiary">{lead.subService}</span> : null}
+                  <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[lead.serviceType]}</td>
+                  <td className="px-3 py-3 text-ink-secondary">
+                    <span className="line-clamp-2" title={serviceDetailsText(lead.subService, lead.serviceDetails)}>
+                      {serviceDetailsText(lead.subService, lead.serviceDetails)}
+                    </span>
                   </td>
-                  <td className="max-w-[14rem] px-4 py-3 text-ink-secondary">{lead.serviceDetails ?? "—"}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">{formatTravelDate(lead.travelDate)}</td>
-                  <td className="px-4 py-3">
+                  <td className="whitespace-nowrap px-3 py-3 text-ink-secondary">{formatTravelDate(lead.travelDate)}</td>
+                  <td className="px-3 py-3">
                     <LeadStatusBadge status={lead.status} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <LeadTemperatureBadge temperature={lead.temperature} />
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                     {lead.assignedStaff === null ? (
                       "Unassigned"
                     ) : lead.assignedStaff.active ? (
@@ -482,8 +480,8 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
                       </span>
                     )}
                   </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-ink-tertiary">{formatDate(lead.createdAt)}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="whitespace-nowrap px-3 py-3 text-ink-tertiary">{formatDate(lead.createdAt)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap text-right">
                     <Link
                       href={`/crm/leads/${lead.id}`}
                       className="inline-flex items-center gap-1 text-sm font-medium text-ink-accent hover:underline"

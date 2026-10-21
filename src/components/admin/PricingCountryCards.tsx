@@ -16,6 +16,7 @@ import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { PaxType, ServiceType } from "../../generated/prisma/enums";
 import { unusedRuleMessage } from "@/lib/pricing/price-sources";
+import { formatRupees } from "@/lib/format-currency";
 
 interface CountryRule {
   id: string;
@@ -81,7 +82,7 @@ interface CountryGroup {
 }
 
 function money(value: number): string {
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return formatRupees(value);
 }
 
 function ruleLabel(rule: CountryRule): string {

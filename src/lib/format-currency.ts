@@ -17,3 +17,9 @@ export function formatCurrency(value: number, currencyCode: string = "INR"): str
     maximumFractionDigits: 2,
   }).format(value);
 }
+
+/** "₹3,009" for whole rupees, "₹3,605.40" with paise — never "₹3,605.4". For CRM / Admin screens. */
+export function formatRupees(value: number): string {
+  const digits = Number.isInteger(value) ? 0 : 2;
+  return `₹${value.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+}

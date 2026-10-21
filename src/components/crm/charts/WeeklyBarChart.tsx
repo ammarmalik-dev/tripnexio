@@ -18,16 +18,20 @@ export function WeeklyBarChart({ data, formatValue }: WeeklyBarChartProps) {
         {data.map((d, i) => {
           const heightPercent = Math.max(2, (d.value / maxValue) * 100);
           const isRecent = i >= data.length - 2;
+          const valueLabel = formatValue ? formatValue(d.value) : String(d.value);
+          // Each bar carries its value on top (non-zero only), so the trend reads without hovering.
           return (
-            <div
-              key={`${d.label}-${i}`}
-              className="flex-1 rounded-t-md transition-[filter] duration-150 hover:brightness-110"
-              style={{
-                height: `${heightPercent}%`,
-                background: isRecent ? "linear-gradient(180deg, var(--accent), var(--accent-dark))" : "linear-gradient(180deg, var(--accent-on-dark), var(--accent))",
-              }}
-              title={formatValue ? formatValue(d.value) : String(d.value)}
-            />
+            <div key={`${d.label}-${i}`} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
+              {d.value > 0 ? <span className="max-w-full truncate text-[10px] font-semibold text-ink-secondary">{valueLabel}</span> : null}
+              <div
+                className="w-full rounded-t-md transition-[filter] duration-150 hover:brightness-110"
+                style={{
+                  height: `${heightPercent * 0.82}%`,
+                  background: isRecent ? "linear-gradient(180deg, var(--accent), var(--accent-dark))" : "linear-gradient(180deg, var(--accent-on-dark), var(--accent))",
+                }}
+                title={valueLabel}
+              />
+            </div>
           );
         })}
       </div>

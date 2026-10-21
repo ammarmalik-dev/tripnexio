@@ -129,7 +129,7 @@ export function EnquiriesTable({ basePath = "/crm/enquiries" }: { basePath?: str
               setCategory(event.target.value as EnquiryCategory | "");
               resetPage();
             }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-44")}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[14rem] text-sm")}
           >
             <option value="">All categories</option>
             {ENQUIRY_CATEGORIES.filter((value) => value !== "COMPLAINT").map((value) => (
@@ -146,7 +146,7 @@ export function EnquiriesTable({ basePath = "/crm/enquiries" }: { basePath?: str
             setStatus(event.target.value);
             resetPage();
           }}
-          className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-44")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[14rem] text-sm")}
         >
           <option value="open">Open (New + In Progress)</option>
           <option value="">All statuses</option>

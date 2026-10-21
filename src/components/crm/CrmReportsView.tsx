@@ -12,8 +12,9 @@ import { useClientPagination } from "@/components/crm/usePagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import type { ConversionRow, CountAmountRow, CrmReports } from "@/lib/crm/reports";
+import { formatRupees } from "@/lib/format-currency";
 
-const money = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const money = (value: number) => formatRupees(value);
 const pct = (value: number | null) => (value === null ? "—" : `${value}%`);
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {

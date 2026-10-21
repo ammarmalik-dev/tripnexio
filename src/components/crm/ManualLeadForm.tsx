@@ -20,6 +20,7 @@ import { defaultProcessingTypes } from "@/lib/processing-types/defaults";
 import { useNewVisaProducts } from "@/lib/new-visa/use-new-visa-products";
 import { useNationalities } from "@/lib/use-nationalities";
 import type { ManualLeadPricePreview } from "@/lib/leads/manual-lead-pricing";
+import { formatRupees } from "@/lib/format-currency";
 
 interface CountryOption {
   id: string;
@@ -435,7 +436,7 @@ export function ManualLeadForm() {
   );
 }
 
-const rupees = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const rupees = (value: number) => formatRupees(value);
 
 /** Client doc 2026-10-20 (K1) — what the payment link will charge, before the lead is created. */
 function ManualLeadPricePanel({ preview }: { preview: ManualLeadPricePreview | null }) {

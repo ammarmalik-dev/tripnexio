@@ -13,11 +13,12 @@ import { getJson, ApiError } from "@/lib/api/client";
 import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { cn } from "@/lib/cn";
 import type { StaffVendorCost, StaffVendorRow, StaffVendorsView } from "@/lib/vendors/staff-view";
+import { formatRupees } from "@/lib/format-currency";
 
 const MIN_COMPARE = 2;
 const MAX_COMPARE = 4;
 
-const money = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const money = (value: number) => formatRupees(value);
 
 function costText(cost: StaffVendorCost): string {
   return cost.average === null ? `${cost.label}: no quotes` : `${cost.label}: ${money(cost.average)} (${cost.quotations})`;

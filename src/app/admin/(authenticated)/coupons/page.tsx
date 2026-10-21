@@ -9,8 +9,7 @@ export default function AdminCouponsPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Coupons &amp; Discounts</h1>
         <p className="text-sm text-ink-tertiary">
-          Discount codes with type, value, validity window, and usage limits. A few clearly-labeled SAMPLE codes are
-          seeded for development — propose the real promotions for review before it replaces them.
+          Discount codes with type, value, validity window, and usage limits.
         </p>
       </div>
       <CouponsManager />

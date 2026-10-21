@@ -100,6 +100,8 @@ const KPI_TINT_CLASSES: Record<KpiTint, string> = {
 interface KpiCardProps {
   label: string;
   value: number | null;
+  /** Written after the value, e.g. "%" for Conversion. */
+  suffix?: string;
   icon: LucideIcon;
   tint: KpiTint;
   comingSoonHint?: string;
@@ -117,7 +119,7 @@ interface KpiCardProps {
   pressed?: boolean;
 }
 
-function KpiCard({ label, value, icon: Icon, tint, comingSoonHint, href, notClickableHint, onClick, pressed }: KpiCardProps) {
+function KpiCard({ label, value, suffix, icon: Icon, tint, comingSoonHint, href, notClickableHint, onClick, pressed }: KpiCardProps) {
   const comingSoon = value === null;
   const clickable = !comingSoon && (!!href || !!onClick);
 
@@ -130,6 +132,7 @@ function KpiCard({ label, value, icon: Icon, tint, comingSoonHint, href, notClic
         <span className="text-xs leading-snug font-medium text-ink-tertiary">{label}</span>
         <span className={cn("text-xl leading-tight font-bold tracking-tight", comingSoon ? "text-ink-tertiary" : "text-ink-heading")}>
           {statValue(value)}
+          {comingSoon ? null : suffix}
         </span>
         {comingSoon ? <span className="text-[10.5px] text-ink-tertiary">Coming soon</span> : null}
       </span>
@@ -303,7 +306,7 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
   const [customOpen, setCustomOpen] = useState(false);
   const showCustom = customOpen || !activePreset;
 
-  const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const todayLabel = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
 
   // Step 53 — Sales Overview cards are period-scoped by createdAt, so
   // their link must carry the same dateFrom/dateTo the KPI itself was
@@ -401,6 +404,7 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
               <KpiCard
                 label="Conversion"
                 value={data.sales.conversionRate}
+                suffix="%"
                 icon={TrendingUp}
                 tint="success"
                 href={leadsHref({ status: "CONVERTED" })}

@@ -337,6 +337,34 @@ body {
   box-shadow: var(--shadow-glass-2);
 }
 
+/* Client doc 2026-10-20 (L6 / L13) — every CRM / Admin list table reads like the Bookings table: columns as
+   wide as their content (scrolling sideways when needed), one-line headers, long text wrapped at a readable
+   width. Tables holding form fields keep their own layout. */
+.crm-shell main .overflow-x-auto > table:not(:has(input, select, textarea)) {
+  width: max-content;
+  /* !important: MasterTable passes its own min-width inline, which left a short table inside a wide card. */
+  min-width: 100% !important;
+}
+
+.crm-shell main .overflow-x-auto > table:not(:has(input, select, textarea)) th {
+  white-space: nowrap;
+}
+
+.crm-shell main .overflow-x-auto > table:not(:has(input, select, textarea)) td {
+  max-width: 18rem;
+}
+
+/* The last column is usually a note / description (Audit Log, Config History): give it room to read. */
+.crm-shell main .overflow-x-auto > table:not(:has(input, select, textarea)) td:last-child {
+  max-width: 32rem;
+}
+
+/* Client testing 2026-10-09 (E13) — Title Case headers everywhere, never ALL CAPS. */
+.crm-shell main table thead .uppercase {
+  text-transform: capitalize;
+  letter-spacing: normal;
+}
+
 /* Client doc 2026-10-15 (C4) — a darker, readable header line on every CRM / Admin table. */
 .crm-shell main table thead tr {
   background: color-mix(in srgb, var(--ink-heading) 9%, var(--surface-1));

@@ -50,8 +50,12 @@ export function AirportImportPanel() {
   };
 
   return (
-    <section className="flex flex-col gap-3 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
-      <h2 className="text-sm font-semibold text-ink-heading">Bulk Import (CSV)</h2>
+    // Collapsed like the other masters' CSV panels, so the airport list sits at the top of the page.
+    <details className="rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
+      <summary className="cursor-pointer text-sm font-semibold text-ink-heading focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+        Bulk Import Airports (CSV)
+      </summary>
+      <div className="mt-4 flex flex-col gap-3">
       <p className="text-xs text-ink-tertiary">
         Columns: <code>iata_code, airport_name, city, country</code>. Existing codes are updated, new ones are added. The country
         must already exist under Admin → Countries (matched by code or name).
@@ -99,6 +103,7 @@ export function AirportImportPanel() {
           </button>
         </div>
       ) : null}
-    </section>
+      </div>
+    </details>
   );
 }

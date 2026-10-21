@@ -12,6 +12,7 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { toast } from "@/components/ui/Toaster";
 import { getJson, patchJson, postJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
+import { formatRupees } from "@/lib/format-currency";
 
 type RateService = "OTB" | "RETURN_TICKET" | "NEW_VISA";
 const SERVICE_LABELS: Record<RateService, string> = { OTB: "OTB", RETURN_TICKET: "Return Ticket", NEW_VISA: "New Visa" };
@@ -48,7 +49,7 @@ interface VendorOption extends Option {
 type FieldErrors = Record<string, string[] | undefined>;
 
 function money(value: number): string {
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return formatRupees(value);
 }
 
 function RateEditor({ row, onSaved, onCancel }: { row: RateRow; onSaved: (row: RateRow) => void; onCancel: () => void }) {

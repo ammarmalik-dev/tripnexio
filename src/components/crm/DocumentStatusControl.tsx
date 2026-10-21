@@ -69,7 +69,10 @@ export function DocumentStatusControl({ documentId, status, rejectionReason, onC
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <DocumentStatusBadge status={status} />
+        {/* A fixed badge slot keeps the status dropdowns lined up down a list. */}
+        <span className="inline-flex min-w-[8.5rem]">
+          <DocumentStatusBadge status={status} />
+        </span>
         {nextStatuses.length > 0 ? (
           <>
             <label htmlFor={`doc-status-${documentId}`} className="sr-only">

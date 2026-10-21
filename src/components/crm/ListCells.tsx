@@ -29,3 +29,9 @@ export function CountryCell({ name, code, flag }: { name: string | null; code?: 
     </span>
   );
 }
+
+/** Client doc 2026-10-20 (L6) — sub-service and service details in one cell, without repeating a part already shown. */
+export function serviceDetailsText(subService: string | null, serviceDetails: string | null): string {
+  if (subService && serviceDetails?.includes(subService)) return serviceDetails;
+  return [subService, serviceDetails].filter(Boolean).join(" · ") || "—";
+}

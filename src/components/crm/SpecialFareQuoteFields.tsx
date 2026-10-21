@@ -10,6 +10,7 @@ import { FormField, fieldBorderClass, fieldControlClass } from "@/components/for
 import { MAX_ITINERARY_SEGMENTS, type ItinerarySegment } from "@/lib/quotations/itinerary";
 import type { QuoteFormValues } from "@/lib/validation/quotation-schema";
 import { cn } from "@/lib/cn";
+import { formatRupees } from "@/lib/format-currency";
 
 export interface PaxCountsView {
   adult: number;
@@ -39,7 +40,7 @@ const PAX_ROWS = [
 ] as const;
 
 function rupees(value: number): string {
-  return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  return formatRupees(value);
 }
 
 /**

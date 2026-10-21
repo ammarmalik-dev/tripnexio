@@ -19,7 +19,7 @@ import { useListFilterOptions } from "./useListFilterOptions";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType } from "../../generated/prisma/enums";
-import { CountryCell, ProcessingTag } from "./ListCells";
+import { CountryCell, ProcessingTag, serviceDetailsText } from "./ListCells";
 
 type QuotationStatus = "SELECTED" | "EXPIRED" | "PENDING";
 
@@ -390,8 +390,8 @@ export function QuotationsTable() {
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[quotation.serviceType]}</td>
                   <td className="px-3 py-3 text-ink-secondary">
-                    <span className="line-clamp-2" title={[quotation.subService, quotation.serviceDetails].filter(Boolean).join(" · ")}>
-                      {[quotation.subService, quotation.serviceDetails].filter(Boolean).join(" · ") || "—"}
+                    <span className="line-clamp-2" title={serviceDetailsText(quotation.subService, quotation.serviceDetails)}>
+                      {serviceDetailsText(quotation.subService, quotation.serviceDetails)}
                     </span>
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{formatDay(quotation.travelDate)}</td>

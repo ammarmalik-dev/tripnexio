@@ -10,12 +10,13 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { CopyLinkButton } from "./CopyLinkButton";
 import { CouponCodeOptions } from "./CouponCodeOptions";
+import { formatRupees } from "@/lib/format-currency";
 
 type Preview =
   | { available: true; totalPrice: number; extraCharges: number; couponDiscount: number; couponError: string | null; finalPayable: number }
   | { available: false; reason: string };
 
-const rupees = (value: number) => `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const rupees = (value: number) => formatRupees(value);
 
 /**
  * Client corrections 2026-10-05 §7/§16 + testing 2026-10-09 (A2, E1) — New

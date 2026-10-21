@@ -10,8 +10,7 @@ export default function AdminAirlinesPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Airlines</h1>
         <p className="text-sm text-ink-tertiary">
-          Manage the airline master list, including OTB requirements and processing prices. A few clearly-labeled
-          SAMPLE rows are seeded for development — propose the real list for review before it replaces them.
+          Manage the airline master list used across flights, OTB and Return Ticket.
         </p>
       </div>
       <CsvImportPanel entity="airlines" />

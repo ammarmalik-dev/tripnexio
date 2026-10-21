@@ -72,7 +72,7 @@ export async function runPassportExtraction(documentId: string): Promise<Documen
     await createTask(tx, {
       type: "MANUAL_VERIFICATION",
       title: "Review passport OCR extraction",
-      reason: `${result.provider} extraction pending staff review`,
+      reason: "Details were read automatically from the upload. Check them and confirm.",
       entityType: "DocumentExtraction",
       entityId: created.id,
       leadId: document.booking?.leadId,
