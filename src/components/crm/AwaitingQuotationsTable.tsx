@@ -149,41 +149,41 @@ export function AwaitingQuotationsTable() {
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[760px] border-collapse text-sm">
+          <table className="w-max min-w-full border-collapse text-sm [&_td]:max-w-[16rem] [&_th]:whitespace-nowrap">
             <thead>
               <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
-                <th className="px-4 py-3">Lead</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Service</th>
-                <th className="px-4 py-3">Lead status</th>
-                <th className="px-4 py-3">Quotation</th>
-                <th className="px-4 py-3">Received</th>
+                <th className="px-3 py-3">Lead</th>
+                <th className="px-3 py-3">Customer</th>
+                <th className="px-3 py-3">Service</th>
+                <th className="px-3 py-3">Lead status</th>
+                <th className="px-3 py-3">Quotation</th>
+                <th className="px-3 py-3">Received</th>
               </tr>
             </thead>
             <tbody>
               {items.map((item) => (
                 <tr key={item.leadId} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
-                  <td className="px-4 py-3 font-medium">
+                  <td className="px-3 py-3 whitespace-nowrap font-medium">
                     <Link href={`/crm/leads/${item.leadId}#tab-quotation`} className="text-ink-accent hover:underline">
                       {item.leadReferenceId}
                     </Link>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <div className="flex flex-col">
-                      <span className="font-medium text-ink-primary">{item.customer.name}</span>
-                      <span className="text-xs text-ink-tertiary">{item.customer.mobile}</span>
+                      <span className="truncate font-medium text-ink-primary">{item.customer.name}</span>
+                      <span className="whitespace-nowrap text-xs text-ink-tertiary">{item.customer.mobile}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">{SERVICE_TYPE_LABELS[item.serviceType]}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{SERVICE_TYPE_LABELS[item.serviceType]}</td>
+                  <td className="px-3 py-3">
                     <LeadStatusBadge status={item.status} />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <span className="inline-flex items-center whitespace-nowrap rounded-full bg-warning/10 px-2.5 py-1 text-xs font-medium text-warning">
                       Awaiting quotation
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-ink-tertiary">{formatDateTime(item.createdAt)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-tertiary">{formatDateTime(item.createdAt)}</td>
                 </tr>
               ))}
             </tbody>

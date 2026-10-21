@@ -347,60 +347,60 @@ export function QuotationsTable() {
 
       {state === "success" && items.length > 0 ? (
         <div className="overflow-x-auto rounded-xl border border-hairline bg-surface-1">
-          <table className="w-full min-w-[1400px] border-collapse text-sm">
+          <table className="w-max min-w-full border-collapse text-sm [&_td]:max-w-[16rem] [&_th]:whitespace-nowrap">
             <thead>
               {/* Client testing 2026-10-09 (E13) — same layout as the Bookings table. */}
               <tr className="border-b border-hairline text-left text-xs font-semibold text-ink-secondary">
-                <th className="px-4 py-3">Lead ID</th>
-                <th className="px-4 py-3">Customer</th>
-                <th className="px-4 py-3">Mobile</th>
-                <th className="px-4 py-3">Country</th>
-                <th className="px-4 py-3">
-                  Service
-                  <span className="block font-normal text-ink-tertiary">Sub-Service</span>
-                </th>
-                <th className="px-4 py-3">Service Details</th>
-                <th className="px-4 py-3">Travel Date</th>
-                <th className="px-4 py-3">POC</th>
-                <th className="px-4 py-3">Status</th>
-                <th className="px-4 py-3">Selling Price</th>
+                <th className="px-3 py-3">Lead ID</th>
+                <th className="px-3 py-3">Customer</th>
+                <th className="px-3 py-3">Mobile</th>
+                <th className="px-3 py-3">Country</th>
+                <th className="px-3 py-3">Service</th>
+                <th className="px-3 py-3">Service Details</th>
+                <th className="px-3 py-3">Travel Date</th>
+                <th className="px-3 py-3">POC</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="px-3 py-3">Selling Price</th>
                 {items.some((item) => item.margin !== null) ? (
-                  <th className="px-4 py-3">
+                  <th className="px-3 py-3">
                     Margin <span className="text-[10px] normal-case text-ink-tertiary">(internal)</span>
                   </th>
                 ) : null}
-                <th className="px-4 py-3">Created</th>
-                <th className="px-4 py-3 text-right">Action</th>
+                <th className="px-3 py-3">Created</th>
+                <th className="px-3 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody>
               {items.map((quotation) => (
                 <tr key={quotation.id} className="border-b border-hairline align-top last:border-b-0 hover:bg-ink-primary/[0.02]">
-                  <td className="px-4 py-3 whitespace-nowrap">
+                  <td className="px-3 py-3 whitespace-nowrap">
                     <Link href={`/crm/leads/${quotation.leadId}#tab-quotation`} className="font-semibold text-ink-accent hover:underline">
                       {quotation.leadReferenceId}
                     </Link>
                     <ProcessingTag label={quotation.processing} />
                     <span className="block text-xs text-ink-tertiary">{quotation.paxCount ?? "—"} PAX</span>
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="block font-semibold text-ink-heading">{quotation.customer.name}</span>
-                    {quotation.customer.email ? <span className="block text-xs text-ink-tertiary">{quotation.customer.email}</span> : null}
+                  <td className="px-3 py-3">
+                    <span className="block truncate font-semibold text-ink-heading">{quotation.customer.name}</span>
+                    {quotation.customer.email ? <span className="block truncate text-xs text-ink-tertiary">{quotation.customer.email}</span> : null}
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{quotation.customer.mobile}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{quotation.customer.mobile}</td>
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                     <CountryCell name={quotation.countryName} code={quotation.countryCode} flag={quotation.countryFlag} />
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="block font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[quotation.serviceType]}</span>
-                    {quotation.subService ? <span className="block text-xs text-ink-tertiary">{quotation.subService}</span> : null}
+                  <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[quotation.serviceType]}</td>
+                  <td className="px-3 py-3 text-ink-secondary">
+                    <span className="line-clamp-2" title={[quotation.subService, quotation.serviceDetails].filter(Boolean).join(" · ")}>
+                      {[quotation.subService, quotation.serviceDetails].filter(Boolean).join(" · ") || "—"}
+                    </span>
                   </td>
-                  <td className="max-w-[14rem] px-4 py-3 text-ink-secondary">{quotation.serviceDetails ?? "—"}</td>
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{formatDay(quotation.travelDate)}</td>
-                  <td className="px-4 py-3 text-ink-secondary">
-                    {quotation.poc ? (quotation.poc.active ? quotation.poc.name : `Unassigned (was ${quotation.poc.name})`) : "Unassigned"}
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{formatDay(quotation.travelDate)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
+                    <span className="line-clamp-2">
+                      {quotation.poc ? (quotation.poc.active ? quotation.poc.name : `Unassigned (was ${quotation.poc.name})`) : "Unassigned"}
+                    </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-3 py-3">
                     <span
                       className={cn(
                         "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
@@ -410,16 +410,16 @@ export function QuotationsTable() {
                       {STATUS_LABELS[quotation.status]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-ink-secondary">{money(quotation.sellingPrice)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{money(quotation.sellingPrice)}</td>
                   {quotation.margin !== null ? (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <span title="Internal — never shown to the customer" className="text-ink-tertiary decoration-dotted underline-offset-2">
                         {money(quotation.margin)} (internal)
                       </span>
                     </td>
                   ) : null}
-                  <td className="px-4 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(quotation.createdAt)}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-3 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(quotation.createdAt)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap text-right">
                     <Link href={`/crm/leads/${quotation.leadId}#tab-quotation`} className="font-medium text-ink-accent hover:underline">
                       Open
                     </Link>
