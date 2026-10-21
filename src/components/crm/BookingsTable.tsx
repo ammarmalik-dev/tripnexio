@@ -219,7 +219,8 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
     <div className="flex flex-col gap-4">
       {/* Client doc 2026-10-15 (C4) — one search bar: the 360 search in the top bar (a ?search= link still lands filtered). */}
 
-      <div className="flex flex-wrap items-center gap-2.5">
+      {/* Client doc 2026-10-20 (L6) — the eight dropdowns share one row on desktop, never spilling onto a third. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-8 [&_select]:w-full [&_select]:max-w-none [&_select]:min-w-0">
         {filterSelect("filter-booking-service", "Filter by service", serviceType, (next) => {
           setServiceType(next);
           setServiceStatusId("");
@@ -229,7 +230,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
           "Filter by booking status",
           status,
           setStatus,
-          "All booking statuses",
+          "Booking status",
           // Client doc 2026-10-20 (N1) — the client's booking-level list, in this order.
           [
             { value: "CONFIRMED", label: BOOKING_STATUS_LABELS.CONFIRMED },
