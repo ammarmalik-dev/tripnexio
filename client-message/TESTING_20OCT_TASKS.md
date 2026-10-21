@@ -206,3 +206,11 @@ Legend: `[x]` = done + verified (local tests, plus a live check after deploy whe
 - Fixed during the live check: Bookings dropdowns spilled to a third row; New Visa Service Details blank for older/manual leads; document types shown as codes (VISA_COPY); invoice filter text cut off.
 - Fixed after the user's check (bd413bf, bcbef6e): `/services/new-visa/request?country=THA` showed "United Arab Emirates" while the form held Thailand (dropdowns now re-apply their value once the list loads; also Back to step 1, OTB country); New Visa nationality prices were never matched (Admin stores the nationality name with its id) — UAE + India now shows Normal Adult ₹1 · Child ₹0.50, Express ₹2 / ₹1 live, Manual Lead preview 2 adults + 1 child = ₹2.50.
 - Open (client data): Admin → System Configuration WhatsApp = +91 81161 22851 (site links go there; live WhatsApp Business number is …850). Only UAE + India has New Visa prices; Thailand / other nationalities have none. No invoice service fees set yet.
+- Website flows walked live to the Summary step for all six services (guest, test name "test dev"):
+  - New Visa: destinations UAE / Oman / Thailand; option one line; Adult/Child Normal/Express prices; approval date Normal 28 Oct / Express 23 Oct (5 / 2 UAE working days) switching at once; no document upload before payment (E9); Back keeps values; summary ₹1 + GST + gateway = ₹1.19.
+  - Visa Extension: passport + visa copy on one line (D3), extra applicant same; summary → quotation.
+  - Visa Change (Border): D7 wording, visa copy only, passport after payment; no destination named.
+  - Special Fare: airport search, name-match disclaimer (A6), Adult/Child/Infant from DOB (A3/A4).
+  - Return Ticket: only configured destinations (Bahrain / UAE / Oman), price ₹1 × 1, cancellation note.
+  - OTB: travel date + departure time on one row (C3), country → priced airlines, indicative ₹2, return-ticket question.
+- Fixed during the walk: the OTB earliest-date note said "Express" while the cards (Admin label) said "Urgent" (3a84483); an abandoned New Visa form never created a draft lead (fcb91a9) — verified live, drafts now exist for all six services.
