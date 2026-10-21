@@ -223,7 +223,9 @@ export function StepVisaDetails() {
               value: option.code,
               label: option.label,
               description: !offered(code)
-                ? "Not offered for this visa."
+                ? nationalityId
+                  ? "Price not available for your nationality yet — contact us on WhatsApp."
+                  : "Not offered for this visa."
                 : isAllowed
                   ? prices
                   : `${prices} — needs your travel date at least ${days(minDays)} away.`,
