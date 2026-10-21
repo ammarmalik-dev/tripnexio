@@ -52,11 +52,12 @@ export async function computeNewVisaPrice(input: {
       countryId: country.id,
       processingType: input.processingType,
       paxType: { in: uniquePaxTypes },
-      nationality: null,
       active: true,
       country: { active: true },
       AND: [
-        { OR: [{ nationalityId: null }, ...(nationalityId ? [{ nationalityId }] : [])] },
+        // Live check 2026-10-21 — Admin saves the nationality's name next to its id, so `nationality: null` dropped
+        // every nationality price. Country-wide = neither set (a legacy free-text-only row stays excluded).
+        { OR: [{ nationalityId: null, nationality: null }, ...(nationalityId ? [{ nationalityId }] : [])] },
         { OR: [{ newVisaConfigId: null }, ...(input.newVisaConfigId ? [{ newVisaConfigId: input.newVisaConfigId }] : [])] },
       ],
     },
