@@ -10,6 +10,7 @@ import { isUrgentRequest } from "@/lib/crm/urgency";
 import { leadListWhere } from "@/lib/leads/list-where";
 import { PAYMENT_FAILED_STATUSES, latestBookingPaymentSelect, latestPaymentFailedStatus } from "@/lib/crm/payment-failed";
 import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { newVisaOptionFiller } from "@/lib/new-visa/option-labels";
 import { countryFlagEmoji } from "@/lib/countries/flag";
 import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
 
@@ -56,7 +57,9 @@ export async function GET(request: NextRequest) {
   ]);
 
   // Client doc 2026-10-15 (C4) — visa type / airline in the Sub-service column.
-  const subServices = await resolveSubServices(leads.map((lead) => ({ serviceType: lead.serviceType, details: lead.details })));
+  // Client doc 2026-10-20 (E7) — older / manual New Visa leads carry only the product id.
+  const fillOption = await newVisaOptionFiller(leads.map((lead) => lead.details));
+  const subServices = await resolveSubServices(leads.map((lead) => ({ serviceType: lead.serviceType, details: fillOption(lead.details) })));
   const items = leads.map((lead, index) => ({
     id: lead.id,
     // Client doc 2026-10-15 (C2) — an abandoned draft has no lead number until the form is submitted.
@@ -70,7 +73,7 @@ export async function GET(request: NextRequest) {
     // Client testing 2026-10-09 (E13) — flag next to the country and the service details line.
     countryFlag: lead.country ? countryFlagEmoji(lead.country) : null,
     countryCode: lead.country?.code ?? null,
-    serviceDetails: serviceDetailsLine(lead.serviceType, lead.details),
+    serviceDetails: serviceDetailsLine(lead.serviceType, fillOption(lead.details)),
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paxCount: lead.paxCount,
     subService: subServices[index],

@@ -49,6 +49,7 @@ import type { BookingStatus, DocumentStatus, ExtensionOutcome, PassengerOutcome,
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { VENDOR_AFTER_DOCUMENTS_SERVICES } from "@/lib/bookings/vendor-names";
 import { PassengerOutcomeControl } from "./booking/PassengerOutcomeControl";
+import { documentTypeLabel } from "@/lib/documents/type-label";
 
 interface DocumentItem {
   id: string;
@@ -313,7 +314,7 @@ export function BookingDetail({
       <div key={document.id} className="rounded-md border border-hairline bg-surface-1 px-3 py-2 text-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="flex flex-wrap items-center gap-2 text-ink-primary">
-            {document.type}
+            {documentTypeLabel(document.type)}
             <PurgedFileTag purgedAt={document.purgedAt} />
             <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
             {!document.purgedAt ? <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={refresh} /> : null}

@@ -3,6 +3,7 @@ import { db } from "../db";
 import { priceLeadForDirectPayment, type DirectPaymentPrice } from "../checkout/lead-direct-payment";
 import { resolveCouponForQuotation } from "../coupons/apply";
 import { serviceInvoiceFee } from "../invoices/service-fee";
+import { productLabel } from "../new-visa/products";
 import type { ManualLeadValues } from "../validation/manual-lead-schema";
 
 /** The Manual Lead form's travellers by type (OTB / Return Ticket ask one count). */
@@ -22,11 +23,17 @@ export function manualLeadPaxTypes(data: ManualLeadValues): PaxType[] {
 export async function manualLeadServiceDetails(data: ManualLeadValues): Promise<Record<string, unknown>> {
   switch (data.serviceType) {
     case "NEW_VISA": {
+      const product = data.newVisaConfigId
+        ? await db.newVisaCountryConfig.findUnique({
+            where: { id: data.newVisaConfigId },
+            select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true },
+          })
+        : null;
       const nationality = data.nationalityId ? await db.nationality.findFirst({ where: { id: data.nationalityId, active: true }, select: { id: true, name: true } }) : null;
       return {
         destinationCountry: data.destinationCountryCode,
         processingType: data.processingType,
-        ...(data.newVisaConfigId ? { newVisaConfigId: data.newVisaConfigId } : {}),
+        ...(product ? { newVisaConfigId: product.id, visaOption: productLabel(product) } : {}),
         ...(nationality ? { nationalityId: nationality.id, nationality: nationality.name } : {}),
       };
     }

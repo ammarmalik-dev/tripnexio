@@ -20,6 +20,7 @@ import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { DocumentStatus } from "../../generated/prisma/enums";
+import { documentTypeLabel } from "@/lib/documents/type-label";
 
 interface DocumentListItem {
   id: string;
@@ -232,7 +233,7 @@ export function DocumentReviewQueue() {
                 <tr key={document.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
                   <td className="px-4 py-3 font-medium text-ink-primary">
                     <span className="flex flex-wrap items-center gap-2">
-                      {document.type}
+                      {documentTypeLabel(document.type)}
                       <PurgedFileTag purgedAt={document.purgedAt} />
                     </span>
                   </td>

@@ -9,6 +9,7 @@ import { patchJson, ApiError } from "@/lib/api/client";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import type { OutstandingDocument } from "@/lib/account/outstanding-documents";
 import { DOCUMENT_UPLOAD_ACCEPT, DOCUMENT_UPLOAD_BUTTON_CLASS, documentUploadError } from "@/lib/uploads/document-rules";
+import { documentTypeLabel } from "@/lib/documents/type-label";
 
 
 function fileToBase64(file: File): Promise<string> {
@@ -50,7 +51,7 @@ function DocumentRow({ document, onUploaded }: { document: OutstandingDocument; 
         <div className="flex flex-col gap-0.5">
           <span className="flex items-center gap-2 text-sm font-semibold text-ink-heading">
             <Upload className="h-4 w-4 text-ink-tertiary" aria-hidden="true" />
-            {document.type}
+            {documentTypeLabel(document.type)}
           </span>
           <span className="text-xs text-ink-tertiary">
             {[document.serviceType ? SERVICE_TYPE_LABELS[document.serviceType] : null, document.leadReference, document.bookingDisplayId, document.passengerName]

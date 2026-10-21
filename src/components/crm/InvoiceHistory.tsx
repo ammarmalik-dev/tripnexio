@@ -61,7 +61,7 @@ const SORT_LABELS: Record<InvoiceSort, string> = {
   total_asc: "Lowest total",
 };
 
-const selectClass = cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm");
+const selectClass = cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[110px] max-w-[11rem] shrink-0 text-sm");
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -313,7 +313,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
           </FilterSelect>
 
           <FilterSelect id="invoice-fy" label="Filter by financial year" value={financialYear} onChange={onFilter(setFinancialYear)}>
-            <option value="">All financial years</option>
+            <option value="">All years</option>
             {fyOptions.map((fy) => (
               <option key={fy} value={fy}>
                 FY {fy}
@@ -342,7 +342,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
           </FilterSelect>
 
           <FilterSelect id="invoice-refund" label="Filter by refund status" value={refundState} onChange={onFilter(setRefundState)}>
-            <option value="">Any refund status</option>
+            <option value="">Refund status</option>
             {(Object.keys(REFUND_STATE_LABELS) as InvoiceRefundState[]).map((key) => (
               <option key={key} value={key}>
                 {REFUND_STATE_LABELS[key]}

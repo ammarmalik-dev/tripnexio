@@ -40,6 +40,7 @@ import type { ServiceType, LeadStatus, LeadTemperature, BookingStatus, PaymentSt
 import { ApplicantsTable } from "./ApplicantsTable";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { urgentDeadlineFromDetails } from "@/lib/visa-extension/rules";
+import { documentTypeLabel } from "@/lib/documents/type-label";
 
 /**
  * Client-side pagination for a lead-detail list that can grow without bound
@@ -591,7 +592,7 @@ export function LeadDetail({
                                 // Client testing 2026-10-09 (E10) — per traveller: view, download, upload, validate / reject (with a reason).
                                 <div key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-hairline px-2.5 py-1.5">
                                   <span className="flex flex-wrap items-center gap-2 text-xs text-ink-secondary">
-                                    <span className="font-medium text-ink-primary">{document.type}</span>
+                                    <span className="font-medium text-ink-primary">{documentTypeLabel(document.type)}</span>
                                     <PurgedFileTag purgedAt={document.purgedAt} />
                                     <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
                                     {!document.purgedAt ? (

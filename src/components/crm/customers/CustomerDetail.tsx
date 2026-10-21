@@ -24,6 +24,7 @@ import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { Customer360Communication, Customer360Response } from "@/lib/customers/types";
 import { formatCrmDate, formatCrmDateTime, formatMoney } from "./format";
+import { documentTypeLabel } from "@/lib/documents/type-label";
 
 type FetchState = "loading" | "success" | "error";
 
@@ -465,7 +466,7 @@ export function CustomerDetail({ customerId }: { customerId: string }) {
                 <tbody>
                   {rows.map((document) => (
                     <tr key={document.id} className={rowClass}>
-                      <td className={cn(tdClass, "font-medium text-ink-primary")}>{document.type}</td>
+                      <td className={cn(tdClass, "font-medium text-ink-primary")}>{documentTypeLabel(document.type)}</td>
                       <td className={cn(tdClass, "text-ink-secondary")}>{document.passengerName ?? "—"}</td>
                       <td className={tdClass}>
                         {document.bookingId ? (

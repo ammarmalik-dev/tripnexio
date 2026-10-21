@@ -11,6 +11,7 @@ import { leadReference } from "@/lib/leads/reference";
 import { isUrgentRequest } from "@/lib/crm/urgency";
 import { bookingListWhere } from "@/lib/bookings/list-where";
 import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { newVisaOptionFiller } from "@/lib/new-visa/option-labels";
 import { DIRECT_VENDOR_NAME } from "@/lib/bookings/vendor-names";
 import { countryFlagEmoji } from "@/lib/countries/flag";
 import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest) {
   // here too, not just on the detail route — see
   // feedback_audit_all_readers_of_lazily_synced_state in memory.
   const bookings = await syncExpiredReservations(bookingsRaw);
+  const fillOption = await newVisaOptionFiller(bookings.map((booking) => booking.lead.details));
   // OTB details store the airline code; one lookup for the names on this page.
   const airlineCodes = [...new Set(bookings.map((booking) => (booking.lead.details as Record<string, unknown> | null)?.airline).filter((code): code is string => typeof code === "string"))];
   const airlineNames = new Map(
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
 
   // Client doc 2026-10-15 (C4) — visa type / airline (the selected flight quote's for Special Fare).
   const subServices = await resolveSubServices(
-    bookings.map((booking) => ({ serviceType: booking.lead.serviceType, details: booking.lead.details, airline: booking.lead.quotations[0]?.airline }))
+    bookings.map((booking) => ({ serviceType: booking.lead.serviceType, details: fillOption(booking.lead.details), airline: booking.lead.quotations[0]?.airline }))
   );
   // Client corrections 2026-10-05 — the full operational table.
   const items = bookings.map((booking, index) => ({
@@ -82,7 +84,7 @@ export async function GET(request: NextRequest) {
     // Client testing 2026-10-09 (E13) — flag + short code next to the country, and the service details line.
     countryCode: booking.lead.country?.code ?? null,
     countryFlag: booking.lead.country ? countryFlagEmoji(booking.lead.country) : null,
-    serviceDetails: serviceDetailsLine(booking.lead.serviceType, booking.lead.details, {
+    serviceDetails: serviceDetailsLine(booking.lead.serviceType, fillOption(booking.lead.details), {
       airlineName: airlineNames.get(String((booking.lead.details as Record<string, unknown> | null)?.airline ?? "")) ?? null,
     }),
     travelDate: booking.lead.travelDate ? booking.lead.travelDate.toISOString().slice(0, 10) : null,
