@@ -18,6 +18,7 @@ import { getNewVisaTravelRules } from "../new-visa/travel-rules";
 import { allowedProcessingTypes, productLabel } from "../new-visa/products";
 import { getNewVisaDestinations } from "../new-visa/destinations";
 import { workingDaysBetween } from "../calendar/working-calendar";
+import { computeNewVisaPrice } from "../new-visa/pricing";
 
 export interface ParseResult {
   ok: boolean;
@@ -209,23 +210,33 @@ async function getReturnTicketDestinationOptions() {
   return destinations.map((destination) => ({ value: destination.countryId, label: destination.country.name }));
 }
 
-/** Free-text nationality matched against the Nationality master (exact name, else a single name starting with it). */
-function nationalityStep(): NextField {
+/**
+ * The passport nationality from the Nationality master. A short master (the usual case) is a numbered list like
+ * every other choice; a long one is typed, matched by name or by a word starting with it ("Indian" → India).
+ */
+async function nationalityStep(): Promise<NextField> {
+  const nationalities = await db.nationality.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } });
+  if (nationalities.length <= 15) {
+    return numberedChoiceStep(
+      "nationalityId",
+      "What's your nationality (as on your passport)?",
+      nationalities.map((nationality) => ({ value: nationality.id, label: nationality.name }))
+    );
+  }
   return {
     fieldKey: "nationalityId",
-    prompt: "What's your nationality? (e.g. Indian)",
+    prompt: "What's your nationality (as on your passport)? (e.g. India)",
     parse: async (raw) => {
-      const text = raw.trim();
+      const text = raw.trim().toLowerCase();
       if (text.length < 2) return { ok: false, error: "Please type your nationality." };
-      const exact = await db.nationality.findFirst({ where: { active: true, name: { equals: text, mode: "insensitive" } } });
+      const exact = nationalities.find((nationality) => nationality.name.toLowerCase() === text);
       if (exact) return { ok: true, value: exact.id };
-      const partial = await db.nationality.findMany({
-        where: { active: true, name: { startsWith: text, mode: "insensitive" } },
-        take: 5,
-        orderBy: { name: "asc" },
+      const partial = nationalities.filter((nationality) => {
+        const name = nationality.name.toLowerCase();
+        return name.startsWith(text) || text.startsWith(name);
       });
       if (partial.length === 1) return { ok: true, value: partial[0].id };
-      if (partial.length > 1) return { ok: false, error: `Did you mean one of these? ${partial.map((n) => n.name).join(", ")}` };
+      if (partial.length > 1) return { ok: false, error: `Did you mean one of these? ${partial.slice(0, 5).map((n) => n.name).join(", ")}` };
       return { ok: false, error: "I couldn't find that nationality. Please check the spelling, or type \"agent\" for help." };
     },
   };
@@ -428,6 +439,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
           );
         }
       }
+      // Client 2026-10-22 — the passport nationality, as the website asks: New Visa prices are set per nationality,
+      // so a chat request without it found no price and sent no payment link.
+      if (!has("nationalityId") && (await db.nationality.count({ where: { active: true } })) > 0) return await nationalityStep();
       // Client testing 2026-10-09 (C4) — travel date checked against the
       // Admin TAT (working days): a date too soon for Normal only offers
       // Express; too soon for both asks for a later date. Client doc 2026-10-20 (E10) — counted on the
@@ -444,8 +458,27 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       }
       if (!has("processingType")) {
         const allowed = allowedFor(collected.travelDate);
-        const options = (await getProcessingTypeChoices("NEW_VISA")).filter((option) => (allowed as string[]).includes(option.value));
-        const header = allowed.includes("normal") ? "Which processing type?" : "Normal processing can't meet this travel date — Express is available:";
+        const byDate = (await getProcessingTypeChoices("NEW_VISA")).filter((option) => (allowed as string[]).includes(option.value));
+        // Only the types with an Admin price for this visa + nationality, as on the website, so the request can be paid
+        // straight away. None priced: offer them all — the lead reaches staff, who send the payment link.
+        const configId = collected.newVisaConfigId || (products.length === 1 ? products[0].value : null);
+        const priced = [];
+        for (const option of byDate) {
+          const price = await computeNewVisaPrice({
+            countryCode: collected.destinationCountry,
+            newVisaConfigId: configId,
+            nationalityId: collected.nationalityId || null,
+            processingType: option.value as "normal" | "urgent",
+            travellerPaxTypes: ["ADULT"],
+          });
+          if (price) priced.push(option);
+        }
+        const options = priced.length > 0 ? priced : byDate;
+        const header = options.some((option) => option.value === "normal")
+          ? "Which processing type?"
+          : allowed.includes("normal")
+            ? "Express processing is available:"
+            : "Normal processing can't meet this travel date — Express is available:";
         return numberedChoiceStep("processingType", header, options);
       }
       return passengerStep(collected, true, { noInfants: true });
@@ -482,7 +515,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       const paxQuestion = passengerStep(collected, true, { noInfants: true, withVisaExpiry: true });
       if (paxQuestion) return paxQuestion;
       if (!has("visaLastDate") && !collected.pax1Expiry) return dateStep("visaLastDate", "Visa Expiry Date*", visaChangeRequestSchema.shape.visaLastDate);
-      if (!has("nationalityId")) return nationalityStep();
+      if (!has("nationalityId")) return await nationalityStep();
       return null;
     }
 
@@ -571,6 +604,10 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
     }
     case "NEW_VISA": {
       const applicants = botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, paxType: p.paxType }));
+      // Same keys as the website's New Visa route — priceLeadForDirectPayment() prices by this nationality.
+      const nationality = collected.nationalityId
+        ? await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } })
+        : null;
       return {
         destinationCountry: collected.destinationCountry,
         ...(collected.visaType ? { visaTypeId: collected.visaType } : {}),
@@ -581,6 +618,7 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
               const products = await getNewVisaProductOptions(collected.destinationCountry);
               return products.length === 1 ? { newVisaConfigId: products[0].value } : {};
             })()),
+        ...(nationality ? { nationalityId: nationality.id, nationality: nationality.name } : {}),
         travelDate: collected.travelDate,
         processingType: collected.processingType,
         travelers: String(applicants.length),
@@ -647,14 +685,14 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
 
 /**
  * The bot's Passenger rows, when it knows more than the contact name.
- * Visa Change links the picked nationality so pricing and document rules
- * match it; every other service uses the default single passenger.
+ * Visa Change and New Visa link the picked nationality so pricing and
+ * document rules match it; the others keep the default passengers.
  */
 export async function buildLeadPassengers(
   serviceType: ServiceType,
   collected: Record<string, string>
 ): Promise<LeadPassengerInput[] | undefined> {
-  if (serviceType === "OTB" || serviceType === "RETURN_TICKET" || serviceType === "NEW_VISA" || serviceType === "VISA_EXTENSION") {
+  if (serviceType === "OTB" || serviceType === "RETURN_TICKET" || serviceType === "VISA_EXTENSION") {
     const list = botPassengers(collected);
     return list.length > 0
       ? list.map((p) => ({ fullName: p.fullName ?? collected.fullName, passportNumber: p.passportNumber, paxType: p.paxType }))
@@ -673,7 +711,7 @@ export async function buildLeadPassengers(
       return { fullName: index === 0 ? collected.fullName : `${typeLabel[p.paxType]} ${seen[p.paxType]} (name to be confirmed)`, paxType: p.paxType };
     });
   }
-  if (serviceType !== "VISA_CHANGE") return undefined;
+  if (serviceType !== "VISA_CHANGE" && serviceType !== "NEW_VISA") return undefined;
   const nationality = collected.nationalityId
     ? await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } })
     : null;
