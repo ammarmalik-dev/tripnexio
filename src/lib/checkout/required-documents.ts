@@ -53,16 +53,6 @@ async function getRequirementDocumentTypes(serviceType: ServiceType, countryId: 
 }
 
 /**
- * Default nationality used to look up New Visa's Admin-configured document
- * checklist (`DocumentRequirement`) — New Visa's own form never asks for
- * nationality (the market scope is India-to-GCC, so it's implicitly
- * India), unlike Visa Change which collects it explicitly. A judgment
- * call, not a guess about document *names* — those still come entirely
- * from whatever Admin has configured, never invented here.
- */
-export const NEW_VISA_DEFAULT_NATIONALITY = "India";
-
-/**
  * New Visa's post-payment checklist (New_Visa.md's locked flow step 16:
  * "Document upload," after Booking ID creation) isn't a fixed list the
  * client gave verbatim the way Return Ticket/OTB's were — it comes from the
@@ -77,18 +67,19 @@ export const NEW_VISA_DEFAULT_NATIONALITY = "India";
  * every caller can resolve New Visa's destination country (e.g. a
  * standalone check before a lead exists).
  */
-export async function getNewVisaCheckoutDocumentTypes(countryId?: string | null): Promise<CheckoutDocumentType[]> {
+export async function getNewVisaCheckoutDocumentTypes(countryId?: string | null, nationalityId?: string | null): Promise<CheckoutDocumentType[]> {
   // Client doc 2026-10-15 — New Visa documents are managed on the country's own New Visa page.
   const pageDocuments = await getNewVisaPageDocuments(countryId);
   if (pageDocuments.length > 0) return pageDocuments.map((name) => ({ type: name, label: name, required: true }));
+  const nationality = nationalityId ? await db.nationality.findUnique({ where: { id: nationalityId }, select: { id: true, name: true } }) : null;
   const requirements = await db.documentRequirement.findMany({
     where: {
       serviceType: "NEW_VISA",
       active: true,
       OR: [
         { nationality: null, nationalityId: null },
-        { nationalityRef: { name: { equals: NEW_VISA_DEFAULT_NATIONALITY, mode: "insensitive" } } },
-        { nationalityId: null, nationality: { equals: NEW_VISA_DEFAULT_NATIONALITY, mode: "insensitive" } },
+        // Client 2026-10-23 audit — the traveller's chosen nationality (the form asks it now), not a hard-coded "India".
+        ...(nationality ? [{ nationalityId: nationality.id }, { nationalityId: null, nationality: { equals: nationality.name, mode: "insensitive" as const } }] : []),
       ],
     },
     orderBy: [{ required: "desc" }, { documentName: "asc" }],
@@ -164,7 +155,7 @@ export async function resolveCheckoutDocumentTypes(booking: {
   if (!CHECKOUT_SERVICES.has(serviceType)) return [];
   const details = (booking.lead.details ?? {}) as Record<string, unknown>;
   const countryCode = typeof details.destinationCountry === "string" ? details.destinationCountry : null;
-  // Case-insensitive, same as the nationality match just below in
+  // Case-insensitive, same as the nationality name match in
   // getNewVisaCheckoutDocumentTypes — the live New Visa form submits the
   // real Country.code (uppercase, from /api/countries), but findUnique on
   // `code` is exact-match only, so an older/differently-cased lead (e.g. a
@@ -173,7 +164,9 @@ export async function resolveCheckoutDocumentTypes(booking: {
   const country = countryCode
     ? await db.country.findFirst({ where: { code: { equals: countryCode, mode: "insensitive" } } })
     : null;
-  if (serviceType === "NEW_VISA") return getNewVisaCheckoutDocumentTypes(country?.id ?? null);
+  if (serviceType === "NEW_VISA") {
+    return getNewVisaCheckoutDocumentTypes(country?.id ?? null, typeof details.nationalityId === "string" ? details.nationalityId : null);
+  }
   if (serviceType === "VISA_CHANGE") return getVisaChangeDocumentTypes(booking.id);
   const types = await getRequirementDocumentTypes(serviceType, country?.id ?? null);
   if (serviceType === "FLIGHT_SPECIAL_FARE") return types.length > 0 ? types : [SPECIAL_FARE_DEFAULT_DOCUMENT];

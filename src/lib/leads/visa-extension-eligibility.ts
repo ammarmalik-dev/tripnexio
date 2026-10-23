@@ -55,7 +55,12 @@ export async function checkVisaExtensionEligibility(
   if (customerIds.size === 0) return { eligible: false };
 
   const matchedLead = await db.lead.findFirst({
-    where: { customerId: { in: Array.from(customerIds) }, serviceType: "NEW_VISA", status: "CONVERTED" },
+    where: {
+      customerId: { in: Array.from(customerIds) },
+      serviceType: "NEW_VISA",
+      status: "CONVERTED",
+      bookings: { some: { status: { notIn: ["CANCELLED", "REFUNDED"] }, ...VISA_ISSUED } },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -85,20 +90,33 @@ export interface PriorTripNexioVisa {
 }
 
 /**
- * The latest New Visa booking (on a CONVERTED lead) that has this traveller on
- * it, preferring a live booking over a cancelled/refunded one.
+ * Client 2026-10-23 audit ("WRONG RECORD FOUND") — a New Visa booking counts as "a visa issued through TripNexio"
+ * only once that visa was approved: the visa PDF was delivered, or the booking reached the approved status /
+ * Completed. A paid request still in process, or a cancelled / refunded one, doesn't.
+ */
+const VISA_ISSUED: Prisma.BookingWhereInput = {
+  OR: [
+    { documents: { some: { type: "VISA_PDF" } } },
+    { serviceStatus: { systemEvent: "DELIVERED_VISA_PDF" } },
+    { status: "COMPLETED" },
+  ],
+};
+
+/**
+ * The latest New Visa booking (on a CONVERTED lead) whose visa was issued to this traveller — they are on it and
+ * their own result wasn't rejected or cancelled.
  */
 async function findNewVisaBookingForTraveller(passenger: Prisma.PassengerWhereInput) {
-  const where = (extra: Prisma.BookingWhereInput): Prisma.BookingWhereInput => ({
-    lead: { serviceType: "NEW_VISA", status: "CONVERTED" },
-    passengers: { some: { passenger } },
-    ...extra,
+  return db.booking.findFirst({
+    where: {
+      lead: { serviceType: "NEW_VISA", status: "CONVERTED" },
+      status: { notIn: ["CANCELLED", "REFUNDED"] },
+      passengers: { some: { passenger, OR: [{ outcome: null }, { outcome: "APPROVED" }] } },
+      ...VISA_ISSUED,
+    },
+    orderBy: { createdAt: "desc" },
+    include: { lead: true },
   });
-  const include = { lead: true } as const;
-  return (
-    (await db.booking.findFirst({ where: where({ status: { notIn: ["CANCELLED", "REFUNDED"] } }), orderBy: { createdAt: "desc" }, include })) ??
-    (await db.booking.findFirst({ where: where({}), orderBy: { createdAt: "desc" }, include }))
-  );
 }
 
 /**

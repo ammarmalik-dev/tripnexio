@@ -305,11 +305,12 @@ async function continueCollecting(
     }
 
     // Client doc 2026-10-15 — Visa Extension: thank-you + a link to upload each passenger's passport and visa copies.
-    if (serviceType === "VISA_EXTENSION") {
+    // Client 2026-10-23 audit — Visa Change the same: its quotation also needs the current visa copy.
+    if (serviceType === "VISA_EXTENSION" || serviceType === "VISA_CHANGE") {
       const lead = await db.lead.findUnique({ where: { id: result.leadId }, select: { customerToken: true } });
       const uploadUrl = lead?.customerToken ? `${siteConfig.url}/quote/${lead.customerToken}` : null;
       return {
-        replyText: messages.extensionUploadRequest(result.referenceId, uploadUrl),
+        replyText: messages.extensionUploadRequest(result.referenceId, uploadUrl, SERVICE_TYPE_LABELS[serviceType]),
         ...(uploadUrl ? { replyCta: { label: "Upload Documents", url: uploadUrl } } : {}),
         nextState: "COMPLETED",
         nextServiceType: serviceType,

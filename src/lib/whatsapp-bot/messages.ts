@@ -51,10 +51,13 @@ export function tripNexioVisaNotFound(): string {
   );
 }
 
-/** Client doc 2026-10-15 — Visa Extension lead created: thank-you + link to upload the documents. */
-export function extensionUploadRequest(referenceId: string, uploadUrl: string | null): string {
+/**
+ * Client doc 2026-10-15 — Visa Extension lead created: thank-you + link to upload the documents. Client 2026-10-23
+ * audit — Visa Change too (the website asks the current visa copy before the quotation).
+ */
+export function extensionUploadRequest(referenceId: string, uploadUrl: string | null, serviceLabel = "Visa Extension"): string {
   return (
-    `Thank you! Your Visa Extension request has been received — reference *${referenceId}*.\n\n` +
+    `Thank you! Your ${serviceLabel} request has been received — reference *${referenceId}*.\n\n` +
     (uploadUrl
       ? "Please upload each passenger's passport and visa copies using the button below. "
       : "Our team will contact you for each passenger's passport and visa copies. ") +
