@@ -39,7 +39,7 @@ New Visa / Visa Extension / Visa Change
 - [x] New Visa document checklist falls back to hard-coded "India" nationality (`required-documents.ts:63,90`) instead of the lead's.
 - [ ] Bot: no DOB / guardian step for under-18 (handover §5).
 - [ ] Bot: no expected approval date / prices shown (item 10).
-- [x] VC bot: upload link after the lead (fixed 23 Oct). Nationality per passenger still open. (`engine.ts:302` covers VE only).
+- [x] VC bot: upload link after the lead and nationality per passenger (fixed 23 Oct). (`engine.ts:302` covers VE only).
 - [x] VE "previously received a visa" accepts any converted New Visa booking, and falls back to cancelled/refunded bookings unfiltered (`visa-extension-eligibility.ts:99-133`) — the "WRONG RECORD FOUND" case.
 - [x] VE landing page step 01 says "entry date" (`visa-extension/page.tsx:42`, `site-content/pages.ts:94`); doc: visa expiry date, step titles per doc.
 - [ ] VE option/price cards on the landing page (VE handover §1) — missing.
@@ -48,7 +48,7 @@ New Visa / Visa Extension / Visa Change
 
 CRM / Admin
 - [x] Staff password login + failed logins not audited (`api/crm/auth/login/route.ts`).
-- [ ] WhatsApp chat: no "End chat / hand back to bot"; handed-off number stays silent until customer types menu.
+- [x] WhatsApp chat: no "End chat / hand back to bot"; handed-off number stays silent until customer types menu.
 - [x] Passport auto-extract upload accepts JPG/PNG only (`PassportExtractionReview.tsx:36`); doc: PDF too.
 - [x] Enquiry closed/resolved email can go with an empty remark (note required only for complaints).
 - [ ] Passenger outcome sets booking COMPLETED bypassing the status engine (`passengers/[passengerId]/outcome/route.ts:84`).
