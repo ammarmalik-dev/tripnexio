@@ -269,7 +269,7 @@ export function ServiceStatusControl<TCoarse extends string>({
         {state.all && state.all.length > 0 ? (
           <details className="relative text-left" data-popover>
             <summary className="cursor-pointer text-xs font-medium text-ink-accent select-none">All statuses</summary>
-            <div className="absolute right-0 z-30 mt-2 w-[min(28rem,80vw)] rounded-xl border border-hairline bg-surface-1 p-3 shadow-lg">
+            <div className="absolute right-0 z-30 mt-2 max-h-[70vh] w-[min(28rem,80vw)] overflow-y-auto rounded-xl border border-hairline bg-surface-1 p-3 shadow-lg">
               <p className="mb-2 text-xs text-ink-tertiary">Every status for this service. You can move only to the ones marked &ldquo;Next&rdquo;.</p>
               <table className="w-full border-collapse text-xs">
                 <thead>

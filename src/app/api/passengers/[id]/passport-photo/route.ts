@@ -15,7 +15,8 @@ interface RouteParams {
 
 const bodySchema = z.object({
   imageBase64: z.string().min(1, "Choose an image to upload"),
-  mimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"], { error: "Unsupported image type" }),
+  // Client doc 2026-10-20 — CRM uploads take PDF too (both OCR providers read a PDF passport).
+  mimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"], { error: "Upload a PDF, PNG or JPG file" }),
 });
 
 /**

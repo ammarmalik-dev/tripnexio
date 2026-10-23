@@ -5,6 +5,8 @@ import { authenticateStaff } from "@/lib/auth/staff";
 import { createStaffSessionToken, SESSION_COOKIE_NAME, SESSION_TTL_SECONDS } from "@/lib/auth/session";
 import { isRateLimited } from "@/lib/auth/rate-limit";
 import { canAccessAdminSection } from "@/lib/auth/permissions";
+import { writeAudit } from "@/lib/audit/log";
+import { db } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
@@ -26,6 +28,8 @@ export async function POST(request: NextRequest) {
 
   const staff = await authenticateStaff(parsed.data.email, parsed.data.password);
   if (!staff) {
+    // Admin FINAL handover §19 — failed staff logins are audited too (the email tried and the IP; never the password).
+    await writeAudit(db, { entityType: "StaffLogin", entityId: parsed.data.email.trim().toLowerCase(), action: "LOGIN_FAILED", note: `Failed staff login from ${ip}` });
     // Deliberately generic — never reveal whether the email exists.
     return jsonError(401, "Invalid email or password.");
   }
@@ -34,6 +38,14 @@ export async function POST(request: NextRequest) {
   if (parsed.data.loginType === "admin" && !adminAccess) {
     return jsonError(403, "You are not authorised for Administrative Login. Please use Team Login.");
   }
+
+  await writeAudit(db, {
+    entityType: "User",
+    entityId: staff.id,
+    action: "LOGIN",
+    byUserId: staff.id,
+    note: `Signed in (${parsed.data.loginType === "admin" ? "Administrative" : "Team"} Login) from ${ip}`,
+  });
 
   const token = await createStaffSessionToken({
     sub: staff.id,

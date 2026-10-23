@@ -76,8 +76,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const status = changes.status ?? existing.status;
   const resolutionNote = changes.resolutionNote !== undefined ? changes.resolutionNote : existing.resolutionNote;
   const closing = (status === "RESOLVED" || status === "CLOSED") && status !== existing.status;
-  if (closing && category === "COMPLAINT" && !resolutionNote) {
-    return jsonError(400, "Add a resolution note before resolving or closing a complaint.", { resolutionNote: ["Describe how the complaint was resolved."] });
+  // Client doc 2026-10-20 — the customer is emailed "with remark" when an enquiry is resolved or closed, so every
+  // closure needs one (complaints already did).
+  if (closing && !resolutionNote?.trim()) {
+    return jsonError(400, "Add a resolution note before resolving or closing — the customer receives it by email.", {
+      resolutionNote: [category === "COMPLAINT" ? "Describe how the complaint was resolved." : "Add a short remark for the customer."],
+    });
   }
   if (changes.assignedStaffId) {
     const staff = await db.user.findUnique({ where: { id: changes.assignedStaffId }, select: { active: true } });

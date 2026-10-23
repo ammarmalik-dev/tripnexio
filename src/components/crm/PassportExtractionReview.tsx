@@ -33,7 +33,7 @@ interface ExtractionData {
   crossCheck?: unknown;
 }
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png"];
+const ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 
 function toBase64(file: File): Promise<{ base64: string; mimeType: string }> {
   return new Promise((resolve, reject) => {
@@ -168,7 +168,7 @@ export function PassportExtractionReview({ passengerId }: { passengerId: string 
     event.target.value = "";
     if (!file) return;
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error("Please upload a JPG or PNG image.");
+      toast.error("Please upload a PDF, PNG or JPG file.");
       return;
     }
     if (file.size > DOCUMENT_UPLOAD_MAX_BYTES) {
@@ -199,7 +199,7 @@ export function PassportExtractionReview({ passengerId }: { passengerId: string 
       ) : (
         <label className={cn(FILE_BUTTON_CLASS, uploading && "pointer-events-none opacity-60")}>
           <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
-          {uploading ? "Uploading..." : "Upload Passport Photo (auto-extract)"}
+          {uploading ? "Uploading..." : "Upload Passport (auto-extract)"}
           <input type="file" accept={ALLOWED_TYPES.join(",")} className="hidden" disabled={uploading} onChange={(e) => void handleUpload(e)} />
         </label>
       )}

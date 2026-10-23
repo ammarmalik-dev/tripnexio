@@ -44,7 +44,8 @@ export function RecordHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="flex flex-col gap-3">
+    // relative z-20: the status popovers inside the header stay above the tabs / Tasks card below (client screenshot 21 Oct).
+    <header className="relative z-20 flex flex-col gap-3">
       <Link
         href={backHref}
         className="inline-flex w-fit items-center gap-1.5 text-sm text-ink-secondary transition-colors duration-150 hover:text-ink-primary"
