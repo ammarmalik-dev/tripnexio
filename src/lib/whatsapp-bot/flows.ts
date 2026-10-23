@@ -214,20 +214,30 @@ async function getReturnTicketDestinationOptions() {
  * The passport nationality from the Nationality master. A short master (the usual case) is a numbered list like
  * every other choice; a long one is typed, matched by name or by a word starting with it ("Indian" → India).
  */
-async function nationalityStep(): Promise<NextField> {
+/**
+ * The passport nationality from the Nationality master. Client 2026-10-23 audit (Visa Change handover §2) — asked
+ * per passenger too: `fieldKey` / `question` name the passenger and `same` lets them reply "same" as passenger 1.
+ */
+async function nationalityStep(
+  fieldKey = "nationalityId",
+  question = "What's your nationality (as on your passport)?",
+  same?: { id: string; name: string }
+): Promise<NextField> {
   const nationalities = await db.nationality.findMany({ where: { active: true }, orderBy: { name: "asc" }, select: { id: true, name: true } });
-  if (nationalities.length <= 15) {
+  const sameHint = same ? ` Reply "same" if it's ${same.name}.` : "";
+  if (nationalities.length <= 15 && !same) {
     return numberedChoiceStep(
-      "nationalityId",
-      "What's your nationality (as on your passport)?",
+      fieldKey,
+      question,
       nationalities.map((nationality) => ({ value: nationality.id, label: nationality.name }))
     );
   }
   return {
-    fieldKey: "nationalityId",
-    prompt: "What's your nationality (as on your passport)? (e.g. India)",
+    fieldKey,
+    prompt: `${question}${same ? sameHint : " (e.g. India)"}`,
     parse: async (raw) => {
       const text = raw.trim().toLowerCase();
+      if (same && text === "same") return { ok: true, value: same.id };
       if (text.length < 2) return { ok: false, error: "Please type your nationality." };
       const exact = nationalities.find((nationality) => nationality.name.toLowerCase() === text);
       if (exact) return { ok: true, value: exact.id };
@@ -534,6 +544,17 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       if (paxQuestion) return paxQuestion;
       if (!has("visaLastDate") && !collected.pax1Expiry) return dateStep("visaLastDate", "Visa Expiry Date*", visaChangeRequestSchema.shape.visaLastDate);
       if (!has("nationalityId")) return await nationalityStep();
+      // Client 2026-10-23 audit (Visa Change handover §2) — each passenger's own nationality (fees and documents
+      // differ by nationality); "same" keeps passenger 1's.
+      for (const passenger of botPassengers(collected)) {
+        if (passenger.index === 1 || has(`pax${passenger.index}Nationality`)) continue;
+        const first = await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } });
+        return await nationalityStep(
+          `pax${passenger.index}Nationality`,
+          `Passenger ${passenger.index} (${passenger.fullName ?? "traveller"}) — nationality as on the passport?`,
+          first ?? undefined
+        );
+      }
       return null;
     }
 
@@ -730,12 +751,16 @@ export async function buildLeadPassengers(
     });
   }
   if (serviceType !== "VISA_CHANGE" && serviceType !== "NEW_VISA") return undefined;
-  const nationality = collected.nationalityId
-    ? await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } })
-    : null;
   const list = botPassengers(collected);
+  // Visa Change asks each passenger's nationality (pax{n}Nationality); otherwise every passenger has passenger 1's.
+  const idFor = (index: number) => (serviceType === "VISA_CHANGE" && collected[`pax${index}Nationality`]) || collected.nationalityId;
+  const ids = [...new Set(list.map((p) => idFor(p.index)).filter((id): id is string => Boolean(id)))];
+  const nationalities = ids.length > 0 ? await db.nationality.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } }) : [];
   return list.length > 0
-    ? list.map((p) => ({ fullName: p.fullName ?? collected.fullName, passportNumber: p.passportNumber, nationality: nationality?.name, nationalityId: nationality?.id, paxType: p.paxType }))
+    ? list.map((p) => {
+        const nationality = nationalities.find((row) => row.id === idFor(p.index));
+        return { fullName: p.fullName ?? collected.fullName, passportNumber: p.passportNumber, nationality: nationality?.name, nationalityId: nationality?.id, paxType: p.paxType };
+      })
     : undefined;
 }
 
