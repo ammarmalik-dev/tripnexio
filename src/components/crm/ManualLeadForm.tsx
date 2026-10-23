@@ -404,7 +404,10 @@ export function ManualLeadForm() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <TextField {...numberField("adultCount")} type="number" min={1} name="adultCount" label="Adults" error={errors.adultCount?.message} required />
           <TextField {...numberField("childCount")} type="number" min={0} name="childCount" label="Children" error={errors.childCount?.message} />
-          <TextField {...numberField("infantCount")} type="number" min={0} name="infantCount" label="Infants" error={errors.infantCount?.message} />
+          {/* New Visa / Visa Change: Adult and Child only (client 2026-10-05). */}
+          {serviceType !== "NEW_VISA" && serviceType !== "VISA_CHANGE" && (
+            <TextField {...numberField("infantCount")} type="number" min={0} name="infantCount" label="Infants" error={errors.infantCount?.message} />
+          )}
         </div>
       )}
 

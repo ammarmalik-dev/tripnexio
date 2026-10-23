@@ -114,3 +114,22 @@ export async function computeNewVisaPrice(input: {
 
   return { ratePerType, travellerCount: input.travellerPaxTypes.length, total, vendorCost, invoiceLines };
 }
+
+/**
+ * Client 2026-10-23 — "lead ban rahi hai, payment ka option nahi": the passenger types (Adult / Child) priced for
+ * this selection. The website, the bot and the intake route use it so a request is never taken for a traveller
+ * type that has no price (such a lead could never be paid — New Visa has no quotation).
+ */
+export async function pricedNewVisaPaxTypes(input: Omit<Parameters<typeof computeNewVisaPrice>[0], "travellerPaxTypes">): Promise<PaxType[]> {
+  const priced: PaxType[] = [];
+  for (const paxType of ["ADULT", "CHILD"] as const) {
+    if (await computeNewVisaPrice({ ...input, travellerPaxTypes: [paxType] })) priced.push(paxType);
+  }
+  return priced;
+}
+
+/** True when Admin has set any New Visa price for the destination; without one it stays "Price on Request". */
+export async function countryHasNewVisaPrices(countryCode: string): Promise<boolean> {
+  const count = await db.pricingRule.count({ where: { serviceType: "NEW_VISA", active: true, country: { code: countryCode, active: true } } });
+  return count > 0;
+}

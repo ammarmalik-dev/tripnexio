@@ -21,6 +21,7 @@ import type { ServiceType } from "../../generated/prisma/enums";
 const SERVICE_TYPES = ["NEW_VISA", "VISA_EXTENSION", "VISA_CHANGE", "FLIGHT_SPECIAL_FARE", "RETURN_TICKET", "OTB"] as const;
 /** Paid straight from the chat (no quotation) — client testing 2026-10-09. */
 const DIRECT_PAYMENT = new Set<ServiceType>(["NEW_VISA", "OTB", "RETURN_TICKET"]);
+const AGENT_RE = /^(agent|human|talk to (an )?agent|customer care|agent se baat)[.!]?$/i;
 /** "status", "track", "where is my visa"… — answered in the chat. */
 const TRACK_RE = /^(status|track|tracking|my status|check status|track (my )?(request|booking|status)|where is my (visa|booking|ticket|otb))\b/i;
 import type { WhatsAppConversation } from "../../generated/prisma/client";
@@ -109,6 +110,11 @@ export async function handleInboundMessage(
     }
 
     if (effectiveState === "COLLECTING" && conversation.serviceType) {
+      // Client 2026-10-23 — the bot's own replies say 'type "agent" for help' mid-flow; that now reaches the team
+      // (the webhook keeps the details collected so far on the captured lead).
+      if (AGENT_RE.test(trimmed)) {
+        return { replyText: messages.handoff("Sure —"), nextState: "HANDED_OFF", nextServiceType: conversation.serviceType, nextCollectedFields: {} };
+      }
       return await continueCollecting(conversation.serviceType, conversation.waId, conversation.collectedFields as Record<string, string>, trimmed);
     }
 

@@ -18,7 +18,7 @@ import { getNewVisaTravelRules } from "../new-visa/travel-rules";
 import { allowedProcessingTypes, productLabel } from "../new-visa/products";
 import { getNewVisaDestinations } from "../new-visa/destinations";
 import { workingDaysBetween } from "../calendar/working-calendar";
-import { computeNewVisaPrice } from "../new-visa/pricing";
+import { countryHasNewVisaPrices, pricedNewVisaPaxTypes } from "../new-visa/pricing";
 
 export interface ParseResult {
   ok: boolean;
@@ -309,15 +309,25 @@ function passengerStep(
     noInfants?: boolean;
     /** Visa Extension: each passenger's visa expiry date (no DOB asked on WhatsApp). */
     withVisaExpiry?: boolean;
+    /** New Visa: the chosen option has no Child price, so children can't be booked in chat (client 2026-10-23). */
+    noChildren?: boolean;
   } = {}
 ): NextField | null {
-  const { sameRateForAll = false, noInfants = false, withVisaExpiry = false } = options;
+  const { sameRateForAll = false, noInfants = false, withVisaExpiry = false, noChildren = false } = options;
   if (sameRateForAll) {
     if (!("adults" in collected)) return textStep("adults", `How many passengers? (1 to ${MAX_PAX})`, countValidator(1));
   } else {
     for (const kind of PAX_KINDS) {
       if (noInfants && kind.key === "infants") continue;
       const prompt = noInfants && kind.key === "adults" ? "How many adults (18 years and above)?" : noInfants && kind.key === "children" ? "How many children (under 18)? Reply 0 if none." : kind.prompt;
+      if (noChildren && kind.key === "children" && !(kind.key in collected)) {
+        return textStep(
+          kind.key,
+          `${prompt}
+(Children can't be booked online for this visa option yet — type "agent" if a child is travelling.)`,
+          z.string().trim().refine((value) => value === "0", `Children can't be booked online for this option yet. Reply 0, or type "agent" for help.`)
+        );
+      }
       if (!(kind.key in collected)) return textStep(kind.key, prompt, countValidator(kind.min));
     }
   }
@@ -456,24 +466,31 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
             : null
         );
       }
+      // Client 2026-10-23 — a destination with Admin prices offers only the types priced for this visa + nationality
+      // (Adult price; children are checked below), so every chat request can be paid. A destination with no price at
+      // all stays Price on Request: every type is offered and the lead reaches staff.
+      const configId = collected.newVisaConfigId || (products.length === 1 ? products[0].value : null);
+      const hasPrices = await countryHasNewVisaPrices(collected.destinationCountry);
+      const pricedFor = (processingType: string) =>
+        pricedNewVisaPaxTypes({
+          countryCode: collected.destinationCountry,
+          newVisaConfigId: configId,
+          nationalityId: collected.nationalityId || null,
+          processingType: processingType as "normal" | "urgent",
+        });
       if (!has("processingType")) {
         const allowed = allowedFor(collected.travelDate);
         const byDate = (await getProcessingTypeChoices("NEW_VISA")).filter((option) => (allowed as string[]).includes(option.value));
-        // Only the types with an Admin price for this visa + nationality, as on the website, so the request can be paid
-        // straight away. None priced: offer them all — the lead reaches staff, who send the payment link.
-        const configId = collected.newVisaConfigId || (products.length === 1 ? products[0].value : null);
         const priced = [];
-        for (const option of byDate) {
-          const price = await computeNewVisaPrice({
-            countryCode: collected.destinationCountry,
-            newVisaConfigId: configId,
-            nationalityId: collected.nationalityId || null,
-            processingType: option.value as "normal" | "urgent",
-            travellerPaxTypes: ["ADULT"],
-          });
-          if (price) priced.push(option);
+        for (const option of byDate) if ((await pricedFor(option.value)).includes("ADULT")) priced.push(option);
+        if (hasPrices && priced.length === 0) {
+          return {
+            fieldKey: "processingType",
+            prompt: `Online booking isn't open yet for this visa with your nationality and travel date. Type "agent" to talk to our team, or "menu" to start over.`,
+            parse: () => ({ ok: false, error: `Online booking isn't open yet for this selection. Type "agent" for help, or "menu" to start over.` }),
+          };
         }
-        const options = priced.length > 0 ? priced : byDate;
+        const options = hasPrices ? priced : byDate;
         const header = options.some((option) => option.value === "normal")
           ? "Which processing type?"
           : allowed.includes("normal")
@@ -481,7 +498,8 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
             : "Normal processing can't meet this travel date — Express is available:";
         return numberedChoiceStep("processingType", header, options);
       }
-      return passengerStep(collected, true, { noInfants: true });
+      const noChildren = hasPrices && !(await pricedFor(collected.processingType)).includes("CHILD");
+      return passengerStep(collected, true, { noInfants: true, noChildren });
     }
 
     case "VISA_EXTENSION": {

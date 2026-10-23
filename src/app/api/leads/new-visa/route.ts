@@ -17,7 +17,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { handleOptionalPassportUpload } from "@/lib/ocr/handle-passport-upload";
 import { findNewVisaTravellerIssues } from "@/lib/validation/new-visa-schema";
 import { computeNewVisaPaxType } from "@/lib/leads/pax-type";
-import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
+import { computeNewVisaPrice, countryHasNewVisaPrices, pricedNewVisaPaxTypes } from "@/lib/new-visa/pricing";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { describeError } from "@/lib/api/describe-error";
 import { getProtectionPlanOffer } from "@/lib/protection-plan/country-offer";
@@ -178,6 +178,24 @@ export async function POST(request: NextRequest) {
   }
 
   const paxTypes = travellers.map((t) => computeNewVisaPaxType(t.dob, travelDate));
+
+  // Client 2026-10-23 — a destination with Admin prices takes a request only when every traveller's type is priced
+  // for this option; otherwise the lead could never be paid. A destination with no price at all stays Price on Request.
+  if (await countryHasNewVisaPrices(destinationCountry)) {
+    const priced = await pricedNewVisaPaxTypes({
+      countryCode: destinationCountry,
+      newVisaConfigId: product?.id ?? null,
+      nationalityId: nationality?.id ?? null,
+      processingType,
+    });
+    const missing = [...new Set(paxTypes)].filter((paxType) => !priced.includes(paxType));
+    if (missing.length > 0) {
+      const who = missing.map((paxType) => (paxType === "CHILD" ? "children" : "adults")).join(" and ");
+      return jsonError(400, `${processingOption.label} processing isn't available for ${who} on this visa yet. Please choose another processing type, or contact us on WhatsApp.`, {
+        processingType: [`No price is set for ${who} with this option.`],
+      });
+    }
+  }
 
   try {
     const result = await createLeadFromSubmission({

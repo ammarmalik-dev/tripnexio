@@ -9,10 +9,12 @@ import type { ManualLeadValues } from "../validation/manual-lead-schema";
 /** The Manual Lead form's travellers by type (OTB / Return Ticket ask one count). */
 export function manualLeadPaxTypes(data: ManualLeadValues): PaxType[] {
   const single = data.serviceType === "OTB" || data.serviceType === "RETURN_TICKET";
+  // New Visa / Visa Change have Adult and Child only (client 2026-10-05): an infant is priced as a Child, as on the website.
+  const childOnly = data.serviceType === "NEW_VISA" || data.serviceType === "VISA_CHANGE";
   return [
     ...Array<PaxType>(data.adultCount).fill("ADULT"),
-    ...Array<PaxType>(single ? 0 : data.childCount).fill("CHILD"),
-    ...Array<PaxType>(single ? 0 : data.infantCount).fill("INFANT"),
+    ...Array<PaxType>(single ? 0 : data.childCount + (childOnly ? data.infantCount : 0)).fill("CHILD"),
+    ...Array<PaxType>(single || childOnly ? 0 : data.infantCount).fill("INFANT"),
   ];
 }
 

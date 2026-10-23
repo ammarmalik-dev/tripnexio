@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { rateLimitByIp } from "@/lib/auth/rate-limit";
-import { computeNewVisaPrice } from "@/lib/new-visa/pricing";
+import { computeNewVisaPrice, countryHasNewVisaPrices, pricedNewVisaPaxTypes } from "@/lib/new-visa/pricing";
 import { computeNewVisaPaxType } from "@/lib/leads/pax-type";
 import { getTaxFeeRates } from "@/lib/settings/tax-fee-config";
 import type { PaxType } from "@/generated/prisma/enums";
@@ -50,7 +50,18 @@ export async function POST(request: NextRequest) {
     processingType: parsed.data.processingType,
     travellerPaxTypes: paxTypes,
   });
-  if (!breakdown) return jsonSuccess({ configured: false });
+  if (!breakdown) {
+    // Client 2026-10-23 — say which traveller type has no price, so the customer can pick another option
+    // (the intake route refuses such a request).
+    if (!(await countryHasNewVisaPrices(parsed.data.countryCode))) return jsonSuccess({ configured: false });
+    const priced = await pricedNewVisaPaxTypes({
+      countryCode: parsed.data.countryCode,
+      newVisaConfigId: parsed.data.newVisaConfigId ?? null,
+      nationalityId: parsed.data.nationalityId || null,
+      processingType: parsed.data.processingType,
+    });
+    return jsonSuccess({ configured: false, missingPaxTypes: [...new Set(paxTypes)].filter((paxType) => !priced.includes(paxType)) });
+  }
 
   const rateFor: Record<PaxType, number> = {
     ADULT: breakdown.ratePerType.adultPrice,

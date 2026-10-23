@@ -10,7 +10,7 @@ interface PreviewLine {
   price: number;
 }
 
-type Preview = { configured: false } | { configured: true; lines: PreviewLine[]; subtotal: number; gst: number; gatewayFee: number; total: number };
+type Preview = { configured: false; missingPaxTypes?: PreviewLine["paxType"][] } | { configured: true; lines: PreviewLine[]; subtotal: number; gst: number; gatewayFee: number; total: number };
 
 const PAX_LABELS: Record<PreviewLine["paxType"], string> = { ADULT: "Adult", CHILD: "Child", INFANT: "Infant" };
 const RUPEES = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
@@ -63,6 +63,15 @@ export function NewVisaPricePreview({
     };
   }, [countryCode, newVisaConfigId, nationalityId, processingType, travelDate, travellersKey]);
 
+  if (preview && !preview.configured && preview.missingPaxTypes && preview.missingPaxTypes.length > 0) {
+    const who = preview.missingPaxTypes.map((paxType) => (paxType === "CHILD" ? "children" : "adults")).join(" and ");
+    return (
+      <p role="alert" className="rounded-lg border border-error/30 bg-error/5 px-4 py-3 text-sm text-ink-primary">
+        This processing type isn&apos;t available for {who} on this visa yet. Please go back to Visa Details and choose
+        another processing type, or contact us on WhatsApp.
+      </p>
+    );
+  }
   if (failed || (preview && !preview.configured)) {
     return (
       <p className="rounded-lg bg-surface-2 px-4 py-3 text-sm text-ink-secondary">
