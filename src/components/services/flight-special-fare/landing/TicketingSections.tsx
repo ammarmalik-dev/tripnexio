@@ -31,14 +31,14 @@ export function BaggageAndRefundSection() {
               Cancellation depends on the applicable fare rules
             </h2>
             <p className="text-sm text-ink-secondary sm:text-base">
-              Cancellation and refund eligibility depends on the applicable airline/vendor rules and configured charges.
+              Cancellation and refund eligibility depends on the applicable airline/partner rules and configured charges.
             </p>
             <div className="flex flex-col gap-1.5 rounded-md border border-hairline bg-surface-1 px-4 py-3">
               <span className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">
                 Configured refund calculation:
               </span>
               <p className="text-sm font-medium text-ink-heading">
-                Paid Amount − Vendor/Airline Cancellation Charge − Gateway Charge
+                Paid Amount − Airline/Partner Cancellation Charge − Gateway Charge
               </p>
             </div>
           </GlassCard>
@@ -48,11 +48,9 @@ export function BaggageAndRefundSection() {
   );
 }
 
-// Locked content — doc §14 "When your ticket is issued".
+// Locked content — doc §14 "When your ticket is issued"; client doc 2026-10-20: PNR only (no ticket number / vendor reference / issue time).
 const ticketContents = [
-  "Ticket number",
-  "PNR / vendor reference",
-  "Ticket issue time",
+  "PNR",
   "Passenger details",
   "Airline",
   "Flight",

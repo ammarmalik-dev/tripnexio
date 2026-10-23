@@ -39,7 +39,7 @@ const whatYoullNeed = [
 // Client correction 2026-10-05 — compact 4 steps. Step 2 checks the visa and
 // documents, not the passengers.
 const visaProcessSteps = [
-  { step: "01", icon: ClipboardCheck, headline: "Start Your Extension Request", supportingCopy: "Confirm your UAE entry date and required extension details." },
+  { step: "01", icon: ClipboardCheck, headline: "Start Your Extension Request", supportingCopy: "Enter your name, mobile number, email address, passport number and visa expiry date." },
   { step: "02", icon: ShieldCheck, headline: "We Verify Your Visa & Documents", supportingCopy: "Our team checks your TripNexio-issued visa, actual expiry and required documents for eligibility." },
   { step: "03", icon: CreditCard, headline: "Review & Pay", supportingCopy: "Once verification is complete, review the quotation and complete payment." },
   { step: "04", icon: Send, headline: "Receive Your Extended Visa", supportingCopy: "We process the extension and send the extended visa copy by WhatsApp and email." },

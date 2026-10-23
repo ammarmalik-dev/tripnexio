@@ -116,7 +116,7 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
                 {applyLabel}
               </ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-                Track Status
+                Track Application
               </ButtonLink>
             </div>
           </MotionReveal>

@@ -60,7 +60,7 @@ export function Step3Summary() {
         ) : null}
       </div>
       <p className="rounded-lg bg-surface-2 px-4 py-3 text-xs text-ink-tertiary">
-        No refund once your request has been forwarded to the airline/vendor or after the ticket is issued.
+        No refund once your request has been forwarded to the airline/partner or after the ticket is issued.
       </p>
       {values.additionalApplicants.map((applicant, index) => (
         <div key={index} className="rounded-xl border border-hairline bg-surface-1 px-5">

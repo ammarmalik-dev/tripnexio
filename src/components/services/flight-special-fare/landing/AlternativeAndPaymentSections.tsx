@@ -89,7 +89,7 @@ export function AfterPaymentSection() {
             align="center"
             eyebrow="Final availability confirmation"
             title="Payment starts the final confirmation process"
-            description="Payment does not automatically mean the ticket has been issued. After payment, our team/vendor confirms the final seat and fare."
+            description="Payment does not automatically mean the ticket has been issued. After payment, our team and airline partner confirm the final seat and fare."
             className="mx-auto"
           />
         </MotionReveal>

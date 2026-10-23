@@ -91,7 +91,7 @@ export const SITE_PAGE_DEFS: Record<SitePage, SitePageDef> = {
         "Extend an existing UAE visa originally issued through TripNexio. Submit your details online — our team verifies your visa and handles the extension process from there.",
       applyLabel: "Apply for Visa Extension",
       steps: [
-        ["Start Your Extension Request", "Confirm your UAE entry date and required extension details."],
+        ["Start Your Extension Request", "Enter your name, mobile number, email address, passport number and visa expiry date."],
         ["We Verify Your Visa & Documents", "Our team checks your TripNexio-issued visa, actual expiry and required documents for eligibility."],
         ["Review & Pay", "Once verification is complete, review the quotation and complete payment."],
         ["Receive Your Extended Visa", "We process the extension and send the extended visa copy by WhatsApp and email."],
