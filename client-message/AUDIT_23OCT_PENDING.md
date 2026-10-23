@@ -7,10 +7,11 @@ Tick `[x]` as each item is fixed.
 
 ## P0 — blocks launch
 
-- [ ] **No scheduler on the VPS.** Root crontab empty, no n8n container, 0 Coolify scheduled tasks (checked 23 Oct). Schedules exist only in
+- [x] **No scheduler on the VPS.** Root crontab empty, no n8n container, 0 Coolify scheduled tasks (checked 23 Oct). Schedules exist only in
       `vercel.json` (Vercel is no longer production). So quote-expiry, SF 10-min reminders, payment/document reminders, lead follow-up,
       staff-alerts (travel 24 h → task + On Hold), SLA escalation, retention, RT auto-complete have never run live.
-      Fix: Coolify scheduled tasks (or VPS cron) calling `/api/automation/*` with `AUTOMATION_API_KEY`, same cadence as `vercel.json`.
+      Done 23 Oct: 11 Coolify scheduled tasks (n8n cadence: quote-expiry 5 min, payment/coupons/staff-alerts hourly, SLA :15, daily jobs).
+      `lead-followup` left off (client doc 20 Oct removed Follow-up Due) — confirm with the client.
 - [ ] **New Visa lead with no way to pay** (items 1–3 fixed 23 Oct; a destination with no price at all stays Price on Request) (client: "lead ban rahi hai, payment option nahi"):
   - [x] Website offers a processing type when *either* Adult or Child is priced (`StepVisaDetails.tsx:122` `offered()`); an unpriced pax type → `computeNewVisaPrice` null → lead without link. Offer only when every traveller's type is priced; block submit otherwise.
   - [x] Bot prices ADULT only and, if nothing is priced, offers every type (`whatsapp-bot/flows.ts:465-476`). Price with real adult/child counts; never offer an unpriced type.
@@ -24,13 +25,13 @@ Tick `[x]` as each item is fixed.
 ## P1 — doc requirements not (fully) done
 
 Special Fare / Return Ticket / OTB
-- [ ] SF quote validity optional → quote can never expire / stays payable (`quotation-schema.ts:12`, `validity-cap.ts:25`). Required for SF, default now+30 min, clamp 30.
-- [ ] SF Confirm Availability → Sent to Airlines without checking Govt ID documents validated (`post-payment.ts:163`). Add the same block as `vendorChoiceBlock`.
+- [x] SF quote validity optional → quote can never expire / stays payable (`quotation-schema.ts:12`, `validity-cap.ts:25`). Required for SF, default now+30 min, clamp 30.
+- [x] SF Confirm Availability → Sent to Airlines without checking Govt ID documents validated (`post-payment.ts:163`). Add the same block as `vendorChoiceBlock`.
 - [ ] SF "Seat Unavailable" (SF_27) never entered by the system (`post-payment.ts:210-245`).
-- [ ] SF Paid + Final Confirmation sent together → invoice attached twice (`engine.ts:336`).
-- [ ] SF alternative form still has "Reporting time" (`SpecialFareAlternativeForm.tsx:116`); doc: same fields as main form.
+- [x] SF Paid + Final Confirmation sent together → invoice attached twice (`engine.ts:336`).
+- [x] SF alternative form still has "Reporting time" (`SpecialFareAlternativeForm.tsx:116`); doc: same fields as main form.
 - [ ] Legacy lead-followup job still sends `LEAD_FOLLOWUP` (doc: "Follow-up Due and its templates removed") (`automation/lead-followup/route.ts:81-104`).
-- [ ] RT "Deliver to customer" still offers Reservation + Ticket; picking Ticket doesn't move to Ticket Issued (`output-types.ts:41`). One output "Return Verified Ticket".
+- [x] RT "Deliver to customer" still offers Reservation + Ticket; picking Ticket doesn't move to Ticket Issued (`output-types.ts:41`). One output "Return Verified Ticket".
 - [ ] RT panel "Save vendor / PNR" reposts the old vendorCost (NaN when null) (`ReturnTicketActionsPanel.tsx:56-60,117-122`). Look up the rate server-side.
 - [ ] RT/OTB website request: client template `RVT_NEW` / `OTB_01_NEW` has "Track Status" button and no pax/destination/date (14/15 Oct asked Pay Now + trip summary). Regression since status templates.
 
@@ -40,10 +41,10 @@ New Visa / Visa Extension / Visa Change
 - [ ] Bot: no expected approval date / prices shown (item 10).
 - [ ] VC bot: nationality asked once (not per passenger); no visa-copy upload link after the lead (`engine.ts:302` covers VE only).
 - [ ] VE "previously received a visa" accepts any converted New Visa booking, and falls back to cancelled/refunded bookings unfiltered (`visa-extension-eligibility.ts:99-133`) — the "WRONG RECORD FOUND" case.
-- [ ] VE landing page step 01 says "entry date" (`visa-extension/page.tsx:42`, `site-content/pages.ts:94`); doc: visa expiry date, step titles per doc.
+- [x] VE landing page step 01 says "entry date" (`visa-extension/page.tsx:42`, `site-content/pages.ts:94`); doc: visa expiry date, step titles per doc.
 - [ ] VE option/price cards on the landing page (VE handover §1) — missing.
 - [ ] New Visa Admin Timelines tab still shows the generic service card above per-country timelines (`ServiceTimelinesManager.tsx:288`).
-- [ ] New Visa hero secondary button "Track Status" → doc "Track Application".
+- [x] New Visa hero secondary button "Track Status" → doc "Track Application".
 
 CRM / Admin
 - [ ] Staff password login + failed logins not audited (`api/crm/auth/login/route.ts`).
@@ -63,9 +64,9 @@ CRM / Admin
 - [ ] 21 Oct screenshot: booking "All statuses" popover is covered by the Tasks card (z-index); booking Communications shows the customer's unrelated New Visa chat.
 
 Copy / templates
-- [ ] "vendor" still in customer copy: `flight-special-fare/landing/AlternativeAndPaymentSections.tsx:92`, `TicketingSections.tsx:34,41,54`, `return-ticket/steps/Step3Summary.tsx:63`, `legal/default-pages.ts` (Terms §4/5/7, Privacy §4, Refund, Disclaimer).
-- [ ] SF landing still lists "Ticket number / PNR / vendor reference / Ticket issue time" (`TicketingSections.tsx:51-60`); doc: PNR only.
-- [ ] RT request page meta says "Share your visa type" (`return-ticket/request/page.tsx:7`); RT FAQ #2 typo "return or return ticket" (needs a migration).
+- [x] "vendor" still in customer copy: `flight-special-fare/landing/AlternativeAndPaymentSections.tsx:92`, `TicketingSections.tsx:34,41,54`, `return-ticket/steps/Step3Summary.tsx:63`, `legal/default-pages.ts` (Terms §4/5/7, Privacy §4, Refund, Disclaimer).
+- [x] SF landing still lists "Ticket number / PNR / vendor reference / Ticket issue time" (`TicketingSections.tsx:51-60`); doc: PNR only.
+- [x] RT request page meta says "Share your visa type" (`return-ticket/request/page.tsx:7`); RT FAQ #2 typo "return or return ticket" (needs a migration).
 - [ ] Brand line "Travel Made Easy" vs OTB/RT docs "Travel Made Simple" (`site-config.ts:6`, `email/get-sender.ts:33`).
 - [ ] Status labels: New Visa "Visa Application Approved" shown as "Visa Approved"; "Cancelled and Refunded" shown as "Booking Cancelled — Refund Completed" in every service (catalog.ts:84,91,135,175,212,245,292).
 - [ ] Customer rejection text can fall back to `BookingPassenger.outcomeNote` (internal audit reason) (`status-template.ts:292`).
