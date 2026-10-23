@@ -24,8 +24,7 @@ import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES, isFlightQuote } from "./pricing";
 export async function assertValidityWithinCap(serviceType: ServiceType, validityExpiresAt: string | undefined): Promise<string | null> {
   if (!validityExpiresAt) return null;
 
-  const { quotationResponseMinutes } = await getServiceTimelineRules(serviceType);
-  const capMinutes = quotationResponseMinutes ?? (isFlightQuote(serviceType) ? FLIGHT_QUOTE_MAX_VALIDITY_MINUTES : null);
+  const capMinutes = await validityCapMinutes(serviceType);
   if (capMinutes === null) return null;
 
   const maxExpiry = Date.now() + capMinutes * 60 * 1000;
@@ -33,4 +32,24 @@ export async function assertValidityWithinCap(serviceType: ServiceType, validity
     return `Quote validity can't exceed ${capMinutes} minutes.`;
   }
   return null;
+}
+
+/**
+ * The longest validity a quote may carry. Client doc 2026-10-20 (Special Fare key rules): "Quotation validity: up to
+ * 30 minutes" — an Admin response time can shorten a flight quote's window, never lengthen it past 30.
+ */
+async function validityCapMinutes(serviceType: ServiceType): Promise<number | null> {
+  const { quotationResponseMinutes } = await getServiceTimelineRules(serviceType);
+  if (isFlightQuote(serviceType)) return Math.min(quotationResponseMinutes ?? FLIGHT_QUOTE_MAX_VALIDITY_MINUTES, FLIGHT_QUOTE_MAX_VALIDITY_MINUTES);
+  return quotationResponseMinutes ?? null;
+}
+
+/**
+ * Client 2026-10-23 audit — a Special Fare quote sent without a validity never expired, got no 10-minute reminders
+ * and stayed payable. A flight quote that goes to the customer without one is valid for the full window (30 min).
+ */
+export async function effectiveQuoteValidity(serviceType: ServiceType, validityExpiresAt: string | undefined): Promise<string | undefined> {
+  if (validityExpiresAt || !isFlightQuote(serviceType)) return validityExpiresAt;
+  const capMinutes = (await validityCapMinutes(serviceType)) ?? FLIGHT_QUOTE_MAX_VALIDITY_MINUTES;
+  return new Date(Date.now() + capMinutes * 60 * 1000).toISOString();
 }

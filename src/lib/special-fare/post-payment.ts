@@ -8,6 +8,8 @@ import { paymentTotal } from "../payments/totals";
 import { notifyRefundsRaised } from "../staff-notifications/triggers";
 import { flightFieldsFromSectors, itinerarySchema, normalizeItinerary, type StoredItinerarySegment } from "../quotations/itinerary";
 import { specialFarePaxCounts, specialFareTotals } from "./pax-counts";
+import { bookingDocumentsWhere } from "../documents/document-lead";
+import { isOutputType } from "../outputs/output-types";
 
 type Tx = Prisma.TransactionClient;
 
@@ -163,6 +165,16 @@ async function paidFareBase(tx: Tx, leadId: string): Promise<number | null> {
 /** Staff: the paid flight/fare is still available — proceed to ticketing. */
 export async function confirmAvailability(bookingId: string, actor: Actor): Promise<Result> {
   return db.$transaction(async (tx) => {
+    // Special Fare handover §4 — Payment → Documents Validated → Sent to Airlines: every Government ID must be
+    // validated before the booking goes to the airline (client 2026-10-23 audit).
+    const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { id: true, leadId: true } });
+    if (!booking) return { ok: false as const, httpStatus: 404, error: "Booking not found." };
+    const documents = await tx.document.findMany({ where: { ...bookingDocumentsWhere(booking), purgedAt: null }, select: { type: true, status: true } });
+    const customerDocuments = documents.filter((document) => !isOutputType(document.type));
+    // "Documents are requested/validated when required" (client doc 2026-10-20) — none requested, nothing to wait for.
+    if (customerDocuments.some((document) => document.status !== "VERIFIED")) {
+      return { ok: false as const, httpStatus: 409, error: "Validate every passenger's Government ID before confirming and sending to the airline." };
+    }
     const moved = await moveTo(tx, bookingId, "FSF_AVAILABILITY_CONFIRMED", "Final availability confirmed", actor);
     if (!moved.ok) return moved;
     await tx.booking.update({ where: { id: bookingId }, data: { finalConfirmedAt: new Date() } });

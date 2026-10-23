@@ -20,7 +20,7 @@ import { computeSellingPrice, isFlightQuote, supportsItinerary } from "@/lib/quo
 import { quotationMargin, resolvePaxCosting, usesPaxCosting } from "@/lib/quotations/pax-costing";
 import { leadPassengersFor } from "@/lib/quotations/lead-passengers";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
-import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
+import { assertValidityWithinCap, effectiveQuoteValidity } from "@/lib/quotations/validity-cap";
 import { resolveCouponForQuotation } from "@/lib/coupons/apply";
 import { leadReference } from "@/lib/leads/reference";
 import { findActiveAirlineByCode } from "@/lib/airlines/find-active-airline";
@@ -344,6 +344,8 @@ export async function POST(request: NextRequest) {
   if (validityError) {
     return jsonError(400, validityError, { validityExpiresAt: [validityError] });
   }
+  // A flight quote that goes to the customer always has a validity (a draft gets one when it is sent).
+  const sentValidity = isDraft ? validityExpiresAt : await effectiveQuoteValidity(lead.serviceType, validityExpiresAt);
 
   // P22 — multi-sector itinerary: Visa Change / Flight Special Fare only
   // (service type derived from the lead server-side, never the client).
@@ -471,7 +473,7 @@ export async function POST(request: NextRequest) {
         couponId: appliedCoupon?.couponId,
         couponCode: appliedCoupon?.couponCode,
         couponDiscount: appliedCoupon?.discountAmount,
-        validityExpiresAt: validityExpiresAt ? new Date(validityExpiresAt) : undefined,
+        validityExpiresAt: sentValidity ? new Date(sentValidity) : undefined,
         alternativeOfId,
         itinerary: storedItinerary ? (storedItinerary as unknown as Prisma.InputJsonValue) : undefined,
         // P22 — a draft is invisible to the customer until POST /api/quotations/[id]/send.

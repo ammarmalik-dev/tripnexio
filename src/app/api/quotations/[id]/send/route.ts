@@ -5,7 +5,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { sendQuotationSchema } from "@/lib/validation/quotation-schema";
-import { assertValidityWithinCap } from "@/lib/quotations/validity-cap";
+import { assertValidityWithinCap, effectiveQuoteValidity } from "@/lib/quotations/validity-cap";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
 import { isAirportToAirportLead, parseOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
 import { applyQuotationSentEffects, notifyQuoteReady } from "@/lib/quotations/send-quotation";
@@ -80,6 +80,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const capError = await assertValidityWithinCap(lead.serviceType, parsed.data.validityExpiresAt);
     if (capError) return jsonError(400, capError, { validityExpiresAt: [capError] });
     validityExpiresAt = new Date(parsed.data.validityExpiresAt);
+  }
+  // A flight draft saved without a validity goes out with the full window (client 2026-10-23 audit).
+  if (!validityExpiresAt) {
+    const fallback = await effectiveQuoteValidity(lead.serviceType, undefined);
+    if (fallback) validityExpiresAt = new Date(fallback);
   }
   if (validityExpiresAt && validityExpiresAt.getTime() <= Date.now()) {
     const message = "This draft's validity has already passed — set a new validity before sending.";

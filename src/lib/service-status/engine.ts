@@ -340,7 +340,9 @@ export async function dispatchStatusNotifications(
         entityId: notification.entityId,
         statusLabel: notification.statusLabel,
         inputs: notification.inputs,
-        attachments: options.attachments,
+        // Attachments (e.g. the invoice) go with the first message only — Special Fare's Paid + Final Confirmation
+        // sent the invoice twice (client 2026-10-23 audit).
+        attachments: sent === 0 ? options.attachments : undefined,
       });
       sent += 1;
       continue;

@@ -3,7 +3,6 @@
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/Button";
-import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
 import { buildQuoteFormSchema, type QuoteFormValues } from "@/lib/validation/quotation-schema";
 import { flightFieldsFromSectors } from "@/lib/quotations/itinerary";
@@ -79,7 +78,6 @@ export function SpecialFareAlternativeForm({
     onSubmit({
       itinerary,
       route: flight ? `${airportLabel(flight.fromAirportCode)} → ${airportLabel(flight.toAirportCode)}` : "",
-      reportingTime: values.reportingTime || undefined,
       baggageAllowance: values.baggageAllowance,
       fareType: values.fareType,
       fareRules: values.fareRules,
@@ -113,7 +111,6 @@ export function SpecialFareAlternativeForm({
             ))}
           </select>
         </FormField>
-        <TextField label="Reporting time" placeholder="e.g. 3 hours before departure" {...register("reportingTime")} error={errors.reportingTime?.message} />
       </div>
       <SpecialFareQuoteFields
         form={form}

@@ -14,7 +14,8 @@ export const OUTPUT_TYPE_LABELS: Record<OutputType, string> = {
   VISA_PDF: "Visa",
   EXTENDED_VISA_PDF: "Extended visa",
   TICKET_PDF: "Ticket",
-  RESERVATION_PDF: "Reservation",
+  // Only Return Ticket delivers it (client doc 2026-10-20: "just ask Return Verified Ticket").
+  RESERVATION_PDF: "Return Verified Ticket",
   PACKAGE_PDF: "Service package",
   OTB_CONFIRMATION: "OTB confirmation",
 };
@@ -38,7 +39,8 @@ export const OUTPUTS_BY_SERVICE: Record<ServiceType, readonly OutputType[]> = {
   VISA_EXTENSION: ["EXTENDED_VISA_PDF"],
   VISA_CHANGE: ["PACKAGE_PDF", "VISA_PDF"],
   FLIGHT_SPECIAL_FARE: ["TICKET_PDF"],
-  RETURN_TICKET: ["RESERVATION_PDF", "TICKET_PDF"],
+  // Client 2026-10-23 audit — one output; a "Ticket" pick never moved the booking to Ticket Issued.
+  RETURN_TICKET: ["RESERVATION_PDF"],
   // Client doc 2026-10-15 (I3) — an OTB is the airline's confirmation (recorded with its PNR in the OTB actions), not a document to upload.
   OTB: [],
   OTHER: OUTPUT_TYPES,
