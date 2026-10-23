@@ -36,21 +36,21 @@ Special Fare / Return Ticket / OTB
 - [ ] RT/OTB website request: client template `RVT_NEW` / `OTB_01_NEW` has "Track Status" button and no pax/destination/date (14/15 Oct asked Pay Now + trip summary). Regression since status templates.
 
 New Visa / Visa Extension / Visa Change
-- [ ] New Visa document checklist falls back to hard-coded "India" nationality (`required-documents.ts:63,90`) instead of the lead's.
+- [x] New Visa document checklist falls back to hard-coded "India" nationality (`required-documents.ts:63,90`) instead of the lead's.
 - [ ] Bot: no DOB / guardian step for under-18 (handover §5).
 - [ ] Bot: no expected approval date / prices shown (item 10).
-- [ ] VC bot: nationality asked once (not per passenger); no visa-copy upload link after the lead (`engine.ts:302` covers VE only).
-- [ ] VE "previously received a visa" accepts any converted New Visa booking, and falls back to cancelled/refunded bookings unfiltered (`visa-extension-eligibility.ts:99-133`) — the "WRONG RECORD FOUND" case.
+- [x] VC bot: upload link after the lead (fixed 23 Oct). Nationality per passenger still open. (`engine.ts:302` covers VE only).
+- [x] VE "previously received a visa" accepts any converted New Visa booking, and falls back to cancelled/refunded bookings unfiltered (`visa-extension-eligibility.ts:99-133`) — the "WRONG RECORD FOUND" case.
 - [x] VE landing page step 01 says "entry date" (`visa-extension/page.tsx:42`, `site-content/pages.ts:94`); doc: visa expiry date, step titles per doc.
 - [ ] VE option/price cards on the landing page (VE handover §1) — missing.
 - [ ] New Visa Admin Timelines tab still shows the generic service card above per-country timelines (`ServiceTimelinesManager.tsx:288`).
 - [x] New Visa hero secondary button "Track Status" → doc "Track Application".
 
 CRM / Admin
-- [ ] Staff password login + failed logins not audited (`api/crm/auth/login/route.ts`).
+- [x] Staff password login + failed logins not audited (`api/crm/auth/login/route.ts`).
 - [ ] WhatsApp chat: no "End chat / hand back to bot"; handed-off number stays silent until customer types menu.
-- [ ] Passport auto-extract upload accepts JPG/PNG only (`PassportExtractionReview.tsx:36`); doc: PDF too.
-- [ ] Enquiry closed/resolved email can go with an empty remark (note required only for complaints).
+- [x] Passport auto-extract upload accepts JPG/PNG only (`PassportExtractionReview.tsx:36`); doc: PDF too.
+- [x] Enquiry closed/resolved email can go with an empty remark (note required only for complaints).
 - [ ] Passenger outcome sets booking COMPLETED bypassing the status engine (`passengers/[passengerId]/outcome/route.ts:84`).
 - [ ] Coupons can't be limited to services (Admin handover §17).
 - [ ] Refund approval limits (§17) — none.
@@ -61,7 +61,7 @@ CRM / Admin
 - [ ] Report filters by sub-service / status / payment status (§15); cash-flow report has no filters.
 - [ ] Full-form SF/VE/VC show in both Leads and Quotations (Dashboard §7: Quotations instead of Leads).
 - [ ] Pagination missing: Document Master, Vendor Service Rates, Visa Master, Sub-services, Processing types, Roles.
-- [ ] 21 Oct screenshot: booking "All statuses" popover is covered by the Tasks card (z-index); booking Communications shows the customer's unrelated New Visa chat.
+- [x] 21 Oct screenshot: booking "All statuses" popover is covered by the Tasks card (z-index); booking Communications shows the customer's unrelated New Visa chat (popover fixed; the chat came from overlapping test requests — cleared by the 23 Oct reset).
 
 Copy / templates
 - [x] "vendor" still in customer copy: `flight-special-fare/landing/AlternativeAndPaymentSections.tsx:92`, `TicketingSections.tsx:34,41,54`, `return-ticket/steps/Step3Summary.tsx:63`, `legal/default-pages.ts` (Terms §4/5/7, Privacy §4, Refund, Disclaimer).
@@ -76,14 +76,14 @@ Copy / templates
 
 ## Needs the client
 
-- "Travel after 24 hrs" = travel date already passed by 24 h (built) or travel within 24 h?
-- VE / OTB "Cancelled and Refunded": send a message or not (docs contradict themselves)?
-- Status matrix vs per-status sections disagree in ~15 labels (VC/VE/OTB/RT) — code follows the per-status sections; confirm.
-- Do the final page docs override the 05 Oct "4 steps on every service" (SF 7, RT 5, VC 7 in docs)?
-- Invoice serial: "TNS/A02601" (extra 0) or "TNS/A2601" (built)?
-- Child age: 2–12 (SF handover) / under 12 (website) / under 18 (bot, minor rule)?
-- Website Pages: hero-level editing enough, or every body section editable?
-- Pre-payment Booking row for New Visa (same ID as lead) acceptable?
+"Travel after 24 hrs" = travel date already passed by 24 h (built) or travel within 24 h?
+VE / OTB "Cancelled and Refunded": send a message or not (docs contradict themselves)?
+Status matrix vs per-status sections disagree in ~15 labels (VC/VE/OTB/RT) — code follows the per-status sections; confirm.
+Do the final page docs override the 05 Oct "4 steps on every service" (SF 7, RT 5, VC 7 in docs)?
+Invoice serial: "TNS/A02601" (extra 0) or "TNS/A2601" (built)?
+Child age: 2–12 (SF handover) / under 12 (website) / under 18 (bot, minor rule)?
+Website Pages: hero-level editing enough, or every body section editable?
+Pre-payment Booking row for New Visa (same ID as lead) acceptable?
 
 ## LIVE checks (data / visual)
 
