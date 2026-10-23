@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
-import { getJson, ApiError } from "@/lib/api/client";
+import { getJson, postJson, ApiError } from "@/lib/api/client";
+import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import type { ServiceType } from "@/generated/prisma/enums";
@@ -39,6 +40,7 @@ export function WhatsAppChats() {
   const [errorMessage, setErrorMessage] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
+  const [ending, setEnding] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +82,20 @@ export function WhatsAppChats() {
   }
 
   const active = rows.find((row) => row.waId === selected) ?? rows[0];
+
+  // Client doc 2026-10-20 (G4) — the agent closes the conversation; the bot answers the customer again.
+  const endChat = async (waId: string) => {
+    setEnding(true);
+    try {
+      await postJson(`/api/crm/whatsapp-chats/${waId}/end`, {});
+      toast.success("Chat ended — the WhatsApp bot answers this customer again.");
+      setNonce((n) => n + 1);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't end the chat. Please try again.");
+    } finally {
+      setEnding(false);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
@@ -132,6 +148,11 @@ export function WhatsAppChats() {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
+            {active.withTeam ? (
+              <Button type="button" size="sm" variant="ghost" disabled={ending} onClick={() => void endChat(active.waId)}>
+                {ending ? "Ending..." : "End chat"}
+              </Button>
+            ) : null}
             {active.booking ? (
               <Link href={`/crm/bookings/${active.booking.id}#tab-communication`} className="inline-flex h-8 items-center rounded-md bg-accent px-3 text-xs font-semibold text-white">
                 Open booking {active.booking.bookingId}
