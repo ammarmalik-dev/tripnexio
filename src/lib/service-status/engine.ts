@@ -297,7 +297,8 @@ export async function applySystemEvent(
   if (!to || entity.serviceStatusId === to.id) return null;
 
   if (from && from.systemEvent === HOLD_MARKER) return null;
-  if (from && from.isTerminal && !REFUND_STEP_EVENTS.has(input.event)) return null;
+  // Client 2026-10-23 — a partial refund may also follow a final status (e.g. some applicants approved).
+  if (from && from.isTerminal && !REFUND_STEP_EVENTS.has(input.event) && input.event !== "REFUND_PARTIALLY_COMPLETED") return null;
   const loopsBack = !!from?.systemEvent && !!LOOP_BACK_FROM[input.event]?.has(from.systemEvent);
   if (from && from.displayOrder >= to.displayOrder && !loopsBack) return null;
 

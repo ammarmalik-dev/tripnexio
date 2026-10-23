@@ -47,7 +47,7 @@ const leadHold: CatalogStatus = { name: "On Hold", customerLabel: "On Hold", not
 function refundTail(prefix: string, opts: { partial?: string; requested?: string; requestedLabel?: string }) {
   return [
     { name: "Cancellation Requested", customerLabel: opts.requestedLabel ?? "Cancellation Under Review", notify: opts.requested ?? `${prefix}_CANCELLATION_REQUESTED` },
-    { name: "Partially Cancelled", customerLabel: "Partially Cancelled", notify: opts.partial ?? `${prefix}_PARTIALLY_CANCELLED` },
+    { name: "Partially Cancelled", customerLabel: "Partially Cancelled", notify: opts.partial ?? `${prefix}_PARTIALLY_CANCELLED`, systemEvent: "REFUND_PARTIALLY_COMPLETED" },
   ] satisfies CatalogStatus[];
 }
 
@@ -204,7 +204,7 @@ export const STATUS_CATALOG: CatalogList[] = [
       { name: "OTB Approved for Partially Applicants", customerLabel: "OTB Approved for Partially Applicants", notify: "OTB_11_PARTIALLY_APPROVED", systemEvent: "PARTIAL_APPROVED", maps: "PROCESSING", blocksRefund: true },
       { name: "OTB Application Rejected", customerLabel: "OTB Rejected", notify: "OTB_12_REJECTED", systemEvent: "OTB_REJECTED", maps: "CANCELLED", terminal: true, blocksRefund: true, from: ["OTB Rejected"] },
       { name: "Partially Cancellation Requested", customerLabel: "Partial Cancellation Under Review", notify: "OTB_13_PARTIALLY_CANCELLATION_REQUESTED" },
-      { name: "Partially Cancelled", customerLabel: "Partially Cancelled", notify: "OTB_14_PARTIALLY_CANCELLED" },
+      { name: "Partially Cancelled", customerLabel: "Partially Cancelled", notify: "OTB_14_PARTIALLY_CANCELLED", systemEvent: "REFUND_PARTIALLY_COMPLETED" },
       { name: "Cancellation Requested", customerLabel: "Cancellation Under Review", notify: "OTB_15_CANCELLATION_REQUESTED" },
       { name: "Cancelled", customerLabel: "Cancelled", notify: "OTB_16_CANCELLED", systemEvent: "CANCELLED", maps: "CANCELLED", from: ["Cancelled", "Unable to Process", "OTB Not Required"] },
       { name: "Refund Pending", customerLabel: "Refund Processing", notify: "OTB_17_REFUND_PENDING", systemEvent: "REFUND_RAISED", from: ["Refund Processing"] },
