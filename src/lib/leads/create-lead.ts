@@ -115,6 +115,10 @@ export async function findOrCreateCustomer(tx: Prisma.TransactionClient, contact
  * Reuses an existing Passenger under the customer instead of duplicating it:
  * matched by passport number first (case-insensitive), then by name. A
  * reused passenger picks up a nationality it didn't have yet.
+ *
+ * Client 2026-10-23 audit (11026FL080: 1 Adult + 1 Child + 1 Infant showed as 1 Adult) — two travellers of one
+ * request never collapse into one passenger, a name match never overrides a different passport, and a reused
+ * passenger takes this request's date of birth / passenger type (they decide the fare).
  */
 async function findOrCreatePassengers(
   tx: Prisma.TransactionClient,
@@ -127,22 +131,30 @@ async function findOrCreatePassengers(
     const existing =
       (passportNumber
         ? await tx.passenger.findFirst({
-            where: { customerId, passportNumber: { equals: passportNumber, mode: "insensitive" } },
+            where: { customerId, id: { notIn: ids }, passportNumber: { equals: passportNumber, mode: "insensitive" } },
             orderBy: { createdAt: "asc" },
           })
         : null) ??
       (await tx.passenger.findFirst({
-        where: { customerId, fullName: { equals: passenger.fullName, mode: "insensitive" } },
+        where: {
+          customerId,
+          id: { notIn: ids },
+          fullName: { equals: passenger.fullName, mode: "insensitive" },
+          ...(passportNumber ? { passportNumber: null } : {}),
+        },
         orderBy: { createdAt: "asc" },
       }));
 
     if (existing) {
+      const data: Prisma.PassengerUpdateInput = {};
       if (passenger.nationalityId && !existing.nationalityId) {
-        await tx.passenger.update({
-          where: { id: existing.id },
-          data: { nationalityId: passenger.nationalityId, nationality: passenger.nationality ?? existing.nationality },
-        });
+        data.nationalityRef = { connect: { id: passenger.nationalityId } };
+        data.nationality = passenger.nationality ?? existing.nationality;
       }
+      if (passenger.paxType && passenger.paxType !== existing.paxType) data.paxType = passenger.paxType;
+      if (passenger.dob) data.dob = new Date(passenger.dob);
+      if (passportNumber && !existing.passportNumber) data.passportNumber = passportNumber;
+      if (Object.keys(data).length > 0) await tx.passenger.update({ where: { id: existing.id }, data });
       ids.push(existing.id);
       continue;
     }
