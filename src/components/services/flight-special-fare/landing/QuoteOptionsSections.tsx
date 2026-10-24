@@ -4,41 +4,36 @@ import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
 const REQUEST_HREF = "/services/flight-special-fare/request";
 
-// Locked content — doc §8. "Vendor reference (internal only)" is deliberately
-// left out of this customer-facing list: the doc itself marks it internal.
-const quoteOptionDetails = [
-  "Airline",
-  "Flight number",
-  "Departure / arrival",
-  "Travel date",
-  "Departure / arrival time",
-  "Baggage",
-  "Fare",
-  "Quote validity",
-  "Booking deadline (where applicable)",
-];
+interface ContentProps {
+  content: SitePageContentView;
+}
 
-/** Doc §8 — more than one flight option may be sent for the same request. */
-export function MultipleOptionsSection() {
+/**
+ * Doc §8 — more than one flight option may be sent for the same request. The list ("options.items", edited in
+ * Admin → Website Pages) deliberately leaves out the internal partner reference: the doc itself marks it internal.
+ */
+export function MultipleOptionsSection({ content }: ContentProps) {
+  const quoteOptionDetails = content.list("options.items").map((row) => row.join(" | "));
   return (
     <section className="py-10 sm:py-14">
       <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <SectionHeading
-            eyebrow="Compare available options"
-            title="More than one option may be available"
-            description="Depending on availability, TripNexio may send multiple flight options for the same request. Options can differ by airline, flight timing, route or fare."
+            eyebrow={content.text("options.eyebrow")}
+            title={content.text("options.title")}
+            description={content.text("options.intro")}
           />
         </MotionReveal>
         <MotionReveal delay={0.08}>
           <GlassCard tier={2} className="p-6 sm:p-8">
-            <h3 className="mb-4 text-base font-semibold text-ink-heading">Each option shows</h3>
+            <h3 className="mb-4 text-base font-semibold text-ink-heading">{content.text("options.cardTitle")}</h3>
             <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-              {quoteOptionDetails.map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-sm text-ink-secondary">
+              {quoteOptionDetails.map((item, index) => (
+                <li key={`${index}-${item}`} className="flex items-start gap-2.5 text-sm text-ink-secondary">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
                   {item}
                 </li>
@@ -51,30 +46,32 @@ export function MultipleOptionsSection() {
   );
 }
 
-interface QuoteValiditySectionProps {
+interface QuoteValiditySectionProps extends ContentProps {
   /** Max quote validity in minutes — Admin Timeline config, falling back to the doc's 30. */
   validityMinutes: number;
 }
 
 /** Doc §9 — limited-time quote, countdown, expiry behaviour, reminders. */
-export function QuoteValiditySection({ validityMinutes }: QuoteValiditySectionProps) {
+export function QuoteValiditySection({ content, validityMinutes }: QuoteValiditySectionProps) {
   const minutesLabel = `${validityMinutes} ${validityMinutes === 1 ? "minute" : "minutes"}`;
+  // "{minutes}" in the wording stands for the configured validity, so the figure always matches the CRM cap.
+  const paragraphs = content
+    .list("validity.paragraphs")
+    .map((row) => row.join(" | ").replaceAll("{minutes}", minutesLabel));
   return (
     <section className="py-10 sm:py-14">
       <Container className="grid grid-cols-1 items-start gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <div className="flex flex-col gap-5">
-            <SectionHeading eyebrow="Limited-time quote" title="Your fare is available for a limited time" />
-            <p className="text-sm text-ink-secondary sm:text-base">
-              A Special Fare quotation can be valid for a maximum of {minutesLabel}. The customer sees a countdown
-              while the quotation is active.
-            </p>
-            <p className="text-sm text-ink-secondary sm:text-base">
-              Payment is blocked after the quote expires and the old quote cannot simply be reused.
-            </p>
+            <SectionHeading eyebrow={content.text("validity.eyebrow")} title={content.text("validity.title")} />
+            {paragraphs.map((paragraph, index) => (
+              <p key={index} className="text-sm text-ink-secondary sm:text-base">
+                {paragraph}
+              </p>
+            ))}
             <p className="flex items-start gap-2.5 text-sm text-ink-tertiary">
               <BellRing className="mt-0.5 h-4 w-4 shrink-0 text-ink-accent" aria-hidden="true" />
-              While valid, reminders can be sent every 10 minutes; reminders stop after expiry.
+              {content.text("validity.reminderNote")}
             </p>
           </div>
         </MotionReveal>
@@ -85,18 +82,18 @@ export function QuoteValiditySection({ validityMinutes }: QuoteValiditySectionPr
                 <Timer className="h-6 w-6" aria-hidden="true" />
               </span>
               <div className="flex flex-col">
-                <span className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">Maximum validity</span>
+                <span className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">{content.text("validity.maxLabel")}</span>
                 <span className="text-2xl font-semibold tracking-tight text-ink-heading">{minutesLabel}</span>
               </div>
             </GlassCard>
             <GlassCard tier={2} className="flex flex-col gap-4 border border-warning/30 p-6">
-              <span className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">After expiry:</span>
+              <span className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">{content.text("validity.expiryLabel")}</span>
               <p className="flex items-start gap-2.5 text-base font-medium text-ink-heading">
                 <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-warning" aria-hidden="true" />
-                &ldquo;This Special Fare quotation has expired.&rdquo;
+                &ldquo;{content.text("validity.expiryMessage")}&rdquo;
               </p>
               <ButtonLink href={REQUEST_HREF} variant="primary" size="md" className="self-start">
-                Request New Quote
+                {content.text("validity.buttonLabel")}
               </ButtonLink>
             </GlassCard>
           </div>

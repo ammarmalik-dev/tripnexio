@@ -37,23 +37,6 @@ export const metadata: Metadata = {
 // Re-render at most every 5 minutes so Admin config/FAQ edits show up without a redeploy.
 export const revalidate = 300;
 
-// Locked content — doc §5 "What You'll Need".
-const whatYoullNeed = [
-  { label: "Full name", detail: "Passenger/customer name" },
-  { label: "Mobile number", detail: "Active contact number" },
-  { label: "Email address", detail: "For quote and booking updates" },
-  { label: "Departure city / airport", detail: "Where you want to travel from" },
-  { label: "Destination city / airport", detail: "Where you want to travel to" },
-  { label: "Travel date", detail: "Your planned date of travel" },
-  { label: "Passenger details", detail: "Adults, children and infants where applicable" },
-];
-
-// Client 2026-10-14 — passport / ID and visa copy live here (not under "What You'll Need"), in the client's wording.
-const documentsRequired = [
-  { name: "Passport / Government ID", required: true, caption: "A valid passport or govt-issued photo ID accepted by the airline." },
-  { name: "Visa Copy", required: false, caption: "Required only when applicable for the destination." },
-];
-
 interface FlightLandingConfig {
   quoteValidityMinutes: number;
 }
@@ -90,6 +73,13 @@ export default async function FlightSpecialFareLandingPage() {
   // Client doc 2026-10-15 (J3) — photo and main wording from Admin → Website Pages (blank = this copy).
   const content = await getSitePageContent("flight-special-fare");
   const config = await loadFlightLandingConfig();
+  // Locked content — doc §5 "What You'll Need"; client 2026-10-14: passport / ID and visa copy live under Documents
+  // Required. All of it is edited in Admin → Website Pages (blank = the original wording).
+  const paragraphs = (key: string): string[] => content.list(key).map((row) => row.join(" | "));
+  const whatYoullNeed = content.list("requirements.whatYouNeed", 2).map(([label, detail]) => ({ label, detail: detail || undefined }));
+  const documentsRequired = content
+    .list("requirements.documents", 2)
+    .map(([name, caption]) => ({ name, required: true, caption: caption || undefined }));
   return (
     <>
       <section className="relative overflow-hidden">
@@ -111,8 +101,8 @@ export default async function FlightSpecialFareLandingPage() {
           </MotionReveal>
           <MotionReveal delay={0.15}>
             <ul className="flex flex-wrap items-center justify-center gap-2 text-sm font-medium text-ink-secondary">
-              {["Domestic + Worldwide", "Discounted Special Fares", "Multiple Flight Options"].map((label) => (
-                <li key={label} className="rounded-full border border-hairline bg-surface-1/80 px-3 py-1">
+              {paragraphs("heroButtons.highlights").map((label, index) => (
+                <li key={`${index}-${label}`} className="rounded-full border border-hairline bg-surface-1/80 px-3 py-1">
                   {label}
                 </li>
               ))}
@@ -122,7 +112,7 @@ export default async function FlightSpecialFareLandingPage() {
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/flight-special-fare/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-                Track Status
+                {content.text("heroButtons.trackLabel")}
               </ButtonLink>
             </div>
           </MotionReveal>
@@ -133,16 +123,12 @@ export default async function FlightSpecialFareLandingPage() {
         <Container className="grid grid-cols-1 items-center gap-8 lg:grid-cols-2 lg:gap-12">
           <MotionReveal>
             <div className="flex flex-col gap-4">
-              <SectionHeading eyebrow="What is a special fare?" title="Discounted fares sourced for your trip" />
-              <p className="text-sm text-ink-secondary sm:text-base">
-                TripNexio works with airlines, agencies and partners to source special flight inventory. For selected
-                routes and travel dates, this can include group or pre-purchased inventory secured in advance, allowing
-                us to offer discounted fares when that inventory is available.
-              </p>
-              <p className="text-sm text-ink-secondary sm:text-base">
-                When special inventory is not available, our team can also check regular offline fares through our
-                airline and agency relationships.
-              </p>
+              <SectionHeading eyebrow={content.text("about.eyebrow")} title={content.text("about.title")} />
+              {paragraphs("about.paragraphs").map((paragraph, index) => (
+                <p key={index} className="text-sm text-ink-secondary sm:text-base">
+                  {paragraph}
+                </p>
+              ))}
             </div>
           </MotionReveal>
           <MotionReveal delay={0.08}>
@@ -150,41 +136,41 @@ export default async function FlightSpecialFareLandingPage() {
               <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                 <BadgePercent className="h-6 w-6" aria-hidden="true" />
               </span>
-              <p className="text-sm text-ink-secondary sm:text-base">
-                Fare advantage depends on route, date, inventory, passenger type and supplier availability.
-              </p>
+              <p className="text-sm text-ink-secondary sm:text-base">{content.text("about.cardText")}</p>
             </GlassCard>
           </MotionReveal>
         </Container>
       </section>
 
-      <FareSourceCards />
+      <FareSourceCards content={content} />
 
       <ServiceRequirementsSection
         whatYouNeed={whatYoullNeed}
         documents={documentsRequired}
-        notes={["Current request window: up to 45 days before travel."]}
+        notes={paragraphs("requirements.notes")}
+        needTitle={content.text("requirements.needTitle")}
+        documentsTitle={content.text("requirements.documentsTitle")}
       />
 
-      <PassengerTypes />
+      <PassengerTypes content={content} />
 
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow={content.text("howItWorks.eyebrow")} title={content.text("howItWorks.title")} className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={content.steps(visaProcessSteps)} />
         </Container>
       </section>
 
-      <MultipleOptionsSection />
-      <QuoteValiditySection validityMinutes={config.quoteValidityMinutes} />
-      <AlternativeRouteSection />
-      <AfterPaymentSection />
-      <BaggageAndRefundSection />
-      <TicketDeliverySection />
+      <MultipleOptionsSection content={content} />
+      <QuoteValiditySection content={content} validityMinutes={config.quoteValidityMinutes} />
+      <AlternativeRouteSection content={content} />
+      <AfterPaymentSection content={content} />
+      <BaggageAndRefundSection content={content} />
+      <TicketDeliverySection content={content} />
 
-      <ServiceFaqSection serviceType="FLIGHT_SPECIAL_FARE" />
+      <ServiceFaqSection serviceType="FLIGHT_SPECIAL_FARE" title={content.text("faq.title")} />
 
       <section className="pb-14 sm:pb-20">
         <Container>
