@@ -2,15 +2,15 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { PanelLeftClose, PanelLeftOpen, type LucideIcon } from "lucide-react";
+import { ChevronDown, PanelLeftClose, PanelLeftOpen, type LucideIcon } from "lucide-react";
 import type { CrmNavGroup, CrmNavItem } from "@/lib/crm/nav-config";
 import { Logo } from "@/components/layout/Logo";
 import { cn } from "@/lib/cn";
 
 /**
- * The dark "liquid" sidebar shared by the Internal Dashboard and Admin. Every group is always open under its
- * heading; client doc 2026-10-20 (L2) removed the per-group and Expand / Collapse all buttons, keeping only
- * the sidebar toggle (a narrow icon-only mode — hover an icon for its name).
+ * The dark "liquid" sidebar shared by the Internal Dashboard and Admin. Client doc 2026-10-20 (L2) removed the
+ * per-group and Expand / Collapse all buttons, keeping the sidebar toggle (a narrow icon-only mode — hover an
+ * icon for its name); client 2026-10-25 — each group still opens / closes by clicking its own heading.
  *
  * UI-only — every item links to the same href and every screen's own API route enforces its permission.
  */
@@ -27,6 +27,14 @@ export function DashboardSidebar({
   footer?: (narrow: boolean) => ReactNode;
 }) {
   const [narrow, setNarrow] = useState(false);
+  const [closed, setClosed] = useState<Set<string>>(() => new Set());
+  const toggleGroup = (label: string) =>
+    setClosed((current) => {
+      const next = new Set(current);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
 
   return (
     <aside className={cn("crm-sidebar-liquid flex shrink-0 flex-col pt-5 transition-[width] duration-300", narrow ? "w-[4.5rem] px-2 pb-4" : "w-64 p-4")}>
@@ -59,10 +67,25 @@ export function DashboardSidebar({
               </div>
             );
           }
+          const open = !closed.has(group.label);
+          const listId = `sidebar-group-${groupIndex}`;
           return (
             <div key={group.label} role="group" aria-label={group.label}>
-              <p className="px-3 pb-1.5 text-[10.5px] font-bold tracking-wider text-ink-on-dark-muted uppercase">{group.label}</p>
-              <div className="flex flex-col gap-1">{items}</div>
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.label as string)}
+                aria-expanded={open}
+                aria-controls={listId}
+                className="flex w-full items-center justify-between rounded-md px-3 pb-1.5 text-[10.5px] font-bold tracking-wider text-ink-on-dark-muted uppercase transition-colors duration-150 hover:text-ink-on-dark-primary"
+              >
+                {group.label}
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", open ? "" : "-rotate-90")} aria-hidden="true" />
+              </button>
+              {open ? (
+                <div id={listId} className="flex flex-col gap-1">
+                  {items}
+                </div>
+              ) : null}
             </div>
           );
         })}
