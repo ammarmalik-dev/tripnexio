@@ -217,7 +217,7 @@ export function StepVisaDetails() {
                 ? "Choose your visa and nationality to see the price."
                 : "Choose your visa to see the price."
               : rates
-                ? `Adult ${money(rates[code].adult)} · Child ${money(rates[code].child)}`
+                ? `Adult (18+) ${money(rates[code].adult)} · Child (under 18) ${money(rates[code].child)}`
                 : "Loading prices…";
             return {
               value: option.code,

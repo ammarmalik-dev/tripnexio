@@ -402,11 +402,26 @@ export function ManualLeadForm() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <TextField {...numberField("adultCount")} type="number" min={1} name="adultCount" label="Adults" error={errors.adultCount?.message} required />
-          <TextField {...numberField("childCount")} type="number" min={0} name="childCount" label="Children" error={errors.childCount?.message} />
-          {/* New Visa / Visa Change: Adult and Child only (client 2026-10-05). */}
-          {serviceType !== "NEW_VISA" && serviceType !== "VISA_CHANGE" && (
-            <TextField {...numberField("infantCount")} type="number" min={0} name="infantCount" label="Infants" error={errors.infantCount?.message} />
+          {/* Client 2026-10-25 — Special Fare: Adult 12+, Child 2–12, Infant 0–2; every other service: Adult 18+, Child under 18. */}
+          <TextField
+            {...numberField("adultCount")}
+            type="number"
+            min={1}
+            name="adultCount"
+            label={serviceType === "FLIGHT_SPECIAL_FARE" ? "Adults (12+)" : "Adults (18+)"}
+            error={errors.adultCount?.message}
+            required
+          />
+          <TextField
+            {...numberField("childCount")}
+            type="number"
+            min={0}
+            name="childCount"
+            label={serviceType === "FLIGHT_SPECIAL_FARE" ? "Children (2–12)" : "Children (under 18)"}
+            error={errors.childCount?.message}
+          />
+          {serviceType === "FLIGHT_SPECIAL_FARE" && (
+            <TextField {...numberField("infantCount")} type="number" min={0} name="infantCount" label="Infants (0–2)" error={errors.infantCount?.message} />
           )}
         </div>
       )}

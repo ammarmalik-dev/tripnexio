@@ -17,10 +17,11 @@ export function computePaxType(dob: string, travelDate: string): PaxType {
 }
 
 /**
- * New Visa has only Adult and Child (client correction 2026-10-05: "remove the
- * Infant option completely"), so a traveller under 2 is priced as a Child.
+ * New Visa has only Adult and Child (client correction 2026-10-05: "remove the Infant option completely").
+ * Client confirmation 2026-10-25: every service except Special Fare — Child under 18, Adult 18 and above
+ * (the same age as the parent / guardian rule).
  */
 export function computeNewVisaPaxType(dob: string, travelDate: string): PaxType {
-  const paxType = computePaxType(dob, travelDate);
-  return paxType === "INFANT" ? "CHILD" : paxType;
+  const age = ageInYears(dob, ageBasisDate(travelDate)) ?? Number.NaN;
+  return age < 18 ? "CHILD" : "ADULT";
 }
