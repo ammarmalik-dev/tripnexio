@@ -91,3 +91,21 @@ Pre-payment Booking row for New Visa (same ID as lead) acceptable?
 - Thailand + Etihad rate on Pricing Dashboard; prod `companyWhatsapp` value.
 - VE "unable to draft/send quotation" (likely staff visa verification block), VC "unable to save/share itinerary".
 - Filter rows / one-line layouts on Bookings, Payments, Invoices, Refunds, Documents, Tasks, Follow-ups; mobile hero buttons.
+
+## Client confirmations 25 Oct (`message.txt` "Final Developer Confirmations" + screenshot) — deployed 25 Oct
+
+- [x] New Visa Admin "Add Country" button never enabled (waited for hidden description/terms/processing fields); several options per country (stay + entry + category + validity, validity shown in the option label).
+- [x] Travel hold: unfinished booking goes On Hold + HIGH task from the day before travel (IST).
+- [x] Age: Special Fare Adult 12+ / Child 2–12 / Infant 0–2; every other service Adult 18+ / Child under 18 (website, manual lead, bot).
+- [x] Invoice numbers TNS/A02601 (own counter, letter block moves on by itself, unlimited).
+- [x] VE / OTB refunds: only "Refund Completed" sends a message ("Cancelled and Refunded" is silent everywhere).
+- [x] Status names: "Applied to Embassy" for customer + CRM (NV/VC/VE, email subject + heading too); SF/RT/OTB "Sent to Airlines"; CRM "On Hold", customer "Booking On Hold" (migration 20261025120000).
+- [x] How It Works capped at 4 steps on every service page.
+- [x] Website Pages: every section of Home + 5 service pages editable in Admin (text, lists, buttons, FAQ heading, pictures where shown).
+- [x] New Visa booking at Payment Pending with the Lead ID (already built).
+- [ ] Automatic follow-ups for open leads: job ready; Coolify scheduled task `automation-lead-followup` (30 4 * * * UTC) to be added (classifier blocked it for me).
+- [x] Email tagline "Travel Made Easy with TripNexio." (already in emails, invoice, site).
+- [x] FAQs: Admin filter by country; /faq lists every FAQ with search + service/country filters; WhatsApp FAQs menu → topics → all questions, country name → its FAQs.
+- [x] Status / email / WhatsApp buttons open the customer's own page (quote page before a booking exists), never the bare Track page.
+- [x] Sidebar groups collapse from their heading again (only Expand/Collapse all removed).
+- [x] Guide for the client: `client-message/GUIDE_STATUS_AND_NOTIFICATIONS.md`.
