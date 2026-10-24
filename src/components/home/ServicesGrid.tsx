@@ -9,6 +9,8 @@ import { SERVICE_ROUTE_INFO } from "@/lib/service-route-info";
 import { SERVICE_ICON_MAP } from "@/lib/service-icons";
 import { headerActions } from "@/lib/nav-config";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
+import { HOME_SECTIONS } from "@/lib/site-content/sections/home";
 
 const FALLBACK_ICONS: Record<string, string> = {
   NEW_VISA: "FileText",
@@ -50,7 +52,14 @@ async function loadServicesSafely() {
  * (shouldn't happen for the 6 locked services, but a stray/misconfigured
  * row must never crash the homepage).
  */
-export async function ServicesGrid() {
+/** The heading's original copy, for /services (which renders this grid without the Home page's content). */
+function homeSectionFallback(key: string): string {
+  return HOME_SECTIONS.flatMap((section) => section.fields).find((field) => field.key === key)?.fallback ?? "";
+}
+
+export async function ServicesGrid({ content }: { content?: SitePageContentView }) {
+  // Client confirmation 2026-10-25 — on Home the heading comes from Admin → Website Pages.
+  const text = (key: string) => (content ? content.text(key) : homeSectionFallback(key));
   // No prices on the service cards (client correction 2026-10-05).
   const services = await loadServicesSafely();
 
@@ -60,15 +69,15 @@ export async function ServicesGrid() {
         <MotionReveal>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <SectionHeading
-              eyebrow="Everything TripNexio offers"
-              title="Explore Our Services"
-              description="Visa and travel services made simple, with a clear process and guided support from start to finish."
+              eyebrow={text("services.eyebrow")}
+              title={text("services.title")}
+              description={text("services.intro")}
             />
             <Link
               href={headerActions.getStarted.href}
               className="flex items-center gap-1.5 text-sm font-medium text-ink-accent transition-colors duration-200 hover:text-ink-primary"
             >
-              View All Services
+              {text("services.linkLabel")}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>

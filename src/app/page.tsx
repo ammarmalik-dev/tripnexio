@@ -57,20 +57,21 @@ export default async function Home() {
                 {content.text("applyLabel")}
               </ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg" className="h-11 min-w-0 flex-1 justify-center whitespace-nowrap px-3 text-sm sm:h-13 sm:flex-none sm:px-7 sm:text-base">
-                Track Status
+                {content.text("heroButtons.trackLabel")}
               </ButtonLink>
             </div>
           </MotionReveal>
         </Container>
       </section>
 
-      <ServicesGrid />
-      <HowItWorks />
-      <TrackJourneyPreview />
-      <WhyChooseUs />
-      <AboutSection />
-      <CtaBanner />
-      <SupportPayment />
+      {/* Client confirmation 2026-10-25 — every section's wording and pictures from Admin → Website Pages. */}
+      <ServicesGrid content={content} />
+      <HowItWorks content={content} />
+      <TrackJourneyPreview content={content} />
+      <WhyChooseUs content={content} />
+      <AboutSection content={content} />
+      <CtaBanner content={content} />
+      <SupportPayment content={content} />
     </>
   );
 }

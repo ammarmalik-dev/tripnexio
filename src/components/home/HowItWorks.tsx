@@ -2,49 +2,26 @@ import { ClipboardList, FileCheck2, Send, Bell, ShieldCheck } from "lucide-react
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
-const steps = [
-  {
-    step: "01",
-    title: "Tell Us",
-    description: "Choose your service and share your basic details.",
-    icon: ClipboardList,
-  },
-  {
-    step: "02",
-    title: "We Check",
-    description: "We review your details, documents and available options.",
-    icon: FileCheck2,
-  },
-  {
-    step: "03",
-    title: "Confirm & Pay",
-    description: "Review your option or quotation and complete payment securely.",
-    icon: Send,
-  },
-  {
-    step: "04",
-    title: "We Process",
-    description: "Our team handles the next steps and keeps you updated.",
-    icon: Bell,
-  },
-  {
-    step: "05",
-    title: "Get Your Result",
-    description: "Receive your visa, ticket, OTB or service update.",
-    icon: ShieldCheck,
-  },
-];
+// Client confirmation 2026-10-25 — the steps' wording comes from Admin → Website Pages; icons stay by position.
+const STEP_ICONS = [ClipboardList, FileCheck2, Send, Bell, ShieldCheck];
 
-export function HowItWorks() {
+export function HowItWorks({ content }: { content: SitePageContentView }) {
+  const steps = content.list("howItWorks.steps", 2).map(([title, description], index) => ({
+    step: String(index + 1).padStart(2, "0"),
+    title,
+    description,
+    icon: STEP_ICONS[index % STEP_ICONS.length],
+  }));
   return (
     <section id="how-it-works" className="py-14 sm:py-20">
       <Container className="flex flex-col gap-10">
         <MotionReveal>
           <SectionHeading
             align="center"
-            eyebrow="Simple steps. Clear support."
-            title="How TripNexio Works"
+            eyebrow={content.text("howItWorks.eyebrow")}
+            title={content.text("howItWorks.title")}
             className="mx-auto"
           />
         </MotionReveal>
@@ -57,7 +34,7 @@ export function HowItWorks() {
           {steps.map((step, index) => {
             const Icon = step.icon;
             return (
-              <MotionReveal key={step.title} delay={index * 0.06}>
+              <MotionReveal key={`${step.step}-${step.title}`} delay={index * 0.06}>
                 <div className="relative flex flex-col items-center gap-2 text-center">
                   <span className="relative z-10 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                     <Icon className="h-5 w-5" aria-hidden="true" />

@@ -2,55 +2,30 @@ import { Sparkles, Headset, Eye, CalendarCheck, ShieldCheck, Headphones } from "
 import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
-// Locked copy — Homepage_FINAL_Locked_1of1.docx §7. Do not replace these with
-// AI/automation-led benefit claims on the homepage unless separately approved.
-const reasons = [
-  {
-    title: "Simple Process",
-    description: "Easy steps from request to completion.",
-    icon: Sparkles,
-  },
-  {
-    title: "Guided Support",
-    description: "Get help throughout your journey.",
-    icon: Headset,
-  },
-  {
-    title: "Clear & Transparent",
-    description: "Know your service, pricing and next steps clearly.",
-    icon: Eye,
-  },
-  {
-    title: "Easy Tracking",
-    description: "Stay updated on your application or booking.",
-    icon: CalendarCheck,
-  },
-  {
-    title: "Secure Payments",
-    description: "Complete payments through a secure process.",
-    icon: ShieldCheck,
-  },
-  {
-    title: "Human Support",
-    description: "Our team is here when you need assistance.",
-    icon: Headphones,
-  },
-];
+// Locked copy — Homepage_FINAL_Locked_1of1.docx §7 (now the fallback in src/lib/site-content/sections/home.ts).
+// Client confirmation 2026-10-25 — Admin edits the wording; icons stay by position.
+const REASON_ICONS = [Sparkles, Headset, Eye, CalendarCheck, ShieldCheck, Headphones];
 
-export function WhyChooseUs() {
+export function WhyChooseUs({ content }: { content: SitePageContentView }) {
+  const reasons = content.list("why.cards", 2).map(([title, description], index) => ({
+    title,
+    description,
+    icon: REASON_ICONS[index % REASON_ICONS.length],
+  }));
   return (
     <section className="py-14 sm:py-20">
       <Container className="flex flex-col gap-10">
         <MotionReveal>
-          <SectionHeading eyebrow="Why TripNexio" title="A Simpler Way to Travel" />
+          <SectionHeading eyebrow={content.text("why.eyebrow")} title={content.text("why.title")} />
         </MotionReveal>
 
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
           {reasons.map((reason, index) => {
             const Icon = reason.icon;
             return (
-              <MotionReveal key={reason.title} delay={index * 0.05}>
+              <MotionReveal key={`${index}-${reason.title}`} delay={index * 0.05}>
                 <div className="flex flex-col gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full text-accent-on-light">
                     <Icon className="h-5 w-5" aria-hidden="true" />

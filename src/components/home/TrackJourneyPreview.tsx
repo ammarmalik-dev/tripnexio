@@ -4,18 +4,21 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { cn } from "@/lib/cn";
 import { utilityLinks } from "@/lib/nav-config";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
 type StageStatus = "done" | "current" | "upcoming";
 
-const stages: { label: string; status: StageStatus }[] = [
-  { label: "Application Received", status: "done" },
-  { label: "Documents Validated", status: "done" },
-  { label: "Submitted for Processing", status: "current" },
-  { label: "Under Review", status: "upcoming" },
-  { label: "Completed", status: "upcoming" },
-];
+const STAGE_STATUSES: readonly StageStatus[] = ["done", "current", "upcoming"];
 
-export function TrackJourneyPreview() {
+/** Admin's "done / current / upcoming" word → how the stage is drawn (anything else = upcoming). */
+function toStageStatus(value: string): StageStatus {
+  const word = value.trim().toLowerCase();
+  return STAGE_STATUSES.find((status) => status === word) ?? "upcoming";
+}
+
+export function TrackJourneyPreview({ content }: { content: SitePageContentView }) {
+  // Client confirmation 2026-10-25 — the sample stages come from Admin → Website Pages.
+  const stages = content.list("track.stages", 2).map(([label, status]) => ({ label, status: toStageStatus(status) }));
   return (
     <section className="py-8 sm:py-10">
       <Container>
@@ -24,14 +27,14 @@ export function TrackJourneyPreview() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-col gap-1">
                 <h2 className="text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">
-                  Track your journey
+                  {content.text("track.title")}
                 </h2>
                 <p className="text-sm text-ink-on-dark-secondary">
-                  Track your application, documents and status updates in one place.
+                  {content.text("track.intro")}
                 </p>
               </div>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="primary" size="md">
-                Track Your Application
+                {content.text("track.buttonLabel")}
               </ButtonLink>
             </div>
 
@@ -40,9 +43,9 @@ export function TrackJourneyPreview() {
                 className="absolute left-0 right-0 top-4 hidden h-px bg-hairline-on-dark sm:block"
                 aria-hidden="true"
               />
-              {stages.map((stage) => (
+              {stages.map((stage, index) => (
                 <div
-                  key={stage.label}
+                  key={`${index}-${stage.label}`}
                   className="relative z-10 flex flex-1 flex-row items-center gap-3 sm:flex-col sm:items-center sm:text-center"
                 >
                   <span

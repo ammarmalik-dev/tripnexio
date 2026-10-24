@@ -3,8 +3,11 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
-export function AboutSection() {
+export function AboutSection({ content }: { content: SitePageContentView }) {
+  // Client confirmation 2026-10-25 — wording and picture from Admin → Website Pages.
+  const image = content.image("about.image");
   return (
     <section className="py-14 sm:py-20">
       <Container>
@@ -12,28 +15,26 @@ export function AboutSection() {
           <div className="flex flex-col overflow-hidden rounded-xl border border-hairline bg-surface-1 shadow-[0_8px_24px_-12px_rgb(17_19_24_/_10%)] sm:flex-row">
             <div className="flex flex-col justify-center gap-3 p-6 sm:w-2/5 sm:p-10">
               <span className="text-sm font-medium tracking-wide text-ink-accent uppercase">
-                About TripNexio
+                {content.text("about.eyebrow")}
               </span>
               <p className="text-sm text-ink-secondary sm:text-base">
-                TripNexio brings visa and travel services together in one
-                simple experience. Choose your service, share your details,
-                complete the required steps and track your request with
-                guided support along the way.
+                {content.text("about.text")}
               </p>
               <Link
                 href="/about"
                 className="flex w-fit items-center gap-1.5 text-sm font-medium text-ink-accent transition-colors duration-200 hover:text-accent-dark"
               >
-                Learn More About Us
+                {content.text("about.linkLabel")}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
 
             <div className="relative min-h-[220px] w-full sm:w-3/5">
               <Image
-                src="https://images.unsplash.com/photo-1520437358207-323b43b50729?auto=format&fit=crop&w=1400&q=80"
-                alt="Commercial aircraft taking off at dusk"
+                src={image}
+                alt={content.text("about.imageAlt")}
                 fill
+                unoptimized={image.startsWith("/api/")}
                 sizes="(min-width: 640px) 60vw, 100vw"
                 className="object-cover"
               />

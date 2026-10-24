@@ -4,16 +4,15 @@ import { GlassCard } from "@/components/ui/GlassCard";
 import { SocialIcon } from "@/components/ui/SocialIcon";
 import { MotionReveal } from "@/components/motion/MotionReveal";
 import { getSiteContact } from "@/lib/settings/system-config";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
-// Locked copy — Homepage_FINAL_Locked_1of1.docx §10.
-const badges = [
-  { label: "Secure Payments", icon: ShieldCheck },
-  { label: "Protected Information", icon: Lock },
-  { label: "Safe & Reliable", icon: BadgeCheck },
-];
+// Locked copy — Homepage_FINAL_Locked_1of1.docx §10 (now the fallback in src/lib/site-content/sections/home.ts).
+// Client confirmation 2026-10-25 — Admin edits the wording; badge icons stay by position.
+const BADGE_ICONS = [ShieldCheck, Lock, BadgeCheck];
 
-export async function SupportPayment() {
+export async function SupportPayment({ content }: { content: SitePageContentView }) {
   const contact = await getSiteContact();
+  const badges = content.list("support.badges").map(([label], index) => ({ label, icon: BADGE_ICONS[index % BADGE_ICONS.length] }));
   return (
     <section id="support" className="py-14 sm:py-20">
       <Container className="flex flex-col gap-10">
@@ -23,9 +22,9 @@ export async function SupportPayment() {
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-success text-white">
                 <SocialIcon platform="whatsapp" className="h-5 w-5" />
               </span>
-              <h3 className="text-lg font-semibold text-ink-heading">Need Help?</h3>
+              <h3 className="text-lg font-semibold text-ink-heading">{content.text("support.helpTitle")}</h3>
               <p className="flex-1 text-sm text-ink-secondary">
-                Get quick assistance through TripNexio WhatsApp support.
+                {content.text("support.helpText")}
               </p>
               <a
                 href={contact.whatsappHref}
@@ -34,7 +33,7 @@ export async function SupportPayment() {
                 className="flex w-fit items-center gap-2 rounded-md bg-success/15 px-4 py-2.5 text-sm font-medium text-success transition-colors duration-200 hover:bg-success/25"
               >
                 <SocialIcon platform="whatsapp" className="h-4 w-4" />
-                WhatsApp Support
+                {content.text("support.helpButton")}
               </a>
             </GlassCard>
           </MotionReveal>
@@ -44,10 +43,9 @@ export async function SupportPayment() {
               <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-white">
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h3 className="text-lg font-semibold text-ink-heading">Secure Payments</h3>
+              <h3 className="text-lg font-semibold text-ink-heading">{content.text("support.paymentTitle")}</h3>
               <p className="flex-1 text-sm text-ink-secondary">
-                Complete your payment securely with clear confirmation
-                throughout the process.
+                {content.text("support.paymentText")}
               </p>
             </GlassCard>
           </MotionReveal>
@@ -55,8 +53,8 @@ export async function SupportPayment() {
 
         <MotionReveal delay={0.16}>
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-            {badges.map(({ label, icon: Icon }) => (
-              <div key={label} className="flex items-center gap-2 text-sm text-ink-tertiary">
+            {badges.map(({ label, icon: Icon }, index) => (
+              <div key={`${index}-${label}`} className="flex items-center gap-2 text-sm text-ink-tertiary">
                 <Icon className="h-4 w-4 text-ink-accent" aria-hidden="true" />
                 {label}
               </div>
