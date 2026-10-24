@@ -98,10 +98,9 @@ export function handoff(reason: string): string {
   );
 }
 
-/** Client doc 2026-10-20 (G1) — the FAQs list: numbered questions, or type your own. */
-export function faqList(questions: string[]): string {
-  if (questions.length === 0) return `❓ *FAQs*\nType your question and I'll find the answer. Type "menu" to go back.`;
-  return `❓ *FAQs*\nReply with a number, or type your own question:\n${questions.map((question, index) => `${index + 1}. ${question}`).join("\n")}\nType "menu" to go back.`;
+/** Client 2026-10-25 — after an answer picked from the FAQs list (the list stays open). */
+export function faqListFooter(): string {
+  return `_Reply with another number for more answers, "faq" for the topics, "menu" for the main menu, or "agent" to talk to our team._`;
 }
 
 export function faqFooter(): string {

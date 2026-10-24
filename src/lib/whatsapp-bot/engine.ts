@@ -8,6 +8,7 @@ import { BOT_INTENTS, isServiceIntent } from "./intents";
 import { buildWelcomeMenu, serviceTypeFromMenuId, MENU_TRACK_ID, MENU_AGENT_ID, MENU_FAQ_ID } from "./menu";
 import { getNextField, buildLeadDetails, buildLeadPassengers, botPassengers } from "./flows";
 import { whatsappStatusReply } from "./status-reply";
+import { faqAnswerByNumber, faqCountryList, faqTopicList, faqTopicMenu } from "./faq-menu";
 import { priceLeadForDirectPayment } from "../checkout/lead-direct-payment";
 import { db } from "../db";
 import { createAutoCheckout } from "../checkout/create-auto-checkout";
@@ -51,7 +52,6 @@ async function greetingReply(profileName: string | null): Promise<EngineResult> 
 
 const RESTART_RE = /^(restart|start over|menu|hi|hello|hey)$/i;
 const FAQ_STATE = "FAQ";
-const FAQ_LIST_SIZE = 9;
 
 /**
  * The bot's whole conversational state machine, in one place: given the
@@ -98,14 +98,21 @@ export async function handleInboundMessage(
 
     const effectiveState = conversation.state === "COMPLETED" ? "GREETING" : conversation.state;
 
-    // Client doc 2026-10-20 (G1) — in the FAQs list: a number opens that answer, anything else is a question.
-    if (effectiveState === FAQ_STATE && !serviceTypeFromMenuId(trimmed, SERVICE_TYPES) && !trimmed.startsWith("MENU_")) {
-      const ids = ((conversation.collectedFields ?? {}) as Record<string, string>).faqIds?.split(",").filter(Boolean) ?? [];
-      const n = /^\d{1,2}$/.test(trimmed) ? Number(trimmed) : 0;
-      if (n >= 1 && n <= ids.length) {
-        const faq = await db.faq.findFirst({ where: { id: ids[n - 1], active: true, published: true }, select: { answer: true } });
-        if (faq) return { replyText: `${faq.answer}\n\n${messages.faqFooter()}`, nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
+    // Client doc 2026-10-20 (G1) / client 2026-10-25 — in the FAQs menu: a number opens that topic or answer, a
+    // country name lists that country's FAQs, "faq" goes back to the topics, anything else is a question.
+    if (effectiveState === FAQ_STATE && !serviceTypeFromMenuId(trimmed, SERVICE_TYPES) && !trimmed.startsWith("MENU_") && !/^(faq|faqs)$/i.test(trimmed)) {
+      const fields = (conversation.collectedFields ?? {}) as Record<string, string>;
+      if (fields.faqLevel === "TOPIC") {
+        const topics = fields.faqTopics?.split(",").filter(Boolean) ?? [];
+        const n = /^\d{1,2}$/.test(trimmed) ? Number(trimmed) : 0;
+        const list = n >= 1 && n <= topics.length ? await faqTopicList(topics[n - 1]) : null;
+        if (list) return { replyText: list.text, nextState: FAQ_STATE, nextServiceType: null, nextCollectedFields: list.fields };
+      } else {
+        const answer = await faqAnswerByNumber(fields.faqIds ?? "", trimmed);
+        if (answer) return { replyText: `${answer}\n\n${messages.faqListFooter()}`, nextState: FAQ_STATE, nextServiceType: null, nextCollectedFields: fields };
       }
+      const byCountry = await faqCountryList(trimmed);
+      if (byCountry) return { replyText: byCountry.text, nextState: FAQ_STATE, nextServiceType: null, nextCollectedFields: byCountry.fields };
       return await answerFaqOrHandoff(trimmed);
     }
 
@@ -134,18 +141,8 @@ export async function handleInboundMessage(
       return { replyText: await whatsappStatusReply(conversation.waId), nextState: "GREETING", nextServiceType: null, nextCollectedFields: {} };
     }
     if (trimmed === MENU_FAQ_ID || /^(faq|faqs)$/i.test(trimmed)) {
-      const faqs = await db.faq.findMany({
-        where: { active: true, published: true, serviceType: null, countryId: null },
-        orderBy: [{ displayOrder: "asc" }, { createdAt: "asc" }],
-        take: FAQ_LIST_SIZE,
-        select: { id: true, question: true },
-      });
-      return {
-        replyText: messages.faqList(faqs.map((faq) => faq.question)),
-        nextState: FAQ_STATE,
-        nextServiceType: null,
-        nextCollectedFields: { faqIds: faqs.map((faq) => faq.id).join(",") },
-      };
+      const menu = await faqTopicMenu();
+      return { replyText: menu.text, nextState: FAQ_STATE, nextServiceType: null, nextCollectedFields: menu.fields };
     }
     if (trimmed === MENU_AGENT_ID) {
       return { replyText: messages.handoff("Sure —"), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };

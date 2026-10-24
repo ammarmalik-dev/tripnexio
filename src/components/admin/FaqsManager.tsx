@@ -387,7 +387,14 @@ export function FaqsManager() {
   const [search, setSearch] = useState("");
   const [serviceFilter, setServiceFilter] = useState<ServiceFilter>("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  // Client 2026-10-25 — FAQs searchable by country ("" = every country, "NONE" = not tied to a country).
+  const [countryFilter, setCountryFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const faqCountries = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const faq of faqs) if (faq.countryId && faq.country) byId.set(faq.countryId, faq.country.name);
+    return [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [faqs]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -398,10 +405,12 @@ export function FaqsManager() {
       if (statusFilter === "draft" && faq.published) return false;
       if (statusFilter === "active" && !faq.active) return false;
       if (statusFilter === "disabled" && faq.active) return false;
+      if (countryFilter === "NONE" && faq.countryId) return false;
+      if (countryFilter && countryFilter !== "NONE" && faq.countryId !== countryFilter) return false;
       if (!term) return true;
-      return [faq.question, faq.answer, faq.category ?? "", ...faq.keywords].some((value) => value.toLowerCase().includes(term));
+      return [faq.question, faq.answer, faq.category ?? "", faq.country?.name ?? "", ...faq.keywords].some((value) => value.toLowerCase().includes(term));
     });
-  }, [faqs, search, serviceFilter, statusFilter]);
+  }, [faqs, search, serviceFilter, statusFilter, countryFilter]);
   const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
@@ -455,6 +464,7 @@ export function FaqsManager() {
     setSearch("");
     setServiceFilter("");
     setStatusFilter("all");
+    setCountryFilter("");
     resetPage();
   };
   const createOpen = showCreate || faqs.length === 0;
@@ -501,7 +511,7 @@ export function FaqsManager() {
             <input
               type="search"
               aria-label="Search FAQs"
-              placeholder="Search question, answer, category or keyword"
+              placeholder="Search question, answer, country, category or keyword"
               value={search}
               onChange={(event) => {
                 setSearch(event.target.value);
@@ -524,6 +534,23 @@ export function FaqsManager() {
             {SERVICE_TYPE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by country"
+            value={countryFilter}
+            onChange={(event) => {
+              setCountryFilter(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-44")}
+          >
+            <option value="">All countries</option>
+            <option value="NONE">No country</option>
+            {faqCountries.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
               </option>
             ))}
           </select>

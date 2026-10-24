@@ -13,7 +13,7 @@ const options = [
   { icon: Search, title: "Track Status", body: "See the latest status of your enquiry, booking or service request.", href: "/track" },
   { icon: MessageCircle, title: "WhatsApp Support", body: "Chat with the TripNexio team on our official WhatsApp number.", href: "/whatsapp-support" },
   { icon: CreditCard, title: "Payment Support", body: "Help with a payment that failed, was debited twice or isn't reflected in your booking.", href: "/payment-support" },
-  { icon: HelpCircle, title: "FAQ", body: "Answers to general platform questions.", href: "/faq" },
+  { icon: HelpCircle, title: "FAQ", body: "Answers for every service — search by service or country.", href: "/faq" },
   { icon: Mail, title: "Contact", body: "Email, phone and the contact form.", href: "/contact" },
 ];
 
