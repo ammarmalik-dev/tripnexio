@@ -2,9 +2,14 @@ import { Scale, PlaneLanding } from "lucide-react";
 import { Container } from "@/components/ui/Container";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
-/** P19 — RVT Page Content v3 §12 "Travel & Immigration Disclaimer" and §13 "After Travel" (locked copy). */
-export function DisclaimerAfterTravelSection() {
+/**
+ * P19 — RVT Page Content v3 §12 "Travel & Immigration Disclaimer" and §13 "After Travel" (locked copy, now the
+ * fallback in src/lib/site-content/sections/return-ticket.ts, editable in Admin → Website Pages).
+ */
+export function DisclaimerAfterTravelSection({ content }: { content: SitePageContentView }) {
+  const paragraphs = (key: string): string[] => content.list(key).map((row) => row.join(" | "));
   return (
     <section className="py-10 sm:py-14">
       <Container className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -14,18 +19,13 @@ export function DisclaimerAfterTravelSection() {
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                 <Scale className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h2 className="text-base font-semibold text-ink-heading">Travel &amp; immigration disclaimer</h2>
+              <h2 className="text-base font-semibold text-ink-heading">{content.text("disclaimer.title")}</h2>
             </div>
-            <p className="text-sm text-ink-secondary">
-              TripNexio is a return-ticket service provider. TripNexio is not responsible for airline boarding
-              decisions, immigration clearance, border decisions, visa decisions or entry decisions made by the
-              relevant airline or authority.
-            </p>
-            <p className="text-sm text-ink-secondary">
-              Airline schedules, cancellations, rescheduling, denied boarding and immigration or border decisions are
-              outside TripNexio&rsquo;s control. Customers remain responsible for complying with applicable airline,
-              visa and immigration requirements, subject to the agreed Terms &amp; Conditions.
-            </p>
+            {paragraphs("disclaimer.paragraphs").map((paragraph, index) => (
+              <p key={`${index}-${paragraph}`} className="text-sm text-ink-secondary">
+                {paragraph}
+              </p>
+            ))}
           </GlassCard>
         </MotionReveal>
 
@@ -36,18 +36,15 @@ export function DisclaimerAfterTravelSection() {
                 <PlaneLanding className="h-5 w-5" aria-hidden="true" />
               </span>
               <div className="flex flex-col">
-                <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">Completion</span>
-                <h2 className="text-base font-semibold text-ink-heading">After travel</h2>
+                <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">{content.text("disclaimer.afterEyebrow")}</span>
+                <h2 className="text-base font-semibold text-ink-heading">{content.text("disclaimer.afterTitle")}</h2>
               </div>
             </div>
-            <p className="text-sm text-ink-secondary">
-              Once the planned travel schedule has passed, the Return Verified Ticket booking can be automatically
-              marked completed according to the configured post-travel workflow.
-            </p>
-            <p className="text-sm text-ink-secondary">
-              You don&rsquo;t need to manually close the service unless the configured workflow specifically requests
-              an action. Your issued ticket and booking history stay available in your customer record.
-            </p>
+            {paragraphs("disclaimer.afterParagraphs").map((paragraph, index) => (
+              <p key={`${index}-${paragraph}`} className="text-sm text-ink-secondary">
+                {paragraph}
+              </p>
+            ))}
           </GlassCard>
         </MotionReveal>
       </Container>

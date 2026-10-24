@@ -3,6 +3,7 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 import { DestinationPriceLookup } from "./DestinationPriceLookup";
 
 export interface ReturnTicketLandingDestination {
@@ -17,9 +18,16 @@ export interface ReturnTicketLandingDestination {
  * cancellation fee come from Admin's ReturnTicketDestination rows, shown for
  * the one destination the customer selects (no price table, 2026-10-05). When
  * those can't be read (null) or none are active, only the wording is shown
- * — no amount is ever stated from code.
+ * — no amount is ever stated from code. The wording is editable in Admin → Website Pages (client confirmation
+ * 2026-10-25); the amounts stay Admin config.
  */
-export function CancellationRefundSection({ destinations }: { destinations: ReturnTicketLandingDestination[] | null }) {
+export function CancellationRefundSection({
+  destinations,
+  content,
+}: {
+  destinations: ReturnTicketLandingDestination[] | null;
+  content: SitePageContentView;
+}) {
   const rows = destinations ?? [];
   const hasDestinations = rows.length > 0;
   return (
@@ -27,18 +35,11 @@ export function CancellationRefundSection({ destinations }: { destinations: Retu
       <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
         <MotionReveal>
           <div className="flex flex-col gap-4">
-            <SectionHeading eyebrow="Cancellation" title="Cancellation charges may apply" />
-            <p className="text-sm text-ink-secondary sm:text-base">
-              Customers can request cancellation according to the configured refund policy. A cancellation fee may be
-              deducted from the eligible refund amount.
-            </p>
+            <SectionHeading eyebrow={content.text("cancellation.eyebrow")} title={content.text("cancellation.title")} />
+            <p className="text-sm text-ink-secondary sm:text-base">{content.text("cancellation.intro")}</p>
             <GlassCard tier={1} className="flex items-start gap-3 p-5 sm:p-6">
               <Info className="mt-0.5 h-5 w-5 shrink-0 text-ink-accent" aria-hidden="true" />
-              <p className="text-sm text-ink-secondary">
-                Once the request has reached the locked non-refundable stage &mdash; after document validation and
-                forwarding to the airline/partner &mdash; the booking is non-refundable. Ticket issuance is also
-                non-refundable under the current business rules. Payment gateway charges are non-refundable.
-              </p>
+              <p className="text-sm text-ink-secondary">{content.text("cancellation.note")}</p>
             </GlassCard>
           </div>
         </MotionReveal>
@@ -49,20 +50,24 @@ export function CancellationRefundSection({ destinations }: { destinations: Retu
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                 <ReceiptText className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h3 className="text-base font-semibold text-ink-heading">Price for your destination</h3>
+              <h3 className="text-base font-semibold text-ink-heading">{content.text("cancellation.priceTitle")}</h3>
             </div>
             {hasDestinations ? (
-              <DestinationPriceLookup destinations={rows} />
+              <DestinationPriceLookup
+                destinations={rows}
+                labels={{
+                  select: content.text("cancellation.selectLabel"),
+                  placeholder: content.text("cancellation.selectPlaceholder"),
+                  prompt: content.text("cancellation.selectPrompt"),
+                  price: content.text("cancellation.priceLabel"),
+                  fee: content.text("cancellation.feeLabel"),
+                  noFee: content.text("cancellation.noFeeLabel"),
+                }}
+              />
             ) : (
-              <p className="text-sm text-ink-secondary">
-                The applicable price and cancellation fee for your destination are shown clearly before payment.
-              </p>
+              <p className="text-sm text-ink-secondary">{content.text("cancellation.noPricesText")}</p>
             )}
-            {hasDestinations ? (
-              <p className="text-xs text-ink-tertiary">
-                The applicable cancellation fee and refund rule are shown again in your summary before payment.
-              </p>
-            ) : null}
+            {hasDestinations ? <p className="text-xs text-ink-tertiary">{content.text("cancellation.priceNote")}</p> : null}
           </GlassCard>
         </MotionReveal>
       </Container>

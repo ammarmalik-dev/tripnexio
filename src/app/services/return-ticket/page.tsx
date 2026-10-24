@@ -31,18 +31,6 @@ export const metadata: Metadata = {
     "A verifiable return ticket reservation for international travel. Share your destination and travel date — we take care of the rest.",
 };
 
-// Client testing 2026-10-09 (B11) — the client's list, each with a short description.
-const whatYoullNeed = [
-  { label: "Full name", detail: "As printed on the passport" },
-  { label: "Mobile number", detail: "Active contact number for updates" },
-  { label: "Email address", detail: "For your booking confirmation and reservation" },
-  { label: "Passport number", detail: "For every traveller on the booking" },
-  { label: "Destination country", detail: "The country you are travelling to" },
-  { label: "Number of passengers", detail: "Adults, children and infants travelling" },
-  { label: "Travel date", detail: "Your planned date of departure" },
-  { label: "Expected return date", detail: "The date you plan to return" },
-];
-
 // Client correction 2026-10-05 — exactly 4 short steps. "airline/partner"
 // follows the client's site-wide Vendor -> Partner wording.
 const visaProcessSteps = [
@@ -103,6 +91,9 @@ export default async function ReturnTicketLandingPage() {
   // Client doc 2026-10-15 (J3) — photo and main wording from Admin → Website Pages (blank = this copy).
   const content = await getSitePageContent("return-ticket");
   const [documents, destinations] = await Promise.all([loadDocuments(), loadDestinations()]);
+  // Client confirmation 2026-10-25 — every section's wording from Admin → Website Pages (the client's B11 list is the fallback).
+  const paragraphs = (key: string): string[] => content.list(key).map((row) => row.join(" | "));
+  const whatYoullNeed = content.list("requirements.whatYouNeed", 2).map(([label, detail]) => ({ label, detail: detail || undefined }));
   return (
     <>
       <section className="relative overflow-hidden">
@@ -126,7 +117,7 @@ export default async function ReturnTicketLandingPage() {
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/return-ticket/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-                Track Status
+                {content.text("heroButtons.trackLabel")}
               </ButtonLink>
             </div>
           </MotionReveal>
@@ -138,17 +129,13 @@ export default async function ReturnTicketLandingPage() {
           <MotionReveal>
             <SectionHeading
               align="center"
-              eyebrow="What is a Return Verified Ticket?"
-              title="Your return ticket, arranged for your trip"
+              eyebrow={content.text("about.eyebrow")}
+              title={content.text("about.title")}
               className="mx-auto"
             />
           </MotionReveal>
           <MotionReveal delay={0.06}>
-            <p className="max-w-2xl text-sm text-ink-secondary sm:text-base">
-              A Return Verified Ticket is a return ticket reservation arranged for international travel and intended to
-              provide proof of return travel where applicable. TripNexio arranges the reservation according to the
-              travel details provided and configured airline/partner availability.
-            </p>
+            <p className="max-w-2xl text-sm text-ink-secondary sm:text-base">{content.text("about.intro")}</p>
           </MotionReveal>
         </Container>
       </section>
@@ -157,23 +144,15 @@ export default async function ReturnTicketLandingPage() {
         <Container>
           <MotionReveal>
             <div className="flex max-w-3xl flex-col gap-4">
-              <SectionHeading eyebrow="How the return date works" title="Tell us your expected return date" />
-              <p className="text-sm text-ink-secondary sm:text-base">
-                You select your destination country, travel date and expected return date. TripNexio looks for a
-                suitable return ticket close to your expected date and issues it according to live ticket
-                availability.
-              </p>
+              <SectionHeading eyebrow={content.text("returnDate.eyebrow")} title={content.text("returnDate.title")} />
+              <p className="text-sm text-ink-secondary sm:text-base">{content.text("returnDate.intro")}</p>
               <ul className="flex flex-col gap-2.5">
-                <li className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                  No visa-validity date is requested. You provide an expected return date so we can search for a
-                  suitable ticket close to that date.
-                </li>
-                <li className="flex items-start gap-2.5 text-sm text-ink-secondary">
-                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                  The exact issue date is not selected by you. TripNexio issues the reservation according to available
-                  ticket inventory and the applicable travel schedule.
-                </li>
+                {paragraphs("returnDate.points").map((point, index) => (
+                  <li key={`${index}-${point}`} className="flex items-start gap-2.5 text-sm text-ink-secondary">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                    {point}
+                  </li>
+                ))}
               </ul>
             </div>
           </MotionReveal>
@@ -184,27 +163,27 @@ export default async function ReturnTicketLandingPage() {
       <ServiceRequirementsSection
         whatYouNeed={whatYoullNeed}
         documents={returnTicketDocumentsForDisplay(documents)}
-        notes={[
-          "Additional information or documents may be requested when necessary for the selected destination, airline/partner or reservation process.",
-        ]}
+        notes={paragraphs("requirements.notes")}
+        needTitle={content.text("requirements.needTitle")}
+        documentsTitle={content.text("requirements.documentsTitle")}
       />
 
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow={content.text("howItWorks.eyebrow")} title={content.text("howItWorks.title")} className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={content.steps(visaProcessSteps)} />
         </Container>
       </section>
 
-      <VerificationTimingSection />
+      <VerificationTimingSection content={content} />
 
-      <CancellationRefundSection destinations={destinations} />
+      <CancellationRefundSection destinations={destinations} content={content} />
 
-      <DisclaimerAfterTravelSection />
+      <DisclaimerAfterTravelSection content={content} />
 
-      <ServiceFaqSection serviceType="RETURN_TICKET" />
+      <ServiceFaqSection serviceType="RETURN_TICKET" title={content.text("faq.title")} />
 
       <section className="pb-14 sm:pb-20">
         <Container>
