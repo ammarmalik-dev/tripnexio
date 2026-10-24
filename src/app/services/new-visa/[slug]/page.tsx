@@ -43,6 +43,7 @@ function howItWorks(page: PublishedCountryPage, product: string) {
   const custom = (page.howItWorksSteps ?? [])
     .map((line) => line.split("|").map((part) => part.trim()))
     .filter(([headline]) => Boolean(headline))
+    .slice(0, 4) // client confirmation 2026-10-25 — exactly 4 steps on every service page
     .map(([headline, ...rest], index) => ({
       step: String(index + 1).padStart(2, "0"),
       icon: STEP_ICONS[index % STEP_ICONS.length],

@@ -40,7 +40,8 @@ export async function getSitePageContent(page: SitePage): Promise<SitePageConten
     const value = stored.steps;
     const edited = typeof value === "string" ? parseStepLines(value) : null;
     if (!edited) return defaults;
-    return edited.map((row, index) => ({ ...(defaults[index] ?? defaults[defaults.length - 1]), ...row, step: String(index + 1).padStart(2, "0") }));
+    // Client confirmation 2026-10-25 — exactly 4 steps on every service page.
+    return edited.slice(0, 4).map((row, index) => ({ ...(defaults[index] ?? defaults[defaults.length - 1]), ...row, step: String(index + 1).padStart(2, "0") }));
   };
 
   return { text, heroImageUrl, steps };
