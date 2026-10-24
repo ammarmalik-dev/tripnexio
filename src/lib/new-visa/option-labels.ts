@@ -18,7 +18,7 @@ export async function newVisaOptionFiller(detailsList: unknown[]): Promise<(deta
   if (ids.length === 0) return (details) => details;
   const configs = await db.newVisaCountryConfig.findMany({
     where: { id: { in: ids } },
-    select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true },
+    select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true, validityType: { select: { name: true } } },
   });
   const labels = new Map(configs.map((config) => [config.id, productLabel(config)]));
   return (details) => {

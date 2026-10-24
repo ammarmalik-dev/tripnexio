@@ -9,8 +9,8 @@ import type { ManualLeadValues } from "../validation/manual-lead-schema";
 /** The Manual Lead form's travellers by type (OTB / Return Ticket ask one count). */
 export function manualLeadPaxTypes(data: ManualLeadValues): PaxType[] {
   const single = data.serviceType === "OTB" || data.serviceType === "RETURN_TICKET";
-  // New Visa / Visa Change have Adult and Child only (client 2026-10-05): an infant is priced as a Child, as on the website.
-  const childOnly = data.serviceType === "NEW_VISA" || data.serviceType === "VISA_CHANGE";
+  // Client 2026-10-25 — only Special Fare has Infants (0–2); every other service is Adult (18+) / Child (under 18).
+  const childOnly = data.serviceType !== "FLIGHT_SPECIAL_FARE";
   return [
     ...Array<PaxType>(data.adultCount).fill("ADULT"),
     ...Array<PaxType>(single ? 0 : data.childCount + (childOnly ? data.infantCount : 0)).fill("CHILD"),
@@ -28,7 +28,7 @@ export async function manualLeadServiceDetails(data: ManualLeadValues): Promise<
       const product = data.newVisaConfigId
         ? await db.newVisaCountryConfig.findUnique({
             where: { id: data.newVisaConfigId },
-            select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true },
+            select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true, validityType: { select: { name: true } } },
           })
         : null;
       const nationality = data.nationalityId ? await db.nationality.findFirst({ where: { id: data.nationalityId, active: true }, select: { id: true, name: true } }) : null;

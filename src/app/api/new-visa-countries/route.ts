@@ -16,7 +16,7 @@ export async function GET() {
   const configs = await db.newVisaCountryConfig.findMany({
     where: { active: true, country: { active: true } },
     orderBy: [{ country: { displayOrder: "asc" } }, { country: { name: "asc" } }, { displayOrder: "asc" }, { stayDays: "asc" }],
-    include: { country: { select: { code: true, name: true } } },
+    include: { country: { select: { code: true, name: true } }, validityType: { select: { name: true } } },
   });
 
   const products = await Promise.all(

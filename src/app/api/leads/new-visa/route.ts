@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
   // this destination, required whenever the destination has any.
   const products = await db.newVisaCountryConfig.findMany({
     where: { active: true, country: { active: true, code: { equals: destinationCountry, mode: "insensitive" } } },
-    select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true },
+    select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true, validityType: { select: { name: true } } },
   });
   const product = newVisaConfigId ? products.find((option) => option.id === newVisaConfigId) : undefined;
   if (newVisaConfigId ? !product : products.length > 0) {

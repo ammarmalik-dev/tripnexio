@@ -7,6 +7,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { readDeleteReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { newVisaProductClashWhere, PRODUCT_CLASH_MESSAGE } from "@/lib/new-visa/products";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -40,9 +41,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
   const nextStay = data.stayDays ?? existing.stayDays;
   const nextEntry = data.entryKind ?? existing.entryKind;
-  if ((data.stayDays !== undefined || data.entryKind !== undefined) && nextStay && nextEntry) {
-    const clash = await db.newVisaCountryConfig.findFirst({ where: { countryId: existing.countryId, stayDays: nextStay, entryKind: nextEntry, id: { not: id } } });
-    if (clash) return jsonError(400, "This country already has that stay duration and entry type.", { stayDays: ["Already added."] });
+  const touchesKey = [data.stayDays, data.entryKind, data.visaCategory, data.validityTypeId].some((value) => value !== undefined);
+  if (touchesKey && nextStay && nextEntry) {
+    const clash = await db.newVisaCountryConfig.findFirst({
+      where: {
+        ...newVisaProductClashWhere({
+          countryId: existing.countryId,
+          stayDays: nextStay,
+          entryKind: nextEntry,
+          visaCategory: data.visaCategory ?? existing.visaCategory,
+          validityTypeId: data.validityTypeId !== undefined ? data.validityTypeId : existing.validityTypeId,
+        }),
+        id: { not: id },
+      },
+    });
+    if (clash) return jsonError(400, PRODUCT_CLASH_MESSAGE, { stayDays: ["Already added."] });
   }
 
   const updated = await db.$transaction(async (tx) => {

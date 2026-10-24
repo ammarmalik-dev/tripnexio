@@ -455,10 +455,8 @@ function NewConfigForm({
     !!countryId &&
     form.visaCategory.trim() !== "" &&
     form.stayDays !== "" &&
-    form.entryKind !== "" &&
-    form.processingType.trim() !== "" &&
-    form.description.trim() !== "" &&
-    form.termsAndConditions.trim() !== "";
+    // Client 2026-10-25 — description / terms / processing are no longer on this form (country page, T&C, timelines).
+    form.entryKind !== "";
 
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">

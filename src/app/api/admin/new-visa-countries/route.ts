@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { newVisaDefaultTerms } from "@/lib/terms/new-visa-default-terms";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { ENTRY_KIND_LABELS } from "@/lib/new-visa/products";
+import { ENTRY_KIND_LABELS, newVisaProductClashWhere, PRODUCT_CLASH_MESSAGE } from "@/lib/new-visa/products";
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
@@ -41,12 +41,12 @@ export async function POST(request: NextRequest) {
   const country = await db.country.findUnique({ where: { id: parsed.data.countryId } });
   if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
 
-  // P10 — one product per country + stay duration + entry type.
+  // Client 2026-10-25 — a country has several options; only the exact same stay + entry + category + validity is a duplicate.
   const existing = await db.newVisaCountryConfig.findFirst({
-    where: { countryId: country.id, stayDays: parsed.data.stayDays, entryKind: parsed.data.entryKind },
+    where: newVisaProductClashWhere({ ...parsed.data, countryId: country.id, validityTypeId: parsed.data.validityTypeId ?? null }),
   });
   if (existing) {
-    return jsonError(400, "This country already has that stay duration and entry type.", { stayDays: ["Already added."] });
+    return jsonError(400, PRODUCT_CLASH_MESSAGE, { stayDays: ["Already added."] });
   }
   const data = {
     ...parsed.data,
