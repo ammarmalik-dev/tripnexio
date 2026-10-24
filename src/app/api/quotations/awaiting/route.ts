@@ -6,11 +6,9 @@ import { describeError } from "@/lib/api/describe-error";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
-import { ABANDONED_DRAFT_SOURCE } from "@/lib/leads/abandoned-draft";
-import type { Prisma, ServiceType } from "@/generated/prisma/client";
+import { AWAITING_QUOTATION_WHERE, AWAITING_QUOTE_SERVICES } from "@/lib/quotations/awaiting";
+import type { Prisma } from "@/generated/prisma/client";
 
-/** The quote-review services — a full-form submission waits here for staff to build a quotation. */
-const AWAITING_QUOTE_SERVICES = ["FLIGHT_SPECIAL_FARE", "VISA_EXTENSION", "VISA_CHANGE"] as const satisfies readonly ServiceType[];
 
 const awaitingQuerySchema = z.object({
   serviceType: z.enum(AWAITING_QUOTE_SERVICES).optional(),
@@ -42,12 +40,8 @@ export async function GET(request: NextRequest) {
   const scoped = serviceTypeCondition(auth.session, serviceType);
   const where: Prisma.LeadWhereInput = {
     AND: [
-      { serviceType: { in: [...AWAITING_QUOTE_SERVICES] } },
+      AWAITING_QUOTATION_WHERE,
       scoped,
-      { status: { notIn: ["CONVERTED", "LOST", "CLOSED"] } },
-      { quotations: { none: {} } },
-      // `source` is nullable — a plain `not` would also drop NULL-source leads.
-      { OR: [{ source: null }, { source: { not: ABANDONED_DRAFT_SOURCE } }] },
       ...(search
         ? [
             {

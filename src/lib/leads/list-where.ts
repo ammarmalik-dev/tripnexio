@@ -3,6 +3,7 @@ import type { Prisma } from "../../generated/prisma/client";
 import { serviceTypeCondition } from "../auth/service-scope";
 import type { StaffSession } from "../auth/staff-session";
 import type { LeadListQueryValues } from "../validation/lead-query-schema";
+import { AWAITING_QUOTATION_WHERE } from "../quotations/awaiting";
 
 /**
  * The Leads list's where clause, shared by GET /api/leads and its CSV export
@@ -49,5 +50,8 @@ export function leadListWhere(
       : {}),
     ...extra,
   };
-  return Object.keys(ownership).length > 0 ? { AND: [base, ownership] } : base;
+  // Dashboard doc §7 — a full-form Special Fare / Visa Extension / Visa Change request waits in Quotations →
+  // Awaiting quotation, not in Leads; it comes back here once quoted. A search still finds it.
+  const conditions = [base, ...(Object.keys(ownership).length > 0 ? [ownership] : []), ...(search ? [] : [{ NOT: AWAITING_QUOTATION_WHERE }])];
+  return conditions.length === 1 ? base : { AND: conditions };
 }
