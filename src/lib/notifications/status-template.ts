@@ -214,8 +214,11 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
   const reference = leadReference(lead);
   const pendingBooking = booking ?? lead.bookings.find((row) => row.customerToken) ?? null;
   const token = booking?.customerToken ?? pendingBooking?.customerToken ?? null;
-  const securePage = token ? `${site}/pay/${token}` : `${site}/track`;
-  const quotePage = lead.customerToken ? `${site}/quote/${lead.customerToken}` : securePage;
+  // Client 2026-10-25 — a button must open the customer's own page (status, documents, payment), never the bare
+  // Track page: the booking's page once there is one, else the lead's own quote page, else Track with the reference filled in.
+  const leadPage = lead.customerToken ? `${site}/quote/${lead.customerToken}` : null;
+  const securePage = token ? `${site}/pay/${token}` : (leadPage ?? `${site}/track?ref=${encodeURIComponent(reference)}`);
+  const quotePage = leadPage ?? securePage;
 
   // Passengers and their own results (client doc 2026-10-15, I4).
   const bookingPassengers = booking?.passengers ?? [];
