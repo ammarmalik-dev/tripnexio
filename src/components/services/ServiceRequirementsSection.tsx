@@ -22,6 +22,9 @@ interface ServiceRequirementsSectionProps {
   documents: RequiredDocument[];
   /** Shown under both cards, e.g. "Additional documents may be required…". */
   notes?: string[];
+  /** Client confirmation 2026-10-25 — the card headings, editable per page in Admin → Website Pages. */
+  needTitle?: string;
+  documentsTitle?: string;
 }
 
 /**
@@ -30,7 +33,13 @@ interface ServiceRequirementsSectionProps {
  * services and New Visa countries). Two equal cards side by side on desktop,
  * stacked on mobile; a side with no items is left out.
  */
-export function ServiceRequirementsSection({ whatYouNeed, documents, notes = [] }: ServiceRequirementsSectionProps) {
+export function ServiceRequirementsSection({
+  whatYouNeed,
+  documents,
+  notes = [],
+  needTitle = "What You'll Need",
+  documentsTitle = "Documents Required",
+}: ServiceRequirementsSectionProps) {
   if (whatYouNeed.length === 0 && documents.length === 0) return null;
   const bothSides = whatYouNeed.length > 0 && documents.length > 0;
 
@@ -40,9 +49,9 @@ export function ServiceRequirementsSection({ whatYouNeed, documents, notes = [] 
         <div className={bothSides ? "grid grid-cols-1 gap-5 lg:grid-cols-2" : "mx-auto w-full max-w-3xl"}>
           {whatYouNeed.length > 0 ? (
             <MotionReveal className="h-full">
-              <RequirementsCard title="What You'll Need" icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />}>
-                {whatYouNeed.map((item) => (
-                  <li key={item.label} className="flex items-start gap-2.5">
+              <RequirementsCard title={needTitle} icon={<ClipboardList className="h-5 w-5" aria-hidden="true" />}>
+                {whatYouNeed.map((item, index) => (
+                  <li key={`${index}-${item.label}`} className="flex items-start gap-2.5">
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
                     <span className="flex flex-col">
                       <span className="text-sm font-medium text-ink-heading">{item.label}</span>
@@ -56,9 +65,9 @@ export function ServiceRequirementsSection({ whatYouNeed, documents, notes = [] 
 
           {documents.length > 0 ? (
             <MotionReveal delay={0.06} className="h-full">
-              <RequirementsCard title="Documents Required" icon={<FileCheck2 className="h-5 w-5" aria-hidden="true" />}>
-                {documents.map((doc) => (
-                  <li key={doc.name} className="flex items-start gap-2.5">
+              <RequirementsCard title={documentsTitle} icon={<FileCheck2 className="h-5 w-5" aria-hidden="true" />}>
+                {documents.map((doc, index) => (
+                  <li key={`${index}-${doc.name}`} className="flex items-start gap-2.5">
                     <FileText className="mt-0.5 h-4 w-4 shrink-0 text-accent-on-light" aria-hidden="true" />
                     <span className="flex flex-col">
                       <span className="text-sm font-medium text-ink-heading">{doc.name}</span>
