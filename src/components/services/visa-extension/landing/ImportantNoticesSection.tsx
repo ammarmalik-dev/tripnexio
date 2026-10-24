@@ -3,47 +3,34 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
-interface Notice {
-  title: string;
-  body: string;
-  icon: LucideIcon;
-}
+// Icons by position; extra notices Admin adds cycle through them.
+const NOTICE_ICONS: LucideIcon[] = [CalendarClock, CalendarX2, AlertTriangle];
 
 // Locked content — UAE Visa Extension page doc §7 "Important before you request an extension".
-const notices: Notice[] = [
-  {
-    title: "Actual expiry is checked during review",
-    body: "The expiry date used for your request must be your current visa expiry date. Any estimated timing is not a confirmed expiry date.",
-    icon: CalendarClock,
-  },
-  {
-    title: "30+ days expired",
-    body: "If the visa has been expired for 30 days or more, it is not eligible for the 30-day Visa Extension.",
-    icon: CalendarX2,
-  },
-  {
-    title: "Visa expires today",
-    body: "Same-day expiry cases require urgent handling. The current operational payment deadline is 6:00 PM on the same working day. Applicable fines remain subject to the relevant authority rules.",
-    icon: AlertTriangle,
-  },
-];
+// Wording from Admin → Website Pages (blank = the locked copy).
+export function ImportantNoticesSection({ content }: { content: SitePageContentView }) {
+  const notices = content.list("notices.items", 2).map(([title, body], index) => ({
+    title,
+    body,
+    icon: NOTICE_ICONS[index % NOTICE_ICONS.length],
+  }));
 
-export function ImportantNoticesSection() {
   return (
     <section className="py-10 sm:py-14">
       <Container className="flex flex-col gap-8">
         <MotionReveal>
           <SectionHeading
             align="center"
-            eyebrow="Good to know"
-            title="Important before you request an extension"
+            eyebrow={content.text("notices.eyebrow")}
+            title={content.text("notices.heading")}
             className="mx-auto"
           />
         </MotionReveal>
         <ul className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {notices.map(({ title, body, icon: Icon }, index) => (
-            <li key={title}>
+            <li key={`${index}-${title}`}>
               <MotionReveal delay={index * 0.06} className="h-full">
                 <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-warning/10 text-warning">

@@ -3,42 +3,37 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
-interface Stage {
-  title: string;
-  body: string;
-  icon: LucideIcon;
-}
-
+// Icons by position; extra cards Admin adds cycle through them.
 // Locked content — UAE Visa Extension page doc §10 "After Payment".
-const afterPayment: Stage[] = [
-  { title: "Payment Received", body: "Your payment is confirmed.", icon: BadgeCheck },
-  { title: "Extension Processing", body: "The paid extension process begins.", icon: Loader },
-  { title: "Extended Visa Ready", body: "The new extended visa copy is received.", icon: FileText },
-  {
-    title: "Visa Delivered",
-    body: "The extended visa is delivered through the available customer communication channels.",
-    icon: Send,
-  },
-];
-
+const STAGE_ICONS: LucideIcon[] = [BadgeCheck, Loader, FileText, Send];
 // Locked content — doc §11 "Outcomes". Kept as two distinct labels on purpose.
-const outcomes: Stage[] = [
-  { title: "Not Accepted", body: "Applicable refund: payment minus gateway charges.", icon: RotateCcw },
-  { title: "Rejected", body: "Formal rejection follows the current no-refund rule.", icon: Ban },
-];
+const OUTCOME_ICONS: LucideIcon[] = [RotateCcw, Ban];
 
-export function AfterPaymentOutcomesSection() {
+// Wording from Admin → Website Pages (blank = the locked copy).
+export function AfterPaymentOutcomesSection({ content }: { content: SitePageContentView }) {
+  const afterPayment = content.list("afterPayment.items", 2).map(([title, body], index) => ({
+    title,
+    body,
+    icon: STAGE_ICONS[index % STAGE_ICONS.length],
+  }));
+  const outcomes = content.list("outcomes.items", 2).map(([title, body], index) => ({
+    title,
+    body,
+    icon: OUTCOME_ICONS[index % OUTCOME_ICONS.length],
+  }));
+
   return (
     <section className="py-10 sm:py-14">
       <Container className="flex flex-col gap-8">
         <div className="flex flex-col gap-10">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="What happens next" title="After payment" className="mx-auto" />
+            <SectionHeading align="center" eyebrow={content.text("afterPayment.eyebrow")} title={content.text("afterPayment.heading")} className="mx-auto" />
           </MotionReveal>
           <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {afterPayment.map(({ title, body, icon: Icon }, index) => (
-              <li key={title}>
+              <li key={`${index}-${title}`}>
                 <MotionReveal delay={index * 0.05} className="h-full">
                   <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6">
                     <div className="flex items-center justify-between">
@@ -62,15 +57,15 @@ export function AfterPaymentOutcomesSection() {
           <MotionReveal>
             <SectionHeading
               align="center"
-              eyebrow="Outcomes"
-              title="If your extension isn't approved"
-              description="The detailed refund rules are set out in our Refund & Cancellation Policy and FAQ."
+              eyebrow={content.text("outcomes.eyebrow")}
+              title={content.text("outcomes.heading")}
+              description={content.text("outcomes.intro")}
               className="mx-auto"
             />
           </MotionReveal>
           <ul className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-4 sm:grid-cols-2">
             {outcomes.map(({ title, body, icon: Icon }, index) => (
-              <li key={title}>
+              <li key={`${index}-${title}`}>
                 <MotionReveal delay={index * 0.06} className="h-full">
                   <GlassCard tier={2} className="flex h-full items-start gap-4 p-6">
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-secondary">

@@ -26,16 +26,6 @@ export const metadata: Metadata = {
     "Extend an existing UAE visa originally issued through TripNexio — submit your details online and our team verifies and processes your extension.",
 };
 
-// Locked — P05: exactly these five, nothing else.
-// Client testing 2026-10-09 (B18) — the client's list, each with a short description.
-const whatYoullNeed = [
-  { label: "Name", detail: "As printed on the passport" },
-  { label: "Mobile Number", detail: "Active contact number for updates" },
-  { label: "Email Address", detail: "For your quotation and extension updates" },
-  { label: "Passport Number", detail: "For every applicant" },
-  { label: "Visa Expiry Date", detail: "The expiry date on your current visa" },
-];
-
 // Client correction 2026-10-05 — compact 4 steps. Step 2 checks the visa and
 // documents, not the passengers.
 const visaProcessSteps = [
@@ -72,6 +62,9 @@ export default async function VisaExtensionLandingPage() {
   // Client doc 2026-10-15 (J3) — photo and main wording from Admin → Website Pages (blank = this copy).
   const content = await getSitePageContent("visa-extension");
   const paymentLinkHours = await loadPaymentLinkHours();
+  // Locked — P05: exactly these five by default (client testing 2026-10-09 B18: each with a short description);
+  // Admin → Website Pages edits the list.
+  const whatYoullNeed = content.list("requirements.items", 2).map(([label, detail]) => ({ label, detail: detail || undefined }));
 
   return (
     <>
@@ -93,13 +86,13 @@ export default async function VisaExtensionLandingPage() {
             <p className="max-w-xl text-base text-ink-secondary sm:text-lg">{content.text("heroSubtitle")}</p>
           </MotionReveal>
           <MotionReveal delay={0.15}>
-            <p className="text-sm font-medium text-ink-tertiary">30-Day Extension • Online Request • Guided Process</p>
+            <p className="text-sm font-medium text-ink-tertiary">{content.text("hero.tagline")}</p>
           </MotionReveal>
           <MotionReveal delay={0.18}>
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-                Track Status
+                {content.text("hero.trackLabel")}
               </ButtonLink>
             </div>
           </MotionReveal>
@@ -110,33 +103,30 @@ export default async function VisaExtensionLandingPage() {
         <Container>
           <MotionReveal>
             <div className="flex max-w-3xl flex-col gap-4">
-              <SectionHeading eyebrow="Who is this for?" title="Only for TripNexio-issued visas" />
-              <p className="text-sm text-ink-secondary sm:text-base">
-                We currently offer Visa Extension only for visas originally issued through TripNexio. If we can&apos;t
-                find a matching TripNexio visa for your details, we&apos;ll guide you to Visa Change instead.
-              </p>
+              <SectionHeading eyebrow={content.text("whoFor.eyebrow")} title={content.text("whoFor.heading")} />
+              <p className="text-sm text-ink-secondary sm:text-base">{content.text("whoFor.body")}</p>
             </div>
           </MotionReveal>
 
         </Container>
       </section>
 
-      <ServiceRequirementsSection whatYouNeed={whatYoullNeed} documents={[]} />
+      <ServiceRequirementsSection whatYouNeed={whatYoullNeed} documents={[]} needTitle={content.text("requirements.needTitle")} />
 
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow={content.text("howItWorks.eyebrow")} title={content.text("howItWorks.heading")} className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={content.steps(visaProcessSteps)} />
         </Container>
       </section>
 
-      <ExtensionDetailsSection paymentLinkHours={paymentLinkHours} />
-      <ImportantNoticesSection />
-      <DocumentsPaymentSection paymentLinkHours={paymentLinkHours} />
-      <AfterPaymentOutcomesSection />
-      <ServiceFaqSection serviceType="VISA_EXTENSION" />
+      <ExtensionDetailsSection paymentLinkHours={paymentLinkHours} content={content} />
+      <ImportantNoticesSection content={content} />
+      <DocumentsPaymentSection paymentLinkHours={paymentLinkHours} content={content} />
+      <AfterPaymentOutcomesSection content={content} />
+      <ServiceFaqSection serviceType="VISA_EXTENSION" title={content.text("faq.title")} />
 
       <section className="pb-14 sm:pb-20">
         <Container>
@@ -146,12 +136,10 @@ export default async function VisaExtensionLandingPage() {
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </span>
               <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-on-dark-primary sm:text-3xl">{content.text("ctaHeading")}</h2>
-              <p className="max-w-xl text-sm text-ink-on-dark-secondary sm:text-base">
-                Check your extension eligibility and submit your request online.
-              </p>
+              <p className="max-w-xl text-sm text-ink-on-dark-secondary sm:text-base">{content.text("cta.body")}</p>
               <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <ButtonLink href="/services/visa-extension/request" variant="primary" size="lg">
-                  Check Extension Eligibility
+                  {content.text("cta.primaryLabel")}
                 </ButtonLink>
                 <ButtonLink
                   href={utilityLinks.trackStatus.href}
@@ -159,7 +147,7 @@ export default async function VisaExtensionLandingPage() {
                   size="lg"
                   className="border-white/40 text-white hover:border-white/70 hover:bg-white/5"
                 >
-                  Track Status
+                  {content.text("cta.trackLabel")}
                 </ButtonLink>
               </div>
             </div>
