@@ -211,12 +211,37 @@ async function getReturnTicketDestinationOptions() {
 }
 
 /**
+ * Client 2026-09-23 / New Visa handover §5 — a minor (under 18; the bot's "children") applies with a parent:
+ * which adult passenger is the parent, and Father / Mother. Their name and passport become the guardian details,
+ * as the website stores them. Null once every child has a guardian.
+ */
+function guardianStep(collected: Record<string, string>): NextField | null {
+  const passengers = botPassengers(collected);
+  const adults = passengers.filter((passenger) => passenger.paxType === "ADULT");
+  for (const child of passengers.filter((passenger) => passenger.paxType === "CHILD")) {
+    const name = child.fullName ?? `Passenger ${child.index}`;
+    if (!collected[`pax${child.index}Guardian`]) {
+      return numberedChoiceStep(
+        `pax${child.index}Guardian`,
+        `${name} is under 18 — Apply with Parent/Guardian. Which passenger is ${name}'s parent?`,
+        adults.map((adult) => ({ value: String(adult.index), label: adult.fullName ?? `Passenger ${adult.index}` }))
+      );
+    }
+    if (!collected[`pax${child.index}GuardianRel`]) {
+      return numberedChoiceStep(`pax${child.index}GuardianRel`, `Relationship with ${name}?`, [
+        { value: "FATHER", label: "Father" },
+        { value: "MOTHER", label: "Mother" },
+      ]);
+    }
+  }
+  return null;
+}
+
+/**
  * The passport nationality from the Nationality master. A short master (the usual case) is a numbered list like
  * every other choice; a long one is typed, matched by name or by a word starting with it ("Indian" → India).
- */
-/**
- * The passport nationality from the Nationality master. Client 2026-10-23 audit (Visa Change handover §2) — asked
- * per passenger too: `fieldKey` / `question` name the passenger and `same` lets them reply "same" as passenger 1.
+ * Client 2026-10-23 audit (Visa Change handover §2) — asked per passenger too: `fieldKey` / `question` name the
+ * passenger and `same` lets them reply "same" as passenger 1.
  */
 async function nationalityStep(
   fieldKey = "nationalityId",
@@ -509,7 +534,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         return numberedChoiceStep("processingType", header, options);
       }
       const noChildren = hasPrices && !(await pricedFor(collected.processingType)).includes("CHILD");
-      return passengerStep(collected, true, { noInfants: true, noChildren });
+      const paxQuestion = passengerStep(collected, true, { noInfants: true, noChildren });
+      if (paxQuestion) return paxQuestion;
+      return guardianStep(collected);
     }
 
     case "VISA_EXTENSION": {
@@ -642,7 +669,19 @@ export async function buildLeadDetails(serviceType: ServiceType, collected: Reco
       };
     }
     case "NEW_VISA": {
-      const applicants = botPassengers(collected).map((p) => ({ fullName: p.fullName, passportNumber: p.passportNumber, paxType: p.paxType }));
+      const passengers = botPassengers(collected);
+      const applicants = passengers.map((p) => {
+        // A minor's parent (guardianStep), stored like the website's applicant guardian.
+        const parent = passengers.find((other) => String(other.index) === collected[`pax${p.index}Guardian`]);
+        return {
+          fullName: p.fullName,
+          passportNumber: p.passportNumber,
+          paxType: p.paxType,
+          ...(parent
+            ? { guardian: { fullName: parent.fullName, passportNumber: parent.passportNumber, relationship: collected[`pax${p.index}GuardianRel`] } }
+            : {}),
+        };
+      });
       // Same keys as the website's New Visa route — priceLeadForDirectPayment() prices by this nationality.
       const nationality = collected.nationalityId
         ? await db.nationality.findUnique({ where: { id: collected.nationalityId }, select: { id: true, name: true } })
