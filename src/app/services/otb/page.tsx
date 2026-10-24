@@ -30,42 +30,9 @@ export const metadata: Metadata = {
     "OK to Board (OTB) airline clearance for Indian ECR passport holders travelling from India — request online and TripNexio coordinates the update with the relevant airline before you travel.",
 };
 
-// Locked content — TripNexio_OTB_Final_Page_Content_Design_FAQ_v3.docx §8/§19.
-// Passport Number and Destination Country are both required customer-form fields;
-// no separate nationality field. "Valid Destination Visa" (not "UAE Visa") — OTB isn't UAE-only.
-// Client testing 2026-10-09 (B15) — the client's list, each with a short description.
-const whatYoullNeed = [
-  { label: "Full name", detail: "As printed on the passport" },
-  { label: "Passport number", detail: "For every traveller" },
-  { label: "Mobile number", detail: "Active contact number for updates" },
-  { label: "Email address", detail: "For your OTB confirmation" },
-  { label: "Destination country", detail: "The country you are flying to" },
-  { label: "Airline name", detail: "The airline you are flying with" },
-  { label: "Travel date", detail: "Your date of departure" },
-];
-
-// Client correction 2026-10-05 — the OTB document list.
-const documentsNeeded = [
-  { name: "Passport Front Page", required: true },
-  { name: "Passport Last Page", required: true },
-  { name: "Valid Visa Copy", required: true },
-  { name: "Onward Ticket", required: true },
-  { name: "Return Ticket", required: true },
-];
-
-// Locked content — doc §5 "ECR & ECNR — OTB Service".
-const ecrEcnrSupport = [
-  {
-    title: "ECR Passport Holders",
-    description:
-      "For a smoother travel experience, TripNexio accepts OTB applications from Indian ECR passport holders travelling on applicable Gulf-bound flights and processes the OTB before travel.",
-  },
-  {
-    title: "ECNR / Non-ECR Passport Holders",
-    description:
-      "OTB may not be required for every ECNR/Non-ECR traveller. However, customers who want OTB arranged can request the service where the applicable airline/process channel supports it.",
-  },
-];
+// Locked content — TripNexio_OTB_Final_Page_Content_Design_FAQ_v3.docx §5/§8/§19 and the client's lists
+// (2026-10-05 documents, 2026-10-09 B15 "What You'll Need") now live as the fallbacks in
+// src/lib/site-content/sections/otb.ts, editable in Admin → Website Pages (client confirmation 2026-10-25).
 
 // Client correction 2026-10-05 — exactly 4 steps.
 const otbProcessSteps = [
@@ -78,6 +45,13 @@ const otbProcessSteps = [
 export default async function OtbLandingPage() {
   // Client doc 2026-10-15 (J3) — photo and main wording from Admin → Website Pages (blank = this copy).
   const content = await getSitePageContent("otb");
+  // A paragraph list: one paragraph per line ("|" inside a paragraph is kept as typed).
+  const paragraphs = (key: string): string[] => content.list(key).map((row) => row.join(" | "));
+  const whatYoullNeed = content.list("requirements.whatYouNeed", 2).map(([label, detail]) => ({ label, detail: detail || undefined }));
+  const documentsNeeded = content
+    .list("requirements.documents", 2)
+    .map(([name, caption]) => ({ name, required: true, caption: caption || undefined }));
+  const ecrEcnrSupport = content.list("ecrEcnr.cards", 2).map(([title, description]) => ({ title, description }));
   return (
     <>
       <section className="relative overflow-hidden">
@@ -111,7 +85,7 @@ export default async function OtbLandingPage() {
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/otb/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-                Track Status
+                {content.text("heroButtons.trackLabel")}
               </ButtonLink>
             </div>
           </MotionReveal>
@@ -122,13 +96,8 @@ export default async function OtbLandingPage() {
         <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
           <MotionReveal>
             <div className="flex flex-col gap-4">
-              <SectionHeading eyebrow="What is OK to Board?" title="Your airline clearance, handled for you" />
-              <p className="text-sm text-ink-secondary sm:text-base">
-                OK to Board (OTB) is an airline clearance process that may be required for certain Gulf-bound
-                journeys. TripNexio helps eligible Indian passport holders arrange OTB before travel through the
-                applicable airline/process channel. OTB is an airline process and is separate from Indian
-                emigration clearance.
-              </p>
+              <SectionHeading eyebrow={content.text("about.eyebrow")} title={content.text("about.title")} />
+              <p className="text-sm text-ink-secondary sm:text-base">{content.text("about.intro")}</p>
             </div>
           </MotionReveal>
 
@@ -139,20 +108,15 @@ export default async function OtbLandingPage() {
                   <BadgeCheck className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div className="flex flex-col">
-                  <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">ECR / Non-ECR</span>
-                  <h3 className="text-base font-semibold text-ink-heading">Check your passport endorsement</h3>
+                  <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">{content.text("about.cardEyebrow")}</span>
+                  <h3 className="text-base font-semibold text-ink-heading">{content.text("about.cardTitle")}</h3>
                 </div>
               </div>
-              <p className="text-sm text-ink-secondary">
-                An ECR passport has the words &ldquo;Emigration Check Required&rdquo; printed/endorsed on the
-                passport, usually on the last page/endorsement area. If that isn&rsquo;t printed, the passport is
-                treated as Non-ECR / ECNR for this service.
-              </p>
-              <p className="text-sm text-ink-secondary">
-                Indian ECR passport holders travelling on an applicable eVisa are advised to arrange OTB before
-                travel. ECNR / Non-ECR travellers may not require OTB, but can request it where they want the
-                airline clearance arranged and the applicable process supports it.
-              </p>
+              {paragraphs("about.cardParagraphs").map((paragraph, index) => (
+                <p key={index} className="text-sm text-ink-secondary">
+                  {paragraph}
+                </p>
+              ))}
             </GlassCard>
           </MotionReveal>
         </Container>
@@ -164,14 +128,14 @@ export default async function OtbLandingPage() {
           <MotionReveal>
             <SectionHeading
               align="center"
-              eyebrow="ECR & ECNR"
-              title="OTB support for ECR and ECNR travellers"
+              eyebrow={content.text("ecrEcnr.eyebrow")}
+              title={content.text("ecrEcnr.title")}
               className="mx-auto"
             />
           </MotionReveal>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {ecrEcnrSupport.map((item, index) => (
-              <MotionReveal key={item.title} delay={index * 0.06} className="h-full">
+              <MotionReveal key={index} delay={index * 0.06} className="h-full">
                 <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6 sm:p-8">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                     <Stamp className="h-5 w-5" aria-hidden="true" />
@@ -184,7 +148,7 @@ export default async function OtbLandingPage() {
           </div>
           <MotionReveal>
             <p className="mx-auto max-w-2xl text-center text-xs text-ink-tertiary">
-              OTB is an airline clearance service; it is not a substitute for Indian emigration clearance.
+              {content.text("ecrEcnr.note")}
             </p>
           </MotionReveal>
         </Container>
@@ -194,18 +158,13 @@ export default async function OtbLandingPage() {
         <Container className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
           <MotionReveal className="h-full">
             <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6 sm:p-8">
-              <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">India departure</span>
-              <h2 className="text-base font-semibold text-ink-heading">OTB for Indian travellers departing from India</h2>
-              <p className="text-sm text-ink-secondary">
-                TripNexio processes OTB for Indian travellers when the journey is departing from India. The airline
-                may be India-based or Gulf-based &mdash; what matters is that the passenger&rsquo;s flight is
-                departing from India. If an Indian traveller is departing from another country, TripNexio cannot
-                update the OTB through this service, even if the airline is India- or Gulf-based.
-              </p>
-              <p className="text-sm text-ink-secondary">
-                OTB should be arranged before the passenger travels to the airport. TripNexio coordinates the
-                applicable airline process and provides status updates during processing.
-              </p>
+              <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">{content.text("departure.eyebrow")}</span>
+              <h2 className="text-base font-semibold text-ink-heading">{content.text("departure.title")}</h2>
+              {paragraphs("departure.paragraphs").map((paragraph, index) => (
+                <p key={index} className="text-sm text-ink-secondary">
+                  {paragraph}
+                </p>
+              ))}
             </GlassCard>
           </MotionReveal>
 
@@ -217,23 +176,15 @@ export default async function OtbLandingPage() {
                   <Network className="h-5 w-5" aria-hidden="true" />
                 </span>
                 <div className="flex flex-col">
-                  <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">Airline network</span>
-                  <h2 className="text-base font-semibold text-ink-heading">Supported airlines, India departure only</h2>
+                  <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">{content.text("departure.networkEyebrow")}</span>
+                  <h2 className="text-base font-semibold text-ink-heading">{content.text("departure.networkTitle")}</h2>
                 </div>
               </div>
-              <p className="text-sm text-ink-secondary">
-                TripNexio can coordinate OTB updates with supported India- and Gulf-based airlines where the
-                applicable airline process is available.
-              </p>
-              <p className="text-sm text-ink-secondary">
-                The key limitation is the departure point: TripNexio&rsquo;s OTB service can update OTB for
-                passengers travelling from India. We cannot update OTB when the passenger is departing from another
-                country.
-              </p>
-              <p className="text-sm text-ink-secondary">
-                Airline processing timelines can differ. Normal and Urgent options are shown according to the
-                selected airline, travel date and operational availability.
-              </p>
+              {paragraphs("departure.networkParagraphs").map((paragraph, index) => (
+                <p key={index} className="text-sm text-ink-secondary">
+                  {paragraph}
+                </p>
+              ))}
             </GlassCard>
           </MotionReveal>
         </Container>
@@ -242,16 +193,15 @@ export default async function OtbLandingPage() {
       <ServiceRequirementsSection
         whatYouNeed={whatYoullNeed}
         documents={documentsNeeded}
-        notes={[
-          "OTB is not a separate document. It is a confirmation/update made by the airline on your booking. Once the airline confirms it, we notify you by WhatsApp and email and update your status on Track Status.",
-          "Additional documents may be requested if the airline asks for them during processing.",
-        ]}
+        notes={paragraphs("requirements.notes")}
+        needTitle={content.text("requirements.needTitle")}
+        documentsTitle={content.text("requirements.documentsTitle")}
       />
 
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow={content.text("howItWorks.eyebrow")} title={content.text("howItWorks.title")} className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={content.steps(otbProcessSteps)} />
         </Container>
@@ -264,11 +214,9 @@ export default async function OtbLandingPage() {
               <span className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-ink-on-dark-primary">
                 <Clock className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h2 className="text-lg font-semibold text-ink-on-dark-primary">Processing time depends on the airline</h2>
+              <h2 className="text-lg font-semibold text-ink-on-dark-primary">{content.text("processing.title")}</h2>
               <p className="mx-auto max-w-xl text-sm text-ink-on-dark-secondary">
-                Normal is standard OTB processing when available; Urgent is faster processing for urgent travel when
-                available. You&rsquo;ll only see the options currently available for your selected airline and
-                travel date, and the exact price for each before you pay.
+                {content.text("processing.body")}
               </p>
             </div>
           </MotionReveal>
@@ -283,14 +231,11 @@ export default async function OtbLandingPage() {
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                 <Ticket className="h-5 w-5" aria-hidden="true" />
               </span>
-              <h2 className="text-lg font-semibold text-ink-heading">Need a Return Ticket?</h2>
-              <p className="text-sm text-ink-secondary">
-                If your return ticket is missing, TripNexio can arrange a separate Return Verified Ticket and link it
-                with the OTB journey where applicable.
-              </p>
+              <h2 className="text-lg font-semibold text-ink-heading">{content.text("returnApproval.returnTitle")}</h2>
+              <p className="text-sm text-ink-secondary">{content.text("returnApproval.returnBody")}</p>
               <div className="mt-auto pt-2">
                 <ButtonLink href="/services/return-ticket" variant="primary" size="md">
-                  Get Return Ticket
+                  {content.text("returnApproval.returnButton")}
                 </ButtonLink>
               </div>
             </GlassCard>
@@ -302,20 +247,15 @@ export default async function OtbLandingPage() {
                 <BadgeCheck className="h-5 w-5" aria-hidden="true" />
               </span>
               <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">Once approved</span>
-                <h2 className="text-lg font-semibold text-ink-heading">OTB Approval</h2>
+                <span className="text-xs font-medium tracking-wide text-ink-accent uppercase">{content.text("returnApproval.approvalEyebrow")}</span>
+                <h2 className="text-lg font-semibold text-ink-heading">{content.text("returnApproval.approvalTitle")}</h2>
               </div>
-              <p className="text-sm text-ink-secondary">
-                Once the airline confirms your OTB, we share the confirmation/reference with you by WhatsApp and email
-                and update the status on Track Status.
-              </p>
+              <p className="text-sm text-ink-secondary">{content.text("returnApproval.approvalBody")}</p>
               <div role="note" className="flex gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4">
                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-warning" aria-hidden="true" />
                 <p className="text-xs text-ink-primary sm:text-sm">
-                  <span className="font-semibold">Important: </span>
-                  TripNexio provides OTB processing as a service provider. OTB approval does not guarantee airline
-                  boarding, immigration clearance, visa approval or entry into the destination country. Final boarding
-                  and immigration decisions remain with the relevant airline and authorities.
+                  <span className="font-semibold">{content.text("returnApproval.importantLabel")} </span>
+                  {content.text("returnApproval.importantText")}
                 </p>
               </div>
             </GlassCard>
@@ -323,7 +263,7 @@ export default async function OtbLandingPage() {
         </Container>
       </section>
 
-      <ServiceFaqSection serviceType="OTB" />
+      <ServiceFaqSection serviceType="OTB" title={content.text("faq.title")} />
 
       <section className="pb-14 sm:pb-20">
         <Container>
@@ -336,7 +276,7 @@ export default async function OtbLandingPage() {
               <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
                 <ButtonLink href="/services/otb/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
                 <ButtonLink href="/services/return-ticket" variant="ghost" size="lg" className="border-white/40 text-white hover:border-white/70 hover:bg-white/5">
-                  Get Return Ticket
+                  {content.text("closing.returnButton")}
                 </ButtonLink>
               </div>
             </div>
