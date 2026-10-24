@@ -116,10 +116,14 @@ export async function POST(request: NextRequest) {
         delaysNotified++;
       }
 
-      // --- TRAVEL DATE PASSED (client doc 2026-10-20, A18) ---------------------
-      // A paid booking whose travel date is more than 24 hours behind and that isn't finished: a task for its
-      // staff and the booking On Hold (internal — no customer message), once per booking.
-      const travelCutoff = new Date(now.getTime() - 24 * HOUR_MS);
+      // --- TRAVEL DATE (client doc 2026-10-20 A18; client confirmation 2026-10-25) -----------------------------
+      // "Keep the booking On Hold until the day before the scheduled travel date" (travel 30 Oct → 29 Oct): from the
+      // day before travel (IST), a paid booking that isn't finished gets a task for its staff and goes On Hold
+      // (internal — no customer message), once per booking.
+      const todayIst = new Date(now.getTime() + IST_OFFSET_MS);
+      todayIst.setUTCHours(0, 0, 0, 0);
+      // Travel dates are stored as calendar dates (midnight UTC): due when the travel date is tomorrow (IST) or earlier.
+      const travelCutoff = new Date(todayIst.getTime() + 2 * 24 * HOUR_MS);
       const stale = await db.booking.findMany({
         where: {
           status: { in: ["CONFIRMED", "PROCESSING"] },
@@ -133,12 +137,13 @@ export async function POST(request: NextRequest) {
       for (const booking of stale) {
         if (await wasRecentlyReminded(TRAVEL_PASSED_EVENT, "Booking", booking.id, 365 * 24 * HOUR_MS)) continue;
         const held = await db.$transaction(async (tx) => {
-          const moved = await holdBookingSilently(tx, booking.id, "automatic hold", `travel date ${booking.lead.travelDate?.toISOString().slice(0, 10)} passed more than 24 hours ago`);
+          const travelDay = booking.lead.travelDate?.toISOString().slice(0, 10) ?? "";
+          const moved = await holdBookingSilently(tx, booking.id, "automatic hold", `travel date ${travelDay} is tomorrow or has passed and the service isn't finished`);
           await createTask(tx, {
             type: "MANUAL_VERIFICATION",
             priority: "HIGH",
-            title: `Travel date passed — check booking ${booking.bookingId}`,
-            reason: "The travel date passed more than 24 hours ago and the service isn't finished; the booking was put On Hold.",
+            title: `Travel on ${travelDay} — check booking ${booking.bookingId}`,
+            reason: "The travel date is tomorrow (or has passed) and the service isn't finished; the booking was put On Hold.",
             entityType: "Booking",
             entityId: booking.id,
             leadId: booking.leadId,
