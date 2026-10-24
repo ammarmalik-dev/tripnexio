@@ -37,7 +37,7 @@ Special Fare / Return Ticket / OTB
 
 New Visa / Visa Extension / Visa Change
 - [x] New Visa document checklist falls back to hard-coded "India" nationality (`required-documents.ts:63,90`) instead of the lead's.
-- [ ] Bot: no DOB / guardian step for under-18 (handover §5).
+- [x] Bot: no DOB / guardian step for under-18 (handover §5).
 - [ ] Bot: no expected approval date / prices shown (item 10).
 - [x] VC bot: upload link after the lead and nationality per passenger (fixed 23 Oct). (`engine.ts:302` covers VE only).
 - [x] VE "previously received a visa" accepts any converted New Visa booking, and falls back to cancelled/refunded bookings unfiltered (`visa-extension-eligibility.ts:99-133`) — the "WRONG RECORD FOUND" case.
@@ -59,14 +59,14 @@ CRM / Admin
 - [ ] Timelines by country for RT/VE/VC/SF (§6, chat 28-Sep) — only New Visa (country) and OTB (airline).
 - [ ] Bulk apply for pricing/timelines (§3) — documents only.
 - [ ] Report filters by sub-service / status / payment status (§15); cash-flow report has no filters.
-- [ ] Full-form SF/VE/VC show in both Leads and Quotations (Dashboard §7: Quotations instead of Leads).
-- [ ] Pagination missing: Document Master, Vendor Service Rates, Visa Master, Sub-services, Processing types, Roles.
+- [x] Full-form SF/VE/VC show in both Leads and Quotations (Dashboard §7: Quotations instead of Leads).
+- [x] Pagination: Document Master, Vendor Service Rates, Visa Master added; Sub-services / Processing types already had it; Roles left (a handful of rows).
 - [x] 21 Oct screenshot: booking "All statuses" popover is covered by the Tasks card (z-index); booking Communications shows the customer's unrelated New Visa chat (popover fixed; the chat came from overlapping test requests — cleared by the 23 Oct reset).
 
 Copy / templates
 - [x] "vendor" still in customer copy: `flight-special-fare/landing/AlternativeAndPaymentSections.tsx:92`, `TicketingSections.tsx:34,41,54`, `return-ticket/steps/Step3Summary.tsx:63`, `legal/default-pages.ts` (Terms §4/5/7, Privacy §4, Refund, Disclaimer).
 - [x] SF landing still lists "Ticket number / PNR / vendor reference / Ticket issue time" (`TicketingSections.tsx:51-60`); doc: PNR only.
-- [x] RT request page meta says "Share your visa type" (`return-ticket/request/page.tsx:7`); RT FAQ #2 typo "return or return ticket" (needs a migration).
+- [x] RT request page meta says "Share your visa type" (`return-ticket/request/page.tsx:7`); RT FAQ #2 typo "return or return ticket" (fixed by migration 20261023150000).
 - [ ] Brand line "Travel Made Easy" vs OTB/RT docs "Travel Made Simple" (`site-config.ts:6`, `email/get-sender.ts:33`).
 - [ ] Status labels: New Visa "Visa Application Approved" shown as "Visa Approved"; "Cancelled and Refunded" shown as "Booking Cancelled — Refund Completed" in every service (catalog.ts:84,91,135,175,212,245,292).
 - [ ] Customer rejection text can fall back to `BookingPassenger.outcomeNote` (internal audit reason) (`status-template.ts:292`).
