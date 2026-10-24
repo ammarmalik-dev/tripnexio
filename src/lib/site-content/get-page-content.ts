@@ -1,13 +1,18 @@
 import { db } from "../db";
-import { SITE_PAGE_DEFS, parseStepLines, type SitePage, type SitePageField } from "./pages";
+import { SITE_PAGE_DEFS, parseListLines, parseStepLines, sectionFields, sitePageImageUrl, type SitePage } from "./pages";
 
-export function sitePageImageUrl(fileId: string | null | undefined): string | null {
-  return fileId ? `/api/site-pages/image/${encodeURIComponent(fileId)}` : null;
-}
+export { sitePageImageUrl };
 
 export interface SitePageContentView {
-  /** Admin's text for the field, or the page's original copy when blank. */
-  text: (key: SitePageField) => string;
+  /** Admin's text for a hero field or a section field ("<section>.<name>"), or the page's original copy when blank. */
+  text: (key: string) => string;
+  /**
+   * Client confirmation 2026-10-25 — a section list field: Admin's lines (each split by "|"), or the original
+   * items. Every row has at least `minParts` entries (missing parts are "").
+   */
+  list: (key: string, minParts?: number) => string[][];
+  /** A section image field: Admin's uploaded picture, or the built-in one. */
+  image: (key: string) => string;
   /** The uploaded hero photo, or null for the page's built-in one. */
   heroImageUrl: string | null;
   /** Admin's How It Works steps merged onto the page's own (keeping each step's number and icon). */
@@ -20,6 +25,7 @@ export interface SitePageContentView {
  */
 export async function getSitePageContent(page: SitePage): Promise<SitePageContentView> {
   const def = SITE_PAGE_DEFS[page];
+  const sections = sectionFields(page);
   let stored: Record<string, unknown> = {};
   let heroImageUrl: string | null = null;
   try {
@@ -30,11 +36,23 @@ export async function getSitePageContent(page: SitePage): Promise<SitePageConten
     console.error(`[site-content] couldn't load ${page}`, error);
   }
 
-  const text = (key: SitePageField): string => {
+  const storedText = (key: string): string | null => {
     const value = stored[key];
-    if (typeof value === "string" && value.trim()) return value.trim();
-    return def.fields.find((field) => field.key === key)?.fallback ?? "";
+    return typeof value === "string" && value.trim() ? value.trim() : null;
   };
+
+  const fallbackOf = (key: string): string => def.fields.find((field) => field.key === key)?.fallback ?? sections.get(key)?.fallback ?? "";
+
+  const text = (key: string): string => storedText(key) ?? fallbackOf(key);
+
+  const list = (key: string, minParts = 1): string[][] => {
+    const own = storedText(key);
+    const rows = own ? parseListLines(own) : [];
+    const chosen = rows.length > 0 ? rows : parseListLines(fallbackOf(key));
+    return chosen.map((row) => (row.length >= minParts ? row : [...row, ...Array<string>(minParts - row.length).fill("")]));
+  };
+
+  const image = (key: string): string => sitePageImageUrl(storedText(key)) ?? fallbackOf(key);
 
   const steps = <T extends { headline: string; supportingCopy: string }>(defaults: T[]): T[] => {
     const value = stored.steps;
@@ -44,5 +62,5 @@ export async function getSitePageContent(page: SitePage): Promise<SitePageConten
     return edited.slice(0, 4).map((row, index) => ({ ...(defaults[index] ?? defaults[defaults.length - 1]), ...row, step: String(index + 1).padStart(2, "0") }));
   };
 
-  return { text, heroImageUrl, steps };
+  return { text, list, image, heroImageUrl, steps };
 }

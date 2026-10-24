@@ -12,8 +12,13 @@ interface RouteParams {
 export async function GET(_request: Request, { params }: RouteParams) {
   const { fileId } = await params;
   try {
-    const referenced = await db.sitePageContent.count({ where: { heroImageFileId: fileId } });
-    if (referenced === 0) return new Response("Not found", { status: 404 });
+    // A page's hero photo, or one of its section pictures (client confirmation 2026-10-25) stored in `fields`.
+    const referenced = await db.$queryRaw<{ found: boolean }[]>`
+      SELECT EXISTS (
+        SELECT 1 FROM "SitePageContent"
+        WHERE "heroImageFileId" = ${fileId} OR EXISTS (SELECT 1 FROM jsonb_each_text("fields") AS f WHERE f.value = ${fileId})
+      ) AS found`;
+    if (!referenced[0]?.found) return new Response("Not found", { status: 404 });
     const file = await readStoredFile(fileId);
     if (!file || !file.mimeType.startsWith("image/")) return new Response("Not found", { status: 404 });
     return new Response(new Uint8Array(file.data), {

@@ -1,3 +1,14 @@
+import { HOME_SECTIONS } from "./sections/home";
+import { VISA_CHANGE_SECTIONS } from "./sections/visa-change";
+import { VISA_EXTENSION_SECTIONS } from "./sections/visa-extension";
+import { OTB_SECTIONS } from "./sections/otb";
+import { FLIGHT_SPECIAL_FARE_SECTIONS } from "./sections/flight-special-fare";
+import { RETURN_TICKET_SECTIONS } from "./sections/return-ticket";
+import type { SiteSection, SiteSectionField } from "./section-types";
+
+export { listLines, parseListLines } from "./section-types";
+export type { SiteSection, SiteSectionField, SiteSectionFieldKind } from "./section-types";
+
 /**
  * Client doc 2026-10-15 (J3) — the website pages whose photo and main wording Admin edits (Admin → Website
  * Pages). Plain data (no DB) so the Admin editor and the pages share it. Each field's `fallback` is the
@@ -23,6 +34,8 @@ export interface SitePageDef {
   /** The built-in photo used while no photo is uploaded. */
   defaultImage: string;
   fields: SitePageFieldDef[];
+  /** Every other section of the page (client confirmation 2026-10-25). */
+  sections?: SiteSection[];
 }
 
 const STEPS_HINT = 'Four lines, each "Title | description". Blank = the standard steps.';
@@ -51,6 +64,7 @@ const serviceFields = (input: {
 
 export const SITE_PAGE_DEFS: Record<SitePage, SitePageDef> = {
   home: {
+    sections: HOME_SECTIONS,
     label: "Home",
     path: "/",
     defaultImage: "/images/hero/home.jpg",
@@ -62,6 +76,7 @@ export const SITE_PAGE_DEFS: Record<SitePage, SitePageDef> = {
     ],
   },
   "visa-change": {
+    sections: VISA_CHANGE_SECTIONS,
     label: "Visa Change",
     path: "/services/visa-change",
     defaultImage: "/images/services/visa-change.jpg",
@@ -81,6 +96,7 @@ export const SITE_PAGE_DEFS: Record<SitePage, SitePageDef> = {
     }),
   },
   "visa-extension": {
+    sections: VISA_EXTENSION_SECTIONS,
     label: "Visa Extension",
     path: "/services/visa-extension",
     defaultImage: "/images/services/visa-extension.jpg",
@@ -100,6 +116,7 @@ export const SITE_PAGE_DEFS: Record<SitePage, SitePageDef> = {
     }),
   },
   otb: {
+    sections: OTB_SECTIONS,
     label: "OTB",
     path: "/services/otb",
     defaultImage: "/images/services/otb.jpg",
@@ -121,6 +138,7 @@ export const SITE_PAGE_DEFS: Record<SitePage, SitePageDef> = {
     }),
   },
   "flight-special-fare": {
+    sections: FLIGHT_SPECIAL_FARE_SECTIONS,
     label: "Flight Special Fare",
     path: "/services/flight-special-fare",
     defaultImage: "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=1200&q=80",
@@ -140,6 +158,7 @@ export const SITE_PAGE_DEFS: Record<SitePage, SitePageDef> = {
     }),
   },
   "return-ticket": {
+    sections: RETURN_TICKET_SECTIONS,
     label: "Return Ticket",
     path: "/services/return-ticket",
     defaultImage: "/images/services/return-ticket.jpg",
@@ -162,6 +181,11 @@ export const SITE_PAGE_DEFS: Record<SitePage, SitePageDef> = {
   },
 };
 
+/** Every section field of a page, by key. */
+export function sectionFields(page: SitePage): Map<string, SiteSectionField> {
+  return new Map((SITE_PAGE_DEFS[page].sections ?? []).flatMap((section) => section.fields.map((field) => [field.key, field] as const)));
+}
+
 export function isSitePage(value: string): value is SitePage {
   return (SITE_PAGES as readonly string[]).includes(value);
 }
@@ -174,4 +198,9 @@ export function parseStepLines(text: string): { headline: string; supportingCopy
     .filter((parts) => parts[0])
     .map((parts) => ({ headline: parts[0], supportingCopy: parts.slice(1).join(" | ") }));
   return rows.length > 0 ? rows : null;
+}
+
+/** The public URL of an uploaded page picture (hero photo or section picture). */
+export function sitePageImageUrl(fileId: string | null | undefined): string | null {
+  return fileId ? `/api/site-pages/image/${encodeURIComponent(fileId)}` : null;
 }
