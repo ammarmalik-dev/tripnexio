@@ -116,8 +116,8 @@
  {
   "event": "NV_APPLIED_TO_EMBASSY",
   "channel": "EMAIL",
-  "subject": "Your visa application has been submitted — {{booking_id}}",
-  "heading": "Visa application submitted",
+  "subject": "Applied to Embassy — {{booking_id}}",
+  "heading": "Applied to Embassy",
   "body": "Hi {{customer_name}},\n\nYour New Visa application for {{country_name}} has been submitted to the relevant embassy/authority. Processing and decisions are controlled by that authority.\n\nBooking ID: {{booking_id}}\nWe'll share another update when available.",
   "ctaLabel": "Track Application",
   "ctaLink": "secure_link"
@@ -515,8 +515,8 @@
  {
   "event": "VC_APPLIED_TO_EMBASSY",
   "channel": "EMAIL",
-  "subject": "Visa application submitted — {{booking_id}}",
-  "heading": "Your visa application has been submitted",
+  "subject": "Applied to Embassy — {{booking_id}}",
+  "heading": "Applied to Embassy",
   "body": "Hi {{customer_name}},\n\nYour Visa Change application has been submitted to the relevant authority/processing channel.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nSubmission date: {{submission_date}}\n\nWe'll notify you when there is a verified update. Decisions remain subject to the relevant authorities.",
   "ctaLabel": "Track Status",
   "ctaLink": "secure_link"
@@ -876,8 +876,8 @@
  {
   "event": "EXT_09",
   "channel": "EMAIL",
-  "subject": "Application submitted — {{booking_id}}",
-  "heading": null,
+  "subject": "Applied to Embassy — {{booking_id}}",
+  "heading": "Applied to Embassy",
   "body": "Hi {{customer_name}},\n\nYour Visa Extension application has been submitted to the relevant authority, as applicable. Approval and timing are determined by the authority and are not guaranteed.",
   "ctaLabel": "Track Status",
   "ctaLink": "secure_link"
