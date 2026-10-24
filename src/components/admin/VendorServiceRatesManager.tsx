@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -290,6 +292,8 @@ export function VendorServiceRatesManager() {
   }, [reloadNonce]);
 
   const visible = useMemo(() => rows.filter((row) => !serviceFilter || row.serviceType === serviceFilter), [rows, serviceFilter]);
+  // Audit 23 Oct — paginated like the other masters.
+  const { pageItems, paginationProps } = useClientPagination(visible);
 
   if (state === "loading") return <Skeleton className="h-48 w-full rounded-xl" />;
   if (state === "error") {
@@ -329,7 +333,7 @@ export function VendorServiceRatesManager() {
         <EmptyState title="No vendor rates yet" description="Add what each vendor charges for OTB / Return Ticket / New Visa below." />
       ) : (
         <ul className="divide-y divide-hairline rounded-xl border border-hairline bg-surface-1">
-          {visible.map((row) => (
+          {pageItems.map((row) => (
             <li key={row.id} className="px-4 py-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
@@ -369,6 +373,7 @@ export function VendorServiceRatesManager() {
           ))}
         </ul>
       )}
+      <ListPagination noun="vendor rate" {...paginationProps} />
 
       <NewRateForm vendors={vendors} countries={countries} airlines={airlines} nationalities={nationalities} onCreated={(created) => setRows((current) => [...current, created])} />
     </div>

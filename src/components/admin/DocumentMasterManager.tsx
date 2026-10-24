@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { FileText, Pencil, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -139,6 +141,8 @@ export function DocumentMasterManager() {
         (!needle || `${row.name} ${row.description ?? ""}`.toLowerCase().includes(needle))
     );
   }, [rows, status, query]);
+  // Audit 23 Oct — paginated like the other masters.
+  const { pageItems, paginationProps } = useClientPagination(visible);
   const replace = (row: DocumentTypeRow) => setRows((current) => current.map((entry) => (entry.id === row.id ? row : entry)));
 
   const toPayload = (values: FormValues) => ({
@@ -248,7 +252,7 @@ export function DocumentMasterManager() {
               </tr>
             </thead>
             <tbody>
-              {visible.map((row) =>
+              {pageItems.map((row) =>
                 editingId === row.id ? (
                   <tr key={row.id} className="border-b border-hairline bg-ink-primary/[0.02]">
                     <td colSpan={5} className="px-4 py-4">
@@ -291,6 +295,7 @@ export function DocumentMasterManager() {
               )}
             </tbody>
           </table>
+          <ListPagination noun="document" {...paginationProps} className="px-4 pb-3" />
         </div>
       )}
     </div>

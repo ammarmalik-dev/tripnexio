@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { ListPagination } from "@/components/crm/ListPagination";
+import { useClientPagination } from "@/components/crm/usePagination";
 import { ListChecks, Pencil, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -112,6 +114,8 @@ export function VisaMasterManager({ kind }: { kind: VisaMasterKind }) {
   }, [kind]);
 
   const visible = useMemo(() => rows.filter((row) => (status === "all" ? true : status === "active" ? row.active : !row.active)), [rows, status]);
+  // Audit 23 Oct — paginated like the other masters.
+  const { pageItems, paginationProps } = useClientPagination(visible);
   const payload = (values: FormValues) => ({
     name: values.name.trim(),
     displayOrder: Number(values.displayOrder) || 0,
@@ -208,7 +212,7 @@ export function VisaMasterManager({ kind }: { kind: VisaMasterKind }) {
               </tr>
             </thead>
             <tbody>
-              {visible.map((row) =>
+              {pageItems.map((row) =>
                 editingId === row.id ? (
                   <tr key={row.id} className="border-b border-hairline bg-ink-primary/[0.02]">
                     <td colSpan={4} className="px-4 py-4">
@@ -244,6 +248,7 @@ export function VisaMasterManager({ kind }: { kind: VisaMasterKind }) {
               )}
             </tbody>
           </table>
+          <ListPagination noun="entry" {...paginationProps} className="px-4 pb-3" />
         </div>
       )}
     </div>
