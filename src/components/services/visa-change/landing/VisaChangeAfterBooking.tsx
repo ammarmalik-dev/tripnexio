@@ -3,35 +3,29 @@ import { Container } from "@/components/ui/Container";
 import { SectionHeading } from "@/components/ui/SectionHeading";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { MotionReveal } from "@/components/motion/MotionReveal";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 
-// Locked content — doc §13 "Before Payment / After Payment" (customer POV).
-const paymentStages = [
-  {
-    title: "Before payment",
-    description:
-      "You see the confirmed package, final rate, terms and summary. Payment is then completed.",
-    Icon: Receipt,
-  },
-  {
-    title: "After payment",
-    description:
-      "Your Booking ID is generated, you can upload required documents, and package generation proceeds once operational requirements are complete.",
-    Icon: CloudUpload,
-  },
-] as const;
+// Locked content — doc §13 "Before Payment / After Payment" (customer POV). The wording is Admin-editable
+// (Website Pages, "payment.cards"); the icons go by position.
+const stageIcons = [Receipt, CloudUpload] as const;
 
 /** Doc §13 "Before Payment / After Payment" + §14 "After Exit". */
-export function VisaChangeAfterBooking() {
+export function VisaChangeAfterBooking({ content }: { content: SitePageContentView }) {
+  const paymentStages = content.list("payment.cards", 2).map(([title, description], index) => ({
+    title,
+    description,
+    Icon: stageIcons[index % stageIcons.length],
+  }));
   return (
     <>
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" title="Before payment / After payment" className="mx-auto" />
+            <SectionHeading align="center" title={content.text("payment.heading")} className="mx-auto" />
           </MotionReveal>
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             {paymentStages.map(({ title, description, Icon }, index) => (
-              <MotionReveal key={title} delay={index * 0.06}>
+              <MotionReveal key={`${index}-${title}`} delay={index * 0.06}>
                 <GlassCard tier={2} className="flex h-full flex-col gap-3 p-6 sm:p-8">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent/10 text-accent-on-light">
                     <Icon className="h-5 w-5" aria-hidden="true" />
@@ -53,11 +47,10 @@ export function VisaChangeAfterBooking() {
                 <LogOut className="h-5 w-5" aria-hidden="true" />
               </span>
               <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-ink-heading sm:text-3xl">
-                Exit completed. What happens next?
+                {content.text("afterExit.heading")}
               </h2>
               <p className="max-w-2xl text-sm text-ink-secondary sm:text-base">
-                Once the confirmed exit is completed, TripNexio records the exit and starts New Visa Processing.
-                Additional documents may be requested during the next stage if required.
+                {content.text("afterExit.body")}
               </p>
             </GlassCard>
           </MotionReveal>

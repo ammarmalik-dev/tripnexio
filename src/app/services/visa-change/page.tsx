@@ -59,31 +59,31 @@ export default async function VisaChangeLandingPage() {
             <div className="flex w-full flex-col items-stretch justify-center gap-3 sm:w-auto sm:flex-row sm:items-center">
               <ButtonLink href="/services/visa-change/request" variant="primary" size="lg">{content.text("applyLabel")}</ButtonLink>
               <ButtonLink href={utilityLinks.trackStatus.href} variant="glass" size="lg">
-                Track Status
+                {content.text("hero.trackLabel")}
               </ButtonLink>
             </div>
           </MotionReveal>
         </Container>
       </section>
 
-      <VisaChangeOverview />
-      <VisaChangeMethods />
-      <VisaChangeRequirements />
-      <VisaChangePricingSection />
+      <VisaChangeOverview content={content} />
+      <VisaChangeMethods content={content} />
+      <VisaChangeRequirements content={content} />
+      <VisaChangePricingSection content={content} />
 
       <section className="py-10 sm:py-14">
         <Container className="flex flex-col gap-8">
           <MotionReveal>
-            <SectionHeading align="center" eyebrow="Simple steps" title="How It Works" className="mx-auto" />
+            <SectionHeading align="center" eyebrow={content.text("howItWorks.eyebrow")} title={content.text("howItWorks.heading")} className="mx-auto" />
           </MotionReveal>
           <VisaProcessSteps steps={content.steps(visaProcessSteps)} />
         </Container>
       </section>
 
-      <VisaChangeConfirmedOptions />
-      <VisaChangeAfterBooking />
+      <VisaChangeConfirmedOptions content={content} />
+      <VisaChangeAfterBooking content={content} />
 
-      <ServiceFaqSection serviceType="VISA_CHANGE" />
+      <ServiceFaqSection serviceType="VISA_CHANGE" title={content.text("faq.title")} />
 
       <section className="pb-14 sm:pb-20">
         <Container>
@@ -101,7 +101,7 @@ export default async function VisaChangeLandingPage() {
                   size="lg"
                   className="border-white/40 text-white hover:border-white/70 hover:bg-white/5"
                 >
-                  Track Status
+                  {content.text("cta.trackLabel")}
                 </ButtonLink>
               </div>
             </div>

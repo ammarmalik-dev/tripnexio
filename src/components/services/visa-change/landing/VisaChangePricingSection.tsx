@@ -6,6 +6,7 @@ import { MotionReveal } from "@/components/motion/MotionReveal";
 import { db } from "@/lib/db";
 import { formatCurrency } from "@/lib/format-currency";
 import { getSystemConfig } from "@/lib/settings/system-config";
+import type { SitePageContentView } from "@/lib/site-content/get-page-content";
 import type { PaxType } from "../../../../generated/prisma/enums";
 
 const PAX_ORDER: PaxType[] = ["ADULT", "CHILD", "INFANT"];
@@ -81,8 +82,8 @@ async function loadVisaChangePriceGroups(): Promise<NationalityGroup[]> {
   }
 }
 
-/** Locked content — doc §10 "Pricing — Final Customer Copy". */
-export async function VisaChangePricingSection() {
+/** Locked content — doc §10 "Pricing — Final Customer Copy" (wording Admin-editable; prices from Admin pricing). */
+export async function VisaChangePricingSection({ content }: { content: SitePageContentView }) {
   const [groups, systemConfig] = await Promise.all([loadVisaChangePriceGroups(), getSystemConfig()]);
   const hasSpecificNationality = groups.some((group) => group.nationality !== null);
 
@@ -92,9 +93,9 @@ export async function VisaChangePricingSection() {
         <MotionReveal>
           <SectionHeading
             align="center"
-            eyebrow="Pricing"
-            title="Your final price is confirmed after availability"
-            description="Visa Change pricing is nationality-wise and depends on the confirmed method and package, passenger type, passenger count and applicable charges. The final price is shown after an available option is confirmed and you select your preferred package."
+            eyebrow={content.text("pricing.eyebrow")}
+            title={content.text("pricing.heading")}
+            description={content.text("pricing.intro")}
             className="mx-auto"
           />
         </MotionReveal>
@@ -107,9 +108,9 @@ export async function VisaChangePricingSection() {
                   <caption className="sr-only">Visa Change prices by nationality and passenger type</caption>
                   <thead>
                     <tr className="border-b border-hairline text-xs tracking-wide text-ink-tertiary uppercase">
-                      <th scope="col" className="px-5 py-4 font-medium sm:px-6">Nationality</th>
-                      <th scope="col" className="px-5 py-4 font-medium sm:px-6">Passenger</th>
-                      <th scope="col" className="px-5 py-4 text-right font-medium sm:px-6">Price</th>
+                      <th scope="col" className="px-5 py-4 font-medium sm:px-6">{content.text("pricing.nationalityHeader")}</th>
+                      <th scope="col" className="px-5 py-4 font-medium sm:px-6">{content.text("pricing.passengerHeader")}</th>
+                      <th scope="col" className="px-5 py-4 text-right font-medium sm:px-6">{content.text("pricing.priceHeader")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -126,7 +127,7 @@ export async function VisaChangePricingSection() {
                               className="px-5 py-3.5 align-top font-semibold text-ink-heading sm:px-6"
                             >
                               {group.nationality ??
-                                (hasSpecificNationality ? "Other nationality" : "All nationalities")}
+                                (hasSpecificNationality ? content.text("pricing.otherNationality") : content.text("pricing.allNationalities"))}
                             </th>
                           ) : null}
                           <td className="px-5 py-3.5 text-ink-secondary sm:px-6">{PAX_LABELS[row.paxType]}</td>
@@ -146,8 +147,7 @@ export async function VisaChangePricingSection() {
                 <Wallet className="h-5 w-5" aria-hidden="true" />
               </span>
               <p className="text-sm text-ink-secondary sm:text-base">
-                Your nationality-wise price is shown before payment, once an available option is confirmed and you
-                select your preferred package.
+                {content.text("pricing.emptyText")}
               </p>
             </GlassCard>
           )}
