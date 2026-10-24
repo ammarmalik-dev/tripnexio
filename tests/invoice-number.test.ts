@@ -2,18 +2,18 @@ import { describe, expect, it } from "vitest";
 import { formatInvoiceNumber, invoiceLetters } from "../src/lib/invoices/invoice-number";
 import { invoiceNumberFromSlug, invoiceNumberToSlug } from "../src/lib/invoices/invoice-filters";
 
-describe("invoice numbers (client doc 2026-10-20, J1)", () => {
-  it("runs TNS/A2601 … TNS/A2699, then the next letter", () => {
-    expect(formatInvoiceNumber("2026-27", 1)).toBe("TNS/A2601");
-    expect(formatInvoiceNumber("2026-27", 99)).toBe("TNS/A2699");
-    expect(formatInvoiceNumber("2026-27", 100)).toBe("TNS/B2601");
-    expect(formatInvoiceNumber("2026-27", 26 * 99)).toBe("TNS/Z2699");
-    expect(formatInvoiceNumber("2026-27", 26 * 99 + 1)).toBe("TNS/AA2601");
-    expect(formatInvoiceNumber("2026-27", 27 * 99 + 1)).toBe("TNS/AB2601");
+describe("invoice numbers (client confirmation 2026-10-25)", () => {
+  it("runs TNS/A02601 … TNS/A02699, then the next letter", () => {
+    expect(formatInvoiceNumber("2026-27", 1)).toBe("TNS/A02601");
+    expect(formatInvoiceNumber("2026-27", 99)).toBe("TNS/A02699");
+    expect(formatInvoiceNumber("2026-27", 100)).toBe("TNS/B02601");
+    expect(formatInvoiceNumber("2026-27", 26 * 99)).toBe("TNS/Z02699");
+    expect(formatInvoiceNumber("2026-27", 26 * 99 + 1)).toBe("TNS/AA02601");
+    expect(formatInvoiceNumber("2026-27", 27 * 99 + 1)).toBe("TNS/AB02601");
   });
 
   it("changes the year every financial year", () => {
-    expect(formatInvoiceNumber("2027-28", 1)).toBe("TNS/A2701");
+    expect(formatInvoiceNumber("2027-28", 1)).toBe("TNS/A02701");
   });
 
   it("letter blocks go A … Z, AA, AB …", () => {
@@ -27,6 +27,8 @@ describe("invoice numbers (client doc 2026-10-20, J1)", () => {
     expect(invoiceNumberToSlug("TNS/A2601")).toBe("TNS-A2601");
     expect(invoiceNumberFromSlug("TNS-A2601")).toBe("TNS/A2601");
     expect(invoiceNumberFromSlug("TNS-AB2699")).toBe("TNS/AB2699");
+    expect(invoiceNumberToSlug("TNS/A02601")).toBe("TNS-A02601");
+    expect(invoiceNumberFromSlug("TNS-AB02699")).toBe("TNS/AB02699");
   });
 });
 

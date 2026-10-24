@@ -22,28 +22,29 @@ export function invoiceLetters(block: number): string {
 }
 
 /**
- * Client doc 2026-10-20 (J1) — the invoice number for the n-th invoice (1-based) of a financial year:
- * "TNS/A2601" … "TNS/A2699", then "TNS/B2601" … "TNS/Z2699", then "TNS/AA2601"…; "26" is the year the
- * financial year starts (TNS/A2701 from 1 April 2027).
+ * Client confirmation 2026-10-25 — the invoice number for the n-th invoice (1-based) of a financial year:
+ * "TNS/A02601" … "TNS/A02699", then "TNS/B02601" … "TNS/Z02699", then "TNS/AA02601"… — the letter block moves on
+ * by itself, without limit, and every number is unique. "26" is the year the financial year starts
+ * (TNS/A02701 from 1 April 2027).
  */
 export function formatInvoiceNumber(financialYearLabel: string, sequence: number): string {
   const n = Math.max(1, Math.floor(sequence));
   const block = Math.floor((n - 1) / 99);
   const within = ((n - 1) % 99) + 1;
-  return `TNS/${invoiceLetters(block)}${financialYearLabel.slice(2, 4)}${String(within).padStart(2, "0")}`;
+  return `TNS/${invoiceLetters(block)}0${financialYearLabel.slice(2, 4)}${String(within).padStart(2, "0")}`;
 }
 
 /**
- * The next sequential tax-invoice number (client doc 2026-10-20, J1 — see formatInvoiceNumber). This series has
- * its own counter row per financial year ("TNSJ1-2026-27"), so it starts at TNS/A2601; invoices already issued
- * keep their numbers (TNS26/A01…, INV-2026-27-0001). Incremented atomically and stored on the Payment by the
- * caller, so an invoice keeps the same number every time it's downloaded or emailed.
+ * The next sequential tax-invoice number (see formatInvoiceNumber). This series has its own counter row per
+ * financial year ("TNSA0-2026-27"), so it starts at TNS/A02601; invoices already issued keep their numbers
+ * (TNS/A2601…, TNS26/A01…, INV-2026-27-0001), which can never collide with the new form. Incremented atomically
+ * and stored on the Payment by the caller, so an invoice keeps the same number every time it's downloaded or emailed.
  */
 export async function nextInvoiceNumber(tx: Prisma.TransactionClient, now: Date = new Date()): Promise<string> {
   const year = financialYear(now, await getTimezoneOffsetMinutes(tx));
   const rows = await tx.$queryRaw<{ lastValue: number }[]>`
     INSERT INTO "InvoiceCounter" ("financialYear", "lastValue", "updatedAt")
-    VALUES (${`TNSJ1-${year}`}, 1, CURRENT_TIMESTAMP)
+    VALUES (${`TNSA0-${year}`}, 1, CURRENT_TIMESTAMP)
     ON CONFLICT ("financialYear") DO UPDATE SET "lastValue" = "InvoiceCounter"."lastValue" + 1, "updatedAt" = CURRENT_TIMESTAMP
     RETURNING "lastValue"`;
   return formatInvoiceNumber(year, Number(rows[0].lastValue));
