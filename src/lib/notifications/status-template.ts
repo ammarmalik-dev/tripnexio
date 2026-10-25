@@ -219,6 +219,9 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
   const leadPage = lead.customerToken ? `${site}/quote/${lead.customerToken}` : null;
   const securePage = token ? `${site}/pay/${token}` : (leadPage ?? `${site}/track?ref=${encodeURIComponent(reference)}`);
   const quotePage = leadPage ?? securePage;
+  // Client 2026-10-23 audit — "Complete Payment" only when there is somewhere to pay (the booking's pay page or the
+  // lead's quote page); blank otherwise, so the message carries no button rather than one opening the Track page.
+  const paymentPage = pendingBooking && token && pendingBooking.status === "PENDING" ? securePage : (leadPage ?? "");
 
   // Passengers and their own results (client doc 2026-10-15, I4).
   const bookingPassengers = booking?.passengers ?? [];
@@ -292,7 +295,9 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
   const [altOrigin, altDestination] = offer?.route?.includes("→") ? offer.route.split("→").map((part) => part.trim()) : [offer?.route ?? "", ""];
   const altItinerary = offer ? [offer.route, [offer.airline, offer.flightNumber].filter(Boolean).join(" "), offer.flightDateTime].filter(Boolean).join(" · ") : "";
 
-  const authorityReason = inputs.reason?.trim() || bookingPassengers.find((row) => row.outcome === "REJECTED" && row.outcomeNote)?.outcomeNote || "";
+  // Client 2026-10-23 audit — only the customer-safe reason staff type for the message; a passenger result's reason is
+  // an internal audit note and never reaches the customer.
+  const authorityReason = inputs.reason?.trim() || "";
   const noReason = lead.serviceType === "OTB" ? "The airline did not provide a detailed reason." : "No detailed reason was provided by the authority.";
 
   const vars: Record<StatusVariableName, string> = {
@@ -391,8 +396,8 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     track_status_url: securePage,
     secure_booking_link: securePage,
     secure_upload_link: securePage,
-    payment_link: pendingBooking && token && pendingBooking.status === "PENDING" ? securePage : quotePage,
-    secure_payment_link: pendingBooking && token && pendingBooking.status === "PENDING" ? securePage : quotePage,
+    payment_link: paymentPage,
+    secure_payment_link: paymentPage,
     quote_link: quotePage,
     secure_quotation_link: quotePage,
     new_quote_link: quotePage,

@@ -114,8 +114,14 @@ export async function sendNotificationWhatsApp(input: SendNotificationWhatsAppIn
     const gateway = getWhatsAppGateway();
     // A body without the link placeholder means the Meta template carries the link as its
     // URL button (https://tripnexio.com/{{1}}) — send the dynamic part for it.
+    // Client 2026-10-23 audit — a template whose button link is blank (e.g. nothing to pay yet) still needs a value for
+    // Meta's URL button: Track Status with the reference filled in.
     const buttonUrlSuffix =
-      cta && !new RegExp(`\\{\\{\\s*${cta.variable}\\s*\\}\\}`).test(template.body) ? (ctaUrlSuffix(cta.url) ?? undefined) : undefined;
+      cta && !new RegExp(`\\{\\{\\s*${cta.variable}\\s*\\}\\}`).test(template.body)
+        ? (ctaUrlSuffix(cta.url) ?? undefined)
+        : !cta && template.ctaLink?.trim()
+          ? `track${variables.booking_id?.trim() ? `?ref=${encodeURIComponent(variables.booking_id.trim())}` : ""}`
+          : undefined;
     const result = await gateway.sendTemplateMessage(to, {
       templateName: template.metaTemplateName,
       languageCode: template.metaTemplateLanguage?.trim() || "en",
