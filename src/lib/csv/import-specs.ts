@@ -77,6 +77,7 @@ export const IMPORT_SPECS: Record<ImportEntityKey, ImportEntitySpec> = {
     columns: [
       col("name", true, "Vendor name (the match key, case-insensitive)"),
       col("services", true, "Service type codes separated by | (e.g. NEW_VISA|OTB) — replaces the vendor's service list"),
+      col("sub_services", false, "SERVICE:sub_service_code entries separated by | (e.g. VISA_CHANGE:airport_to_airport); SERVICE:* = all; services not listed keep their current sub-services"),
       col("mobile", false, "Contact number"),
       col("email", false, "Contact email"),
       col("poc_name", false, "Point-of-contact name"),

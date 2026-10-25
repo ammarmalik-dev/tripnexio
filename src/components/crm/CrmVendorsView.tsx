@@ -24,6 +24,11 @@ function costText(cost: StaffVendorCost): string {
   return cost.average === null ? `${cost.label}: no quotes` : `${cost.label}: ${money(cost.average)} (${cost.quotations})`;
 }
 
+/** Admin handover §12 — "Visa Change (Airport-to-Airport)", or the bare service when it covers every sub-service. */
+function serviceText(entry: StaffVendorRow["services"][number]): string {
+  return entry.subServices.length ? `${entry.label} (${entry.subServices.join(", ")})` : entry.label;
+}
+
 function ScoreBadge({ score }: { score: number }) {
   return (
     <span className="inline-flex items-center rounded-full border border-hairline bg-surface-2 px-2 py-0.5 text-xs font-semibold text-ink-heading" title="Recommendation score (1-5, admin-configured weights)">
@@ -75,8 +80,12 @@ function VendorCard({
           <span className="text-xs text-ink-tertiary">No services configured</span>
         ) : (
           vendor.services.map((s) => (
-            <span key={s.serviceType} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-ink-secondary">
-              {s.label}
+            <span
+              key={s.serviceType}
+              className="rounded-full bg-surface-2 px-2 py-0.5 text-xs text-ink-secondary"
+              title={s.subServices.length ? `Sub-services: ${s.subServices.join(", ")}` : "All sub-services"}
+            >
+              {serviceText(s)}
             </span>
           ))
         )}
@@ -107,7 +116,7 @@ function VendorCard({
 function CompareTable({ vendors, canViewCost, costWindowDays }: { vendors: StaffVendorRow[]; canViewCost: boolean; costWindowDays: number }) {
   const rows: { label: string; render: (v: StaffVendorRow) => string }[] = [
     { label: "Recommendation score", render: (v) => `${v.score.toFixed(1)} / 5` },
-    { label: "Services", render: (v) => v.services.map((s) => s.label).join(", ") || "—" },
+    { label: "Services", render: (v) => v.services.map(serviceText).join(", ") || "—" },
     { label: "Processing", render: (v) => v.processingDetails || "—" },
     { label: "Availability", render: (v) => v.availability || "—" },
     { label: "Service suitability", render: (v) => `${v.factorScores.serviceSuitability} / 5` },
@@ -177,7 +186,7 @@ export function CrmVendorsView() {
     return vendors.filter(
       (vendor) =>
         vendor.name.toLowerCase().includes(needle) ||
-        vendor.services.some((entry) => entry.label.toLowerCase().includes(needle)) ||
+        vendor.services.some((entry) => serviceText(entry).toLowerCase().includes(needle)) ||
         (vendor.processingDetails ?? "").toLowerCase().includes(needle)
     );
   }, [data, search]);

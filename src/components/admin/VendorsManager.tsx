@@ -30,7 +30,23 @@ interface VendorService {
   rate: string | null;
   validFrom: string | null;
   validUntil: string | null;
+  /** Admin handover §12 — SubService codes of this service the vendor covers; empty = all. */
+  subServiceCodes: string[];
   updatedAt: string;
+}
+
+/** Admin handover §12 — one row of the SubService master (GET /api/admin/sub-services). */
+interface SubServiceOption {
+  serviceType: ServiceType;
+  code: string;
+  name: string;
+  active: boolean;
+}
+
+function subServiceNames(entry: VendorService, subServices: SubServiceOption[]): string {
+  if (entry.subServiceCodes.length === 0) return "All sub-services";
+  const names = new Map(subServices.filter((row) => row.serviceType === entry.service).map((row) => [row.code, row.name]));
+  return entry.subServiceCodes.map((code) => names.get(code) ?? code).join(", ");
 }
 
 interface VendorData {
@@ -558,7 +574,139 @@ function VendorRatesSection({ vendor, onServiceSaved }: { vendor: VendorData; on
   );
 }
 
-function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights: VendorScoringWeights | null; onSaved: (vendor: VendorData) => void }) {
+function VendorSubServiceRow({
+  vendorId,
+  entry,
+  options,
+  onSaved,
+}: {
+  vendorId: string;
+  entry: VendorService;
+  options: SubServiceOption[];
+  onSaved: (entry: VendorService) => void;
+}) {
+  const { confirm, dialog } = useConfirmAction();
+  const [selected, setSelected] = useState<string[]>(entry.subServiceCodes);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const label = SERVICE_TYPE_LABELS[entry.service];
+  // Active sub-services, plus any inactive one still saved on this vendor (so it can be removed).
+  const choices = options.filter((row) => row.serviceType === entry.service && (row.active || entry.subServiceCodes.includes(row.code)));
+  const dirty = [...selected].sort().join("|") !== [...entry.subServiceCodes].sort().join("|");
+  const groupId = `vendor-${vendorId}-${entry.service}-subservices`;
+
+  const toggle = (code: string) =>
+    setSelected((current) => (current.includes(code) ? current.filter((value) => value !== code) : [...current, code]));
+
+  const handleSave = async () => {
+    const reason = await confirm({
+      title: `Change ${label} sub-services?`,
+      description: "Staff can only pick this vendor for bookings and quotations of the sub-services selected here (none = all).",
+      confirmLabel: "Save Sub-services",
+    });
+    if (!reason) return;
+    setSaving(true);
+    setError("");
+    try {
+      const updated = await patchJson<VendorService>(`/api/admin/vendors/${vendorId}/services/${entry.service}/sub-services`, {
+        subServiceCodes: selected,
+        reason,
+      });
+      toast.success(`${label} sub-services saved.`);
+      onSaved(updated);
+    } catch (caught) {
+      const message = caught instanceof ApiError ? caught.message : "Couldn't save sub-services. Please try again.";
+      setError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-hairline py-3 first:border-t-0 first:pt-0">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p id={groupId} className="text-sm font-medium text-ink-primary">
+          {label}
+        </p>
+        <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
+          Save
+        </Button>
+      </div>
+      {choices.length === 0 ? (
+        <p className="text-xs text-ink-tertiary">
+          No sub-services are set up for this service (Admin → Service Configuration → Sub-services), so the vendor covers all of it.
+        </p>
+      ) : (
+        <div role="group" aria-labelledby={groupId} className="flex flex-wrap gap-x-4 gap-y-2">
+          {choices.map((row) => (
+            <label key={row.code} className="flex items-center gap-2 text-sm text-ink-secondary">
+              <input type="checkbox" checked={selected.includes(row.code)} disabled={saving} onChange={() => toggle(row.code)} />
+              <span>
+                {row.name}
+                {row.active ? null : <span className="text-xs text-ink-tertiary"> (inactive)</span>}
+              </span>
+            </label>
+          ))}
+        </div>
+      )}
+      <p className="text-xs text-ink-tertiary">{selected.length === 0 ? "None ticked = all sub-services." : `${selected.length} selected.`}</p>
+      {error ? (
+        <p className="text-xs text-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {dialog}
+    </div>
+  );
+}
+
+/** Admin handover §12 — "One vendor can be linked to multiple services and sub-services." */
+function VendorSubServicesSection({
+  vendor,
+  subServices,
+  onServiceSaved,
+}: {
+  vendor: VendorData;
+  subServices: SubServiceOption[];
+  onServiceSaved: (entry: VendorService) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-hairline p-3">
+      <h3 className="text-sm font-medium text-ink-primary">Sub-services Covered</h3>
+      <p className="mt-0.5 text-xs text-ink-tertiary">
+        For each linked service, tick the sub-services this vendor handles. Leave them all unticked if it handles every sub-service.
+      </p>
+      {vendor.services.length === 0 ? (
+        <p className="mt-3 text-sm text-ink-tertiary">Link at least one service above first.</p>
+      ) : (
+        <div className="mt-3 flex flex-col">
+          {vendor.services.map((entry) => (
+            <VendorSubServiceRow
+              key={`${entry.id}-${entry.updatedAt}`}
+              vendorId={vendor.id}
+              entry={entry}
+              options={subServices}
+              onSaved={onServiceSaved}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VendorCard({
+  vendor,
+  weights,
+  subServices,
+  onSaved,
+}: {
+  vendor: VendorData;
+  weights: VendorScoringWeights | null;
+  subServices: SubServiceOption[];
+  onSaved: (vendor: VendorData) => void;
+}) {
   const { confirm, dialog } = useConfirmAction();
   const [form, setForm] = useState<FormState>(toFormState(vendor));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -631,6 +779,13 @@ function VendorCard({ vendor, weights, onSaved }: { vendor: VendorData; weights:
           Save Changes
         </Button>
       </div>
+      <VendorSubServicesSection
+        vendor={vendor}
+        subServices={subServices}
+        onServiceSaved={(entry) =>
+          onSaved({ ...vendor, services: vendor.services.map((current) => (current.service === entry.service ? entry : current)) })
+        }
+      />
       <VendorRatesSection
         vendor={vendor}
         onServiceSaved={(entry) =>
@@ -691,6 +846,7 @@ export function VendorsManager() {
   const [state, setState] = useState<FetchState>("loading");
   const [vendors, setVendors] = useState<VendorData[]>([]);
   const [weights, setWeights] = useState<VendorScoringWeights | null>(null);
+  const [subServices, setSubServices] = useState<SubServiceOption[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
   const [search, setSearch] = useState("");
@@ -724,13 +880,15 @@ export function VendorsManager() {
     async function load() {
       setState("loading");
       try {
-        const [result, weightsResult] = await Promise.all([
+        const [result, weightsResult, subServiceResult] = await Promise.all([
           getJson<VendorData[]>("/api/admin/vendors"),
           getJson<VendorScoringWeights>("/api/admin/vendor-scoring-config").catch(() => null),
+          getJson<SubServiceOption[]>("/api/admin/sub-services").catch((): SubServiceOption[] => []),
         ]);
         if (cancelled) return;
         setVendors(result);
         setWeights(weightsResult);
+        setSubServices(subServiceResult);
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -875,8 +1033,13 @@ export function VendorsManager() {
                   <span className="text-xs text-ink-tertiary">No services</span>
                 ) : (
                   vendor.services.map((entry) => (
-                    <span key={entry.service} className="rounded-full bg-ink-accent/10 px-2 py-0.5 text-[11px] font-medium text-ink-accent">
+                    <span
+                      key={entry.service}
+                      title={`${SERVICE_TYPE_LABELS[entry.service]}: ${subServiceNames(entry, subServices)}`}
+                      className="rounded-full bg-ink-accent/10 px-2 py-0.5 text-[11px] font-medium text-ink-accent"
+                    >
                       {SERVICE_TYPE_LABELS[entry.service]}
+                      {entry.subServiceCodes.length > 0 ? ` · ${subServiceNames(entry, subServices)}` : null}
                     </span>
                   ))
                 )}
@@ -887,6 +1050,7 @@ export function VendorsManager() {
             <VendorCard
               vendor={vendor}
               weights={weights}
+              subServices={subServices}
               onSaved={(updated) => setVendors((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
             />
           )}

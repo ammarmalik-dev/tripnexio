@@ -27,3 +27,13 @@ export const vendorServiceRateSchema = z
   });
 
 export type VendorServiceRateValues = z.infer<typeof vendorServiceRateSchema>;
+
+/**
+ * Admin handover §12 (client 2026-10-25) — the SubService codes (of one linked service) a vendor
+ * covers. An empty list means every sub-service of that service.
+ */
+export const vendorSubServicesSchema = z.object({
+  subServiceCodes: z.array(z.string().trim().min(1).max(40), { error: "Select sub-services" }).max(100, "Too many sub-services"),
+});
+
+export type VendorSubServicesValues = z.infer<typeof vendorSubServicesSchema>;

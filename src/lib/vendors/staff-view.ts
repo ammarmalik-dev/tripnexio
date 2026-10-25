@@ -25,7 +25,8 @@ export interface StaffVendorCost {
 export interface StaffVendorRow {
   id: string;
   name: string;
-  services: { serviceType: ServiceType; label: string }[];
+  /** Admin handover §12 — `subServices` = names of the covered sub-services; empty = all sub-services. */
+  services: { serviceType: ServiceType; label: string; subServices: string[] }[];
   processingDetails: string | null;
   availability: string | null;
   /** Overall recommendation score 1-5 (admin-configured weights) — a display aid, never an auto-selection. */
@@ -58,12 +59,19 @@ export async function getStaffVendorsView(input: { serviceFilter: ServiceFilter;
       performanceScore: true,
       reliabilityScore: true,
       // Only in-scope/filtered services are listed, so a scoped staff member never sees out-of-scope service tags.
-      services: { where: serviceWhere, select: { service: true }, orderBy: { service: "asc" } },
+      services: { where: serviceWhere, select: { service: true, subServiceCodes: true }, orderBy: { service: "asc" } },
     },
     orderBy: { name: "asc" },
   });
 
   const weights = await getVendorScoringWeights();
+
+  // Admin handover §12 — sub-service names for the codes vendors are limited to.
+  const linkedCodes = [...new Set(vendors.flatMap((v) => v.services.flatMap((s) => s.subServiceCodes)))];
+  const subServiceRows = linkedCodes.length
+    ? await db.subService.findMany({ where: { code: { in: linkedCodes } }, select: { serviceType: true, code: true, name: true } })
+    : [];
+  const subServiceName = new Map(subServiceRows.map((row) => [`${row.serviceType}|${row.code}`, row.name]));
 
   // vendorId -> serviceType -> cost figures (vendors.viewCost only).
   const costByVendor = new Map<string, Map<ServiceType, { average: number | null; quotations: number }>>();
@@ -95,7 +103,11 @@ export async function getStaffVendorsView(input: { serviceFilter: ServiceFilter;
       return {
         id: vendor.id,
         name: vendor.name,
-        services: vendor.services.map((s) => ({ serviceType: s.service, label: SERVICE_TYPE_LABELS[s.service] })),
+        services: vendor.services.map((s) => ({
+          serviceType: s.service,
+          label: SERVICE_TYPE_LABELS[s.service],
+          subServices: s.subServiceCodes.map((code) => subServiceName.get(`${s.service}|${code}`) ?? code),
+        })),
         processingDetails: vendor.processingDetails,
         availability: vendor.availability,
         score: computeVendorScore(vendor, weights),
