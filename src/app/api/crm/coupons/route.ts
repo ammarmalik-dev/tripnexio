@@ -10,6 +10,10 @@ import { getEmployeeCouponCap } from "@/lib/settings/coupon-config";
 import { writeAudit } from "@/lib/audit/log";
 import { isFlightQuote } from "@/lib/quotations/pricing";
 import { describeError } from "@/lib/api/describe-error";
+import { couponServicesLabel } from "@/lib/coupons/service-restriction";
+import { ServiceType, type ServiceType as ServiceTypeValue } from "@/generated/prisma/enums";
+
+const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeValue, ...ServiceTypeValue[]];
 
 /**
  * Client corrections 2026-10-05 — coupons staff may apply in the CRM: active,
@@ -24,7 +28,7 @@ export async function GET() {
   const coupons = await db.coupon.findMany({
     where: { active: true, leadId: null, validFrom: { lte: now }, validUntil: { gte: now } },
     orderBy: [{ validUntil: "asc" }],
-    select: { id: true, code: true, type: true, category: true, value: true, maxDiscount: true, validUntil: true, usageLimit: true, usageCount: true },
+    select: { id: true, code: true, type: true, category: true, value: true, maxDiscount: true, validUntil: true, usageLimit: true, usageCount: true, serviceTypes: true },
   });
   return jsonSuccess(coupons.filter((coupon) => coupon.usageLimit === null || coupon.usageCount < coupon.usageLimit));
 }
@@ -34,6 +38,12 @@ const createSchema = z.object({
   leadReference: z.string().trim().max(40).optional(),
   amount: z.number().int("Use a whole rupee amount").min(1, "Enter the discount"),
   validDays: z.number().int().min(1).max(30).default(7),
+  /** Admin handover §17 — services the code is valid for (empty = every service). Ignored when a lead is given: the coupon then covers that lead's service only. */
+  serviceTypes: z
+    .array(z.enum(serviceTypeValues, { error: "Pick a valid service" }))
+    .max(serviceTypeValues.length)
+    .transform((values) => Array.from(new Set(values)))
+    .default([]),
 });
 
 /** TN + 6 characters, no look-alikes (0/O, 1/I). */
@@ -62,6 +72,9 @@ export async function POST(request: NextRequest) {
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   const { leadReference, amount, validDays } = parsed.data;
+  if (parsed.data.serviceTypes.includes("FLIGHT_SPECIAL_FARE")) {
+    return jsonError(400, "Coupons don't apply to Flight Special Fare.", { serviceTypes: ["Coupons don't apply to Flight Special Fare."] });
+  }
 
   try {
     const cap = await getEmployeeCouponCap();
@@ -83,6 +96,7 @@ export async function POST(request: NextRequest) {
       if (isFlightQuote(lead.serviceType)) return jsonError(400, "Coupons don't apply to Flight Special Fare.");
     }
 
+    const serviceTypes = lead ? [lead.serviceType] : parsed.data.serviceTypes;
     const now = new Date();
     const validUntil = new Date(now.getTime() + validDays * 24 * 60 * 60 * 1000);
     for (let attempt = 0; attempt < 5; attempt++) {
@@ -99,6 +113,7 @@ export async function POST(request: NextRequest) {
               validUntil,
               usageLimit: 1,
               leadId: lead?.id ?? null,
+              serviceTypes,
             },
           });
           await writeAudit(tx, {
@@ -106,7 +121,7 @@ export async function POST(request: NextRequest) {
             entityId: created.id,
             action: "CREATE",
             byUserId: session.id,
-            note: `Staff coupon ${created.code}: ₹${amount} off, single use, ${lead ? `lead ${lead.reference ?? lead.id}` : "any request"}, valid ${validDays} day(s) (by ${session.name})`,
+            note: `Staff coupon ${created.code}: ₹${amount} off, single use, ${lead ? `lead ${lead.reference ?? lead.id}` : "any request"}, valid ${validDays} day(s), for ${couponServicesLabel(serviceTypes)} (by ${session.name})`,
           });
           if (lead) {
             await writeAudit(tx, {
@@ -119,7 +134,10 @@ export async function POST(request: NextRequest) {
           }
           return created;
         });
-        return jsonSuccess({ code: coupon.code, amount, validUntil: coupon.validUntil.toISOString(), leadReference: lead?.reference ?? null }, 201);
+        return jsonSuccess(
+          { code: coupon.code, amount, validUntil: coupon.validUntil.toISOString(), leadReference: lead?.reference ?? null, serviceTypes: coupon.serviceTypes },
+          201
+        );
       } catch (error) {
         if ((error as { code?: string }).code !== "P2002") throw error;
       }

@@ -9,6 +9,7 @@ import { paymentTotal } from "@/lib/payments/totals";
 import { notifyRefundsRaised } from "@/lib/staff-notifications/triggers";
 import { protectionPlanRefundDecisionSchema } from "@/lib/validation/protection-plan-schema";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { loadApproverLimit, refundApprovalLimitError } from "@/lib/refunds/approval-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -74,6 +75,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
   const price = Number(plan.price);
   const paidAmount = paymentTotal(payment);
+
+  // Admin handover §17 — approving the plan refund is bound by the decider's refund approval limit too.
+  const limitError = refundApprovalLimitError({ ...(await loadApproverLimit(db, session)), amount: price });
+  if (limitError) return jsonError(403, limitError);
 
   const result = await db.$transaction(async (tx) => {
     // Same cap as the refund calculator: refunds on one payment never exceed what was paid.

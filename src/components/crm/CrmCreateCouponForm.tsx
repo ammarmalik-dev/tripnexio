@@ -9,12 +9,17 @@ import { TextField } from "@/components/forms/TextField";
 import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toaster";
 import { ApiError, postJson } from "@/lib/api/client";
+import { COUPON_SERVICE_OPTIONS, couponServicesLabel } from "@/lib/coupons/service-restriction";
+import type { ServiceType } from "../../generated/prisma/enums";
+
+const couponServiceValues = COUPON_SERVICE_OPTIONS.map((option) => option.value) as [ServiceType, ...ServiceType[]];
 
 interface CreatedCoupon {
   code: string;
   amount: number;
   validUntil: string;
   leadReference: string | null;
+  serviceTypes: ServiceType[];
 }
 
 function buildSchema(cap: number) {
@@ -23,6 +28,8 @@ function buildSchema(cap: number) {
     leadReference: z.string().trim().max(40),
     amount: z.number({ error: "Enter the discount" }).int("Use a whole rupee amount").min(1, "Enter the discount").max(cap, `Max ₹${cap}`),
     validDays: z.number({ error: "Enter the days" }).int().min(1, "At least 1 day").max(30, "At most 30 days"),
+    /** Admin handover §17 — none ticked = every service; with a lead reference the server limits it to that lead's service. */
+    serviceTypes: z.array(z.enum(couponServiceValues)),
   });
 }
 type FormValues = z.infer<ReturnType<typeof buildSchema>>;
@@ -38,14 +45,14 @@ export function CrmCreateCouponForm({ cap }: { cap: number }) {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(buildSchema(cap)), defaultValues: { leadReference: "", validDays: 7 } });
+  } = useForm<FormValues>({ resolver: zodResolver(buildSchema(cap)), defaultValues: { leadReference: "", validDays: 7, serviceTypes: [] } });
   const asNumber = { setValueAs: (value: string) => (value === "" ? undefined : Number(value)) };
 
   const onSubmit = handleSubmit(async (values) => {
     try {
       const result = await postJson<CreatedCoupon>("/api/crm/coupons", values);
       setCreated(result);
-      reset({ leadReference: "", validDays: 7 });
+      reset({ leadReference: "", validDays: 7, serviceTypes: [] });
       toast.success(`Coupon ${result.code} created.`);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't create the coupon.");
@@ -75,11 +82,29 @@ export function CrmCreateCouponForm({ cap }: { cap: number }) {
         <Button type="submit" isLoading={isSubmitting}>
           Create Coupon
         </Button>
+        <fieldset className="sm:col-span-4">
+          <legend className="text-sm font-medium text-ink-heading">Valid for services</legend>
+          <p className="mt-0.5 text-xs text-ink-tertiary">None ticked = every service. With a lead reference, the code works for that lead&apos;s service only.</p>
+          <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+            {COUPON_SERVICE_OPTIONS.map((option) => (
+              <label key={option.value} className="flex items-center gap-2 text-sm text-ink-secondary">
+                <input
+                  type="checkbox"
+                  value={option.value}
+                  {...register("serviceTypes")}
+                  className="h-4 w-4 rounded border-hairline accent-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                />
+                {option.label}
+              </label>
+            ))}
+          </div>
+          {errors.serviceTypes?.message ? <p className="mt-1 text-xs text-error">{errors.serviceTypes.message}</p> : null}
+        </fieldset>
       </form>
       {created ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/10 px-4 py-3 text-sm">
           <span className="text-ink-primary">
-            <span className="font-mono font-semibold">{created.code}</span> · ₹{created.amount.toLocaleString("en-IN")} off · {created.leadReference ? `lead ${created.leadReference}` : "any request"} · valid until{" "}
+            <span className="font-mono font-semibold">{created.code}</span> · ₹{created.amount.toLocaleString("en-IN")} off · {created.leadReference ? `lead ${created.leadReference}` : "any request"} · {couponServicesLabel(created.serviceTypes)} · valid until{" "}
             {new Date(created.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
           </span>
           <Button

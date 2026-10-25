@@ -13,6 +13,7 @@ import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { RefundStatusControl } from "./RefundStatusControl";
+import { formatRupees, isAboveApprovalLimit } from "@/lib/refunds/approval-limit";
 import { REFUND_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { ListPagination } from "./ListPagination";
 import { usePaginationState } from "./usePagination";
@@ -55,7 +56,14 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
-export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean }) {
+export function RefundsTable({
+  canApproveRefunds,
+  approvalLimit = null,
+}: {
+  canApproveRefunds: boolean;
+  /** Admin handover §17 — the viewer's refund approval limit in ₹ (null = none, or admin.full). UI hint only; the API enforces it. */
+  approvalLimit?: number | null;
+}) {
   // Step 53 — read once on mount, so the "Refunds Raised" KPI card's link lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
@@ -269,6 +277,11 @@ export function RefundsTable({ canApproveRefunds }: { canApproveRefunds: boolean
                       canApprove={canApproveRefunds}
                       gatewayRefundId={refund.gatewayRefundId}
                       gatewayRefundStatus={refund.gatewayRefundStatus}
+                      approvalLimitLabel={
+                        approvalLimit != null && isAboveApprovalLimit({ limit: approvalLimit, isAdmin: false, amount: Number(refund.refundAmount) })
+                          ? formatRupees(approvalLimit)
+                          : null
+                      }
                     />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(refund.createdAt)}</td>

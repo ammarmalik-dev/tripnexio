@@ -6,6 +6,7 @@ import { RefundStatusBadge } from "./RefundStatusBadge";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { REFUND_STATUS_LABELS } from "@/lib/crm/labels";
 import { getAllowedNextRefundStatuses } from "@/lib/refunds/transitions";
+import { REFUND_APPROVAL_STATUSES } from "@/lib/refunds/approval-limit";
 import { patchJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
@@ -26,14 +27,21 @@ interface RefundStatusControlProps {
   /** Client doc 2026-10-15 (I5) — the gateway's refund id / status once Admin approval sent it there. */
   gatewayRefundId?: string | null;
   gatewayRefundStatus?: string | null;
+  /**
+   * Admin handover §17 — set (e.g. "₹10,000") when the refund is above the
+   * viewer's refund approval limit: approving is hidden, rejecting stays. UI
+   * only; PATCH /api/refunds/[id]/status enforces the limit.
+   */
+  approvalLimitLabel?: string | null;
 }
 
-export function RefundStatusControl({ refundId, status, onChanged, canApprove, gatewayRefundId, gatewayRefundStatus }: RefundStatusControlProps) {
+export function RefundStatusControl({ refundId, status, onChanged, canApprove, gatewayRefundId, gatewayRefundStatus, approvalLimitLabel }: RefundStatusControlProps) {
   const [checking, setChecking] = useState(false);
   const [gatewayStatus, setGatewayStatus] = useState(gatewayRefundStatus ?? null);
   const [pending, setPending] = useState(false);
   const [pendingStatus, setPendingStatus] = useState<RefundStatus | null>(null);
-  const nextStatuses = getAllowedNextRefundStatuses(status);
+  const allNextStatuses = getAllowedNextRefundStatuses(status);
+  const nextStatuses = approvalLimitLabel ? allNextStatuses.filter((next) => !REFUND_APPROVAL_STATUSES.includes(next)) : allNextStatuses;
 
   const handleConfirm = async (reason: string) => {
     if (!pendingStatus) return;
@@ -72,7 +80,7 @@ export function RefundStatusControl({ refundId, status, onChanged, canApprove, g
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-3">
         <RefundStatusBadge status={status} />
-        {nextStatuses.length === 0 ? (
+        {allNextStatuses.length === 0 ? (
           <span className="text-xs text-ink-tertiary">Final status</span>
         ) : !canApprove ? (
           <span className="text-xs text-ink-tertiary">Awaiting Admin approval</span>
@@ -99,6 +107,11 @@ export function RefundStatusControl({ refundId, status, onChanged, canApprove, g
             </select>
           </>
         )}
+        {canApprove && approvalLimitLabel && allNextStatuses.length > 0 ? (
+          <span className="text-xs font-medium text-warning" title={`Your refund approval limit is ${approvalLimitLabel}. An admin must approve it.`}>
+            Above your approval limit
+          </span>
+        ) : null}
 
         {pendingStatus ? (
           <ConfirmActionDialog

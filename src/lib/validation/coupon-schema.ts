@@ -3,12 +3,15 @@ import { partialUpdateSchema } from "./partial-update";
 import {
   CouponType,
   CouponCategory,
+  ServiceType,
+  type ServiceType as ServiceTypeType,
   type CouponType as CouponTypeType,
   type CouponCategory as CouponCategoryType,
 } from "../../generated/prisma/enums";
 
 const couponTypeValues = Object.values(CouponType) as [CouponTypeType, ...CouponTypeType[]];
 const couponCategoryValues = Object.values(CouponCategory) as [CouponCategoryType, ...CouponCategoryType[]];
+const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeType, ...ServiceTypeType[]];
 const isoDate = (message: string) => z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), message);
 
 const couponBaseSchema = z.object({
@@ -33,6 +36,12 @@ const couponBaseSchema = z.object({
    */
   maxDiscount: z.number({ error: "Enter a maximum discount amount" }).positive("Max discount must be greater than 0").nullable().optional(),
   active: z.boolean().default(true),
+  /** Admin handover §17 — services the code is valid for; empty = every service. */
+  serviceTypes: z
+    .array(z.enum(serviceTypeValues, { error: "Pick a valid service" }))
+    .max(serviceTypeValues.length)
+    .transform((values) => Array.from(new Set(values)))
+    .default([]),
 });
 
 function crossFieldChecks(value: z.infer<typeof couponBaseSchema>, ctx: z.RefinementCtx) {

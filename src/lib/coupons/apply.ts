@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { getEmployeeCouponCap } from "../settings/coupon-config";
 import { isFlightQuote } from "../quotations/pricing";
+import { couponServiceError } from "./service-restriction";
 import type { CouponType, ServiceType } from "../../generated/prisma/enums";
 
 export interface AppliedCoupon {
@@ -19,6 +20,8 @@ export function computeCouponDiscount(coupon: { type: CouponType; value: number;
   const raw = coupon.type === "PERCENTAGE" ? amount * (coupon.value / 100) : coupon.value;
   return coupon.maxDiscount != null ? Math.min(raw, coupon.maxDiscount) : raw;
 }
+
+export { couponServiceError, couponServicesLabel } from "./service-restriction";
 
 /**
  * CRM.md §10's pricing formula ("...− Coupon + Gateway Charge = Customer
@@ -55,6 +58,9 @@ export async function resolveCouponForQuotation(
     return { ok: false, error: "No coupon found with this code." };
   }
   if (!coupon.active) return { ok: false, error: "This coupon is disabled." };
+  // Admin handover §17 — a coupon restricted to some services is refused on the others.
+  const serviceError = couponServiceError(coupon.serviceTypes ?? [], serviceType);
+  if (serviceError) return { ok: false, error: serviceError };
 
   const now = new Date();
   if (now < coupon.validFrom || now > coupon.validUntil) {

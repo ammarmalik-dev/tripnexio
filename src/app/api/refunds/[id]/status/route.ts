@@ -12,6 +12,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { gatewayForPayment } from "@/lib/payments/accounts";
 import { notifyCustomerRefund } from "@/lib/refunds/notify-customer";
+import { REFUND_APPROVAL_STATUSES, loadApproverLimit, refundApprovalLimitError } from "@/lib/refunds/approval-limit";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -61,6 +62,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     !session.permissions.includes(ADMIN_FULL_PERMISSION)
   ) {
     return jsonError(403, "You raised this refund, so someone else must approve it.");
+  }
+
+  // Admin handover §17 — a staff member's refund approval limit (admin.full is never limited).
+  if (REFUND_APPROVAL_STATUSES.includes(parsed.data.status)) {
+    const approver = await loadApproverLimit(db, session);
+    const limitError = refundApprovalLimitError({ ...approver, amount: Number(refund.refundAmount) });
+    if (limitError) return jsonError(403, limitError);
   }
 
   // Client testing 2026-10-09 (E5) — approving an online payment's refund sends

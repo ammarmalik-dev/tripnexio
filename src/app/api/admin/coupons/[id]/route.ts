@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getEmployeeCouponCap } from "@/lib/settings/coupon-config";
+import { couponServicesLabel } from "@/lib/coupons/service-restriction";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -74,6 +75,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       note: `Coupon "${result.code}" updated${
         parsed.data.maxDiscount !== undefined && String(existing.maxDiscount ?? "none") !== String(result.maxDiscount ?? "none")
           ? ` — max discount ${existing.maxDiscount != null ? `₹${existing.maxDiscount}` : "none"} -> ${result.maxDiscount != null ? `₹${result.maxDiscount}` : "none"}`
+          : ""
+      }${
+        parsed.data.serviceTypes !== undefined && couponServicesLabel(existing.serviceTypes) !== couponServicesLabel(result.serviceTypes)
+          ? ` — services ${couponServicesLabel(existing.serviceTypes)} -> ${couponServicesLabel(result.serviceTypes)}`
           : ""
       } (by ${session.name})`,
     });

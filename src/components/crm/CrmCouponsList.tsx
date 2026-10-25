@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Copy, Ticket } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/Button";
 import { toast } from "@/components/ui/Toaster";
 import { ApiError, getJson } from "@/lib/api/client";
 import { COUPON_CATEGORY_LABELS } from "@/lib/crm/labels";
-import type { CouponCategory, CouponType } from "../../generated/prisma/enums";
+import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
+import { cn } from "@/lib/cn";
+import { COUPON_SERVICE_OPTIONS, couponServicesLabel } from "@/lib/coupons/service-restriction";
+import type { CouponCategory, CouponType, ServiceType } from "../../generated/prisma/enums";
 
 export interface CrmCoupon {
   id: string;
@@ -21,6 +24,8 @@ export interface CrmCoupon {
   validUntil: string;
   usageLimit: number | null;
   usageCount: number;
+  /** Empty = every service. */
+  serviceTypes: ServiceType[];
 }
 
 export function couponValueLabel(coupon: Pick<CrmCoupon, "type" | "value">): string {
@@ -32,6 +37,12 @@ export function CrmCouponsList() {
   const [coupons, setCoupons] = useState<CrmCoupon[]>([]);
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState("");
+  const [serviceFilter, setServiceFilter] = useState<ServiceType | "">("");
+  // An unrestricted coupon is valid for every service, so it matches any service filter.
+  const visible = useMemo(
+    () => (serviceFilter ? coupons.filter((coupon) => coupon.serviceTypes.length === 0 || coupon.serviceTypes.includes(serviceFilter)) : coupons),
+    [coupons, serviceFilter]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -60,35 +71,57 @@ export function CrmCouponsList() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {coupons.map((coupon) => (
-        <article key={coupon.id} className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface-1 p-5">
-          <div className="flex items-center justify-between gap-2">
-            <span className="rounded-lg border border-dashed border-ink-accent/40 bg-ink-accent/[0.05] px-2.5 py-1 font-mono text-sm font-semibold text-ink-accent">{coupon.code}</span>
-            <span className="text-base font-bold text-ink-heading">{couponValueLabel(coupon)}</span>
-          </div>
-          <p className="text-xs text-ink-secondary">
-            {COUPON_CATEGORY_LABELS[coupon.category]}
-            {coupon.maxDiscount ? ` · max ₹${Number(coupon.maxDiscount).toLocaleString("en-IN")}` : ""}
-          </p>
-          <p className="text-xs text-ink-tertiary">
-            Valid till {new Date(coupon.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-            {coupon.usageLimit ? ` · ${coupon.usageLimit - coupon.usageCount} ${coupon.usageLimit - coupon.usageCount === 1 ? "use" : "uses"} left` : ""}
-          </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="self-start"
-            onClick={() => {
-              void navigator.clipboard?.writeText(coupon.code).then(() => toast.success(`${coupon.code} copied — paste it in the quotation's Coupon Code.`));
-            }}
-          >
-            <Copy className="h-3.5 w-3.5" aria-hidden="true" />
-            Copy code
-          </Button>
-        </article>
-      ))}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          aria-label="Filter by service"
+          value={serviceFilter}
+          onChange={(event) => setServiceFilter(event.target.value as ServiceType | "")}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-10 w-full sm:w-52")}
+        >
+          <option value="">All services</option>
+          {COUPON_SERVICE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs font-medium text-ink-tertiary" aria-live="polite">
+          {visible.length} coupon{visible.length === 1 ? "" : "s"}
+        </p>
+      </div>
+      {visible.length === 0 ? <EmptyState title="No coupons for this service" description="Try another service or clear the filter." /> : null}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {visible.map((coupon) => (
+          <article key={coupon.id} className="flex flex-col gap-2 rounded-2xl border border-hairline bg-surface-1 p-5">
+            <div className="flex items-center justify-between gap-2">
+              <span className="rounded-lg border border-dashed border-ink-accent/40 bg-ink-accent/[0.05] px-2.5 py-1 font-mono text-sm font-semibold text-ink-accent">{coupon.code}</span>
+              <span className="text-base font-bold text-ink-heading">{couponValueLabel(coupon)}</span>
+            </div>
+            <p className="text-xs text-ink-secondary">
+              {COUPON_CATEGORY_LABELS[coupon.category]}
+              {coupon.maxDiscount ? ` · max ₹${Number(coupon.maxDiscount).toLocaleString("en-IN")}` : ""}
+            </p>
+            <p className="text-xs text-ink-secondary">{couponServicesLabel(coupon.serviceTypes)}</p>
+            <p className="text-xs text-ink-tertiary">
+              Valid till {new Date(coupon.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+              {coupon.usageLimit ? ` · ${coupon.usageLimit - coupon.usageCount} ${coupon.usageLimit - coupon.usageCount === 1 ? "use" : "uses"} left` : ""}
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="self-start"
+              onClick={() => {
+                void navigator.clipboard?.writeText(coupon.code).then(() => toast.success(`${coupon.code} copied — paste it in the quotation's Coupon Code.`));
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" aria-hidden="true" />
+              Copy code
+            </Button>
+          </article>
+        ))}
+      </div>
     </div>
   );
 }

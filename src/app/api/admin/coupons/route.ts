@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { getEmployeeCouponCap } from "@/lib/settings/coupon-config";
+import { couponServicesLabel } from "@/lib/coupons/service-restriction";
 
 export async function GET() {
   const auth = await requirePermission("masters.manage");
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
         usageLimit: parsed.data.usageLimit,
         maxDiscount: parsed.data.maxDiscount ?? null,
         active: parsed.data.active,
+        serviceTypes: parsed.data.serviceTypes,
       },
     });
     await writeAudit(tx, {
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: `Coupon "${created.code}" created — ${created.type === "PERCENTAGE" ? `${created.value}%` : `₹${created.value}`}${created.maxDiscount != null ? `, max discount ₹${created.maxDiscount}` : ""} (by ${session.name})`,
+      note: `Coupon "${created.code}" created — ${created.type === "PERCENTAGE" ? `${created.value}%` : `₹${created.value}`}${created.maxDiscount != null ? `, max discount ₹${created.maxDiscount}` : ""}, valid for ${couponServicesLabel(created.serviceTypes)} (by ${session.name})`,
     });
     return created;
   });

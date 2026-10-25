@@ -73,7 +73,8 @@ export interface AbandonedQuoteCouponSummary extends Record<string, unknown> {
  *  - its latest payment on a live booking is unpaid (PENDING/EXPIRED/FAILED)
  *    and was created more than `afterHours` ago.
  * It then gets one single-use coupon (usageLimit 1, scoped to that lead via
- * Coupon.leadId — resolveCouponForQuotation rejects it anywhere else), sent
+ * Coupon.leadId and to the lead's service via Coupon.serviceTypes —
+ * resolveCouponForQuotation rejects it anywhere else), sent
  * via notifyCustomer as ABANDONED_QUOTE_COUPON.
  */
 export async function runAbandonedQuoteCouponJob(): Promise<AbandonedQuoteCouponSummary> {
@@ -162,6 +163,8 @@ export async function runAbandonedQuoteCouponJob(): Promise<AbandonedQuoteCoupon
           validUntil,
           usageLimit: 1,
           leadId: lead.id,
+          // Admin handover §17 — valid only for this lead's own service.
+          serviceTypes: [lead.serviceType],
           active: true,
         },
       });

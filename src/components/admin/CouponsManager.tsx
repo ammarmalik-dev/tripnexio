@@ -16,7 +16,8 @@ import { cn } from "@/lib/cn";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 import { AbandonedCouponConfigCard } from "./AbandonedCouponConfigCard";
-import type { CouponType, CouponCategory } from "../../generated/prisma/enums";
+import { COUPON_SERVICE_OPTIONS, couponServicesLabel } from "@/lib/coupons/service-restriction";
+import type { CouponType, CouponCategory, ServiceType } from "../../generated/prisma/enums";
 
 interface CouponData {
   id: string;
@@ -31,6 +32,7 @@ interface CouponData {
   maxDiscount: string | null;
   leadId: string | null;
   active: boolean;
+  serviceTypes: ServiceType[];
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -45,9 +47,11 @@ interface FormState {
   validUntil: string;
   usageLimit: string;
   maxDiscount: string;
+  /** Empty = valid for every service. */
+  serviceTypes: ServiceType[];
 }
 
-const EMPTY_FORM: FormState = { code: "", type: "", category: "", value: "", validFrom: "", validUntil: "", usageLimit: "", maxDiscount: "" };
+const EMPTY_FORM: FormState = { code: "", type: "", category: "", value: "", validFrom: "", validUntil: "", usageLimit: "", maxDiscount: "", serviceTypes: [] };
 
 function toDateInputValue(iso: string): string {
   return iso.slice(0, 10);
@@ -63,6 +67,7 @@ function toFormState(coupon: CouponData): FormState {
     validUntil: toDateInputValue(coupon.validUntil),
     usageLimit: coupon.usageLimit == null ? "" : String(coupon.usageLimit),
     maxDiscount: coupon.maxDiscount == null ? "" : coupon.maxDiscount,
+    serviceTypes: [...(coupon.serviceTypes ?? [])].sort(),
   };
 }
 
@@ -179,6 +184,33 @@ function CouponFields({
         error={errors.validUntil?.[0]}
         disabled={disabled}
       />
+      <fieldset className="sm:col-span-2">
+        <legend className="text-sm font-medium text-ink-heading">Valid for services</legend>
+        <p className="mt-0.5 text-xs text-ink-tertiary">Leave all unticked to allow every service.</p>
+        <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2">
+          {COUPON_SERVICE_OPTIONS.map((option) => {
+            const checked = form.serviceTypes.includes(option.value);
+            return (
+              <label key={option.value} className="flex items-center gap-2 text-sm text-ink-secondary">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={() =>
+                    onChange({
+                      ...form,
+                      serviceTypes: (checked ? form.serviceTypes.filter((type) => type !== option.value) : [...form.serviceTypes, option.value]).sort(),
+                    })
+                  }
+                  className="h-4 w-4 rounded border-hairline accent-accent focus-visible:ring-2 focus-visible:ring-accent/40"
+                />
+                {option.label}
+              </label>
+            );
+          })}
+        </div>
+        {errors.serviceTypes?.[0] ? <p className="mt-1 text-xs text-error">{errors.serviceTypes[0]}</p> : null}
+      </fieldset>
     </div>
   );
 }
@@ -193,6 +225,7 @@ function buildPayload(form: FormState) {
     validUntil: form.validUntil ? new Date(form.validUntil).toISOString() : undefined,
     usageLimit: form.usageLimit.trim() === "" ? null : Number(form.usageLimit),
     maxDiscount: form.maxDiscount.trim() === "" ? null : Number(form.maxDiscount),
+    serviceTypes: form.serviceTypes,
   };
 }
 
@@ -262,7 +295,7 @@ function CouponCard({ coupon, onSaved }: { coupon: CouponData; onSaved: (coupon:
             {coupon.type === "PERCENTAGE" ? `${coupon.value}% off` : `₹${coupon.value} off`} · Valid{" "}
             {toDateInputValue(coupon.validFrom)} to {toDateInputValue(coupon.validUntil)} · Used {coupon.usageCount} time
             {coupon.usageCount === 1 ? "" : "s"}
-            {coupon.usageLimit != null ? ` of ${coupon.usageLimit}` : " · unlimited"}
+            {coupon.usageLimit != null ? ` of ${coupon.usageLimit}` : " · unlimited"} · {couponServicesLabel(coupon.serviceTypes ?? [])}
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -382,6 +415,7 @@ export function CouponsManager() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CouponCategory | "">("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [serviceFilter, setServiceFilter] = useState<ServiceType | "">("");
   const [showCreate, setShowCreate] = useState(false);
 
   const filtered = useMemo(() => {
@@ -390,10 +424,12 @@ export function CouponsManager() {
       if (categoryFilter && coupon.category !== categoryFilter) return false;
       if (statusFilter === "active" && !coupon.active) return false;
       if (statusFilter === "disabled" && coupon.active) return false;
+      // A coupon with no restriction is valid for every service, so it matches any service filter.
+      if (serviceFilter && (coupon.serviceTypes ?? []).length > 0 && !coupon.serviceTypes.includes(serviceFilter)) return false;
       if (!term) return true;
       return [coupon.code, coupon.leadId ?? ""].some((value) => value.toLowerCase().includes(term));
     });
-  }, [coupons, search, categoryFilter, statusFilter]);
+  }, [coupons, search, categoryFilter, statusFilter, serviceFilter]);
   const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
@@ -447,6 +483,7 @@ export function CouponsManager() {
     setSearch("");
     setCategoryFilter("");
     setStatusFilter("all");
+    setServiceFilter("");
     resetPage();
   };
   const createOpen = showCreate || coupons.length === 0;
@@ -534,6 +571,22 @@ export function CouponsManager() {
             <option value="active">Active</option>
             <option value="disabled">Disabled</option>
           </select>
+          <select
+            aria-label="Filter by service"
+            value={serviceFilter}
+            onChange={(event) => {
+              setServiceFilter(event.target.value as ServiceType | "");
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-44")}
+          >
+            <option value="">All services</option>
+            {COUPON_SERVICE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
             {filtered.length} coupon{filtered.length === 1 ? "" : "s"}
           </p>
@@ -568,6 +621,7 @@ export function CouponsManager() {
                 {COUPON_CATEGORY_OPTIONS.find((option) => option.value === coupon.category)?.label ?? coupon.category}
                 {coupon.maxDiscount ? ` · max ₹${Number(coupon.maxDiscount).toLocaleString("en-IN")}` : ""}
               </p>
+              <p className="text-xs text-ink-secondary">{couponServicesLabel(coupon.serviceTypes ?? [])}</p>
               <p className="text-xs text-ink-tertiary">
                 Valid {new Date(coupon.validFrom).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} –{" "}
                 {new Date(coupon.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · Used {coupon.usageCount}

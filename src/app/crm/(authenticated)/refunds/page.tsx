@@ -3,12 +3,16 @@ import { Suspense } from "react";
 import { RefundsTable } from "@/components/crm/RefundsTable";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
+import { db } from "@/lib/db";
+import { loadApproverLimit } from "@/lib/refunds/approval-limit";
 
 export const metadata: Metadata = { title: "Refunds | Internal Dashboard" };
 
 export default async function CrmRefundsPage() {
   const session = await getStaffSession();
   const canApproveRefunds = hasPermission(session, "refunds.approve");
+  // Admin handover §17 — lets the table flag refunds above the viewer's approval limit (the API enforces it).
+  const approvalLimit = session && canApproveRefunds ? (await loadApproverLimit(db, session)).limit : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -19,7 +23,7 @@ export default async function CrmRefundsPage() {
         </p>
       </div>
       <Suspense>
-        <RefundsTable canApproveRefunds={canApproveRefunds} />
+        <RefundsTable canApproveRefunds={canApproveRefunds} approvalLimit={approvalLimit} />
       </Suspense>
     </div>
   );
