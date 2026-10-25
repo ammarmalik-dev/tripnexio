@@ -17,8 +17,8 @@ import type { LeadPassengerInput } from "../leads/create-lead";
 import { getNewVisaTravelRules } from "../new-visa/travel-rules";
 import { allowedProcessingTypes, productLabel } from "../new-visa/products";
 import { getNewVisaDestinations } from "../new-visa/destinations";
-import { workingDaysBetween } from "../calendar/working-calendar";
-import { countryHasNewVisaPrices, pricedNewVisaPaxTypes } from "../new-visa/pricing";
+import { addWorkingDays, workingDaysBetween } from "../calendar/working-calendar";
+import { computeNewVisaPrice, countryHasNewVisaPrices, pricedNewVisaPaxTypes } from "../new-visa/pricing";
 
 export interface ParseResult {
   ok: boolean;
@@ -526,7 +526,30 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
             parse: () => ({ ok: false, error: `Online booking isn't open yet for this selection. Type "agent" for help, or "menu" to start over.` }),
           };
         }
-        const options = hasPrices ? priced : byDate;
+        // Client 2026-10-23 audit (New Visa handover item 10) — each option shows its Adult / Child price and the
+        // expected approval date, as the website's processing cards do.
+        const options = await Promise.all(
+          (hasPrices ? priced : byDate).map(async (option) => {
+            const details: string[] = [];
+            const priceOf = async (paxType: "ADULT" | "CHILD") =>
+              (
+                await computeNewVisaPrice({
+                  countryCode: collected.destinationCountry,
+                  newVisaConfigId: configId,
+                  nationalityId: collected.nationalityId || null,
+                  processingType: option.value as "normal" | "urgent",
+                  travellerPaxTypes: [paxType],
+                })
+              )?.total ?? null;
+            const adult = await priceOf("ADULT");
+            const child = await priceOf("CHILD");
+            if (adult !== null) details.push(`Adult ₹${adult.toLocaleString("en-IN")}`);
+            if (child !== null) details.push(`Child ₹${child.toLocaleString("en-IN")}`);
+            const days = option.value === "urgent" ? rules.processingDaysExpress : rules.processingDaysNormal;
+            if (days) details.push(`expected approval by ${formatShortDate(addWorkingDays(new Date(), days, calendar))}`);
+            return details.length ? { ...option, label: `${option.label} — ${details.join(" · ")}` } : option;
+          })
+        );
         const header = options.some((option) => option.value === "normal")
           ? "Which processing type?"
           : allowed.includes("normal")
@@ -804,3 +827,8 @@ export async function buildLeadPassengers(
     : undefined;
 }
 
+/** "2026-11-03" → "3 Nov 2026" (the expected approval date in a chat option). */
+function formatShortDate(iso: string): string {
+  const date = new Date(`${iso}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+}
