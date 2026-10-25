@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
 import { createTask } from "@/lib/tasks/create-task";
 import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
@@ -61,6 +62,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "VALIDATE_DOCUMENTS");
+  if (actionError) return actionError;
   const passengerOf = (passengerId: string) => booking.passengers.find((row) => row.passenger.id === passengerId)?.passenger;
   if (items.some((item) => !passengerOf(item.passengerId))) {
     return jsonError(400, "That passenger isn't on this booking.", { passengerId: ["Select a passenger on this booking."] });

@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
 import { dispatchStatusNotifications } from "@/lib/service-status/engine";
 import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
@@ -64,6 +65,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  // Admin handover §1 (client 2026-10-25) — the service-wise "BOOKING" action.
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
   if (booking.lead.serviceType !== "FLIGHT_SPECIAL_FARE") return jsonError(409, "These actions are only for Special Fare bookings.");
   const actor = { userId: session.id, label: `by ${session.name}` };
   const input = parsed.data;

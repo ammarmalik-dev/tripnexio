@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { dispatchStatusNotifications } from "@/lib/service-status/engine";
 import { describeError } from "@/lib/api/describe-error";
 import { afterOtbApproved, otbActionSchema, runOtbAction } from "@/lib/otb/staff-actions";
@@ -40,6 +41,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
   if (booking.lead.serviceType !== "OTB") return jsonError(409, "These actions are for OTB bookings.");
 
   try {

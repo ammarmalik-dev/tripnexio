@@ -207,7 +207,7 @@ export function QuoteBuilder({
       try {
         const [quotationList, vendorList, airlineList, airportList] = await Promise.all([
           getJson<QuoteCardData[]>(`/api/quotations?leadId=${leadId}`),
-          getJson<VendorRecord[]>(`/api/vendors?service=${serviceType}`),
+          getJson<VendorRecord[]>(`/api/vendors?service=${serviceType}&leadId=${encodeURIComponent(leadId)}`),
           airlineCapable ? getJson<AirlineRecord[]>("/api/airlines") : Promise.resolve<AirlineRecord[]>([]),
           serviceType === "FLIGHT_SPECIAL_FARE" || serviceType === "VISA_CHANGE"
             ? getJson<AirportRecord[]>("/api/crm/airports")

@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
@@ -49,6 +50,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
   if (booking.lead.serviceType !== "VISA_CHANGE" || (booking.lead.details as Record<string, unknown> | null)?.changeType !== "AIRPORT_TO_AIRPORT") {
     return jsonError(409, "A PNR is recorded only on an Airport-to-Airport Visa Change booking.");
   }

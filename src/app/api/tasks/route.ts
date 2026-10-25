@@ -3,7 +3,7 @@ import { taskListQuerySchema } from "@/lib/validation/task-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { isServiceScopeUnrestricted, assertServiceAccess } from "@/lib/auth/service-scope";
+import { effectiveServiceScope, isServiceScopeUnrestricted, assertServiceAccess } from "@/lib/auth/service-scope";
 import { createManualTaskSchema } from "@/lib/validation/manual-task-schema";
 import { writeAudit } from "@/lib/audit/log";
 import type { ServiceType } from "@/generated/prisma/enums";
@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       : {}),
     ...(assignedToId ? { assignedToId: assignedToId === "unassigned" ? null : assignedToId } : {}),
     ...(!isServiceScopeUnrestricted(auth.session)
-      ? { OR: [{ serviceType: null }, { serviceType: { in: auth.session.allowedServiceTypes } }] }
+      ? { OR: [{ serviceType: null }, { serviceType: { in: effectiveServiceScope(auth.session) ?? [] } }] }
       : {}),
   };
 

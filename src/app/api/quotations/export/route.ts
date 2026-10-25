@@ -3,6 +3,7 @@ import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schem
 import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { exportScopedSession } from "@/lib/auth/service-actions";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
@@ -25,6 +26,8 @@ function quotationStatus(quotation: Pick<Quotation, "isSelected" | "isExpired" |
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("quotations.view");
   if (auth.error) return auth.error;
+  // Admin handover §1 — staff with service-wise permissions export only services carrying EXPORT.
+  const exportSession = exportScopedSession(auth.session);
 
   const { searchParams } = new URL(request.url);
   const parsed = quotationListQuerySchema.safeParse(Object.fromEntries(searchParams));
@@ -45,10 +48,10 @@ export async function GET(request: NextRequest) {
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),
-    ...(serviceType || search || !isServiceScopeUnrestricted(auth.session)
+    ...(serviceType || search || !isServiceScopeUnrestricted(exportSession)
       ? {
           lead: {
-            ...serviceTypeCondition(auth.session, serviceType),
+            ...serviceTypeCondition(exportSession, serviceType),
             ...(search
               ? {
                   customer: {

@@ -161,7 +161,7 @@ export async function loadQuoteReviewByToken(token: string) {
     lead.serviceType === "VISA_EXTENSION"
       ? {
           durationDays: EXTENSION_DURATION_DAYS,
-          paymentDeadlineHours: await resolvePaymentLinkValidityHours("VISA_EXTENSION"),
+          paymentDeadlineHours: await resolvePaymentLinkValidityHours("VISA_EXTENSION", lead.countryId),
           urgentDeadline: urgentDeadlineFromDetails(lead.details),
         }
       : null;

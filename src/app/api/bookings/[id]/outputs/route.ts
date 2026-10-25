@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
 import { OUTPUT_TYPES, OUTPUTS_BY_SERVICE } from "@/lib/outputs/output-types";
 import { hasReachedStatusEvent } from "@/lib/service-status/engine";
@@ -60,6 +61,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
 
   // Client testing 2026-10-09 (E11) — only this service's own outputs (e.g. no visa PDF on a ticket booking).
   if (!OUTPUTS_BY_SERVICE[booking.lead.serviceType].includes(parsed.data.outputType)) {

@@ -5,6 +5,7 @@ import { describeError } from "@/lib/api/describe-error";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
 import { createAutoCheckout } from "@/lib/checkout/create-auto-checkout";
 import { priceLeadForDirectPayment } from "@/lib/checkout/lead-direct-payment";
@@ -98,6 +99,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, lead.serviceType, "PAYMENT");
+  if (actionError) return actionError;
   if (lead.bookings.length > 0) {
     return jsonError(409, "This lead already has a booking — create or copy the payment link from the booking.");
   }

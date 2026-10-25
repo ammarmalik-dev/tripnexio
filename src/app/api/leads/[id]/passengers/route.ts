@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 import { describeError } from "@/lib/api/describe-error";
 import { passengerInputSchema } from "@/lib/validation/passenger-edit-schema";
@@ -41,6 +42,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!lead) return jsonError(404, "Lead not found.");
     const scopeError = assertServiceAccess(session, lead.serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(session, lead.serviceType, "EDIT");
+    if (actionError) return actionError;
 
     const passenger = await db.$transaction(async (tx) => {
       const created = await tx.passenger.create({

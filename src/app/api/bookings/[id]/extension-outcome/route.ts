@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import type { ServiceStatusSystemEvent } from "@/lib/service-status/events";
 import type { ExtensionOutcome } from "@/generated/prisma/enums";
@@ -57,6 +58,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
   if (booking.lead.serviceType !== "VISA_EXTENSION") {
     return jsonError(409, "This outcome only applies to Visa Extension bookings.");
   }

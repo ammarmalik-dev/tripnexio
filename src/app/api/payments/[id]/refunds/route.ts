@@ -7,6 +7,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { computeRefundAmount } from "@/lib/refunds/pricing";
 import { paymentTotal } from "@/lib/payments/totals";
 import { evaluateRefundRule, documentsValidated, packageGenerated, adminRefundOverride } from "@/lib/refunds/rules";
@@ -64,6 +65,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!payment) return jsonError(404, "Payment not found.");
   const scopeError = assertServiceAccess(session, payment.booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, payment.booking.lead.serviceType, "REFUND_REQUEST");
+  if (actionError) return actionError;
   if (payment.status !== "SUCCESS") {
     return jsonError(409, "Only a successful payment can be refunded.");
   }

@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { computeSellingPrice } from "@/lib/quotations/pricing";
 import { quotationMargin, resolvePaxCosting, usesPaxCosting } from "@/lib/quotations/pax-costing";
 import { leadPassengersFor } from "@/lib/quotations/lead-passengers";
@@ -143,6 +144,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, lead.serviceType, "CREATE_QUOTATION");
+  if (actionError) return actionError;
 
   if (existing.isSelected) {
     return jsonError(409, "A selected quotation can't be edited.");
@@ -260,7 +263,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  const validityError = await assertValidityWithinCap(lead.serviceType, parsed.data.validityExpiresAt);
+  const validityError = await assertValidityWithinCap(lead.serviceType, parsed.data.validityExpiresAt, lead.countryId);
   if (validityError) {
     return jsonError(400, validityError, { validityExpiresAt: [validityError] });
   }

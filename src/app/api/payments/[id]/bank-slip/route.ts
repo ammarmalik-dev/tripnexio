@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { saveUploadedFile } from "@/lib/storage/local-file-storage";
 import { rejectInvalidUploads } from "@/lib/uploads/validate-upload";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -44,6 +45,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!payment) return jsonError(404, "Payment not found.");
   const scopeError = assertServiceAccess(session, payment.booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, payment.booking.lead.serviceType, "PAYMENT");
+  if (actionError) return actionError;
   if (payment.method !== "BANK_TRANSFER") {
     return jsonError(409, "This payment isn't a bank transfer.");
   }

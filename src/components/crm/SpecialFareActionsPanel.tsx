@@ -110,7 +110,7 @@ export function SpecialFareActionsPanel({
         const [airports, airlines, vendors] = await Promise.all([
           getJson<AirportOption[]>("/api/crm/airports"),
           getJson<NamedOption[]>("/api/airlines"),
-          getJson<NamedOption[]>("/api/vendors?service=FLIGHT_SPECIAL_FARE"),
+          getJson<NamedOption[]>(`/api/vendors?service=FLIGHT_SPECIAL_FARE&bookingId=${encodeURIComponent(bookingId)}`),
         ]);
         if (!cancelled) setOptions({ airports, airlines, vendors });
       } catch {
@@ -121,7 +121,7 @@ export function SpecialFareActionsPanel({
     return () => {
       cancelled = true;
     };
-  }, [showAlternative, options]);
+  }, [showAlternative, options, bookingId]);
 
   const run = async (key: string, body: Record<string, unknown>) => {
     setPending(key);

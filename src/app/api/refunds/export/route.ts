@@ -3,6 +3,7 @@ import { refundListQuerySchema } from "@/lib/validation/refund-query-schema";
 import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { exportScopedSession } from "@/lib/auth/service-actions";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
@@ -16,6 +17,8 @@ import { REFUND_STATUS_LABELS } from "@/lib/crm/labels";
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("refunds.view");
   if (auth.error) return auth.error;
+  // Admin handover §1 — staff with service-wise permissions export only services carrying EXPORT.
+  const exportSession = exportScopedSession(auth.session);
 
   const { searchParams } = new URL(request.url);
   const parsed = refundListQuerySchema.safeParse(Object.fromEntries(searchParams));
@@ -27,8 +30,8 @@ export async function GET(request: NextRequest) {
 
   const where = {
     ...(status ? { status } : {}),
-    ...(!isServiceScopeUnrestricted(auth.session)
-      ? { payment: { booking: { lead: serviceTypeCondition(auth.session) } } }
+    ...(!isServiceScopeUnrestricted(exportSession)
+      ? { payment: { booking: { lead: serviceTypeCondition(exportSession) } } }
       : {}),
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }

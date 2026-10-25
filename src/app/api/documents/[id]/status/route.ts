@@ -8,6 +8,7 @@ import { dispatchStatusNotifications, type StatusNotification } from "@/lib/serv
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
@@ -76,6 +77,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (booking) {
     const scopeError = assertServiceAccess(session, booking.lead.serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(session, booking.lead.serviceType, "VALIDATE_DOCUMENTS");
+    if (actionError) return actionError;
+  } else if (existing.leadId) {
+    // Admin handover §1 — a lead-stage document (no booking yet) still belongs to one service.
+    const docLead = await db.lead.findUnique({ where: { id: existing.leadId }, select: { serviceType: true } });
+    if (docLead) {
+      const actionError = assertServiceAction(session, docLead.serviceType, "VALIDATE_DOCUMENTS");
+      if (actionError) return actionError;
+    }
   }
 
   let statusNotifications: StatusNotification[] = [];

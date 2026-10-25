@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { getServiceTimelineRules } from "../settings/service-timeline-config";
+import { getCountryTimelineOverrides, getServiceTimelineRules } from "../settings/service-timeline-config";
 import { SERVICE_TYPE_LABELS, BOOKING_STATUS_LABELS } from "./labels";
 import type { BookingStatus, ServiceType } from "../../generated/prisma/enums";
 import type { Prisma } from "../../generated/prisma/client";
@@ -31,6 +31,11 @@ import type { Prisma } from "../../generated/prisma/client";
  *
  * A service with neither hour value configured (or an inactive config) is
  * excluded and reported in `unconfiguredServices`.
+ *
+ * Admin handover §6 — Return Ticket / Visa Extension / Visa Change / Special
+ * Fare can override either hour value per country (ServiceCountryTimeline,
+ * matched on the lead's `countryId`); a blank country value uses the service
+ * value, and a service with only country values counts as configured.
  *
  * Delay duration = time past the deadline (until resolution, or until now
  * while still open), not time since the booking started.
@@ -133,9 +138,15 @@ export interface DelayAnalysis {
 
 type ServiceScope = ServiceType[] | undefined;
 
+/** One SLA (hours) for a service: the service-wide value plus any per-country overrides (countryId → hours). */
+interface ServiceSla {
+  defaultHours: number | null;
+  byCountry: Map<string, number>;
+}
+
 interface SlaMap {
-  completion: Map<ServiceType, number>;
-  documents: Map<ServiceType, number>;
+  completion: Map<ServiceType, ServiceSla>;
+  documents: Map<ServiceType, ServiceSla>;
   configured: ServiceSlaInfo[];
   unconfigured: { serviceType: ServiceType; serviceLabel: string }[];
 }
@@ -144,23 +155,41 @@ const ALL_SERVICE_TYPES = Object.keys(SERVICE_TYPE_LABELS) as ServiceType[];
 
 async function loadSlas(scope: ServiceScope): Promise<SlaMap> {
   const services = scope ? ALL_SERVICE_TYPES.filter((serviceType) => scope.includes(serviceType)) : ALL_SERVICE_TYPES;
-  const completion = new Map<ServiceType, number>();
-  const documents = new Map<ServiceType, number>();
+  const completion = new Map<ServiceType, ServiceSla>();
+  const documents = new Map<ServiceType, ServiceSla>();
   const configured: ServiceSlaInfo[] = [];
   const unconfigured: { serviceType: ServiceType; serviceLabel: string }[] = [];
+  const positive = (value: number | null | undefined) => (value && value > 0 ? value : null);
+  const overrides = await getCountryTimelineOverrides(services);
 
   // Sequential on purpose — tiny single-row lookups, and this environment's
   // pooled local Postgres dislikes bursts of concurrent queries.
   for (const serviceType of services) {
+    const config = await db.serviceTimelineConfig.findUnique({ where: { serviceType }, select: { active: true } });
     const rules = await getServiceTimelineRules(serviceType);
-    const completionHours = rules.expectedCompletionHours && rules.expectedCompletionHours > 0 ? rules.expectedCompletionHours : null;
-    const documentHours = rules.documentVerificationHours && rules.documentVerificationHours > 0 ? rules.documentVerificationHours : null;
-    if (completionHours === null && documentHours === null) {
+    const completionSla: ServiceSla = { defaultHours: positive(rules.expectedCompletionHours), byCountry: new Map() };
+    const documentSla: ServiceSla = { defaultHours: positive(rules.documentVerificationHours), byCountry: new Map() };
+    // A disabled service config switches its country timelines off too.
+    if (config?.active !== false) {
+      for (const [key, override] of overrides) {
+        const [overrideService, countryId] = key.split(":");
+        if (overrideService !== serviceType || !countryId) continue;
+        const overrideCompletion = positive(override.expectedCompletionHours);
+        const overrideDocuments = positive(override.documentVerificationHours);
+        if (overrideCompletion !== null) completionSla.byCountry.set(countryId, overrideCompletion);
+        if (overrideDocuments !== null) documentSla.byCountry.set(countryId, overrideDocuments);
+      }
+    }
+    const hasCompletion = completionSla.defaultHours !== null || completionSla.byCountry.size > 0;
+    const hasDocuments = documentSla.defaultHours !== null || documentSla.byCountry.size > 0;
+    if (!hasCompletion && !hasDocuments) {
       unconfigured.push({ serviceType, serviceLabel: SERVICE_TYPE_LABELS[serviceType] });
       continue;
     }
-    if (completionHours !== null) completion.set(serviceType, completionHours);
-    if (documentHours !== null) documents.set(serviceType, documentHours);
+    const completionHours = completionSla.defaultHours;
+    const documentHours = documentSla.defaultHours;
+    if (hasCompletion) completion.set(serviceType, completionSla);
+    if (hasDocuments) documents.set(serviceType, documentSla);
     configured.push({
       serviceType,
       serviceLabel: SERVICE_TYPE_LABELS[serviceType],
@@ -179,7 +208,7 @@ const bookingSelect = {
   updatedAt: true,
   leadId: true,
   customer: { select: { name: true } },
-  lead: { select: { serviceType: true, details: true, assignedStaff: { select: { id: true, name: true } } } },
+  lead: { select: { serviceType: true, countryId: true, details: true, assignedStaff: { select: { id: true, name: true } } } },
 } as const satisfies Prisma.BookingSelect;
 
 interface BookingRow {
@@ -190,7 +219,7 @@ interface BookingRow {
   updatedAt: Date;
   leadId: string;
   customer: { name: string };
-  lead: { serviceType: ServiceType; details: unknown; assignedStaff: { id: string; name: string } | null };
+  lead: { serviceType: ServiceType; countryId: string | null; details: unknown; assignedStaff: { id: string; name: string } | null };
 }
 
 function travelDateOf(details: unknown): string | null {
@@ -205,12 +234,32 @@ function roundHours(ms: number): number {
   return Math.round((ms / HOUR_MS) * 10) / 10;
 }
 
-/** One `{serviceType, cutoff}` per configured service — the SLA clock must have started before `cutoff` to be past due now. */
-function slaCutoffs(slaByService: Map<ServiceType, number>, now: Date) {
-  return [...slaByService.entries()].map(([serviceType, hours]) => ({
-    serviceType,
-    cutoff: new Date(now.getTime() - hours * HOUR_MS),
-  }));
+/** The SLA hours for one lead: its country's override, else the service value (undefined = no SLA). */
+function slaHoursFor(slaByService: Map<ServiceType, ServiceSla>, serviceType: ServiceType, countryId: string | null): number | undefined {
+  const sla = slaByService.get(serviceType);
+  if (!sla) return undefined;
+  return (countryId ? sla.byCountry.get(countryId) : undefined) ?? sla.defaultHours ?? undefined;
+}
+
+/**
+ * One `{leadWhere, cutoff}` per configured service and per country override —
+ * the SLA clock must have started before `cutoff` to be past due now. The
+ * service-wide clause leaves out the overridden countries (a lead with no
+ * country keeps the service value).
+ */
+function slaCutoffs(slaByService: Map<ServiceType, ServiceSla>, now: Date): { leadWhere: Prisma.LeadWhereInput; cutoff: Date }[] {
+  const cutoffOf = (hours: number) => new Date(now.getTime() - hours * HOUR_MS);
+  const clauses: { leadWhere: Prisma.LeadWhereInput; cutoff: Date }[] = [];
+  for (const [serviceType, sla] of slaByService) {
+    const overridden = [...sla.byCountry.keys()];
+    for (const [countryId, hours] of sla.byCountry) clauses.push({ leadWhere: { serviceType, countryId }, cutoff: cutoffOf(hours) });
+    if (sla.defaultHours === null) continue;
+    clauses.push({
+      leadWhere: overridden.length > 0 ? { serviceType, OR: [{ countryId: null }, { countryId: { notIn: overridden } }] } : { serviceType },
+      cutoff: cutoffOf(sla.defaultHours),
+    });
+  }
+  return clauses;
 }
 
 interface CollectOptions {
@@ -231,7 +280,7 @@ async function collectDelays(scope: ServiceScope, options: CollectOptions): Prom
     bookings = await db.booking.findMany({
       where: {
         status: { in: statuses },
-        OR: completionCutoffs.map(({ serviceType, cutoff }) => ({ lead: { serviceType }, createdAt: { lt: cutoff } })),
+        OR: completionCutoffs.map(({ leadWhere, cutoff }) => ({ lead: leadWhere, createdAt: { lt: cutoff } })),
       },
       select: bookingSelect,
       orderBy: { createdAt: "desc" },
@@ -251,7 +300,7 @@ async function collectDelays(scope: ServiceScope, options: CollectOptions): Prom
       where: {
         status: "RECEIVED",
         bookingId: { not: null },
-        OR: documentCutoffs.map(({ serviceType, cutoff }) => ({ booking: { lead: { serviceType } }, updatedAt: { lt: cutoff } })),
+        OR: documentCutoffs.map(({ leadWhere, cutoff }) => ({ booking: { lead: leadWhere }, updatedAt: { lt: cutoff } })),
       },
       select: { id: true, type: true, updatedAt: true, booking: { select: bookingSelect } },
       orderBy: { updatedAt: "desc" },
@@ -295,7 +344,7 @@ async function collectDelays(scope: ServiceScope, options: CollectOptions): Prom
   }
 
   for (const booking of bookings) {
-    const hours = slas.completion.get(booking.lead.serviceType);
+    const hours = slaHoursFor(slas.completion, booking.lead.serviceType, booking.lead.countryId);
     if (hours === undefined) continue;
     const dueAt = new Date(booking.createdAt.getTime() + hours * HOUR_MS);
     const isCompleted = booking.status === "COMPLETED";
@@ -320,7 +369,7 @@ async function collectDelays(scope: ServiceScope, options: CollectOptions): Prom
   for (const document of documents) {
     const booking = document.booking;
     if (!booking) continue;
-    const hours = slas.documents.get(booking.lead.serviceType);
+    const hours = slaHoursFor(slas.documents, booking.lead.serviceType, booking.lead.countryId);
     if (hours === undefined) continue;
     // A cancelled/refunded booking's unverified document isn't an operational delay any more.
     if (booking.status === "CANCELLED" || booking.status === "REFUNDED") continue;

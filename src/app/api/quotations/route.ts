@@ -1,4 +1,5 @@
 import { leadOwnershipWhere, seesAllRecords } from "@/lib/auth/ownership";
+import { resolveLeadSubServiceCodes, vendorSubServiceProblem } from "@/lib/vendors/sub-service-scope";
 import { specialFarePaxCounts, specialFareTotals } from "@/lib/special-fare/pax-counts";
 import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
 import { defaultVisaChangeInclusions, VISA_CHANGE_EXCLUSIONS } from "@/lib/visa-change/inclusions";
@@ -16,6 +17,7 @@ import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { hasPermission } from "@/lib/auth/permissions";
 import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { computeSellingPrice, isFlightQuote, supportsItinerary } from "@/lib/quotations/pricing";
 import { quotationMargin, resolvePaxCosting, usesPaxCosting } from "@/lib/quotations/pax-costing";
 import { leadPassengersFor } from "@/lib/quotations/lead-passengers";
@@ -288,6 +290,8 @@ export async function POST(request: NextRequest) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, lead.serviceType, "CREATE_QUOTATION");
+  if (actionError) return actionError;
   // Client testing 2026-10-09 (A2) — New Visa / OTB / Return Ticket are never quoted: direct payment link from the lead.
   if (lead.serviceType === "NEW_VISA" || lead.serviceType === "OTB" || lead.serviceType === "RETURN_TICKET") {
     return jsonError(409, "This service is paid by a direct payment link from the lead — no quotation.");
@@ -307,6 +311,9 @@ export async function POST(request: NextRequest) {
   if (!vendor || !vendor.active) {
     return jsonError(400, "Select a valid, active vendor.", { vendorId: ["This vendor isn't available."] });
   }
+  // Admin handover §12 — a vendor limited to some sub-services can't be quoted for another one.
+  const subServiceProblem = await vendorSubServiceProblem(vendor.id, lead.serviceType, await resolveLeadSubServiceCodes(lead.serviceType, lead.details), { requireServiceLink: false });
+  if (subServiceProblem) return jsonError(400, subServiceProblem, { vendorId: [subServiceProblem] });
 
   // §9 (Admin FINAL handover) — the shared Airline master, re-validated
   // server-side exactly like OTB's own lead-intake route does with its
@@ -340,12 +347,12 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Please check the highlighted fields.", { feeAmount: ["Enter the fee amount."] });
   }
 
-  const validityError = await assertValidityWithinCap(lead.serviceType, validityExpiresAt);
+  const validityError = await assertValidityWithinCap(lead.serviceType, validityExpiresAt, lead.countryId);
   if (validityError) {
     return jsonError(400, validityError, { validityExpiresAt: [validityError] });
   }
   // A flight quote that goes to the customer always has a validity (a draft gets one when it is sent).
-  const sentValidity = isDraft ? validityExpiresAt : await effectiveQuoteValidity(lead.serviceType, validityExpiresAt);
+  const sentValidity = isDraft ? validityExpiresAt : await effectiveQuoteValidity(lead.serviceType, validityExpiresAt, lead.countryId);
 
   // P22 — multi-sector itinerary: Visa Change / Flight Special Fare only
   // (service type derived from the lead server-side, never the client).

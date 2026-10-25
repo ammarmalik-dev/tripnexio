@@ -18,6 +18,7 @@ import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
+import { StaffServicePermissionsEditor } from "@/components/admin/StaffServicePermissionsEditor";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 interface RoleOption {
@@ -607,6 +608,13 @@ export function StaffUsersManager() {
             <ProfileDetailsForm key={openUser.id} user={openUser} onSaved={replaceUser} />
           </section>
         </div>
+        <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface-1 p-6">
+          <div>
+            <h3 className="text-sm font-semibold text-ink-heading">Service Permissions</h3>
+            <p className="text-xs text-ink-tertiary">Which actions this staff member may take in each service, and their refund approval limit.</p>
+          </div>
+          <StaffServicePermissionsEditor key={openUser.id} userId={openUser.id} userName={openUser.name} />
+        </section>
       </div>
     );
   }

@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { syncExpiredReservations } from "@/lib/bookings/reservation";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { leadReference } from "@/lib/leads/reference";
 import { isUrgentRequest } from "@/lib/crm/urgency";
 import { bookingListWhere } from "@/lib/bookings/list-where";
@@ -122,6 +123,8 @@ export async function POST(request: NextRequest) {
   if (!quotation) return jsonError(404, "Quotation not found.");
   const scopeError = assertServiceAccess(session, quotation.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, quotation.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
 
   const result = await createBookingFromQuotation(parsed.data.quotationId, {
     byUserId: session.id,

@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { createPendingPayment } from "@/lib/payments/create-payment";
 import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { assertQuotationPayable } from "@/lib/payments/quotation-payable";
@@ -33,6 +34,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "PAYMENT");
+  if (actionError) return actionError;
   if (booking.status !== "PENDING") {
     return jsonError(409, "This booking is no longer pending — a payment can't be created for it.");
   }

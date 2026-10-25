@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { getStaffSession } from "@/lib/auth/staff-session";
-import { isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
+import { effectiveServiceScope } from "@/lib/auth/service-scope";
 import {
   getSalesOverview,
   getOperationsOverview,
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
 
   // Step 39 — a scoped staff member's landing page only aggregates their
   // allowed services (undefined = unrestricted, the query stays unchanged).
-  const scope = isServiceScopeUnrestricted(session) ? undefined : session.allowedServiceTypes;
+  const scope = effectiveServiceScope(session) ?? undefined;
 
   // Sequential, not Promise.all — see the comment on getSalesOverview() in
   // src/lib/crm/dashboard.ts for why this dashboard route deliberately

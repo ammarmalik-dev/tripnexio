@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { dispatchStatusNotifications, getAllowedNextServiceStatuses, setServiceStatus } from "@/lib/service-status/engine";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
@@ -54,6 +55,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(auth.session, lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(auth.session, lead.serviceType, "UPDATE_STATUS");
+  if (actionError) return actionError;
 
   // Client doc 2026-10-15 (I9) — only an Admin may override, and always with a reason.
   const adminOverride = parsed.data.override === true;

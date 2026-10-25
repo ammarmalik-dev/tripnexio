@@ -4,9 +4,11 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { assertOwnsRecord } from "@/lib/auth/ownership";
 import { setBookingVendor } from "@/lib/bookings/set-vendor";
 import { describeError } from "@/lib/api/describe-error";
+import { resolveLeadSubServiceCodes, vendorSubServiceProblem } from "@/lib/vendors/sub-service-scope";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -38,15 +40,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
 
   try {
-    const booking = await db.booking.findUnique({ where: { id }, select: { leadId: true, lead: { select: { serviceType: true, assignedStaffId: true } } } });
+    const booking = await db.booking.findUnique({ where: { id }, select: { leadId: true, lead: { select: { serviceType: true, assignedStaffId: true, details: true } } } });
     if (!booking) return jsonError(404, "Booking not found.");
     const scopeError = assertServiceAccess(session, booking.lead.serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+    if (actionError) return actionError;
     const ownershipError = assertOwnsRecord(session, booking.lead.assignedStaffId);
     if (ownershipError) return ownershipError;
 
     const vendor = await db.vendor.findFirst({ where: { id: parsed.data.vendorId, active: true }, select: { id: true, name: true } });
     if (!vendor) return jsonError(400, "Select a valid, active vendor.", { vendorId: ["This vendor isn't available."] });
+    // Admin handover §12 — the vendor must cover the lead's sub-service (none recorded = any vendor of the service).
+    const subServiceCodes = await resolveLeadSubServiceCodes(booking.lead.serviceType, booking.lead.details);
+    const coverageProblem = await vendorSubServiceProblem(vendor.id, booking.lead.serviceType, subServiceCodes);
+    if (coverageProblem) return jsonError(400, coverageProblem, { vendorId: [coverageProblem] });
 
     const problem = await db.$transaction((tx) =>
       setBookingVendor(tx, { bookingId: id, leadId: booking.leadId, vendor, actor: { userId: session.id, name: session.name }, reason: parsed.data.reason })

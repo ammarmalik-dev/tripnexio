@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import type { Prisma } from "@/generated/prisma/client";
 import { computeEligibilityOutcome } from "@/lib/visa-extension/rules";
 import { computeUrgentDeadline, extensionToday } from "@/lib/visa-extension/urgency";
@@ -58,6 +59,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, lead.serviceType, "EDIT");
+  if (actionError) return actionError;
   if (lead.serviceType !== "VISA_EXTENSION") {
     return jsonError(409, "This action only applies to Visa Extension leads.");
   }

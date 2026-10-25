@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
 
   const staff = await db.user.findMany({
     where: includeInactive ? {} : { active: true },
-    include: { role: { include: { permissions: true } } },
+    include: { role: { include: { permissions: true } }, servicePermissions: { select: { serviceType: true, actions: true } } },
     orderBy: { name: "asc" },
   });
 

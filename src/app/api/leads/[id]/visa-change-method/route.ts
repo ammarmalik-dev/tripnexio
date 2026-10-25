@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
@@ -54,6 +55,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, lead.serviceType, "EDIT");
+  if (actionError) return actionError;
   if (lead.serviceType !== "VISA_CHANGE") return jsonError(409, "This action only applies to Visa Change leads.");
   if (lead.bookings.length > 0) return jsonError(409, "This lead already has a booking — the method can't be changed now.");
 

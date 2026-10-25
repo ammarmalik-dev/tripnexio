@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
 import { createLeadFromSubmission } from "@/lib/leads/create-lead";
 import { enquiryConvertSchema } from "@/lib/enquiries/schemas";
@@ -36,6 +37,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const { serviceType } = parsed.data;
   const scopeError = assertServiceAccess(session, serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, serviceType, "CREATE_LEAD");
+  if (actionError) return actionError;
 
   const enquiry = await db.enquiry.findUnique({ where: { id } });
   if (!enquiry) return jsonError(404, "Enquiry not found.");

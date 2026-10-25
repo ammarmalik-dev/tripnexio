@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { db } from "../db";
 import { SESSION_COOKIE_NAME, verifyStaffSessionToken } from "./session";
 import type { ServiceType } from "../../generated/prisma/enums";
+import type { StaffServiceGrant } from "./service-actions";
 
 export interface StaffSession {
   id: string;
@@ -13,6 +14,11 @@ export interface StaffSession {
   permissions: string[];
   /** Step 39 — empty = unrestricted. See src/lib/auth/service-scope.ts. */
   allowedServiceTypes: ServiceType[];
+  /**
+   * Admin handover §1 — per-service action rows (src/lib/auth/service-actions.ts). Empty = not in use
+   * (role permissions apply to every service in scope).
+   */
+  servicePermissions: StaffServiceGrant[];
 }
 
 /**
@@ -34,7 +40,10 @@ export async function getStaffSession(): Promise<StaffSession | null> {
 
   const user = await db.user.findUnique({
     where: { id: payload.sub },
-    include: { role: { include: { permissions: true } } },
+    include: {
+      role: { include: { permissions: true } },
+      servicePermissions: { select: { serviceType: true, actions: true } },
+    },
   });
   if (!user || !user.active) return null;
   // A password reset (or any other bump of sessionVersion) revokes every session issued before it.
@@ -48,5 +57,6 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     roleId: user.roleId,
     permissions: user.role.permissions.map((permission) => permission.name),
     allowedServiceTypes: user.allowedServiceTypes,
+    servicePermissions: user.servicePermissions,
   };
 }

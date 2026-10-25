@@ -2,6 +2,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
@@ -34,6 +35,8 @@ export async function POST(_request: Request, { params }: RouteParams) {
   if (document.booking) {
     const scopeError = assertServiceAccess(auth.session, document.booking.lead.serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(auth.session, document.booking.lead.serviceType, "VALIDATE_DOCUMENTS");
+    if (actionError) return actionError;
   }
 
   try {

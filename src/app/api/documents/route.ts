@@ -9,6 +9,7 @@ import { dispatchStatusNotifications, type StatusNotification } from "@/lib/serv
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess, serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { leadReference } from "@/lib/leads/reference";
 import { resolveDocumentRecipient } from "@/lib/documents/resolve-recipient";
 import { notifyCustomer } from "@/lib/notifications/notify";
@@ -157,6 +158,8 @@ export async function POST(request: NextRequest) {
     }
     const scopeError = assertServiceAccess(session, booking.lead.serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(session, booking.lead.serviceType, "EDIT");
+    if (actionError) return actionError;
   }
 
   let statusNotifications: StatusNotification[] = [];

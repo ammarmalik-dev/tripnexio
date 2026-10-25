@@ -85,6 +85,7 @@ async function resolveRecipients(recipients: NotifyStaffInput["recipients"]): Pr
         id: true,
         allowedServiceTypes: true,
         role: { select: { permissions: { select: { name: true } } } },
+        servicePermissions: { select: { serviceType: true, actions: true } },
       },
     });
     for (const user of candidates) {
@@ -98,6 +99,11 @@ async function resolveRecipients(recipients: NotifyStaffInput["recipients"]): Pr
       const serviceType = recipients.serviceType;
       const unrestricted = checkable.permissions.includes(ADMIN_FULL_PERMISSION) || checkable.allowedServiceTypes.length === 0;
       if (serviceType && !unrestricted && !checkable.allowedServiceTypes.includes(serviceType)) continue;
+      // Admin handover §1 — a user with per-service rows hears only about services whose row has VIEW.
+      if (serviceType && !checkable.permissions.includes(ADMIN_FULL_PERMISSION) && user.servicePermissions.length > 0) {
+        const row = user.servicePermissions.find((grant) => grant.serviceType === serviceType);
+        if (!row || !row.actions.includes("VIEW")) continue;
+      }
       ids.add(user.id);
     }
   }

@@ -4,6 +4,7 @@ import { isInternallyCreatedLead } from "@/lib/leads/internal-lead";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { createPendingBankTransferPayment } from "@/lib/payments/create-bank-transfer-payment";
 import { isExpiredNow, syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -38,6 +39,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "PAYMENT");
+  if (actionError) return actionError;
   if (!(await isInternallyCreatedLead(booking.lead))) {
     return jsonError(409, "Offline payment is only for leads created by staff. Send the customer the online payment link instead.");
   }

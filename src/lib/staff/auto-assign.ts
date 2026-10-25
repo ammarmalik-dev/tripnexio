@@ -134,7 +134,7 @@ export async function autoAssignLead(leadId: string, serviceType: ServiceType): 
 
     const rosteredToday = await db.staffRoster.findMany({
       where: { serviceType, dayOfWeek, active: true, user: { active: true } },
-      include: { user: { include: { role: { include: { permissions: true } } } } },
+      include: { user: { include: { role: { include: { permissions: true } }, servicePermissions: { select: { serviceType: true, actions: true } } } } },
       orderBy: { createdAt: "asc" },
     });
     // Client testing 2026-10-09 (E8) — no roster set up for this service today:
@@ -147,7 +147,7 @@ export async function autoAssignLead(leadId: string, serviceType: ServiceType): 
         : (
             await db.user.findMany({
               where: { active: true },
-              include: { role: { include: { permissions: true } } },
+              include: { role: { include: { permissions: true } }, servicePermissions: { select: { serviceType: true, actions: true } } },
               orderBy: { createdAt: "asc" },
             })
           ).map((user) => ({ userId: user.id, user }));

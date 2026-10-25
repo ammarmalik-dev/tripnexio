@@ -85,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (parsed.data.staffId) {
     const staff = await db.user.findUnique({
       where: { id: parsed.data.staffId },
-      include: { role: { include: { permissions: true } } },
+      include: { role: { include: { permissions: true } }, servicePermissions: { select: { serviceType: true, actions: true } } },
     });
     if (!staff) {
       return jsonError(400, "Select a valid, active staff member.", { staffId: ["This staff member isn't available."] });

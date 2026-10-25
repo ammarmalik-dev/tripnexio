@@ -7,6 +7,7 @@ import type { DirectPaymentPrice } from "@/lib/checkout/lead-direct-payment";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 
 /** ADULT first, then CHILD, then INFANT — a reasonable, disclosed default order for passenger-list display; doesn't affect pricing. */
 function buildPlaceholderPassengers(fullName: string, adultCount: number, childCount: number, infantCount: number): LeadPassengerInput[] {
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest) {
 
   const scopeError = assertServiceAccess(session, data.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, data.serviceType, "CREATE_LEAD");
+  if (actionError) return actionError;
 
   // OTB and Return Ticket have one rate for every passenger (client reply 2026-10-13): the form asks one count, kept in adultCount.
   if (data.serviceType === "OTB" || data.serviceType === "RETURN_TICKET") {

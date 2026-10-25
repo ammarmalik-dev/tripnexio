@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { dispatchStatusNotifications, getAllowedNextServiceStatuses, setServiceStatus } from "@/lib/service-status/engine";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
@@ -54,6 +55,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "UPDATE_STATUS");
+  if (actionError) return actionError;
 
   // P11/P13/P14 — a New Visa, Visa Change or Visa Extension booking completes only after its visa PDF was delivered.
   // Client doc 2026-10-20 — a Visa Extension is approved before its copy arrives ("shared once received"), so only

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 import { describeError } from "@/lib/api/describe-error";
 import { passengerInputSchema } from "@/lib/validation/passenger-edit-schema";
@@ -41,6 +42,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!leadId || !serviceType) return jsonError(404, "This passenger isn't on a request you can edit.");
     const scopeError = assertServiceAccess(session, serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(session, serviceType, "EDIT");
+    if (actionError) return actionError;
     const ownershipError = await assertOwnsEntity(session, "lead", leadId);
     if (ownershipError) return ownershipError;
 

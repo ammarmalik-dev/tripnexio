@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { db } from "@/lib/db";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { effectiveServiceScope } from "@/lib/auth/service-scope";
 import { ChangePasswordForm } from "@/components/crm/profile/ChangePasswordForm";
 import { SecurityQuestionForm } from "@/components/crm/profile/SecurityQuestionForm";
 import { SignOutButton } from "@/components/crm/profile/SignOutButton";
@@ -24,8 +25,9 @@ export default async function CrmProfilePage() {
     select: { securityQuestion: true },
   });
 
+  const serviceScope = effectiveServiceScope(session);
   const services =
-    session.allowedServiceTypes.length === 0 ? "All services" : session.allowedServiceTypes.map((service) => SERVICE_TYPE_LABELS[service]).join(", ");
+    serviceScope === null ? "All services" : serviceScope.length === 0 ? "None" : serviceScope.map((service) => SERVICE_TYPE_LABELS[service]).join(", ");
 
   return (
     <div className="flex flex-col gap-6">

@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { canIssueReservation, computeReservationExpiry } from "@/lib/bookings/reservation";
 import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { linkedOtbState } from "@/lib/return-ticket/operations";
@@ -36,6 +37,8 @@ export async function PATCH(_request: Request, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
   if (booking.lead.serviceType !== "RETURN_TICKET") {
     return jsonError(409, "Only Return Verified Ticket bookings have an issue-then-expire reservation window.");
   }

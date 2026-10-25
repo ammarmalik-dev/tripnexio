@@ -1,6 +1,6 @@
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
+import { effectiveServiceScope } from "@/lib/auth/service-scope";
 import { getDelayAnalysis } from "@/lib/crm/delays";
 
 /**
@@ -14,7 +14,7 @@ export async function GET() {
   if (auth.error) return auth.error;
 
   try {
-    const scope = isServiceScopeUnrestricted(auth.session) ? undefined : auth.session.allowedServiceTypes;
+    const scope = effectiveServiceScope(auth.session) ?? undefined;
     return jsonSuccess(await getDelayAnalysis(scope));
   } catch (error) {
     console.error("[api/crm/delays]", error);

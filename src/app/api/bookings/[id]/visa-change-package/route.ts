@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { saveUploadedFile } from "@/lib/storage/local-file-storage";
 import { OUTPUT_TYPES } from "@/lib/outputs/output-types";
 import { deliverOutput } from "@/lib/outputs/deliver-output";
@@ -48,6 +49,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
   if (booking.lead.serviceType !== "VISA_CHANGE") return jsonError(409, "Packages are generated for Visa Change bookings only.");
 
   if (await db.document.count({ where: { bookingId: id, type: "PACKAGE_PDF" } })) {

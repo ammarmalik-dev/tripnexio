@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
@@ -50,6 +51,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType) ?? assertServiceAccess(session, serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, lead.serviceType, "EDIT") ?? assertServiceAction(session, serviceType, "EDIT");
+  if (actionError) return actionError;
   if (lead.serviceType === serviceType) return jsonError(400, "The lead already has this service.");
   if (lead._count.quotations > 0 || lead._count.bookings > 0) {
     return jsonError(409, "The service can only be changed before a quotation or booking is created for this lead.");

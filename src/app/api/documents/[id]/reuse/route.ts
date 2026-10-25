@@ -7,6 +7,7 @@ import { dispatchStatusNotifications, type StatusNotification } from "@/lib/serv
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { getReusableDocumentsForPassenger } from "@/lib/documents/reuse";
 import { documentLeadId } from "@/lib/documents/document-lead";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -58,6 +59,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!targetBooking) return jsonError(400, "Booking not found.", { bookingId: ["No booking with this id."] });
     const scopeError = assertServiceAccess(session, targetBooking.lead.serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(session, targetBooking.lead.serviceType, "EDIT");
+    if (actionError) return actionError;
   }
 
   const source = await db.document.findUnique({ where: { id } });

@@ -7,6 +7,7 @@ import { dispatchStatusNotifications, type StatusNotification } from "@/lib/serv
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { runTicketExtraction } from "@/lib/ocr/extract-ticket";
@@ -60,6 +61,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (existing.booking) {
     const scopeError = assertServiceAccess(session, existing.booking.lead.serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(session, existing.booking.lead.serviceType, "EDIT");
+    if (actionError) return actionError;
   }
 
   let fileUrl: string;

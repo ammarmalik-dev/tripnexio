@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { PASSENGER_OUTCOME_LABELS, bookingOutcomeLabel } from "@/lib/bookings/passenger-outcomes";
@@ -52,6 +53,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (!booking) return jsonError(404, "Booking not found.");
     const scopeError = assertServiceAccess(session, booking.lead.serviceType);
     if (scopeError) return scopeError;
+    // Admin handover §1 (client 2026-10-25) — the service-wise "UPDATE_STATUS" action.
+    const actionError = assertServiceAction(session, booking.lead.serviceType, "UPDATE_STATUS");
+    if (actionError) return actionError;
     const row = booking.passengers.find((passenger) => passenger.passengerId === passengerId);
     if (!row) return jsonError(404, "That passenger isn't on this booking.");
     if (row.outcome === "APPROVED" && parsed.data.outcome !== "APPROVED" && !session.permissions.includes(ADMIN_FULL_PERMISSION)) {

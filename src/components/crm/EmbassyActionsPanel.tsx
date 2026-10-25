@@ -44,7 +44,7 @@ export function EmbassyActionsPanel({
   currentVendor: { id: string; name: string | null } | null;
   onChanged: () => void;
 }) {
-  const vendors = useServiceVendors("NEW_VISA");
+  const vendors = useServiceVendors("NEW_VISA", bookingId);
   // A direct-payment booking starts with a placeholder vendor, so staff name the real one before "Applied".
   const [vendorId, setVendorId] = useState(() => (currentVendor && currentVendor.name !== DIRECT_VENDOR_NAME ? currentVendor.id : ""));
   const [pending, setPending] = useState<EmbassyAction | null>(null);

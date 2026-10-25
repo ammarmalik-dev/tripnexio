@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { gatewayForPayment } from "@/lib/payments/accounts";
 import { PaymentGatewayConfigError } from "@/lib/payments/get-gateway";
 import { completePaymentSuccess } from "@/lib/payments/complete-payment";
@@ -40,6 +41,8 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
     if (!payment) return jsonError(404, "Payment not found.");
     const scopeError = assertServiceAccess(session, payment.booking.lead.serviceType);
     if (scopeError) return scopeError;
+    const actionError = assertServiceAction(session, payment.booking.lead.serviceType, "PAYMENT");
+    if (actionError) return actionError;
     if (payment.method !== "GATEWAY" || !payment.gatewayRef) {
       return jsonError(409, "Only an online payment link can be checked with the gateway.");
     }

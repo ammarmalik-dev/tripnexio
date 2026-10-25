@@ -24,10 +24,11 @@ export const NO_EXPIRY_LINK_SERVICES: ReadonlySet<ServiceType> = new Set<Service
  * (Admin → Payment Gateway) ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS. Uses the
  * global db — call it outside any transaction.
  */
-export async function resolvePaymentLinkValidityHours(serviceType: ServiceType): Promise<number | null> {
+export async function resolvePaymentLinkValidityHours(serviceType: ServiceType, countryId?: string | null): Promise<number | null> {
   // Client 2026-10-14 — "do not set a time limit on OTB, Return Ticket and New Visa payment links".
   if (NO_EXPIRY_LINK_SERVICES.has(serviceType)) return null;
-  const { paymentDeadlineHours } = await getServiceTimelineRules(serviceType);
+  // Admin handover §6 — the lead's country timeline (if any) overrides the service value.
+  const { paymentDeadlineHours } = await getServiceTimelineRules(serviceType, countryId);
   if (paymentDeadlineHours != null) return paymentDeadlineHours;
   return (await getDefaultPaymentLinkHours()) ?? DEFAULT_PAYMENT_LINK_VALIDITY_HOURS;
 }
@@ -91,7 +92,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   // Read here, BEFORE this function opens its own transaction below — every
   // caller invokes createPendingPayment/createExtraPayment outside any
   // transaction, so using the global db is safe.
-  const validityHours = await resolvePaymentLinkValidityHours(booking.lead.serviceType);
+  const validityHours = await resolvePaymentLinkValidityHours(booking.lead.serviceType, booking.lead.countryId);
   const linkExpiresAt = validityHours === null ? null : new Date(Date.now() + validityHours * 60 * 60 * 1000);
 
   const reference = leadReference(booking.lead);

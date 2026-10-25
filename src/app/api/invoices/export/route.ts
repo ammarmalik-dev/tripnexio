@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { jsonError } from "@/lib/api/respond";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { exportScopedSession } from "@/lib/auth/service-actions";
 import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { invoiceQuerySchema } from "@/lib/invoices/invoice-query";
@@ -22,6 +23,8 @@ const REFUND_STATE_LABELS: Record<InvoiceListItem["refundState"], string> = {
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("payments.view");
   if (auth.error) return auth.error;
+  // Admin handover §1 — staff with service-wise permissions export only services carrying EXPORT.
+  const exportSession = exportScopedSession(auth.session);
 
   const { searchParams } = new URL(request.url);
   const parsed = invoiceQuerySchema.safeParse(Object.fromEntries(searchParams));
@@ -30,7 +33,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { invoices } = await loadInvoiceSet(auth.session, parsed.data);
+    const { invoices } = await loadInvoiceSet(exportSession, parsed.data);
     const payments = await fetchInvoicePayments(invoices.slice(0, EXPORT_QUERY_TAKE).map((invoice) => invoice.id));
     const rows = payments.map(toInvoiceListItem);
 

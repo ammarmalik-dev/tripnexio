@@ -41,7 +41,7 @@ export async function revalidateQuotation(
     return { ok: false as const, error: "Only an expired quotation can be revalidated." };
   }
 
-  const validityError = await assertValidityWithinCap(quotation.lead.serviceType, input.validityExpiresAt);
+  const validityError = await assertValidityWithinCap(quotation.lead.serviceType, input.validityExpiresAt, quotation.lead.countryId);
   if (validityError) return { ok: false as const, error: validityError };
 
   const newValidity = new Date(input.validityExpiresAt);

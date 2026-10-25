@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { revalidateQuotationSchema } from "@/lib/validation/quotation-schema";
 import { revalidateQuotation } from "@/lib/quotations/revalidate-quotation";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -41,6 +42,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!quotation) return jsonError(404, "Quotation not found.");
   const scopeError = assertServiceAccess(session, quotation.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, quotation.lead.serviceType, "CREATE_QUOTATION");
+  if (actionError) return actionError;
 
   const result = await revalidateQuotation(id, parsed.data, { byUserId: session.id, label: `by ${session.name}` });
   if (!result.ok) {

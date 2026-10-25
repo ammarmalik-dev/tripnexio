@@ -3,6 +3,7 @@ import { extraPaymentListQuerySchema } from "@/lib/validation/extra-payment-quer
 import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
+import { exportScopedSession } from "@/lib/auth/service-actions";
 import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { leadReference } from "@/lib/leads/reference";
@@ -23,6 +24,8 @@ import type { Prisma } from "@/generated/prisma/client";
 export async function GET(request: NextRequest) {
   const auth = await requirePermission("payments.view");
   if (auth.error) return auth.error;
+  // Admin handover §1 — staff with service-wise permissions export only services carrying EXPORT.
+  const exportSession = exportScopedSession(auth.session);
 
   const { searchParams } = new URL(request.url);
   const parsed = extraPaymentListQuerySchema.safeParse(Object.fromEntries(searchParams));
@@ -34,7 +37,7 @@ export async function GET(request: NextRequest) {
   const where: Prisma.PaymentWhereInput = {
     purpose: "EXTRA",
     ...(status ? { status } : {}),
-    ...(!isServiceScopeUnrestricted(auth.session) ? { booking: { lead: serviceTypeCondition(auth.session) } } : {}),
+    ...(!isServiceScopeUnrestricted(exportSession) ? { booking: { lead: serviceTypeCondition(exportSession) } } : {}),
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),

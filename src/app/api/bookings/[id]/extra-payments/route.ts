@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { createExtraPayment } from "@/lib/payments/create-payment";
 import { createExtraPaymentSchema } from "@/lib/validation/extra-payment-schema";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
@@ -38,6 +39,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "PAYMENT");
+  if (actionError) return actionError;
 
   if ((INELIGIBLE_STATUSES as readonly string[]).includes(booking.status)) {
     return jsonError(409, `An extra payment can't be raised against a ${booking.status.toLowerCase()} booking.`);

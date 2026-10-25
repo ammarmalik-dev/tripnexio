@@ -65,7 +65,7 @@ export function ReturnTicketActionsPanel({
     let cancelled = false;
     async function load() {
       try {
-        const result = await getJson<{ id: string; name: string }[]>("/api/vendors?service=RETURN_TICKET");
+        const result = await getJson<{ id: string; name: string }[]>(`/api/vendors?service=RETURN_TICKET&bookingId=${encodeURIComponent(bookingId)}`);
         if (cancelled) return;
         // Keep the booking's current vendor selectable even if it isn't tagged for this service.
         const current = view.vendor;
@@ -78,7 +78,7 @@ export function ReturnTicketActionsPanel({
     return () => {
       cancelled = true;
     };
-  }, [view.vendor]);
+  }, [view.vendor, bookingId]);
 
   const sendBlockedReason = view.otbApprovalPending ? "Waiting for the linked OTB to be approved." : !form.vendorId ? "Select the vendor first." : null;
 

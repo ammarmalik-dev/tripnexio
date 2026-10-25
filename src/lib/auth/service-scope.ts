@@ -1,10 +1,29 @@
 import { jsonError } from "@/lib/api/respond";
 import { ADMIN_FULL_PERMISSION } from "./permissions";
+import { servicesWithAction, type StaffServiceGrant } from "./service-actions";
 import type { ServiceType } from "../../generated/prisma/enums";
 
 export interface ServiceScopeCheckable {
   permissions: string[];
   allowedServiceTypes: ServiceType[];
+  /**
+   * Admin handover §1 — per-service action rows (service-actions.ts). When present (non-empty), only the
+   * services whose row has VIEW are in scope, intersected with allowedServiceTypes when that is set.
+   */
+  servicePermissions?: StaffServiceGrant[] | null;
+}
+
+/**
+ * The services this session may see, or null when unrestricted. An empty array means NO service (a user
+ * whose per-service rows grant VIEW nowhere) — unlike `allowedServiceTypes`, where empty = unrestricted.
+ */
+export function effectiveServiceScope(session: ServiceScopeCheckable | null): ServiceType[] | null {
+  if (!session) return [];
+  if (session.permissions.includes(ADMIN_FULL_PERMISSION)) return null;
+  const viewable = servicesWithAction(session, "VIEW");
+  const allowed = session.allowedServiceTypes.length > 0 ? session.allowedServiceTypes : null;
+  if (viewable === null) return allowed;
+  return allowed ? viewable.filter((service) => allowed.includes(service)) : viewable;
 }
 
 /**
@@ -17,14 +36,14 @@ export interface ServiceScopeCheckable {
  */
 export function isServiceScopeUnrestricted(session: ServiceScopeCheckable | null): boolean {
   if (!session) return false;
-  return session.permissions.includes(ADMIN_FULL_PERMISSION) || session.allowedServiceTypes.length === 0;
+  return effectiveServiceScope(session) === null;
 }
 
 /** For a detail/mutation route, once the resource's own serviceType is known. */
 export function hasServiceAccess(session: ServiceScopeCheckable | null, serviceType: ServiceType): boolean {
   if (!session) return false;
-  if (isServiceScopeUnrestricted(session)) return true;
-  return session.allowedServiceTypes.includes(serviceType);
+  const scope = effectiveServiceScope(session);
+  return scope === null || scope.includes(serviceType);
 }
 
 /**
@@ -58,10 +77,10 @@ export function serviceTypeCondition(
   session: ServiceScopeCheckable | null,
   requested?: ServiceType
 ): { serviceType?: ServiceType | { in: ServiceType[] } } {
-  if (isServiceScopeUnrestricted(session)) {
+  const scope = effectiveServiceScope(session);
+  if (scope === null) {
     return requested ? { serviceType: requested } : {};
   }
-  const scope = session!.allowedServiceTypes;
   if (requested) {
     return scope.includes(requested) ? { serviceType: requested } : { serviceType: { in: [] } };
   }

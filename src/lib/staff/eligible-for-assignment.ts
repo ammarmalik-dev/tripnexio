@@ -13,6 +13,8 @@ type StaffWithRole = {
   active: boolean;
   allowedServiceTypes: ServiceType[];
   role: { permissions: { name: string }[] };
+  /** Admin handover §1 — the per-service action rows, when loaded (a service without VIEW is closed). */
+  servicePermissions?: { serviceType: ServiceType; actions: string[] }[];
 };
 
 /**
@@ -53,7 +55,7 @@ export async function getStaffIdsOnApprovedLeave(): Promise<Set<string>> {
 export function isRosterEligible(member: StaffWithRole, serviceType?: ServiceType): boolean {
   if (!member.active) return false;
   if (!hasPermission({ permissions: member.role.permissions.map((permission) => permission.name) }, "leads.edit")) return false;
-  if (serviceType && !hasServiceAccess({ permissions: member.role.permissions.map((p) => p.name), allowedServiceTypes: member.allowedServiceTypes }, serviceType)) {
+  if (serviceType && !hasServiceAccess({ permissions: member.role.permissions.map((p) => p.name), allowedServiceTypes: member.allowedServiceTypes, servicePermissions: member.servicePermissions }, serviceType)) {
     return false;
   }
   return true;

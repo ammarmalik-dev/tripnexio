@@ -13,14 +13,18 @@ export interface VendorChoice {
   name: string;
 }
 
-/** Active vendors for a service (GET /api/vendors), for the booking vendor pickers. Empty while loading or on error. */
-export function useServiceVendors(serviceType: ServiceType): VendorChoice[] {
+/**
+ * Active vendors for a service (GET /api/vendors), for the booking vendor pickers. Empty while loading or on error.
+ * With `bookingId`, only vendors covering the booking's sub-service (Admin handover §12).
+ */
+export function useServiceVendors(serviceType: ServiceType, bookingId?: string): VendorChoice[] {
   const [vendors, setVendors] = useState<VendorChoice[]>([]);
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const result = await getJson<VendorChoice[]>(`/api/vendors?service=${serviceType}`);
+        const query = bookingId ? `&bookingId=${encodeURIComponent(bookingId)}` : "";
+        const result = await getJson<VendorChoice[]>(`/api/vendors?service=${serviceType}${query}`);
         if (!cancelled) setVendors(result);
       } catch {
         if (!cancelled) setVendors([]);
@@ -30,7 +34,7 @@ export function useServiceVendors(serviceType: ServiceType): VendorChoice[] {
     return () => {
       cancelled = true;
     };
-  }, [serviceType]);
+  }, [serviceType, bookingId]);
   return vendors;
 }
 
@@ -50,7 +54,7 @@ export function BookingVendorPicker({
   currentVendorId: string | null;
   onSaved: () => void;
 }) {
-  const vendors = useServiceVendors(serviceType);
+  const vendors = useServiceVendors(serviceType, bookingId);
   const [open, setOpen] = useState(false);
   const [vendorId, setVendorId] = useState("");
   const [reason, setReason] = useState("");

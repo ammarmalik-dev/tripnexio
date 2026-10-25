@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
 import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import { EMBASSY_ACTIONS, EMBASSY_ACTION_KEYS } from "@/lib/new-visa/embassy-actions";
@@ -56,6 +57,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
+  const actionError = assertServiceAction(session, booking.lead.serviceType, "BOOKING");
+  if (actionError) return actionError;
   if (booking.lead.serviceType !== "NEW_VISA") return jsonError(409, "Embassy actions are only for New Visa bookings.");
 
   // Looked up before the transaction (no global db inside one).
