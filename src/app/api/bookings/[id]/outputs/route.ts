@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
+import { earlyIssueBlock } from "@/lib/return-ticket/early-hold";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
 import { OUTPUT_TYPES, OUTPUTS_BY_SERVICE } from "@/lib/outputs/output-types";
 import { hasReachedStatusEvent } from "@/lib/service-status/engine";
@@ -86,6 +88,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const issuesReservation =
     booking.lead.serviceType === "RETURN_TICKET" && (parsed.data.outputType === "RESERVATION_PDF" || parsed.data.outputType === "TICKET_PDF") && !booking.reservationIssuedAt;
   if (issuesReservation) {
+    // Client 2026-10-25 — never before the day before travel (Admin may override).
+    const early = earlyIssueBlock(booking.lead.travelDate, session.permissions.includes(ADMIN_FULL_PERMISSION));
+    if (early) return jsonError(409, early);
     const otbState = await linkedOtbState(id);
     if (!otbState.issuanceAllowed) {
       return jsonError(409, `The linked OTB booking ${otbState.otb?.bookingId} isn't approved yet — the ticket can't be issued before OTB approval.`);

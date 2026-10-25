@@ -5,6 +5,8 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
+import { earlyIssueBlock } from "@/lib/return-ticket/early-hold";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { writeAudit } from "@/lib/audit/log";
 import { describeError } from "@/lib/api/describe-error";
 import { linkedOtbState, linkServiceBookings, returnTicketVendorSchema } from "@/lib/return-ticket/operations";
@@ -90,6 +92,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (data.action === "SEND_TO_AIRLINES") {
       if (booking.lead.serviceType !== "RETURN_TICKET") return jsonError(409, "This is for Return Verified Ticket bookings.");
+      // Client 2026-10-25 — an early booking waits On Hold until the day before travel (Admin may override).
+      const early = earlyIssueBlock(booking.lead.travelDate, session.permissions.includes(ADMIN_FULL_PERMISSION));
+      if (early) return jsonError(409, early);
       const vendor = await db.vendor.findUnique({ where: { id: data.vendorId }, select: { id: true, name: true, active: true } });
       if (!vendor || !vendor.active) return jsonError(400, "Select an active vendor.", { vendorId: ["Select an active vendor."] });
       const otb = await linkedOtbState(id);
