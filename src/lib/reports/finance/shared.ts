@@ -3,7 +3,7 @@ import type { BookingStatus, ServiceType } from "../../../generated/prisma/enums
 import { SERVICE_TYPE_LABELS } from "../../crm/labels";
 import { getTimezoneOffsetMinutes } from "../../settings/system-config";
 import { paymentScopeWhere, round2 } from "../scope";
-import type { ReportCell, ReportFilterKey, ReportFilters } from "../types";
+import { SCOPE_FILTERS, type ReportCell, type ReportFilterKey, type ReportFilters } from "../types";
 
 /**
  * P25 - helpers shared by the Finance report definitions in this folder.
@@ -19,7 +19,8 @@ export const SOURCE_LIMIT = 50_000;
 const IN_CHUNK = 5_000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const ALL_FILTERS: ReportFilterKey[] = ["serviceType", "countryId", "staffId", "vendorId"];
+/** Admin handover §15 — service, country, staff, vendor, sub-service, booking status and payment status. */
+export const ALL_FILTERS: ReportFilterKey[] = SCOPE_FILTERS;
 export const ALL_SERVICE_TYPES = Object.keys(SERVICE_TYPE_LABELS) as ServiceType[];
 
 type DecimalLike = { toString(): string } | null | undefined;

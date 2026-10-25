@@ -16,11 +16,18 @@ export interface ReportFilterValues {
   countryId: string;
   staffId: string;
   vendorId: string;
+  /** Admin handover §15 — "SERVICE_TYPE:code". */
+  subService: string;
+  leadStatus: string;
+  bookingStatus: string;
+  paymentStatus: string;
 }
 
 interface Option {
   value: string;
   label: string;
+  /** Sub-service options only: the service they belong to. */
+  serviceType?: string;
 }
 
 interface FilterOptions {
@@ -28,6 +35,10 @@ interface FilterOptions {
   countries: Option[];
   staff: Option[];
   vendors: Option[];
+  subServices: Option[];
+  leadStatuses: Option[];
+  bookingStatuses: Option[];
+  paymentStatuses: Option[];
 }
 
 function isoDay(date: Date): string {
@@ -38,7 +49,18 @@ function isoDay(date: Date): string {
 export function defaultReportFilters(): ReportFilterValues {
   const today = new Date();
   const from = new Date(today.getTime() - 29 * 24 * 60 * 60 * 1000);
-  return { from: isoDay(from), to: isoDay(today), serviceType: "", countryId: "", staffId: "", vendorId: "" };
+  return {
+    from: isoDay(from),
+    to: isoDay(today),
+    serviceType: "",
+    countryId: "",
+    staffId: "",
+    vendorId: "",
+    subService: "",
+    leadStatus: "",
+    bookingStatus: "",
+    paymentStatus: "",
+  };
 }
 
 /** Query string for the report APIs — only non-empty values, and only the optional filters listed in `supported`. */
@@ -55,7 +77,18 @@ const FILTER_META: Record<ReportFilterKey, { label: string; allLabel: string; op
   countryId: { label: "Country", allLabel: "All countries", optionsKey: "countries" },
   staffId: { label: "Staff", allLabel: "All staff", optionsKey: "staff" },
   vendorId: { label: "Vendor", allLabel: "All vendors", optionsKey: "vendors" },
+  subService: { label: "Sub-service", allLabel: "All sub-services", optionsKey: "subServices" },
+  leadStatus: { label: "Lead status", allLabel: "All lead statuses", optionsKey: "leadStatuses" },
+  bookingStatus: { label: "Booking status", allLabel: "All booking statuses", optionsKey: "bookingStatuses" },
+  paymentStatus: { label: "Payment status", allLabel: "All payment statuses", optionsKey: "paymentStatuses" },
 };
+
+/** Sub-services narrow to the picked service (when the report has a service filter and one is chosen). */
+function optionsFor(key: ReportFilterKey, options: FilterOptions, values: ReportFilterValues): Option[] {
+  const list = options[FILTER_META[key].optionsKey] ?? [];
+  if (key === "subService" && values.serviceType) return list.filter((option) => option.serviceType === values.serviceType);
+  return list;
+}
 
 interface ReportFilterBarProps {
   values: ReportFilterValues;
@@ -114,7 +147,7 @@ export function ReportFilterBar({ values, supportedFilters, onChange, onRefresh,
         />
         {supportedFilters.map((key) => {
           const meta = FILTER_META[key];
-          const list = options ? options[meta.optionsKey] : [];
+          const list = options ? optionsFor(key, options, values) : [];
           const id = `report-${key}`;
           return (
             <FormField key={key} label={meta.label} htmlFor={id}>
@@ -124,7 +157,12 @@ export function ReportFilterBar({ values, supportedFilters, onChange, onRefresh,
                   name={id}
                   value={values[key]}
                   disabled={!options}
-                  onChange={(event) => onChange({ ...values, [key]: event.target.value })}
+                  onChange={(event) => {
+                    const next = { ...values, [key]: event.target.value };
+                    // A sub-service belongs to one service: changing the service drops a sub-service of another one.
+                    if (key === "serviceType" && next.subService && !next.subService.startsWith(`${event.target.value}:`)) next.subService = "";
+                    onChange(next);
+                  }}
                   className={cn(fieldControlClass, fieldBorderClass(false), "appearance-none pr-9")}
                 >
                   <option value="">{options ? meta.allLabel : optionsFailed ? "Unavailable" : "Loading…"}</option>

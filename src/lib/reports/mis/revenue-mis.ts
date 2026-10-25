@@ -1,5 +1,5 @@
 import { paymentScopeWhere, round2 } from "../scope";
-import type { ReportCell, ReportColumn, ReportDefinition, ReportFilters, ReportResult } from "../types";
+import { SCOPE_FILTERS, type ReportCell, type ReportColumn, type ReportDefinition, type ReportFilters, type ReportResult } from "../types";
 import type { ServiceType } from "../../../generated/prisma/enums";
 import { ALL_SERVICE_TYPES, bucket, capRows, loadRevenueFacts, monthsInRange, percentOf, previousMonthKey, serviceLabel, totalsFor } from "./shared";
 
@@ -81,6 +81,6 @@ export const revenueMisReport: ReportDefinition = {
   title: "Revenue MIS",
   group: "mis",
   description: "Month-by-service revenue (ex GST), GST, gateway fees, refunds, net revenue and month-on-month growth.",
-  supportedFilters: ["serviceType", "countryId", "staffId", "vendorId"],
+  supportedFilters: SCOPE_FILTERS,
   run,
 };

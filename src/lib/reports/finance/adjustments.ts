@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { paymentTotal } from "../../payments/totals";
-import { leadScopeWhere, paymentScopeWhere, round2 } from "../scope";
+import { paymentScopeWhere, refundScopeWhere, round2 } from "../scope";
 import type { ReportCell, ReportDefinition } from "../types";
 import {
   ALL_FILTERS,
@@ -47,7 +47,7 @@ export const financialAdjustmentsReport: ReportDefinition = {
   async run(filters) {
     const notes: string[] = [];
     const paymentScope = await paymentScopeWhere(filters);
-    const lead = await leadScopeWhere(filters);
+    const refundScope = await refundScopeWhere(filters);
     const entries: LedgerEntry[] = [];
 
     // 1) Extra payments and coupon discounts on successful payments.
@@ -152,7 +152,7 @@ export const financialAdjustmentsReport: ReportDefinition = {
     const refunds = await db.refund.findMany({
       where: {
         AND: [
-          Object.keys(lead).length ? { payment: { booking: { lead } } } : {},
+          refundScope,
           {
             OR: [
               { status: "COMPLETED", updatedAt: inRange(filters) },

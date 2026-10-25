@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import { computeVendorScore, getVendorScoringWeights } from "../../vendors/scoring";
 import { bookingScopeWhere, paymentScopeWhere, round2 } from "../scope";
-import type { ReportCell, ReportColumn, ReportDefinition, ReportFilters, ReportResult } from "../types";
+import { SCOPE_FILTERS, type ReportCell, type ReportColumn, type ReportDefinition, type ReportFilters, type ReportResult } from "../types";
 import { bucket, capRows, inChunks, loadBookingLeadIds, loadPaymentBookingIds, loadSelectedQuotations, num, percentOf, serviceLabel, totalsFor } from "./shared";
 
 interface VendorAcc {
@@ -136,6 +136,6 @@ export const vendorMisReport: ReportDefinition = {
   title: "Vendor MIS",
   group: "mis",
   description: "Per vendor: services, bookings, vendor cost, selling, margin, average margin %, refunds and vendor score.",
-  supportedFilters: ["serviceType", "countryId", "staffId", "vendorId"],
+  supportedFilters: SCOPE_FILTERS,
   run,
 };

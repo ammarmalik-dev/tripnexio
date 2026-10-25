@@ -1,6 +1,6 @@
 import { db } from "../../db";
 import { bookingScopeWhere, leadScopeWhere, round2 } from "../scope";
-import type { ReportCell, ReportColumn, ReportDefinition, ReportFilters, ReportResult } from "../types";
+import { LEAD_REPORT_FILTERS, type ReportCell, type ReportColumn, type ReportDefinition, type ReportFilters, type ReportResult } from "../types";
 import type { ServiceType } from "../../../generated/prisma/enums";
 import {
   ALL_SERVICE_TYPES,
@@ -137,6 +137,6 @@ export const salesMisReport: ReportDefinition = {
   title: "Sales MIS",
   group: "mis",
   description: "Leads, quotes sent, bookings, conversion and sales value per service and per staff member.",
-  supportedFilters: ["serviceType", "countryId", "staffId", "vendorId"],
+  supportedFilters: LEAD_REPORT_FILTERS,
   run,
 };

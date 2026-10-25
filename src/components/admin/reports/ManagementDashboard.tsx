@@ -9,12 +9,13 @@ import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import { formatCurrency } from "@/lib/format-currency";
 import type { ManagementLine, ManagementReport } from "@/lib/reports/management";
-import type { ReportFilterKey } from "@/lib/reports/types";
+import { SCOPE_FILTERS, type ReportFilterKey } from "@/lib/reports/types";
 import { ReportFilterBar, defaultReportFilters, reportQueryString, type ReportFilterValues } from "./ReportFilterBar";
 
 type FetchState = "loading" | "success" | "error";
 
-const SUPPORTED_FILTERS: ReportFilterKey[] = ["serviceType", "countryId", "staffId", "vendorId"];
+/** Admin handover §15 — the same filters as the booking / payment reports (expenses stay company-wide). */
+const SUPPORTED_FILTERS: ReportFilterKey[] = SCOPE_FILTERS;
 
 /** Lines where a DEcrease is the good direction (costs). */
 const LOWER_IS_BETTER = new Set<ManagementLine["key"]>(["cost", "refunds", "expenses"]);

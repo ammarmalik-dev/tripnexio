@@ -1,9 +1,8 @@
 import { db } from "../../db";
 import { paymentTotal } from "../../payments/totals";
 import { bookingScopeWhere, leadScopeWhere, paymentScopeWhere, round2 } from "../scope";
-import type { ReportCell, ReportDefinition } from "../types";
+import { LEAD_REPORT_FILTERS, UNPAID_REPORT_FILTERS, type ReportCell, type ReportDefinition } from "../types";
 import {
-  ALL_FILTERS,
   SOURCE_LIMIT,
   buildBuckets,
   businessOffsetMinutes,
@@ -26,7 +25,7 @@ export const monthlySalesReport: ReportDefinition = {
   title: "Monthly Sales",
   group: "finance",
   description: "Per month: leads received, bookings created, sales value booked and revenue collected.",
-  supportedFilters: ALL_FILTERS,
+  supportedFilters: LEAD_REPORT_FILTERS,
   async run(filters) {
     const notes: string[] = [];
     const offset = await businessOffsetMinutes();
@@ -134,7 +133,7 @@ export const outstandingPaymentsReport: ReportDefinition = {
   title: "Outstanding Payments",
   group: "finance",
   description: "Bookings with no successful payment whose latest payment is pending, expired or failed.",
-  supportedFilters: ALL_FILTERS,
+  supportedFilters: UNPAID_REPORT_FILTERS,
   async run(filters) {
     const notes: string[] = [];
     const scope = await bookingScopeWhere(filters);

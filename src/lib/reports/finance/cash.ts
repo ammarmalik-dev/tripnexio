@@ -2,7 +2,7 @@ import { db } from "../../db";
 import type { Prisma } from "../../../generated/prisma/client";
 import type { ServiceType } from "../../../generated/prisma/enums";
 import { paymentTotal } from "../../payments/totals";
-import { leadScopeWhere, paymentScopeWhere, round2 } from "../scope";
+import { hasRecordScope, paymentScopeWhere, refundScopeWhere, round2 } from "../scope";
 import type { ReportCell, ReportDefinition, ReportFilters } from "../types";
 import {
   ALL_FILTERS,
@@ -30,12 +30,6 @@ const PAYMENT_DATE_NOTE = "Payments are dated by payment.updatedAt of SUCCESS ro
 /** Leaves room for the per-category subtotal rows within ROW_LIMIT. */
 const EXPENSE_ROW_LIMIT = ROW_LIMIT - 500;
 const REFUND_DATE_NOTE = "Refunds count only when COMPLETED, dated by refund.updatedAt (when it was completed).";
-
-/** Refund where-clause carrying the shared lead scope. */
-async function refundScopeWhere(filters: ReportFilters): Promise<Prisma.RefundWhereInput> {
-  const lead = await leadScopeWhere(filters);
-  return Object.keys(lead).length ? { payment: { booking: { lead } } } : {};
-}
 
 /** Service types to iterate: just the filtered one, or all. */
 function servicesFor(filters: ReportFilters): ServiceType[] {
@@ -341,7 +335,7 @@ export const financialSummaryReport: ReportDefinition = {
   key: "financial-summary",
   title: "Daily / Monthly Financial Summary",
   group: "finance",
-  description: "One row per day (ranges up to 62 days) or per month: collected, revenue, GST, gateway fees, refunds, expenses and net.",
+  description: "Cash flow - one row per day (ranges up to 62 days) or per month: collected, revenue, GST, gateway fees, refunds, expenses and net.",
   supportedFilters: ALL_FILTERS,
   async run(filters) {
     const notes: string[] = [];
@@ -363,11 +357,17 @@ export const financialSummaryReport: ReportDefinition = {
       take: SOURCE_LIMIT,
     });
     sourceLimitNote(refunds.length, notes);
-    const expenses = await db.expense.findMany({
-      where: { date: dateOnlyRange(filters, offset) },
-      select: { date: true, amount: true, gstAmount: true },
-      take: SOURCE_LIMIT,
-    });
+    // Admin handover §15 — expenses are company-wide (not tied to a lead), so once any service /
+    // country / staff / vendor / sub-service / status filter narrows the report they are left out
+    // rather than mixed into a filtered figure.
+    const includeExpenses = !hasRecordScope(filters);
+    const expenses = includeExpenses
+      ? await db.expense.findMany({
+          where: { date: dateOnlyRange(filters, offset) },
+          select: { date: true, amount: true, gstAmount: true },
+          take: SOURCE_LIMIT,
+        })
+      : [];
     sourceLimitNote(expenses.length, notes);
 
     const empty = () => ({ payments: 0, collected: 0, revenue: 0, gst: 0, gatewayFees: 0, refunds: 0, expenses: 0 });
@@ -409,7 +409,10 @@ export const financialSummaryReport: ReportDefinition = {
       `One row per ${unit} (daily for ranges up to 62 days, otherwise monthly), in the business timezone.`,
       PAYMENT_DATE_NOTE,
       REFUND_DATE_NOTE,
-      "Expenses are dated by their own date and are company-wide - service/country/staff/vendor filters do NOT apply to them.",
+      includeExpenses
+        ? "Expenses are dated by their own date and are company-wide."
+        : "Expenses are company-wide (not linked to a booking), so they are left out (shown as 0) while a service, country, staff, vendor, sub-service or status filter is applied.",
+      "Payment status filter: Paid = bookings with a successful payment, Unpaid = none yet (so nothing is collected), Refunded = bookings with a completed refund (full or part).",
       "Revenue = amount - coupon (ex GST and gateway fee). Collected = revenue + GST + gateway fee. Net = revenue - completed refunds - expenses; GST and gateway fees are pass-through and vendor cost is not deducted (see Profit & Margin)."
     );
     return {

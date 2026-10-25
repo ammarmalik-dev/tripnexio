@@ -11,6 +11,10 @@ const FILTER_LABELS: Record<ReportFilterKey, string> = {
   countryId: "Country",
   staffId: "Staff",
   vendorId: "Vendor",
+  subService: "Sub-service",
+  leadStatus: "Lead status",
+  bookingStatus: "Booking status",
+  paymentStatus: "Payment status",
 };
 
 const DASHBOARDS = [

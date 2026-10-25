@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import { getOpenDelayRecords } from "../../crm/delays";
 import { bookingScopeWhere, round2 } from "../scope";
-import type { ReportCell, ReportColumn, ReportDefinition, ReportFilters, ReportResult } from "../types";
+import { SCOPE_FILTERS, type ReportCell, type ReportColumn, type ReportDefinition, type ReportFilters, type ReportResult } from "../types";
 import type { ServiceType } from "../../../generated/prisma/enums";
 import { ALL_SERVICE_TYPES, bucket, capRows, daysBetween, inChunks, loadBookingLeadIds, loadLeadMeta, serviceLabel, totalsFor } from "./shared";
 
@@ -141,6 +141,6 @@ export const operationsMisReport: ReportDefinition = {
   title: "Operations MIS",
   group: "mis",
   description: "Per service: bookings created, completed, cancelled, in progress, delayed, average completion time and documents pending verification.",
-  supportedFilters: ["serviceType", "countryId", "staffId", "vendorId"],
+  supportedFilters: SCOPE_FILTERS,
   run,
 };

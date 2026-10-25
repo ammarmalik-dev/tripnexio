@@ -1,5 +1,5 @@
 import { paymentScopeWhere, round2 } from "../scope";
-import type { ReportCell, ReportColumn, ReportDefinition, ReportFilters, ReportResult } from "../types";
+import { SCOPE_FILTERS, type ReportCell, type ReportColumn, type ReportDefinition, type ReportFilters, type ReportResult } from "../types";
 import type { ServiceType } from "../../../generated/prisma/enums";
 import { ALL_SERVICE_TYPES, bucket, capRows, loadRevenueFacts, loadSelectedQuotations, monthsInRange, percentOf, serviceLabel, totalsFor, type PaymentFact } from "./shared";
 
@@ -91,6 +91,6 @@ export const profitMisReport: ReportDefinition = {
   title: "Profit MIS",
   group: "mis",
   description: "Month-by-service revenue, vendor cost, gross profit, margin %, refunds and net.",
-  supportedFilters: ["serviceType", "countryId", "staffId", "vendorId"],
+  supportedFilters: SCOPE_FILTERS,
   run,
 };

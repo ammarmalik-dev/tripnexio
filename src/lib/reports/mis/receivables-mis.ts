@@ -1,7 +1,7 @@
 import { db } from "../../db";
 import { paymentTotal } from "../../payments/totals";
 import { bookingScopeWhere, paymentScopeWhere, round2 } from "../scope";
-import type { ReportCell, ReportColumn, ReportDefinition, ReportFilters, ReportResult } from "../types";
+import { UNPAID_REPORT_FILTERS, type ReportCell, type ReportColumn, type ReportDefinition, type ReportFilters, type ReportResult } from "../types";
 import type { ServiceType } from "../../../generated/prisma/enums";
 import {
   ALL_SERVICE_TYPES,
@@ -177,6 +177,6 @@ export const receivablesMisReport: ReportDefinition = {
   title: "Receivables & Collection MIS",
   group: "mis",
   description: "Outstanding amounts on unpaid active bookings with ageing buckets, collections in range and collection %, per service and per staff.",
-  supportedFilters: ["serviceType", "countryId", "staffId", "vendorId"],
+  supportedFilters: UNPAID_REPORT_FILTERS,
   run,
 };

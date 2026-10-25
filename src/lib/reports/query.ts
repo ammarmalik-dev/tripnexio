@@ -1,6 +1,14 @@
 import { z } from "zod";
-import { ServiceType } from "../../generated/prisma/enums";
-import type { ReportFilterKey, ReportFilters } from "./types";
+import { BookingStatus, LeadStatus, ServiceType } from "../../generated/prisma/enums";
+import { REPORT_PAYMENT_STATUSES, type ReportFilterKey, type ReportFilters } from "./types";
+
+/** Optional enum query value: "" / missing -> undefined. */
+function optionalEnum<T extends Record<string, string>>(values: T) {
+  return z
+    .union([z.enum(values), z.literal("")])
+    .optional()
+    .transform((value) => (value ? value : undefined));
+}
 
 /**
  * P25 - shared query-string parsing for /api/admin/reports/[key] and
@@ -34,6 +42,20 @@ export const reportQuerySchema = z.object({
   countryId: optionalId,
   staffId: optionalId,
   vendorId: optionalId,
+  // Admin handover §15 — sub-service ("SERVICE_TYPE:code"), lead / booking status, payment status.
+  subService: z
+    .string()
+    .trim()
+    .max(80)
+    .optional()
+    .transform((value) => (value ? value : undefined))
+    .refine((value) => value === undefined || /^[A-Z_]+:[a-z0-9_-]+$/.test(value), "Pick a sub-service from the list."),
+  leadStatus: optionalEnum(LeadStatus),
+  bookingStatus: optionalEnum(BookingStatus),
+  paymentStatus: z
+    .union([z.enum(REPORT_PAYMENT_STATUSES), z.literal("")])
+    .optional()
+    .transform((value) => (value ? value : undefined)),
   format: z.enum(["json", "csv"]).optional().default("json"),
 });
 
@@ -57,7 +79,7 @@ export type ParseReportQueryResult = { ok: true; value: ParsedReportQuery } | { 
 
 export function parseReportQuery(searchParams: URLSearchParams): ParseReportQueryResult {
   const raw: Record<string, string> = {};
-  for (const key of ["from", "to", "serviceType", "countryId", "staffId", "vendorId", "format"]) {
+  for (const key of ["from", "to", "serviceType", "countryId", "staffId", "vendorId", "subService", "leadStatus", "bookingStatus", "paymentStatus", "format"]) {
     const value = searchParams.get(key);
     if (value !== null) raw[key] = value;
   }
@@ -93,6 +115,10 @@ export function parseReportQuery(searchParams: URLSearchParams): ParseReportQuer
         countryId: query.countryId,
         staffId: query.staffId,
         vendorId: query.vendorId,
+        subService: query.subService,
+        leadStatus: query.leadStatus,
+        bookingStatus: query.bookingStatus,
+        paymentStatus: query.paymentStatus,
       },
     },
   };
@@ -105,6 +131,10 @@ export function restrictFilters(filters: ReportFilters, supported: ReportFilterK
   if (supported.includes("countryId") && filters.countryId) restricted.countryId = filters.countryId;
   if (supported.includes("staffId") && filters.staffId) restricted.staffId = filters.staffId;
   if (supported.includes("vendorId") && filters.vendorId) restricted.vendorId = filters.vendorId;
+  if (supported.includes("subService") && filters.subService) restricted.subService = filters.subService;
+  if (supported.includes("leadStatus") && filters.leadStatus) restricted.leadStatus = filters.leadStatus;
+  if (supported.includes("bookingStatus") && filters.bookingStatus) restricted.bookingStatus = filters.bookingStatus;
+  if (supported.includes("paymentStatus") && filters.paymentStatus) restricted.paymentStatus = filters.paymentStatus;
   return restricted;
 }
 
@@ -121,5 +151,9 @@ export function describeFilters(from: string, to: string, filters: ReportFilters
   if (filters.countryId) described.countryId = filters.countryId;
   if (filters.staffId) described.staffId = filters.staffId;
   if (filters.vendorId) described.vendorId = filters.vendorId;
+  if (filters.subService) described.subService = filters.subService;
+  if (filters.leadStatus) described.leadStatus = filters.leadStatus;
+  if (filters.bookingStatus) described.bookingStatus = filters.bookingStatus;
+  if (filters.paymentStatus) described.paymentStatus = filters.paymentStatus;
   return described;
 }
