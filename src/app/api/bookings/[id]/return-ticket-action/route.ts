@@ -109,15 +109,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (!vendor || !vendor.active) return jsonError(400, "Select an active vendor.", { vendorId: ["Select an active vendor."] });
 
     // Business Rules §14 "Sensitive Admin Actions" — changing the booking's vendor or vendor cost needs the confirmation reason; saving only the reference/PNR doesn't.
-    const vendorChanged = vendor.id !== quotation.vendorId || data.vendorCost !== Number(quotation.vendorCost);
+    const costChanged = data.vendorCost !== undefined && data.vendorCost !== Number(quotation.vendorCost);
+    const vendorChanged = vendor.id !== quotation.vendorId || costChanged;
     const reasonResult = readBodyReason(body);
     if (vendorChanged && reasonResult.error) return reasonResult.error;
     const reason = reasonResult.reason ?? null;
 
-    const margin = Number(quotation.sellingPrice) - data.vendorCost;
     const vendorNote = `Vendor ${vendor.name}, reference ${data.vendorReference || "—"}, PNR ${data.pnr ? data.pnr.toUpperCase() : "—"} (by ${session.name})`;
-    await db.$transaction(async (tx) => {
-      await tx.quotation.update({ where: { id: quotation.id }, data: { vendorId: vendor.id, vendorCost: data.vendorCost, margin } });
+    const result = await db.$transaction(async (tx) => {
+      // Client 2026-10-23 audit — a new vendor takes its configured rate (server-side, same as Send to Airlines),
+      // never the old vendor's cost posted back by the form; a cost typed by staff overrides it.
+      const vendorError = await setBookingVendor(tx, { bookingId: id, leadId: booking.leadId, vendor, actor: { userId: session.id, name: session.name }, reason });
+      if (vendorError) return vendorError;
+      if (costChanged && data.vendorCost !== undefined) {
+        await tx.quotation.update({ where: { id: quotation.id }, data: { vendorCost: data.vendorCost, margin: Number(quotation.sellingPrice) - data.vendorCost } });
+      }
       await tx.booking.update({
         where: { id },
         data: { pnrVendorReference: data.vendorReference || null, pnr: data.pnr ? data.pnr.toUpperCase() : null },
@@ -129,7 +135,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         byUserId: session.id,
         note: reason ? withReason(vendorNote, reason) : vendorNote,
       });
+      return null;
     });
+    if (result) return jsonError(409, result);
     return jsonSuccess({ saved: true });
   } catch (error) {
     console.error("[bookings/return-ticket-action]", describeError(error));

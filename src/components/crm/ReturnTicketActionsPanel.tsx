@@ -117,7 +117,8 @@ export function ReturnTicketActionsPanel({
       await postJson(`/api/bookings/${bookingId}/return-ticket-action`, {
         action: "SAVE_VENDOR",
         vendorId: form.vendorId,
-        vendorCost: form.vendorCost.trim() === "" ? Number.NaN : Number(form.vendorCost),
+        // Blank or untouched = the vendor's configured rate, looked up on the server (client 2026-10-23 audit).
+        vendorCost: form.vendorCost.trim() === "" || form.vendorCost === (view.vendorCost === null ? "" : String(view.vendorCost)) ? undefined : Number(form.vendorCost),
         vendorReference: "",
         pnr: form.pnr,
         reason,
