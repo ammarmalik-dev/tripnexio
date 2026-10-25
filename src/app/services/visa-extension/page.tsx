@@ -13,6 +13,7 @@ import { ExtensionDetailsSection } from "@/components/services/visa-extension/la
 import { ImportantNoticesSection } from "@/components/services/visa-extension/landing/ImportantNoticesSection";
 import { DocumentsPaymentSection } from "@/components/services/visa-extension/landing/DocumentsPaymentSection";
 import { AfterPaymentOutcomesSection } from "@/components/services/visa-extension/landing/AfterPaymentOutcomesSection";
+import { ExtensionOptionCards } from "@/components/services/visa-extension/landing/ExtensionOptionCards";
 import { db } from "@/lib/db";
 import { getDefaultPaymentLinkHours } from "@/lib/settings/system-config";
 import { getSitePageContent } from "@/lib/site-content/get-page-content";
@@ -110,6 +111,8 @@ export default async function VisaExtensionLandingPage() {
 
         </Container>
       </section>
+
+      <ExtensionOptionCards content={content} />
 
       <ServiceRequirementsSection whatYouNeed={whatYoullNeed} documents={[]} needTitle={content.text("requirements.needTitle")} />
 

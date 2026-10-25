@@ -29,6 +29,19 @@ export const VISA_EXTENSION_SECTIONS: SiteSection[] = [
     ],
   },
   {
+    id: "options",
+    label: "Extension options (cards come from Admin → Sub-services and Pricing)",
+    fields: [
+      { key: "options.eyebrow", label: "Small heading", kind: "text", fallback: "Extension options" },
+      { key: "options.heading", label: "Heading", kind: "text", fallback: "Choose your extension" },
+      { key: "options.intro", label: "Intro text", kind: "multiline", fallback: "Final price is confirmed on your quotation after we verify your visa." },
+      { key: "options.fromLabel", label: "Price label", kind: "text", fallback: "From" },
+      { key: "options.quoteLabel", label: "Text when no price is set", kind: "text", fallback: "Price shared on your quotation" },
+      { key: "options.note", label: "Terms note", kind: "text", fallback: "Subject to verification and the" },
+      { key: "options.termsLabel", label: "Terms link text", kind: "text", fallback: "Terms & Conditions" },
+    ],
+  },
+  {
     id: "requirements",
     label: "What You'll Need",
     fields: [
