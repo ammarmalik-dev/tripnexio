@@ -2,7 +2,10 @@ import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { hasPermission } from "@/lib/auth/permissions";
-import { serviceTypeCondition } from "@/lib/auth/service-scope";
+import { hasServiceAccess, serviceTypeCondition } from "@/lib/auth/service-scope";
+import { ServiceType as ServiceTypes, type ServiceType } from "@/generated/prisma/enums";
+
+const SERVICE_TYPES = Object.values(ServiceTypes);
 import { getCrmReports } from "@/lib/crm/reports";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -32,10 +35,19 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Choose a valid date range.");
   }
 
+  // Admin handover §15 — ?service= narrows to one service, never past the viewer's own service scope.
+  const service = params.get("service");
+  let serviceScope = serviceTypeCondition(auth.session);
+  if (service) {
+    if (!(SERVICE_TYPES as readonly string[]).includes(service)) return jsonError(400, "Unknown service.");
+    if (!hasServiceAccess(auth.session, service as ServiceType)) return jsonError(403, "You don't have access to that service.");
+    serviceScope = { serviceType: service as ServiceType };
+  }
+
   try {
     const reports = await getCrmReports({
       period: { from, to },
-      serviceScope: serviceTypeCondition(auth.session),
+      serviceScope,
       includeFinance: hasPermission(auth.session, "finance.manage"),
     });
     return jsonSuccess(reports);

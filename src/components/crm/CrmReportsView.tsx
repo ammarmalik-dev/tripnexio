@@ -13,6 +13,9 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/pagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import type { ConversionRow, CountAmountRow, CrmReports } from "@/lib/crm/reports";
 import { formatRupees } from "@/lib/format-currency";
+import { SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
+import { fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
+import { cn } from "@/lib/cn";
 
 const money = (value: number) => formatRupees(value);
 const pct = (value: number | null) => (value === null ? "—" : `${value}%`);
@@ -100,6 +103,8 @@ export function CrmReportsView() {
   const [data, setData] = useState<CrmReports | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
+  // Admin handover §15 — reports by service too.
+  const [service, setService] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -108,6 +113,7 @@ export function CrmReportsView() {
       const params = new URLSearchParams();
       if (dateFrom) params.set("from", dateFrom);
       if (dateTo) params.set("to", dateTo);
+      if (service) params.set("service", service);
       try {
         const result = await getJson<CrmReports>(`/api/crm/reports?${params.toString()}`);
         if (cancelled) return;
@@ -123,11 +129,27 @@ export function CrmReportsView() {
     return () => {
       cancelled = true;
     };
-  }, [dateFrom, dateTo, reloadNonce]);
+  }, [dateFrom, dateTo, service, reloadNonce]);
 
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
+        <label htmlFor="crm-reports-service" className="sr-only">
+          Filter by service
+        </label>
+        <select
+          id="crm-reports-service"
+          value={service}
+          onChange={(event) => setService(event.target.value)}
+          className={cn(fieldControlClass, fieldBorderClass(false), "mb-2 h-10 w-full sm:w-56")}
+        >
+          <option value="">All services</option>
+          {SERVICE_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
         <DateRangeFilter
           idPrefix="crm-reports"
           dateFrom={dateFrom}
