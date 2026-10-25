@@ -8,9 +8,11 @@ interface StaffPermissionsValue {
   permissions: readonly string[];
   /** Admin handover §1 — per-service action rows; empty = not in use. */
   servicePermissions: readonly StaffServiceGrant[];
+  /** Admin handover §17 — the viewer's refund approval limit; null = no limit. */
+  refundApprovalLimit: number | null;
 }
 
-const StaffPermissionsContext = createContext<StaffPermissionsValue>({ permissions: [], servicePermissions: [] });
+const StaffPermissionsContext = createContext<StaffPermissionsValue>({ permissions: [], servicePermissions: [], refundApprovalLimit: null });
 
 /**
  * The signed-in staff member's permission names, for client components that show or hide an action
@@ -20,13 +22,21 @@ const StaffPermissionsContext = createContext<StaffPermissionsValue>({ permissio
 export function StaffPermissionsProvider({
   permissions,
   servicePermissions = [],
+  refundApprovalLimit = null,
   children,
 }: {
   permissions: readonly string[];
   servicePermissions?: readonly StaffServiceGrant[];
+  refundApprovalLimit?: number | null;
   children: ReactNode;
 }) {
-  return <StaffPermissionsContext.Provider value={{ permissions, servicePermissions }}>{children}</StaffPermissionsContext.Provider>;
+  return <StaffPermissionsContext.Provider value={{ permissions, servicePermissions, refundApprovalLimit }}>{children}</StaffPermissionsContext.Provider>;
+}
+
+/** The viewer's refund approval limit (null = none; an Admin is never limited). UI courtesy only. */
+export function useRefundApprovalLimit(): number | null {
+  const { permissions, refundApprovalLimit } = useContext(StaffPermissionsContext);
+  return permissions.includes("admin.full") ? null : refundApprovalLimit;
 }
 
 export function useHasPermission(name: string): boolean {

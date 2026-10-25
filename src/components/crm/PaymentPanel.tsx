@@ -8,6 +8,8 @@ import { AlertTriangle, Upload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { RefundStatusControl } from "./RefundStatusControl";
+import { useRefundApprovalLimit } from "./StaffPermissions";
+import { isAboveApprovalLimit } from "@/lib/refunds/approval-limit";
 import { RefundCalculatorForm } from "./RefundCalculatorForm";
 import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
@@ -80,6 +82,7 @@ export function PaymentPanel({
   canApproveBankTransfer: boolean;
 }) {
   const [markingSuccess, setMarkingSuccess] = useState(false);
+  const refundApprovalLimit = useRefundApprovalLimit();
   const [showRefundForm, setShowRefundForm] = useState(false);
   const [creatingRefund, setCreatingRefund] = useState(false);
   const [refundStatuses, setRefundStatuses] = useState<Record<string, RefundStatus>>({});
@@ -322,6 +325,11 @@ export function PaymentPanel({
                   canApprove={canApproveRefunds}
                   gatewayRefundId={refund.gatewayRefundId}
                   gatewayRefundStatus={refund.gatewayRefundStatus}
+                  approvalLimitLabel={
+                    isAboveApprovalLimit({ limit: refundApprovalLimit, isAdmin: false, amount: Number(refund.refundAmount) }) && refundApprovalLimit !== null
+                      ? money(refundApprovalLimit)
+                      : null
+                  }
                 />
                 <span className="font-semibold text-ink-heading">{money(refund.refundAmount)}</span>
               </div>

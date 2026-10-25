@@ -19,6 +19,8 @@ export interface StaffSession {
    * (role permissions apply to every service in scope).
    */
   servicePermissions: StaffServiceGrant[];
+  /** Admin handover §17 — the largest refund this user may approve; null = no limit. */
+  refundApprovalLimit: number | null;
 }
 
 /**
@@ -58,5 +60,6 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     permissions: user.role.permissions.map((permission) => permission.name),
     allowedServiceTypes: user.allowedServiceTypes,
     servicePermissions: user.servicePermissions,
+    refundApprovalLimit: user.refundApprovalLimit === null ? null : Number(user.refundApprovalLimit),
   };
 }
