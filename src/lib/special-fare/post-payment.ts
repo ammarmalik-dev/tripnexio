@@ -125,6 +125,15 @@ const round = (value: number) => Math.round(value * 100) / 100;
 type Actor = { userId?: string; label: string };
 type Result = { ok: true; notifications: (StatusNotification | null)[]; message: string } | { ok: false; httpStatus: number; error: string };
 
+/**
+ * Client 2026-10-23 audit (SF_27) — the booking enters "Seat Unavailable" when the flight is marked unavailable, when
+ * that status exists and the current status may move there; otherwise nothing changes. Returns its message.
+ */
+async function throughSeatUnavailable(tx: Tx, bookingId: string, actor: Actor): Promise<StatusNotification | null> {
+  const moved = await moveTo(tx, bookingId, "FSF_SEAT_UNAVAILABLE", "Requested flight unavailable at final confirmation", actor);
+  return moved.ok ? moved.notification : null;
+}
+
 async function moveTo(tx: Tx, bookingId: string, event: Parameters<typeof setServiceStatusByEvent>[1]["event"], note: string, actor: Actor) {
   return setServiceStatusByEvent(tx, { scope: "BOOKING", entityId: bookingId, event, note, userId: actor.userId, actorLabel: actor.label });
 }
@@ -229,7 +238,9 @@ export async function markUnavailable(bookingId: string, input: AlternativeOptio
     const now = new Date().toISOString();
 
     if (!alternative) {
-      // Client doc 2026-10-20 — no suitable alternative: a full refund (Refund Pending).
+      // Client doc 2026-10-20 — no suitable alternative: a full refund (Refund Pending). The booking passes through
+      // "Seat Unavailable" (its alternative message has nothing to offer here, so only Refund Pending's goes out).
+      await throughSeatUnavailable(tx, bookingId, actor);
       const moved = await moveTo(tx, bookingId, "REFUND_RAISED", "Flight unavailable — no suitable alternative", actor);
       if (!moved.ok) return moved;
       const offer: AlternativeOffer = { direction: "NONE", difference: 0, offeredAt: now, decision: null, decidedAt: null };
@@ -247,7 +258,11 @@ export async function markUnavailable(bookingId: string, input: AlternativeOptio
     const offer: AlternativeOffer = { ...alternative, direction, difference, offeredAt: now, decision: null, decidedAt: null };
     await tx.booking.update({ where: { id: bookingId }, data: { alternativeOffer: offer as unknown as Prisma.InputJsonValue } });
 
+    // Client 2026-10-23 audit — the system enters "Seat Unavailable" (SF_27) first.
+    const seatNotice = await throughSeatUnavailable(tx, bookingId, actor);
+
     if (direction === "HIGHER") {
+      // The "Alternative Offered" message carries the same alternative and the fare difference, so SF_27 isn't sent too.
       const moved = await moveTo(tx, bookingId, "FSF_ALTERNATIVE_OFFERED", `Alternative ${alternative.route} offered — ₹${difference} more`, actor);
       if (!moved.ok) return moved;
       await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_ALTERNATIVE_OFFERED", byUserId: actor.userId, note: `Flight unavailable; alternative ${alternative.route} at ₹${alternative.sellingPrice} (₹${difference} higher) — customer to choose pay or refund (${actor.label})` });
@@ -276,7 +291,8 @@ export async function markUnavailable(bookingId: string, input: AlternativeOptio
     await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_ALTERNATIVE_CONFIRMED", byUserId: actor.userId, note: `${note} (${actor.label})` });
     return {
       ok: true as const,
-      notifications: [moved.notification],
+      // "Seat Unavailable" tells the customer their flight changed to the alternative, then "Sent to Airlines".
+      notifications: [seatNotice, moved.notification],
       message: direction === "LOWER" ? "Alternative confirmed — the fare difference refund was raised and needs approval." : "Alternative confirmed at the same fare.",
     };
   });
