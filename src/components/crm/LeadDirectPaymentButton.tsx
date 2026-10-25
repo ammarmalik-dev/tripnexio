@@ -121,7 +121,7 @@ export function LeadDirectPaymentButton({ leadId, onCreated }: { leadId: string;
             placeholder="Optional"
             className={cn(fieldControlClass, fieldBorderClass(Boolean(preview.couponError)), "h-9 text-sm uppercase")}
           />
-          <CouponCodeOptions id="lead-payment-coupons" />
+          <CouponCodeOptions id="lead-payment-coupons" leadId={leadId} />
         </label>
       </div>
       {preview.couponError ? <p className="text-xs text-error">{preview.couponError}</p> : null}

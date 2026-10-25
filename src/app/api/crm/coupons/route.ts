@@ -21,12 +21,22 @@ const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeValue, ...Se
  * abandoned-quotation coupons are). Codes are created and edited in Admin →
  * Coupons; the quote builder still validates every code on save.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   const auth = await requirePermission("quotations.view");
   if (auth.error) return auth.error;
   const now = new Date();
+  // Admin handover §17 — ?leadId= suggests only the codes valid for that lead's service (and the lead's own codes).
+  const leadId = request.nextUrl.searchParams.get("leadId");
+  const lead = leadId ? await db.lead.findUnique({ where: { id: leadId }, select: { id: true, serviceType: true } }) : null;
   const coupons = await db.coupon.findMany({
-    where: { active: true, leadId: null, validFrom: { lte: now }, validUntil: { gte: now } },
+    where: {
+      active: true,
+      validFrom: { lte: now },
+      validUntil: { gte: now },
+      ...(lead
+        ? { OR: [{ leadId: null }, { leadId: lead.id }], AND: [{ OR: [{ serviceTypes: { isEmpty: true } }, { serviceTypes: { has: lead.serviceType } }] }] }
+        : { leadId: null }),
+    },
     orderBy: [{ validUntil: "asc" }],
     select: { id: true, code: true, type: true, category: true, value: true, maxDiscount: true, validUntil: true, usageLimit: true, usageCount: true, serviceTypes: true },
   });

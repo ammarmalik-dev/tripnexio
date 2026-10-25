@@ -470,7 +470,7 @@ export function QuoteBuilderForm({
             {...register("couponCode")}
             error={errors.couponCode?.message}
           />
-          <CouponCodeOptions id="crm-coupon-codes" />
+          <CouponCodeOptions id="crm-coupon-codes" leadId={leadId} />
         </div>
       )}
 
