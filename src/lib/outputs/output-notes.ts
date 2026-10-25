@@ -26,8 +26,9 @@ export const OUTPUT_IMPORTANT_INFO: Partial<Record<OutputType, { title: string; 
   // Client doc 2026-10-15 (E5) — Visa Change: in the body of the package / ticket email, word for word.
   PACKAGE_PDF: {
     title: "Important Travel Instructions",
-    lines: VISA_CHANGE_TRAVEL_INSTRUCTIONS,
-    closing: "Please review all details carefully to help avoid last-minute issues.",
+    // Client 2026-10-23 audit — the doc's two closing lines, both.
+    lines: [...VISA_CHANGE_TRAVEL_INSTRUCTIONS, "Please review all details carefully to help avoid last-minute issues."],
+    closing: "Have a safe and pleasant journey with TripNexio!",
   },
   RESERVATION_PDF: {
     title: "⚠️ Important: Please Verify Your Details",

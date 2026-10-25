@@ -593,7 +593,7 @@
   "channel": "EMAIL",
   "subject": "Your Visa Change visa is approved — {{booking_id}}",
   "heading": "Your visa has been issued",
-  "body": "Hi {{customer_name}},\n\nGood news! Your visa is approved.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger(s): {{approved_passenger_names}}\n\nYou can also download it from your TripNexio account.\nPlease verify it against the passport and report any spelling, visa type or other discrepancy within 24 hours. Full travel instructions and disclaimer are in your email.\n\nImportant Travel Instructions:\n• Check that all passenger and travel details are correct.\n• Carry your original passport and all required travel documents.\n• Check your flight status and reach the airport at least 3 hours before departure.\n• Arrive at the designated reporting point at the specified reporting time.\n• Ensure you meet all applicable visa, immigration, and border requirements. If additional documents are requested by immigration authorities, you must provide them.\n\nDisclaimer: Visa approval and entry are subject to the relevant authorities. TripNexio does not guarantee approval, boarding, or entry. If you miss your scheduled flight or transport, the booking is non-refundable. If the airline or transport provider cancels the service, TripNexio will try to arrange an alternative; if none is available, a refund will be processed according to the applicable policy.\n\nPlease review all details carefully to help avoid last-minute issues.\nHave a safe and pleasant journey with TripNexio!",
+  "body": "Hi {{customer_name}},\n\nGood news! Your visa is approved.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassenger(s): {{approved_passenger_names}}\n\nYou can also download it from your TripNexio account.\nPlease verify it against the passport and report any spelling, visa type or other discrepancy within 24 hours. Full travel instructions and disclaimer are below.\n\nImportant Travel Instructions:\n• Check that all passenger and travel details are correct.\n• Carry your original passport and all required travel documents.\n• Check your flight status and reach the airport at least 3 hours before departure.\n• Arrive at the designated reporting point at the specified reporting time.\n• Ensure you meet all applicable visa, immigration, and border requirements. If additional documents are requested by immigration authorities, you must provide them.\n\nDisclaimer: Visa approval and entry are subject to the relevant authorities. TripNexio does not guarantee approval, boarding, or entry. If you miss your scheduled flight or transport, the booking is non-refundable. If the airline or transport provider cancels the service, TripNexio will try to arrange an alternative; if none is available, a refund will be processed according to the applicable policy.\n\nPlease review all details carefully to help avoid last-minute issues.\nHave a safe and pleasant journey with TripNexio!",
   "ctaLabel": "Download Visa",
   "ctaLink": "visa_download_url"
  },
@@ -1144,9 +1144,9 @@
   "channel": "EMAIL",
   "subject": "OTB request received — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nWe've received your OK to Board (OTB) request.\nBooking reference: {{booking_id}}\nPassenger(s): {{passenger_names}}\nWe'll notify you when there is an update. Receipt of a request does not guarantee airline approval.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "secure_link"
+  "body": "Hi {{customer_name}},\n\nWe've received your OK to Board (OTB) request.\nBooking reference: {{booking_id}}\nPassenger(s): {{passenger_names}}\nDestination: {{country_name}}\nTravel date: {{travel_date}}\n\nPlease complete your payment using the Pay Now button below so we can start processing. Receipt of a request does not guarantee airline approval.",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link"
  },
  {
   "event": "OTB_01_NEW",
@@ -1154,8 +1154,8 @@
   "subject": null,
   "heading": null,
   "body": "We've received your OK to Board (OTB) request. Booking reference: {{booking_id}}. We'll update you as your request progresses.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "secure_link",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link",
   "suggestedMetaName": "OTB_01_NEW_WA"
  },
  {
@@ -1505,9 +1505,9 @@
   "channel": "EMAIL",
   "subject": "Your Return Verified Ticket request has been received — {{booking_id}}",
   "heading": null,
-  "body": "Dear {{customer_name}},\n\nWe have received your Return Verified Ticket request.\nRequest ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nTravel date: {{travel_date}}\n\nWe will review the request and share the next update. You can check the current status using the button below.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "secure_link"
+  "body": "Dear {{customer_name}},\n\nWe have received your Return Verified Ticket request.\nRequest ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nDestination: {{country_name}}\nTravel date: {{travel_date}}\n\nPlease complete your payment using the Pay Now button below so we can arrange your ticket.",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link"
  },
  {
   "event": "RVT_NEW",
@@ -1515,8 +1515,8 @@
   "subject": null,
   "heading": null,
   "body": "Your Return Verified Ticket request {{booking_id}} has been received. We'll review the details and update you on the next step.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "secure_link",
+  "ctaLabel": "Pay Now",
+  "ctaLink": "payment_link",
   "suggestedMetaName": "rvt_new"
  },
  {
