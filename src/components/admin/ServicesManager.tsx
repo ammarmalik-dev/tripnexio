@@ -196,6 +196,7 @@ function ServiceFields({
           max={28}
           step="0.01"
           placeholder="Blank = Tax & Fees rate"
+          hint="Used only while GST is on in Admin → Tax & Fees. Tax & Fees at 0% = no GST on any service."
           value={form.gstRatePercent}
           onChange={(event) => onChange({ ...form, gstRatePercent: event.target.value })}
           error={errors.gstRatePercent?.[0]}

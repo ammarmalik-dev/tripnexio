@@ -5,6 +5,7 @@ import { rateLimitByIp } from "@/lib/auth/rate-limit";
 import { computeNewVisaPrice, countryHasNewVisaPrices, pricedNewVisaPaxTypes } from "@/lib/new-visa/pricing";
 import { computeNewVisaPaxType } from "@/lib/leads/pax-type";
 import { getTaxFeeRates } from "@/lib/settings/tax-fee-config";
+import { effectiveGstRate, serviceInvoiceFee, taxableServiceAmount } from "@/lib/invoices/service-fee";
 import type { PaxType } from "@/generated/prisma/enums";
 
 const previewSchema = z.object({
@@ -73,11 +74,14 @@ export async function POST(request: NextRequest) {
     paxType: paxTypes[index],
     price: rateFor[paxTypes[index]],
   }));
-  const { gstRate, gatewayFeeRate } = await getTaxFeeRates();
+  const { gstRate: taxFeeGstRate, gatewayFeeRate } = await getTaxFeeRates();
   const subtotal = breakdown.total;
-  // Same as the payment: GST only on the service charge (price − vendor / government fee).
+  // Client 2026-10-25 — exactly the payment's rule (create-payment.ts): GST only on the service's invoice service fee
+  // when Admin set one, else on the price less the vendor / government fee; Tax & Fees at 0% = no GST at all.
   const nonTaxable = breakdown.invoiceLines.reduce((sum, line) => sum + line.governmentFee * line.quantity, 0);
-  const gst = roundToPaise(Math.max(0, subtotal - nonTaxable) * gstRate);
+  const configured = await serviceInvoiceFee("NEW_VISA", parsed.data.travellers.length);
+  const gstRate = effectiveGstRate(taxFeeGstRate, configured.gstRate);
+  const gst = roundToPaise(taxableServiceAmount(subtotal, configured.fee, nonTaxable) * gstRate);
   const gatewayFee = roundToPaise(subtotal * gatewayFeeRate);
 
   return jsonSuccess({ configured: true, lines, subtotal, gst, gatewayFee, total: roundToPaise(subtotal + gst + gatewayFee) });

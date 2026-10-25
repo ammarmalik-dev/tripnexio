@@ -8,7 +8,7 @@ import { getDefaultPaymentLinkHours } from "../settings/system-config";
 import { usableGateways, type UsableGateway } from "./accounts";
 import { notifyPaymentLinkReady } from "./notify-payment-link";
 import { nonTaxableQuotationAmount } from "../invoices/invoice-document";
-import { serviceInvoiceFee } from "../invoices/service-fee";
+import { effectiveGstRate, serviceInvoiceFee } from "../invoices/service-fee";
 import { leadReference } from "../leads/reference";
 import { siteConfig } from "../site-config";
 
@@ -75,7 +75,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   // (a Protection Plan stays a taxable service); an extra payment (fare difference, fines) is a pass-through fee.
   const passengerCount = await db.bookingPassenger.count({ where: { bookingId: booking.id } });
   const configured = await serviceInvoiceFee(booking.lead.serviceType, passengerCount || booking.lead.paxCount || 1);
-  const gstRate = configured.gstRate ?? defaultGstRate;
+  const gstRate = effectiveGstRate(defaultGstRate, configured.gstRate);
   const planAmount = protectionPlans?.amount ?? 0;
   const invoiceServiceFee =
     configured.fee === null ? null : purpose === "EXTRA" ? 0 : roundToPaise(Math.min(configured.fee, Math.max(0, netAmount - planAmount)));

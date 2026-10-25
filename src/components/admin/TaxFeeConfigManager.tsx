@@ -120,6 +120,7 @@ export function TaxFeeConfigManager() {
           name="gstRatePercent"
           type="number"
           step="0.01"
+          hint="The GST switch for the whole system: 0 = GST off everywhere. While it's on, a service's own GST % (Admin → Services) replaces this rate for that service."
           value={gstRatePercent}
           onChange={(event) => setGstRatePercent(event.target.value)}
           error={errors.gstRatePercent?.[0]}
