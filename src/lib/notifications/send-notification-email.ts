@@ -9,6 +9,7 @@ import { getEmailSender } from "../email/get-sender";
 import { dropEmptyPlaceholderLines, renderTemplate, tidyRenderedText, withRequiredLines } from "./render-template";
 import { emailHeroFor } from "./email-hero";
 import type { EmailAttachment } from "../email/sender";
+import { withOneRetry } from "./retry";
 
 /**
  * Client corrections 2026-10-05: every email that delivers a service output
@@ -103,7 +104,7 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
 
     const sender = getEmailSender();
     const hero = await emailHeroFor(event, auditTarget, variables, template.heading);
-    const result = await sender.send({ to, subject, html, attachments, hero });
+    const result = await withOneRetry(() => sender.send({ to, subject, html, attachments, hero }));
 
     await writeAudit(db, {
       entityType: auditTarget.entityType,

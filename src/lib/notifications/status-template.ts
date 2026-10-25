@@ -10,6 +10,7 @@ import { bookingDocumentsWhere, leadDocumentsWhere } from "../documents/document
 import { paymentTotal } from "../payments/totals";
 import { toWhatsAppId } from "../whatsapp/phone";
 import { notifyCustomer } from "./notify";
+import { logReminder, wasRecentlyReminded } from "../automation/reminder-log";
 import type { EmailAttachment } from "../email/sender";
 import { readStoredFile, FILE_URL_PREFIX } from "../storage/local-file-storage";
 
@@ -467,6 +468,9 @@ export async function usesStatusTemplates(serviceType: ServiceType): Promise<boo
   return count > 0;
 }
 
+const DUPLICATE_WINDOW_MS = 2 * 60 * 1000;
+const NOT_RESPONDING_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Sends one of the client's status templates (email + WhatsApp) for a lead or booking. Never throws;
  * every send is audited by the channel senders. `attachments` adds files (e.g. the invoice on Paid).
@@ -483,6 +487,13 @@ export async function sendStatusTemplate(input: {
   skipWhatsApp?: boolean;
 }): Promise<void> {
   try {
+    // Client 2026-10-23 audit — never the same message twice for one record: the same event within 2 minutes (two
+    // triggers firing together) is dropped, and "User Not Responding" goes at most once a day.
+    const entityType = input.scope === "LEAD" ? "Lead" : "Booking";
+    const dedupeKey = `STATUS_MSG:${input.event}`;
+    const notResponding = /not responding/i.test(input.statusLabel ?? "") || /NOT_RESPONDING/.test(input.event);
+    if (await wasRecentlyReminded(dedupeKey, entityType, input.entityId, notResponding ? NOT_RESPONDING_COOLDOWN_MS : DUPLICATE_WINDOW_MS)) return;
+    await logReminder(dedupeKey, entityType, input.entityId);
     const variables = await buildStatusVariables(input.scope, input.entityId, input.inputs, input.statusLabel ?? "");
     if (!variables) return;
     const customer =

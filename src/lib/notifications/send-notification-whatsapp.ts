@@ -3,6 +3,7 @@ import { ctaFor, ctaUrlSuffix, withoutLinkPlaceholder } from "./cta";
 import { writeAudit } from "../audit/log";
 import { getWhatsAppGateway } from "../whatsapp/get-gateway";
 import { dropEmptyPlaceholderLines, renderTemplate, tidyRenderedText, withRequiredLines } from "./render-template";
+import { withOneRetry } from "./retry";
 
 /** Meta lets a business send free-text messages for 24 hours after the customer's last message. */
 const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -86,8 +87,8 @@ export async function sendNotificationWhatsApp(input: SendNotificationWhatsAppIn
         .trim();
       const gateway = getWhatsAppGateway();
       const result = cta
-        ? await gateway.sendCtaUrl(to, { bodyText: text, buttonText: cta.label, url: cta.url })
-        : await gateway.sendSessionText(to, text);
+        ? await withOneRetry(() => gateway.sendCtaUrl(to, { bodyText: text, buttonText: cta.label, url: cta.url }))
+        : await withOneRetry(() => gateway.sendSessionText(to, text));
       await writeAudit(db, {
         entityType: auditTarget.entityType,
         entityId: auditTarget.entityId,
@@ -122,12 +123,15 @@ export async function sendNotificationWhatsApp(input: SendNotificationWhatsAppIn
         : !cta && template.ctaLink?.trim()
           ? `track${variables.booking_id?.trim() ? `?ref=${encodeURIComponent(variables.booking_id.trim())}` : ""}`
           : undefined;
-    const result = await gateway.sendTemplateMessage(to, {
-      templateName: template.metaTemplateName,
-      languageCode: template.metaTemplateLanguage?.trim() || "en",
-      bodyParameters,
-      buttonUrlSuffix,
-    });
+    const templateName = template.metaTemplateName;
+    const result = await withOneRetry(() =>
+      gateway.sendTemplateMessage(to, {
+        templateName,
+        languageCode: template.metaTemplateLanguage?.trim() || "en",
+        bodyParameters,
+        buttonUrlSuffix,
+      })
+    );
 
     await writeAudit(db, {
       entityType: auditTarget.entityType,
