@@ -1257,6 +1257,8 @@ model VendorService {
   rate       Decimal?    @db.Decimal(10, 2)
   validFrom  DateTime?
   validUntil DateTime?
+  /// Admin handover §12 (client 2026-10-25) — SubService codes of this service the vendor covers; empty = all.
+  subServiceCodes String[] @default([])
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @default(now()) @updatedAt
 
@@ -1341,6 +1343,7 @@ model Country {
   newVisaCountryConfigs   NewVisaCountryConfig[]
   newVisaCountryPage      NewVisaCountryPage?
   newVisaTimeline         NewVisaCountryTimeline?
+  serviceTimelines        ServiceCountryTimeline[]
   faqs                    Faq[]
   leads                   Lead[]
   holidays                Holiday[]
@@ -1666,6 +1669,8 @@ model Coupon {
   usageCount  Int            @default(0)
   /// P24 - cap on the discount a PERCENTAGE coupon can give (null = no cap).
   maxDiscount Decimal?       @db.Decimal(10, 2)
+  /// Admin handover §17 (client 2026-10-25) — the services the code works for; empty = every service.
+  serviceTypes ServiceType[] @default([])
   /// P24 - set on a single-use coupon auto-generated for an abandoned quotation.
   leadId      String?
   active      Boolean        @default(true)
@@ -2412,10 +2417,14 @@ model User {
   mobile              String?
   officialId          String?
   personalDetails     String?       @db.Text
+  /// Admin handover §17 (client 2026-10-25) — the largest refund this staff member may approve; null = no limit
+  /// (admin.full is never limited).
+  refundApprovalLimit Decimal? @db.Decimal(10, 2)
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
   role                        Role                 @relation(fields: [roleId], references: [id])
+  servicePermissions          StaffServicePermission[]
   assignedLeads               Lead[]
   auditEntries                AuditTrail[]
   reviewedDocumentExtractions DocumentExtraction[]
@@ -3116,4 +3125,45 @@ model PaymentGatewayAttempt {
 enum GatewayProvider {
   RAZORPAY
   CASHFREE
+}
+
+/// Admin handover §1 (client 2026-10-25) — what one staff member may do in one service. No rows for a user = their
+/// role's permissions apply to every service they can see (as before); once a user has rows, a service without a
+/// row is closed to them and each action needs its flag here as well as the role permission.
+model StaffServicePermission {
+  id          String      @id @default(cuid())
+  userId      String
+  serviceType ServiceType
+  /// StaffServiceAction values, e.g. "VIEW", "CREATE_LEAD", "CREATE_QUOTATION", "EDIT", "VALIDATE_DOCUMENTS",
+  /// "UPDATE_STATUS", "BOOKING", "PAYMENT", "REFUND_REQUEST", "EXPORT".
+  actions     String[]    @default([])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serviceType])
+  @@index([serviceType])
+}
+
+/// Admin handover §6 (client 2026-10-25, chat 28-Sep "timeline all services country wise") — a country's own
+/// timeline for Return Ticket / Visa Extension / Visa Change / Special Fare (New Visa keeps NewVisaCountryTimeline).
+/// A null value falls back to the service's ServiceTimelineConfig.
+model ServiceCountryTimeline {
+  id                        String      @id @default(cuid())
+  serviceType               ServiceType
+  countryId                 String
+  documentVerificationHours Int?
+  expectedCompletionHours   Int?
+  quotationResponseMinutes  Int?
+  paymentDeadlineHours      Int?
+  processingDaysNormal      Int?
+  processingDaysExpress     Int?
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
+
+  country Country @relation(fields: [countryId], references: [id], onDelete: Cascade)
+
+  @@unique([serviceType, countryId])
+  @@index([countryId])
 }
