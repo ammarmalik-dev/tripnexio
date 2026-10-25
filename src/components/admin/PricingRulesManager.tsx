@@ -20,6 +20,7 @@ import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 import { unusedRuleMessage, usesPricingRules } from "@/lib/pricing/price-sources";
 import { formatRupees } from "@/lib/format-currency";
+import { PricingRuleCopyPanel } from "./PricingRuleCopyPanel";
 
 const PAX_TYPE_OPTIONS = (Object.entries(PAX_TYPE_LABELS) as [PaxType, string][]).map(([value, label]) => ({ value, label }));
 /** Used only for a service with no Processing Types configured yet (the pre-P23 codes). */
@@ -930,6 +931,20 @@ export function PricingRulesManager({
               </Button>
             ) : null}
           </div>
+          {/* Admin handover §3/§4 — bulk apply: copy one service + country's rules to other countries. */}
+          {serviceFilter && countryFilter && countryFilter !== NO_COUNTRY && filtered.length > 0 && usesPricingRules(serviceFilter) ? (
+            <PricingRuleCopyPanel
+              key={`${serviceFilter}:${countryFilter}`}
+              serviceType={serviceFilter}
+              sourceCountryId={countryFilter}
+              sourceCountryName={lookups.countries.find((entry) => entry.id === countryFilter)?.name ?? "this country"}
+              ruleIds={filtered.map((rule) => rule.id)}
+              countries={lookups.countries}
+              onCopied={() => setReloadNonce((current) => current + 1)}
+            />
+          ) : serviceFilter && rules.some((rule) => rule.serviceType === serviceFilter && rule.countryId) ? (
+            <p className="text-xs text-ink-tertiary">To copy prices to other countries, filter by one country.</p>
+          ) : null}
           {filtered.length === 0 ? (
             <EmptyState
               icon={<Search className="h-5 w-5" aria-hidden="true" />}

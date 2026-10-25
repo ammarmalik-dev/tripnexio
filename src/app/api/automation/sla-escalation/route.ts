@@ -9,6 +9,7 @@ import { notifyStaff } from "@/lib/staff-notifications/notify";
 import { TERMINAL_BOOKING_STATUSES } from "@/lib/staff/workload";
 import { ESCALATE_TO_PERMISSION, ESCALATE_TO_VALUES, type EscalateTo } from "@/lib/validation/escalation-rule-schema";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
+import { getOpenDelayRecords } from "@/lib/crm/delays";
 import type { Prisma } from "@/generated/prisma/client";
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -21,6 +22,8 @@ const BOOKINGS_PER_RULE = 300;
  */
 const DEDUPE_LOOKBACK_MS = 3650 * 24 * HOUR_MS;
 const EVENT_PREFIX = "SLA_ESCALATION";
+/** Timeline-based escalations sent per run — a large backlog drains over a few hourly runs instead of one burst. */
+const TIMELINE_ESCALATIONS_PER_RUN = 50;
 
 function isEscalateTo(value: string): value is EscalateTo {
   return (ESCALATE_TO_VALUES as readonly string[]).includes(value);
@@ -136,7 +139,37 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      return { rulesChecked: rules.length, skippedInvalidRules, bookingsChecked, escalated };
+      // Admin handover §6 — "use configured timelines for SLA tracking, reminders and escalation": a booking past
+      // its expected completion (Admin → Timelines, service value or the lead's country timeline — the same
+      // definition as /crm/delays) escalates to managers once per deadline. The assigned staff get the weekly
+      // DELAY reminder from the staff-alerts job; this is the manager-level step.
+      const timelineDelays = (await getOpenDelayRecords()).filter((record) => record.type === "COMPLETION_SLA");
+      let timelineEscalated = 0;
+      for (const record of timelineDelays) {
+        if (timelineEscalated >= TIMELINE_ESCALATIONS_PER_RUN) break;
+        const event = `${EVENT_PREFIX}:TIMELINE:${record.dueAt}`;
+        if (await wasRecentlyReminded(event, "Booking", record.bookingId, DEDUPE_LOOKBACK_MS)) continue;
+        const hours = Math.floor(record.delayHours);
+        await notifyStaff({
+          type: "DELAY",
+          title: `Escalation: ${record.bookingReference} is ${hours} h past its expected completion`,
+          body: `${record.serviceLabel} — over the configured completion timeline`,
+          link: `/crm/bookings/${record.bookingId}`,
+          entityType: "Booking",
+          entityId: record.bookingId,
+          recipients: { permission: ESCALATE_TO_PERMISSION.MANAGERS, serviceType: record.serviceType },
+        });
+        await writeAudit(db, {
+          entityType: "Booking",
+          entityId: record.bookingId,
+          action: "SLA_ESCALATED",
+          note: `${hours} h past the expected completion timeline (due ${record.dueAt}) — escalated to managers (Timeline Control, via automation)`,
+        });
+        await logReminder(event, "Booking", record.bookingId);
+        timelineEscalated++;
+      }
+
+      return { rulesChecked: rules.length, skippedInvalidRules, bookingsChecked, escalated, timelineDelaysChecked: timelineDelays.length, timelineEscalated };
     });
 
     return jsonSuccess(summary);

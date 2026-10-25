@@ -7,11 +7,16 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
-import { getJson, patchJson, ApiError } from "@/lib/api/client";
+import { getJson, patchJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { cn } from "@/lib/cn";
+import { isCountryTimelineService } from "@/lib/settings/service-timeline-merge";
 import { NewVisaCountryTimelines } from "./NewVisaCountryTimelines";
+import { ServiceCountryTimelines } from "./ServiceCountryTimelines";
 import type { ServiceType } from "../../generated/prisma/enums";
+
+const ALL_SERVICE_TYPES = Object.keys(SERVICE_TYPE_LABELS) as ServiceType[];
 
 interface TimelineData {
   id: string;
@@ -75,11 +80,87 @@ function buildPayload(form: FormState) {
   };
 }
 
-function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: TimelineData) => void }) {
+/**
+ * "Copy these timelines to…" (Admin handover §3–§6 bulk apply) — copies the
+ * saved fields every service shares to the chosen services in one request.
+ */
+function CopyServiceTimelinesPanel({ item, onClose, onCopied }: { item: TimelineData; onClose: () => void; onCopied: () => void }) {
+  const [targets, setTargets] = useState<Set<ServiceType>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
+  const others = ALL_SERVICE_TYPES.filter((serviceType) => serviceType !== item.serviceType);
+
+  const submit = async () => {
+    const reason = await confirm({
+      title: `Copy ${SERVICE_TYPE_LABELS[item.serviceType]} timelines to ${targets.size} service${targets.size === 1 ? "" : "s"}?`,
+      description:
+        "Document verification, expected completion, quotation response, payment deadline and follow-up interval on each chosen service are replaced with this service's saved values.",
+      confirmLabel: "Copy timelines",
+    });
+    if (!reason) return;
+    setBusy(true);
+    try {
+      const result = await postJson<{ copied: number }>("/api/admin/service-timelines/copy", {
+        mode: "SERVICE",
+        sourceServiceType: item.serviceType,
+        targetServiceTypes: [...targets],
+        reason,
+      });
+      toast.success(`Timelines copied to ${result.copied} service${result.copied === 1 ? "" : "s"}.`);
+      onCopied();
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't copy the timelines.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-hairline p-4">
+      <fieldset className="flex flex-wrap gap-x-4 gap-y-2">
+        <legend className="mb-1 text-sm font-medium text-ink-heading">Copy these saved timelines to…</legend>
+        {others.map((serviceType) => (
+          <label key={serviceType} className="flex items-center gap-2 text-sm text-ink-primary">
+            <input
+              type="checkbox"
+              checked={targets.has(serviceType)}
+              disabled={busy}
+              onChange={() =>
+                setTargets((current) => {
+                  const next = new Set(current);
+                  if (next.has(serviceType)) next.delete(serviceType);
+                  else next.add(serviceType);
+                  return next;
+                })
+              }
+            />
+            {SERVICE_TYPE_LABELS[serviceType]}
+          </label>
+        ))}
+      </fieldset>
+      <div className="flex justify-end gap-2">
+        <Button type="button" size="sm" variant="ghost" onClick={onClose} disabled={busy}>
+          Cancel
+        </Button>
+        <Button type="button" size="sm" onClick={() => void submit()} isLoading={busy} disabled={targets.size === 0}>
+          Copy
+        </Button>
+      </div>
+      {dialog}
+    </div>
+  );
+}
+
+function TimelineCard({ item, onSaved, onCopied }: { item: TimelineData; onSaved: (item: TimelineData) => void; onCopied: () => void }) {
   const [form, setForm] = useState<FormState>(toFormState(item));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
+  const [copying, setCopying] = useState(false);
+  // Audit 2026-10 — New Visa has no quotation, its payment links never expire and the follow-up job doesn't read an
+  // interval for it, so only the two SLA hours (Delay Analysis / alerts / escalation) apply service-wide; its
+  // day-based timelines are set per country below.
+  const slaOnly = item.serviceType === "NEW_VISA";
 
   const dirty = JSON.stringify(form) !== JSON.stringify(toFormState(item));
 
@@ -133,7 +214,7 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
           type="number"
           min={0}
           placeholder="Not set"
-          hint="Not yet wired into an automation reminder."
+          hint="Delay Analysis, delay alerts and SLA escalation."
           value={form.documentVerificationHours}
           onChange={(event) => setForm({ ...form, documentVerificationHours: event.target.value })}
           error={errors.documentVerificationHours?.[0]}
@@ -145,12 +226,14 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
           type="number"
           min={0}
           placeholder="Not set"
-          hint="Not yet wired into an automation reminder."
+          hint="Delay Analysis, delay alerts and SLA escalation."
           value={form.expectedCompletionHours}
           onChange={(event) => setForm({ ...form, expectedCompletionHours: event.target.value })}
           error={errors.expectedCompletionHours?.[0]}
           disabled={saving}
         />
+        {slaOnly ? null : (
+          <>
         <TextField
           label="Quotation Response (minutes)"
           name={`quoteresp-${item.id}`}
@@ -187,6 +270,8 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
           error={errors.followUpIntervalDays?.[0]}
           disabled={saving}
         />
+          </>
+        )}
         {/* Client doc 2026-10-15 — New Visa timelines are set per country only (below), not service-wide. */}
         {item.serviceType === "RETURN_TICKET" ? (
           <TextField
@@ -203,11 +288,31 @@ function TimelineCard({ item, onSaved }: { item: TimelineData; onSaved: (item: T
           />
         ) : null}
       </div>
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          onClick={() => setCopying((current) => !current)}
+          disabled={saving || dirty}
+          title={dirty ? "Save your changes before copying them." : undefined}
+        >
+          Copy these timelines to…
+        </Button>
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
         </Button>
       </div>
+      {copying ? (
+        <CopyServiceTimelinesPanel
+          item={item}
+          onClose={() => setCopying(false)}
+          onCopied={() => {
+            setCopying(false);
+            onCopied();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
@@ -291,9 +396,12 @@ export function ServiceTimelinesManager({ serviceType }: { serviceType?: Service
           <TimelineCard
             item={item}
             onSaved={(updated) => setItems((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+            onCopied={() => setReloadNonce((current) => current + 1)}
           />
           {/* Client testing 2026-10-09 (B31) — per-country New Visa timelines. */}
           {item.serviceType === "NEW_VISA" ? <NewVisaCountryTimelines /> : null}
+          {/* Admin handover §6 — per-country timelines for Return Ticket / Visa Extension / Visa Change / Special Fare. */}
+          {isCountryTimelineService(item.serviceType) ? <ServiceCountryTimelines serviceType={item.serviceType} /> : null}
         </div>
       ))}
     </div>
