@@ -3,6 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { completePaymentSuccess } from "@/lib/payments/complete-payment";
 import { notifyPaymentReceived } from "@/lib/payments/notify-payment-received";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
@@ -48,6 +49,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!payment) return jsonError(404, "Payment not found.");
   const scopeError = assertServiceAccess(session, payment.booking.lead.serviceType);
   if (scopeError) return scopeError;
+  // Admin handover §1 — the service-wise "Payment" action.
+  const actionError = assertServiceAction(session, payment.booking.lead.serviceType, "PAYMENT");
+  if (actionError) return actionError;
   if (payment.method !== "BANK_TRANSFER") {
     return jsonError(409, "This payment isn't a bank transfer.");
   }

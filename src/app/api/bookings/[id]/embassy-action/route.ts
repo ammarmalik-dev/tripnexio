@@ -10,6 +10,7 @@ import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/serv
 import { EMBASSY_ACTIONS, EMBASSY_ACTION_KEYS } from "@/lib/new-visa/embassy-actions";
 import { openRefundReviewsForRejectedVisa } from "@/lib/protection-plan/lifecycle";
 import { setBookingVendor, vendorChoiceBlock } from "@/lib/bookings/set-vendor";
+import { resolveLeadSubServiceCodes, vendorSubServiceProblem } from "@/lib/vendors/sub-service-scope";
 import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Enter the rejection reason (the customer will see it).", { reason: ["At least 5 characters."] });
   }
 
-  const booking = await db.booking.findUnique({ where: { id }, select: { leadId: true, lead: { select: { serviceType: true } } } });
+  const booking = await db.booking.findUnique({ where: { id }, select: { leadId: true, lead: { select: { serviceType: true, details: true } } } });
   if (!booking) return jsonError(404, "Booking not found.");
   const scopeError = assertServiceAccess(session, booking.lead.serviceType);
   if (scopeError) return scopeError;
@@ -65,6 +66,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const vendor = action === "APPLIED" && vendorId ? await db.vendor.findFirst({ where: { id: vendorId, active: true }, select: { id: true, name: true } }) : null;
   if (action === "APPLIED" && !vendor) {
     return jsonError(400, "Select the vendor processing this visa before marking it Applied.", { vendorId: ["Select a vendor."] });
+  }
+  if (vendor) {
+    // Admin handover §12 — the vendor must cover this lead's sub-service, as on the booking's vendor picker.
+    const coverageProblem = await vendorSubServiceProblem(vendor.id, booking.lead.serviceType, await resolveLeadSubServiceCodes(booking.lead.serviceType, booking.lead.details));
+    if (coverageProblem) return jsonError(400, coverageProblem, { vendorId: [coverageProblem] });
   }
   // Client doc 2026-10-15 (I7) — the vendor is picked once every document is validated.
   if (action === "APPLIED") {

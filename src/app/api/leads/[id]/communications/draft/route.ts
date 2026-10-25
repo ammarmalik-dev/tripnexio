@@ -4,6 +4,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { buildLeadRecordContext } from "@/lib/drafting/build-lead-context";
 import { getDraftProvider } from "@/lib/drafting/get-draft-provider";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  // Admin handover §1 — messaging the customer is part of the service-wise "Edit" action.
+  const actionError = assertServiceAction(session, lead.serviceType, "EDIT");
+  if (actionError) return actionError;
 
   if (parsed.data.channel === "EMAIL" && !lead.customer.email) {
     return jsonError(400, "This customer has no email on file.");

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
+import { assertServiceAction } from "@/lib/auth/service-actions";
 import { getEmailSender } from "@/lib/email/get-sender";
 import { getWhatsAppGateway } from "@/lib/whatsapp/get-gateway";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
@@ -56,6 +57,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(session, lead.serviceType);
   if (scopeError) return scopeError;
+  // Admin handover §1 — messaging the customer is part of the service-wise "Edit" action.
+  const actionError = assertServiceAction(session, lead.serviceType, "EDIT");
+  if (actionError) return actionError;
 
   if (parsed.data.channel === "EMAIL") {
     if (!lead.customer.email) {

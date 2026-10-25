@@ -8,6 +8,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
+import { assertLeadServiceAction } from "@/lib/auth/lead-service-action";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { runTicketExtraction } from "@/lib/ocr/extract-ticket";
@@ -63,6 +64,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (scopeError) return scopeError;
     const actionError = assertServiceAction(session, existing.booking.lead.serviceType, "EDIT");
     if (actionError) return actionError;
+  } else {
+    // A lead-stage document (no booking yet) still belongs to its lead's service.
+    const leadError = await assertLeadServiceAction(session, existing.leadId, "EDIT");
+    if (leadError) return leadError;
   }
 
   let fileUrl: string;

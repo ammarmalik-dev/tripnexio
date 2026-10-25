@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
+import { assertLeadServiceAction } from "@/lib/auth/lead-service-action";
 import { runPassportExtraction } from "@/lib/ocr/extract-passport";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
@@ -37,6 +38,10 @@ export async function POST(_request: Request, { params }: RouteParams) {
     if (scopeError) return scopeError;
     const actionError = assertServiceAction(auth.session, document.booking.lead.serviceType, "VALIDATE_DOCUMENTS");
     if (actionError) return actionError;
+  } else {
+    // A lead-stage document (no booking yet) still belongs to its lead's service.
+    const leadError = await assertLeadServiceAction(auth.session, document.leadId, "VALIDATE_DOCUMENTS");
+    if (leadError) return leadError;
   }
 
   try {
