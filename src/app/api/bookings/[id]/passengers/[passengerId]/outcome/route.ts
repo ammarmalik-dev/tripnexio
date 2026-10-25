@@ -9,7 +9,8 @@ import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { PASSENGER_OUTCOME_LABELS, bookingOutcomeLabel } from "@/lib/bookings/passenger-outcomes";
 import { describeError } from "@/lib/api/describe-error";
-import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
+import { applySystemEvent, dispatchStatusNotifications, setServiceStatus, type StatusNotification } from "@/lib/service-status/engine";
+import type { Prisma } from "@/generated/prisma/client";
 
 interface RouteParams {
   params: Promise<{ id: string; passengerId: string }>;
@@ -80,10 +81,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         statusNotification = await applySystemEvent(tx, { scope: "BOOKING", entityId: bookingId, event: "PARTIAL_APPROVED", userId: session.id, actorLabel: `by ${session.name}` });
       }
       if (approved > 0 && after.every((entry) => entry.outcome !== null)) {
-        const current = await tx.booking.findUniqueOrThrow({ where: { id: bookingId }, select: { status: true } });
-        if (current.status !== "COMPLETED" && current.status !== "REFUNDED") {
-          await tx.booking.update({ where: { id: bookingId }, data: { status: "COMPLETED" } });
-          await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "STATUS_CHANGE", byUserId: session.id, note: `${current.status} -> COMPLETED — every passenger has a result (by ${session.name})` });
+        // Client 2026-10-23 audit — through the status engine (allowed transitions, audit, message), never a bare
+        // status write: the service's own Completed status, when the current status may move there.
+        const completion = await completedStatusFor(tx, bookingId);
+        if (completion) {
+          const moved = await setServiceStatus(tx, { scope: "BOOKING", entityId: bookingId, toStatusId: completion, userId: session.id, actorLabel: `every passenger has a result, by ${session.name}` });
+          if (moved.ok && moved.notification) statusNotification = moved.notification;
         }
       }
     });
@@ -93,4 +96,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     console.error("[api/bookings/passengers/outcome]", describeError(error));
     return jsonError(500, "Couldn't save the passenger's result.");
   }
+}
+
+/** The booking's service status that maps to COMPLETED and is an allowed next step from where it is now, if any. */
+async function completedStatusFor(tx: Prisma.TransactionClient, bookingId: string): Promise<string | null> {
+  const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { status: true, serviceStatusId: true } });
+  if (!booking || booking.status === "COMPLETED" || booking.status === "REFUNDED" || !booking.serviceStatusId) return null;
+  const next = await tx.serviceStatusTransition.findFirst({
+    where: { fromStatusId: booking.serviceStatusId, to: { active: true, mapsToBookingStatus: "COMPLETED" } },
+    select: { toStatusId: true },
+  });
+  return next?.toStatusId ?? null;
 }
