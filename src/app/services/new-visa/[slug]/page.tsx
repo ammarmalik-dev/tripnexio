@@ -16,6 +16,8 @@ import { NewVisaProcessingTimeSection } from "@/components/services/new-visa/lan
 import { NewVisaBeforeYouApplySection } from "@/components/services/new-visa/landing/NewVisaValidityAndNotesSections";
 import { countryPageImageUrl, getPublishedCountryPage, newVisaApplyHref, type PublishedCountryPage } from "@/lib/new-visa/country-pages";
 import { siteConfig } from "@/lib/site-config";
+import { getNewVisaDestinationIds } from "@/lib/new-visa/destinations";
+import { getSiteContact } from "@/lib/settings/system-config";
 
 // Content, prices, timelines and FAQs are Admin-managed; refresh without a redeploy.
 export const revalidate = 300;
@@ -77,8 +79,11 @@ export default async function NewVisaCountryPage({ params }: PageProps) {
   if (!page) notFound();
 
   const product = productName(page);
-  const applyHref = newVisaApplyHref(page.country.code);
-  const applyLabel = page.applyLabel ?? `Apply for ${product}`;
+  // Live test 2026-10-26 — a published page whose country has no active visa option (Admin → New Visa countries)
+  // can't be applied for: the form only lists priced destinations, so send the visitor to WhatsApp instead.
+  const canApply = (await getNewVisaDestinationIds()).includes(page.country.id);
+  const applyHref = canApply ? newVisaApplyHref(page.country.code) : (await getSiteContact()).whatsappHref;
+  const applyLabel = canApply ? (page.applyLabel ?? `Apply for ${product}`) : "Ask Us on WhatsApp";
   const processSteps = howItWorks(page, product);
 
   return (
