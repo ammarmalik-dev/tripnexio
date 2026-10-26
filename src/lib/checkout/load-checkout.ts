@@ -86,7 +86,8 @@ export async function loadCheckoutByToken(token: string) {
           uploaded: booking.documents.filter((doc) => doc.passengerId).map((doc) => ({ passengerId: doc.passengerId as string, type: doc.type })),
         })
       : [];
-  const quotationExpired = payment?.status === "PENDING" ? (await assertQuotationPayable({ purpose: payment.purpose, booking })) !== null : false;
+  const notPayableReason = payment?.status === "PENDING" ? await assertQuotationPayable({ purpose: payment.purpose, booking }) : null;
+  const quotationExpired = notPayableReason !== null;
   // P09 — the customer must agree to the service's Terms before any payment
   // option (gateway link or demo button) is offered.
   const termsAccepted = Boolean(booking.termsAcceptedAt);
@@ -121,6 +122,8 @@ export async function loadCheckoutByToken(token: string) {
           }
         : null,
       quotationExpired,
+      /** Why the payment can't be made (expired quotation, cancelled request), shown instead of the payment button. */
+      notPayableReason,
       termsAccepted,
       terms: terms ? { title: terms.title, body: terms.body, version: terms.version, acceptanceText: terms.acceptanceText } : null,
       demoGateway: isMockGatewayActive(),

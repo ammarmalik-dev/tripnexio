@@ -71,7 +71,7 @@ export async function processGatewayWebhookEvent(input: {
             entityType: "Payment",
             entityId: payment.id,
             action: "PAYMENT_BLOCKED_QUOTE_EXPIRED",
-            note: `Gateway reported a successful payment after the quotation expired; payment left PENDING for staff review (${actor.actorLabel})`,
+            note: `Gateway reported a successful payment, but it can no longer be accepted (${notPayable}); payment left PENDING for staff review (${actor.actorLabel})`,
           });
         });
         return { matched: true, completed: false };

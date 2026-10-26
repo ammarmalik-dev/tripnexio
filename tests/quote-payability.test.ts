@@ -1,18 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Quotation } from "@/generated/prisma/client";
 
-const { quotationFindFirst, paymentFindMany } = vi.hoisted(() => ({
+const { quotationFindFirst, paymentFindMany, leadFindUnique, bookingFindUnique } = vi.hoisted(() => ({
   quotationFindFirst: vi.fn(),
   paymentFindMany: vi.fn(),
+  leadFindUnique: vi.fn(),
+  bookingFindUnique: vi.fn(),
 }));
 
 // Both modules read through the global Prisma client — stubbed in memory.
 vi.mock("@/lib/db", () => ({
-  db: { quotation: { findFirst: quotationFindFirst }, payment: { findMany: paymentFindMany } },
+  db: {
+    quotation: { findFirst: quotationFindFirst },
+    payment: { findMany: paymentFindMany },
+    lead: { findUnique: leadFindUnique },
+    booking: { findUnique: bookingFindUnique },
+  },
 }));
 
 import { isExpiredNow, syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
-import { assertQuotationPayable, QUOTATION_EXPIRED_MESSAGE } from "@/lib/payments/quotation-payable";
+import { assertQuotationPayable, QUOTATION_EXPIRED_MESSAGE, REQUEST_CANCELLED_MESSAGE } from "@/lib/payments/quotation-payable";
 
 const NOW = new Date("2026-09-30T06:00:00Z");
 const past = new Date(NOW.getTime() - 60_000);
@@ -23,6 +30,8 @@ beforeEach(() => {
   vi.setSystemTime(NOW);
   quotationFindFirst.mockReset();
   paymentFindMany.mockReset();
+  leadFindUnique.mockReset().mockResolvedValue({ status: "PAYMENT_PENDING" });
+  bookingFindUnique.mockReset().mockResolvedValue({ status: "PENDING" });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -58,6 +67,16 @@ describe("assertQuotationPayable", () => {
     expect(await assertQuotationPayable(primary)).toBeNull();
     quotationFindFirst.mockResolvedValueOnce({ isExpired: false, validityExpiresAt: past });
     expect(await assertQuotationPayable(primary)).toBe(QUOTATION_EXPIRED_MESSAGE);
+  });
+
+  it("a cancelled lead or a cancelled / refunded booking is never payable, EXTRA included", async () => {
+    quotationFindFirst.mockResolvedValue({ isExpired: false, validityExpiresAt: future });
+    leadFindUnique.mockResolvedValueOnce({ status: "LOST" });
+    expect(await assertQuotationPayable(primary)).toBe(REQUEST_CANCELLED_MESSAGE);
+    bookingFindUnique.mockResolvedValueOnce({ status: "CANCELLED" });
+    expect(await assertQuotationPayable({ purpose: "EXTRA", booking: { leadId: "lead1", id: "b1" } })).toBe(REQUEST_CANCELLED_MESSAGE);
+    bookingFindUnique.mockResolvedValueOnce({ status: "REFUNDED" });
+    expect(await assertQuotationPayable({ ...primary, booking: { leadId: "lead1", id: "b1" } })).toBe(REQUEST_CANCELLED_MESSAGE);
   });
 });
 
