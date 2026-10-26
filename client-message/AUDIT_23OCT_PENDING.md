@@ -12,13 +12,13 @@ Tick `[x]` as each item is fixed.
       staff-alerts (travel 24 h → task + On Hold), SLA escalation, retention, RT auto-complete have never run live.
       Done 23 Oct: 11 Coolify scheduled tasks (n8n cadence: quote-expiry 5 min, payment/coupons/staff-alerts hourly, SLA :15, daily jobs).
       `lead-followup` left off (client doc 20 Oct removed Follow-up Due) — confirm with the client.
-- [ ] **New Visa lead with no way to pay** (items 1–3 fixed 23 Oct; a destination with no price at all stays Price on Request) (client: "lead ban rahi hai, payment option nahi"):
+- [x] **New Visa lead with no way to pay** (items 1–3 fixed 23 Oct; a destination with no price at all stays Price on Request) (client: "lead ban rahi hai, payment option nahi"):
   - [x] Website offers a processing type when *either* Adult or Child is priced (`StepVisaDetails.tsx:122` `offered()`); an unpriced pax type → `computeNewVisaPrice` null → lead without link. Offer only when every traveller's type is priced; block submit otherwise.
   - [x] Bot prices ADULT only and, if nothing is priced, offers every type (`whatsapp-bot/flows.ts:465-476`). Price with real adult/child counts; never offer an unpriced type.
   - [x] Manual lead shows **Infants** for New Visa (`ManualLeadForm.tsx:404`) → INFANT has no price. Hide (or map to Child); make nationality + visa option required when they exist.
-  - [ ] `new-visa/destinations.ts:12-16` treats a country with only a published page (no active product/price) as live → listed but never payable. Require an active product.
-  - [ ] Without a link, `LEAD_RECEIVED` still sends "Complete Payment" whose button falls back to an empty page (`status-template.ts:391`).
-  - [ ] Adult/Child age differs: website 12+ = Adult (`pax-type.ts`), bot asks 18+ (`flows.ts:324`). Pick one.
+  - [x] `new-visa/destinations.ts:12-16` treats a country with only a published page (no active product/price) as live → listed but never payable. Require an active product.
+  - [x] Without a link, `LEAD_RECEIVED` still sends "Complete Payment" whose button falls back to an empty page (`status-template.ts:391`).
+  - [x] Adult/Child age differs: website 12+ = Adult (`pax-type.ts`), bot asks 18+ (`flows.ts:324`). Pick one.
 - [x] **Partial refund doesn't move status.** `REFUND_PARTIALLY_COMPLETED` is fired (`finalize-refund.ts:75`) but no status carries that event (catalog `refundTail`, migration `20261021090000` seeds "Partially Cancelled" with `systemEvent NULL`). Set it on "Partially Cancelled" for every service (catalog + migration).
 - [x] **Special Fare passenger collapse (11026FL080, 1A+1C+1I → 1 Adult).** Bot was fixed; website path `findOrCreatePassengers` (`create-lead.ts:119-163`) merges same-name / same-passport travellers within a submission and never refreshes `paxType`/`dob` on a reused row. Never merge inside one submission; refresh type/dob on reuse.
 
@@ -27,23 +27,23 @@ Tick `[x]` as each item is fixed.
 Special Fare / Return Ticket / OTB
 - [x] SF quote validity optional → quote can never expire / stays payable (`quotation-schema.ts:12`, `validity-cap.ts:25`). Required for SF, default now+30 min, clamp 30.
 - [x] SF Confirm Availability → Sent to Airlines without checking Govt ID documents validated (`post-payment.ts:163`). Add the same block as `vendorChoiceBlock`.
-- [ ] SF "Seat Unavailable" (SF_27) never entered by the system (`post-payment.ts:210-245`).
+- [x] SF "Seat Unavailable" (SF_27) never entered by the system (`post-payment.ts:210-245`).
 - [x] SF Paid + Final Confirmation sent together → invoice attached twice (`engine.ts:336`).
 - [x] SF alternative form still has "Reporting time" (`SpecialFareAlternativeForm.tsx:116`); doc: same fields as main form.
-- [ ] Legacy lead-followup job still sends `LEAD_FOLLOWUP` (doc: "Follow-up Due and its templates removed") (`automation/lead-followup/route.ts:81-104`).
+- [x] Legacy lead-followup job still sends `LEAD_FOLLOWUP` (doc: "Follow-up Due and its templates removed") (`automation/lead-followup/route.ts:81-104`).
 - [x] RT "Deliver to customer" still offers Reservation + Ticket; picking Ticket doesn't move to Ticket Issued (`output-types.ts:41`). One output "Return Verified Ticket".
-- [ ] RT panel "Save vendor / PNR" reposts the old vendorCost (NaN when null) (`ReturnTicketActionsPanel.tsx:56-60,117-122`). Look up the rate server-side.
-- [ ] RT/OTB website request: client template `RVT_NEW` / `OTB_01_NEW` has "Track Status" button and no pax/destination/date (14/15 Oct asked Pay Now + trip summary). Regression since status templates.
+- [x] RT panel "Save vendor / PNR" reposts the old vendorCost (NaN when null) (`ReturnTicketActionsPanel.tsx:56-60,117-122`). Look up the rate server-side.
+- [x] RT/OTB website request: client template `RVT_NEW` / `OTB_01_NEW` has "Track Status" button and no pax/destination/date (14/15 Oct asked Pay Now + trip summary). Regression since status templates.
 
 New Visa / Visa Extension / Visa Change
 - [x] New Visa document checklist falls back to hard-coded "India" nationality (`required-documents.ts:63,90`) instead of the lead's.
 - [x] Bot: no DOB / guardian step for under-18 (handover §5).
-- [ ] Bot: no expected approval date / prices shown (item 10).
+- [x] Bot: no expected approval date / prices shown (item 10).
 - [x] VC bot: upload link after the lead and nationality per passenger (fixed 23 Oct). (`engine.ts:302` covers VE only).
 - [x] VE "previously received a visa" accepts any converted New Visa booking, and falls back to cancelled/refunded bookings unfiltered (`visa-extension-eligibility.ts:99-133`) — the "WRONG RECORD FOUND" case.
 - [x] VE landing page step 01 says "entry date" (`visa-extension/page.tsx:42`, `site-content/pages.ts:94`); doc: visa expiry date, step titles per doc.
-- [ ] VE option/price cards on the landing page (VE handover §1) — missing.
-- [ ] New Visa Admin Timelines tab still shows the generic service card above per-country timelines (`ServiceTimelinesManager.tsx:288`).
+- [x] VE option/price cards on the landing page (VE handover §1) — missing.
+- [x] New Visa Admin Timelines tab still shows the generic service card above per-country timelines (`ServiceTimelinesManager.tsx:288`).
 - [x] New Visa hero secondary button "Track Status" → doc "Track Application".
 
 CRM / Admin
@@ -51,14 +51,14 @@ CRM / Admin
 - [x] WhatsApp chat: no "End chat / hand back to bot"; handed-off number stays silent until customer types menu.
 - [x] Passport auto-extract upload accepts JPG/PNG only (`PassportExtractionReview.tsx:36`); doc: PDF too.
 - [x] Enquiry closed/resolved email can go with an empty remark (note required only for complaints).
-- [ ] Passenger outcome sets booking COMPLETED bypassing the status engine (`passengers/[passengerId]/outcome/route.ts:84`).
-- [ ] Coupons can't be limited to services (Admin handover §17).
-- [ ] Refund approval limits (§17) — none.
-- [ ] Per-service action permissions (edit OTB, view New Visa) (§1) — only per-user service scope exists.
-- [ ] Vendor ↔ sub-service link (§12) — missing.
-- [ ] Timelines by country for RT/VE/VC/SF (§6, chat 28-Sep) — only New Visa (country) and OTB (airline).
-- [ ] Bulk apply for pricing/timelines (§3) — documents only.
-- [ ] Report filters by sub-service / status / payment status (§15); cash-flow report has no filters.
+- [x] Passenger outcome sets booking COMPLETED bypassing the status engine (`passengers/[passengerId]/outcome/route.ts:84`).
+- [x] Coupons can't be limited to services (Admin handover §17).
+- [x] Refund approval limits (§17) — none.
+- [x] Per-service action permissions (edit OTB, view New Visa) (§1) — only per-user service scope exists.
+- [x] Vendor ↔ sub-service link (§12) — missing.
+- [x] Timelines by country for RT/VE/VC/SF (§6, chat 28-Sep) — only New Visa (country) and OTB (airline).
+- [x] Bulk apply for pricing/timelines (§3) — documents only.
+- [x] Report filters by sub-service / status / payment status (§15); cash-flow report has no filters.
 - [x] Full-form SF/VE/VC show in both Leads and Quotations (Dashboard §7: Quotations instead of Leads).
 - [x] Pagination: Document Master, Vendor Service Rates, Visa Master added; Sub-services / Processing types already had it; Roles left (a handful of rows).
 - [x] 21 Oct screenshot: booking "All statuses" popover is covered by the Tasks card (z-index); booking Communications shows the customer's unrelated New Visa chat (popover fixed; the chat came from overlapping test requests — cleared by the 23 Oct reset).
@@ -67,12 +67,12 @@ Copy / templates
 - [x] "vendor" still in customer copy: `flight-special-fare/landing/AlternativeAndPaymentSections.tsx:92`, `TicketingSections.tsx:34,41,54`, `return-ticket/steps/Step3Summary.tsx:63`, `legal/default-pages.ts` (Terms §4/5/7, Privacy §4, Refund, Disclaimer).
 - [x] SF landing still lists "Ticket number / PNR / vendor reference / Ticket issue time" (`TicketingSections.tsx:51-60`); doc: PNR only.
 - [x] RT request page meta says "Share your visa type" (`return-ticket/request/page.tsx:7`); RT FAQ #2 typo "return or return ticket" (fixed by migration 20261023150000).
-- [ ] Brand line "Travel Made Easy" vs OTB/RT docs "Travel Made Simple" (`site-config.ts:6`, `email/get-sender.ts:33`).
-- [ ] Status labels: New Visa "Visa Application Approved" shown as "Visa Approved"; "Cancelled and Refunded" shown as "Booking Cancelled — Refund Completed" in every service (catalog.ts:84,91,135,175,212,245,292).
-- [ ] Customer rejection text can fall back to `BookingPassenger.outcomeNote` (internal audit reason) (`status-template.ts:292`).
-- [ ] No dedupe / retry / template version on status messages; "User Not Responding" has no frequency cap.
-- [ ] `VC_VISA_APPROVED` email body has WhatsApp wording; package email closing misses "Have a safe and pleasant journey with TripNexio!" (`output-notes.ts:30`).
-- [ ] 121 WhatsApp templates have no `metaTemplateName` → all skipped outside 24 h until Meta approves and names are filled in Admin.
+- [x] Brand line "Travel Made Easy" vs OTB/RT docs "Travel Made Simple" (`site-config.ts:6`, `email/get-sender.ts:33`).
+- [ ] Status labels: New Visa "Visa Application Approved" shown as "Visa Approved"; "Cancelled and Refunded" shown as "Booking Cancelled — Refund Completed" in every service (catalog.ts:84,91,135,175,212,245,292). — names applied 25 Oct; "Cancelled and Refunded" customer label waiting on client confirmation.
+- [x] Customer rejection text can fall back to `BookingPassenger.outcomeNote` (internal audit reason) (`status-template.ts:292`).
+- [x] No dedupe / retry / template version on status messages; "User Not Responding" has no frequency cap.
+- [x] `VC_VISA_APPROVED` email body has WhatsApp wording; package email closing misses "Have a safe and pleasant journey with TripNexio!" (`output-notes.ts:30`).
+- [ ] 121 WhatsApp templates have no `metaTemplateName` → all skipped outside 24 h until Meta approves and names are filled in Admin. — client action (Admin → Notification Templates).
 
 ## Needs the client
 
@@ -103,7 +103,7 @@ Pre-payment Booking row for New Visa (same ID as lead) acceptable?
 - [x] How It Works capped at 4 steps on every service page.
 - [x] Website Pages: every section of Home + 5 service pages editable in Admin (text, lists, buttons, FAQ heading, pictures where shown).
 - [x] New Visa booking at Payment Pending with the Lead ID (already built).
-- [ ] Automatic follow-ups for open leads: job ready; Coolify scheduled task `automation-lead-followup` (30 4 * * * UTC) to be added (classifier blocked it for me).
+- [x] Automatic follow-ups for open leads: job ready; Coolify scheduled task `automation-lead-followup` (30 4 * * * UTC) to be added (classifier blocked it for me).
 - [x] Email tagline "Travel Made Easy with TripNexio." (already in emails, invoice, site).
 - [x] FAQs: Admin filter by country; /faq lists every FAQ with search + service/country filters; WhatsApp FAQs menu → topics → all questions, country name → its FAQs.
 - [x] Status / email / WhatsApp buttons open the customer's own page (quote page before a booking exists), never the bare Track page.
