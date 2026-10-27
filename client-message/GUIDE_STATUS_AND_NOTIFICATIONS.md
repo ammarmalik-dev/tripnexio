@@ -23,8 +23,23 @@ Admin → Service Configuration → pick the service → **Statuses** tab.
 Same screen. Under each status, **Transitions to** lists where staff may move it next.
 
 - Add one with the **Add transition to…** dropdown; remove one with its **×**.
-- Staff only ever see the allowed next statuses in "Change Status". Built-in rules always apply on top: staff can't leave a final status (except for a refund), can't go back a stage, and can't go from Approved / Delivered to a rejection or cancellation.
-- Only an **Admin** (full access) can move a booking to any status. This needs a reason and is written to the audit log.
+- In the CRM / Admin record, the status card is on the **right**: the current internal status, what the customer sees, and a **Move to** list with only the allowed next statuses (✉ = the customer gets an email + WhatsApp).
+- **Statuses with an action move by themselves** and are not in the Move to list:
+  - payment received
+  - quotation sent / approved / expired
+  - documents requested, uploaded, validated, rejected, additional documents
+  - visa / ticket / package delivered
+  - passenger results (partial approval)
+  - refunds
+  - each service's Operations panel: New Visa Embassy steps, OTB "Sent to Airlines" / Approved / Rejected, Return Ticket "Sent to Airlines", Special Fare confirmation / seat unavailable, Visa Change exit / embassy steps, Visa Extension outcome
+- Staff pick by hand only the statuses with no action: On Hold, Cancellation Requested / Cancelled, User Not Responding, Unable to Process and similar.
+- Built-in rules always apply on top:
+  - no going back a stage, and no leaving a final status (except for a refund)
+  - no skipping: nothing after "Sent to Airlines" / "Applied to Embassy" (approved, ticket issued, additional documents, partial approval, rejection) before the booking reaches it
+  - documents must be validated before "Documents Validated" and before sending to the airline / embassy
+  - refund statuses (Refund Pending / Completed, Partially Cancelled, Cancelled and Refunded) come only from a raised and approved refund
+  - after a partial refund the booking stays "Partially Cancelled"; the remaining passengers can only move forward
+- Only an **Admin** (full access) can move a booking to any status ("Admin override…"). This needs a reason and is written to the audit log.
 
 ## 3. The messages (email + WhatsApp)
 
@@ -38,7 +53,9 @@ Admin → System Settings → **Notification Templates**.
   - **Button text** / **Button opens**: the button under the message, e.g. "Upload Documents" → `secure_upload_link`. The links always open the customer's own booking page, never a blank Track page.
   - **Meta Template Name / Language** (WhatsApp only): see section 4.
 - Use **Send Test** on a row to send it to your own email or WhatsApp number first.
-- To turn a message off, press **Disable** on its row.
+- The list is grouped by service (New Visa, Visa Extension, Visa Change, Special Fare, Return Ticket, OTB, General / system). Old messages that are never sent any more are **retired** and hidden; tick **Show retired templates** to see them.
+- To turn a message off, press **Retire** on its row.
+- The "request received" message is the same on the website screen, in the email and on WhatsApp: it comes from the service's first status template (e.g. NV_COUNTRY_REQUEST_PAYMENT_PENDING, VC_NEW, OTB_01_NEW). Edit it there.
 
 ## 4. WhatsApp outside the 24-hour window (Meta templates)
 
