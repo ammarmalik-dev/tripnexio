@@ -53,6 +53,11 @@ const REFUND_OUTCOME_EVENTS = new Set(["REFUND_COMPLETED", "REFUND_PARTIALLY_COM
 
 type RefundShape = Pick<ServiceStatus, "name" | "systemEvent">;
 
+/** A system event of the refund engine itself (raised / approved / completed / partial / cancelled and refunded). */
+function isRefundEngineEvent(event: string): boolean {
+  return REFUND_ENGINE_EVENTS.has(event);
+}
+
 /** A status only the refund engine sets — by its system event, or by name for an Admin-added one. */
 export function isRefundEngineStatus(status: RefundShape): boolean {
   return REFUND_ENGINE_EVENTS.has(status.systemEvent ?? "") || /refund/i.test(status.name) || /partially cancelled/i.test(status.name);
@@ -61,6 +66,11 @@ export function isRefundEngineStatus(status: RefundShape): boolean {
 /** A completed refund's status (Refund Completed, Partially Cancelled / Refunded, Cancelled and Refunded). */
 export function isRefundOutcomeStatus(status: RefundShape): boolean {
   return REFUND_OUTCOME_EVENTS.has(status.systemEvent ?? "") || /refund(ed)? completed|partially (cancelled|refunded)|cancelled and refunded/i.test(status.name);
+}
+
+/** A partial refund's status (Partially Cancelled / Partially Refunded): the other passengers carry on from it. */
+export function isPartialRefundStatus(status: RefundShape): boolean {
+  return status.systemEvent === "REFUND_PARTIALLY_COMPLETED" || /partially (cancelled|refunded)/i.test(status.name);
 }
 
 /**
@@ -186,6 +196,25 @@ export function staffMoveBlock(
   return null;
 }
 
+/**
+ * Client 2026-10-27 (C4, RT104 screenshot) — a booking stays on "Partially Cancelled" after a partial refund (it is
+ * no longer silently put back on "Paid"), and its other passengers carry on: the moves from it are the forward moves
+ * of the status it had before the cancellation / refund (Booking.resumeServiceStatusId). Every other status is
+ * its own starting point.
+ */
+async function operationalFrom<T extends { id: string; name: string; systemEvent: ServiceStatus["systemEvent"] }>(
+  client: Tx | typeof db,
+  scope: StatusScope,
+  entityId: string,
+  from: T | null
+): Promise<ServiceStatus | T | null> {
+  if (!from || scope !== "BOOKING" || !isPartialRefundStatus(from)) return from;
+  const booking = await client.booking.findUnique({ where: { id: entityId }, select: { resumeServiceStatusId: true } });
+  if (!booking?.resumeServiceStatusId) return from;
+  const resume = await client.serviceStatus.findUnique({ where: { id: booking.resumeServiceStatusId } });
+  return resume && resume.active ? resume : from;
+}
+
 export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId: string) {
   const entity = await loadEntity(db, scope, entityId);
   if (!entity) return null;
@@ -197,10 +226,11 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
     : null;
   // Client doc 2026-10-27 (N1/C13) — an allowed apply step is shown as a pointer to its action panel, not a Move button.
   const panelOnly: { id: string; name: string }[] = [];
-  const allowed = current
+  const movesFrom = await operationalFrom(db, scope, entityId, current);
+  const allowed = current && movesFrom
     ? (
         await db.serviceStatusTransition.findMany({
-          where: { fromStatusId: current.id, to: { active: true } },
+          where: { fromStatusId: movesFrom.id, to: { active: true }, toStatusId: { not: current.id } },
           select: {
             to: {
               select: { id: true, name: true, customerLabel: true, displayOrder: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true, notificationEvent: true },
@@ -210,7 +240,7 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
       )
         .map((transition) => transition.to)
         // Client doc 2026-10-15 (I1) — only the moves staff may actually make.
-        .filter((to) => staffMoveBlock(scope, current, to) === null)
+        .filter((to) => staffMoveBlock(scope, movesFrom, to) === null)
         // Client doc 2026-10-27 (C1/C13) — the apply step comes from the service's action panel (vendor + documents).
         .filter((to) => {
           if (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)) return true;
@@ -263,7 +293,9 @@ async function applyStatus(
 
   // Client doc 2026-10-20 (N2) — entering a cancellation step remembers the operational status, so a
   // partial cancellation (or a rejected one) can put the booking back on it.
-  if (scope === "BOOKING" && isCancellationStep(to) && (!from || (!isCancellationStep(from) && !REFUND_STEP_EVENTS.has(from.systemEvent ?? "")))) {
+  // Client 2026-10-27 (C4) — also when a refund is raised straight from an operational status (no cancellation step).
+  const leavingOperational = !from || (!isCancellationStep(from) && !REFUND_STEP_EVENTS.has(from.systemEvent ?? "") && !isRefundEngineStatus(from));
+  if (scope === "BOOKING" && (isCancellationStep(to) || isRefundEngineStatus(to)) && leavingOperational) {
     await tx.booking.update({ where: { id: entity.id }, data: { resumeServiceStatusId: from?.id ?? null } });
   }
 
@@ -338,14 +370,16 @@ export async function setServiceStatus(
       byUserId: input.userId,
       note: `Admin override: ${from?.name ?? "(none)"} -> ${to.name}${input.note ? `: ${input.note}` : ""} (${input.actorLabel})`,
     });
-  } else if (from) {
+  }
+  const movesFrom = await operationalFrom(tx, input.scope, entity.id, from);
+  if (!input.adminOverride && from && movesFrom) {
     const allowed = await tx.serviceStatusTransition.findUnique({
-      where: { fromStatusId_toStatusId: { fromStatusId: from.id, toStatusId: to.id } },
+      where: { fromStatusId_toStatusId: { fromStatusId: movesFrom.id, toStatusId: to.id } },
     });
     if (!allowed) return { ok: false, httpStatus: 409, error: `Can't move from "${from.name}" to "${to.name}".` };
   }
   if (!input.adminOverride) {
-    const blocked = staffMoveBlock(input.scope, from, to, { refundEngine: input.refundEngine, afterRefund: input.afterRefund });
+    const blocked = staffMoveBlock(input.scope, movesFrom, to, { refundEngine: input.refundEngine, afterRefund: input.afterRefund });
     if (blocked) return { ok: false, httpStatus: 409, error: blocked };
     // Client doc 2026-10-27 (C1) — never sent to the airline / applied before every document is validated.
     if (input.scope === "BOOKING" && needsValidatedDocuments(entity.serviceType, to)) {
@@ -388,10 +422,12 @@ export async function applySystemEvent(
   if (!to || entity.serviceStatusId === to.id) return null;
 
   if (from && from.systemEvent === HOLD_MARKER) return null;
+  // A partially cancelled booking's other passengers carry on from where it was before (client 2026-10-27, C4).
+  const stage = isRefundEngineEvent(input.event) ? from : await operationalFrom(tx, input.scope, entity.id, from);
   // Client 2026-10-23 — a partial refund may also follow a final status (e.g. some applicants approved).
-  if (from && from.isTerminal && !REFUND_STEP_EVENTS.has(input.event) && input.event !== "REFUND_PARTIALLY_COMPLETED") return null;
-  const loopsBack = !!from?.systemEvent && !!LOOP_BACK_FROM[input.event]?.has(from.systemEvent);
-  if (from && from.displayOrder >= to.displayOrder && !loopsBack) return null;
+  if (stage && stage.isTerminal && !REFUND_STEP_EVENTS.has(input.event) && input.event !== "REFUND_PARTIALLY_COMPLETED") return null;
+  const loopsBack = !!stage?.systemEvent && !!LOOP_BACK_FROM[input.event]?.has(stage.systemEvent);
+  if (stage && stage.displayOrder >= to.displayOrder && !loopsBack) return null;
 
   return applyStatus(tx, input.scope, entity, from, to, { ...input, note: `system event ${input.event}` });
 }

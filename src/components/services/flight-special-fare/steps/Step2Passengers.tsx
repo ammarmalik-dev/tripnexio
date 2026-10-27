@@ -182,7 +182,8 @@ export function Step2Passengers() {
                 min={MIN_DOB}
                 max={todayIso()}
                 placeholder="DD/MM/YYYY"
-                hint="Passenger Type: Automatically determined from date of birth."
+                // Client 2026-10-27 screenshot — this sentence replaces the old hint, and the note under the list is gone.
+                hint="Passenger type (Adult / Child / Infant) is calculated automatically from date of birth — fare varies by type."
                 error={errors.passengers?.[index]?.dob?.message}
                 {...register(`passengers.${index}.dob` as const)}
               />
@@ -190,11 +191,6 @@ export function Step2Passengers() {
           </div>
         );
       })}
-
-      <p className="text-xs text-ink-tertiary">
-        Passenger type (Adult / Child / Infant) is calculated automatically from date of birth — fare varies by
-        type.
-      </p>
     </div>
   );
 }

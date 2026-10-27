@@ -71,3 +71,13 @@ describe("Documents Validated by hand (client doc 2026-10-27, C11)", () => {
     expect(needsValidatedDocuments("OTB", { systemEvent: null })).toBe(false);
   });
 });
+
+describe("partial refund status (client 2026-10-27, RT104)", () => {
+  it("recognises Partially Cancelled / Refunded, not a full refund", async () => {
+    const { isPartialRefundStatus } = await import("../src/lib/service-status/engine");
+    expect(isPartialRefundStatus({ name: "Partially Cancelled", systemEvent: "REFUND_PARTIALLY_COMPLETED" })).toBe(true);
+    expect(isPartialRefundStatus({ name: "Partially Refunded", systemEvent: null })).toBe(true);
+    expect(isPartialRefundStatus({ name: "Refund Completed", systemEvent: "REFUND_COMPLETED" })).toBe(false);
+    expect(isPartialRefundStatus({ name: "Cancelled and Refunded", systemEvent: "CANCELLED_AND_REFUNDED" })).toBe(false);
+  });
+});

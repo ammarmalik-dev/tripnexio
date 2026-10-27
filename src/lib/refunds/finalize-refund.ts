@@ -4,7 +4,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { paymentTotal } from "../payments/totals";
 import { syncPlanWithRefund } from "../protection-plan/lifecycle";
-import { applySystemEvent, dispatchStatusNotifications, resumeAfterCancellation, type StatusNotification } from "../service-status/engine";
+import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "../service-status/engine";
 import { gatewayForPayment } from "../payments/accounts";
 import { notifyCustomerRefund } from "./notify-customer";
 
@@ -82,8 +82,9 @@ export async function applyRefundStatus(
     await applySystemEvent(tx, { scope: "BOOKING", entityId: booking.id, event: "CANCELLED_AND_REFUNDED", userId: actor.userId, actorLabel: actor.label, silent: true });
   } else {
     // Client doc 2026-10-20 (N2) — a partial refund shows its passengers as cancelled (no undecided passenger
-    // is left looking active), then the remaining passengers carry on from where the booking was. Client doc
-    // 2026-10-27 (C4) — staff can't pick a refund / partial status again: those only come from the refund engine.
+    // is left looking active). Client 2026-10-27 (C4, RT104) — the booking then stays on "Partially Cancelled"
+    // (not silently back on "Paid"); its other passengers carry on from it with the forward moves of the status
+    // it had before (engine operationalFrom), and no refund / partial status can be picked by hand.
     if (refund.passengerIds.length > 0) {
       const cancelledRows = await tx.bookingPassenger.updateMany({
         where: { bookingId: booking.id, passengerId: { in: refund.passengerIds }, outcome: null },
@@ -99,7 +100,6 @@ export async function applyRefundStatus(
         });
       }
     }
-    await resumeAfterCancellation(tx, booking.id, actor.label, actor.userId);
   }
 
   if (fullyRefunded && booking.status !== "REFUNDED") {
