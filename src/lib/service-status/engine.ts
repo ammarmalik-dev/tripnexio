@@ -9,6 +9,7 @@ import { sendStatusTemplate, statusInputsFor, type StatusInputs } from "../notif
 import type { EmailAttachment } from "../email/sender";
 import { HOLD_MARKER, type ServiceStatusSystemEvent } from "./events";
 import { customerStatusLabel } from "./customer-label";
+import { bookingDocumentsValidatedBlock } from "../bookings/documents-ready";
 
 /**
  * Per-service status engine (P08 — CRM.md §14, ADMIN.md §16-17, Locked
@@ -40,6 +41,49 @@ export interface StatusNotification {
 
 /** Client doc 2026-10-20 — refund steps a final status (e.g. Rejected, Cancelled) may still move on to. */
 const REFUND_STEP_EVENTS = new Set(["REFUND_RAISED", "REFUND_APPROVED", "REFUND_COMPLETED", "CANCELLED_AND_REFUNDED"]);
+
+/**
+ * Client doc 2026-10-27 (C2/C3) — the refund statuses (Refund Pending / Processing / Completed, Partially
+ * Cancelled / Refunded, Cancelled and Refunded). Only the refund engine moves a booking onto them (a refund
+ * raised, approved, completed — src/lib/refunds/), never a staff "Move to…"; an Admin override still can.
+ */
+const REFUND_ENGINE_EVENTS = new Set(["REFUND_RAISED", "REFUND_APPROVED", "REFUND_COMPLETED", "REFUND_PARTIALLY_COMPLETED", "CANCELLED_AND_REFUNDED"]);
+/** Client doc 2026-10-27 (C4) — the refund outcomes: once a booking is on one, staff have no further status moves. */
+const REFUND_OUTCOME_EVENTS = new Set(["REFUND_COMPLETED", "REFUND_PARTIALLY_COMPLETED", "CANCELLED_AND_REFUNDED"]);
+
+type RefundShape = Pick<ServiceStatus, "name" | "systemEvent">;
+
+/** A status only the refund engine sets — by its system event, or by name for an Admin-added one. */
+export function isRefundEngineStatus(status: RefundShape): boolean {
+  return REFUND_ENGINE_EVENTS.has(status.systemEvent ?? "") || /refund/i.test(status.name) || /partially cancelled/i.test(status.name);
+}
+
+/** A completed refund's status (Refund Completed, Partially Cancelled / Refunded, Cancelled and Refunded). */
+export function isRefundOutcomeStatus(status: RefundShape): boolean {
+  return REFUND_OUTCOME_EVENTS.has(status.systemEvent ?? "") || /refund(ed)? completed|partially (cancelled|refunded)|cancelled and refunded/i.test(status.name);
+}
+
+/**
+ * Client doc 2026-10-27 (C1/C13) — the step that hands a booking to the airline / embassy, per service. It needs
+ * every passenger's documents validated and is taken only from the service's action panel (which asks for the
+ * vendor), never from the generic "Move to…" list.
+ */
+export const APPLY_STEP_EVENT: Partial<Record<ServiceType, ServiceStatusSystemEvent>> = {
+  OTB: "OTB_SUBMITTED",
+  RETURN_TICKET: "SENT_TO_AIRLINES",
+  NEW_VISA: "EMBASSY_APPLIED",
+};
+
+/** Steps that send documents on (the apply step, plus OTB's additional documents to the airline) — documents validated first. */
+export function needsValidatedDocuments(serviceType: ServiceType, status: Pick<ServiceStatus, "systemEvent">): boolean {
+  if (!status.systemEvent) return false;
+  return status.systemEvent === APPLY_STEP_EVENT[serviceType] || (serviceType === "OTB" && status.systemEvent === "OTB_ADDITIONAL_DOCUMENTS");
+}
+
+/** True for the service's apply step (see APPLY_STEP_EVENT) — kept out of the generic "Move to…" list. */
+export function isApplyStepStatus(serviceType: ServiceType, status: Pick<ServiceStatus, "systemEvent">): boolean {
+  return !!status.systemEvent && status.systemEvent === APPLY_STEP_EVENT[serviceType];
+}
 
 /**
  * Client doc 2026-10-20 — system events that may move a record BACK within one stage: a rejected
@@ -103,7 +147,23 @@ type StatusShape = Pick<ServiceStatus, "name" | "isTerminal" | "systemEvent" | "
  *   - back to an earlier stage (e.g. Processing -> Confirmed). Re-review loops within one stage and On Hold stay allowed.
  * Only an Admin override (I9) can make these moves. Returns the reason, or null when the move is fine.
  */
-export function staffMoveBlock(scope: StatusScope, from: StatusShape | null, to: StatusShape): string | null {
+export function staffMoveBlock(
+  scope: StatusScope,
+  from: StatusShape | null,
+  to: StatusShape,
+  options: {
+    /** The move is the refund engine's own (a refund raised in the same step). */
+    refundEngine?: boolean;
+    /** A system rule (every passenger has a result) may still complete a partially refunded booking. */
+    afterRefund?: boolean;
+  } = {}
+): string | null {
+  // Client doc 2026-10-27 (C2/C3) — refund statuses follow the refund itself, never a hand-picked status.
+  if (!options.refundEngine && isRefundEngineStatus(to)) {
+    return `"${to.name}" follows the refund itself — raise the refund (Payments) and the booking moves once it is approved / completed. Only an Admin can set it by hand.`;
+  }
+  // Client doc 2026-10-27 (C4) — after a completed refund (full or partial) staff have no further moves.
+  if (from && !options.afterRefund && isRefundOutcomeStatus(from)) return `"${from.name}" is final once the refund is done — only an Admin can change it.`;
   if (!from || from.systemEvent === HOLD_MARKER || to.systemEvent === HOLD_MARKER) return null;
   const coarse = (status: StatusShape) => (scope === "LEAD" ? status.mapsToLeadStatus : status.mapsToBookingStatus) ?? null;
   const toCoarse = coarse(to);
@@ -127,6 +187,8 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
         select: { id: true, name: true, customerLabel: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true },
       })
     : null;
+  // Client doc 2026-10-27 (N1/C13) — an allowed apply step is shown as a pointer to its action panel, not a Move button.
+  const panelOnly: { id: string; name: string }[] = [];
   const allowed = current
     ? (
         await db.serviceStatusTransition.findMany({
@@ -141,13 +203,22 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
         .map((transition) => transition.to)
         // Client doc 2026-10-15 (I1) — only the moves staff may actually make.
         .filter((to) => staffMoveBlock(scope, current, to) === null)
+        // Client doc 2026-10-27 (C1/C13) — the apply step comes from the service's action panel (vendor + documents).
+        .filter((to) => {
+          if (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)) return true;
+          panelOnly.push({ id: to.id, name: to.name });
+          return false;
+        })
         .sort((a, b) => a.displayOrder - b.displayOrder)
-    : // A record that predates the engine (no status yet) may be placed on any status of its list.
-      await db.serviceStatus.findMany({
-        where: { serviceType: entity.serviceType, scope, active: true },
-        orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-        select: { id: true, name: true, customerLabel: true, displayOrder: true, notificationEvent: true },
-      });
+    : // A record that predates the engine (no status yet) may be placed on any status of its list — except the
+      // refund statuses and the apply step (client doc 2026-10-27, C1/C2).
+      (
+        await db.serviceStatus.findMany({
+          where: { serviceType: entity.serviceType, scope, active: true },
+          orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+          select: { id: true, name: true, customerLabel: true, displayOrder: true, notificationEvent: true, systemEvent: true },
+        })
+      ).filter((to) => !isRefundEngineStatus(to) && (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)));
   // Client testing 2026-10-09 (E9) — the service's whole status list (internal name
   // + what the customer sees), so staff can see where a record is and what comes next.
   const all = await db.serviceStatus.findMany({
@@ -167,6 +238,7 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
       inputs: notificationEvent ? (inputs[notificationEvent] ?? []) : [],
     })),
     all,
+    panelOnly,
   };
 }
 
@@ -234,6 +306,10 @@ export async function setServiceStatus(
     adminOverride?: boolean;
     /** Client doc 2026-10-20 — the customer-safe reason / next step / charges for the status's message. */
     inputs?: StatusInputs;
+    /** Client doc 2026-10-27 (C2) — the refund engine's own move (a refund was raised in the same step). */
+    refundEngine?: boolean;
+    /** Client doc 2026-10-27 (C4) — a system rule that may still move a booking after a partial refund. */
+    afterRefund?: boolean;
   }
 ): Promise<SetServiceStatusResult> {
   const entity = await loadEntity(tx, input.scope, input.entityId);
@@ -259,8 +335,15 @@ export async function setServiceStatus(
       where: { fromStatusId_toStatusId: { fromStatusId: from.id, toStatusId: to.id } },
     });
     if (!allowed) return { ok: false, httpStatus: 409, error: `Can't move from "${from.name}" to "${to.name}".` };
-    const blocked = staffMoveBlock(input.scope, from, to);
+  }
+  if (!input.adminOverride) {
+    const blocked = staffMoveBlock(input.scope, from, to, { refundEngine: input.refundEngine, afterRefund: input.afterRefund });
     if (blocked) return { ok: false, httpStatus: 409, error: blocked };
+    // Client doc 2026-10-27 (C1) — never sent to the airline / applied before every document is validated.
+    if (input.scope === "BOOKING" && needsValidatedDocuments(entity.serviceType, to)) {
+      const documents = await bookingDocumentsValidatedBlock(tx, entity.id);
+      if (documents) return { ok: false, httpStatus: 409, error: documents };
+    }
   }
 
   const notification = await applyStatus(tx, input.scope, entity, from, to, input);
@@ -377,7 +460,7 @@ export async function dispatchStatusNotifications(
  */
 export async function setServiceStatusByEvent(
   tx: Tx,
-  input: { scope: StatusScope; entityId: string; event: ServiceStatusSystemEvent; note?: string; userId?: string; actorLabel: string; inputs?: StatusInputs }
+  input: { scope: StatusScope; entityId: string; event: ServiceStatusSystemEvent; note?: string; userId?: string; actorLabel: string; inputs?: StatusInputs; adminOverride?: boolean }
 ): Promise<SetServiceStatusResult> {
   const entity = await loadEntity(tx, input.scope, input.entityId);
   if (!entity) return { ok: false, httpStatus: 404, error: "Record not found." };
@@ -386,7 +469,9 @@ export async function setServiceStatusByEvent(
     select: { id: true },
   });
   if (!target) return { ok: false, httpStatus: 409, error: "This action isn't set up for this service (Admin → Service Statuses)." };
-  return setServiceStatus(tx, { ...input, toStatusId: target.id });
+  // Client doc 2026-10-27 (C2) — a refund event named by code (e.g. Special Fare "no alternative" raises the refund in
+  // the same step) is the refund engine's own move; staff never pick these events.
+  return setServiceStatus(tx, { ...input, toStatusId: target.id, refundEngine: REFUND_ENGINE_EVENTS.has(input.event) });
 }
 
 /** P11 — has the booking reached (or passed) the status tagged with `event`, by status order? False when it has no status or the event isn't configured. */

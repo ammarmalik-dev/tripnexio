@@ -30,8 +30,9 @@ describe("email footer", () => {
   it("wraps the body in the branded layout with the footer below it", () => {
     const html = renderEmailLayout({ ...base, bodyHtml: "<p>Hi</p>", footerText: "Do not reply." });
     expect(html.indexOf("<p>Hi</p>")).toBeLessThan(html.indexOf("Do not reply."));
-    // Client doc 2026-10-15 (H1) — the white logo on the dark-navy header, then "Follow Us On" above the one-line note.
-    expect(html).toContain("https://tripnexio.com/email/logo-white.png");
+    // Client doc 2026-10-27 (H1) — the name as text on the dark-navy header with the tagline, then "Follow Us On" above the one-line note.
+    expect(html).toMatch(/font-size:34px[^>]*>TripNexio<\/p>/);
+    expect(html).toContain("Travel Made Easy with TripNexio.");
     expect(html.indexOf("Follow Us On")).toBeLessThan(html.indexOf("This is an automated email."));
     expect(html).toContain("Need assistance?");
   });
@@ -58,6 +59,18 @@ describe("email footer", () => {
   it("strips only a trailing sign-off", () => {
     expect(stripTrailingSignature("Hi<br>— TripNexio", "TripNexio")).toBe("Hi");
     expect(stripTrailingSignature("Thanks for choosing TripNexio today", "TripNexio")).toBe("Thanks for choosing TripNexio today");
+  });
+
+  it("signs once: a template's own Best regards is dropped even before the button (client doc 2026-10-27, H1)", () => {
+    const button = '<table role="presentation"><tr><td>Pay Now</td></tr></table>';
+    expect(stripTrailingSignature(`Hi A,<br><br>Pay below.<br><br>Best regards,<br>Team TripNexio<br>${button}`, "TripNexio")).toBe(`Hi A,<br><br>Pay below.<br>${button}`);
+    expect(stripTrailingSignature("Hi<br><br>Warm regards,<br>TripNexio Team", "TripNexio")).toBe("Hi");
+    expect(stripTrailingSignature("Hi<br><br>Regards, TripNexio Support", "TripNexio")).toBe("Hi");
+    expect(stripTrailingSignature("With regards to your TripNexio booking<br>ok", "TripNexio")).toBe("With regards to your TripNexio booking<br>ok");
+    const html = renderEmailLayout({ ...base, bodyHtml: `Hi A,<br><br>Best regards,<br>Team TripNexio<br>${button}`, footerText: "" });
+    expect(html.match(/Best regards,/g)).toHaveLength(1);
+    expect(html.indexOf("Best regards,")).toBeGreaterThan(html.indexOf("Pay Now"));
+    expect(html.indexOf("Best regards,")).toBeLessThan(html.indexOf("Need assistance?"));
   });
 
   it("picks the picture per event", () => {

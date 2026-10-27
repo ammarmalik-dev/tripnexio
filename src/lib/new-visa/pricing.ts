@@ -71,14 +71,14 @@ export async function computeNewVisaPrice(input: {
 
   const vendorRates = await db.vendorServiceRate.findMany({
     where: { serviceType: "NEW_VISA", countryId: country.id, active: true, vendor: { active: true } },
-    select: { vendorId: true, airlineId: true, processingType: true, nationalityId: true, paxType: true, cost: true },
+    select: { vendorId: true, airlineId: true, processingType: true, nationalityId: true, paxType: true, newVisaConfigId: true, cost: true },
   });
-  // The lowest of each vendor's best-matching rate for this passenger type.
+  // The lowest of each vendor's best-matching rate for this passenger type (and visa option — client doc 2026-10-27, E2).
   const expectedVendorCost = (paxType: PaxType): number | null => {
     const byVendor = new Map<string, typeof vendorRates>();
     for (const rate of vendorRates) byVendor.set(rate.vendorId, [...(byVendor.get(rate.vendorId) ?? []), rate]);
     const costs = [...byVendor.values()]
-      .map((rows) => pickVendorRate(rows, { processingType: input.processingType, nationalityId, paxType }))
+      .map((rows) => pickVendorRate(rows, { processingType: input.processingType, nationalityId, paxType, newVisaConfigId: input.newVisaConfigId ?? null }))
       .filter((rate): rate is (typeof vendorRates)[number] => rate !== null)
       .map((rate) => Number(rate.cost));
     return costs.length > 0 ? Math.min(...costs) : null;

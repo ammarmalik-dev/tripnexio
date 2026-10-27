@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
   // Client doc 2026-10-15 — any destination by its Country master code (New Visa approval dates).
   const countryCode = params.get("countryCode");
   if (countryCode) {
-    if (!/^[A-Za-z]{2,3}$/.test(countryCode)) return jsonError(400, "countryCode must be a country code.");
+    // Client doc 2026-10-27 (E1) — any Admin country code (not only 2–3 letters): a rejected code fell back to a
+    // Monday–Friday calendar without the country's holidays, so the expected approval date counted them.
+    if (!/^[A-Za-z0-9_-]{1,20}$/.test(countryCode)) return jsonError(400, "countryCode must be a country code.");
     return jsonSuccess(await getWorkingCalendarForCountry(countryCode));
   }
   const country = params.get("country");

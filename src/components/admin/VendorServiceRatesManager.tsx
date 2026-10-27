@@ -34,7 +34,27 @@ interface RateRow {
   nationalityId: string | null;
   nationalityName: string | null;
   paxType: string | null;
+  /** Client doc 2026-10-27 (E2) — New Visa: the visa option / type; null = any. */
+  newVisaConfigId: string | null;
+  newVisaConfigLabel: string | null;
   cost: number;
+  active: boolean;
+}
+
+/** A New Visa option (visa type) of a country, for the vendor-rate form. */
+interface VisaOption {
+  id: string;
+  countryId: string;
+  label: string;
+}
+
+interface NewVisaConfigRow {
+  id: string;
+  countryId: string;
+  visaCategory: string;
+  stayDays: number | null;
+  entryKind: string | null;
+  duration: string;
   active: boolean;
 }
 
@@ -121,15 +141,17 @@ function NewRateForm({
   countries,
   airlines,
   nationalities,
+  visaOptions,
   onCreated,
 }: {
   vendors: VendorOption[];
   countries: Option[];
   airlines: Option[];
   nationalities: Option[];
+  visaOptions: VisaOption[];
   onCreated: (row: RateRow) => void;
 }) {
-  const empty = { vendorId: "", serviceType: "OTB" as RateService, countryId: "", airlineId: "", nationalityId: "", paxType: "", processingType: "", cost: "" };
+  const empty = { vendorId: "", serviceType: "OTB" as RateService, countryId: "", airlineId: "", nationalityId: "", paxType: "", newVisaConfigId: "", processingType: "", cost: "" };
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
@@ -156,7 +178,7 @@ function NewRateForm({
       title: "Add this vendor rate?",
       description:
         form.serviceType === "NEW_VISA"
-          ? "New Visa passengers for this country / nationality / passenger type / processing type get this cost when this vendor is picked."
+          ? "New Visa passengers for this country / visa type / nationality / passenger type / processing type get this cost when this vendor is picked."
           : "Bookings for this country / airline / processing type get this cost per passenger when this vendor is picked.",
       confirmLabel: "Add Rate",
     });
@@ -171,6 +193,7 @@ function NewRateForm({
         airlineId: form.serviceType === "OTB" ? form.airlineId : "",
         nationalityId: form.serviceType === "NEW_VISA" ? form.nationalityId : "",
         paxType: form.serviceType === "NEW_VISA" ? form.paxType : "",
+        newVisaConfigId: form.serviceType === "NEW_VISA" ? form.newVisaConfigId : "",
         processingType: form.processingType,
         cost,
         reason,
@@ -196,13 +219,24 @@ function NewRateForm({
           "vr-service",
           "Service",
           form.serviceType,
-          (value) => setForm({ ...form, serviceType: value as RateService, vendorId: "", airlineId: "", nationalityId: "", paxType: "" }),
+          (value) => setForm({ ...form, serviceType: value as RateService, vendorId: "", airlineId: "", nationalityId: "", paxType: "", newVisaConfigId: "" }),
           (Object.keys(SERVICE_LABELS) as RateService[]).map((key) => ({ value: key, label: SERVICE_LABELS[key] }))
         )}
         {select("vr-vendor", "Vendor", form.vendorId, (value) => setForm({ ...form, vendorId: value }), shownVendors.map((v) => ({ value: v.id, label: v.name })), errors.vendorId?.[0], "Select a vendor")}
-        {select("vr-country", "Destination country", form.countryId, (value) => setForm({ ...form, countryId: value }), countries.map((c) => ({ value: c.id, label: c.name })), errors.countryId?.[0], "Select a country")}
+        {select("vr-country", "Destination country", form.countryId, (value) => setForm({ ...form, countryId: value, newVisaConfigId: "" }), countries.map((c) => ({ value: c.id, label: c.name })), errors.countryId?.[0], "Select a country")}
         {form.serviceType === "OTB"
           ? select("vr-airline", "Airline", form.airlineId, (value) => setForm({ ...form, airlineId: value }), airlines.map((a) => ({ value: a.id, label: a.name })), errors.airlineId?.[0], "Any airline")
+          : null}
+        {form.serviceType === "NEW_VISA"
+          ? select(
+              "vr-visa-type",
+              "Visa type",
+              form.newVisaConfigId,
+              (value) => setForm({ ...form, newVisaConfigId: value }),
+              visaOptions.filter((option) => option.countryId === form.countryId).map((option) => ({ value: option.id, label: option.label })),
+              errors.newVisaConfigId?.[0],
+              form.countryId ? "Any visa type" : "Select a country first"
+            )
           : null}
         {form.serviceType === "NEW_VISA"
           ? select("vr-nationality", "Nationality", form.nationalityId, (value) => setForm({ ...form, nationalityId: value }), nationalities.map((n) => ({ value: n.id, label: n.name })), errors.nationalityId?.[0], "Any nationality")
@@ -258,6 +292,7 @@ export function VendorServiceRatesManager() {
   const [countries, setCountries] = useState<Option[]>([]);
   const [airlines, setAirlines] = useState<Option[]>([]);
   const [nationalities, setNationalities] = useState<Option[]>([]);
+  const [visaOptions, setVisaOptions] = useState<VisaOption[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [serviceFilter, setServiceFilter] = useState<RateService | "">("");
   const [reloadNonce, setReloadNonce] = useState(0);
@@ -274,7 +309,20 @@ export function VendorServiceRatesManager() {
           getJson<Option[]>("/api/admin/airlines"),
           getJson<Option[]>("/api/admin/nationalities"),
         ]);
+        // Client doc 2026-10-27 (E2) — each country's New Visa options (visa types); an empty list when not readable.
+        const configs = await getJson<NewVisaConfigRow[]>("/api/admin/new-visa-countries").catch(() => [] as NewVisaConfigRow[]);
         if (cancelled) return;
+        setVisaOptions(
+          configs
+            .filter((config) => config.active)
+            .map((config) => ({
+              id: config.id,
+              countryId: config.countryId,
+              label: [config.visaCategory, config.stayDays ? `${config.stayDays} days` : config.duration, config.entryKind === "MULTIPLE" ? "Multiple entry" : config.entryKind === "SINGLE" ? "Single entry" : null]
+                .filter(Boolean)
+                .join(" · "),
+            }))
+        );
         setRows(rateList);
         setVendors(vendorList);
         setCountries(countryList.filter((c) => c.active));
@@ -342,7 +390,7 @@ export function VendorServiceRatesManager() {
                   </p>
                   <p className="text-xs text-ink-tertiary">
                     {row.serviceType === "NEW_VISA"
-                      ? `${row.nationalityName ?? "Any nationality"} · ${row.paxType ? (PAX_LABELS[row.paxType] ?? row.paxType) : "Adult and Child"}`
+                      ? `${row.newVisaConfigLabel ?? "Any visa type"} · ${row.nationalityName ?? "Any nationality"} · ${row.paxType ? (PAX_LABELS[row.paxType] ?? row.paxType) : "Adult and Child"}`
                       : row.serviceType === "OTB"
                         ? (row.airlineName ?? "Any airline")
                         : "All airlines"}{" "}
@@ -375,7 +423,7 @@ export function VendorServiceRatesManager() {
       )}
       <ListPagination noun="vendor rate" {...paginationProps} />
 
-      <NewRateForm vendors={vendors} countries={countries} airlines={airlines} nationalities={nationalities} onCreated={(created) => setRows((current) => [...current, created])} />
+      <NewRateForm vendors={vendors} countries={countries} airlines={airlines} nationalities={nationalities} visaOptions={visaOptions} onCreated={(created) => setRows((current) => [...current, created])} />
     </div>
   );
 }

@@ -1,14 +1,11 @@
 "use client";
 
-import { FILE_BUTTON_CLASS } from "@/components/forms/FilePickerButton";
-import { useEffect, useState, type ChangeEvent } from "react";
-import { ScanLine, CheckCircle2, XCircle, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ScanLine, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { getJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
-import { cn } from "@/lib/cn";
-import { DOCUMENT_UPLOAD_ACCEPT, documentUploadError } from "@/lib/uploads/document-rules";
 import { OcrCrossCheck } from "./OcrCrossCheck";
 
 type ExtractionType = "TICKET" | "VISA";
@@ -53,18 +50,6 @@ const FIELD_CONFIG: Record<ExtractionType, { key: string; label: string }[]> = {
   ],
 };
 
-function toBase64(file: File): Promise<{ base64: string; mimeType: string }> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      resolve({ base64: result.split(",")[1] ?? "", mimeType: file.type });
-    };
-    reader.onerror = () => reject(new Error("Couldn't read that file."));
-    reader.readAsDataURL(file);
-  });
-}
-
 function ReviewCard({ extraction, onResolved }: { extraction: ExtractionData; onResolved: () => void }) {
   const [fields, setFields] = useState<ExtractedFields>(extraction.extractedFields);
   const [submitting, setSubmitting] = useState<"confirm" | "reject" | null>(null);
@@ -104,6 +89,11 @@ function ReviewCard({ extraction, onResolved }: { extraction: ExtractionData; on
         {extraction.extractionType === "TICKET" ? "Ticket" : "Visa"} details extracted — review before confirming
       </span>
       <OcrCrossCheck value={extraction.crossCheck} />
+      {!isPlaceholderProvider && config.every((field) => !extraction.extractedFields[field.key]) ? (
+        <p className="rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
+          No details could be read from this file. Enter them below, or upload a clearer copy.
+        </p>
+      ) : null}
       {isPlaceholderProvider ? (
         <p className="rounded-md bg-warning/10 px-2.5 py-1.5 text-xs text-warning">
           SAMPLE data — no real OCR provider configured yet, this is placeholder output, not read from the uploaded document.
@@ -136,29 +126,27 @@ function ReviewCard({ extraction, onResolved }: { extraction: ExtractionData; on
 
 /**
  * Sits next to a TICKET/VISA-type document row on the Booking detail page —
- * lets staff upload the file directly (image or PDF) and review/edit/
- * confirm the OCR-extracted fields before anything is treated as final.
- * Step 16 (audit §3.6), generalizing PassportExtractionReview.tsx's same
- * upload-then-review pattern to the two new document types. See
+ * shows the OCR-extracted fields for staff to review/edit/confirm before
+ * anything is treated as final. Step 16 (audit §3.6). See
  * src/lib/ocr/{extract-ticket,extract-visa}.ts and
  * /api/document-extractions/[id] — no path from OCR to a confirmed record
  * skips this review step.
+ *
+ * Client doc 2026-10-27 (C9) — one upload button per document: the row's own
+ * DocumentUploadButton (PATCH /api/documents/[id]/upload) already runs OCR for
+ * passport / visa / ticket types, so this no longer has its own
+ * "Upload … (auto-extract)" button. `refreshKey` (the row's file + status)
+ * reloads the extraction after a new upload.
  */
 export function DocumentExtractionReview({
   documentId,
-  documentType,
-  hasFile,
-  onUploaded,
+  refreshKey,
 }: {
   documentId: string;
-  /** Only rendered for a TICKET or VISA-type document — decided by the caller. */
-  documentType: ExtractionType;
-  hasFile: boolean;
-  onUploaded: () => void;
+  /** Changes whenever the document's file or status changes (e.g. `${fileUrl}|${status}`). */
+  refreshKey?: string;
 }) {
   const [extractions, setExtractions] = useState<ExtractionData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
 
   const reload = async () => {
     try {
@@ -179,8 +167,6 @@ export function DocumentExtractionReview({
         setExtractions(result);
       } catch {
         // Non-critical.
-      } finally {
-        if (!cancelled) setLoading(false);
       }
     }
 
@@ -188,53 +174,14 @@ export function DocumentExtractionReview({
     return () => {
       cancelled = true;
     };
-  }, [documentId]);
-
-  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    const invalid = documentUploadError(file);
-    if (invalid) {
-      toast.error(invalid);
-      return;
-    }
-    setUploading(true);
-    try {
-      const { base64, mimeType } = await toBase64(file);
-      await patchJson(`/api/documents/${documentId}/upload`, { fileBase64: base64, mimeType });
-      toast.success("File uploaded — extracting details...");
-      onUploaded();
-      await reload();
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Couldn't upload that file. Please try again.");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  if (loading) return null;
+  }, [documentId, refreshKey]);
 
   const pending = extractions.find((extraction) => extraction.status === "PENDING_REVIEW");
+  if (!pending) return null;
 
   return (
     <div className="mt-2 flex flex-col gap-2">
-      {pending ? (
-        <ReviewCard extraction={pending} onResolved={() => void reload()} />
-      ) : (
-        <label
-          className={cn(
-            FILE_BUTTON_CLASS,
-            uploading && "pointer-events-none opacity-60"
-          )}
-        >
-          <Upload className="h-3.5 w-3.5" aria-hidden="true" />
-          {uploading
-            ? "Uploading..."
-            : `${hasFile ? "Re-upload" : "Upload"} ${documentType === "TICKET" ? "Ticket" : "Visa"} (auto-extract)`}
-          <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="hidden" disabled={uploading} onChange={(e) => void handleUpload(e)} />
-        </label>
-      )}
+      <ReviewCard key={pending.id} extraction={pending} onResolved={() => void reload()} />
     </div>
   );
 }

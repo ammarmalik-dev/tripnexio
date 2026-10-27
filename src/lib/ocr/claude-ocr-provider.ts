@@ -10,7 +10,10 @@ import {
   VISA_SYSTEM_PROMPT,
   VISA_USER_PROMPT,
   assertOcrMimeType,
-  parseOcrJson,
+  extractOcrFields,
+  PASSPORT_FIELD_KEYS,
+  TICKET_FIELD_KEYS,
+  VISA_FIELD_KEYS,
 } from "./ocr-prompts";
 
 /** Reuses the model already chosen for the WhatsApp bot's AI provider — see src/lib/ai/text-completion.ts. */
@@ -45,7 +48,7 @@ export class ClaudeOcrProvider implements OcrProvider {
   private async read(input: ExtractDocumentInput, system: string, instruction: string): Promise<string> {
     const response = await this.client.messages.create({
       model: MODEL,
-      max_tokens: 500,
+      max_tokens: 1024,
       system,
       messages: [{ role: "user", content: [buildDocumentContentBlock(input), { type: "text", text: instruction }] }],
     });
@@ -54,17 +57,17 @@ export class ClaudeOcrProvider implements OcrProvider {
   }
 
   async extractPassport(input: ExtractDocumentInput): Promise<PassportOcrResult> {
-    const parsed = parseOcrJson<PassportOcrFields>(await this.read(input, PASSPORT_SYSTEM_PROMPT, PASSPORT_USER_PROMPT));
-    return { provider: this.providerName, mrzRaw: parsed.mrzRaw ?? null, fields: parsed.fields ?? {} };
+    const parsed = extractOcrFields<PassportOcrFields>(await this.read(input, PASSPORT_SYSTEM_PROMPT, PASSPORT_USER_PROMPT), PASSPORT_FIELD_KEYS);
+    return { provider: this.providerName, mrzRaw: parsed.mrzRaw, fields: parsed.fields };
   }
 
   async extractTicket(input: ExtractDocumentInput): Promise<TicketOcrResult> {
-    const parsed = parseOcrJson<TicketOcrFields>(await this.read(input, TICKET_SYSTEM_PROMPT, TICKET_USER_PROMPT));
-    return { provider: this.providerName, mrzRaw: null, fields: parsed.fields ?? {} };
+    const parsed = extractOcrFields<TicketOcrFields>(await this.read(input, TICKET_SYSTEM_PROMPT, TICKET_USER_PROMPT), TICKET_FIELD_KEYS);
+    return { provider: this.providerName, mrzRaw: null, fields: parsed.fields };
   }
 
   async extractVisa(input: ExtractDocumentInput): Promise<VisaOcrResult> {
-    const parsed = parseOcrJson<VisaOcrFields>(await this.read(input, VISA_SYSTEM_PROMPT, VISA_USER_PROMPT));
-    return { provider: this.providerName, mrzRaw: null, fields: parsed.fields ?? {} };
+    const parsed = extractOcrFields<VisaOcrFields>(await this.read(input, VISA_SYSTEM_PROMPT, VISA_USER_PROMPT), VISA_FIELD_KEYS);
+    return { provider: this.providerName, mrzRaw: null, fields: parsed.fields };
   }
 }

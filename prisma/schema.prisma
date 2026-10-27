@@ -1233,6 +1233,8 @@ model VendorServiceRate {
   nationalityId  String?
   /// Client doc 2026-10-15 — New Visa: Adult or Child; null = any passenger.
   paxType        PaxType?
+  /// Client doc 2026-10-27 (E2) — New Visa: the visa option / type (product) this cost is for; null = any.
+  newVisaConfigId String?
   /// Cost per passenger.
   cost           Decimal     @db.Decimal(10, 2)
   active         Boolean     @default(true)
@@ -1243,6 +1245,7 @@ model VendorServiceRate {
   country     Country      @relation(fields: [countryId], references: [id])
   airline     Airline?     @relation(fields: [airlineId], references: [id])
   nationality Nationality? @relation(fields: [nationalityId], references: [id])
+  newVisaConfig NewVisaCountryConfig? @relation(fields: [newVisaConfigId], references: [id])
 
   @@index([vendorId, serviceType])
   @@index([countryId])
@@ -2262,6 +2265,7 @@ model NewVisaCountryConfig {
   country      Country           @relation(fields: [countryId], references: [id])
   validityType VisaValidityType? @relation(fields: [validityTypeId], references: [id])
   pricingRules PricingRule[]
+  vendorRates  VendorServiceRate[]
 
   @@index([active])
   @@index([countryId])

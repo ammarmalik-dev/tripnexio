@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { honeypotShape } from "./honeypot";
+import { UPLOAD_FIELD_MIME_TYPES } from "../uploads/document-rules";
 
 /**
  * Visa Change request validation — rewritten against the real locked spec
@@ -34,13 +35,13 @@ import { honeypotShape } from "./honeypot";
  */
 const passportImageFields = {
   passportImageBase64: z.string().optional(),
-  passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+  passportImageMimeType: z.enum(UPLOAD_FIELD_MIME_TYPES).optional(),
 };
 
 /** Client confirmed (2026-09-23): a Visa Copy is also required per applicant, alongside the passport copy — same optional-in-schema, enforced-elsewhere pattern as passportImageFields above. */
 const visaImageFields = {
   visaImageBase64: z.string().optional(),
-  visaImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+  visaImageMimeType: z.enum(UPLOAD_FIELD_MIME_TYPES).optional(),
 };
 
 /** Same cap as New Visa's additional travellers. */

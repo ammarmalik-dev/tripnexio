@@ -93,7 +93,14 @@ function PassengerEditor({
  * P11 — every applicant on a request: passport, DOB, occupation, passenger type and (for a minor) the guardian.
  * With `editable`, staff can add a missing passenger or correct one (client doc 2026-10-20, A4).
  */
-export function ApplicantsTable({ applicants, editable }: { applicants: ApplicantRow[]; editable?: { leadId: string; onChanged: () => void } }) {
+export function ApplicantsTable({
+  applicants,
+  editable,
+}: {
+  applicants: ApplicantRow[];
+  /** `canAdd: false` — correct existing passengers only (a booking: no unpaid travellers, client doc 2026-10-27 C12). */
+  editable?: { leadId: string; onChanged: () => void; canAdd?: boolean };
+}) {
   // A large group request can list many applicants; the pager only appears past one default page.
   const { pageItems, paginationProps } = useClientPagination(applicants);
   const [editing, setEditing] = useState<string | null>(null);
@@ -116,7 +123,7 @@ export function ApplicantsTable({ applicants, editable }: { applicants: Applican
         }}
       />
     ) : null;
-  const addButton = editable ? (
+  const addButton = editable && editable.canAdd !== false ? (
     <div className="flex justify-end">
       <Button type="button" size="sm" variant="ghost" onClick={() => setEditing("new")} disabled={editing !== null}>
         <Plus className="h-4 w-4" aria-hidden="true" />

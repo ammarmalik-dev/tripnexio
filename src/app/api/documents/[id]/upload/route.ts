@@ -10,9 +10,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
 import { assertLeadServiceAction } from "@/lib/auth/lead-service-action";
 import { saveUploadedFile, deleteUploadedFile } from "@/lib/storage/local-file-storage";
-import { runPassportExtraction } from "@/lib/ocr/extract-passport";
-import { runTicketExtraction } from "@/lib/ocr/extract-ticket";
-import { runVisaExtraction } from "@/lib/ocr/extract-visa";
+import { runOcrForDocument } from "@/lib/ocr/run-for-document";
 import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
@@ -117,17 +115,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   // hiccup); the upload has already succeeded by this point regardless.
   // Step 16 (audit §3.6) generalized this from passport-only to also cover
   // Ticket (CRM.md §17) and Visa (CRM.md §18) documents.
-  try {
-    if (/passport/i.test(updated.type) && updated.passengerId) {
-      await runPassportExtraction(updated.id);
-    } else if (/ticket/i.test(updated.type)) {
-      await runTicketExtraction(updated.id);
-    } else if (/visa/i.test(updated.type)) {
-      await runVisaExtraction(updated.id);
-    }
-  } catch (error) {
-    console.error("[documents/upload] OCR failed", error);
-  }
+  // Client doc 2026-10-27 (C9) — the one shared OCR entry point (passport / ticket / visa by type; never throws).
+  await runOcrForDocument(updated.id);
 
   return jsonSuccess(updated);
 }

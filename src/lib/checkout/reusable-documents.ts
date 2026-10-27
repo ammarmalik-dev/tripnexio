@@ -51,6 +51,7 @@ export async function findReusableDocuments(input: {
   const result: ReusableDocument[] = [];
   for (const passengerId of input.passengerIds) {
     for (const slot of input.documentTypes) {
+      if (slot.passengerIds && !slot.passengerIds.includes(passengerId)) continue;
       if (input.uploaded.some((doc) => doc.passengerId === passengerId && doc.type === slot.type)) continue;
       if (result.some((offer) => offer.passengerId === passengerId && offer.type === slot.type)) continue;
       const source = candidates.find((candidate) => candidate.passengerId === passengerId && fits(slot, candidate.type));

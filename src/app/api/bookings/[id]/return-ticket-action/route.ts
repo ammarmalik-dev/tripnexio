@@ -10,7 +10,7 @@ import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { writeAudit } from "@/lib/audit/log";
 import { describeError } from "@/lib/api/describe-error";
 import { linkedOtbState, linkServiceBookings, returnTicketVendorSchema } from "@/lib/return-ticket/operations";
-import { setBookingVendor } from "@/lib/bookings/set-vendor";
+import { setBookingVendor, vendorRateProblem } from "@/lib/bookings/set-vendor";
 import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
@@ -37,7 +37,7 @@ const actionSchema = z.discriminatedUnion("action", [
  *   matching OTB / Return Ticket booking (both ways, cross-timeline audit).
  *   Accepts the other booking's reference (TNX-...) or its internal id.
  * - SAVE_VENDOR: Return_Verified_Ticket.md §18 — vendor, vendor cost,
- *   vendor reference and PNR. Vendor cost and margin stay internal (staff
+ *   and PNR (no vendor reference, client doc 2026-10-27 B2). Vendor cost and margin stay internal (staff
  *   CRM only); margin is recomputed server-side from the selected quote.
  */
 export async function POST(request: NextRequest, { params }: RouteParams) {
@@ -99,12 +99,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       if (!vendor || !vendor.active) return jsonError(400, "Select an active vendor.", { vendorId: ["Select an active vendor."] });
       const otb = await linkedOtbState(id);
       if (!otb.issuanceAllowed) return jsonError(409, `The linked OTB booking ${otb.otb?.bookingId} isn't approved yet.`);
-      const result = await db.$transaction(async (tx) => {
-        const vendorError = await setBookingVendor(tx, { bookingId: id, leadId: booking.leadId, vendor, actor: { userId: session.id, name: session.name } });
-        if (vendorError) return { ok: false as const, httpStatus: 409, error: vendorError };
-        if (data.pnr) await tx.booking.update({ where: { id }, data: { pnr: data.pnr.toUpperCase() } });
-        return setServiceStatusByEvent(tx, { scope: "BOOKING", entityId: id, event: "SENT_TO_AIRLINES", note: `vendor ${vendor.name}`, userId: session.id, actorLabel: `by ${session.name}` });
-      });
+      // Client doc 2026-10-27 (C13) — a vendor with a rate for this booking, so the P&L uses its cost.
+      const rateProblem = await vendorRateProblem(db, id, vendor.id);
+      if (rateProblem) return jsonError(400, rateProblem, { vendorId: [rateProblem] });
+      const result = await db
+        .$transaction(async (tx) => {
+          // The status engine checks every document is validated first (client doc 2026-10-27, C1).
+          const moved = await setServiceStatusByEvent(tx, { scope: "BOOKING", entityId: id, event: "SENT_TO_AIRLINES", note: `vendor ${vendor.name}`, userId: session.id, actorLabel: `by ${session.name}` });
+          if (!moved.ok) return moved;
+          const vendorError = await setBookingVendor(tx, { bookingId: id, leadId: booking.leadId, vendor, actor: { userId: session.id, name: session.name } });
+          // A vendor that can't be set undoes the status move with it.
+          if (vendorError) throw new SendConflict(vendorError);
+          if (data.pnr) await tx.booking.update({ where: { id }, data: { pnr: data.pnr.toUpperCase() } });
+          return moved;
+        })
+        .catch((error: unknown) => {
+          if (error instanceof SendConflict) return { ok: false as const, httpStatus: 409 as const, error: error.message };
+          throw error;
+        });
       if (!result.ok) return jsonError(result.httpStatus, result.error);
       await dispatchStatusNotifications([result.notification]);
       return jsonSuccess({ sent: true });
@@ -124,7 +136,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (vendorChanged && reasonResult.error) return reasonResult.error;
     const reason = reasonResult.reason ?? null;
 
-    const vendorNote = `Vendor ${vendor.name}, reference ${data.vendorReference || "—"}, PNR ${data.pnr ? data.pnr.toUpperCase() : "—"} (by ${session.name})`;
+    // Client doc 2026-10-27 (B2) — no vendor reference number any more (never asked, never required): only the PNR.
+    const vendorNote = `Vendor ${vendor.name}, PNR ${data.pnr ? data.pnr.toUpperCase() : "—"} (by ${session.name})`;
     const result = await db.$transaction(async (tx) => {
       // Client 2026-10-23 audit — a new vendor takes its configured rate (server-side, same as Send to Airlines),
       // never the old vendor's cost posted back by the form; a cost typed by staff overrides it.
@@ -135,7 +148,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
       await tx.booking.update({
         where: { id },
-        data: { pnrVendorReference: data.vendorReference || null, pnr: data.pnr ? data.pnr.toUpperCase() : null },
+        data: { pnr: data.pnr ? data.pnr.toUpperCase() : null },
       });
       await writeAudit(tx, {
         entityType: "Booking",
@@ -153,3 +166,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(500, "Couldn't complete that action. Please try again.");
   }
 }
+
+/** Thrown inside Send to Airlines' transaction so a vendor that can't be set undoes the status move. */
+class SendConflict extends Error {}

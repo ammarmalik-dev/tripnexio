@@ -8,6 +8,7 @@ import { parseInvoiceLines } from "./invoice-lines";
 import { getInvoiceCompanyDetails } from "./company-config";
 import { ensureInvoiceNumber } from "./invoice-number";
 import { invoiceNumberToSlug } from "./invoice-filters";
+import { invoiceSettlementStatus } from "./invoice-status";
 import type { InvoiceCompanyDetails } from "./render-invoice";
 import type { Quotation } from "../../generated/prisma/client";
 import type { ServiceType } from "../../generated/prisma/enums";
@@ -241,10 +242,13 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
           _count: { select: { passengers: true } },
         },
       },
-      refunds: { where: { status: "COMPLETED" }, select: { refundAmount: true } },
+      refunds: { where: { status: { in: ["COMPLETED", "PENDING", "PROCESSING"] } }, select: { refundAmount: true, status: true } },
     },
   });
   if (!payment || payment.status !== "SUCCESS") return null;
+  const bookingServiceStatus = payment.booking.serviceStatusId
+    ? await db.serviceStatus.findUnique({ where: { id: payment.booking.serviceStatusId }, select: { name: true, mapsToBookingStatus: true } })
+    : null;
 
   const invoiceNumber = await ensureInvoiceNumber(payment);
   const company = await getInvoiceCompanyDetails();
@@ -303,13 +307,15 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
   const taxable = Math.max(0, lines.reduce((sum, line) => sum + line.serviceFee, 0) - (snapshotFee !== null && !override ? 0 : couponDiscount));
   const grandTotal = round2((override ? lineTotal : amount) - couponDiscount + gstAmount + gatewayFee);
 
-  // Client doc 2026-10-15 (G2) — Refunded once a refund completed (Partially Refunded when it was less
-  // than the amount paid), Cancelled when the booking is cancelled without a completed refund yet.
-  const refunded = round2(payment.refunds.reduce((sum, refund) => sum + Number(refund.refundAmount), 0));
+  // Client doc 2026-10-15 (G2) / 2026-10-27 (F1) — the shared rule, identical on the "Scan to verify" page.
   const paidTotal = round2(Math.max(0, amount - couponDiscount) + Number(payment.gstAmount) + gatewayFee);
-  const cancelled = booking.status === "CANCELLED" || booking.status === "REFUNDED";
-  const paymentStatus: InvoiceDocument["paymentStatus"] =
-    refunded > 0 ? (refunded + 0.01 >= paidTotal - gatewayFee || cancelled ? "Refunded" : "Partially Refunded") : cancelled ? "Cancelled" : "Paid";
+  const paymentStatus: InvoiceDocument["paymentStatus"] = invoiceSettlementStatus({
+    paidTotal,
+    gatewayFee,
+    bookingStatus: booking.status,
+    serviceStatus: bookingServiceStatus,
+    refunds: payment.refunds.map((refund) => ({ status: refund.status, refundAmount: Number(refund.refundAmount) })),
+  });
 
   return {
     title: company.gstNumber ? "TAX INVOICE" : "INVOICE",

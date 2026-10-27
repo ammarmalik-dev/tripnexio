@@ -34,6 +34,17 @@ export type RegisterCustomerResult =
  * proof of ownership first: a one-time code is emailed to the email ALREADY
  * on that row, and the row is only updated after that code is verified.
  */
+/** Emails the signup / guest-claim code; false when the email couldn't be sent (never throws). */
+async function sendSignupCode(customerId: string, email: string, name: string): Promise<boolean> {
+  try {
+    await issueCustomerOtp(customerId, email, name);
+    return true;
+  } catch (error) {
+    console.error("[auth/register] verification code email failed", error instanceof Error ? error.message : "error");
+    return false;
+  }
+}
+
 export async function registerCustomer(input: {
   fullName: string;
   mobile: string;
@@ -65,7 +76,10 @@ export async function registerCustomer(input: {
     } catch {
       return { ok: false, error: "That mobile number or email is already in use.", field: "email" };
     }
-    await issueCustomerOtp(target.id, input.email, input.fullName);
+    // Client doc 2026-10-27 (M1) — a code that couldn't be emailed is said plainly (the form can be sent again).
+    if (!(await sendSignupCode(target.id, input.email, input.fullName))) {
+      return { ok: false, error: "We couldn't email your verification code right now. Please try again in a minute.", field: "email" };
+    }
     return {
       ok: false,
       otpRequired: true,
@@ -83,7 +97,9 @@ export async function registerCustomer(input: {
       };
     }
     if (!input.otp) {
-      await issueCustomerOtp(target.id, target.email, target.name);
+      if (!(await sendSignupCode(target.id, target.email, target.name))) {
+        return { ok: false, error: "We couldn't email your verification code right now. Please try again in a minute.", field: "email" };
+      }
       return {
         ok: false,
         otpRequired: true,

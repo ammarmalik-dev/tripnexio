@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { isCheckoutService, resolveCheckoutDocumentTypes } from "../checkout/required-documents";
+import { documentAppliesTo, isCheckoutService, resolveCheckoutDocumentTypes } from "../checkout/required-documents";
 import { OUTPUT_TYPES } from "../outputs/output-types";
 
 /**
@@ -29,7 +29,12 @@ export async function ensureRequiredDocumentSlots(bookingId: string): Promise<nu
     select: { passengerId: true, type: true },
   });
   const have = new Set(existing.map((doc) => `${doc.passengerId}|${doc.type}`));
-  const missing = booking.passengers.flatMap((row) => types.filter((type) => !have.has(`${row.passengerId}|${type.type}`)).map((type) => ({ passengerId: row.passengerId, type: type.type })));
+  // Client doc 2026-10-27 (D11) — a nationality-specific Visa Change document only for the passengers it applies to.
+  const missing = booking.passengers.flatMap((row) =>
+    types
+      .filter((type) => documentAppliesTo(type, row.passengerId) && !have.has(`${row.passengerId}|${type.type}`))
+      .map((type) => ({ passengerId: row.passengerId, type: type.type }))
+  );
   if (missing.length === 0) return 0;
   await db.document.createMany({
     data: missing.map((slot) => ({ bookingId, leadId: booking.leadId, passengerId: slot.passengerId, type: slot.type, status: "REQUIRED" as const })),

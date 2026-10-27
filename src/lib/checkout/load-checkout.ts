@@ -9,6 +9,9 @@ import { showPostTicketOffer } from "../cross-sell/post-ticket";
 import { customerAlternativeOffer, parseAlternativeOffer } from "../special-fare/post-payment";
 import { returnTicketCancellationFee } from "../return-ticket/operations";
 import { bookingDocumentsWhere } from "../documents/document-lead";
+import { displayFeeSplit } from "../invoices/service-fee";
+import { feeLabelFor } from "../invoices/invoice-document";
+import { isDocumentUploaded, uploadedDocumentSlots } from "../documents/upload-state";
 
 function linkedOrderView(
   linked: {
@@ -49,7 +52,7 @@ export async function loadCheckoutByToken(token: string) {
     documents: await db.document.findMany({
       where: { AND: [bookingDocumentsWhere(found), { purgedAt: null }] },
       orderBy: { updatedAt: "desc" },
-      select: { id: true, passengerId: true, type: true, status: true, requestReason: true, rejectionReason: true },
+      select: { id: true, passengerId: true, type: true, status: true, fileUrl: true, requestReason: true, rejectionReason: true },
     }),
   };
   // P18 — the OTB <-> Return Verified Ticket order (customer-safe fields only), as its own small query.
@@ -72,6 +75,12 @@ export async function loadCheckoutByToken(token: string) {
   const discount = Number(payment?.couponDiscount ?? 0);
   // P12 — the Protection Plan part of `amount`, shown as its own line.
   const protectionPlan = payment ? Number(payment.protectionPlanAmount) : 0;
+  // Client doc 2026-10-27 (C5) — the price as Govt./Airline/Vendor fee + the configured service fee (GST on that only).
+  const feeSplit = displayFeeSplit({
+    amount,
+    protectionPlan,
+    invoiceServiceFee: payment?.invoiceServiceFee != null ? Number(payment.invoiceServiceFee) : null,
+  });
 
   const documentTypes = paid ? await resolveCheckoutDocumentTypes(booking) : [];
   // P10/P15 — New Visa and Special Fare returning passengers: earlier uploads that could fill a slot (offered, never auto-used).
@@ -83,7 +92,8 @@ export async function loadCheckoutByToken(token: string) {
           passengerIds: booking.passengers.map((row) => row.passenger.id),
           documentTypes:
             booking.lead.serviceType === "OTB" ? documentTypes.filter((doc) => doc.type === "PASSPORT" || doc.type === "VISA_COPY") : documentTypes,
-          uploaded: booking.documents.filter((doc) => doc.passengerId).map((doc) => ({ passengerId: doc.passengerId as string, type: doc.type })),
+          // Client doc 2026-10-27 (C8) — a "Pending" slot row is not an upload, so it doesn't hide the "Use existing" offer.
+          uploaded: uploadedDocumentSlots(booking.documents),
         })
       : [];
   const notPayableReason = payment?.status === "PENDING" ? await assertQuotationPayable({ purpose: payment.purpose, booking }) : null;
@@ -112,6 +122,9 @@ export async function loadCheckoutByToken(token: string) {
             /** P16 — the reason shown for an extra payment (e.g. a Special Fare fare difference). */
             description: payment.purpose === "EXTRA" ? payment.description : null,
             amount: amount - protectionPlan,
+            serviceFee: payment.purpose === "EXTRA" ? null : feeSplit.serviceFee,
+            passThroughFee: payment.purpose === "EXTRA" ? 0 : feeSplit.passThroughFee,
+            feeLabel: feeLabelFor(booking.lead.serviceType),
             protectionPlan,
             gst,
             gatewayFee,
@@ -147,8 +160,10 @@ export async function loadCheckoutByToken(token: string) {
         crossSellOptOut: booking.lead.crossSellOptOut,
         documentTypes: booking.documents.map((document) => document.type),
       }),
+      // Client doc 2026-10-27 (C8 / E3) — only real files for this booking's passengers ("Pending" slots and rejected
+      // files are not uploads; earlier bookings' files appear only as "Use existing" offers above).
       documents: booking.documents
-        .filter((document) => document.passengerId)
+        .filter((document) => document.passengerId && isDocumentUploaded(document))
         .map((document) => ({ passengerId: document.passengerId as string, type: document.type, status: document.status })),
     },
   };

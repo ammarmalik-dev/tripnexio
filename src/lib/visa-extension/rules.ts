@@ -43,7 +43,23 @@ export function urgentDeadlineFromDetails(details: unknown): UrgentDeadline | nu
   const holidays = Array.isArray(block.nextDayHolidays)
     ? block.nextDayHolidays.filter((h): h is UrgentDeadline["nextDayHolidays"][number] => !!h && typeof h.name === "string" && (h.country === "UAE" || h.country === "INDIA"))
     : [];
-  return { day: block.day, at: block.at, nextDayHolidays: holidays };
+  return alignDeadlineToVerifiedExpiry({ day: block.day, at: block.at, nextDayHolidays: holidays }, data.verifiedExpiryDate);
+}
+
+/**
+ * Client doc 2026-10-27 (D3) — staff verified the expiry as 17 Oct but the customer's quote / payment page said
+ * "pay by 6:00 PM on 19 Oct": blocks stored before the 20 Oct rule (D2) rolled a weekend expiry on to the next
+ * working day. The deadline is always 6:00 PM on the staff-verified expiry day itself (never the customer's own
+ * date), so a stored block whose day differs is moved to it — the same 18:00 local time, shifted by whole days.
+ * The holiday warning belonged to the old day, so it is dropped rather than shown against the wrong date.
+ */
+export function alignDeadlineToVerifiedExpiry(deadline: UrgentDeadline, verifiedExpiryDate: unknown): UrgentDeadline {
+  const expiryDay = typeof verifiedExpiryDate === "string" ? verifiedExpiryDate.slice(0, 10) : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryDay) || expiryDay === deadline.day) return deadline;
+  const shiftMs = Date.parse(`${expiryDay}T00:00:00Z`) - Date.parse(`${deadline.day}T00:00:00Z`);
+  const atMs = Date.parse(deadline.at);
+  if (Number.isNaN(shiftMs) || Number.isNaN(atMs)) return deadline;
+  return { day: expiryDay, at: new Date(atMs + shiftMs).toISOString(), nextDayHolidays: [] };
 }
 
 /**

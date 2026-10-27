@@ -34,3 +34,18 @@ describe("vendor rate for a New Visa passenger", () => {
     expect(pickVendorRate(rows, { processingType: "normal", nationalityId: null, paxType: "ADULT" })?.cost).toBe(4000);
   });
 });
+
+describe("New Visa vendor rates by visa type (client doc 2026-10-27, E2)", () => {
+  const rows = [
+    { airlineId: null, processingType: null, nationalityId: null, paxType: "ADULT", newVisaConfigId: null, cost: 3000 },
+    { airlineId: null, processingType: null, nationalityId: null, paxType: "ADULT", newVisaConfigId: "nv-30-single", cost: 2500 },
+    { airlineId: null, processingType: null, nationalityId: null, paxType: "ADULT", newVisaConfigId: "nv-60-multi", cost: 5200 },
+  ];
+
+  it("uses the rate of the chosen visa type, else the any-visa-type rate", () => {
+    expect(pickVendorRate(rows, { processingType: "normal", paxType: "ADULT", newVisaConfigId: "nv-30-single" })?.cost).toBe(2500);
+    expect(pickVendorRate(rows, { processingType: "normal", paxType: "ADULT", newVisaConfigId: "nv-60-multi" })?.cost).toBe(5200);
+    expect(pickVendorRate(rows, { processingType: "normal", paxType: "ADULT", newVisaConfigId: "nv-90" })?.cost).toBe(3000);
+    expect(pickVendorRate(rows, { processingType: "normal", paxType: "ADULT" })?.cost).toBe(3000);
+  });
+});

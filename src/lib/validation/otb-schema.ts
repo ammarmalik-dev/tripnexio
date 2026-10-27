@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { honeypotShape } from "./honeypot";
+import { UPLOAD_FIELD_MIME_TYPES } from "../uploads/document-rules";
 
 /**
  * OTB (Ok to Board) request validation. No nationality field per business
@@ -60,7 +61,7 @@ export const otbStep2Schema = z.object({
  */
 export const otbStep3Schema = z.object({
   passportImageBase64: z.string().optional(),
-  passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+  passportImageMimeType: z.enum(UPLOAD_FIELD_MIME_TYPES).optional(),
 });
 
 export const MAX_ADDITIONAL_OTB_APPLICANTS = 8;

@@ -7,6 +7,7 @@ import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
 import { sendQuotationSchema } from "@/lib/validation/quotation-schema";
 import { assertValidityWithinCap, effectiveQuoteValidity } from "@/lib/quotations/validity-cap";
+import { draftSendValidity } from "@/lib/quotations/send-validity";
 import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
 import { isAirportToAirportLead, parseOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
 import { applyQuotationSentEffects, notifyQuoteReady } from "@/lib/quotations/send-quotation";
@@ -78,17 +79,19 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(409, "Add the exit and re-entry flights to this option before sending it.");
   }
 
-  let validityExpiresAt = quotation.validityExpiresAt;
   if (parsed.data.validityExpiresAt) {
     const capError = await assertValidityWithinCap(lead.serviceType, parsed.data.validityExpiresAt, lead.countryId);
     if (capError) return jsonError(400, capError, { validityExpiresAt: [capError] });
-    validityExpiresAt = new Date(parsed.data.validityExpiresAt);
   }
-  // A flight draft saved without a validity goes out with the full window (client 2026-10-23 audit).
-  if (!validityExpiresAt) {
-    const fallback = await effectiveQuoteValidity(lead.serviceType, undefined, lead.countryId);
-    if (fallback) validityExpiresAt = new Date(fallback);
-  }
+  // A flight draft saved without a validity goes out with the full window (client 2026-10-23 audit); client doc
+  // 2026-10-27 (A6) — so does one whose saved validity already passed while it sat as a draft.
+  const fallback = await effectiveQuoteValidity(lead.serviceType, undefined, lead.countryId);
+  const validityExpiresAt = draftSendValidity({
+    explicit: parsed.data.validityExpiresAt ? new Date(parsed.data.validityExpiresAt) : null,
+    stored: quotation.validityExpiresAt,
+    fallback: fallback ? new Date(fallback) : null,
+    now: new Date(),
+  });
   if (validityExpiresAt && validityExpiresAt.getTime() <= Date.now()) {
     const message = "This draft's validity has already passed — set a new validity before sending.";
     return jsonError(409, message, { validityExpiresAt: [message] });

@@ -8,6 +8,8 @@ import { buildQuoteFormSchema, type QuoteFormValues } from "@/lib/validation/quo
 import { flightFieldsFromSectors } from "@/lib/quotations/itinerary";
 import { EMPTY_SEGMENT, SpecialFareQuoteFields, type PaxCountsView } from "./SpecialFareQuoteFields";
 import { cn } from "@/lib/cn";
+import { toast } from "@/components/ui/Toaster";
+import { firstFormErrorMessage } from "@/lib/forms-first-error";
 
 interface AirportOption {
   code: string;
@@ -122,7 +124,7 @@ export function SpecialFareAlternativeForm({
         paxCounts={paxCounts}
       />
       <div className="flex justify-end">
-        <Button type="button" size="sm" onClick={() => void handleSubmit(submit)()} isLoading={pending} disabled={pending}>
+        <Button type="button" size="sm" onClick={() => void handleSubmit(submit, (formErrors) => toast.error(firstFormErrorMessage(formErrors) ?? "Please check the highlighted fields."))()} isLoading={pending} disabled={pending}>
           Record unavailability
         </Button>
       </div>

@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/Button";
 import { buildQuoteFormSchema, type QuoteFormValues } from "@/lib/validation/quotation-schema";
 import { FLIGHT_QUOTE_MAX_VALIDITY_MINUTES } from "@/lib/quotations/pricing";
 import { getJson } from "@/lib/api/client";
+import { toast } from "@/components/ui/Toaster";
+import { firstFormErrorMessage } from "@/lib/forms-first-error";
 import { cn } from "@/lib/cn";
 import { MAX_ITINERARY_SEGMENTS, flightFieldsFromSectors, type ItinerarySegment } from "@/lib/quotations/itinerary";
 import { EMPTY_SEGMENT, SpecialFareQuoteFields, type PaxCountsView } from "./SpecialFareQuoteFields";
@@ -222,6 +224,9 @@ export function QuoteBuilderForm({
       ...initialValues,
       ...(perPaxCosting
         ? {
+            // Client doc 2026-10-27 (D2/D7) — the quote-level Vendor Cost field isn't shown here (the server sets it
+            // from Σ passenger cost), but the shared schema requires it: left undefined, Save / Send failed silently.
+            vendorCost: initialValues?.vendorCost ?? 0,
             paxCosting:
               initialValues?.paxCosting && initialValues.paxCosting.length > 0
                 ? initialValues.paxCosting
@@ -261,9 +266,13 @@ export function QuoteBuilderForm({
   // never submits, so pressing Enter can't send a quote to a customer.
   const submitWith = (action: QuoteFormAction) => {
     setPendingAction(action);
-    void handleSubmit(async (values) => {
-      await onSubmit(normalizeForSubmit(values, isFlightQuote), action);
-    })().finally(() => setPendingAction(null));
+    void handleSubmit(
+      async (values) => {
+        await onSubmit(normalizeForSubmit(values, isFlightQuote), action);
+      },
+      // Client doc 2026-10-27 (A6) — never a silent no-op: say what is missing.
+      (formErrors) => toast.error(firstFormErrorMessage(formErrors) ?? "Please check the highlighted fields.")
+    )().finally(() => setPendingAction(null));
   };
 
   // Item 9 (client-message/PENDING_WORK_PROMPTS.md) — Visa Change's

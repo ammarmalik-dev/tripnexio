@@ -10,6 +10,7 @@ import { cn } from "@/lib/cn";
 import { getJson } from "@/lib/api/client";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import type { FlightSpecialFareRequestValues } from "@/lib/validation/flight-special-fare-schema";
+import { previewPaxTypeLabel } from "@/lib/special-fare/pax-summary";
 
 interface SavedPassenger {
   id: string;
@@ -20,22 +21,6 @@ interface SavedPassenger {
 }
 
 const MIN_DOB = "1900-01-01";
-
-/** Flight_Special_Fare.md §7 (client-side preview only — the real, trusted calculation runs server-side at submission). */
-function previewPaxType(dob: string, travelDate: string): "Adult" | "Child" | "Infant" | null {
-  if (!dob || !travelDate) return null;
-  const dobDate = new Date(dob);
-  const travel = new Date(travelDate);
-  if (Number.isNaN(dobDate.getTime()) || Number.isNaN(travel.getTime())) return null;
-
-  let age = travel.getFullYear() - dobDate.getFullYear();
-  const monthDiff = travel.getMonth() - dobDate.getMonth();
-  if (monthDiff < 0 || (monthDiff === 0 && travel.getDate() < dobDate.getDate())) age--;
-
-  if (age < 2) return "Infant";
-  if (age < 12) return "Child";
-  return "Adult";
-}
 
 /** Local calendar-date YYYY-MM-DD — not `toISOString()`, which converts to
  * UTC and can shift the date by a day depending on the browser's timezone. */
@@ -102,9 +87,9 @@ export function Step2Passengers() {
         </Button>
       </div>
 
-      {/* Client doc 2026-10-20 (A6). */}
+      {/* Client doc 2026-10-27 (A2) — replaces the 2026-10-20 (A6) wording. */}
       <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-ink-primary">
-        Enter each name exactly as on the passenger&apos;s government-issued ID or passport — the name and passport number must match it exactly.
+        Enter passenger details exactly as shown on the passport or government-issued ID to ensure accurate ticket issuance.
       </p>
 
       {typeof errors.passengers?.message === "string" ? (
@@ -112,7 +97,7 @@ export function Step2Passengers() {
       ) : null}
 
       {fields.map((field, index) => {
-        const badge = previewPaxType(watchedPassengers?.[index]?.dob ?? "", travelDate ?? "");
+        const badge = previewPaxTypeLabel(watchedPassengers?.[index]?.dob, travelDate);
         const savedId = watchedPassengers?.[index]?.savedPassengerId ?? "";
         const savedPassenger = saved.find((p) => p.id === savedId);
         const reuse = watchedPassengers?.[index]?.reusePassport ?? "";
@@ -185,6 +170,7 @@ export function Step2Passengers() {
               <TextField
                 label="Full Name"
                 required
+                placeholder="Enter full name as per passport/ID"
                 readOnly={Boolean(savedPassenger)}
                 error={errors.passengers?.[index]?.fullName?.message}
                 {...register(`passengers.${index}.fullName` as const)}
@@ -195,6 +181,8 @@ export function Step2Passengers() {
                 readOnly={Boolean(savedPassenger?.dob)}
                 min={MIN_DOB}
                 max={todayIso()}
+                placeholder="DD/MM/YYYY"
+                hint="Passenger Type: Automatically determined from date of birth."
                 error={errors.passengers?.[index]?.dob?.message}
                 {...register(`passengers.${index}.dob` as const)}
               />

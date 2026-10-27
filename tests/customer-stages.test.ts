@@ -1,0 +1,62 @@
+import { describe, expect, it } from "vitest";
+import { customerStages, reachedStatusNames, type StageStatus } from "../src/lib/service-status/customer-stages";
+
+let order = 0;
+const st = (name: string, label: string, extra: Partial<StageStatus> = {}): StageStatus => ({
+  id: name,
+  name,
+  customerLabel: label,
+  displayOrder: (order += 10),
+  systemEvent: null,
+  isTerminal: false,
+  mapsToBookingStatus: null,
+  ...extra,
+});
+
+// The client's OTB booking list (shape only).
+const otb = [
+  st("Payment Pending", "Payment Pending"),
+  st("Paid", "Payment Received", { systemEvent: "PAYMENT_SUCCESS" }),
+  st("Document Pending", "Documents Required", { systemEvent: "DOCUMENTS_REQUESTED" }),
+  st("Documents Uploaded", "Documents Received", { systemEvent: "DOCUMENTS_RECEIVED" }),
+  st("Documents Validated", "Documents Validated", { systemEvent: "DOCUMENTS_VALIDATED" }),
+  st("Sent to Airlines", "Sent to Airlines", { systemEvent: "OTB_SUBMITTED" }),
+  st("Additional Documents Received", "Additional Documents Received", { systemEvent: "ADDITIONAL_DOCUMENTS_RECEIVED" }),
+  st("OTB Application Approved", "OTB Approved", { systemEvent: "OTB_APPROVED", isTerminal: true, mapsToBookingStatus: "COMPLETED" }),
+  st("OTB Approved for Partially Applicants", "OTB Approved for Partially Applicants", { systemEvent: "PARTIAL_APPROVED" }),
+  st("OTB Application Rejected", "OTB Rejected", { systemEvent: "OTB_REJECTED", isTerminal: true, mapsToBookingStatus: "CANCELLED" }),
+  st("Partially Cancelled", "Partially Cancelled", { systemEvent: "REFUND_PARTIALLY_COMPLETED" }),
+  st("Refund Completed", "Refund Completed", { systemEvent: "REFUND_COMPLETED" }),
+];
+const labels = (stages: { label: string }[]) => stages.map((stage) => stage.label);
+
+describe("customer Track Status steps (client doc 2026-10-27, C7)", () => {
+  it("the default path shows only the main steps — no partial / rejected / refund steps", () => {
+    const stages = customerStages(otb, otb[1], new Set(["Payment Pending", "Paid"]));
+    expect(labels(stages)).toEqual(["Payment Pending", "Payment Received", "Documents Required", "Documents Received", "Documents Validated", "Sent to Airlines", "OTB Approved"]);
+    expect(stages[1].status).toBe("current");
+    expect(stages.at(-1)?.status).toBe("upcoming");
+  });
+  it("a partial approval shows once it happened", () => {
+    const reached = new Set(["Paid", "Document Pending", "Documents Uploaded", "Documents Validated", "Sent to Airlines", "OTB Approved for Partially Applicants"]);
+    const stages = customerStages(otb, otb[8], reached);
+    expect(stages.find((stage) => stage.label === "OTB Approved for Partially Applicants")?.status).toBe("current");
+    expect(labels(stages)).not.toContain("OTB Rejected");
+  });
+  it("a final status leaves nothing upcoming, and an outcome never reached is never shown as done", () => {
+    const reached = new Set(["Paid", "Sent to Airlines", "OTB Application Rejected"]);
+    const stages = customerStages(otb, otb[9], reached);
+    expect(stages.at(-1)).toEqual({ label: "OTB Rejected", status: "current" });
+    expect(labels(stages)).not.toContain("OTB Approved");
+    expect(stages.every((stage) => stage.status !== "upcoming")).toBe(true);
+  });
+  it("reads the statuses a booking was moved to from its audit notes", () => {
+    const names = reachedStatusNames([
+      "Paid -> Document Pending [CONFIRMED -> CONFIRMED]: system event DOCUMENTS_REQUESTED (by Asha)",
+      "Admin override: Sent to Airlines -> OTB Approved for Partially Applicants: correction (by Admin)",
+      "Sent to Airlines -> OTB Application Approved (by Asha)",
+      null,
+    ]);
+    expect([...names]).toEqual(["Document Pending", "OTB Approved for Partially Applicants", "OTB Application Approved"]);
+  });
+});

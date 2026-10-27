@@ -17,6 +17,7 @@ import { HONEYPOT_FIELD } from "@/lib/validation/honeypot";
 import { RequestInfoPanel } from "./RequestInfoPanel";
 import { toast } from "@/components/ui/Toaster";
 import { ApiError, RequestIneligibleOutcome } from "@/lib/api/client";
+import { firstFormErrorMessage } from "@/lib/forms-first-error";
 import type { DraftServiceType } from "@/lib/validation/lead-draft-schema";
 
 type SubmitState = "idle" | "loading" | "success" | "error" | "ineligible";
@@ -154,8 +155,14 @@ export function MultiStepRequestFlow<T extends FieldValues>({
         return;
       }
       setSubmitState("error");
-      toast.error(error instanceof ApiError ? error.message : "Couldn't submit your request. Please try again.");
+      // Client doc 2026-10-27 (D1) — name the field the server refused, not just "check the highlighted fields".
+      const fieldMessage = error instanceof ApiError && error.fieldErrors ? Object.values(error.fieldErrors).flat().find(Boolean) : undefined;
+      toast.error(fieldMessage ?? (error instanceof ApiError ? error.message : "Couldn't submit your request. Please try again."));
     }
+  }, (errors: unknown) => {
+    // Client doc 2026-10-27 (D1) — a field that fails on Submit (e.g. on an earlier step, or one the summary step
+    // doesn't show) used to leave the button doing nothing at all; say what is wrong instead.
+    toast.error(firstFormErrorMessage(errors) ?? "Please check your details on the earlier steps.");
   });
 
   if (submitState === "success" && referenceId) {

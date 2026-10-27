@@ -34,9 +34,14 @@ export function documentDisplayName(type: string): string {
  * Client doc 2026-10-15 (I6) — one line per passenger: "Rahul: Passport (blurry), Photo; Priya: Visa copy".
  * Without names (or with one passenger only) it's the plain list "Passport (blurry); Photo".
  */
-export function documentsByPassengerSummary(items: { passengerName?: string | null; label: string }[]): string {
+export function documentsByPassengerSummary(
+  items: { passengerName?: string | null; label: string }[],
+  /** Client doc 2026-10-27 (C11) — customer messages always say which passenger, even when there is only one. */
+  options: { alwaysName?: boolean } = {}
+): string {
   const names = new Set(items.map((item) => item.passengerName?.trim() || ""));
-  if (names.size <= 1) return items.map((item) => item.label).join("; ");
+  const anyName = [...names].some(Boolean);
+  if (names.size <= 1 && !(options.alwaysName && anyName)) return items.map((item) => item.label).join("; ");
   const groups = new Map<string, string[]>();
   for (const item of items) {
     const key = item.passengerName?.trim() || "Other";
@@ -56,7 +61,8 @@ export function reviewRoundOutcome(documents: ReviewRoundDocument[]): ReviewRoun
           passengerName: document.passengerName,
           label: document.status === "REJECTED" && document.rejectionReason ? `${name} (${document.rejectionReason})` : name,
         };
-      })
+      }),
+      { alwaysName: true }
     );
     return { kind: "ACTION_REQUIRED", summary, count: outstanding.length };
   }

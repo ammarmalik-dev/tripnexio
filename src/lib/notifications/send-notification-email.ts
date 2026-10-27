@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { OUTPUT_IMPORTANT_INFO } from "../outputs/output-notes";
+import { importantInfoFor, OUTPUT_IMPORTANT_INFO } from "../outputs/output-notes";
 import { escapeHtml } from "../html/escape";
 import type { OutputType } from "../outputs/output-types";
 import { ctaFor } from "./cta";
@@ -93,12 +93,13 @@ export async function sendNotificationEmail(input: SendNotificationEmailInput): 
       .replace(/\n/g, "<br>")
       .replace(CTA_MARKER, cta ? emailButtonHtml(cta.label, cta.url) : "")
       .replaceAll(CTA_MARKER, "");
-    const info = OUTPUT_IMPORTANT_INFO[variables.outputType as OutputType];
+    // Client doc 2026-10-27 (D12) — also for a status-template output email (Visa Change package), unless already in the body.
+    const info = importantInfoFor(event, variables.outputType, body);
     const html = info
       ? `${body}<div style="margin-top:18px;padding:14px 16px;border-radius:12px;background:#F1F6FE"><p style="margin:0 0 8px"><strong>${escapeHtml(info.title)}</strong></p>${info.lines
           .map((line) => `<p style="margin:0 0 6px">${escapeHtml(line)}</p>`)
           .join("")}<p style="margin:10px 0 0"><strong>${escapeHtml(info.closing)}</strong></p></div>`
-      : OUTPUT_EVENTS.has(event)
+      : OUTPUT_EVENTS.has(event) && !OUTPUT_IMPORTANT_INFO[variables.outputType as OutputType]
         ? `${body}<p style="margin-top:16px"><strong>${OUTPUT_DISCREPANCY_NOTE}</strong></p>`
         : body;
 

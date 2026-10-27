@@ -30,6 +30,8 @@ interface StatusState {
   all?: (StatusOption & { isTerminal: boolean })[];
   /** Client doc 2026-10-15 (I9) — the viewer is an Admin and may move to any status (with a reason). */
   canOverride?: boolean;
+  /** Client doc 2026-10-27 (N1/C13) — next steps taken from the booking's action panel (e.g. Sent to Airlines: asks for the vendor). */
+  panelOnly?: { id: string; name: string }[];
 }
 
 const INPUT_LABELS: Record<InputKey, { label: string; placeholder?: string }> = {
@@ -157,7 +159,7 @@ export function ServiceStatusControl<TCoarse extends string>({
         {/* Left — the next internal statuses as buttons. */}
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className="text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">Move to</span>
-          {state.allowed.length > 0 ? (
+          {state.allowed.length > 0 || (state.panelOnly?.length ?? 0) > 0 ? (
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Change status">
               {state.allowed.map((option) => (
                 <button
@@ -175,6 +177,15 @@ export function ServiceStatusControl<TCoarse extends string>({
                   {option.notifies ? <Mail className="h-3 w-3 opacity-70" aria-label="customer notified" /> : null}
                   {option.name}
                 </button>
+              ))}
+              {(state.panelOnly ?? []).map((step) => (
+                <span
+                  key={step.id}
+                  title="Taken from the action panel in Operations — it asks for the vendor and needs every document validated."
+                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-hairline px-2.5 py-1 text-xs font-medium text-ink-secondary"
+                >
+                  {step.name} <span className="text-ink-tertiary">· Operations panel</span>
+                </span>
               ))}
             </div>
           ) : (

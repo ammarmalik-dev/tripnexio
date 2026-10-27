@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { honeypotShape } from "./honeypot";
+import { UPLOAD_FIELD_MIME_TYPES } from "../uploads/document-rules";
 
 /**
  * Visa Extension website request validation, per the client's updated
@@ -17,7 +18,8 @@ import { honeypotShape } from "./honeypot";
 
 export const MAX_ADDITIONAL_APPLICANTS = 5;
 
-const IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
+// Client doc 2026-10-27 (D1) — PDF copies are accepted (they used to fail this enum on Submit).
+const IMAGE_MIME_TYPES = UPLOAD_FIELD_MIME_TYPES;
 
 const passportImageFields = {
   passportImageBase64: z.string().min(1, "Upload a copy of the passport"),

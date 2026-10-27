@@ -98,12 +98,11 @@ export async function linkServiceBookings(
   return { ok: true };
 }
 
-/** P17 — Return_Verified_Ticket.md §18: vendor / cost / reference / PNR the staff record on the booking. */
+/** P17 — Return_Verified_Ticket.md §18: vendor / cost / PNR the staff record on the booking (no vendor reference — client doc 2026-10-27, B2). */
 export const returnTicketVendorSchema = z.object({
   vendorId: z.string().min(1, "Select a vendor"),
   /** Optional: blank = the vendor's configured rate (looked up on the server, client 2026-10-23 audit). */
   vendorCost: z.number().min(0, "Can't be negative").max(10_000_000, "That's too large").optional(),
-  vendorReference: z.string().trim().max(120, "Too long").optional().default(""),
   pnr: z.string().trim().max(40, "Too long").optional().default(""),
 });
 

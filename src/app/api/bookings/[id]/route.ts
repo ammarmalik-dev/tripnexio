@@ -23,6 +23,7 @@ import { getBookingTimeline } from "@/lib/audit/booking-timeline";
 import { getBookingDates } from "@/lib/crm/booking-dates";
 import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
 import { vendorChoiceBlock } from "@/lib/bookings/set-vendor";
+import { documentsValidatedBlock } from "@/lib/bookings/documents-ready";
 import { bookingOutcomeLabel, passengerAmounts } from "@/lib/bookings/passenger-outcomes";
 import { specialFarePaxCounts } from "@/lib/special-fare/pax-counts";
 
@@ -156,6 +157,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     }),
     // Client doc 2026-10-15 (I7) — whether staff can pick the vendor now (and why not).
     vendorChoiceBlockedReason: vendorChoiceBlock(booking.lead.serviceType, booking.documents),
+    // Client doc 2026-10-27 (C1) — why Sent to Airlines / Applied to Embassy can't be taken yet (documents not validated).
+    applyBlockedReason: documentsValidatedBlock(
+      booking.documents,
+      booking.passengers.filter((row) => row.outcome === "CANCELLED").map((row) => row.passengerId)
+    ),
     // P21 — staff-internal vendor summary (vendor cost / margin never go to a customer view).
     vendorSummary: selectedQuotation
       ? {
@@ -193,8 +199,12 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
               fullName: row.passenger.fullName,
               ticketNumber: row.ticketNumber,
               issued: ticketDocs.some((doc) => doc.passengerId === null || doc.passengerId === row.passenger.id),
+              // Client doc 2026-10-27 (A4) — a cancelled / rejected passenger gets no ticket (never "Pending").
+              cancelled: row.outcome === "CANCELLED" || row.outcome === "REJECTED",
             })),
             canMarkUnavailable: ticketDocs.length === 0 || auth.session.permissions.includes(ADMIN_FULL_PERMISSION),
+            // Client doc 2026-10-27 (A5) — after a delivered ticket, an Admin's "Unavailable" is an override with a reason.
+            ticketDelivered: ticketDocs.length > 0,
             // Client 2026-10-21 — the alternative uses the quote form: traveller counts + the quote's airports to start from.
             paxCounts: await specialFarePaxCounts(booking.lead),
             quoteFromAirport: selectedQuotation?.fromAirportCode ?? null,

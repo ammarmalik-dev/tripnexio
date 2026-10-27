@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { honeypotShape } from "./honeypot";
+import { UPLOAD_FIELD_MIME_TYPES } from "../uploads/document-rules";
 import { ageBasisDate, isMinor } from "@/lib/leads/age";
 
 /**
@@ -78,7 +79,7 @@ export const newVisaStep2Schema = z.object({
  */
 export const newVisaStep3Schema = z.object({
   passportImageBase64: z.string().optional(),
-  passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+  passportImageMimeType: z.enum(UPLOAD_FIELD_MIME_TYPES).optional(),
   // Cross-field "must accept terms to opt in" is enforced by the UI and
   // again in the intake route, not a zod .refine() here — a refine()-wrapped schema loses
   // its `.shape`, which both newVisaRequestSchema's `.extend()` below and
@@ -134,7 +135,7 @@ export const newVisaAdditionalTravellerSchema = z.object({
   fullName: z.string().trim().min(2, "Enter the traveller's full name").max(80, "Name is too long"),
   ...travellerDetailFields,
   passportImageBase64: z.string().optional(),
-  passportImageMimeType: z.enum(["image/jpeg", "image/png", "image/gif", "image/webp"]).optional(),
+  passportImageMimeType: z.enum(UPLOAD_FIELD_MIME_TYPES).optional(),
 });
 
 /** The primary traveller's own details (their name/contact come from step 1; their passport copy uses newVisaStep3Schema's existing fields). */

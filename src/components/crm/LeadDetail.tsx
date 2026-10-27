@@ -10,6 +10,7 @@ import { Plus } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { RecordHeader, RecordSection, RecordTabs } from "./detail/RecordDetail";
 import { LeadDirectPaymentButton } from "./LeadDirectPaymentButton";
+import { PendingBookingPaymentActions } from "./PendingBookingPaymentActions";
 import { VisaChangeMethodControl } from "./VisaChangeMethodControl";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -113,6 +114,8 @@ interface LeadDetailResponse {
   countryName: string | null;
   travelDate: string | null;
   paxCount: number | null;
+  /** Client doc 2026-10-27 (A6) — the counts the server prices a Special Fare quote with. */
+  specialFarePaxCounts?: { adult: number; child: number; infant: number } | null;
   subService: string | null;
   assignedStaff: { id: string; name: string; email: string; active: boolean } | null;
   customer: {
@@ -126,6 +129,8 @@ interface LeadDetailResponse {
   priorVisaMatches: PriorVisaMatchItem[];
   quotations: QuotationSummary[];
   bookings: BookingItem[];
+  /** Client doc 2026-10-27 (K1) — staff-created lead: Bank Transfer is offered too. */
+  offlinePaymentAllowed?: boolean;
   timeline: {
     id: string;
     entityType: string;
@@ -501,7 +506,7 @@ export function LeadDetail({
                     leadId={lead.id}
                     serviceType={lead.serviceType}
                     visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
-                    paxCounts={paxCountsOf(lead.passengers)}
+                    paxCounts={lead.specialFarePaxCounts ?? paxCountsOf(lead.passengers)}
                     passengers={lead.passengers.map((passenger) => ({ id: passenger.id, fullName: passenger.fullName }))}
                     flightRequest={{ fromCode: airportCodeOf(lead.details.origin), toCode: airportCodeOf(lead.details.destination) }}
                     leadStatus={lead.status}
@@ -535,6 +540,9 @@ export function LeadDetail({
                                 ))}
                               </div>
                             ) : null}
+                            {booking.status === "PENDING" && !booking.payments.some((payment) => payment.status === "PENDING" || payment.status === "SUCCESS") ? (
+                              <PendingBookingPaymentActions bookingId={booking.id} offlinePaymentAllowed={Boolean(lead.offlinePaymentAllowed)} onCreated={refresh} />
+                            ) : null}
                           </div>
                         ))}
                       </div>
@@ -562,7 +570,11 @@ export function LeadDetail({
                   </div>
                 ))}
                 <RecordSection title="Applicants">
-                  <ApplicantsTable applicants={lead.applicants} editable={{ leadId: lead.id, onChanged: refresh }} />
+                  <ApplicantsTable
+                    applicants={lead.applicants}
+                    // Client doc 2026-10-27 (C12) — no passenger can be added free of charge once the lead is paid.
+                    editable={{ leadId: lead.id, onChanged: refresh, canAdd: !lead.bookings.some((booking) => booking.payments.some((payment) => payment.status === "SUCCESS")) }}
+                  />
                 </RecordSection>
                 <RecordSection title="Passengers & Documents">
                   {lead.passengers.length > 0 ? (
@@ -609,7 +621,11 @@ export function LeadDetail({
                               ))
                             )}
                           </div>
-                          <PassportExtractionReview passengerId={passenger.id} />
+                          <PassportExtractionReview
+                            passengerId={passenger.id}
+                            allowUpload={!passenger.documents.some((document) => /passport/i.test(document.type) && !/photo/i.test(document.type))}
+                            refreshKey={passenger.documents.map((document) => `${document.id}:${document.fileUrl ?? ""}:${document.status}`).join(",")}
+                          />
                         </div>
                       ))}
                     </div>

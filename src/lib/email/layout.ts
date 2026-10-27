@@ -2,7 +2,7 @@
  * The branded email layout from the client's sample (client testing
  * 2026-10-09, H — `client-message/new-doc-from-client-09-oct`, image 6),
  * restyled per client doc 2026-10-15 (H): a subtle light-blue body around a
- * white card, a dark-navy header with the white logo and the tagline, compact
+ * white card, a dark-navy header with the name in large white text and the tagline (2026-10-27, H1), compact
  * spacing, contacts in an aligned two-column grid that stacks on a phone, a
  * "Follow Us On" row of social icons and a one-line automated-email note. Then the
  * event illustration + heading + status pill, a Booking ID / Service card, the
@@ -67,16 +67,21 @@ export function escapeEmailText(text: string): string {
 /**
  * Templates written before this layout end with their own "— TripNexio" sign-off;
  * the layout now signs every email "Team TripNexio", so a trailing one is dropped.
+ * Client doc 2026-10-27 (H1) — "Best regards, Team TripNexio" still showed twice: a template's own sign-off is
+ * often followed by the Pay Now / Download button or the output note, so it is removed wherever it stands on its
+ * own lines, not only at the very end. The layout then signs once, after the message, before "Need assistance?".
  */
 export function stripTrailingSignature(bodyHtml: string, companyName: string): string {
   const name = companyName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return (
-    bodyHtml
-      .replace(new RegExp(`(?:<br\\s*/?>|\\s)*(?:—|–|-{1,2})\\s*(?:Team\\s+)?${name}\\.?(?:<br\\s*/?>|\\s)*$`, "i"), "")
-      // Client doc 2026-10-20 (H1) — a template's own "Best regards, Team TripNexio" / "Regards, TripNexio Support":
-      // the layout signs every email once, right after the message.
-      .replace(new RegExp(`(?:<br\\s*/?>|\\s)*(?:Best\\s+)?regards,?(?:<br\\s*/?>|\\s)*(?:Team\\s+)?${name}(?:\\s+Support)?\\.?(?:<br\\s*/?>|\\s)*$`, "i"), "")
+  const gap = "(?:<br\\s*/?>|\\s)*";
+  const signOff = new RegExp(
+    `${gap}(?:(?:best|warm|kind|thanks\\s*(?:&amp;|&|and))\\s+)?regards,?${gap}(?:(?:the\\s+)?team\\s+)?${name}(?:\\s+(?:team|support))?\\.?(?=${gap}(?:<|$))`,
+    "gi"
   );
+  return bodyHtml
+    .replace(signOff, "")
+    .replace(new RegExp(`${gap}(?:—|–|-{1,2})\\s*(?:Team\\s+)?${name}\\.?${gap}$`, "i"), "")
+    .replace(/(?:<br\s*\/?>|\s)+$/i, "");
 }
 
 /** A bulletproof (table-based, Outlook-safe) button — "Pay Now", "Download"… (client 2026-10-14: buttons, not bare links). */
@@ -167,10 +172,10 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
 <body style="margin:0;padding:0;background:${PAGE}">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:${PAGE}"><tr><td align="center" style="padding:16px 8px">
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#FFFFFF;border-radius:16px;overflow:hidden">
-  <tr><td align="center" style="background:${NAVY};padding:22px 18px">
-    <!-- Client doc 2026-10-20 (H2): the name on top, the tagline under it, centred. The alt text reads as the name when images are off. -->
-    <img src="${site}/email/logo-white.png" width="180" alt="${esc(input.companyName)}" style="${FONT}display:block;margin:0 auto;width:180px;max-width:100%;height:auto;border:0;color:#FFFFFF;font-size:30px;font-weight:700;line-height:1.2">
-    ${input.tagline.trim() ? `<p style="${FONT}margin:8px 0 0;font-size:15px;line-height:1.4;color:#DCE6F7">${esc(input.tagline)}</p>` : ""}
+  <tr><td align="center" style="background:${NAVY};padding:26px 18px">
+    <!-- Client doc 2026-10-27 (H1): the name as large bold white text with the tagline under it, centred (HTML text, so it shows with images off). -->
+    <p style="${FONT}margin:0;font-size:34px;line-height:1.2;font-weight:700;color:#FFFFFF">${esc(input.companyName)}</p>
+    ${input.tagline.trim() ? `<p style="${FONT}margin:6px 0 0;font-size:16px;line-height:1.4;color:#DCE6F7">${esc(input.tagline)}</p>` : ""}
   </td></tr>
   <tr><td style="padding:0 20px">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0">

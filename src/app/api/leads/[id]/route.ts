@@ -11,6 +11,8 @@ import { syncExpiredQuotations } from "@/lib/quotations/sync-expiry";
 import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
 import { findPriorTripNexioVisaByPassport } from "@/lib/leads/visa-extension-eligibility";
 import { leadDocumentsWhere } from "@/lib/documents/document-lead";
+import { specialFarePaxCounts } from "@/lib/special-fare/pax-counts";
+import { isInternallyCreatedLead } from "@/lib/leads/internal-lead";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -96,6 +98,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     countryName: lead.country?.name ?? null,
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paxCount: lead.paxCount,
+    // Client doc 2026-10-27 (A6) — the Adult / Child / Infant counts the server prices a Special Fare quote with,
+    // so the quote builder's totals match what is stored (a bot / manual lead may have counts but no passengers yet).
+    specialFarePaxCounts: lead.serviceType === "FLIGHT_SPECIAL_FARE" ? await specialFarePaxCounts(lead) : null,
     subService: subServiceLabel(lead.details),
     // Step 50 — `active` lets the UI show "Unassigned (was: Name)" for a
     // record whose assignee has since been deactivated, instead of quietly
@@ -128,6 +133,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     priorVisaMatches,
     quotations,
     bookings: lead.bookings,
+    // Client doc 2026-10-27 (K1) — a staff-created (Manual) lead may also be paid offline (bank transfer).
+    offlinePaymentAllowed: await isInternallyCreatedLead(lead),
     timeline: timeline.map((entry) => ({
       id: entry.id,
       entityType: entry.entityType,

@@ -6,10 +6,8 @@ import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { EMBASSY_ACTIONS, type EmbassyAction } from "@/lib/new-visa/embassy-actions";
 import { ConfirmActionDialog } from "./ConfirmActionDialog";
-import { useServiceVendors } from "./booking/BookingVendorPicker";
-import { fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
+import { ApplyVendorSelect } from "./booking/BookingVendorPicker";
 import { DIRECT_VENDOR_NAME } from "@/lib/bookings/vendor-names";
-import { cn } from "@/lib/cn";
 
 function formatDate(value: string | null): string {
   if (!value) return "—";
@@ -32,6 +30,7 @@ export function EmbassyActionsPanel({
   currentStatus,
   rejectionReason,
   currentVendor,
+  documentsBlockedReason = null,
   onChanged,
 }: {
   bookingId: string;
@@ -42,15 +41,20 @@ export function EmbassyActionsPanel({
   rejectionReason: string | null;
   /** Client testing 2026-10-09 (E12) — the vendor on record (null / the placeholder = not chosen yet). */
   currentVendor: { id: string; name: string | null } | null;
+  /** Client doc 2026-10-27 (C1) — documents not all validated yet: Applied to Embassy waits (the server checks too). */
+  documentsBlockedReason?: string | null;
   onChanged: () => void;
 }) {
-  const vendors = useServiceVendors("NEW_VISA", bookingId);
   // A direct-payment booking starts with a placeholder vendor, so staff name the real one before "Applied".
   const [vendorId, setVendorId] = useState(() => (currentVendor && currentVendor.name !== DIRECT_VENDOR_NAME ? currentVendor.id : ""));
   const [pending, setPending] = useState<EmbassyAction | null>(null);
   const [confirmingReject, setConfirmingReject] = useState(false);
 
   const run = async (action: EmbassyAction, reason?: string) => {
+    if (action === "APPLIED" && documentsBlockedReason) {
+      toast.error(documentsBlockedReason);
+      return;
+    }
     if (action === "APPLIED" && !vendorId) {
       toast.error("Select the vendor processing this visa first.");
       return;
@@ -92,25 +96,18 @@ export function EmbassyActionsPanel({
         <p className="mb-3 rounded-lg bg-error/10 px-4 py-3 text-sm text-error">Rejected: {rejectionReason}</p>
       ) : null}
       {!appliedToEmbassyAt ? (
-        <div className="mb-3 flex max-w-sm flex-col gap-1.5">
-          <label htmlFor="embassy-vendor" className="text-sm font-medium text-ink-heading">
-            Vendor processing this visa <span className="text-error">*</span>
-          </label>
-          <select
+        <div className="mb-3 flex flex-col gap-1.5">
+          {/* Client doc 2026-10-27 (C13) — the vendor is asked here, from the vendors with a rate for this booking. */}
+          <ApplyVendorSelect
             id="embassy-vendor"
+            label="Vendor processing this visa"
+            bookingId={bookingId}
+            serviceType="NEW_VISA"
             value={vendorId}
-            onChange={(event) => setVendorId(event.target.value)}
+            onChange={setVendorId}
             disabled={pending !== null}
-            className={cn(fieldControlClass, fieldBorderClass(false), "h-10")}
-          >
-            <option value="">{vendors.length === 0 ? "No active vendors for New Visa" : "Select a vendor"}</option>
-            {vendors.map((vendor) => (
-              <option key={vendor.id} value={vendor.id}>
-                {vendor.name}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-ink-tertiary">Required before Applied to Embassy. Internal — never shown to the customer.</span>
+          />
+          {documentsBlockedReason ? <span className="text-xs text-warning">Applied to Embassy: {documentsBlockedReason}</span> : null}
         </div>
       ) : null}
       <div className="flex flex-wrap gap-2">

@@ -128,7 +128,20 @@ function ReviewCard({ extraction, onResolved }: { extraction: ExtractionData; on
  * src/lib/ocr/extract-passport.ts and /api/document-extractions/[id] — no
  * path from OCR to the database skips this review step.
  */
-export function PassportExtractionReview({ passengerId }: { passengerId: string }) {
+export function PassportExtractionReview({
+  passengerId,
+  allowUpload = true,
+  refreshKey,
+}: {
+  passengerId: string;
+  /**
+   * Client doc 2026-10-27 (C9) — one upload button per document: when the passenger already has a passport
+   * document row, its own upload button (which runs OCR too) is the only one; this then only shows the review.
+   */
+  allowUpload?: boolean;
+  /** Changes when the passenger's documents change, so a passport uploaded from the row shows its extraction. */
+  refreshKey?: string;
+}) {
   const [extractions, setExtractions] = useState<ExtractionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -161,7 +174,7 @@ export function PassportExtractionReview({ passengerId }: { passengerId: string 
     return () => {
       cancelled = true;
     };
-  }, [passengerId]);
+  }, [passengerId, refreshKey]);
 
   const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -196,7 +209,7 @@ export function PassportExtractionReview({ passengerId }: { passengerId: string 
     <div className="mt-3 flex flex-col gap-2">
       {pending ? (
         <ReviewCard extraction={pending} onResolved={() => void reload()} />
-      ) : (
+      ) : !allowUpload ? null : (
         <label className={cn(FILE_BUTTON_CLASS, uploading && "pointer-events-none opacity-60")}>
           <ScanLine className="h-3.5 w-3.5" aria-hidden="true" />
           {uploading ? "Uploading..." : "Upload Passport (auto-extract)"}

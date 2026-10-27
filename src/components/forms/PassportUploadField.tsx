@@ -62,7 +62,9 @@ export function PassportUploadField({
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
+    // Client doc 2026-10-27 (D4) — fills its grid cell with the file picker at the bottom, so two uploads side by side
+    // (Visa Extension passport + visa copy) line up on one row even when their descriptions differ in length.
+    <div className="flex h-full min-w-0 flex-col gap-2 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <label className="text-sm font-medium text-ink-primary" htmlFor={inputId}>
         {label}
         {required ? <span className="ml-0.5 text-error" aria-hidden="true">*</span> : null}
@@ -76,7 +78,7 @@ export function PassportUploadField({
         type="file"
         accept={DOCUMENT_UPLOAD_ACCEPT}
         onChange={handleChange}
-        className="text-sm text-ink-secondary file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink-on-dark-primary hover:file:opacity-90"
+        className="mt-auto w-full min-w-0 text-sm text-ink-secondary file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-ink-on-dark-primary hover:file:opacity-90"
       />
       {hasValue && fileName ? (
         <span className="flex items-center gap-1.5 text-xs text-success">

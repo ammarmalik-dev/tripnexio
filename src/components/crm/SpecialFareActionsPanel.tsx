@@ -32,9 +32,11 @@ export interface SpecialFareBookingView {
   quoteBaggage: string | null;
   quoteVendorReference: string | null;
   /** Client doc 2026-10-20 (A8) — each passenger's ticket: issued or still pending. */
-  tickets: { passengerId: string; fullName: string; ticketNumber: string | null; issued?: boolean }[];
+  tickets: { passengerId: string; fullName: string; ticketNumber: string | null; issued?: boolean; cancelled?: boolean }[];
   /** Client doc 2026-10-20 (A10) — false once a ticket is delivered (only an Admin may then mark it unavailable). */
   canMarkUnavailable?: boolean;
+  /** Client doc 2026-10-27 (A5) — a ticket was delivered: an Admin's "Unavailable" is an override with a reason. */
+  ticketDelivered?: boolean;
   /** Client 2026-10-21 — the alternative uses the quote form: traveller counts + the paid quote's airports. */
   paxCounts?: { adult: number; child: number; infant: number };
   quoteFromAirport?: string | null;
@@ -95,6 +97,7 @@ export function SpecialFareActionsPanel({
   const [pending, setPending] = useState<string | null>(null);
   const [showAlternative, setShowAlternative] = useState(false);
   const [noAlternative, setNoAlternative] = useState(false);
+  const [overrideReason, setOverrideReason] = useState("");
   const [pnr, setPnr] = useState("");
   const [baggage, setBaggage] = useState(view.quoteBaggage ?? "");
   const [ticketFile, setTicketFile] = useState<File | null>(null);
@@ -129,6 +132,7 @@ export function SpecialFareActionsPanel({
       const result = await postJson<{ message: string }>(`/api/bookings/${bookingId}/special-fare-action`, body);
       toast.success(result.message);
       setShowAlternative(false);
+      setOverrideReason("");
       setTicketFile(null);
       setTicketFor([]);
       onChanged();
@@ -139,9 +143,19 @@ export function SpecialFareActionsPanel({
     }
   };
 
-  const submitUnavailable = (alternative: Record<string, unknown> | null) => void run("UNAVAILABLE", { action: "UNAVAILABLE", alternative });
+  // A5 — an Admin override after a delivered ticket carries its reason (the server requires it).
+  const needsOverrideReason = view.ticketDelivered === true;
+  const overrideReady = !needsOverrideReason || overrideReason.trim().length >= 5;
+  const submitUnavailable = (alternative: Record<string, unknown> | null) => {
+    if (!overrideReady) {
+      toast.error("Enter the reason for this Admin override (at least 5 characters).");
+      return;
+    }
+    void run("UNAVAILABLE", { action: "UNAVAILABLE", alternative, ...(needsOverrideReason ? { overrideReason: overrideReason.trim() } : {}) });
+  };
 
-  const pendingTickets = view.tickets.filter((ticket) => !ticket.issued);
+  // Client doc 2026-10-27 (A4) — only passengers still travelling get a ticket; a cancelled one is never "Pending".
+  const pendingTickets = view.tickets.filter((ticket) => !ticket.issued && !ticket.cancelled);
   const chosen = view.tickets.length <= 1 || pendingTickets.length === 1 ? pendingTickets.map((ticket) => ticket.passengerId) : ticketFor;
 
   const submitTicket = async () => {
@@ -181,8 +195,13 @@ export function SpecialFareActionsPanel({
             {view.tickets.map((ticket) => (
               <span key={ticket.passengerId} className="flex items-center gap-2 text-ink-primary">
                 {ticket.fullName}
-                <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", ticket.issued ? "bg-success/10 text-success" : "bg-warning/10 text-warning")}>
-                  {ticket.issued ? "Issued" : "Pending"}
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-semibold",
+                    ticket.issued ? "bg-success/10 text-success" : ticket.cancelled ? "bg-surface-2 text-ink-tertiary" : "bg-warning/10 text-warning"
+                  )}
+                >
+                  {ticket.issued ? "Issued" : ticket.cancelled ? "Cancelled" : "Pending"}
                 </span>
               </span>
             ))}
@@ -204,14 +223,28 @@ export function SpecialFareActionsPanel({
         <Button type="button" size="sm" variant="glass" onClick={() => void run("CONFIRM", { action: "CONFIRM_AVAILABILITY" })} isLoading={pending === "CONFIRM"} disabled={pending !== null}>
           Confirm Availability
         </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => setShowAlternative((v) => !v)} disabled={pending !== null || view.canMarkUnavailable === false}>
-          Unavailable…
-        </Button>
-        {view.canMarkUnavailable === false ? <span className="text-xs text-ink-tertiary">A ticket was delivered — only an Admin can mark it unavailable.</span> : null}
+        {/* Client doc 2026-10-27 (A5) — hidden from staff once a ticket was delivered (Admin override only). */}
+        {view.canMarkUnavailable === false ? (
+          <span className="text-xs text-ink-tertiary">A ticket was delivered — the booking can no longer be marked unavailable (Admin override only).</span>
+        ) : (
+          <Button type="button" size="sm" variant="ghost" onClick={() => setShowAlternative((v) => !v)} disabled={pending !== null}>
+            {needsOverrideReason ? "Unavailable (Admin override)…" : "Unavailable…"}
+          </Button>
+        )}
       </div>
 
       {showAlternative ? (
         <div className="flex flex-col gap-3 rounded-lg border border-dashed border-glass-border bg-surface-2 p-4">
+          {needsOverrideReason ? (
+            <TextField
+              label="Reason for the Admin override"
+              name="sfOverrideReason"
+              required
+              value={overrideReason}
+              onChange={(e) => setOverrideReason(e.target.value)}
+              hint="A ticket was already delivered — this is recorded in the audit trail."
+            />
+          ) : null}
           <label className="flex items-center gap-2 text-sm text-ink-secondary">
             <input type="checkbox" checked={noAlternative} onChange={(e) => setNoAlternative(e.target.checked)} />
             No suitable alternative (full refund)
@@ -223,7 +256,7 @@ export function SpecialFareActionsPanel({
                 airports={options.airports}
                 airlines={options.airlines}
                 vendors={options.vendors}
-                paxCounts={view.paxCounts ?? { adult: Math.max(1, view.tickets.length), child: 0, infant: 0 }}
+                paxCounts={view.paxCounts ?? { adult: Math.max(1, view.tickets.filter((ticket) => !ticket.cancelled).length), child: 0, infant: 0 }}
                 startFrom={{ from: view.quoteFromAirport ?? null, to: view.quoteToAirport ?? null }}
                 pending={pending !== null}
                 onSubmit={submitUnavailable}
@@ -238,7 +271,7 @@ export function SpecialFareActionsPanel({
           </p>
           {noAlternative ? (
             <div className="flex justify-end">
-              <Button type="button" size="sm" onClick={() => submitUnavailable(null)} isLoading={pending === "UNAVAILABLE"} disabled={pending !== null}>
+              <Button type="button" size="sm" onClick={() => submitUnavailable(null)} isLoading={pending === "UNAVAILABLE"} disabled={pending !== null || !overrideReady}>
                 Record unavailability
               </Button>
             </div>

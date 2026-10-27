@@ -25,7 +25,10 @@ export async function GET() {
     });
     const rows = [];
     for (const conversation of conversations) {
-      const customer = await db.customer.findFirst({ where: { mobile: { contains: conversation.waId.slice(-10) } }, select: { id: true, name: true, mobile: true } });
+      // Client doc 2026-10-27 (G1) — a near-match on the last 10 digits with a different number is "no customer", not a
+      // reason to hide the chat (the conversation's own lead still shows it).
+      const matched = await db.customer.findFirst({ where: { mobile: { contains: conversation.waId.slice(-10) } }, select: { id: true, name: true, mobile: true } });
+      const customer = matched && toWhatsAppId(matched.mobile) === conversation.waId ? matched : null;
       const leadSelect = { id: true, reference: true, serviceType: true, assignedStaffId: true, assignedStaff: { select: { name: true } } } as const;
       const lead = conversation.leadId
         ? await db.lead.findUnique({ where: { id: conversation.leadId }, select: leadSelect })
@@ -34,7 +37,6 @@ export async function GET() {
           : null;
       if (!lead) continue;
       if (!seesAllRecords(session) && lead.assignedStaffId && lead.assignedStaffId !== session.id) continue;
-      if (customer && toWhatsAppId(customer.mobile) !== conversation.waId) continue;
       const booking = customer
         ? await db.booking.findFirst({
             where: { customerId: customer.id, status: { notIn: ["CANCELLED", "COMPLETED", "REFUNDED"] } },

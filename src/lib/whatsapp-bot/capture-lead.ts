@@ -97,28 +97,11 @@ export async function captureWhatsAppHandoff(input: {
   collected: Record<string, string>;
 }): Promise<void> {
   try {
-    const customerId = await customerIdForWaId(input.waId);
-    const existingBooking = customerId
-      ? await db.booking.findFirst({ where: { customerId, status: { notIn: ["CANCELLED", "COMPLETED", "REFUNDED"] } }, select: { id: true } })
-      : null;
-    let leadId = (await recentOpenWhatsAppLead(customerId))?.id ?? null;
-    if (!leadId && !existingBooking) {
-      const result = await createLeadFromSubmission({
-        serviceType: input.serviceType ?? "OTHER",
-        source: "WhatsApp Bot",
-        contact: { fullName: input.collected.fullName || input.profileName || "WhatsApp customer", mobile: input.waId, email: input.collected.email ?? "" },
-        details: {
-          ...input.collected,
-          whatsappHandoff: true,
-          requestedAgentAt: new Date().toISOString(),
-          ...(input.serviceType ? {} : { otherServiceDescription: "Asked to talk to an agent on WhatsApp" }),
-        },
-      });
-      leadId = result.leadId;
+    const target = await ensureChatTarget(input);
+    if (!target) {
+      await notifyUnlinkedChat(input.waId, input.profileName, `${input.profileName ?? `+${input.waId}`} wants to talk to an agent.`);
+      return;
     }
-    const target = await chatTarget(customerId, leadId);
-    if (!target) return;
-    await db.whatsAppConversation.update({ where: { waId: input.waId }, data: { leadId: target.leadId } });
     await notifyStaff({
       type: "WHATSAPP_CHAT",
       title: `WhatsApp: ${input.profileName ?? `+${input.waId}`} wants to talk to an agent (${target.reference})`,
@@ -130,6 +113,62 @@ export async function captureWhatsAppHandoff(input: {
     });
   } catch (error) {
     console.error("[whatsapp-bot] handoff lead capture failed", describeError(error));
+    await notifyUnlinkedChat(input.waId, input.profileName, `${input.profileName ?? `+${input.waId}`} wants to talk to an agent.`);
+  }
+}
+
+/**
+ * The record staff answer this chat from — the customer's open booking, the conversation's lead or an open WhatsApp
+ * lead — creating a lead through the normal intake pipeline when there is none, and remembering it on the
+ * conversation (CRM → WhatsApp Chats lists a chat by its lead).
+ */
+async function ensureChatTarget(input: { waId: string; profileName: string | null; serviceType: ServiceType | null; collected: Record<string, string> }): Promise<ChatTarget | null> {
+  const customerId = await customerIdForWaId(input.waId);
+  const conversation = await db.whatsAppConversation.findUnique({ where: { waId: input.waId }, select: { leadId: true } });
+  const conversationLead = conversation?.leadId
+    ? await db.lead.findFirst({ where: { id: conversation.leadId, status: { notIn: [...CLOSED_STATUSES] } }, select: { id: true } })
+    : null;
+  let leadId = (await recentOpenWhatsAppLead(customerId))?.id ?? conversationLead?.id ?? null;
+  let target = await chatTarget(customerId, leadId);
+  if (!target) {
+    const result = await createLeadFromSubmission({
+      serviceType: input.serviceType ?? "OTHER",
+      source: "WhatsApp Bot",
+      contact: { fullName: input.collected.fullName || input.profileName || "WhatsApp customer", mobile: input.waId, email: input.collected.email ?? "" },
+      details: {
+        ...input.collected,
+        whatsappHandoff: true,
+        requestedAgentAt: new Date().toISOString(),
+        ...(input.serviceType ? {} : { otherServiceDescription: "Asked to talk to an agent on WhatsApp" }),
+      },
+    });
+    leadId = result.leadId;
+    target = await chatTarget(await customerIdForWaId(input.waId), leadId);
+  }
+  if (!target) return null;
+  if (conversation?.leadId !== target.leadId) {
+    await db.whatsAppConversation.update({ where: { waId: input.waId }, data: { leadId: target.leadId } });
+  }
+  return target;
+}
+
+/**
+ * Client doc 2026-10-27 (G1) — a chat that couldn't be tied to a lead / booking still reaches people: everyone who
+ * can reassign leads (managers, admins) is alerted with a link to CRM → WhatsApp Chats. Never throws.
+ */
+async function notifyUnlinkedChat(waId: string, profileName: string | null, body: string): Promise<void> {
+  try {
+    await notifyStaff({
+      type: "WHATSAPP_CHAT",
+      title: `WhatsApp message from ${profileName ?? `+${waId}`}`,
+      body: body.slice(0, 200),
+      link: "/crm/whatsapp",
+      entityType: "WhatsAppConversation",
+      entityId: waId,
+      recipients: { permission: "leads.reassign" },
+    });
+  } catch (error) {
+    console.error("[whatsapp-bot] unlinked chat alert failed", describeError(error));
   }
 }
 
@@ -139,9 +178,24 @@ export async function captureWhatsAppHandoff(input: {
  */
 export async function notifyWhatsAppChatMessage(input: { waId: string; profileName: string | null; text: string }): Promise<void> {
   try {
-    const conversation = await db.whatsAppConversation.findUnique({ where: { waId: input.waId }, select: { leadId: true } });
-    const target = await chatTarget(await customerIdForWaId(input.waId), conversation?.leadId ?? null);
-    if (!target) return;
+    const conversation = await db.whatsAppConversation.findUnique({ where: { waId: input.waId }, select: { leadId: true, serviceType: true } });
+    // Client doc 2026-10-27 (G1) — the handover may not have produced a lead (e.g. its capture failed): make one now
+    // so the chat shows in the CRM, and alert managers when even that isn't possible.
+    let target = await chatTarget(await customerIdForWaId(input.waId), conversation?.leadId ?? null);
+    if (!target) {
+      target = await ensureChatTarget({ waId: input.waId, profileName: input.profileName, serviceType: conversation?.serviceType ?? null, collected: {} }).catch((error: unknown) => {
+        console.error("[whatsapp-bot] chat lead capture failed", describeError(error));
+        return null;
+      });
+    }
+    if (!target) {
+      const recentUnlinked = await db.staffNotification.findFirst({
+        where: { type: "WHATSAPP_CHAT", entityId: input.waId, readAt: null, createdAt: { gte: new Date(Date.now() - CHAT_ALERT_COOLDOWN_MS) } },
+        select: { id: true },
+      });
+      if (!recentUnlinked) await notifyUnlinkedChat(input.waId, input.profileName, input.text);
+      return;
+    }
     const recent = await db.staffNotification.findFirst({
       where: { type: "WHATSAPP_CHAT", entityId: target.entityId, readAt: null, createdAt: { gte: new Date(Date.now() - CHAT_ALERT_COOLDOWN_MS) } },
       select: { id: true },

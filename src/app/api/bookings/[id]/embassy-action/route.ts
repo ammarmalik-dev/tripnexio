@@ -9,7 +9,7 @@ import { writeAudit } from "@/lib/audit/log";
 import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/service-status/engine";
 import { EMBASSY_ACTIONS, EMBASSY_ACTION_KEYS } from "@/lib/new-visa/embassy-actions";
 import { openRefundReviewsForRejectedVisa } from "@/lib/protection-plan/lifecycle";
-import { setBookingVendor, vendorChoiceBlock } from "@/lib/bookings/set-vendor";
+import { setBookingVendor, vendorChoiceBlock, vendorRateProblem } from "@/lib/bookings/set-vendor";
 import { resolveLeadSubServiceCodes, vendorSubServiceProblem } from "@/lib/vendors/sub-service-scope";
 import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
@@ -74,9 +74,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
   // Client doc 2026-10-15 (I7) — the vendor is picked once every document is validated.
   if (action === "APPLIED") {
-    const documents = await db.document.findMany({ where: bookingDocumentsWhere({ id, leadId: booking.leadId }), select: { type: true, status: true, purgedAt: true } });
+    const documents = await db.document.findMany({ where: bookingDocumentsWhere({ id, leadId: booking.leadId }), select: { type: true, status: true, passengerId: true, createdAt: true, purgedAt: true } });
     const blocked = vendorChoiceBlock("NEW_VISA", documents);
     if (blocked) return jsonError(409, blocked);
+    // Client doc 2026-10-27 (C13) — a vendor with a rate for this booking, so the P&L uses its cost.
+    const rateProblem = vendor ? await vendorRateProblem(db, id, vendor.id) : null;
+    if (rateProblem) return jsonError(400, rateProblem, { vendorId: [rateProblem] });
   }
 
   const { event, label } = EMBASSY_ACTIONS[action];

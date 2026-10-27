@@ -44,6 +44,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     if (scopeError) return scopeError;
     const actionError = assertServiceAction(session, lead.serviceType, "EDIT");
     if (actionError) return actionError;
+    // Client doc 2026-10-27 (C12) — never on a paid booking: a passenger added after payment would travel free.
+    const paid = await db.payment.count({ where: { status: "SUCCESS", bookingId: { in: lead.bookings.map((row) => row.id) } } });
+    if (paid > 0) return jsonError(409, "This request is already paid — a passenger can't be added to it. Create a new request for the extra traveller.");
 
     const passenger = await db.$transaction(async (tx) => {
       const created = await tx.passenger.create({

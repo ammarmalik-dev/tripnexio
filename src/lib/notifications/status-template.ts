@@ -6,6 +6,7 @@ import { leadReference } from "../leads/reference";
 import { formatBusinessDateTime } from "../format-business-time";
 import { requestedRouteFromDetails } from "../quotations/flight-quote";
 import { documentDisplayName, documentsByPassengerSummary } from "../documents/review-round";
+import { isOutputType } from "../outputs/output-types";
 import { bookingDocumentsWhere, leadDocumentsWhere } from "../documents/document-lead";
 import { paymentTotal } from "../payments/totals";
 import { toWhatsAppId } from "../whatsapp/phone";
@@ -254,15 +255,21 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     include: { passenger: { select: { fullName: true } } },
     orderBy: { updatedAt: "desc" },
   });
-  const pendingDocs = documents.filter((doc) => PENDING_DOC.has(doc.status) && !doc.purgedAt);
+  // Client doc 2026-10-27 (C11) — only the customer's own documents (never a delivered output) are listed.
+  const pendingDocs = documents.filter((doc) => PENDING_DOC.has(doc.status) && !doc.purgedAt && !isOutputType(doc.type));
   const requiredList = documentsByPassengerSummary(
     pendingDocs.map((doc) => ({
       passengerName: doc.passenger?.fullName,
       label: `${documentDisplayName(doc.type)}${doc.status === "REJECTED" ? ` (rejected${doc.rejectionReason ? `: ${doc.rejectionReason}` : ""})` : doc.status === "MISSING" ? " (missing)" : ""}`,
-    }))
+    })),
+    // Client doc 2026-10-27 (C11) — the one documents message says which passenger needs which document.
+    { alwaysName: true }
   );
   const received = documents.filter((doc) => doc.status === "RECEIVED");
-  const receivedList = documentsByPassengerSummary(received.map((doc) => ({ passengerName: doc.passenger?.fullName, label: documentDisplayName(doc.type) })));
+  const receivedList = documentsByPassengerSummary(
+    received.map((doc) => ({ passengerName: doc.passenger?.fullName, label: documentDisplayName(doc.type) })),
+    { alwaysName: true }
+  );
   const docPassengers = [...new Set(pendingDocs.map((doc) => doc.passenger?.fullName).filter((name): name is string => !!name))];
   const requestReason = pendingDocs.find((doc) => doc.requestReason)?.requestReason ?? "";
   const outputLink = (types: string[]) => {

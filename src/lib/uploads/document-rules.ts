@@ -6,6 +6,13 @@
  */
 export const DOCUMENT_UPLOAD_MAX_BYTES = 3 * 1024 * 1024;
 export const DOCUMENT_UPLOAD_TYPES = ["image/jpeg", "image/png", "application/pdf"] as const;
+/**
+ * Client doc 2026-10-27 (D1) — the MIME types a form's `*MimeType` field may carry with its base64 upload. It must
+ * include PDF: the picker accepts PDF (above), and an image-only enum here made every PDF passport / visa copy fail the
+ * shared zod schema on Submit, so the website forms could not be submitted. The server still sniffs the real bytes
+ * (rejectInvalidDocumentUploads) — this is only the declared type.
+ */
+export const UPLOAD_FIELD_MIME_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "application/pdf"] as const;
 export const DOCUMENT_UPLOAD_ACCEPT = ".pdf,.png,.jpg,.jpeg,application/pdf,image/png,image/jpeg";
 export const DOCUMENT_UPLOAD_HINT = "PDF, PNG or JPG, under 3MB";
 

@@ -6,7 +6,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
-import { dispatchStatusNotifications, getAllowedNextServiceStatuses, setServiceStatus } from "@/lib/service-status/engine";
+import { dispatchStatusNotifications, getAllowedNextServiceStatuses, isApplyStepStatus, setServiceStatus } from "@/lib/service-status/engine";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
 interface RouteParams {
@@ -76,6 +76,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const adminOverride = parsed.data.override === true;
   if (adminOverride && !session.permissions.includes(ADMIN_FULL_PERMISSION)) return jsonError(403, "Only an Admin can override the status flow.");
   if (adminOverride && (parsed.data.note?.length ?? 0) < 5) return jsonError(400, "Give a reason for the override (at least 5 characters).", { note: ["Reason required"] });
+
+  // Client doc 2026-10-27 (C1/C13) — Sent to Airlines / Applied to Embassy go through the service's own button,
+  // which asks for the vendor (and checks the documents); only an Admin override may set it from here.
+  if (!adminOverride) {
+    const target = await db.serviceStatus.findUnique({ where: { id: parsed.data.serviceStatusId }, select: { name: true, systemEvent: true } });
+    if (target && isApplyStepStatus(booking.lead.serviceType, target)) {
+      return jsonError(409, `Use the "${target.name}" button on the booking's action panel — it asks for the vendor.`);
+    }
+  }
 
   const result = await db.$transaction((tx) =>
     setServiceStatus(tx, {

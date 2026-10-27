@@ -3,10 +3,10 @@ import { writeAudit } from "../audit/log";
 import { pickVendorRate } from "../vendors/service-rates";
 import type { ServiceType } from "../../generated/prisma/enums";
 import { bookingDocumentsWhere } from "../documents/document-lead";
-import { isOutputType } from "../outputs/output-types";
+import { documentsValidatedBlock, type ReadinessDocument } from "./documents-ready";
 
 export { DIRECT_VENDOR_NAME, VENDOR_AFTER_DOCUMENTS_SERVICES } from "./vendor-names";
-import { VENDOR_AFTER_DOCUMENTS_SERVICES } from "./vendor-names";
+import { DIRECT_VENDOR_NAME, VENDOR_AFTER_DOCUMENTS_SERVICES } from "./vendor-names";
 
 /**
  * Client doc 2026-10-15 (I7) — OTB / New Visa / Return Ticket: staff pick the vendor (from the vendors
@@ -15,12 +15,10 @@ import { VENDOR_AFTER_DOCUMENTS_SERVICES } from "./vendor-names";
  */
 
 /** Why the booking's vendor can't be picked yet (or at all) — null when it can. */
-export function vendorChoiceBlock(serviceType: ServiceType, documents: { type: string; status: string; purgedAt?: Date | string | null }[]): string | null {
+export function vendorChoiceBlock(serviceType: ServiceType, documents: ReadinessDocument[]): string | null {
   if (!VENDOR_AFTER_DOCUMENTS_SERVICES.has(serviceType)) return "The vendor comes from the selected quotation.";
-  const customerDocuments = documents.filter((document) => !isOutputType(document.type) && !document.purgedAt);
-  if (customerDocuments.length === 0 || customerDocuments.some((document) => document.status !== "VERIFIED")) {
-    return "Pick the vendor once every document is validated.";
-  }
+  // Client doc 2026-10-27 (C1) — the same rule as Sent to Airlines / Applied (latest copy per passenger × document).
+  if (documentsValidatedBlock(documents)) return "Pick the vendor once every document is validated.";
   return null;
 }
 
@@ -51,7 +49,7 @@ export async function setBookingVendor(
   if (quotation.vendorId === input.vendor.id) return null;
 
   const booking = await tx.booking.findUniqueOrThrow({ where: { id: input.bookingId }, select: { id: true, leadId: true, lead: { select: { serviceType: true } } } });
-  const documents = await tx.document.findMany({ where: bookingDocumentsWhere(booking), select: { type: true, status: true, purgedAt: true } });
+  const documents = await tx.document.findMany({ where: bookingDocumentsWhere(booking), select: { type: true, status: true, passengerId: true, createdAt: true, purgedAt: true } });
   const blocked = vendorChoiceBlock(booking.lead.serviceType, documents);
   if (blocked) return blocked;
 
@@ -110,7 +108,7 @@ async function vendorRateCost(tx: Prisma.TransactionClient, bookingId: string, v
   const airlineId = airlineCode ? ((await tx.airline.findUnique({ where: { code: airlineCode }, select: { id: true } }))?.id ?? null) : null;
   const rows = await tx.vendorServiceRate.findMany({
     where: { vendorId, serviceType, countryId, active: true },
-    select: { airlineId: true, processingType: true, nationalityId: true, paxType: true, cost: true },
+    select: { airlineId: true, processingType: true, nationalityId: true, paxType: true, newVisaConfigId: true, cost: true },
   });
   const processingType = text(details.processingType);
   const round2 = (value: number) => Math.round(value * 100) / 100;
@@ -120,7 +118,13 @@ async function vendorRateCost(tx: Prisma.TransactionClient, bookingId: string, v
     if (travellers.length === 0) return null;
     const costs: { paxType: string; cost: number }[] = [];
     for (const traveller of travellers) {
-      const rate = pickVendorRate(rows, { processingType, nationalityId: traveller.nationalityId ?? text(details.nationalityId), paxType: traveller.paxType });
+      const rate = pickVendorRate(rows, {
+        processingType,
+        nationalityId: traveller.nationalityId ?? text(details.nationalityId),
+        paxType: traveller.paxType,
+        // Client doc 2026-10-27 (E2) — the visa option / type the customer chose.
+        newVisaConfigId: text(details.newVisaConfigId),
+      });
       if (!rate) return null; // a passenger with no rate from this vendor: leave the cost for staff to enter
       costs.push({ paxType: traveller.paxType, cost: Number(rate.cost) });
     }
@@ -158,4 +162,44 @@ function withVendorFees(stored: unknown, perType: Map<string, number>): Prisma.I
     const governmentFee = Math.min(fee, price);
     return { ...entry, governmentFee, serviceFee: Math.round((price - governmentFee) * 100) / 100 };
   }) as Prisma.InputJsonValue;
+}
+
+export interface VendorRateOption {
+  id: string;
+  name: string;
+  /** The booking's vendor cost at this vendor's rate (rate × passengers) — internal. */
+  cost: number;
+  summary: string;
+}
+
+/**
+ * Client doc 2026-10-27 (C13) — the vendors staff choose from at Sent to Airlines / Applied to Embassy: the active
+ * vendors with an active rate (Pricing Dashboard → vendor rates) for this booking's service, country, airline,
+ * processing type (and, New Visa, every passenger's nationality / type), each with the cost it would set.
+ */
+export async function bookingVendorRateOptions(client: Prisma.TransactionClient, bookingId: string): Promise<VendorRateOption[]> {
+  const booking = await client.booking.findUnique({ where: { id: bookingId }, select: { lead: { select: { serviceType: true } } } });
+  const serviceType = booking?.lead.serviceType;
+  if (!serviceType || !VENDOR_AFTER_DOCUMENTS_SERVICES.has(serviceType)) return [];
+  const vendors = await client.vendor.findMany({
+    where: { active: true, name: { not: DIRECT_VENDOR_NAME }, serviceRates: { some: { serviceType, active: true } } },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  const options: VendorRateOption[] = [];
+  for (const vendor of vendors) {
+    const rated = await vendorRateCost(client, bookingId, vendor.id);
+    if (rated) options.push({ id: vendor.id, name: vendor.name, cost: rated.total, summary: rated.summary });
+  }
+  return options;
+}
+
+/**
+ * Client doc 2026-10-27 (C13) — the vendor picked at the apply step must have a rate for the booking (so P&L uses
+ * it), unless no vendor has one configured yet (then any active vendor, and staff enter the cost). Null when fine.
+ */
+export async function vendorRateProblem(client: Prisma.TransactionClient, bookingId: string, vendorId: string): Promise<string | null> {
+  const options = await bookingVendorRateOptions(client, bookingId);
+  if (options.length === 0 || options.some((option) => option.id === vendorId)) return null;
+  return "Pick a vendor with a rate for this booking (Pricing Dashboard → vendor rates).";
 }

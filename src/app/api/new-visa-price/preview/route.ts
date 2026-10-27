@@ -76,12 +76,11 @@ export async function POST(request: NextRequest) {
   }));
   const { gstRate: taxFeeGstRate, gatewayFeeRate } = await getTaxFeeRates();
   const subtotal = breakdown.total;
-  // Client 2026-10-25 — exactly the payment's rule (create-payment.ts): GST only on the service's invoice service fee
-  // when Admin set one, else on the price less the vendor / government fee; Tax & Fees at 0% = no GST at all.
-  const nonTaxable = breakdown.invoiceLines.reduce((sum, line) => sum + line.governmentFee * line.quantity, 0);
+  // Client 2026-10-25 / 2026-10-27 (C5) — exactly the payment's rule (create-payment.ts): GST only on the service's
+  // invoice service fee (none set = no GST); Tax & Fees at 0% = no GST at all.
   const configured = await serviceInvoiceFee("NEW_VISA", parsed.data.travellers.length);
   const gstRate = effectiveGstRate(taxFeeGstRate, configured.gstRate);
-  const gst = roundToPaise(taxableServiceAmount(subtotal, configured.fee, nonTaxable) * gstRate);
+  const gst = roundToPaise(taxableServiceAmount(subtotal, configured.fee) * gstRate);
   const gatewayFee = roundToPaise(subtotal * gatewayFeeRate);
 
   return jsonSuccess({ configured: true, lines, subtotal, gst, gatewayFee, total: roundToPaise(subtotal + gst + gatewayFee) });

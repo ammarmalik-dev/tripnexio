@@ -8,6 +8,7 @@ import { paymentTotal } from "../payments/totals";
 import { notifyRefundsRaised } from "../staff-notifications/triggers";
 import { flightFieldsFromSectors, itinerarySchema, normalizeItinerary, type StoredItinerarySegment } from "../quotations/itinerary";
 import { specialFarePaxCounts, specialFareTotals } from "./pax-counts";
+import { resolveSectorFlight } from "./sector-flight";
 import { bookingDocumentsWhere } from "../documents/document-lead";
 import { isOutputType } from "../outputs/output-types";
 
@@ -53,7 +54,8 @@ export const alternativeOptionSchema = z.object({
   cancellationAllowed: z.boolean().optional(),
   cancellationCharge: optionalAmount,
   noShowCharge: optionalAmount,
-  customerCancellationPolicy: optionalText(1000),
+  // Client doc 2026-10-27 (A7) — the same limits as the quote form, so text that fits a quote fits its alternative.
+  customerCancellationPolicy: optionalText(3000),
   airline: optionalText(10),
   flightNumber: optionalText(12),
   fromAirport: optionalText(60),
@@ -61,12 +63,12 @@ export const alternativeOptionSchema = z.object({
   route: z.string().trim().min(3, "Enter the departure and arrival airports").max(120),
   departTerminal: optionalText(30),
   arriveTerminal: optionalText(30),
-  fareRules: optionalText(1000),
+  fareRules: optionalText(2000),
   vendorId: optionalText(40),
   vendorName: optionalText(120),
   flightDateTime: optionalText(40),
   arrivalDateTime: optionalText(40),
-  baggageAllowance: optionalText(80),
+  baggageAllowance: optionalText(120),
   terminal: optionalText(60),
   reportingTime: optionalText(60),
   fareType: optionalText(80),
@@ -122,7 +124,8 @@ export function customerAlternativeOffer(offer: AlternativeOffer | null) {
 
 const round = (value: number) => Math.round(value * 100) / 100;
 
-type Actor = { userId?: string; label: string };
+/** `adminOverride` — client doc 2026-10-27 (A5): an Admin marking a ticketed booking unavailable (reason in `label`). */
+type Actor = { userId?: string; label: string; adminOverride?: boolean };
 type Result = { ok: true; notifications: (StatusNotification | null)[]; message: string } | { ok: false; httpStatus: number; error: string };
 
 /**
@@ -135,7 +138,7 @@ async function throughSeatUnavailable(tx: Tx, bookingId: string, actor: Actor): 
 }
 
 async function moveTo(tx: Tx, bookingId: string, event: Parameters<typeof setServiceStatusByEvent>[1]["event"], note: string, actor: Actor) {
-  return setServiceStatusByEvent(tx, { scope: "BOOKING", entityId: bookingId, event, note, userId: actor.userId, actorLabel: actor.label });
+  return setServiceStatusByEvent(tx, { scope: "BOOKING", entityId: bookingId, event, note, userId: actor.userId, actorLabel: actor.label, ...(actor.adminOverride ? { adminOverride: true } : {}) });
 }
 
 /**
@@ -229,6 +232,11 @@ async function resolveAlternative(bookingId: string, input: AlternativeOptionInp
  * difference decides the path; without one, a full refund is raised.
  */
 export async function markUnavailable(bookingId: string, input: AlternativeOptionInput | null, actor: Actor): Promise<Result> {
+  // Client doc 2026-10-27 (A7) — the alternative's airports / airlines come from the masters, as a quote's do.
+  if (input?.itinerary && input.itinerary.length > 0) {
+    const checked = await resolveSectorFlight(input.itinerary);
+    if (!checked.ok) return { ok: false, httpStatus: 400, error: checked.error };
+  }
   const alternative = input ? await resolveAlternative(bookingId, input) : null;
   // P22 — refunds raised inside the transaction are announced to refunds.approve staff once it commits.
   const raisedRefundIds: string[] = [];

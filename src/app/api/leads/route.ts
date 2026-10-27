@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { serviceTypeCondition } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { isAbandonedDraftDetails } from "@/lib/leads/abandoned-draft";
+import { AWAITING_QUOTE_SERVICES } from "@/lib/quotations/awaiting";
 import { isUrgentRequest } from "@/lib/crm/urgency";
 import { leadListWhere } from "@/lib/leads/list-where";
 import { PAYMENT_FAILED_STATUSES, latestBookingPaymentSelect, latestPaymentFailedStatus } from "@/lib/crm/payment-failed";
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest) {
     db.lead.count({ where }),
     db.lead.findMany({
       where,
-      include: { customer: true, assignedStaff: true, country: { select: { name: true, code: true, flagOverride: true } }, bookings: latestBookingPaymentSelect },
+      include: { customer: true, assignedStaff: true, country: { select: { name: true, code: true, flagOverride: true } }, bookings: latestBookingPaymentSelect, _count: { select: { quotations: true } } },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -81,6 +82,12 @@ export async function GET(request: NextRequest) {
     urgent: isUrgentRequest(lead.serviceType, lead.details),
     /** P21 item 3 — a step-1-only draft from an abandoned website form. */
     abandoned: isAbandonedDraftDetails(lead.details),
+    /** Client doc 2026-10-27 (A1) — a quote-review request listed before its first quotation. */
+    awaitingQuotation:
+      (AWAITING_QUOTE_SERVICES as readonly string[]).includes(lead.serviceType) &&
+      lead._count.quotations === 0 &&
+      !isAbandonedDraftDetails(lead.details) &&
+      !["CONVERTED", "LOST", "CLOSED"].includes(lead.status),
     /** P21 item 2 — FAILED/EXPIRED when the latest booking's latest payment didn't go through, else null. */
     paymentFailedStatus: latestPaymentFailedStatus(lead.bookings),
     customer: { name: lead.customer.name, mobile: lead.customer.mobile, email: lead.customer.email },

@@ -136,3 +136,92 @@ export function BookingVendorPicker({
     </div>
   );
 }
+
+export interface RatedVendorChoice extends VendorChoice {
+  /** Internal — only when the viewer may see vendor cost. */
+  cost?: number;
+  summary?: string;
+}
+
+/**
+ * Client doc 2026-10-27 (C13) — the vendors with a rate for this booking (GET /api/bookings/[id]/vendor), for the
+ * vendor question at Sent to Airlines / Applied to Embassy. When no vendor has a rate yet, every active vendor of the
+ * service (staff then enter the cost).
+ */
+export function useBookingVendorRates(bookingId: string, serviceType: ServiceType): { vendors: RatedVendorChoice[]; rated: boolean } {
+  const fallback = useServiceVendors(serviceType, bookingId);
+  const [state, setState] = useState<{ vendors: RatedVendorChoice[]; rated: boolean }>({ vendors: [], rated: false });
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const result = await getJson<{ rated: boolean; vendors: RatedVendorChoice[] }>(`/api/bookings/${encodeURIComponent(bookingId)}/vendor`);
+        if (!cancelled) setState(result);
+      } catch {
+        if (!cancelled) setState({ vendors: [], rated: false });
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId]);
+  return state.rated ? state : { vendors: fallback, rated: false };
+}
+
+/** "Vendor name — ₹1,200 (₹600 × 2)" when the cost may be shown, else the name. */
+export function ratedVendorLabel(vendor: RatedVendorChoice): string {
+  if (vendor.cost === undefined) return vendor.name;
+  return `${vendor.name} — ₹${vendor.cost.toLocaleString("en-IN")}${vendor.summary ? ` (${vendor.summary})` : ""}`;
+}
+
+/** Client doc 2026-10-27 (C13) — the required vendor select shown with the apply step's button. */
+export function ApplyVendorSelect({
+  id,
+  label,
+  bookingId,
+  serviceType,
+  value,
+  onChange,
+  disabled,
+  error,
+}: {
+  id: string;
+  label: string;
+  bookingId: string;
+  serviceType: ServiceType;
+  value: string;
+  onChange: (vendorId: string) => void;
+  disabled?: boolean;
+  error?: string;
+}) {
+  const { vendors, rated } = useBookingVendorRates(bookingId, serviceType);
+  return (
+    <div className="flex max-w-md flex-col gap-1.5">
+      <label htmlFor={id} className="text-sm font-medium text-ink-heading">
+        {label} <span className="text-error">*</span>
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+        aria-invalid={Boolean(error)}
+        className={cn(fieldControlClass, fieldBorderClass(Boolean(error)), "h-10")}
+      >
+        <option value="">{vendors.length === 0 ? "No active vendors for this service" : "Select a vendor"}</option>
+        {vendors.map((vendor) => (
+          <option key={vendor.id} value={vendor.id}>
+            {ratedVendorLabel(vendor)}
+          </option>
+        ))}
+      </select>
+      {error ? <span className="text-xs text-error">{error}</span> : null}
+      <span className="text-xs text-ink-tertiary">
+        {rated
+          ? "Vendors with a rate for this booking — the chosen vendor's rate sets the vendor cost (P&L). Internal only."
+          : "No vendor rate is set for this booking yet (Pricing Dashboard → vendor rates) — enter the vendor cost on the booking. Internal only."}
+      </span>
+    </div>
+  );
+}

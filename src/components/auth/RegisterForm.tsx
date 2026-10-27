@@ -119,12 +119,13 @@ export function RegisterForm({
           error={errors.confirmPassword?.message}
           {...register("confirmPassword")}
         />
+        {/* Client doc 2026-10-20 (L5) / 2026-10-27 (M1) — every new signup confirms its email with the emailed code. */}
         {otpSentTo ? (
           <TextField
-            label="Verification Code"
+            label="Email Verification Code"
             inputMode="numeric"
             autoComplete="one-time-code"
-            hint={!errors.otp ? `We found an earlier request with these details. Enter the code sent to ${otpSentTo}.` : undefined}
+            hint={!errors.otp ? `Confirm your email: enter the 6-digit code sent to ${otpSentTo}.` : undefined}
             required
             error={errors.otp?.message}
             {...register("otp")}

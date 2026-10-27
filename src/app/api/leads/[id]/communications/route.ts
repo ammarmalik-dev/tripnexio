@@ -56,7 +56,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   // little before it was created (the chat that led to it) until the customer's
   // next request. Everything else is returned separately as history.
   const windowStart = lead.createdAt.getTime() - CHAT_LEAD_IN_MS;
-  const windowEnd = nextLead ? nextLead.createdAt.getTime() - CHAT_LEAD_IN_MS : Number.POSITIVE_INFINITY;
+  // Client doc 2026-10-27 (G1) — the chat the team took over for THIS request (the conversation points at this
+  // lead, e.g. the agent replies from the customer's booking) keeps every later message here, not in "Earlier
+  // conversations", even when the customer has a newer request.
+  const chatIsHere = conversation?.leadId === lead.id;
+  const windowEnd = nextLead && !chatIsHere ? nextLead.createdAt.getTime() - CHAT_LEAD_IN_MS : Number.POSITIVE_INFINITY;
   const inThisRequest = (at: Date) => at.getTime() >= windowStart && at.getTime() < windowEnd;
 
   const windowOpen = Boolean(

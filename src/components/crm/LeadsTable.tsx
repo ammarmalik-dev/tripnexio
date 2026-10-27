@@ -42,6 +42,7 @@ interface LeadListItem {
   countryCode: string | null;
   urgent: boolean;
   abandoned: boolean;
+  awaitingQuotation: boolean;
   paymentFailedStatus: PaymentStatus | null;
   customer: { name: string; mobile: string; email: string | null };
   assignedStaff: { id: string; name: string; active: boolean } | null;
@@ -423,8 +424,16 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
                     </Link>
                     <ProcessingTag label={lead.processing} />
                     <span className="block text-xs text-ink-tertiary">{lead.paxCount ?? "—"} PAX</span>
-                    {lead.paymentFailedStatus || lead.abandoned ? (
+                    {lead.paymentFailedStatus || lead.abandoned || lead.awaitingQuotation ? (
                       <div className="mt-1 flex flex-wrap gap-1">
+                        {lead.awaitingQuotation ? (
+                          <span
+                            className="inline-flex items-center whitespace-nowrap rounded-full bg-ink-accent/10 px-2 py-0.5 text-xs font-medium text-ink-accent"
+                            title="No quotation yet — build one from the lead or Quotations → Awaiting quotation"
+                          >
+                            Awaiting quotation
+                          </span>
+                        ) : null}
                         {lead.abandoned ? (
                           <span
                             className="inline-flex items-center whitespace-nowrap rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning"

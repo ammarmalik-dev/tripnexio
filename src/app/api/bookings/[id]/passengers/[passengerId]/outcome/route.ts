@@ -89,7 +89,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         // status write: the service's own Completed status, when the current status may move there.
         const completion = await completedStatusFor(tx, bookingId);
         if (completion) {
-          const moved = await setServiceStatus(tx, { scope: "BOOKING", entityId: bookingId, toStatusId: completion, userId: session.id, actorLabel: `every passenger has a result, by ${session.name}` });
+          const moved = await setServiceStatus(tx, { scope: "BOOKING", entityId: bookingId, toStatusId: completion, userId: session.id, actorLabel: `every passenger has a result, by ${session.name}`, afterRefund: true });
           if (moved.ok && moved.notification) statusNotification = moved.notification;
         }
       }

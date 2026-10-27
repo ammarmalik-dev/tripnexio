@@ -7,6 +7,16 @@ export interface CheckoutDocumentType {
   label: string;
   /** false = "where applicable": shown, but not counted as outstanding. */
   required: boolean;
+  /**
+   * Client doc 2026-10-27 (D11) — only these passengers need it (a Visa Change document Admin set for one
+   * nationality is asked only of the passengers holding it). Absent = every passenger.
+   */
+  passengerIds?: string[];
+}
+
+/** Does this checkout document apply to this passenger? */
+export function documentAppliesTo(type: Pick<CheckoutDocumentType, "passengerIds">, passengerId: string): boolean {
+  return !type.passengerIds || type.passengerIds.includes(passengerId);
 }
 
 /**
@@ -102,12 +112,14 @@ export async function getNewVisaPageDocuments(countryId?: string | null): Promis
 }
 
 /**
- * Client doc 2026-10-20 (D10) — a Visa Change booking's documents: Admin's Visa Change document rows that apply
- * to every nationality or to one of the booking's passengers' nationalities.
+ * Client doc 2026-10-20 (D10) — a Visa Change booking's documents: Admin's Visa Change document rows
+ * (Service Configuration → Documents) that apply to every nationality or to one of the booking's passengers'
+ * nationalities. Client doc 2026-10-27 (D11) — asked per passenger after payment: a nationality-specific row is
+ * listed only for the passengers of that nationality (`passengerIds`), the same as the request form's checklist.
  */
 async function getVisaChangeDocumentTypes(bookingId: string | undefined): Promise<CheckoutDocumentType[]> {
   const passengers = bookingId
-    ? await db.bookingPassenger.findMany({ where: { bookingId }, select: { passenger: { select: { nationality: true, nationalityId: true } } } })
+    ? await db.bookingPassenger.findMany({ where: { bookingId }, select: { passenger: { select: { id: true, nationality: true, nationalityId: true } } } })
     : [];
   const nationalityIds = passengers.map((row) => row.passenger.nationalityId).filter((id): id is string => !!id);
   const nationalityNames = passengers.map((row) => row.passenger.nationality?.trim()).filter((name): name is string => !!name);
@@ -123,10 +135,45 @@ async function getVisaChangeDocumentTypes(bookingId: string | undefined): Promis
     },
     orderBy: [{ required: "desc" }, { documentName: "asc" }],
   });
-  const seen = new Set<string>();
-  return requirements
-    .filter((requirement) => (seen.has(requirement.documentName) ? false : (seen.add(requirement.documentName), true)))
-    .map((requirement) => ({ type: LEGACY_TYPE_CODES[requirement.documentName.trim().toLowerCase()] ?? requirement.documentName, label: requirement.documentName, required: requirement.required }));
+  return mergeNationalityRequirements(
+    requirements,
+    passengers.map((row) => ({ id: row.passenger.id, nationalityId: row.passenger.nationalityId, nationality: row.passenger.nationality })),
+    (name) => LEGACY_TYPE_CODES[name.trim().toLowerCase()] ?? name
+  );
+}
+
+/**
+ * Pure (unit-tested) — one checkout document per name: a row for every nationality applies to every passenger;
+ * a nationality row applies to the passengers of that nationality (by id, else by name). Required if any
+ * matching row is required.
+ */
+export function mergeNationalityRequirements(
+  requirements: { documentName: string; required: boolean; nationalityId: string | null; nationality: string | null }[],
+  passengers: { id: string; nationalityId: string | null; nationality: string | null }[],
+  typeFor: (documentName: string) => string = (name) => name
+): CheckoutDocumentType[] {
+  const byName = new Map<string, { type: CheckoutDocumentType; everyone: boolean; ids: Set<string> }>();
+  for (const requirement of requirements) {
+    const universal = !requirement.nationalityId && !requirement.nationality;
+    const matching = universal
+      ? []
+      : passengers.filter((passenger) =>
+          requirement.nationalityId
+            ? passenger.nationalityId === requirement.nationalityId
+            : !!passenger.nationality && passenger.nationality.trim().toLowerCase() === requirement.nationality!.trim().toLowerCase()
+        );
+    if (!universal && matching.length === 0) continue;
+    const entry = byName.get(requirement.documentName) ?? {
+      type: { type: typeFor(requirement.documentName), label: requirement.documentName, required: false },
+      everyone: false,
+      ids: new Set<string>(),
+    };
+    entry.type.required = entry.type.required || requirement.required;
+    if (universal) entry.everyone = true;
+    for (const passenger of matching) entry.ids.add(passenger.id);
+    byName.set(requirement.documentName, entry);
+  }
+  return [...byName.values()].map((entry) => (entry.everyone ? entry.type : { ...entry.type, passengerIds: [...entry.ids] }));
 }
 
 export function isCheckoutService(serviceType: ServiceType): boolean {

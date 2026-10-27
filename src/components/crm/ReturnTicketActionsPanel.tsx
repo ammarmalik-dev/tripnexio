@@ -8,6 +8,7 @@ import { toast } from "@/components/ui/Toaster";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { cn } from "@/lib/cn";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
+import { ApplyVendorSelect } from "@/components/crm/booking/BookingVendorPicker";
 
 export interface ReturnTicketBookingView {
   cancellationFee: number | null;
@@ -40,6 +41,7 @@ export function ReturnTicketActionsPanel({
   reservationIssuedAt,
   reservationExpiresAt,
   reservationExpired,
+  documentsBlockedReason = null,
   onChanged,
 }: {
   bookingId: string;
@@ -47,6 +49,8 @@ export function ReturnTicketActionsPanel({
   reservationIssuedAt: string | null;
   reservationExpiresAt: string | null;
   reservationExpired: boolean;
+  /** Client doc 2026-10-27 (C1) — documents not all validated yet (the server checks too). */
+  documentsBlockedReason?: string | null;
   onChanged: () => void;
 }) {
   const [sending, setSending] = useState(false);
@@ -55,7 +59,6 @@ export function ReturnTicketActionsPanel({
   const [form, setForm] = useState({
     vendorId: view.vendor?.id ?? "",
     vendorCost: view.vendorCost === null ? "" : String(view.vendorCost),
-    vendorReference: view.vendorReference ?? "",
     pnr: view.pnr ?? "",
   });
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -80,13 +83,20 @@ export function ReturnTicketActionsPanel({
     };
   }, [view.vendor, bookingId]);
 
-  const sendBlockedReason = view.otbApprovalPending ? "Waiting for the linked OTB to be approved." : !form.vendorId ? "Select the vendor first." : null;
+  const sendBlockedReason = view.otbApprovalPending
+    ? "Waiting for the linked OTB to be approved."
+    : documentsBlockedReason
+      ? documentsBlockedReason
+      : !form.vendorId
+        ? "Select the vendor first."
+        : null;
 
   const sendToAirlines = async () => {
     setSending(true);
     setErrors({});
     try {
-      await postJson(`/api/bookings/${bookingId}/return-ticket-action`, { action: "SEND_TO_AIRLINES", vendorId: form.vendorId, pnr: form.pnr.trim() || undefined });
+      // Client doc 2026-10-27 (B2) — no vendor reference / PNR at this step: only the vendor.
+      await postJson(`/api/bookings/${bookingId}/return-ticket-action`, { action: "SEND_TO_AIRLINES", vendorId: form.vendorId });
       toast.success("Sent to airlines — the customer has been told. Upload the ticket below once it's issued.");
       onChanged();
     } catch (error) {
@@ -119,7 +129,6 @@ export function ReturnTicketActionsPanel({
         vendorId: form.vendorId,
         // Blank or untouched = the vendor's configured rate, looked up on the server (client 2026-10-23 audit).
         vendorCost: form.vendorCost.trim() === "" || form.vendorCost === (view.vendorCost === null ? "" : String(view.vendorCost)) ? undefined : Number(form.vendorCost),
-        vendorReference: "",
         pnr: form.pnr,
         reason,
       });
@@ -168,33 +177,47 @@ export function ReturnTicketActionsPanel({
       <div className="flex flex-col gap-3 border-t border-hairline pt-4">
         <h3 className="text-xs font-semibold tracking-wide text-ink-tertiary uppercase">Vendor (internal)</h3>
         <p className="text-xs text-ink-tertiary">The vendor&apos;s rate (Pricing Dashboard → vendor rates) sets the cost — pick the vendor as you send the request to the airline.</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm text-ink-secondary">
-            Vendor
-            <select
-              value={form.vendorId}
-              onChange={(event) => setForm({ ...form, vendorId: event.target.value })}
-              className={cn(fieldControlClass, fieldBorderClass(Boolean(errors.vendorId)), "h-10 text-sm")}
+        {view.sentToAirlines ? (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1 text-sm text-ink-secondary">
+              Vendor
+              <select
+                value={form.vendorId}
+                onChange={(event) => setForm({ ...form, vendorId: event.target.value })}
+                className={cn(fieldControlClass, fieldBorderClass(Boolean(errors.vendorId)), "h-10 text-sm")}
+                disabled={saving}
+              >
+                <option value="">Select a vendor</option>
+                {vendors.map((vendor) => (
+                  <option key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </option>
+                ))}
+              </select>
+              {errors.vendorId?.[0] ? <span className="text-xs text-error">{errors.vendorId[0]}</span> : null}
+            </label>
+            <TextField
+              label="PNR"
+              name="rt-pnr"
+              value={form.pnr}
+              onChange={(event) => setForm({ ...form, pnr: event.target.value })}
+              error={errors.pnr?.[0]}
               disabled={saving}
-            >
-              <option value="">Select a vendor</option>
-              {vendors.map((vendor) => (
-                <option key={vendor.id} value={vendor.id}>
-                  {vendor.name}
-                </option>
-              ))}
-            </select>
-            {errors.vendorId?.[0] ? <span className="text-xs text-error">{errors.vendorId[0]}</span> : null}
-          </label>
-          <TextField
-            label="PNR / reservation reference"
-            name="rt-pnr"
-            value={form.pnr}
-            onChange={(event) => setForm({ ...form, pnr: event.target.value })}
-            error={errors.pnr?.[0]}
-            disabled={saving}
+            />
+          </div>
+        ) : (
+          // Client doc 2026-10-27 (B2/C13) — Send to Airlines asks only for the vendor (with its rate); no reference / PNR.
+          <ApplyVendorSelect
+            id={`rt-vendor-${bookingId}`}
+            label="Vendor"
+            bookingId={bookingId}
+            serviceType="RETURN_TICKET"
+            value={form.vendorId}
+            onChange={(vendorId) => setForm({ ...form, vendorId })}
+            disabled={sending}
+            error={errors.vendorId?.[0]}
           />
-        </div>
+        )}
         {view.vendorCost !== null ? <p className="text-xs text-ink-tertiary">Current vendor cost (internal): ₹{view.vendorCost.toLocaleString("en-IN")}</p> : null}
         <div className="flex flex-wrap items-center justify-end gap-2">
           {sendBlockedReason && !view.sentToAirlines ? <span className="text-xs text-warning">{sendBlockedReason}</span> : null}

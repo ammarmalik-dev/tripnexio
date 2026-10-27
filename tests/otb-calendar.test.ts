@@ -127,3 +127,10 @@ describe("OTB Express on a week-off night (client doc 2026-10-20, C1)", () => {
     }
   });
 });
+
+describe("New Visa expected approval date (client doc 2026-10-27, E1)", () => {
+  it("skips weekends and holidays when counting processing working days", () => {
+    // Thursday 2026-10-01 09:00 IST + 2 working days: Fri 2 Oct is a holiday, Sat/Sun weekend → Mon 5, Tue 6.
+    expect(addWorkingDays(new Date("2026-10-01T03:30:00Z"), 2, calendar)).toBe("2026-10-06");
+  });
+});

@@ -6,7 +6,6 @@ import { PricingDashboard } from "./PricingDashboard";
 import { OtbPricesManager } from "./OtbPricesManager";
 import { ReturnTicketDestinationsManager } from "./ReturnTicketDestinationsManager";
 import { VendorServiceRatesManager } from "./VendorServiceRatesManager";
-import { OtbRulesManager } from "./OtbRulesManager";
 import { cn } from "@/lib/cn";
 import { PRICING_DASHBOARD_VIEWS as VIEWS, type PricingDashboardView } from "@/lib/admin/pricing-dashboard-views";
 
@@ -40,12 +39,9 @@ export function PricingDashboardViews({ initialView = "countries" }: { initialVi
       {view === "countries" ? <PricingCountryCards /> : null}
       {view === "table" ? <PricingDashboard /> : null}
       {view === "otb" ? (
-        // Client doc 2026-10-15 (J10) — OTB rates and the standard / urgent TAT fallback live here now
-        // (each airline's own TAT is on the Airline), not in Service Configuration.
-        <div className="flex flex-col gap-6">
-          <OtbPricesManager />
-          <OtbRulesManager />
-        </div>
+        // Client doc 2026-10-27 (C6) — only OTB rates here: the TAT is set per airline (Admin → Airlines), never on the
+        // Pricing Dashboard.
+        <OtbPricesManager />
       ) : null}
       {view === "return-ticket" ? <ReturnTicketDestinationsManager /> : null}
       {view === "vendor-rates" ? <VendorServiceRatesManager /> : null}

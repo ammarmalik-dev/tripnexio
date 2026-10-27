@@ -15,6 +15,7 @@ import { REQUEST_CANCELLED_MESSAGE } from "@/lib/payments/not-payable-messages";
 import { TermsAgreement } from "@/components/terms/TermsAgreement";
 import { PostTicketOfferCard } from "@/components/cross-sell/PostTicketOfferCard";
 import { SpecialFareAlternativeCard, type SpecialFareAlternativeView } from "./SpecialFareAlternativeCard";
+import { countRequiredUploaded } from "@/lib/documents/upload-state";
 import { DOCUMENT_UPLOAD_ACCEPT, DOCUMENT_UPLOAD_BUTTON_CLASS, documentUploadError } from "@/lib/uploads/document-rules";
 
 interface CheckoutView {
@@ -24,8 +25,13 @@ interface CheckoutView {
   payment: {
     status: "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED";
     description: string | null;
-    /** Service fee only — excludes the Protection Plan line. */
+    /** The price — excludes the Protection Plan line. */
     amount: number;
+    /** Client doc 2026-10-27 (C5) — the configured service fee part of `amount` (GST is on this only); null = shown as one line. */
+    serviceFee: number | null;
+    /** The Govt./Airline/Vendor fee part of `amount`. */
+    passThroughFee: number;
+    feeLabel: string;
     protectionPlan: number;
     gst: number;
     gatewayFee: number;
@@ -40,7 +46,8 @@ interface CheckoutView {
   terms: { title: string; body: string; version: number } | null;
   demoGateway: boolean;
   applicants: { id: string; fullName: string }[];
-  documentTypes: { type: string; label: string; required: boolean }[];
+  /** `passengerIds` = only these passengers need it (client doc 2026-10-27, D11); absent = everyone. */
+  documentTypes: { type: string; label: string; required: boolean; passengerIds?: string[] }[];
   /** P11 — extra documents staff asked a passenger for. */
   requestedDocuments: { passengerId: string; type: string; reason: string; status: string }[];
   /** P10 — earlier uploads the customer may choose to reuse ("Use existing"). */
@@ -252,14 +259,14 @@ export function CheckoutPanel({ token }: { token: string }) {
     }
   };
 
+  // Client doc 2026-10-27 (C8 / E3) — `view.documents` holds only real files for this booking (never "Pending" slots).
   const hasDocument = (passengerId: string, type: string) =>
     view.documents.some((document) => document.passengerId === passengerId && document.type === type);
-  const requiredTypes = view.documentTypes.filter((doc) => doc.required);
-  const requiredCount = view.applicants.length * requiredTypes.length;
-  const uploadedCount = view.applicants.reduce(
-    (total, applicant) => total + requiredTypes.filter((doc) => hasDocument(applicant.id, doc.type)).length,
-    0
-  );
+  const { uploaded: uploadedCount, required: requiredCount } = countRequiredUploaded({
+    passengerIds: view.applicants.map((applicant) => applicant.id),
+    requiredTypes: view.documentTypes.filter((doc) => doc.required),
+    uploaded: view.documents,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -281,7 +288,14 @@ export function CheckoutPanel({ token }: { token: string }) {
       ) : (
         <div className="rounded-xl border border-hairline bg-surface-1 px-5">
           {payment.description ? <Row label="For" value={payment.description} /> : null}
-          <Row label={payment.description ? "Amount" : "Service fee"} value={formatRupees(payment.amount)} />
+          {payment.serviceFee !== null ? (
+            <>
+              {payment.passThroughFee > 0 ? <Row label={payment.feeLabel} value={formatRupees(payment.passThroughFee)} /> : null}
+              {payment.serviceFee > 0 ? <Row label="Service fee" value={formatRupees(payment.serviceFee)} /> : null}
+            </>
+          ) : (
+            <Row label={payment.description ? "Amount" : "Price"} value={formatRupees(payment.amount)} />
+          )}
           {payment.protectionPlan > 0 ? <Row label="Protection Plan" value={formatRupees(payment.protectionPlan)} /> : null}
           {payment.discount > 0 ? <Row label="Discount" value={`− ${formatRupees(payment.discount)}`} /> : null}
           {payment.gst > 0 ? <Row label="GST" value={formatRupees(payment.gst)} /> : null}
@@ -430,7 +444,7 @@ export function CheckoutPanel({ token }: { token: string }) {
               {view.applicants.map((applicant) => (
                 <div key={applicant.id} className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">
                   <p className="text-sm font-semibold text-ink-heading">{applicant.fullName}</p>
-                  {view.documentTypes.map((doc) => (
+                  {view.documentTypes.filter((doc) => !doc.passengerIds || doc.passengerIds.includes(applicant.id)).map((doc) => (
                     <DocumentSlot
                       key={doc.type}
                       label={doc.required ? doc.label : `${doc.label} (where applicable)`}

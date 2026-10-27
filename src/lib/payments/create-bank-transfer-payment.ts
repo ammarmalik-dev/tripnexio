@@ -1,5 +1,4 @@
-import { nonTaxableQuotationAmount } from "../invoices/invoice-document";
-import { effectiveGstRate, serviceInvoiceFee } from "../invoices/service-fee";
+import { effectiveGstRate, paymentServiceFeeSplit, serviceInvoiceFee } from "../invoices/service-fee";
 import type { Booking, Customer, Lead, Quotation } from "../../generated/prisma/client";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
@@ -39,11 +38,14 @@ export async function createPendingBankTransferPayment(input: {
   const passengerCount = await db.bookingPassenger.count({ where: { bookingId: booking.id } });
   const configured = await serviceInvoiceFee(booking.lead.serviceType, passengerCount || booking.lead.paxCount || 1);
   const gstRate = effectiveGstRate(defaultGstRate, configured.gstRate);
-  const invoiceServiceFee = configured.fee === null ? null : roundToPaise(Math.min(configured.fee, Math.max(0, netAmount - protectionPlans.amount)));
-  // No GST on the Govt./Airline/Vendor fee (and Visa Change / Extension fines) — same rule as gateway payments.
-  const gstAmount = roundToPaise(
-    (invoiceServiceFee !== null ? invoiceServiceFee + protectionPlans.amount : Math.max(0, netAmount - nonTaxableQuotationAmount(booking.lead.serviceType, quotation))) * gstRate
-  );
+  // Client doc 2026-10-27 (C5/E4/F2) — same split as gateway payments: GST on the configured service fee only.
+  const { invoiceServiceFee, gstAmount } = paymentServiceFeeSplit({
+    netAmount,
+    planAmount: protectionPlans.amount,
+    configuredFee: configured.fee,
+    extra: false,
+    gstRate,
+  });
 
   return db.$transaction(async (tx) => {
     const created = await tx.payment.create({

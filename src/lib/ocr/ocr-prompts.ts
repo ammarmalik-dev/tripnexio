@@ -25,7 +25,7 @@ Respond with ONLY a JSON object, no other text, in this exact shape:
   }
 }`;
 
-export const TICKET_SYSTEM_PROMPT = `You are transcribing a flight ticket/e-ticket/boarding pass for a travel agency's records (CRM.md §17). Read whatever is clearly legible — it's fine to omit a field rather than guess.
+export const TICKET_SYSTEM_PROMPT = `You are transcribing a flight ticket/e-ticket/boarding pass for a travel agency's records (CRM.md §17). Read whatever is clearly legible — it's fine to omit a field rather than guess. If the ticket lists several passengers or flights, report the first passenger and the first flight segment. Put every value inside "fields" using exactly these key names.
 
 Respond with ONLY a JSON object, no other text, in this exact shape:
 {
@@ -45,7 +45,7 @@ Respond with ONLY a JSON object, no other text, in this exact shape:
   }
 }`;
 
-export const VISA_SYSTEM_PROMPT = `You are transcribing a visa document/PDF for a travel agency's records (CRM.md §18). Read whatever is clearly legible — it's fine to omit a field rather than guess.
+export const VISA_SYSTEM_PROMPT = `You are transcribing a visa document/PDF for a travel agency's records (CRM.md §18). Read whatever is clearly legible — it's fine to omit a field rather than guess. This may be a visa sticker, an e-visa or an entry permit; the "passengerName" is the visa holder's name. Put every value inside "fields" using exactly these key names.
 
 Respond with ONLY a JSON object, no other text, in this exact shape:
 {
@@ -74,12 +74,74 @@ export function assertOcrMimeType(mimeType: string): void {
   }
 }
 
-/** Pulls the first {...} block out of a model reply; {} when there is none or it isn't valid JSON. */
-export function parseOcrJson<T extends object>(raw: string): { mrzRaw?: string | null; fields?: T } {
+/** The fields each document type asks for (same keys as the prompts above / types.ts). */
+export const PASSPORT_FIELD_KEYS = ["fullName", "givenNames", "surname", "passportNumber", "nationality", "dob", "sex", "expiryDate", "issuingCountry"] as const;
+export const TICKET_FIELD_KEYS = [
+  "airline",
+  "flightNumber",
+  "pnr",
+  "passengerName",
+  "departureAirport",
+  "arrivalAirport",
+  "departureDate",
+  "departureTime",
+  "arrivalDate",
+  "arrivalTime",
+  "ticketNumber",
+  "baggageAllowance",
+] as const;
+export const VISA_FIELD_KEYS = ["passengerName", "passportNumber", "visaNumber", "visaType", "issueDate", "expiryDate", "validity"] as const;
+
+function parseJsonReply(raw: string): unknown {
+  // Strip a ```json fence if the model added one.
+  const text = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
   try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    return jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    return JSON.parse(text);
   } catch {
-    return {};
+    // Fall back to the outermost {...} (or [...]) block inside surrounding prose.
+    for (const pattern of [/\{[\s\S]*\}/, /\[[\s\S]*\]/]) {
+      const match = text.match(pattern);
+      if (!match) continue;
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        // try the next shape
+      }
+    }
+    return null;
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (Array.isArray(value)) return asRecord(value[0]);
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+}
+
+const snakeCase = (key: string) => key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+
+/**
+ * Client doc 2026-10-27 (C9) — the uploaded visa / return ticket came back with every field empty although the
+ * model answered: only `{ "fields": { … } }` was read, so a reply that put the fields at the top level (Gemini in
+ * JSON mode often does), wrapped them in an array (one entry per passenger / segment), used snake_case keys, or
+ * gave numbers / nulls was dropped as blank. This reads all of those shapes and keeps only the asked-for keys as
+ * non-empty strings. Never throws; {} when nothing usable came back.
+ */
+export function extractOcrFields<T extends object>(raw: string, keys: readonly string[]): { mrzRaw: string | null; fields: T } {
+  const root = asRecord(parseJsonReply(raw));
+  if (!root) return { mrzRaw: null, fields: {} as T };
+  const nested = asRecord(root.fields);
+  const fields: Record<string, string> = {};
+  for (const key of keys) {
+    for (const source of [nested, root]) {
+      if (!source) continue;
+      const value = source[key] ?? source[snakeCase(key)];
+      const text = typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
+      if (text && text.toLowerCase() !== "null" && text.toLowerCase() !== "omit") {
+        fields[key] = text;
+        break;
+      }
+    }
+  }
+  const mrz = root.mrzRaw ?? root.mrz_raw;
+  return { mrzRaw: typeof mrz === "string" && mrz.trim() ? mrz : null, fields: fields as T };
 }

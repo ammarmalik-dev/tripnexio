@@ -42,6 +42,13 @@ export async function getWorkingCalendarForCountry(countryCode: string): Promise
   const code = countryCode.trim().toUpperCase();
   const legacy = (Object.keys(LEGACY_COUNTRY_MATCH) as HolidayCountry[]).find((key) => LEGACY_COUNTRY_MATCH[key].codes.includes(code));
   if (legacy) return getWorkingCalendar(legacy);
+  // Client doc 2026-10-27 (E1) — India / UAE under another Admin code ("UNITED_ARAB_EMIRATES") keep their calendar
+  // (older holidays were saved against the legacy India / UAE value, not the Country row).
+  const named = await db.country.findFirst({ where: { code: { equals: code, mode: "insensitive" } }, select: { name: true } }).catch(() => null);
+  const legacyByName = named
+    ? (Object.keys(LEGACY_COUNTRY_MATCH) as HolidayCountry[]).find((key) => LEGACY_COUNTRY_MATCH[key].names.some((name) => name.toLowerCase() === named.name.trim().toLowerCase()))
+    : undefined;
+  if (legacyByName) return getWorkingCalendar(legacyByName);
   try {
     const config = await getSystemConfig();
     const raw = await db.systemConfig.findUnique({ where: { id: "singleton" }, select: { workdayStartHour: true, workdayEndHour: true } });

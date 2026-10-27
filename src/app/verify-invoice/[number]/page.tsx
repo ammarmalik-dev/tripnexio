@@ -8,6 +8,7 @@ import { maskName } from "@/lib/track/lookup";
 import { formatCurrency } from "@/lib/format-currency";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { invoiceNumberFromSlug } from "@/lib/invoices/invoice-filters";
+import { invoiceSettlementStatus } from "@/lib/invoices/invoice-status";
 
 export const metadata: Metadata = { title: "Verify Invoice", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -44,8 +45,16 @@ export default async function VerifyInvoicePage({ params, searchParams }: Verify
           couponDiscount: true,
           gstAmount: true,
           gatewayFee: true,
-          booking: { select: { bookingId: true, status: true, customer: { select: { name: true } }, lead: { select: { serviceType: true } } } },
-          refunds: { where: { status: "COMPLETED" }, select: { refundAmount: true } },
+          booking: {
+            select: {
+              bookingId: true,
+              status: true,
+              serviceStatus: { select: { name: true, mapsToBookingStatus: true } },
+              customer: { select: { name: true } },
+              lead: { select: { serviceType: true } },
+            },
+          },
+          refunds: { where: { status: { in: ["COMPLETED", "PENDING", "PROCESSING"] } }, select: { refundAmount: true, status: true } },
         },
       })
     : null;
@@ -53,13 +62,17 @@ export default async function VerifyInvoicePage({ params, searchParams }: Verify
   const total = payment
     ? Number(payment.amount) - Number(payment.couponDiscount ?? 0) + Number(payment.gstAmount) + Number(payment.gatewayFee)
     : 0;
-  // Client doc 2026-10-20 (F1) — the same status the invoice itself carries: Cancelled once the booking is
-  // cancelled, Refunded / Partially Refunded once a refund completed; never "Paid" after that.
-  const refunded = payment ? payment.refunds.reduce((sum, refund) => sum + Number(refund.refundAmount), 0) : 0;
-  const cancelled = payment ? payment.booking.status === "CANCELLED" || payment.booking.status === "REFUNDED" : false;
-  const invoiceStatus =
-    refunded > 0 ? (refunded + 0.01 >= total - Number(payment?.gatewayFee ?? 0) || cancelled ? "Refunded" : "Partially Refunded") : cancelled ? "Cancelled" : "Paid";
-
+  // Client doc 2026-10-20 (F1) / 2026-10-27 (F1) — exactly the status the invoice PDF is stamped with (shared rule):
+  // Cancelled once the booking is cancelled, Refunded / Partially Refunded once a refund completed; never "Paid" after that.
+  const invoiceStatus = payment
+    ? invoiceSettlementStatus({
+        paidTotal: total,
+        gatewayFee: Number(payment.gatewayFee),
+        bookingStatus: payment.booking.status,
+        serviceStatus: payment.booking.serviceStatus,
+        refunds: payment.refunds.map((refund) => ({ status: refund.status, refundAmount: Number(refund.refundAmount) })),
+      })
+    : "Paid";
   return (
     <Container className="flex min-h-[60vh] items-center justify-center py-16">
       <div className="w-full max-w-md rounded-2xl border border-hairline bg-surface-1 p-6 shadow-sm">

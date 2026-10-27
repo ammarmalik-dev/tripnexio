@@ -25,6 +25,8 @@ export const createVendorServiceRateSchema = z.object({
   nationalityId: optionalId,
   /** New Visa only — blank = any passenger. */
   paxType: z.enum(["ADULT", "CHILD", ""]).optional(),
+  /** Client doc 2026-10-27 (E2) — New Visa only: the visa option / type (product) of the country; blank = any. */
+  newVisaConfigId: optionalId,
   /** "normal" / "urgent"; blank = any. */
   processingType: z.enum(["normal", "urgent", ""]).optional(),
   cost: z.number({ error: "Enter the cost" }).min(0, "Cost can't be negative").max(10_000_000, "Cost is too large"),
@@ -41,7 +43,16 @@ export const VENDOR_RATE_INCLUDE = {
   country: { select: { name: true, code: true } },
   airline: { select: { name: true, code: true } },
   nationality: { select: { name: true } },
+  newVisaConfig: { select: { visaCategory: true, stayDays: true, entryKind: true, duration: true } },
 } as const;
+
+/** The visa option's label on a vendor rate ("Tourist · 30 days · SINGLE"). */
+function visaOptionLabel(config: { visaCategory: string; stayDays: number | null; entryKind: string | null; duration: string } | null): string | null {
+  if (!config) return null;
+  return [config.visaCategory, config.stayDays ? `${config.stayDays} days` : config.duration, config.entryKind === "MULTIPLE" ? "Multiple entry" : config.entryKind === "SINGLE" ? "Single entry" : null]
+    .filter((part) => part && String(part).trim())
+    .join(" · ");
+}
 
 export function serializeVendorServiceRate(row: Prisma.VendorServiceRateGetPayload<{ include: typeof VENDOR_RATE_INCLUDE }>) {
   return {
@@ -57,6 +68,8 @@ export function serializeVendorServiceRate(row: Prisma.VendorServiceRateGetPaylo
     nationalityId: row.nationalityId,
     nationalityName: row.nationality?.name ?? null,
     paxType: row.paxType,
+    newVisaConfigId: row.newVisaConfigId,
+    newVisaConfigLabel: visaOptionLabel(row.newVisaConfig),
     cost: Number(row.cost),
     active: row.active,
     updatedAt: row.updatedAt.toISOString(),
@@ -68,6 +81,7 @@ export interface VendorRateCandidate {
   processingType: string | null;
   nationalityId?: string | null;
   paxType?: string | null;
+  newVisaConfigId?: string | null;
   cost: unknown;
 }
 
@@ -77,10 +91,13 @@ export interface VendorRateKeys {
   processingType: string | null;
   nationalityId?: string | null;
   paxType?: string | null;
+  /** New Visa — the visa option / type the customer chose. */
+  newVisaConfigId?: string | null;
 }
 
 /**
- * The most specific active rate for a booking: an exact airline beats "any
+ * The most specific active rate for a booking: an exact visa option / type beats "any" (client doc 2026-10-27, E2),
+ * an exact airline beats "any
  * airline", an exact nationality beats "any", an exact passenger type beats
  * "any", an exact processing type beats "any". Rows passed in must already be
  * the vendor's active rates for the service and country. Null = none.
@@ -89,13 +106,14 @@ export function pickVendorRate<T extends VendorRateCandidate>(rows: T[], keys: V
   const matches = (rowValue: string | null | undefined, wanted: string | null | undefined) => rowValue == null || rowValue === (wanted ?? null);
   const fits = rows.filter(
     (row) =>
+      matches(row.newVisaConfigId, keys.newVisaConfigId) &&
       matches(row.airlineId, keys.airlineId) &&
       matches(row.nationalityId, keys.nationalityId) &&
       matches(row.paxType, keys.paxType) &&
       matches(row.processingType, keys.processingType)
   );
   const score = (row: T) =>
-    Number(row.airlineId != null) * 8 + Number(row.nationalityId != null) * 4 + Number(row.paxType != null) * 2 + Number(row.processingType != null);
+    Number(row.newVisaConfigId != null) * 16 + Number(row.airlineId != null) * 8 + Number(row.nationalityId != null) * 4 + Number(row.paxType != null) * 2 + Number(row.processingType != null);
   fits.sort((a, b) => score(b) - score(a));
   return fits[0] ?? null;
 }

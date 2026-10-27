@@ -65,6 +65,8 @@ function CommunicationRow({ item }: { item: CommunicationItem }) {
   );
 }
 
+const COMMUNICATIONS_POLL_MS = 10_000;
+
 /**
  * CRM.md §25 (Step 18, audit §3.7; AI drafting added Step 56) — a unified
  * WhatsApp + email timeline for one lead, a manual compose box for staff,
@@ -109,6 +111,28 @@ export function CommunicationsPanel({ leadId }: { leadId: string }) {
       cancelled = true;
     };
   }, [leadId, refreshNonce]);
+
+  // Client doc 2026-10-27 (G1) — while an agent has the chat open, the customer's new WhatsApp messages appear on
+  // their own (a quiet re-read every few seconds; no loading flash, errors keep the last good view).
+  useEffect(() => {
+    let cancelled = false;
+    const timer = window.setInterval(() => {
+      async function poll() {
+        if (document.visibilityState !== "visible") return;
+        try {
+          const result = await getJson<CommunicationsResponse>(`/api/leads/${leadId}/communications`);
+          if (!cancelled) setData(result);
+        } catch {
+          // The next tick retries; the explicit load above shows errors.
+        }
+      }
+      void poll();
+    }, COMMUNICATIONS_POLL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [leadId]);
 
   const handleSend = async (event: FormEvent) => {
     event.preventDefault();

@@ -18,9 +18,10 @@ export function RequestSuccessPanel({ title, description, referenceId, cta }: Re
         <CheckCircle2 className="h-7 w-7" aria-hidden="true" />
       </div>
       {/* Client doc 2026-10-15 (C8) — the message block is centred under the title (it sat left-aligned in a wider column). */}
-      <div className="flex w-full flex-col items-center gap-1">
-        <p className="text-lg font-semibold text-ink-heading">{title}</p>
-        <p className="mx-auto max-w-md text-sm leading-relaxed text-balance text-ink-secondary">{description}</p>
+      {/* Client doc 2026-10-27 (D5) — explicit text-center / self-center so the .tn-justify rule can't shift it. */}
+      <div className="flex w-full flex-col items-center gap-1 text-center">
+        <p className="w-full text-center text-lg font-semibold text-balance text-ink-heading">{title}</p>
+        <p className="mx-auto w-full max-w-md self-center text-center text-sm leading-relaxed text-balance text-ink-secondary">{description}</p>
       </div>
       <p className="rounded-md bg-surface-2 px-4 py-2 text-sm font-medium text-ink-primary">
         Reference ID: <span className="text-ink-accent">{referenceId}</span>

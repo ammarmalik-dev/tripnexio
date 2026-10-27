@@ -7,8 +7,7 @@ import { getServiceTimelineRules } from "../settings/service-timeline-config";
 import { getDefaultPaymentLinkHours } from "../settings/system-config";
 import { usableGateways, type UsableGateway } from "./accounts";
 import { notifyPaymentLinkReady } from "./notify-payment-link";
-import { nonTaxableQuotationAmount } from "../invoices/invoice-document";
-import { effectiveGstRate, serviceInvoiceFee } from "../invoices/service-fee";
+import { effectiveGstRate, paymentServiceFeeSplit, serviceInvoiceFee } from "../invoices/service-fee";
 import { leadReference } from "../leads/reference";
 import { siteConfig } from "../site-config";
 
@@ -50,8 +49,6 @@ interface CreateGatewayPaymentInput {
   description?: string;
   /** P12 — Protection Plans this payment charges for; their prices are already part of `baseAmount`. */
   protectionPlans?: { ids: string[]; amount: number };
-  /** Client corrections 2026-10-05 — the government / airline fee inside `baseAmount`; GST is charged on the rest only. */
-  nonTaxableAmount?: number;
   /** The WhatsApp bot sends the Pay Now button in its own reply — no second WhatsApp message (client 2026-10-14). */
   skipWhatsAppNotice?: boolean;
 }
@@ -71,16 +68,19 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   // gateway fee are computed on the amount AFTER the coupon discount.
   const netAmount = Math.max(0, baseAmount - couponDiscount);
   const { gstRate: defaultGstRate, gatewayFeeRate, absorbedGatewayFeeRate } = await getTaxFeeRates();
-  // Client doc 2026-10-20 (F2/F3) — a service with an Admin-set invoice service fee charges GST on that fee only
-  // (a Protection Plan stays a taxable service); an extra payment (fare difference, fines) is a pass-through fee.
+  // Client doc 2026-10-20 (F2/F3) / 2026-10-27 (C5/E4/F2) — GST on the Admin-set invoice service fee only (plus a
+  // Protection Plan, a taxable service); the rest of the price is the Govt./Airline/Vendor fee. No fee configured →
+  // service fee 0, no GST. An extra payment (fare difference, fines) is a pass-through fee.
   const passengerCount = await db.bookingPassenger.count({ where: { bookingId: booking.id } });
   const configured = await serviceInvoiceFee(booking.lead.serviceType, passengerCount || booking.lead.paxCount || 1);
   const gstRate = effectiveGstRate(defaultGstRate, configured.gstRate);
-  const planAmount = protectionPlans?.amount ?? 0;
-  const invoiceServiceFee =
-    configured.fee === null ? null : purpose === "EXTRA" ? 0 : roundToPaise(Math.min(configured.fee, Math.max(0, netAmount - planAmount)));
-  const taxableAmount = invoiceServiceFee !== null ? invoiceServiceFee + (purpose === "EXTRA" ? 0 : planAmount) : Math.max(0, netAmount - (input.nonTaxableAmount ?? 0));
-  const gstAmount = roundToPaise(taxableAmount * gstRate);
+  const { invoiceServiceFee, gstAmount } = paymentServiceFeeSplit({
+    netAmount,
+    planAmount: protectionPlans?.amount ?? 0,
+    configuredFee: configured.fee,
+    extra: purpose === "EXTRA",
+    gstRate,
+  });
   const gatewayFee = roundToPaise(netAmount * gatewayFeeRate);
   const totalAmount = roundToPaise(netAmount + gstAmount + gatewayFee);
   // Client doc 2026-10-15 (G5) — not charged to the customer: our expense, on the full amount paid.
@@ -225,7 +225,6 @@ export async function createPendingPayment(input: {
     couponDiscount: Number(quotation.couponDiscount ?? 0),
     purpose: "PRIMARY",
     protectionPlans,
-    nonTaxableAmount: nonTaxableQuotationAmount(booking.lead.serviceType, quotation),
     skipWhatsAppNotice: input.skipWhatsAppNotice,
   });
 }

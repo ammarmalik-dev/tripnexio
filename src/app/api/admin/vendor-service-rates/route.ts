@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     airlineId: parsed.data.serviceType === "OTB" ? (parsed.data.airlineId ?? null) : null,
     nationalityId: isNewVisa ? (parsed.data.nationalityId ?? null) : null,
     paxType: isNewVisa && parsed.data.paxType ? parsed.data.paxType : null,
+    newVisaConfigId: isNewVisa ? (parsed.data.newVisaConfigId ?? null) : null,
     processingType: parsed.data.processingType || null,
   };
   const vendor = await db.vendor.findUnique({ where: { id: data.vendorId }, select: { id: true } });
@@ -58,6 +59,10 @@ export async function POST(request: NextRequest) {
   if (data.nationalityId && !(await db.nationality.findUnique({ where: { id: data.nationalityId }, select: { id: true } }))) {
     return jsonError(400, "Nationality not found.", { nationalityId: ["Select a valid nationality."] });
   }
+  // Client doc 2026-10-27 (E2) — the visa option must be one of this country's New Visa options.
+  if (data.newVisaConfigId && !(await db.newVisaCountryConfig.findFirst({ where: { id: data.newVisaConfigId, countryId: data.countryId }, select: { id: true } }))) {
+    return jsonError(400, "Visa type not found for this country.", { newVisaConfigId: ["Select one of this country's visa options."] });
+  }
   const duplicate = await db.vendorServiceRate.findFirst({
     where: {
       vendorId: data.vendorId,
@@ -66,6 +71,7 @@ export async function POST(request: NextRequest) {
       airlineId: data.airlineId,
       nationalityId: data.nationalityId,
       paxType: data.paxType,
+      newVisaConfigId: data.newVisaConfigId,
       processingType: data.processingType,
     },
     select: { id: true },
@@ -80,7 +86,7 @@ export async function POST(request: NextRequest) {
       action: "CREATE",
       byUserId: session.id,
       note: withReason(
-        `Vendor rate ${row.vendor.name} · ${row.serviceType} · ${row.country.name}${row.airline ? ` · ${row.airline.code}` : ""}${row.nationality ? ` · ${row.nationality.name}` : ""}${row.paxType ? ` · ${row.paxType}` : ""}${row.processingType ? ` · ${row.processingType}` : ""}: ₹${parsed.data.cost} per passenger (by ${session.name})`,
+        `Vendor rate ${row.vendor.name} · ${row.serviceType} · ${row.country.name}${row.airline ? ` · ${row.airline.code}` : ""}${row.nationality ? ` · ${row.nationality.name}` : ""}${row.paxType ? ` · ${row.paxType}` : ""}${row.newVisaConfig ? ` · ${row.newVisaConfig.visaCategory}${row.newVisaConfig.stayDays ? ` ${row.newVisaConfig.stayDays}d` : ""}` : ""}${row.processingType ? ` · ${row.processingType}` : ""}: ₹${parsed.data.cost} per passenger (by ${session.name})`,
         reason
       ),
     });

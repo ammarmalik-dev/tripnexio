@@ -22,11 +22,48 @@ export function effectiveGstRate(taxFeeRate: number, serviceRate: number | null)
 }
 
 /**
- * The taxable part of an amount: the service's invoice service fee when one is set (capped at the amount), else the
- * amount less its non-taxable Govt. / Airline / Vendor fee. One rule for the price preview and the payment.
+ * The taxable part of an amount: the service's invoice service fee (capped at the amount). Client doc 2026-10-27
+ * (C5/F2) — "GST only on the configured service fee, never on the whole amount": with no service fee set in
+ * Admin → Services there is nothing taxable (the whole price is the Govt./Airline/Vendor fee) — the margin
+ * (selling − cost) is never the service fee. One rule for the price preview and the payment.
  */
-export function taxableServiceAmount(netAmount: number, configuredFee: number | null, nonTaxable = 0): number {
-  return configuredFee !== null ? Math.min(configuredFee, Math.max(0, netAmount)) : Math.max(0, netAmount - nonTaxable);
+export function taxableServiceAmount(netAmount: number, configuredFee: number | null): number {
+  return configuredFee !== null ? Math.min(configuredFee, Math.max(0, netAmount)) : 0;
+}
+
+const roundToPaise = (value: number) => Math.round(value * 100) / 100;
+
+/**
+ * Client doc 2026-10-27 (C5/E4/F2) — the customer-facing split of one payment, stored on Payment.invoiceServiceFee:
+ * service fee = the configured fee (capped at the price less any Protection Plan; 0 when none is configured or for
+ * an extra payment — fare differences and fines are pass-through), GST = rate × (service fee + Protection Plan).
+ * The rest of the price is the Govt./Airline/Vendor fee. Internal profit (selling − cost) is not involved.
+ */
+export function paymentServiceFeeSplit(input: {
+  netAmount: number;
+  planAmount: number;
+  configuredFee: number | null;
+  extra: boolean;
+  gstRate: number;
+}): { invoiceServiceFee: number; gstAmount: number } {
+  const plan = input.extra ? 0 : Math.max(0, input.planAmount);
+  const invoiceServiceFee = input.extra ? 0 : roundToPaise(taxableServiceAmount(Math.max(0, input.netAmount - plan), input.configuredFee));
+  return { invoiceServiceFee, gstAmount: roundToPaise((invoiceServiceFee + plan) * input.gstRate) };
+}
+
+/**
+ * Client doc 2026-10-27 (C5) — what the pay page and invoice show: the Govt./Airline/Vendor fee part and the service
+ * fee part of a payment's amount (Protection Plan excluded). `serviceFee` null = an older payment taken before the
+ * snapshot existed (show the amount as one line).
+ */
+export function displayFeeSplit(input: { amount: number; protectionPlan: number; invoiceServiceFee: number | null }): {
+  passThroughFee: number;
+  serviceFee: number | null;
+} {
+  const base = roundToPaise(Math.max(0, input.amount - input.protectionPlan));
+  if (input.invoiceServiceFee === null) return { passThroughFee: 0, serviceFee: null };
+  const serviceFee = roundToPaise(Math.min(Math.max(0, input.invoiceServiceFee), base));
+  return { passThroughFee: roundToPaise(base - serviceFee), serviceFee };
 }
 
 /**

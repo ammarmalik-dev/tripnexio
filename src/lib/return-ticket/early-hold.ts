@@ -22,6 +22,11 @@ function todayIst(now: Date): number {
   return Date.UTC(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate());
 }
 
+/** The early-hold task's title prefix (the release step finds it by this). */
+function holdTaskTitle(bookingId: string): string {
+  return `Return Ticket ${bookingId} On Hold`;
+}
+
 /** "2026-10-29" — the day the ticket may be issued: the day before travel. */
 export function returnTicketIssueDay(travelDate: Date): string {
   return new Date(Date.UTC(travelDate.getUTCFullYear(), travelDate.getUTCMonth(), travelDate.getUTCDate()) - DAY_MS).toISOString().slice(0, 10);
@@ -54,7 +59,7 @@ export async function runReturnTicketEarlyHolds(now: Date = new Date()): Promise
       lead: { serviceType: "RETURN_TICKET", travelDate: { not: null } },
       serviceStatus: { isTerminal: false, blocksRefund: false, OR: [{ systemEvent: null }, { systemEvent: { notIn: ["ON_HOLD", "SENT_TO_AIRLINES", "RT_RESERVATION_ISSUED"] } }] },
     },
-    select: { id: true, serviceStatusId: true, lead: { select: { travelDate: true } } },
+    select: { id: true, bookingId: true, leadId: true, serviceStatusId: true, lead: { select: { travelDate: true } } },
     take: 200,
   });
   for (const booking of candidates) {
@@ -65,7 +70,22 @@ export async function runReturnTicketEarlyHolds(now: Date = new Date()): Promise
     const moved = await db.$transaction(async (tx) => {
       const ok = await holdBookingSilently(tx, booking.id, "automatic hold", `Return Ticket waits until ${issueDay} (the day before travel) before it is issued`);
       // The status it came from rides on the log row, so the release can put it back.
-      if (ok) await tx.automationReminderLog.create({ data: { event: `${HOLD_EVENT_PREFIX}${booking.serviceStatusId}`, entityType: "Booking", entityId: booking.id } });
+      if (ok) {
+        await tx.automationReminderLog.create({ data: { event: `${HOLD_EVENT_PREFIX}${booking.serviceStatusId}`, entityType: "Booking", entityId: booking.id } });
+        // Client doc 2026-10-27 (B1) — "add a task and move to hold": the task is there from the moment it is held.
+        await createTask(tx, {
+          type: "MANUAL_VERIFICATION",
+          priority: "NORMAL",
+          title: `${holdTaskTitle(booking.bookingId)} until ${issueDay}`,
+          reason: `Travel is more than 24 hours away, so the Return Ticket is On Hold. It moves back automatically on ${issueDay} (the day before travel) — then send it to the airline and issue it.`,
+          entityType: "Booking",
+          entityId: booking.id,
+          leadId: booking.leadId,
+          bookingId: booking.id,
+          serviceType: "RETURN_TICKET",
+          dueDate: new Date(`${issueDay}T00:00:00Z`),
+        });
+      }
       return ok;
     });
     if (moved) held++;
@@ -90,7 +110,18 @@ export async function runReturnTicketEarlyHolds(now: Date = new Date()): Promise
         if (moved.ok) notifications.push(moved.notification);
         else await writeAudit(tx, { entityType: "Booking", entityId: booking.id, action: "RT_EARLY_RELEASE_FAILED", note: `Couldn't move back from On Hold: ${moved.error}` });
       }
-      await createTask(tx, {
+      // The hold's own task becomes the "Issue now" one (HIGH); a booking held before 27 Oct gets a new task.
+      const holdTask = await tx.task.findFirst({
+        where: { bookingId: booking.id, status: { in: ["OPEN", "IN_PROGRESS"] }, title: { startsWith: holdTaskTitle(booking.bookingId) } },
+        select: { id: true },
+      });
+      if (holdTask) {
+        await tx.task.update({
+          where: { id: holdTask.id },
+          data: { priority: "HIGH", title: `Issue Return Ticket ${booking.bookingId} — travel is tomorrow`, reason: "The Return Ticket was held until the day before travel. Send it to the airline and issue it now." },
+        });
+        await writeAudit(tx, { entityType: "Task", entityId: holdTask.id, action: "UPDATE", note: "Return Ticket released from the early hold — issue it now (automatic)" });
+      } else await createTask(tx, {
         type: "MANUAL_VERIFICATION",
         priority: "HIGH",
         title: `Issue Return Ticket ${booking.bookingId} — travel is tomorrow`,

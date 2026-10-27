@@ -51,6 +51,7 @@ async function greetingReply(profileName: string | null): Promise<EngineResult> 
 }
 
 const RESTART_RE = /^(restart|start over|menu|hi|hello|hey)$/i;
+const HANDED_OFF_RESTART_RE = /^(restart|start over|menu)$/i;
 const FAQ_STATE = "FAQ";
 
 /**
@@ -76,7 +77,9 @@ export async function handleInboundMessage(
   try {
     // Universal escape hatch — works from any state, including mid-collection or handed-off
     // (none of the fields the bot ever asks for would legitimately be answered "hi"/"menu"/"restart").
-    if (RESTART_RE.test(trimmed)) {
+    // Client doc 2026-10-27 (G1) — while the team has the chat, a "hi" / "hello" is the customer greeting the
+    // agent: it stays with the team (and alerts the POC); only "menu" / "restart" / "start over" bring the bot back.
+    if (conversation.state === "HANDED_OFF" ? HANDED_OFF_RESTART_RE.test(trimmed) : RESTART_RE.test(trimmed)) {
       return await greetingReply(profileName);
     }
 

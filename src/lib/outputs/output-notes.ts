@@ -44,6 +44,22 @@ export const OUTPUT_IMPORTANT_INFO: Partial<Record<OutputType, { title: string; 
   },
 };
 
+/**
+ * Client doc 2026-10-27 (D12) — status-template emails that deliver an output (they carry no `outputType`): the Visa
+ * Change package email always has the Important Travel Instructions block in its body, even when the Admin-edited
+ * template text left it out. Appended only when the body doesn't already contain the block's title.
+ */
+export const STATUS_EVENT_OUTPUT: Record<string, OutputType> = {
+  VC_PACKAGE_GENERATED: "PACKAGE_PDF",
+};
+
+/** The important-information block for an email: by its output type, else by its status event; null when the body already has it. */
+export function importantInfoFor(event: string, outputType: string | undefined, renderedBody: string): { title: string; lines: string[]; closing: string } | null {
+  const info = OUTPUT_IMPORTANT_INFO[(outputType || STATUS_EVENT_OUTPUT[event]) as OutputType];
+  if (!info) return null;
+  return renderedBody.toLowerCase().includes(info.title.toLowerCase()) ? null : info;
+}
+
 function when(value: string | Date | null | undefined): string | null {
   if (!value) return null;
   const date = new Date(value);

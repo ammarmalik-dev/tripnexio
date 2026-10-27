@@ -15,6 +15,7 @@ import { ExtensionOutcomeControl } from "./ExtensionOutcomeControl";
 import { PaymentPanel, type PaymentData } from "./PaymentPanel";
 import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DocumentExtractionReview } from "./DocumentExtractionReview";
+import { ocrKindForDocumentType } from "@/lib/ocr/document-kind";
 import { AddDocumentForm } from "./AddDocumentForm";
 import { DeliverOutputSection } from "./DeliverOutputSection";
 import { DocumentFileLinks } from "./DocumentFileLinks";
@@ -156,6 +157,8 @@ interface BookingDetailResponse {
   vendorSummary: BookingVendorSummaryData | null;
   /** Client doc 2026-10-15 (I7) — null when staff can pick the vendor now. */
   vendorChoiceBlockedReason: string | null;
+  /** Client doc 2026-10-27 (C1) — why the apply step (Sent to Airlines / Applied to Embassy) is blocked, else null. */
+  applyBlockedReason: string | null;
   /** P21 — CRM.md §36, oldest first, capped server-side. */
   timeline: BookingTimelineEntry[];
   timelineTruncated: boolean;
@@ -175,9 +178,8 @@ function formatShortDate(value: string): string {
 
 /** Step 16 (audit §3.6) — same type-name convention /api/documents/[id]/upload already auto-triggers OCR on. */
 function extractionTypeForDocument(type: string): "TICKET" | "VISA" | null {
-  if (/ticket/i.test(type)) return "TICKET";
-  if (/visa/i.test(type)) return "VISA";
-  return null;
+  const kind = ocrKindForDocumentType(type);
+  return kind === "TICKET" || kind === "VISA" ? kind : null;
 }
 
 export function BookingDetail({
@@ -327,7 +329,7 @@ export function BookingDetail({
           />
         </div>
         {extractionType ? (
-          <DocumentExtractionReview documentId={document.id} documentType={extractionType} hasFile={Boolean(document.fileUrl)} onUploaded={refresh} />
+          <DocumentExtractionReview documentId={document.id} refreshKey={`${document.fileUrl ?? ""}|${document.status}`} />
         ) : null}
       </div>
     );
@@ -453,6 +455,7 @@ export function BookingDetail({
                     currentStatus={booking.serviceStatusName}
                     rejectionReason={booking.visaRejectionReason}
                     currentVendor={booking.vendorSummary ? { id: booking.vendorSummary.vendorId, name: booking.vendorSummary.vendorName } : null}
+                    documentsBlockedReason={booking.applyBlockedReason}
                     onChanged={refresh}
                   />
                 ) : null}
@@ -464,12 +467,19 @@ export function BookingDetail({
                     reservationIssuedAt={booking.reservationIssuedAt}
                     reservationExpiresAt={booking.reservationExpiresAt}
                     reservationExpired={booking.reservationExpired}
+                    documentsBlockedReason={booking.applyBlockedReason}
                     onChanged={refresh}
                   />
                 ) : null}
 
                 {booking.serviceType === "OTB" && booking.otb ? (
-                  <OtbActionsPanel bookingId={booking.id} view={booking.otb} currentStatus={booking.serviceStatusName} onChanged={refresh} />
+                  <OtbActionsPanel
+                    bookingId={booking.id}
+                    view={booking.otb}
+                    currentStatus={booking.serviceStatusName}
+                    documentsBlockedReason={booking.applyBlockedReason}
+                    onChanged={refresh}
+                  />
                 ) : null}
 
                 {booking.serviceType === "RETURN_TICKET" || booking.serviceType === "OTB" ? (
@@ -656,7 +666,8 @@ export function BookingDetail({
             content: (
               <div className="flex flex-col gap-5">
                 <RecordSection title="Applicants">
-                  <ApplicantsTable applicants={booking.applicants} editable={{ leadId: booking.leadId, onChanged: refresh }} />
+                  {/* Client doc 2026-10-27 (C12) — no "Add passenger" on a booking (it would add a traveller without charge). */}
+                  <ApplicantsTable applicants={booking.applicants} editable={{ leadId: booking.leadId, onChanged: refresh, canAdd: false }} />
                 </RecordSection>
 
                 <RecordSection

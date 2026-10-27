@@ -3,6 +3,7 @@ import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { setServiceStatusByEvent, type StatusNotification } from "../service-status/engine";
 import { raiseFullRefundForBooking } from "../refunds/raise-refund";
+import { setBookingVendor, vendorRateProblem } from "../bookings/set-vendor";
 import { notifyRefundsRaised } from "../staff-notifications/triggers";
 import { usesStatusTemplates } from "../notifications/status-template";
 import { notifyCustomer } from "../notifications/notify";
@@ -40,10 +41,12 @@ const reasonField = z.string().trim().min(5, "Enter the reason (at least 5 chara
 
 /** P18 — OTB.md §10-15 staff actions on an OTB booking. */
 export const otbActionSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("SUBMIT_TO_AIRLINE") }),
+  // Client doc 2026-10-27 (C13) — staff name the vendor as they send it; its rate sets the vendor cost (P&L).
+  z.object({ action: z.literal("SUBMIT_TO_AIRLINE"), vendorId: z.string().trim().min(1, "Select the vendor") }),
   // Client doc 2026-10-20 — the additional documents the customer uploaded (and staff validated) went to the airline.
   z.object({ action: z.literal("ADDITIONAL_DOCUMENTS") }),
-  z.object({ action: z.literal("APPROVE"), otbReference: z.string().trim().min(3, "Enter the OTB PNR / reference").max(40, "Too long") }),
+  // Client doc 2026-10-27 (C10) — no OTB PNR / reference: approval is the airline's decision only.
+  z.object({ action: z.literal("APPROVE") }),
   z.object({ action: z.literal("REJECT"), reason: reasonField }),
   z.object({ action: z.literal("UNABLE_TO_PROCESS"), reason: reasonField }),
 ]);
@@ -68,7 +71,8 @@ export type OtbActionResult =
  * transitions decide what's allowed from the current status) and records
  * the facts OTB.md §20 asks for: submission timestamp, approval/rejection
  * timestamp, the OTB PNR/reference, the airline response / staff reason.
- * - APPROVE needs the OTB PNR/reference (mandatory).
+ * - SUBMIT_TO_AIRLINE names the vendor (client doc 2026-10-27, C13) — documents validated first (C1, status engine).
+ * - APPROVE needs nothing more (the OTB PNR / reference was dropped, C10).
  * - REJECT is the airline's decision — no refund is raised (§14/§16).
  * - UNABLE_TO_PROCESS is TripNexio's own inability before airline
  *   processing — never labelled a rejection — and raises a full refund
@@ -81,61 +85,87 @@ export async function runOtbAction(
 ): Promise<OtbActionResult> {
   // P22 — refunds raised inside the transaction are announced to refunds.approve staff once it commits.
   const raisedRefundIds: string[] = [];
-  const result = await db.$transaction(async (tx): Promise<OtbActionResult> => {
-    const note =
-      input.action === "APPROVE"
-        ? `OTB PNR/reference ${input.otbReference.toUpperCase()}`
-        : "reason" in input
-          ? input.reason
-          : undefined;
-    const moved = await setServiceStatusByEvent(tx, {
-      scope: "BOOKING",
-      entityId: bookingId,
-      event: ACTION_EVENT[input.action],
-      note,
-      userId: actor.userId,
-      actorLabel: actor.label,
-      inputs: "reason" in input ? { reason: input.reason } : undefined,
-    });
-    if (!moved.ok) return { ok: false, httpStatus: moved.httpStatus, error: moved.error };
-
-    const now = new Date();
-    switch (input.action) {
-      case "SUBMIT_TO_AIRLINE":
-        await tx.booking.update({ where: { id: bookingId }, data: { otbSubmittedAt: now } });
-        return { ok: true, message: "Submitted to the airline.", notification: moved.notification };
-      case "ADDITIONAL_DOCUMENTS":
-        return { ok: true, message: "Additional documents marked as sent to the airline.", notification: moved.notification };
-      case "APPROVE":
-        await tx.booking.update({
-          where: { id: bookingId },
-          data: { pnr: input.otbReference.toUpperCase(), otbDecidedAt: now },
-        });
-        return { ok: true, message: "OTB approved and the customer notified.", notification: moved.notification, approved: { bookingId } };
-      case "REJECT":
-        await tx.booking.update({ where: { id: bookingId }, data: { otbDecidedAt: now, otbOutcomeNote: input.reason } });
-        return { ok: true, message: "OTB marked rejected by the airline (no refund).", notification: moved.notification };
-      case "UNABLE_TO_PROCESS": {
-        await tx.booking.update({ where: { id: bookingId }, data: { otbDecidedAt: now, otbOutcomeNote: input.reason } });
-        const refunds = await raiseFullRefundForBooking(tx, {
-          bookingId,
-          reason: `OTB — TripNexio unable to process: ${input.reason}`,
-          raisedByUserId: actor.userId,
-          actorLabel: actor.label,
-        });
-        raisedRefundIds.push(...refunds.map((refund) => refund.id));
-        return {
-          ok: true,
-          message: refunds.length > 0 ? "Marked unable to process — a refund is pending approval." : "Marked unable to process (nothing paid to refund).",
-          notification: moved.notification,
-        };
+  // Looked up before the transaction (no global db inside one).
+  const vendor =
+    input.action === "SUBMIT_TO_AIRLINE" ? await db.vendor.findFirst({ where: { id: input.vendorId, active: true }, select: { id: true, name: true } }) : null;
+  if (input.action === "SUBMIT_TO_AIRLINE") {
+    if (!vendor) return { ok: false, httpStatus: 400, error: "Select an active vendor." };
+    const rateProblem = await vendorRateProblem(db, bookingId, vendor.id);
+    if (rateProblem) return { ok: false, httpStatus: 400, error: rateProblem };
+  }
+  const booking = vendor ? await db.booking.findUnique({ where: { id: bookingId }, select: { leadId: true } }) : null;
+  let result: OtbActionResult;
+  try {
+    result = await db.$transaction(async (tx): Promise<OtbActionResult> => {
+      // Client doc 2026-10-27 (C13) — the vendor and its rate first; any failure after it rolls everything back.
+      if (vendor && booking) {
+        const vendorError = await setBookingVendor(tx, { bookingId, leadId: booking.leadId, vendor, actor: { userId: actor.userId, name: actor.label.replace(/^by /, "") } });
+        if (vendorError) throw new OtbActionError(409, vendorError);
       }
-      default:
-        return { ok: true, message: "Status updated.", notification: moved.notification };
-    }
-  });
+      const note = vendor ? `vendor ${vendor.name}` : "reason" in input ? input.reason : undefined;
+      const moved = await setServiceStatusByEvent(tx, {
+        scope: "BOOKING",
+        entityId: bookingId,
+        event: ACTION_EVENT[input.action],
+        note,
+        userId: actor.userId,
+        actorLabel: actor.label,
+        inputs: "reason" in input ? { reason: input.reason } : undefined,
+      });
+      if (!moved.ok) {
+        if (vendor) throw new OtbActionError(moved.httpStatus, moved.error);
+        return { ok: false, httpStatus: moved.httpStatus, error: moved.error };
+      }
+
+      const now = new Date();
+      switch (input.action) {
+        case "SUBMIT_TO_AIRLINE": {
+          await tx.booking.update({ where: { id: bookingId }, data: { otbSubmittedAt: now } });
+          return { ok: true, message: "Sent to the airline.", notification: moved.notification };
+        }
+        case "ADDITIONAL_DOCUMENTS":
+          return { ok: true, message: "Additional documents marked as sent to the airline.", notification: moved.notification };
+        case "APPROVE":
+          await tx.booking.update({ where: { id: bookingId }, data: { otbDecidedAt: now } });
+          return { ok: true, message: "OTB approved and the customer notified.", notification: moved.notification, approved: { bookingId } };
+        case "REJECT":
+          await tx.booking.update({ where: { id: bookingId }, data: { otbDecidedAt: now, otbOutcomeNote: input.reason } });
+          return { ok: true, message: "OTB marked rejected by the airline (no refund).", notification: moved.notification };
+        case "UNABLE_TO_PROCESS": {
+          await tx.booking.update({ where: { id: bookingId }, data: { otbDecidedAt: now, otbOutcomeNote: input.reason } });
+          const refunds = await raiseFullRefundForBooking(tx, {
+            bookingId,
+            reason: `OTB — TripNexio unable to process: ${input.reason}`,
+            raisedByUserId: actor.userId,
+            actorLabel: actor.label,
+          });
+          raisedRefundIds.push(...refunds.map((refund) => refund.id));
+          return {
+            ok: true,
+            message: refunds.length > 0 ? "Marked unable to process — a refund is pending approval." : "Marked unable to process (nothing paid to refund).",
+            notification: moved.notification,
+          };
+        }
+        default:
+          return { ok: true, message: "Status updated.", notification: moved.notification };
+      }
+    });
+  } catch (error) {
+    if (error instanceof OtbActionError) return { ok: false, httpStatus: error.httpStatus, error: error.message };
+    throw error;
+  }
   await notifyRefundsRaised(raisedRefundIds);
   return result;
+}
+
+/** Thrown inside the transaction so a failed step undoes the vendor already set with it. */
+class OtbActionError extends Error {
+  constructor(
+    readonly httpStatus: number,
+    message: string
+  ) {
+    super(message);
+  }
 }
 
 /**

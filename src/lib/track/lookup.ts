@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import type { TrackResult, TrackStage, TrackStageStatus } from "./types";
+import { customerStages, reachedStatusNames } from "../service-status/customer-stages";
 import type { BookingStatus, LeadStatus, ServiceType } from "../../generated/prisma/enums";
 import { HOLD_MARKER } from "../service-status/events";
 import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, type OutputType } from "../outputs/output-types";
@@ -88,48 +89,34 @@ interface CurrentServiceStatus {
  * P08 — the stages a booking's customer sees are its own service's
  * customer-facing labels (ServiceStatus.customerLabel, Admin-editable), in
  * status order: e.g. New Visa "Application Received → Documents Upload
- * Pending → … → Visa Approved". Negative endings (mapped to CANCELLED /
- * REFUNDED) are never listed — those show the closed message instead — and
- * the "Additional Documents …" detour only appears while the booking is on
- * it. Returns null (caller falls back to the generic 5 stages) when the
+ * Pending → … → Visa Approved". Branch outcomes (partial approval, rejected,
+ * cancelled, refund steps, the "Additional Documents …" detour…) are listed
+ * only once the booking has been on them (client doc 2026-10-27, C7 —
+ * src/lib/service-status/customer-stages.ts). Returns null (caller falls back to the generic 5 stages) when the
  * booking has no per-service status, is On Hold, or its service has no
  * customer labels configured.
  */
-async function buildServiceStages(serviceType: ServiceType, current: CurrentServiceStatus | null): Promise<TrackStage[] | null> {
+async function buildServiceStages(serviceType: ServiceType, current: CurrentServiceStatus | null, bookingId?: string): Promise<TrackStage[] | null> {
   if (!current || current.systemEvent === HOLD_MARKER) return null;
-  const labelled = await db.serviceStatus.findMany({
-    where: {
-      serviceType,
-      scope: "BOOKING",
-      active: true,
-      customerLabel: { not: null },
-      NOT: [{ mapsToBookingStatus: "CANCELLED" }, { mapsToBookingStatus: "REFUNDED" }],
-    },
+  const statuses = await db.serviceStatus.findMany({
+    where: { serviceType, scope: "BOOKING", active: true, customerLabel: { not: null } },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-    select: { id: true, customerLabel: true, displayOrder: true },
+    select: { id: true, name: true, customerLabel: true, displayOrder: true, systemEvent: true, isTerminal: true, mapsToBookingStatus: true },
   });
-  if (labelled.length === 0) return null;
-
-  // The customer-facing step the booking is on: its own label, else the last labelled step before it.
-  const currentStep =
-    labelled.find((status) => status.id === current.id) ??
-    [...labelled].reverse().find((status) => status.displayOrder <= current.displayOrder) ??
-    null;
-  const currentLabel = currentStep?.customerLabel ?? null;
-
-  const labels: string[] = [];
-  for (const status of labelled) {
-    const label = status.customerLabel as string;
-    const detour = label.toLowerCase().startsWith("additional documents");
-    if (detour && !(currentStep && status.displayOrder <= currentStep.displayOrder)) continue;
-    if (!labels.includes(label)) labels.push(label);
-  }
-
-  const currentIndex = currentLabel ? labels.indexOf(currentLabel) : 0;
-  return labels.map((label, index) => ({
-    label,
-    status: index < currentIndex ? "done" : index === currentIndex ? "current" : "upcoming",
-  }));
+  if (statuses.length === 0) return null;
+  // Client doc 2026-10-27 (C7) — branch outcomes (partial approval, rejected, cancelled, refund…) only once they
+  // happened: the statuses this booking has been moved to, from its audit trail.
+  const history = bookingId
+    ? await db.auditTrail.findMany({
+        where: { entityType: "Booking", entityId: bookingId, action: { in: ["SERVICE_STATUS_CHANGE", "SERVICE_STATUS_OVERRIDE"] } },
+        select: { note: true },
+        take: 300,
+      })
+    : [];
+  const reachedNames = reachedStatusNames(history.map((row) => row.note));
+  const reachedIds = new Set(statuses.filter((status) => reachedNames.has(status.name)).map((status) => status.id));
+  const stages = customerStages(statuses, current, reachedIds);
+  return stages.length > 0 ? stages : null;
 }
 
 /** P09 — what's been delivered on a booking (labels and dates only; no file links on this public page). */
@@ -218,7 +205,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
     if (!matchesVerifier(lead.customer, verifier)) return null;
     const booking = lead.bookings[0] ?? null;
     const stageIndex = resolveStage(lead.status, booking?.status ?? null);
-    const serviceStages = booking && stageIndex !== "closed" ? await buildServiceStages(lead.serviceType, booking.serviceStatus) : null;
+    const serviceStages = booking && stageIndex !== "closed" ? await buildServiceStages(lead.serviceType, booking.serviceStatus, booking.id) : null;
     return {
       referenceId: lead.reference ?? referenceId,
       service: SERVICE_TYPE_LABELS[lead.serviceType],
@@ -243,7 +230,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
   if (booking) {
     if (!matchesVerifier(booking.customer, verifier)) return null;
     const stageIndex = resolveStage(booking.lead.status, booking.status);
-    const serviceStages = stageIndex !== "closed" ? await buildServiceStages(booking.lead.serviceType, booking.serviceStatus) : null;
+    const serviceStages = stageIndex !== "closed" ? await buildServiceStages(booking.lead.serviceType, booking.serviceStatus, booking.id) : null;
     return {
       referenceId: booking.bookingId,
       service: SERVICE_TYPE_LABELS[booking.lead.serviceType],

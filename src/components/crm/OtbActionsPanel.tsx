@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
 import { postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
+import { ApplyVendorSelect } from "./booking/BookingVendorPicker";
 
 export interface OtbBookingView {
+  /** Legacy — the OTB PNR / reference recorded before client doc 2026-10-27 (C10) dropped it; shown only when set. */
   otbReference: string | null;
   submittedAt: string | null;
   decidedAt: string | null;
@@ -31,22 +33,26 @@ const REASON_COPY: Record<ReasonAction, { label: string; button: string; hint: s
 /**
  * P18 — OTB staff actions on Booking detail (OTB.md §10-15). Each button
  * goes through the status engine, so only the steps valid from the current
- * status succeed; the timestamps and the OTB PNR/reference are recorded
- * for the CRM (§20).
+ * status succeed; the timestamps are recorded for the CRM (§20).
+ * Client doc 2026-10-27: Sent to Airlines asks for the vendor (its rate sets the cost, C13) and waits for every
+ * document to be validated (C1); OTB Approved needs no PNR / reference (C10).
  */
 export function OtbActionsPanel({
   bookingId,
   view,
   currentStatus,
+  documentsBlockedReason = null,
   onChanged,
 }: {
   bookingId: string;
   view: OtbBookingView;
   currentStatus: string | null;
+  /** Client doc 2026-10-27 (C1) — documents not all validated yet (the server checks too). */
+  documentsBlockedReason?: string | null;
   onChanged: () => void;
 }) {
   const [pending, setPending] = useState<string | null>(null);
-  const [reference, setReference] = useState("");
+  const [vendorId, setVendorId] = useState("");
   const [reasonAction, setReasonAction] = useState<ReasonAction | null>(null);
   const [reason, setReason] = useState("");
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
@@ -57,7 +63,6 @@ export function OtbActionsPanel({
     try {
       const result = await postJson<{ message: string }>(`/api/bookings/${bookingId}/otb-action`, body);
       toast.success(result.message);
-      setReference("");
       setReason("");
       setReasonAction(null);
       onChanged();
@@ -80,7 +85,7 @@ export function OtbActionsPanel({
         <span className="text-xs text-ink-tertiary">Current: {currentStatus ?? "—"}</span>
       </div>
 
-      <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+      <dl className={`grid grid-cols-1 gap-3 text-sm ${view.otbReference ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
         <div>
           <dt className="text-xs text-ink-tertiary">Submitted to airline</dt>
           <dd className="font-medium text-ink-primary">{fmt(view.submittedAt)}</dd>
@@ -89,23 +94,55 @@ export function OtbActionsPanel({
           <dt className="text-xs text-ink-tertiary">Approved / rejected</dt>
           <dd className="font-medium text-ink-primary">{fmt(view.decidedAt)}</dd>
         </div>
-        <div>
-          <dt className="text-xs text-ink-tertiary">OTB PNR / reference</dt>
-          <dd className="font-medium text-ink-primary">{view.otbReference ?? "—"}</dd>
-        </div>
+        {view.otbReference ? (
+          <div>
+            <dt className="text-xs text-ink-tertiary">OTB PNR / reference</dt>
+            <dd className="font-medium text-ink-primary">{view.otbReference}</dd>
+          </div>
+        ) : null}
       </dl>
       {view.expectedBy && !view.decidedAt ? (
         <p className="text-xs text-ink-secondary">Expected by (airline TAT, working days): {fmt(view.expectedBy)}</p>
       ) : null}
       {view.outcomeNote ? <p className="text-xs text-ink-secondary">Airline response / reason: {view.outcomeNote}</p> : null}
 
+      {!view.submittedAt ? (
+        <div className="flex flex-wrap items-end gap-3 rounded-lg border border-hairline p-3">
+          <div className="min-w-56 flex-1">
+            <ApplyVendorSelect
+              id={`otb-vendor-${bookingId}`}
+              label="Vendor"
+              bookingId={bookingId}
+              serviceType="OTB"
+              value={vendorId}
+              onChange={setVendorId}
+              disabled={pending !== null}
+              error={errors.vendorId?.[0]}
+            />
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {documentsBlockedReason ? <span className="max-w-xs text-right text-xs text-warning">{documentsBlockedReason}</span> : null}
+            <Button
+              type="button"
+              size="sm"
+              isLoading={pending === "SUBMIT_TO_AIRLINE"}
+              disabled={pending !== null || !vendorId || documentsBlockedReason !== null}
+              onClick={() => void run("SUBMIT_TO_AIRLINE", { action: "SUBMIT_TO_AIRLINE", vendorId })}
+            >
+              Sent to Airlines
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex flex-wrap gap-2">
-        <Button type="button" size="sm" variant="ghost" isLoading={pending === "SUBMIT_TO_AIRLINE"} onClick={() => void run("SUBMIT_TO_AIRLINE", { action: "SUBMIT_TO_AIRLINE" })}>
-          Sent to Airlines
-        </Button>
         {/* Client doc 2026-10-20 — airline asked for more: request the documents (Booking Documents), then send them on. */}
         <Button type="button" size="sm" variant="ghost" isLoading={pending === "ADDITIONAL_DOCUMENTS"} onClick={() => void run("ADDITIONAL_DOCUMENTS", { action: "ADDITIONAL_DOCUMENTS" })}>
           Additional Documents Sent to Airline
+        </Button>
+        {/* Client doc 2026-10-27 (C10) — the airline approved it: no OTB PNR / reference to enter. */}
+        <Button type="button" size="sm" variant="ghost" isLoading={pending === "APPROVE"} disabled={pending !== null} onClick={() => void run("APPROVE", { action: "APPROVE" })}>
+          OTB Approved
         </Button>
         {(Object.keys(REASON_COPY) as ReasonAction[]).map((action) => (
           <Button key={action} type="button" size="sm" variant="ghost" onClick={() => setReasonAction(reasonAction === action ? null : action)}>
@@ -133,21 +170,6 @@ export function OtbActionsPanel({
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-end gap-3 border-t border-hairline pt-4">
-        <div className="min-w-56 flex-1">
-          <TextField
-            label="OTB PNR / reference (required to approve)"
-            name={`otb-ref-${bookingId}`}
-            value={reference}
-            onChange={(event) => setReference(event.target.value)}
-            error={errors.otbReference?.[0]}
-            disabled={pending !== null}
-          />
-        </div>
-        <Button type="button" size="sm" isLoading={pending === "APPROVE"} disabled={reference.trim().length < 3} onClick={() => void run("APPROVE", { action: "APPROVE", otbReference: reference })}>
-          OTB Approved
-        </Button>
-      </div>
     </section>
   );
 }

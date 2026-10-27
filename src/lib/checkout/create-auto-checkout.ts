@@ -20,9 +20,9 @@ import { DIRECT_VENDOR_NAME } from "../bookings/set-vendor";
  * customer's /pay/<token> page. Staff still see and can edit all of it in the
  * CRM like any other lead. Returns null when there's nothing to charge.
  *
- * The quotation needs a vendor: an active vendor for the service if one
- * exists, otherwise an internal "Direct (auto-priced)" one (vendorCost 0, so
- * margin equals the price until staff enter the real cost).
+ * The quotation needs a vendor: the internal "Direct (auto-priced)" placeholder
+ * (vendorCost 0, so margin equals the price) until staff pick the real vendor
+ * at Sent to Airlines / Applied to Embassy (client doc 2026-10-27, C13).
  *
  * `vendorCost` (Step 40) is optional and defaults to 0 — only New Visa's
  * central PricingRule actually tracks a vendor cost figure today (OTB's
@@ -79,11 +79,11 @@ export async function createAutoCheckout(input: {
   // BookingPassenger insert hits its unique key and the whole checkout fails (P2002).
   const passengerIds = [...new Set(Array.isArray(details.passengerIds) ? (details.passengerIds as string[]) : [])];
 
+  // Client doc 2026-10-27 (C13) — never a real vendor picked automatically: the booking starts on the internal
+  // placeholder, and staff name the vendor at Sent to Airlines / Applied to Embassy (its rate sets the cost).
   const vendor =
-    (await db.vendor.findFirst({
-      where: { active: true, services: { some: { service: serviceType } } },
-      orderBy: { createdAt: "asc" },
-    })) ?? (await db.vendor.create({ data: { name: DIRECT_VENDOR_NAME, services: { create: [{ service: serviceType }] } } }));
+    (await db.vendor.findFirst({ where: { name: DIRECT_VENDOR_NAME }, orderBy: { createdAt: "asc" } })) ??
+    (await db.vendor.create({ data: { name: DIRECT_VENDOR_NAME, services: { create: [{ service: serviceType }] } } }));
 
   const token = crypto.randomBytes(16).toString("hex");
 

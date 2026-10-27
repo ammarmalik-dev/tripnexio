@@ -27,7 +27,12 @@ interface RouteParams {
 
 const actionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("CONFIRM_AVAILABILITY") }),
-  z.object({ action: z.literal("UNAVAILABLE"), alternative: alternativeOptionSchema.nullable() }),
+  z.object({
+    action: z.literal("UNAVAILABLE"),
+    alternative: alternativeOptionSchema.nullable(),
+    /** Client doc 2026-10-27 (A5) — required when an Admin overrides after a ticket was delivered. */
+    overrideReason: z.string().trim().max(500).optional(),
+  }),
   z.object({ action: z.literal("RECORD_PNR") }).extend(recordPnrSchema.shape),
   z.object({ action: z.literal("ISSUE_TICKET") }).extend(issueTicketSchema.shape),
 ]);
@@ -75,9 +80,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     if (input.action === "ISSUE_TICKET") {
       if (!booking.pnr) return jsonError(409, "Record the PNR first — PNR and ticket issuance are separate steps.");
-      const bookingPassengerIds = new Set(booking.passengers.map((row) => row.passengerId));
+      // Client doc 2026-10-27 (A4) — a ticket only for a passenger still travelling (not cancelled / rejected).
+      const travelling = booking.passengers.filter((row) => row.outcome !== "CANCELLED" && row.outcome !== "REJECTED");
+      const bookingPassengerIds = new Set(travelling.map((row) => row.passengerId));
       if (input.passengerIds.some((pid) => !bookingPassengerIds.has(pid))) {
-        return jsonError(400, "That passenger isn't on this booking.", { passengerIds: ["Select passengers on this booking."] });
+        return jsonError(400, "That passenger isn't travelling on this booking.", { passengerIds: ["Select passengers on this booking."] });
       }
       // Client doc 2026-10-20 (A8) — only the tickets issued so far; each passenger's ticket is tracked on its own.
       const already = await db.document.findMany({ where: { bookingId: id, type: "TICKET_PDF", purgedAt: null }, select: { passengerId: true } });
@@ -93,7 +100,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         throw error;
       }
       const names = booking.passengers.filter((row) => pending.includes(row.passengerId)).map((row) => row.passenger.fullName);
-      const coversRest = pending.length + [...issuedIds].length >= booking.passengers.length;
+      // Ticket Issued only once every passenger still travelling has a ticket (A4).
+      const coversRest = travelling.every((row) => issuedIds.has(row.passengerId) || pending.includes(row.passengerId));
       await db.$transaction(async (tx) => {
         await tx.booking.update({
           where: { id },
@@ -112,17 +120,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return jsonSuccess({ message: coversRest ? "Ticket delivered — every passenger now has a ticket." : `Ticket delivered for ${names.join(", ")}.` });
     }
 
-    // Client doc 2026-10-20 (A10) — once a ticket is delivered, only an Admin may record the flight as unavailable.
-    if (input.action === "UNAVAILABLE" && !session.permissions.includes(ADMIN_FULL_PERMISSION)) {
+    // Client doc 2026-10-20 (A10) / 2026-10-27 (A5) — once a ticket is delivered, staff can't record the flight as
+    // unavailable; only an Admin can, as an audited override with a reason.
+    let unavailableActor: { userId?: string; label: string; adminOverride?: boolean } = actor;
+    if (input.action === "UNAVAILABLE") {
       const delivered = await db.document.count({ where: { bookingId: id, type: "TICKET_PDF" } });
-      if (delivered > 0) return jsonError(409, "A ticket has already been delivered — only an Admin can mark this booking unavailable.");
+      if (delivered > 0) {
+        if (!session.permissions.includes(ADMIN_FULL_PERMISSION)) {
+          return jsonError(409, "A ticket has already been delivered — only an Admin can mark this booking unavailable.");
+        }
+        const reason = input.overrideReason?.trim() ?? "";
+        if (reason.length < 5) {
+          return jsonError(400, "A ticket was already delivered — give the reason for this Admin override.", { overrideReason: ["Enter a reason (at least 5 characters)."] });
+        }
+        unavailableActor = { ...actor, label: `${actor.label} — Admin override after ticket delivery: ${reason}`, adminOverride: true };
+        await writeAudit(db, { entityType: "Booking", entityId: id, action: "FSF_UNAVAILABLE_OVERRIDE", byUserId: session.id, note: `Marked unavailable after a ticket was delivered: ${reason} (by ${session.name})` });
+      }
     }
 
     const result =
       input.action === "CONFIRM_AVAILABILITY"
         ? await confirmAvailability(id, actor)
         : input.action === "UNAVAILABLE"
-          ? await markUnavailable(id, input.alternative, actor)
+          ? await markUnavailable(id, input.alternative, unavailableActor)
           : await recordPnr(id, { pnr: input.pnr, vendorReference: input.vendorReference }, actor);
     if (!result.ok) return jsonError(result.httpStatus, result.error);
     await dispatchStatusNotifications(result.notifications);
