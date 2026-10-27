@@ -110,7 +110,7 @@ async function buildServiceStages(serviceType: ServiceType, current: CurrentServ
     ? await db.auditTrail.findMany({
         where: { entityType: "Booking", entityId: bookingId, action: { in: ["SERVICE_STATUS_CHANGE", "SERVICE_STATUS_OVERRIDE"] } },
         select: { note: true },
-        orderBy: { createdAt: "asc" },
+        orderBy: { timestamp: "asc" },
         take: 300,
       })
     : [];
