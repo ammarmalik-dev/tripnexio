@@ -68,3 +68,10 @@ Open for the client: one service has GST % 17.83 in Admin → Services (others 1
 - [x] K1 Manual lead: payment link / manual payment option
 - [x] M1 Email OTP at account creation
 - [x] N1 Booking status: internal status buttons on the left, customer status follows, no reverting
+
+## Follow-up 27 Oct (commit 0d58574, backup pre-deploy-20261027T175953)
+- Code review + local end-to-end run (mock gateway) of OTB / Return Ticket / New Visa: documents, consolidated notifications, Sent to Airlines / Applied blocks, vendor rate → cost, OTB approve without PNR, paid lead add-passenger 409, refund maker-checker + partial refund, Track Status, RT early hold + task, New Visa holiday — all PASS after fixes.
+- Fixed from that run: Track Status order, cancelled passenger blocking vendor choice, staff "Documents Validated" without validated documents, SF cheaper-alternative GST over-refund, RT hold on refund statuses, New Visa rules for long country codes, per-passenger delivery messages deduped, override audit only on success.
+- Partial refund: remaining passengers carry on (client status matrix "remaining passengers may stay active"); refund statuses only from the refund engine.
+- Client reply: invoice serial AA02699 → AB02601 (already so); Special Fare summary = Trip Details / Flight Details / Pax Info / Fare Info (done).
+- Not run end to end (agent stopped): SF payment → per-passenger tickets, VE/VC quote send after payment, GST-on invoice, email render, WhatsApp handover, manual lead, enquiry email, signup OTP — covered by unit tests and code review only.
