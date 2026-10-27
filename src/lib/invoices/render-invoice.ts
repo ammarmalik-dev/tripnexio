@@ -374,7 +374,8 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
   summaryRow("Total Service Fee", money(serviceTotal));
   summaryRow(`Discount${invoice.couponCode ? ` (${invoice.couponCode})` : ""}`, `- ${money(invoice.couponDiscount)}`, GREEN);
   summaryRow("Taxable Value", money(taxable));
-  summaryRow("Total GST", money(invoice.gstAmount));
+  // Client doc 2026-10-27 (E4) — with GST off there is no GST line (the Tax Summary says no GST is charged).
+  if (invoice.gstAmount > 0) summaryRow("Total GST", money(invoice.gstAmount));
   if (invoice.gatewayFee > 0) summaryRow("Payment Gateway Fee", money(invoice.gatewayFee));
   ry += 2;
   doc.roundedRect(rightCol, ry, rightW, 24, 4).fill(NAVY);

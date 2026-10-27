@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight, RotateCw, Search } from "lucide-react";
+import { ArrowRight, Search } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -15,6 +15,7 @@ import { DashboardFilterChip } from "./DashboardFilterChip";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { StatusPill } from "./StatusPill";
+import { ListRefreshButton, ListToolbar } from "./ListToolbar";
 import {
   SERVICE_TYPE_LABELS,
   SERVICE_TYPE_OPTIONS,
@@ -219,8 +220,17 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
     <div className="flex flex-col gap-4">
       {/* Client doc 2026-10-15 (C4) — one search bar: the 360 search in the top bar (a ?search= link still lands filtered). */}
 
-      {/* Client doc 2026-10-20 (L6) — the eight dropdowns share one row on desktop, never spilling onto a third. */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 xl:grid-cols-8 [&_select]:w-full [&_select]:max-w-none [&_select]:min-w-0">
+      {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
+      <ListToolbar
+        actions={
+          <>
+            <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
+            <ExportCsvButton href={`/api/bookings/export?${buildFilterParams().toString()}`} />
+          </>
+        }
+      >
+      {/* Client doc 2026-10-20 (L6) — the eight dropdowns in tidy rows (four a row, eight on very wide screens). */}
+      <div className="grid basis-full grid-cols-2 gap-2.5 sm:grid-cols-4 min-[1800px]:grid-cols-8 [&_select]:w-full [&_select]:max-w-none [&_select]:min-w-0">
         {filterSelect("filter-booking-service", "Filter by service", serviceType, (next) => {
           setServiceType(next);
           setServiceStatusId("");
@@ -291,8 +301,6 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
 
       </div>
 
-      {/* Client doc 2026-10-20 (L6) — filters in two rows: dropdowns, then dates, sort and actions. */}
-      <div className="flex flex-wrap items-center gap-2.5">
         <div className="flex items-center gap-1.5">
           <label htmlFor="filter-booking-travel-from" className="text-xs text-ink-tertiary">
             Travel
@@ -368,14 +376,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setRefreshNonce((current) => current + 1)} disabled={state === "loading"}>
-            <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-            Refresh
-          </Button>
-          <ExportCsvButton href={`/api/bookings/export?${buildFilterParams().toString()}`} />
-        </div>
-      </div>
+      </ListToolbar>
 
       <DashboardFilterChip
         label={status.includes(",") ? status.split(",").map((s) => BOOKING_STATUS_LABELS[s as BookingStatus] ?? s).join(", ") : undefined}
@@ -468,7 +469,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                     <td className="px-3 py-3">
                       {booking.customerStatus ? <StatusPill label={booking.customerStatus} /> : <BookingStatusBadge status={booking.status} />}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap">
+                    <td className="px-3 py-3">
                       <StatusPill label={booking.internalStatus} />
                     </td>
                     <td className="px-3 py-3">

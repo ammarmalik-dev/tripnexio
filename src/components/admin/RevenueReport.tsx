@@ -91,9 +91,12 @@ export function RevenueReport() {
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-hairline bg-surface-1 p-5">
         <TextField label="From" name="from" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
         <TextField label="To" name="to" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
-        <Button type="button" size="sm" variant="ghost" onClick={() => setReloadNonce((current) => current + 1)}>
-          Refresh
-        </Button>
+        {/* Client 2026-10-28 — Refresh at the right of the filter line, the same height as the date fields. */}
+        <div className="ml-auto flex items-center gap-2">
+          <Button type="button" size="md" variant="ghost" onClick={() => setReloadNonce((current) => current + 1)}>
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {state === "loading" ? (

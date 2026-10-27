@@ -5,12 +5,25 @@ import { db } from "@/lib/db";
 import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 
-export async function GET() {
+/**
+ * Client 2026-10-28 — only the templates in use (active) by default; `?retired=include` adds the retired / disabled
+ * ones (the Admin screen groups them by service from the event code).
+ */
+export async function GET(request: NextRequest) {
   const auth = await requirePermission("masters.manage");
   if (auth.error) return auth.error;
 
-  const templates = await db.notificationTemplate.findMany({ orderBy: [{ channel: "asc" }, { event: "asc" }] });
-  return jsonSuccess(templates);
+  try {
+    const includeRetired = request.nextUrl.searchParams.get("retired") === "include";
+    const templates = await db.notificationTemplate.findMany({
+      where: includeRetired ? undefined : { active: true },
+      orderBy: [{ channel: "asc" }, { event: "asc" }],
+    });
+    return jsonSuccess(templates);
+  } catch (error) {
+    console.error("[admin/notification-templates] list failed", error instanceof Error ? error.message : "unknown");
+    return jsonError(500, "Couldn't load notification templates.");
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -34,7 +47,7 @@ export async function POST(request: NextRequest) {
     where: { event_channel: { event: parsed.data.event, channel: parsed.data.channel } },
   });
   if (existing) {
-    return jsonError(400, "A template for this event and channel already exists.", {
+    return jsonError(400, existing.active ? "A template for this event and channel already exists." : "A retired template for this event and channel already exists — tick \"Show retired templates\" and enable it instead.", {
       event: ["Already added — edit the existing template instead."],
     });
   }

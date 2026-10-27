@@ -1,7 +1,6 @@
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { STATIC_SITE_CONTACT, type SiteContact } from "@/lib/site-contact";
 import type { ServiceType } from "../../generated/prisma/enums";
-import { requestReceivedMessage } from "../leads/request-received-message";
 
 /**
  * Contact details quoted in bot replies. The engine refreshes this from
@@ -53,11 +52,12 @@ export function tripNexioVisaNotFound(): string {
 
 /**
  * Client doc 2026-10-15 — Visa Extension lead created: thank-you + link to upload the documents. Client 2026-10-23
- * audit — Visa Change too (the website asks the current visa copy before the quotation).
+ * audit — Visa Change too (the website asks the current visa copy before the quotation). Client 2026-10-28 — it opens
+ * with the same "request received" message as the website and email (`confirmation`, src/lib/leads/request-confirmation.ts).
  */
-export function extensionUploadRequest(referenceId: string, uploadUrl: string | null, serviceLabel = "Visa Extension"): string {
+export function extensionUploadRequest(confirmation: string, uploadUrl: string | null): string {
   return (
-    `Thank you! Your ${serviceLabel} request has been received — reference *${referenceId}*.\n\n` +
+    `${confirmation}\n\n` +
     (uploadUrl
       ? "Please upload each passenger's passport and visa copies using the button below. "
       : "Our team will contact you for each passenger's passport and visa copies. ") +
@@ -71,18 +71,19 @@ export function startingService(serviceType: ServiceType, firstFieldPrompt: stri
   return `Great — let's get your ${SERVICE_TYPE_LABELS[serviceType]} request started. I'll ask a few quick questions.\n\n${firstFieldPrompt}`;
 }
 
-/** Client testing 2026-10-09 (C8) — the same per-service "request received" text as the website and email. */
-export function leadCreated(referenceId: string, serviceType: ServiceType): string {
+/** Client 2026-10-28 — the same "request received" message as the website and email (src/lib/leads/request-confirmation.ts). */
+export function leadCreated(confirmation: string): string {
   return (
-    `${requestReceivedMessage(serviceType)}\n\nYour reference: *${referenceId}*.\n\n` +
+    `${confirmation}\n\n` +
     `You can also reach us anytime at ${contact.phone} or ${contact.email}.\n\n` +
     `Type "menu" if you'd like to start another request.`
   );
 }
 
-export function leadCreatedWithPayLink(referenceId: string, serviceLabel: string, payUrl: string, tripSummary = ""): string {
+/** Client 2026-10-28 — opens with the same "request received" message as the website and email, then the Pay Now step. */
+export function leadCreatedWithPayLink(confirmation: string, payUrl: string, tripSummary = ""): string {
   return (
-    `All set! Your ${serviceLabel} booking is created — Booking ID *${referenceId}*.\n\n` +
+    `${confirmation}\n\n` +
     // Client 2026-10-14 — passengers, route / destination and travel date in the confirmation.
     (tripSummary ? `${tripSummary.split(" · ").join("\n")}\n\n` : "") +
     `Tap *Pay Now* below to complete your payment securely.\n${payUrl}\n\n` +

@@ -5,7 +5,7 @@ import { postJson, RequestIneligibleOutcome } from "./client";
 /** P13 — the exact no-match message (Visa Extension handover). */
 export const NO_PRIOR_VISA_MESSAGE = "We currently provide visa extension services only for visas issued through TripNexio.";
 
-export async function submitVisaExtensionRequest(values: VisaExtensionRequestValues): Promise<{ referenceId: string }> {
+export async function submitVisaExtensionRequest(values: VisaExtensionRequestValues): Promise<{ referenceId: string; confirmationMessage?: string }> {
   const result = await postJson<CreateLeadResult & { priorVisaFound: boolean; unmatchedApplicants: string[] }>("/api/leads/visa-extension", values);
   if (!result.priorVisaFound) {
     // The request is saved for our team (flagged noPriorVisa); the customer is offered the right service instead.
@@ -17,5 +17,5 @@ export async function submitVisaExtensionRequest(values: VisaExtensionRequestVal
       { label: "I'm outside the UAE", href: "/services/new-visa" }
     );
   }
-  return { referenceId: result.referenceId };
+  return { referenceId: result.referenceId, confirmationMessage: result.confirmationMessage };
 }

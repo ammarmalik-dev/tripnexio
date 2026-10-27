@@ -3,18 +3,10 @@
 import { useFormContext } from "react-hook-form";
 import { formatRupees, useReturnTicketDestinations } from "@/lib/return-ticket/use-return-ticket-destinations";
 import type { ReturnTicketRequestValues } from "@/lib/validation/return-ticket-schema";
+import { SummaryRow } from "@/components/forms/RequestSummaryRow";
 
 function formatDate(value: string): string {
   return value ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "";
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0">
-      <span className="text-sm text-ink-tertiary">{label}</span>
-      <span className="text-sm font-medium text-ink-primary">{value}</span>
-    </div>
-  );
 }
 
 /**

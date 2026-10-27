@@ -5,12 +5,6 @@ import { setServiceStatusByEvent, type StatusNotification } from "../service-sta
 import { raiseFullRefundForBooking } from "../refunds/raise-refund";
 import { setBookingVendor, vendorRateProblem } from "../bookings/set-vendor";
 import { notifyRefundsRaised } from "../staff-notifications/triggers";
-import { usesStatusTemplates } from "../notifications/status-template";
-import { notifyCustomer } from "../notifications/notify";
-import { NOTIFICATION_EVENTS } from "../notifications/events";
-import { toWhatsAppId } from "../whatsapp/phone";
-import { leadReference } from "../leads/reference";
-import { siteConfig } from "../site-config";
 import type { ServiceStatusSystemEvent } from "../service-status/events";
 import { getOtbGlobalRules, resolveAirlineRules } from "./get-otb-rules";
 import { getWorkingCalendar } from "../calendar/get-working-calendar";
@@ -169,10 +163,9 @@ class OtbActionError extends Error {
 }
 
 /**
- * P18 — OTB.md §13 approval message: WhatsApp + email "Your OTB PNR has been
- * approved by the airline." with the reference, plus a Return Verified
- * Ticket offer when the booking has no linked Return Ticket. A linked
- * Return Ticket booking gets a timeline entry that issuance is unblocked.
+ * P18 — after an OTB approval: a linked Return Ticket booking gets a timeline
+ * entry that issuance is unblocked (the customer's approval message is the
+ * "OTB Approved" status template, sent by the status engine).
  * Called after the transaction commits; never throws.
  */
 export async function afterOtbApproved(bookingId: string, actorLabel: string): Promise<void> {
@@ -188,21 +181,8 @@ export async function afterOtbApproved(bookingId: string, actorLabel: string): P
     });
     if (!booking) return;
     const hasReturnTicket = booking.linkedBooking?.lead.serviceType === "RETURN_TICKET";
-    // Client doc 2026-10-20 — the "OTB Approved" status sends the client's own template instead.
-    const statusDriven = await usesStatusTemplates("OTB");
-    if (!statusDriven) await notifyCustomer({
-      event: NOTIFICATION_EVENTS.OTB_APPROVED,
-      emailTo: booking.lead.customer.email,
-      whatsappTo: toWhatsAppId(booking.lead.customer.mobile),
-      smsTo: toWhatsAppId(booking.lead.customer.mobile),
-      variables: {
-        customerName: booking.lead.customer.name,
-        leadReference: leadReference(booking.lead),
-        otbReference: booking.pnr ?? "",
-        returnTicketOffer: hasReturnTicket ? "" : `Need a return ticket? Get a Return Verified Ticket: ${siteConfig.url}/services/return-ticket`,
-      },
-      auditTarget: { entityType: "Booking", entityId: bookingId },
-    });
+    // Client doc 2026-10-20 — the customer hears about the approval from the "OTB Approved" status's own template
+    // (sent by the status engine); the legacy OTB_APPROVED message is retired (migration 20261028090000).
     if (hasReturnTicket && booking.linkedBooking) {
       await db.$transaction((tx) =>
         writeAudit(tx, {

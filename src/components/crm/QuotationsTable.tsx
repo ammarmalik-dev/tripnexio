@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, RotateCw } from "lucide-react";
+import { Search } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
+import { ListRefreshButton, ListToolbar } from "./ListToolbar";
 import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS } from "@/lib/crm/labels";
 import { ListPagination } from "./ListPagination";
 import { usePaginationState } from "./usePagination";
@@ -156,7 +157,15 @@ export function QuotationsTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
+      <ListToolbar
+        actions={
+          <>
+            <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
+            <ExportCsvButton href={`/api/quotations/export?${buildFilterParams().toString()}`} />
+          </>
+        }
+      >
         <label htmlFor="filter-quote-poc" className="sr-only">
           Filter by POC
         </label>
@@ -282,18 +291,6 @@ export function QuotationsTable() {
           <option value="createdAt_asc">Oldest first</option>
         </select>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setRefreshNonce((current) => current + 1)}
-          disabled={state === "loading"}
-        >
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
-
-        <ExportCsvButton href={`/api/quotations/export?${buildFilterParams().toString()}`} />
         <DateRangeFilter
           idPrefix="quotation"
           dateFrom={dateFrom}
@@ -315,7 +312,7 @@ export function QuotationsTable() {
             resetPage();
           }}
         />
-      </div>
+      </ListToolbar>
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

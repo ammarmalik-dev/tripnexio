@@ -90,7 +90,7 @@ export function ReportViewer({ reportKey, supportedFilters, currencyCode }: Repo
         actions={
           hasRows && rangeValid ? (
             // A plain anchor (not next/link) so the browser performs a normal file download of the attachment response.
-            <a href={csvHref} download className={cn(buttonBaseClass, buttonVariantClass.primary, buttonSizeClass.sm)}>
+            <a href={csvHref} download className={cn(buttonBaseClass, buttonVariantClass.primary, buttonSizeClass.md)}>
               <Download className="h-4 w-4" aria-hidden="true" />
               Export CSV
             </a>

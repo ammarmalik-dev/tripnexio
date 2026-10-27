@@ -11,6 +11,7 @@ import { getJson } from "@/lib/api/client";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 import { processingTypeLabel } from "@/lib/processing-types/defaults";
 import { GUARDIAN_RELATIONSHIP_LABELS, type NewVisaRequestValues } from "@/lib/validation/new-visa-schema";
+import { SummaryRow } from "@/components/forms/RequestSummaryRow";
 
 type ProtectionPlanCountryConfig =
   | { enabled: false }
@@ -109,15 +110,6 @@ function ProtectionPlanOptIn({ countryCode, travellerNames }: { countryCode: str
           <p className="mt-1 text-xs text-ink-tertiary">Added to your payable total as a separate line.</p>
         </>
       ) : null}
-    </div>
-  );
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0">
-      <span className="text-sm text-ink-tertiary">{label}</span>
-      <span className="text-sm font-medium text-ink-primary">{value}</span>
     </div>
   );
 }

@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
           // P22 — unsent drafts get no customer reminders and no expiry notification.
           isDraft: false,
           validityExpiresAt: { not: null },
-          lead: { bookings: { none: { payments: { some: { status: "SUCCESS" } } } } },
+          // Client 2026-10-27 — a cancelled (Lost / Closed) request gets no more reminders.
+          lead: { status: { notIn: ["LOST", "CLOSED"] }, bookings: { none: { payments: { some: { status: "SUCCESS" } } } } },
         },
         include: { lead: { include: { customer: true } } },
       });

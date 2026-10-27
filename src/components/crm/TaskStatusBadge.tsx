@@ -13,7 +13,7 @@ export function TaskStatusBadge({ status }: { status: TaskStatus }) {
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium",
+        "inline-flex max-w-[11rem] items-center whitespace-normal break-words rounded-full px-2.5 py-1 text-center text-xs leading-tight font-medium",
         STATUS_STYLES[status]
       )}
     >

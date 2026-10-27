@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, RotateCw, ArrowRight } from "lucide-react";
+import { Search, ArrowRight } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -13,6 +13,7 @@ import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
 import { LeadStatusBadge } from "./LeadStatusBadge";
+import { ListRefreshButton, ListToolbar } from "./ListToolbar";
 import { LeadTemperatureBadge } from "./LeadTemperatureBadge";
 import { ListPagination } from "./ListPagination";
 import { usePaginationState } from "./usePagination";
@@ -174,7 +175,16 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
+      <ListToolbar
+        actions={
+          <>
+            <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
+            <ExportCsvButton href={`/api/leads/export?${buildFilterParams().toString()}`} />
+          </>
+        }
+      >
+      <div className="flex basis-full flex-wrap items-center gap-2.5">
         <label htmlFor="filter-service" className="sr-only">
           Filter by service
         </label>
@@ -295,8 +305,8 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
 
       </div>
 
-      {/* Client doc 2026-10-15 (C4) — every filter within two lines: the dropdowns, then dates, sort and actions. */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Client doc 2026-10-15 (C4) — every filter within two lines: the dropdowns, then dates and sort. */}
+      <div className="flex basis-full flex-wrap items-center gap-2.5">
         <div className="flex items-center gap-1.5">
           <label htmlFor="filter-travel-from" className="text-xs text-ink-tertiary">
             Travel
@@ -351,21 +361,8 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
           <option value="createdAt_asc">Oldest first</option>
         </select>
 
-        {/* Client doc 2026-10-20 (L3) — Refresh and Export sit in the second row. */}
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setRefreshNonce((current) => current + 1)}
-            disabled={state === "loading"}
-          >
-            <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-            Refresh
-          </Button>
-          <ExportCsvButton href={`/api/leads/export?${buildFilterParams().toString()}`} />
-        </div>
       </div>
+      </ListToolbar>
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

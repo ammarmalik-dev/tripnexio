@@ -48,10 +48,10 @@ const INPUT_LABELS: Record<InputKey, { label: string; placeholder?: string }> = 
 const REASON_REQUIRED = /hold|reject|not accepted|not eligible|unable/i;
 
 /**
- * CRM Change Status for a Lead or Booking (P08 — CRM.md §14). Client doc 2026-10-20 (L7): the next
- * internal statuses are buttons on the left; picking one shows what the customer will be told (their
- * status label, and whether an email + WhatsApp goes out) and asks for the customer-safe reason / next
- * step when that message uses one. The current internal status and what the customer sees are on the right.
+ * CRM Change Status for a Lead or Booking (P08 — CRM.md §14). Client 2026-10-27: one card on the right side —
+ * the current internal status and what the customer sees, then a list to select the next status (no row of
+ * status buttons on top). Picking one shows what the customer will be told (their status label, and whether an
+ * email + WhatsApp goes out) and asks for the customer-safe reason / next step when that message uses one.
  */
 export function ServiceStatusControl<TCoarse extends string>({
   endpoint,
@@ -155,56 +155,66 @@ export function ServiceStatusControl<TCoarse extends string>({
   return (
     <div className="flex w-full flex-col gap-3">
       {dialog}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        {/* Left — the next internal statuses as buttons. */}
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <span className="text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">Move to</span>
-          {state.allowed.length > 0 || (state.panelOnly?.length ?? 0) > 0 ? (
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Change status">
-              {state.allowed.map((option) => (
-                <button
-                  key={option.id}
-                  id={option.id === state.allowed[0]?.id ? selectId : undefined}
-                  type="button"
-                  disabled={pending}
-                  onClick={() => choose(option)}
-                  title={option.customerLabel && option.customerLabel !== option.name ? `Customer sees: ${option.customerLabel}` : undefined}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none disabled:opacity-50",
-                    target?.id === option.id ? "border-accent bg-accent text-ink-on-dark-primary" : "border-hairline bg-surface-1 text-ink-primary hover:border-accent/60 hover:bg-accent/10"
-                  )}
-                >
-                  {option.notifies ? <Mail className="h-3 w-3 opacity-70" aria-label="customer notified" /> : null}
-                  {option.name}
-                </button>
-              ))}
-              {(state.panelOnly ?? []).map((step) => (
-                <span
-                  key={step.id}
-                  title="Taken from the action panel in Operations — it asks for the vendor and needs every document validated."
-                  className="inline-flex items-center gap-1 rounded-full border border-dashed border-hairline px-2.5 py-1 text-xs font-medium text-ink-secondary"
-                >
-                  {step.name} <span className="text-ink-tertiary">· Operations panel</span>
+      {/* Client 2026-10-27 — no row of status buttons on top: one list on the right side to select the next status. */}
+      <div className="flex justify-end">
+        <div className="flex w-full flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-3 sm:w-80">
+          <div className="flex items-start justify-between gap-3">
+            {state.current ? (
+              <span className="flex flex-col leading-tight">
+                <span className="text-xs text-ink-tertiary">Internal status</span>
+                <span className="text-sm font-medium text-ink-primary">{state.current.name}</span>
+                <span className="mt-1 text-xs text-ink-tertiary">
+                  Customer sees: <span className="font-medium text-ink-secondary">{state.current.customerLabel ?? "—"}</span>
                 </span>
-              ))}
-            </div>
-          ) : (
-            <span className="text-xs text-ink-tertiary">Final status — no further moves</span>
-          )}
-        </div>
-
-        {/* Right — where the record is now (internal + what the customer sees). */}
-        <div className="flex shrink-0 flex-wrap items-start justify-end gap-3">
-          {badge}
-          {state.current ? (
-            <span className="flex flex-col text-right leading-tight">
-              <span className="text-xs text-ink-tertiary">Internal status</span>
-              <span className="text-sm font-medium text-ink-primary">{state.current.name}</span>
-              <span className="mt-1 text-xs text-ink-tertiary">
-                Customer sees: <span className="font-medium text-ink-secondary">{state.current.customerLabel ?? "—"}</span>
               </span>
-            </span>
+            ) : (
+              <span className="text-xs text-ink-tertiary">No status yet</span>
+            )}
+            {badge}
+          </div>
+          {state.allowed.length > 0 ? (
+            <>
+              <label htmlFor={selectId} className="text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">
+                Move to
+              </label>
+              <select
+                id={selectId}
+                value={target?.id ?? ""}
+                disabled={pending}
+                onChange={(event) => {
+                  const option = state.allowed.find((row) => row.id === event.target.value);
+                  if (option) choose(option);
+                }}
+                className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-full text-sm")}
+              >
+                <option value="" disabled>
+                  Select the next status…
+                </option>
+                {state.allowed.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.name}
+                    {option.notifies ? " ✉" : ""}
+                  </option>
+                ))}
+              </select>
+              <span className="text-[11px] text-ink-tertiary">✉ = the customer gets an email + WhatsApp.</span>
+            </>
+          ) : state.current?.isTerminal ? (
+            <span className="text-xs text-ink-tertiary">Final status — no further moves</span>
           ) : null}
+          {/* Client 2026-10-28 — steps with an action (documents, payment, Operations panel…) move by themselves. */}
+          {state.current && !state.current.isTerminal ? (
+            <span className="text-[11px] text-ink-tertiary">Other steps move automatically when their action is done (documents, payment, Operations panel).</span>
+          ) : null}
+          {(state.panelOnly ?? []).map((step) => (
+            <span
+              key={step.id}
+              title="Taken from the action panel in Operations — it asks for the vendor and needs every document validated."
+              className="text-xs text-ink-secondary"
+            >
+              {step.name}: use the Operations panel.
+            </span>
+          ))}
         </div>
       </div>
 

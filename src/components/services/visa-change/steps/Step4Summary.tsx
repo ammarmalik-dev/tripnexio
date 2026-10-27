@@ -3,6 +3,7 @@
 import { useFormContext } from "react-hook-form";
 import type { VisaChangeRequestValues } from "@/lib/validation/visa-change-schema";
 import { useNationalities } from "@/lib/use-nationalities";
+import { SummaryRow } from "@/components/forms/RequestSummaryRow";
 
 const CHANGE_TYPE_LABEL: Record<VisaChangeRequestValues["changeType"], string> = {
   AIRPORT_TO_AIRPORT: "Airport to Airport",
@@ -11,15 +12,6 @@ const CHANGE_TYPE_LABEL: Record<VisaChangeRequestValues["changeType"], string> =
 
 function formatDate(value: string): string {
   return value ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "";
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0">
-      <span className="text-sm text-ink-tertiary">{label}</span>
-      <span className="text-sm font-medium text-ink-primary">{value}</span>
-    </div>
-  );
 }
 
 export function Step4Summary() {

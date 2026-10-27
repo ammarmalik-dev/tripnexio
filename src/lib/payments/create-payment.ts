@@ -10,6 +10,7 @@ import { notifyPaymentLinkReady } from "./notify-payment-link";
 import { effectiveGstRate, paymentServiceFeeSplit, serviceInvoiceFee } from "../invoices/service-fee";
 import { leadReference } from "../leads/reference";
 import { siteConfig } from "../site-config";
+import { urgentDeadlineFromDetails } from "../visa-extension/rules";
 
 /** Fallback when the service has no configured `paymentDeadlineHours` (Step 42) — the original hardcoded value, unchanged for every service until an Admin opts in. */
 export const DEFAULT_PAYMENT_LINK_VALIDITY_HOURS = 24;
@@ -93,7 +94,12 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
   // caller invokes createPendingPayment/createExtraPayment outside any
   // transaction, so using the global db is safe.
   const validityHours = await resolvePaymentLinkValidityHours(booking.lead.serviceType, booking.lead.countryId);
-  const linkExpiresAt = validityHours === null ? null : new Date(Date.now() + validityHours * 60 * 60 * 1000);
+  const defaultExpiry = validityHours === null ? null : new Date(Date.now() + validityHours * 60 * 60 * 1000);
+  // Client 2026-10-28 — an urgent Visa Extension's link closes at its 6 PM deadline, not 24 h later.
+  const urgent = booking.lead.serviceType === "VISA_EXTENSION" ? urgentDeadlineFromDetails(booking.lead.details) : null;
+  const urgentAt = urgent ? new Date(urgent.at) : null;
+  const linkExpiresAt =
+    urgentAt && !Number.isNaN(urgentAt.getTime()) && urgentAt.getTime() > Date.now() && (!defaultExpiry || urgentAt < defaultExpiry) ? urgentAt : defaultExpiry;
 
   const reference = leadReference(booking.lead);
   // Client corrections 2026-10-05 §27 — failover: try each active, configured

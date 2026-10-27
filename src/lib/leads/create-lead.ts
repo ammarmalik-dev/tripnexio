@@ -16,6 +16,7 @@ import { ABANDONED_DRAFT_SOURCE, findOpenDraftLead } from "./abandoned-draft";
 import { autoAssignLead } from "../staff/auto-assign";
 import { notifyStaff } from "@/lib/staff-notifications/notify";
 import { requestReceivedMessage } from "./request-received-message";
+import { requestConfirmationMessage } from "./request-confirmation";
 
 /** Client doc 2026-10-15 (C2) — how long an identical resubmission counts as the same request. */
 const DUPLICATE_WINDOW_MS = 5 * 60 * 1000;
@@ -79,6 +80,11 @@ export interface CreateLeadResult {
    * a retried message): the earlier lead is returned and nothing new is created or sent.
    */
   duplicate?: boolean;
+  /**
+   * Client 2026-10-28 — the "request received" message the customer is sent (the service's "New" status template,
+   * rendered for this lead), so the website success screen and the WhatsApp bot reply say exactly the same.
+   */
+  confirmationMessage: string;
 }
 
 /** Same request = same details, ignoring the fields the pipeline adds itself. Key order doesn't matter. */
@@ -309,7 +315,15 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
   // createOrRefreshDraftLead() is separate and deliberately not assigned.
   // Never throws; no eligible staff → the lead stays unassigned.
   if ("duplicate" in result && result.duplicate) {
-    return { leadId: result.leadId, referenceId: result.referenceId, customerId: result.customerId, status: result.status, passengerIds: result.passengerIds, duplicate: true };
+    return {
+      leadId: result.leadId,
+      referenceId: result.referenceId,
+      customerId: result.customerId,
+      status: result.status,
+      passengerIds: result.passengerIds,
+      duplicate: true,
+      confirmationMessage: await requestConfirmationMessage({ leadId: result.leadId, serviceType, referenceId: result.referenceId }),
+    };
   }
 
   let assigneeId = result.assignedStaffId;
@@ -348,6 +362,7 @@ export async function createLeadFromSubmission(input: CreateLeadInput): Promise<
     customerId: result.customerId,
     status: result.status,
     passengerIds: result.passengerIds,
+    confirmationMessage: await requestConfirmationMessage({ leadId: result.leadId, serviceType, referenceId: result.referenceId }),
   };
 }
 

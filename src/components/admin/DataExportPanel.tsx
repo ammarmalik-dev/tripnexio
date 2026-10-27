@@ -23,11 +23,11 @@ export function DataExportPanel() {
       </p>
       {EXPORTS.map((item) => (
         <div key={item.href} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-hairline bg-surface-1 p-5">
-          <div>
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold text-ink-heading">{item.label}</p>
             <p className="text-xs text-ink-tertiary">{item.description}</p>
           </div>
-          <a href={item.href} className={cn(buttonBaseClass, buttonVariantClass.ghost, buttonSizeClass.sm)}>
+          <a href={item.href} className={cn(buttonBaseClass, buttonVariantClass.ghost, buttonSizeClass.sm, "shrink-0")}>
             <Download className="h-4 w-4" aria-hidden="true" />
             Export CSV
           </a>

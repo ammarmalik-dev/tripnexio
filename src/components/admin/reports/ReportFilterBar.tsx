@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, RotateCw } from "lucide-react";
 import { TextField } from "@/components/forms/TextField";
 import { FormField, fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/Button";
@@ -90,6 +90,10 @@ function optionsFor(key: ReportFilterKey, options: FilterOptions, values: Report
   return list;
 }
 
+/** Column span of the action cell, keyed by how many fields sit on the last row (static classes for Tailwind). */
+const ACTION_SPAN_SM: Record<number, string> = { 0: "sm:col-span-2", 1: "sm:col-span-1" };
+const ACTION_SPAN_LG: Record<number, string> = { 0: "lg:col-span-4", 1: "lg:col-span-3", 2: "lg:col-span-2", 3: "lg:col-span-1" };
+
 interface ReportFilterBarProps {
   values: ReportFilterValues;
   supportedFilters: ReportFilterKey[];
@@ -125,6 +129,9 @@ export function ReportFilterBar({ values, supportedFilters, onChange, onRefresh,
       cancelled = true;
     };
   }, [needsOptions]);
+
+  // From + To + the optional filters; the action cell spans whatever is left of the last grid row.
+  const fieldCount = 2 + supportedFilters.length;
 
   return (
     <div className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-4 sm:p-5">
@@ -177,17 +184,20 @@ export function ReportFilterBar({ values, supportedFilters, onChange, onRefresh,
             </FormField>
           );
         })}
+        {/* Client 2026-10-28 — Refresh / Reset / Export fill the rest of the last filter line, right-aligned and
+            bottom-aligned with the controls (same h-11 height), instead of dropping onto a line of their own. */}
+        <div className={cn("flex flex-wrap items-end justify-end gap-2", ACTION_SPAN_SM[fieldCount % 2], ACTION_SPAN_LG[fieldCount % 4])}>
+          <Button type="button" size="md" variant="ghost" onClick={onRefresh}>
+            <RotateCw className="h-4 w-4" aria-hidden="true" />
+            Refresh
+          </Button>
+          <Button type="button" size="md" variant="ghost" onClick={() => onChange(defaultReportFilters())}>
+            Reset
+          </Button>
+          {actions}
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" size="sm" variant="ghost" onClick={onRefresh}>
-          Refresh
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => onChange(defaultReportFilters())}>
-          Reset
-        </Button>
-        {optionsFailed ? <span className="text-xs text-error">Couldn&apos;t load filter options — date range still applies.</span> : null}
-        {actions ? <div className="ml-auto flex flex-wrap items-center gap-2">{actions}</div> : null}
-      </div>
+      {optionsFailed ? <span className="text-xs text-error">Couldn&apos;t load filter options — date range still applies.</span> : null}
     </div>
   );
 }

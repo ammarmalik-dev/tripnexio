@@ -2,16 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { RotateCw, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { DateRangeFilter } from "@/components/crm/DateRangeFilter";
+import { ListRefreshButton } from "@/components/crm/ListToolbar";
 import { useDateRangeFilter } from "@/components/crm/useDateRangeFilter";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { usePaginationState } from "@/components/crm/usePagination";
 import { FilterSelect, FilterTextInput, ListStateView, SEARCH_DEBOUNCE_MS, type FetchState } from "./MonitoringControls";
 import { entityHref, formatDateTime } from "@/lib/admin/monitoring";
 import { getJson, ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/cn";
 
 interface AuditRow {
   id: string;
@@ -159,7 +159,7 @@ export function AuditLogViewer() {
           options={(facets?.actions ?? []).map((value) => ({ value, label: value }))}
           allLabel="All actions"
         />
-        <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-4">
+        <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
           <span className="text-xs font-medium text-ink-tertiary">Date</span>
           <DateRangeFilter
             idPrefix="audit"
@@ -183,11 +183,9 @@ export function AuditLogViewer() {
             }}
           />
         </div>
-        <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setRefreshNonce((current) => current + 1)} disabled={state === "loading"}>
-            <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-            Refresh
-          </Button>
+        {/* Client 2026-10-28 — Refresh sits on the date line, right-aligned with the filter controls (h-9). */}
+        <div className="flex flex-wrap items-end justify-end gap-2 sm:col-span-2 lg:col-span-1">
+          <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
           {hasFilters ? (
             <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
               <X className="h-4 w-4" aria-hidden="true" />

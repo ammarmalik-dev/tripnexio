@@ -9,6 +9,7 @@ import bcrypt from "bcryptjs";
 import { db } from "../src/lib/db";
 import { PERMISSION_CATALOG, ADMIN_FULL_PERMISSION } from "../src/lib/auth/permissions";
 import { NOTIFICATION_EVENTS } from "../src/lib/notifications/events";
+import { isRetiredNotificationEvent } from "../src/lib/notifications/template-groups";
 import { ALL_STATUS_SEED, transitionsFor } from "./seed-service-statuses";
 import { FAQ_SEED_DATA } from "./faq-seed-data";
 import { ServiceType } from "../src/generated/prisma/enums";
@@ -536,6 +537,8 @@ async function main() {
     channel: "WHATSAPP" as const,
     subject: null,
     body: "Hi {{customerName}}, thanks for your {{serviceName}} request with TripNexio. Your reference is {{referenceId}} — our team will reach out shortly.",
+    // Retired 2026-10-28 (never sent) — kept switched off.
+    active: false,
   };
   await db.notificationTemplate.upsert({
     where: { event_channel: { event: sampleTemplate1.event, channel: sampleTemplate1.channel } },
@@ -549,6 +552,7 @@ async function main() {
     channel: "EMAIL" as const,
     subject: "Payment received — {{bookingId}}",
     body: "Hi {{customerName}},\n\nWe've received your payment of {{amount}} for booking {{bookingId}}. Thank you for choosing TripNexio.",
+    active: false,
   };
   await db.notificationTemplate.upsert({
     where: { event_channel: { event: sampleTemplate2.event, channel: sampleTemplate2.channel } },
@@ -647,7 +651,7 @@ async function main() {
     },
   ];
   for (const template of emailTemplates) {
-    const data = { id: template.id, event: template.event, channel: "EMAIL" as const, subject: template.subject, body: template.body, active: true };
+    const data = { id: template.id, event: template.event, channel: "EMAIL" as const, subject: template.subject, body: template.body, active: !isRetiredNotificationEvent(template.event) };
     await db.notificationTemplate.upsert({
       where: { event_channel: { event: data.event, channel: data.channel } },
       update: data,
@@ -735,7 +739,7 @@ async function main() {
       channel: "WHATSAPP" as const,
       subject: null,
       body: template.body,
-      active: true,
+      active: !isRetiredNotificationEvent(template.event),
       metaTemplateName: null,
       metaTemplateLanguage: null,
     };

@@ -42,15 +42,17 @@ export function Step1TripDetails() {
         error={errors.mobile?.message}
         {...register("mobile")}
       />
-      <TextField
-        label="Email"
-        type="email"
-        required
-        placeholder="you@example.com"
-        error={errors.email?.message}
-        {...register("email")}
-      />
-      <div className="hidden sm:block" aria-hidden="true" />
+      {/* Client 2026-10-28 — the odd last field spans the row, so the form never looks left-shifted. */}
+      <div className="sm:col-span-2">
+        <TextField
+          label="Email"
+          type="email"
+          required
+          placeholder="you@example.com"
+          error={errors.email?.message}
+          {...register("email")}
+        />
+      </div>
       {/* Client testing 2026-10-09 (B7) — full-width on desktop so the chosen "City - Airport (CODE)" isn't cut off. */}
       <div className="sm:col-span-2">
         <AirportSearchField name="origin" label="Departure City / Airport" required error={errors.origin?.message} />

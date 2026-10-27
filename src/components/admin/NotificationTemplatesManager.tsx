@@ -17,6 +17,7 @@ import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
 import type { NotificationChannel } from "../../generated/prisma/enums";
 import { NOTIFICATION_EVENT_CATALOG } from "@/lib/notifications/events";
+import { TEMPLATE_GROUP_OPTIONS, isRetiredNotificationEvent, templateGroupFor, type TemplateGroup } from "@/lib/notifications/template-groups";
 
 interface TemplateData {
   id: string;
@@ -33,7 +34,19 @@ interface TemplateData {
 }
 
 type FetchState = "loading" | "success" | "error";
-type StatusFilter = "all" | "active" | "disabled";
+
+/** Client 2026-10-28 — templates listed per service (New Visa, Visa Change… then General / system), in this order. */
+const GROUP_ORDER = new Map<TemplateGroup, number>(TEMPLATE_GROUP_OPTIONS.map((option, index) => [option.value, index]));
+const groupLabel = (group: TemplateGroup) => TEMPLATE_GROUP_OPTIONS.find((option) => option.value === group)?.label ?? group;
+
+function compareTemplates(a: TemplateData, b: TemplateData): number {
+  const byGroup = (GROUP_ORDER.get(templateGroupFor(a.event)) ?? 99) - (GROUP_ORDER.get(templateGroupFor(b.event)) ?? 99);
+  if (byGroup !== 0) return byGroup;
+  return a.event.localeCompare(b.event, "en", { numeric: true }) || a.channel.localeCompare(b.channel);
+}
+
+/** The shared customer messages still sent by the app — retired legacy events are left out of the coverage table. */
+const ACTIVE_EVENT_CATALOG = NOTIFICATION_EVENT_CATALOG.filter((entry) => !isRetiredNotificationEvent(entry.event));
 
 interface FormState {
   event: string;
@@ -263,7 +276,7 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
     setTogglingActive(true);
     try {
       const updated = await patchJson<TemplateData>(`/api/admin/notification-templates/${template.id}`, { active: !template.active });
-      toast.success(updated.active ? "Enabled." : "Disabled.");
+      toast.success(updated.active ? "Enabled." : "Retired: no longer sent, and hidden unless \"Show retired templates\" is ticked.");
       onSaved(updated);
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't update this template. Please try again.");
@@ -281,13 +294,14 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
             <span className="rounded-md bg-ink-primary/[0.05] px-1.5 py-0.5 text-xs text-ink-secondary">
               {NOTIFICATION_CHANNEL_OPTIONS.find((option) => option.value === template.channel)?.label ?? template.channel}
             </span>
+            <span className="rounded-md bg-ink-primary/[0.05] px-1.5 py-0.5 text-xs text-ink-secondary">{groupLabel(templateGroupFor(template.event))}</span>
             <span
               className={cn(
                 "rounded-full px-2.5 py-0.5 text-xs font-medium",
                 template.active ? "bg-success/10 text-success" : "bg-error/10 text-error"
               )}
             >
-              {template.active ? "Active" : "Disabled"}
+              {template.active ? "Active" : "Retired"}
             </span>
           </div>
           <p className="mt-1 text-xs text-ink-tertiary">
@@ -301,7 +315,7 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
           </p>
         </div>
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
-          {template.active ? "Disable" : "Enable"}
+          {template.active ? "Retire" : "Enable"}
         </Button>
       </div>
       <TemplateFields form={form} onChange={setForm} errors={errors} disabled={saving} />
@@ -359,14 +373,14 @@ function TemplateCoverage({
   onCreate: (event: string, channel: NotificationChannel) => void;
   onFind: (event: string) => void;
 }) {
-  const missing = NOTIFICATION_EVENT_CATALOG.reduce(
+  const missing = ACTIVE_EVENT_CATALOG.reduce(
     (count, entry) => count + COVERAGE_CHANNELS.filter(({ channel }) => !templates.some((template) => template.event === entry.event && template.channel === channel)).length,
     0
   );
   return (
     <details className="rounded-xl border border-hairline bg-surface-1" open={missing > 0}>
       <summary className="flex cursor-pointer items-center justify-between gap-3 px-5 py-4 text-sm font-semibold text-ink-heading select-none">
-        <span>All customer messages ({NOTIFICATION_EVENT_CATALOG.length})</span>
+        <span>General / system messages ({ACTIVE_EVENT_CATALOG.length})</span>
         <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", missing > 0 ? "bg-warning/15 text-warning" : "bg-success/10 text-success")}>
           {missing > 0 ? `${missing} template${missing === 1 ? "" : "s"} missing` : "Every message has its templates"}
         </span>
@@ -384,7 +398,7 @@ function TemplateCoverage({
             </tr>
           </thead>
           <tbody>
-            {NOTIFICATION_EVENT_CATALOG.map((entry) => (
+            {ACTIVE_EVENT_CATALOG.map((entry) => (
               <tr key={entry.event} className="border-b border-hairline last:border-b-0">
                 <td className="px-5 py-2.5">
                   <button type="button" onClick={() => onFind(entry.event)} className="text-left font-medium text-ink-heading hover:text-ink-accent hover:underline">
@@ -403,7 +417,7 @@ function TemplateCoverage({
                         </Button>
                       ) : (
                         <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium", template.active ? "bg-success/10 text-success" : "bg-ink-primary/[0.06] text-ink-secondary")}>
-                          {template.active ? (channel === "WHATSAPP" && !template.metaTemplateName ? "Ready (24h chat only)" : "Ready") : "Disabled"}
+                          {template.active ? (channel === "WHATSAPP" && !template.metaTemplateName ? "Ready (24h chat only)" : "Ready") : "Retired"}
                         </span>
                       )}
                     </td>
@@ -461,23 +475,26 @@ export function NotificationTemplatesManager() {
   const [reloadNonce, setReloadNonce] = useState(0);
   const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] = useState<NotificationChannel | "">("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [groupFilter, setGroupFilter] = useState<TemplateGroup | "">("");
+  // Client 2026-10-28 — only the templates in use by default; retired (switched-off) ones on request.
+  const [showRetired, setShowRetired] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   // Client testing 2026-10-09 (D2) — "Create" on the coverage table opens the form for that event + channel.
   const [prefill, setPrefill] = useState<{ event: string; channel: NotificationChannel } | null>(null);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return templates.filter((template) => {
-      if (channelFilter && template.channel !== channelFilter) return false;
-      if (statusFilter === "active" && !template.active) return false;
-      if (statusFilter === "disabled" && template.active) return false;
-      if (!term) return true;
-      return [template.event, template.subject ?? "", template.body, template.metaTemplateName ?? ""].some((value) =>
-        value.toLowerCase().includes(term)
-      );
-    });
-  }, [templates, search, channelFilter, statusFilter]);
+    return templates
+      .filter((template) => {
+        if (channelFilter && template.channel !== channelFilter) return false;
+        if (groupFilter && templateGroupFor(template.event) !== groupFilter) return false;
+        if (!term) return true;
+        return [template.event, template.subject ?? "", template.body, template.metaTemplateName ?? ""].some((value) =>
+          value.toLowerCase().includes(term)
+        );
+      })
+      .sort(compareTemplates);
+  }, [templates, search, channelFilter, groupFilter]);
   const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
@@ -486,7 +503,7 @@ export function NotificationTemplatesManager() {
     async function load() {
       setState("loading");
       try {
-        const result = await getJson<TemplateData[]>("/api/admin/notification-templates");
+        const result = await getJson<TemplateData[]>(`/api/admin/notification-templates${showRetired ? "?retired=include" : ""}`);
         if (cancelled) return;
         setTemplates(result);
         setState("success");
@@ -501,7 +518,7 @@ export function NotificationTemplatesManager() {
     return () => {
       cancelled = true;
     };
-  }, [reloadNonce]);
+  }, [reloadNonce, showRetired]);
 
   if (state === "loading") {
     return (
@@ -530,7 +547,7 @@ export function NotificationTemplatesManager() {
   const clearFilters = () => {
     setSearch("");
     setChannelFilter("");
-    setStatusFilter("all");
+    setGroupFilter("");
     resetPage();
   };
   const createOpen = showCreate || templates.length === 0;
@@ -580,7 +597,7 @@ export function NotificationTemplatesManager() {
         onFind={(event) => {
           setSearch(event);
           setChannelFilter("");
-          setStatusFilter("all");
+          setGroupFilter("");
           resetPage();
         }}
       />
@@ -621,18 +638,33 @@ export function NotificationTemplatesManager() {
             ))}
           </select>
           <select
-            aria-label="Filter by status"
-            value={statusFilter}
+            aria-label="Filter by service"
+            value={groupFilter}
             onChange={(event) => {
-              setStatusFilter(event.target.value as StatusFilter);
+              setGroupFilter(event.target.value as TemplateGroup | "");
               resetPage();
             }}
-            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-36")}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-48")}
           >
-            <option value="all">All statuses</option>
-            <option value="active">Active</option>
-            <option value="disabled">Disabled</option>
+            <option value="">All services</option>
+            {TEMPLATE_GROUP_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
           </select>
+          <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-medium text-ink-secondary">
+            <input
+              type="checkbox"
+              checked={showRetired}
+              onChange={(event) => {
+                setShowRetired(event.target.checked);
+                resetPage();
+              }}
+              className="h-4 w-4 rounded border-hairline accent-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            />
+            Show retired templates
+          </label>
           <p className="shrink-0 text-xs font-medium text-ink-tertiary sm:px-2" aria-live="polite">
             {filtered.length} template{filtered.length === 1 ? "" : "s"}
           </p>
@@ -653,13 +685,19 @@ export function NotificationTemplatesManager() {
         />
       ) : (
         <div className="flex flex-col gap-3">
-          {pageItems.map((template) => (
-            <TemplateCard
-              key={template.id}
-              template={template}
-              onSaved={(updated) => setTemplates((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
-            />
-          ))}
+          {pageItems.map((template, index) => {
+            const group = templateGroupFor(template.event);
+            const startsGroup = index === 0 || templateGroupFor(pageItems[index - 1].event) !== group;
+            return (
+              <div key={template.id} className="flex flex-col gap-3">
+                {startsGroup ? <h2 className="px-1 pt-2 text-sm font-semibold text-ink-heading">{groupLabel(group)}</h2> : null}
+                <TemplateCard
+                  template={template}
+                  onSaved={(updated) => setTemplates((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
+                />
+              </div>
+            );
+          })}
         </div>
       )}
 

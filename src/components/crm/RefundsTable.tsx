@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, RotateCw } from "lucide-react";
+import { Search } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/Button";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
+import { ListRefreshButton, ListToolbar } from "./ListToolbar";
 import { RefundStatusControl } from "./RefundStatusControl";
 import { formatRupees, isAboveApprovalLimit } from "@/lib/refunds/approval-limit";
 import { REFUND_STATUS_OPTIONS } from "@/lib/crm/labels";
@@ -130,7 +131,15 @@ export function RefundsTable({
   return (
     <div className="flex flex-col gap-4">
       {/* Client doc 2026-10-20 (L10) — every refund filter on one line. */}
-      <div className="flex flex-wrap items-center gap-2.5 xl:flex-nowrap">
+      {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
+      <ListToolbar
+        actions={
+          <>
+            <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
+            <ExportCsvButton href={`/api/refunds/export?${buildFilterParams().toString()}`} />
+          </>
+        }
+      >
 
         <label htmlFor="filter-refund-status" className="sr-only">
           Filter by status
@@ -186,20 +195,7 @@ export function RefundsTable({
           }}
         />
 
-        <div className="ml-auto flex items-center gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setRefreshNonce((current) => current + 1)}
-            disabled={state === "loading"}
-          >
-            <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-            Refresh
-          </Button>
-          <ExportCsvButton href={`/api/refunds/export?${buildFilterParams().toString()}`} />
-        </div>
-      </div>
+      </ListToolbar>
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

@@ -183,7 +183,7 @@ export function Step2Passengers() {
                 max={todayIso()}
                 placeholder="DD/MM/YYYY"
                 // Client 2026-10-27 screenshot — this sentence replaces the old hint, and the note under the list is gone.
-                hint="Passenger type (Adult / Child / Infant) is calculated automatically from date of birth — fare varies by type."
+                hint="Passenger type (Adult / Child / Infant) is calculated automatically from date of birth."
                 error={errors.passengers?.[index]?.dob?.message}
                 {...register(`passengers.${index}.dob` as const)}
               />

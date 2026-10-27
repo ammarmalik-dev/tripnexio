@@ -40,7 +40,11 @@ interface MultiStepRequestFlowProps<T extends FieldValues> {
    */
   extraStepValidation?: Record<number, (values: T) => { path: string; message: string }[]>;
   /** `nextUrl` (e.g. the customer's payment page) sends the customer straight on after a successful submit. */
-  onSubmit: (values: T) => Promise<{ referenceId: string; nextUrl?: string }>;
+  /**
+   * `confirmationMessage` (client 2026-10-28) is the "request received" message the customer is sent by WhatsApp /
+   * email for this lead; the success screen shows it instead of `successDescription` (the fallback).
+   */
+  onSubmit: (values: T) => Promise<{ referenceId: string; nextUrl?: string; confirmationMessage?: string }>;
   successTitle: string;
   successDescription: string;
   /**
@@ -106,6 +110,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
   const router = useRouter();
   const [referenceId, setReferenceId] = useState<string | null>(null);
   const [nextUrl, setNextUrl] = useState<string | null>(null);
+  const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null);
   const [ineligibleOutcome, setIneligibleOutcome] = useState<RequestIneligibleOutcome | null>(null);
   const shouldReduceMotion = useReducedMotion();
   // Last contact combo sent to /api/leads/draft — Back/Continue without changes doesn't re-post.
@@ -145,6 +150,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
       const result = await onSubmit(values);
       setReferenceId(result.referenceId);
       setNextUrl(result.nextUrl ?? null);
+      setConfirmationMessage(result.confirmationMessage?.trim() || null);
       setSubmitState("success");
       toast.success(successTitle, { description: `Reference ID: ${result.referenceId}` });
       if (result.nextUrl) router.push(result.nextUrl);
@@ -171,7 +177,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
         <div className="mx-auto max-w-xl">
           <RequestSuccessPanel
             title={successTitle}
-            description={successDescription}
+            description={confirmationMessage ?? successDescription}
             referenceId={referenceId}
             cta={nextUrl ? { label: "Continue to payment", href: nextUrl } : undefined}
           />

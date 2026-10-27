@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, RotateCw } from "lucide-react";
+import { Search } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/Button";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { ExportCsvButton } from "./ExportCsvButton";
+import { ListRefreshButton, ListToolbar } from "./ListToolbar";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
 import { PAYMENT_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { ListPagination } from "./ListPagination";
@@ -115,7 +116,15 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
+      <ListToolbar
+        actions={
+          <>
+            <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
+            <ExportCsvButton href={`/api/payments/extra/export?${buildFilterParams().toString()}`} />
+          </>
+        }
+      >
 
         <label htmlFor="filter-extra-payment-status" className="sr-only">
           Filter by status
@@ -153,41 +162,28 @@ export function ExtraPaymentsTable({ refreshSignal }: { refreshSignal: number })
           <option value="createdAt_asc">Oldest first</option>
         </select>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="md"
-          onClick={() => setRefreshNonce((current) => current + 1)}
-          disabled={state === "loading"}
-        >
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
-
-        <ExportCsvButton href={`/api/payments/extra/export?${buildFilterParams().toString()}`} />
-      </div>
-
-      <DateRangeFilter
-        idPrefix="extra-payment"
-        dateFrom={dateFrom}
-        dateTo={dateTo}
-        onPreset={(days) => {
-          applyPreset(days);
-          resetPage();
-        }}
-        onCustomFrom={(dateOnly) => {
-          applyCustomFrom(dateOnly);
-          resetPage();
-        }}
-        onCustomTo={(dateOnly) => {
-          applyCustomTo(dateOnly);
-          resetPage();
-        }}
-        onClear={() => {
-          clearDates();
-          resetPage();
-        }}
-      />
+        <DateRangeFilter
+          idPrefix="extra-payment"
+          dateFrom={dateFrom}
+          dateTo={dateTo}
+          onPreset={(days) => {
+            applyPreset(days);
+            resetPage();
+          }}
+          onCustomFrom={(dateOnly) => {
+            applyCustomFrom(dateOnly);
+            resetPage();
+          }}
+          onCustomTo={(dateOnly) => {
+            applyCustomTo(dateOnly);
+            resetPage();
+          }}
+          onClear={() => {
+            clearDates();
+            resetPage();
+          }}
+        />
+      </ListToolbar>
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

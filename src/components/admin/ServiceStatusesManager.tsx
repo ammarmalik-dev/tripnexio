@@ -12,6 +12,7 @@ import { getJson, postJson, patchJson, deleteJson, ApiError } from "@/lib/api/cl
 import { toast } from "@/components/ui/Toaster";
 import { SERVICE_TYPE_OPTIONS, SERVICE_TYPE_LABELS, BOOKING_STATUS_OPTIONS, LEAD_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { NOTIFICATION_EVENT_CATALOG } from "@/lib/notifications/events";
+import { isRetiredNotificationEvent } from "@/lib/notifications/template-groups";
 import { SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER, SYSTEM_EVENT_LABELS } from "@/lib/service-status/events";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, LeadStatus } from "../../generated/prisma/enums";
@@ -191,7 +192,7 @@ function StatusFields({
         label="Notify customer with"
         value={form.notificationEvent}
         emptyLabel="No message"
-        options={NOTIFICATION_EVENT_CATALOG.map((entry) => ({ value: entry.event, label: entry.label }))}
+        options={NOTIFICATION_EVENT_CATALOG.filter((entry) => !isRetiredNotificationEvent(entry.event)).map((entry) => ({ value: entry.event, label: entry.label }))}
         onChange={(value) => onChange({ ...form, notificationEvent: value })}
         disabled={disabled}
       />

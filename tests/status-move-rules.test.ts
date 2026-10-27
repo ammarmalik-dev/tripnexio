@@ -81,3 +81,44 @@ describe("partial refund status (client 2026-10-27, RT104)", () => {
     expect(isPartialRefundStatus({ name: "Cancelled and Refunded", systemEvent: "CANCELLED_AND_REFUNDED" })).toBe(false);
   });
 });
+
+describe("no skipping the hand-over (client 2026-10-27)", () => {
+  it("an outcome after Sent to Airlines / Applied to Embassy needs that step first", async () => {
+    const { skipsHandover } = await import("../src/lib/service-status/engine");
+    const st = (name: string, displayOrder: number, systemEvent: string | null = null) =>
+      ({ name, displayOrder, systemEvent, mapsToBookingStatus: null }) as never;
+    const sent = st("Sent to Airlines", 70, "SENT_TO_AIRLINES");
+    const paid = st("Paid", 10, "PAYMENT_SUCCESS");
+    // Return Ticket: Paid → Ticket Issued skipped Sent to Airlines.
+    expect(skipsHandover(sent, paid, st("Ticket Issued", 80, "DELIVERED_RESERVATION_PDF"))).toMatch(/has to reach "Sent to Airlines"/);
+    // Once sent, the next steps are open.
+    expect(skipsHandover(sent, sent, st("Ticket Issued", 80, "DELIVERED_RESERVATION_PDF"))).toBeNull();
+    // Steps before the hand-over and side outcomes stay available.
+    expect(skipsHandover(sent, paid, st("Documents Uploaded", 40, "DOCUMENTS_RECEIVED"))).toBeNull();
+    expect(skipsHandover(sent, paid, st("Cancelled", 110, "CANCELLED"))).toBeNull();
+    expect(skipsHandover(sent, paid, st("On Hold", 150, "ON_HOLD"))).toBeNull();
+    // The airline's answer (partial approval / rejection) only after sending.
+    expect(skipsHandover(sent, paid, st("OTB Approved for Partially Applicants", 100, "PARTIAL_APPROVED"))).not.toBeNull();
+    expect(skipsHandover(sent, paid, st("OTB Application Rejected", 110, "OTB_REJECTED"))).not.toBeNull();
+    // A service without a hand-over step is unaffected.
+    expect(skipsHandover(null, paid, st("Ticket Issued", 80))).toBeNull();
+  });
+});
+
+describe("automatic statuses are not manual moves (client 2026-10-28)", () => {
+  it("knows which statuses an action sets by itself", async () => {
+    const { isAutoStatus } = await import("../src/lib/service-status/engine");
+    const ev = (systemEvent: string | null) => ({ systemEvent }) as never;
+    expect(isAutoStatus("OTB", ev("DOCUMENTS_VALIDATED"))).toBe(true);
+    expect(isAutoStatus("OTB", ev("ADDITIONAL_DOCUMENTS_RECEIVED"))).toBe(true);
+    expect(isAutoStatus("OTB", ev("OTB_APPROVED"))).toBe(true);
+    expect(isAutoStatus("NEW_VISA", ev("EMBASSY_ADDITIONAL_DOCS"))).toBe(true);
+    // Visa Extension has no Embassy panel — its Ready for Submission / Applied stay manual.
+    expect(isAutoStatus("VISA_EXTENSION", ev("EMBASSY_APPLIED"))).toBe(false);
+    expect(isAutoStatus("VISA_EXTENSION", ev("EXTENSION_EXTENDED"))).toBe(true);
+    // Hold / cancel / no-event statuses stay manual.
+    expect(isAutoStatus("OTB", ev("ON_HOLD"))).toBe(false);
+    expect(isAutoStatus("OTB", ev("CANCELLED"))).toBe(false);
+    expect(isAutoStatus("OTB", ev(null))).toBe(false);
+  });
+});

@@ -121,15 +121,18 @@ export function RefundReport() {
             resetPage();
           }}
         />
-        <Button type="button" size="sm" variant="ghost" onClick={() => setReloadNonce((current) => current + 1)}>
-          Refresh
-        </Button>
-        <a
-          href={`/api/admin/refund-report/export?from=${from}&to=${to}`}
-          className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-md border border-hairline px-4 text-sm font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border hover:bg-white/[0.03]"
-        >
-          Export CSV
-        </a>
+        {/* Client 2026-10-28 — Refresh / Export at the right of the filter line, the same height as the date fields. */}
+        <div className="ml-auto flex items-center gap-2">
+          <Button type="button" size="md" variant="ghost" onClick={() => setReloadNonce((current) => current + 1)}>
+            Refresh
+          </Button>
+          <a
+            href={`/api/admin/refund-report/export?from=${from}&to=${to}`}
+            className="inline-flex h-11 items-center gap-1.5 whitespace-nowrap rounded-md border border-hairline px-4 text-sm font-medium text-ink-primary transition-colors duration-200 hover:border-glass-border hover:bg-white/[0.03]"
+          >
+            Export CSV
+          </a>
+        </div>
       </div>
 
       {state === "loading" ? (

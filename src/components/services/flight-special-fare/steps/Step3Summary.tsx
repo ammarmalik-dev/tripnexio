@@ -3,18 +3,10 @@
 import { useFormContext } from "react-hook-form";
 import type { FlightSpecialFareRequestValues } from "@/lib/validation/flight-special-fare-schema";
 import { paxCountsLine, previewPaxTypeLabel } from "@/lib/special-fare/pax-summary";
+import { SummaryRow } from "@/components/forms/RequestSummaryRow";
 
 function formatDate(value?: string): string {
   return value ? new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "";
-}
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0">
-      <span className="text-sm text-ink-tertiary">{label}</span>
-      <span className="text-right text-sm font-medium text-ink-primary">{value}</span>
-    </div>
-  );
 }
 
 function SummaryCard({ title, aside, children }: { title: string; aside?: string | null; children: React.ReactNode }) {
@@ -79,7 +71,7 @@ export function Step3Summary() {
           <SummaryRow key={row.type} label={`${row.type} × ${row.count}`} value="Fare shared in your quotation" />
         ))}
         <p className="border-t border-hairline py-3 text-xs text-ink-tertiary">
-          Passenger type is calculated automatically from date of birth — fare varies by type. Our team will confirm
+          Passenger type (Adult / Child / Infant) is calculated automatically from date of birth. Our team will confirm
           exact pricing and available flights before you pay anything.
         </p>
       </SummaryCard>

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RotateCw, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { DateRangeFilter } from "@/components/crm/DateRangeFilter";
+import { ListRefreshButton } from "@/components/crm/ListToolbar";
 import { useDateRangeFilter } from "@/components/crm/useDateRangeFilter";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { usePaginationState } from "@/components/crm/usePagination";
@@ -11,7 +12,6 @@ import { FilterSelect, ListStateView, type FetchState } from "./MonitoringContro
 import type { AuditFacets } from "./AuditLogViewer";
 import { CONFIG_ENTITY_TYPES, formatDateTime } from "@/lib/admin/monitoring";
 import { getJson, ApiError } from "@/lib/api/client";
-import { cn } from "@/lib/cn";
 
 type HistorySource = "AUDIT" | "PRICING_RULE_HISTORY" | "VENDOR_RATE_HISTORY";
 
@@ -120,7 +120,7 @@ export function ConfigHistoryViewer() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-3 rounded-xl border border-hairline bg-surface-1 p-4 sm:grid-cols-2">
+      <div className="grid gap-3 rounded-xl border border-hairline bg-surface-1 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
         <FilterSelect
           id="config-history-entity"
           label="Configuration entity"
@@ -137,7 +137,7 @@ export function ConfigHistoryViewer() {
           options={users.map((user) => ({ value: user.id, label: user.active ? user.name : `${user.name} (inactive)` }))}
           allLabel="Anyone"
         />
-        <div className="flex flex-col gap-1 sm:col-span-2">
+        <div className="flex flex-col gap-1 sm:col-span-2 xl:col-span-1">
           <span className="text-xs font-medium text-ink-tertiary">Date</span>
           <DateRangeFilter
             idPrefix="config-history"
@@ -161,11 +161,9 @@ export function ConfigHistoryViewer() {
             }}
           />
         </div>
-        <div className="flex flex-wrap gap-2 sm:col-span-2">
-          <Button type="button" variant="ghost" size="sm" onClick={() => setRefreshNonce((current) => current + 1)} disabled={state === "loading"}>
-            <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-            Refresh
-          </Button>
+        {/* Client 2026-10-28 — Refresh on the filter line (one line on wide screens), aligned with the controls. */}
+        <div className="flex flex-wrap items-end justify-end gap-2 sm:col-span-2 xl:col-span-1">
+          <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
           {hasFilters ? (
             <Button
               type="button"

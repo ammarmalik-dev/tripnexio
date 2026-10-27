@@ -25,6 +25,13 @@ export const ALL_SERVICE_TYPES = Object.keys(SERVICE_TYPE_LABELS) as ServiceType
 
 type DecimalLike = { toString(): string } | null | undefined;
 
+/** A selected quotation's full cost: selling − margin when the margin is known (it already takes off the vendor
+ *  cost and any fine / charges), else the vendor cost. */
+export function quotationCost(quote: { vendorCost: DecimalLike; sellingPrice: DecimalLike; margin: DecimalLike }): number {
+  if (quote.margin != null && quote.sellingPrice != null) return Math.round((num(quote.sellingPrice) - num(quote.margin)) * 100) / 100;
+  return num(quote.vendorCost);
+}
+
 /** Prisma Decimal (or null) -> number. */
 export function num(value: DecimalLike): number {
   return value == null ? 0 : Number(value.toString());
@@ -237,7 +244,9 @@ export async function loadBookingInfo(bookingIds: readonly string[]): Promise<Ma
       staffName: lead.assignedStaffId ? staffName.get(lead.assignedStaffId) ?? null : null,
       vendorId: quote?.vendorId ?? null,
       vendorName: quote ? vendorName.get(quote.vendorId) ?? null : null,
-      vendorCost: num(quote?.vendorCost),
+      // Client 2026-10-28 — the cost behind the quote's margin: vendor cost plus any fine / government charge
+      // (Visa Extension / Change), so profit = selling − everything paid out, the same as the quotation margin.
+      vendorCost: quote ? quotationCost(quote) : 0,
       sellingPrice: num(quote?.sellingPrice),
       quoteMargin: num(quote?.margin),
     });

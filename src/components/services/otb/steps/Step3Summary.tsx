@@ -11,16 +11,7 @@ import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 import { processingTypeLabel } from "@/lib/processing-types/defaults";
-
-
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0">
-      <span className="text-sm text-ink-tertiary">{label}</span>
-      <span className="text-sm font-medium text-ink-primary">{value}</span>
-    </div>
-  );
-}
+import { SummaryRow } from "@/components/forms/RequestSummaryRow";
 
 export function Step3Summary() {
   const {

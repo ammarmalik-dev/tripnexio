@@ -4,7 +4,7 @@
   "channel": "EMAIL",
   "subject": "New Visa {{country_name}} request received — Complete payment",
   "heading": "New Visa {{country_name}} request received",
-  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio!\n\nWe've received your New Visa request for {{country_name}}, but your payment is still pending. Please complete your payment to proceed with the application.\n\nApplication ID: {{application_id}}\nCountry: {{country_name}}\n\nIf you have already paid, please disregard this message.",
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio!\n\nYour New Visa {{country_name}} request has been received. Please complete your payment to proceed.\n\nApplication ID: {{application_id}}\nCountry: {{country_name}}\n\nIf you have already paid, please disregard this message.",
   "ctaLabel": "Complete Payment",
   "ctaLink": "payment_link"
  },
@@ -327,7 +327,7 @@
   "channel": "EMAIL",
   "subject": "We've received your Visa Change request",
   "heading": "Your Visa Change request has been received",
-  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio!\n\nWe've received your Visa Change request and our team will review it.\n\nApplication ID: {{application_id}}\nPassenger(s): {{passenger_names}}\nVisa Change method: {{visa_change_method}}\n\nWe'll update you when your quotation is ready.",
+  "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio! We've received your Visa Change request. Application ID: {{application_id}}. Our team will review it and update you when your quotation is ready.",
   "ctaLabel": "View Request",
   "ctaLink": "secure_link"
  },
@@ -726,7 +726,7 @@
   "channel": "EMAIL",
   "subject": "Visa Extension request received — {{lead_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nWe've received your Visa Extension request. Reference: {{lead_id}}.",
+  "body": "We've received your Visa Extension request. Reference: {{lead_id}}.",
   "ctaLabel": "Track Status",
   "ctaLink": "secure_link"
  },
@@ -1144,7 +1144,7 @@
   "channel": "EMAIL",
   "subject": "OTB request received — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nWe've received your OK to Board (OTB) request.\nBooking reference: {{booking_id}}\nPassenger(s): {{passenger_names}}\nDestination: {{country_name}}\nTravel date: {{travel_date}}\n\nPlease complete your payment using the Pay Now button below so we can start processing. Receipt of a request does not guarantee airline approval.",
+  "body": "We've received your OK to Board (OTB) request. Booking reference: {{booking_id}}. We'll update you as your request progresses.",
   "ctaLabel": "Pay Now",
   "ctaLink": "payment_link"
  },
@@ -1505,7 +1505,7 @@
   "channel": "EMAIL",
   "subject": "Your Return Verified Ticket request has been received — {{booking_id}}",
   "heading": null,
-  "body": "Dear {{customer_name}},\n\nWe have received your Return Verified Ticket request.\nRequest ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nDestination: {{country_name}}\nTravel date: {{travel_date}}\n\nPlease complete your payment using the Pay Now button below so we can arrange your ticket.",
+  "body": "Your Return Verified Ticket request {{booking_id}} has been received. We'll review the details and update you on the next step.",
   "ctaLabel": "Pay Now",
   "ctaLink": "payment_link"
  },

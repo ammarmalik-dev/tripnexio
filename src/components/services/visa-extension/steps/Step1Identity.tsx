@@ -42,14 +42,17 @@ export function Step1Identity() {
           error={errors.passportNumber?.message}
           {...register("passportNumber")}
         />
-        <DateField
-          label="Visa Expiry Date"
-          required
-          min={MIN_DATE}
-          max={MAX_DATE}
-          error={errors.visaExpiryDate?.message}
-          {...register("visaExpiryDate")}
-        />
+        {/* Client 2026-10-28 — the odd last field spans the row, so the form never looks left-shifted. */}
+        <div className="sm:col-span-2">
+          <DateField
+            label="Visa Expiry Date"
+            required
+            min={MIN_DATE}
+            max={MAX_DATE}
+            error={errors.visaExpiryDate?.message}
+            {...register("visaExpiryDate")}
+          />
+        </div>
       </div>
       {/* Client doc 2026-10-20 (D3) / 2026-10-27 (D4) — passport and visa copy on one line (stacked on mobile). */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

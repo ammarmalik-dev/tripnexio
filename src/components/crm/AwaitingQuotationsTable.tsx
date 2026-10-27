@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { RotateCw, Inbox } from "lucide-react";
+import { Inbox } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -10,6 +10,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { LeadStatusBadge } from "./LeadStatusBadge";
 import { ListPagination } from "./ListPagination";
+import { ListRefreshButton, ListToolbar } from "./ListToolbar";
 import { usePaginationState } from "./usePagination";
 import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
@@ -91,7 +92,14 @@ export function AwaitingQuotationsTable() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
+      <ListToolbar
+        actions={
+          <>
+            <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
+          </>
+        }
+      >
 
         <label htmlFor="filter-awaiting-service" className="sr-only">
           Filter by service
@@ -113,11 +121,7 @@ export function AwaitingQuotationsTable() {
           ))}
         </select>
 
-        <Button type="button" variant="ghost" size="md" onClick={() => setRefreshNonce((current) => current + 1)} disabled={state === "loading"}>
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
-      </div>
+      </ListToolbar>
 
       {state === "loading" ? (
         <div className="flex flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-4">

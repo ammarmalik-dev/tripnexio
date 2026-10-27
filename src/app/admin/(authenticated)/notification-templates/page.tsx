@@ -9,10 +9,10 @@ export default function AdminNotificationTemplatesPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Notification Templates</h1>
         <p className="text-sm text-ink-tertiary">
-          Editable WhatsApp and Email copy per event, with {"{{placeholder}}"} variables. EMAIL templates are live —
-          the events below actually send via Resend (or log to the server console until a real API key is
-          configured). WhatsApp sending isn&apos;t wired up yet. Use &quot;Send Test&quot; on an EMAIL template to
-          verify it with sample data before relying on a real trigger.
+          The Email and WhatsApp messages customers receive, grouped by service (each status of a service sends its own
+          template) plus the general / system messages shared by every service. Edit the copy with {"{{placeholder}}"}
+          variables and use &quot;Send Test&quot; to check it with sample data. Retired templates are no longer sent and
+          are hidden unless you tick &quot;Show retired templates&quot;.
         </p>
       </div>
       <NotificationTemplatesManager />

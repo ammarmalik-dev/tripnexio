@@ -72,6 +72,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       userId: session.id,
       actorLabel: `by ${session.name}`,
       adminOverride,
+      manual: true,
       inputs: parsed.data.inputs,
     })
   );

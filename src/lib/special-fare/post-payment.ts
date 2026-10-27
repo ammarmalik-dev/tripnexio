@@ -378,6 +378,10 @@ export const recordPnrSchema = z.object({
 /** Staff: the PNR, recorded before ticket issuance (client doc 2026-10-20: a detail, not a status of its own). */
 export async function recordPnr(bookingId: string, input: z.infer<typeof recordPnrSchema>, actor: Actor): Promise<Result> {
   return db.$transaction(async (tx) => {
+    // Client 2026-10-28 — no skipping: the PNR comes after availability is confirmed.
+    const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { finalConfirmedAt: true } });
+    if (!booking) return { ok: false as const, httpStatus: 404 as const, error: "Booking not found." };
+    if (!booking.finalConfirmedAt) return { ok: false as const, httpStatus: 409 as const, error: "Confirm availability first — the PNR is recorded after that." };
     await tx.booking.update({ where: { id: bookingId }, data: { pnr: input.pnr, pnrVendorReference: input.vendorReference, pnrRecordedAt: new Date() } });
     await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_PNR_RECORDED", byUserId: actor.userId, note: `PNR ${input.pnr}${input.vendorReference ? `, vendor ref ${input.vendorReference}` : ""} (${actor.label})` });
     return { ok: true as const, notifications: [], message: "PNR recorded." };

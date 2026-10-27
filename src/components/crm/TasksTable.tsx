@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, RotateCw, Plus, X } from "lucide-react";
+import { Search, Plus, X } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { TaskStatusControl } from "./TaskStatusControl";
+import { ListRefreshButton, ListToolbar } from "./ListToolbar";
 import { TaskPriorityBadge } from "./TaskPriorityBadge";
 import { TaskAssignmentControl } from "./TaskAssignmentControl";
 import { DateRangeFilter } from "./DateRangeFilter";
@@ -106,7 +107,14 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       {/* Client doc 2026-10-20 (L11) — every task filter on one line. */}
-      <div className="flex flex-wrap items-center gap-2.5 xl:flex-nowrap">
+      {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
+      <ListToolbar
+        actions={
+          <>
+            <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
+          </>
+        }
+      >
         <label htmlFor="filter-task-type" className="sr-only">
           Filter by task type
         </label>
@@ -184,17 +192,6 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
           <option value="dueDate_asc">Due soonest</option>
         </select>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setRefreshNonce((current) => current + 1)}
-          disabled={state === "loading"}
-        >
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
-
         <DateRangeFilter
           idPrefix="task"
           dateFrom={dateFrom}
@@ -219,7 +216,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
             {showCreate ? "Close" : "New task"}
           </Button>
         ) : null}
-      </div>
+      </ListToolbar>
 
       {canCreate && showCreate ? (
         <div className="rounded-xl border border-hairline bg-surface-1 p-5">

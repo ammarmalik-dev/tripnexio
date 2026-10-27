@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PurgedFileTag } from "./PurgedFileTag";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Search, RotateCw } from "lucide-react";
+import { Search } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -12,6 +12,7 @@ import { ErrorState } from "@/components/ui/ErrorState";
 import { Button } from "@/components/ui/Button";
 import { DocumentStatusControl } from "./DocumentStatusControl";
 import { DashboardFilterChip } from "./DashboardFilterChip";
+import { ListRefreshButton, ListToolbar } from "./ListToolbar";
 import { DateRangeFilter } from "./DateRangeFilter";
 import { useDateRangeFilter } from "./useDateRangeFilter";
 import { DOCUMENT_STATUS_OPTIONS, DOCUMENT_STATUS_LABELS } from "@/lib/crm/labels";
@@ -116,7 +117,14 @@ export function DocumentReviewQueue() {
       ) : null}
 
       {/* Client doc 2026-10-20 (L11) — every document filter on one line. */}
-      <div className="flex flex-wrap items-center gap-2.5 xl:flex-nowrap">
+      {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
+      <ListToolbar
+        actions={
+          <>
+            <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
+          </>
+        }
+      >
         <label htmlFor="filter-document-status" className="sr-only">
           Filter by status
         </label>
@@ -153,17 +161,6 @@ export function DocumentReviewQueue() {
           <option value="createdAt_asc">Oldest first</option>
         </select>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => setRefreshNonce((current) => current + 1)}
-          disabled={state === "loading"}
-        >
-          <RotateCw className={cn("h-4 w-4", state === "loading" && "animate-spin")} aria-hidden="true" />
-          Refresh
-        </Button>
-
         <DateRangeFilter
           idPrefix="document"
           dateFrom={dateFrom}
@@ -181,7 +178,7 @@ export function DocumentReviewQueue() {
             resetPage();
           }}
         />
-      </div>
+      </ListToolbar>
 
       <DashboardFilterChip
         label={status.includes(",") ? status.split(",").map((s) => DOCUMENT_STATUS_LABELS[s as DocumentStatus] ?? s).join(", ") : undefined}

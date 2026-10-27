@@ -4,6 +4,7 @@ import { paymentTotal } from "../payments/totals";
 import { bookingScopeWhere, paymentScopeWhere, round2 } from "./scope";
 import { previousPeriod } from "./query";
 import type { ReportFilters } from "./types";
+import { quotationCost } from "./finance/shared";
 
 /**
  * P25 (Locked Business Rules v2.0 §15) — the management dashboard waterfall:
@@ -114,7 +115,7 @@ async function computePeriod(filters: ReportFilters): Promise<PeriodFigures> {
       couponDiscount: true,
       gstAmount: true,
       gatewayFee: true,
-      booking: { select: { lead: { select: { quotations: { where: { isSelected: true }, select: { vendorCost: true }, take: 1 } } } } },
+      booking: { select: { lead: { select: { quotations: { where: { isSelected: true }, select: { vendorCost: true, sellingPrice: true, margin: true }, take: 1 } } } } },
     },
   });
   let revenue = 0;
@@ -128,7 +129,8 @@ async function computePeriod(filters: ReportFilters): Promise<PeriodFigures> {
     // A booking's vendor cost is recognised once, in the period its PRIMARY payment succeeded —
     // an EXTRA (add-on) payment later must not count the same vendor cost again.
     if (payment.purpose === "PRIMARY" && !costByBooking.has(payment.bookingId)) {
-      costByBooking.set(payment.bookingId, num(payment.booking.lead.quotations[0]?.vendorCost));
+      const quote = payment.booking.lead.quotations[0];
+      costByBooking.set(payment.bookingId, quote ? quotationCost(quote) : 0);
     }
   }
   const cost = [...costByBooking.values()].reduce((sum, value) => sum + value, 0);

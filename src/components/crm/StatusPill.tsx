@@ -23,11 +23,12 @@ function toneFor(label: string): Tone {
 /**
  * Client testing 2026-10-09 (E13) — the rounded status pill of the client's
  * table sample, used for customer / internal / payment statuses in the CRM lists.
+ * Client 2026-10-28 — a long label wraps inside the pill (never overflows into the next column).
  */
 export function StatusPill({ label, className }: { label: string | null | undefined; className?: string }) {
   if (!label) return <span className="text-xs text-ink-tertiary">—</span>;
   return (
-    <span className={cn("inline-flex max-w-[11rem] items-center rounded-lg px-2.5 py-1 text-center text-xs leading-tight font-medium", TONE_CLASSES[toneFor(label)], className)}>
+    <span className={cn("inline-flex max-w-[11rem] items-center whitespace-normal break-words rounded-lg px-2.5 py-1 text-center text-xs leading-tight font-medium", TONE_CLASSES[toneFor(label)], className)}>
       {label}
     </span>
   );

@@ -215,18 +215,97 @@ async function operationalFrom<T extends { id: string; name: string; systemEvent
   return resume && resume.active ? resume : from;
 }
 
+/**
+ * Client 2026-10-28 ("status ham manually kyu move ka option de rahe hain, as per action khud hi hona chahiye") — the
+ * statuses an action sets by itself: payment, the quotation flow, document upload / review / requests, delivered
+ * outputs, passenger results, the refund engine, and each service's action panel (Embassy, OTB, Return Ticket,
+ * Special Fare, Visa Change, extension outcome). Staff don't pick these in "Move to"; they happen when the action
+ * is done. A status without such an action (On Hold, cancellation, User Not Responding, Unable to Process…) stays
+ * a manual move. An Admin override can still set any status.
+ */
+const AUTO_EVENTS_ALL = new Set<string>([
+  "PAYMENT_SUCCESS",
+  "QUOTATION_CREATED",
+  "QUOTATION_ACCEPTED",
+  "QUOTE_EXPIRING",
+  "QUOTE_EXPIRED",
+  "NEW_QUOTE_REQUESTED",
+  "DOCUMENTS_REQUESTED",
+  "DOCUMENTS_RECEIVED",
+  "DOCUMENTS_VALIDATED",
+  "DOCUMENTS_REJECTED",
+  "ADDITIONAL_DOCUMENTS_RECEIVED",
+  "ADDITIONAL_DOCUMENTS_VALIDATED",
+  "PARTIAL_APPROVED",
+  "DELIVERED_VISA_PDF",
+  "DELIVERED_EXTENDED_VISA_PDF",
+  "DELIVERED_TICKET_PDF",
+  "DELIVERED_RESERVATION_PDF",
+  "DELIVERED_PACKAGE_PDF",
+  "DELIVERED_OTB_CONFIRMATION",
+  ...REFUND_ENGINE_EVENTS,
+]);
+const AUTO_EVENTS_BY_SERVICE: Partial<Record<ServiceType, readonly string[]>> = {
+  NEW_VISA: ["READY_FOR_SUBMISSION", "EMBASSY_APPLIED", "EMBASSY_ADDITIONAL_DOCS", "EMBASSY_REJECTED"],
+  VISA_CHANGE: ["READY_FOR_SUBMISSION", "EMBASSY_APPLIED", "EMBASSY_ADDITIONAL_DOCS", "EMBASSY_REJECTED", "VC_EXIT_COMPLETED"],
+  VISA_EXTENSION: ["EXTENSION_EXTENDED", "EXTENSION_NOT_ACCEPTED", "EXTENSION_REJECTED"],
+  OTB: ["OTB_SUBMITTED", "OTB_APPROVED", "OTB_REJECTED", "OTB_ADDITIONAL_DOCUMENTS"],
+  RETURN_TICKET: ["SENT_TO_AIRLINES", "RT_AUTO_COMPLETED"],
+  FLIGHT_SPECIAL_FARE: ["FSF_FINAL_CONFIRMATION", "FSF_SEAT_UNAVAILABLE", "FSF_ALTERNATIVE_OFFERED", "FSF_ADDITIONAL_PAYMENT_PENDING", "FSF_AVAILABILITY_CONFIRMED"],
+};
+
+/** A status set by its action (see above), never by a staff "Move to…". Pure, so it is unit-tested. */
+export function isAutoStatus(serviceType: ServiceType, status: Pick<ServiceStatus, "systemEvent">): boolean {
+  const event = status.systemEvent;
+  if (!event) return false;
+  return AUTO_EVENTS_ALL.has(event) || (AUTO_EVENTS_BY_SERVICE[serviceType]?.includes(event) ?? false);
+}
+
+/** Client 2026-10-27 — the hand-over step of a booking (to the airline / embassy), by its name in the service's list. */
+const HANDOVER_NAME = /sent to airlines?|applied to embassy/i;
+
+type SkipShape = Pick<ServiceStatus, "name" | "systemEvent" | "mapsToBookingStatus" | "displayOrder">;
+
+const ANY_TIME_STEP = /cancel|hold|refund|unable|not responding/i;
+
+/**
+ * Client 2026-10-27 ("move ke bad revert nahi ho sakta na hi skip ho sakta") — a staff move can't skip the
+ * hand-over: a main-path status after "Sent to Airlines" / "Applied to Embassy" (approved, ticket issued, additional
+ * documents, partial approval, rejection…) needs the booking to have reached it first. Cancel, hold, refund, "unable
+ * to process" and "not responding" stay available at any point. Pure, so it is unit-tested.
+ */
+export function skipsHandover(handover: SkipShape | null, from: SkipShape | null, to: SkipShape): string | null {
+  // The airline's / embassy's answer (approved, partially approved, rejected) comes only after the hand-over; a
+  // cancellation, hold, refund, "unable to process" or "not responding" can happen at any point.
+  if (!handover || !from || to.displayOrder <= handover.displayOrder || ANY_TIME_STEP.test(to.name)) return null;
+  if (from.displayOrder >= handover.displayOrder) return null;
+  return `"${to.name}" comes after "${handover.name}" — the booking has to reach "${handover.name}" first.`;
+}
+
+/** The service's hand-over status (first by order), or null when its list has none. */
+async function handoverStatus(client: Tx | typeof db, serviceType: ServiceType, scope: StatusScope) {
+  if (scope !== "BOOKING") return null;
+  const statuses = await client.serviceStatus.findMany({
+    where: { serviceType, scope, active: true },
+    orderBy: [{ displayOrder: "asc" }],
+    select: { name: true, systemEvent: true, mapsToBookingStatus: true, displayOrder: true },
+  });
+  return statuses.find((status) => HANDOVER_NAME.test(status.name) && !/additional|cancel/i.test(status.name)) ?? null;
+}
+
 export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId: string) {
   const entity = await loadEntity(db, scope, entityId);
   if (!entity) return null;
   const current = entity.serviceStatusId
     ? await db.serviceStatus.findUnique({
         where: { id: entity.serviceStatusId },
-        select: { id: true, name: true, customerLabel: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true },
+        select: { id: true, name: true, customerLabel: true, displayOrder: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true },
       })
     : null;
   // Client doc 2026-10-27 (N1/C13) — an allowed apply step is shown as a pointer to its action panel, not a Move button.
   const panelOnly: { id: string; name: string }[] = [];
   const movesFrom = await operationalFrom(db, scope, entityId, current);
+  const handover = await handoverStatus(db, entity.serviceType, scope);
   const allowed = current && movesFrom
     ? (
         await db.serviceStatusTransition.findMany({
@@ -241,12 +320,16 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
         .map((transition) => transition.to)
         // Client doc 2026-10-15 (I1) — only the moves staff may actually make.
         .filter((to) => staffMoveBlock(scope, movesFrom, to) === null)
+        // Client 2026-10-27 — no skipping the hand-over to the airline / embassy.
+        .filter((to) => skipsHandover(handover, movesFrom, to) === null)
         // Client doc 2026-10-27 (C1/C13) — the apply step comes from the service's action panel (vendor + documents).
         .filter((to) => {
           if (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)) return true;
           panelOnly.push({ id: to.id, name: to.name });
           return false;
         })
+        // Client 2026-10-28 — a status an action sets by itself is not a manual move.
+        .filter((to) => !isAutoStatus(entity.serviceType, to))
         .sort((a, b) => a.displayOrder - b.displayOrder)
     : // A record that predates the engine (no status yet) may be placed on any status of its list — except the
       // refund statuses and the apply step (client doc 2026-10-27, C1/C2).
@@ -256,7 +339,7 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
           orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
           select: { id: true, name: true, customerLabel: true, displayOrder: true, notificationEvent: true, systemEvent: true },
         })
-      ).filter((to) => !isRefundEngineStatus(to) && (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)));
+      ).filter((to) => !isRefundEngineStatus(to) && !isAutoStatus(entity.serviceType, to) && (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)));
   // Client testing 2026-10-09 (E9) — the service's whole status list (internal name
   // + what the customer sees), so staff can see where a record is and what comes next.
   const all = await db.serviceStatus.findMany({
@@ -350,6 +433,8 @@ export async function setServiceStatus(
     refundEngine?: boolean;
     /** Client doc 2026-10-27 (C4) — a system rule that may still move a booking after a partial refund. */
     afterRefund?: boolean;
+    /** Client 2026-10-28 — a staff "Move to…" (the Change Status routes): an automatic status is refused. */
+    manual?: boolean;
   }
 ): Promise<SetServiceStatusResult> {
   const entity = await loadEntity(tx, input.scope, input.entityId);
@@ -378,9 +463,16 @@ export async function setServiceStatus(
     });
     if (!allowed) return { ok: false, httpStatus: 409, error: `Can't move from "${from.name}" to "${to.name}".` };
   }
+  if (!input.adminOverride && input.manual && isAutoStatus(entity.serviceType, to)) {
+    return { ok: false, httpStatus: 409, error: `"${to.name}" is set automatically when its action is done (documents, payment, the Operations panel…) — it can't be picked by hand.` };
+  }
   if (!input.adminOverride) {
     const blocked = staffMoveBlock(input.scope, movesFrom, to, { refundEngine: input.refundEngine, afterRefund: input.afterRefund });
     if (blocked) return { ok: false, httpStatus: 409, error: blocked };
+    if (!input.refundEngine && !input.afterRefund) {
+      const skipped = skipsHandover(await handoverStatus(tx, entity.serviceType, input.scope), movesFrom, to);
+      if (skipped) return { ok: false, httpStatus: 409, error: skipped };
+    }
     // Client doc 2026-10-27 (C1) — never sent to the airline / applied before every document is validated.
     if (input.scope === "BOOKING" && needsValidatedDocuments(entity.serviceType, to)) {
       const documents = await bookingDocumentsValidatedBlock(tx, entity.id);

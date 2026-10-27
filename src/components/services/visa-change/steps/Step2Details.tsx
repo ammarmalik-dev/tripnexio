@@ -79,7 +79,10 @@ export function Step2Details() {
           options={nationalityOptions}
           error={errors.nationalityId?.message}
         />
-        <PaxTypeSelect id="paxType" error={errors.paxType?.message} registration={register("paxType")} />
+        {/* Client 2026-10-28 — the odd last field spans the row, so the form never looks left-shifted. */}
+        <div className="sm:col-span-2">
+          <PaxTypeSelect id="paxType" error={errors.paxType?.message} registration={register("paxType")} />
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">

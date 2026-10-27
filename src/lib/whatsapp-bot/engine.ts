@@ -1,7 +1,6 @@
 import { createLeadFromSubmission, notifyLeadReceived } from "../leads/create-lead";
 import { tripFactsForLead, tripSummaryLine } from "../leads/trip-summary";
 import { findPriorTripNexioVisaByPassport } from "../leads/visa-extension-eligibility";
-import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getAiProvider } from "./get-ai-provider";
 import { answerFaqQuestion } from "@/lib/faq/answer-faq";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
@@ -310,7 +309,7 @@ async function continueCollecting(
       const lead = await db.lead.findUnique({ where: { id: result.leadId }, select: { customerToken: true } });
       const uploadUrl = lead?.customerToken ? `${siteConfig.url}/quote/${lead.customerToken}` : null;
       return {
-        replyText: messages.extensionUploadRequest(result.referenceId, uploadUrl, SERVICE_TYPE_LABELS[serviceType]),
+        replyText: messages.extensionUploadRequest(result.confirmationMessage, uploadUrl),
         ...(uploadUrl ? { replyCta: { label: "Upload Documents", url: uploadUrl } } : {}),
         nextState: "COMPLETED",
         nextServiceType: serviceType,
@@ -321,8 +320,8 @@ async function continueCollecting(
 
     return {
       replyText: payUrl
-        ? messages.leadCreatedWithPayLink(result.referenceId, SERVICE_TYPE_LABELS[serviceType], payUrl, tripSummaryLine(await tripFactsForLead(result.leadId)))
-        : messages.leadCreated(result.referenceId, serviceType),
+        ? messages.leadCreatedWithPayLink(result.confirmationMessage, payUrl, tripSummaryLine(await tripFactsForLead(result.leadId)))
+        : messages.leadCreated(result.confirmationMessage),
       ...(payUrl ? { replyCta: { label: "Pay Now", url: payUrl } } : {}),
       nextState: "COMPLETED",
       nextServiceType: serviceType,

@@ -31,7 +31,8 @@ export async function POST(request: NextRequest) {
   try {
     const summary = await recordAutomationRun("payment-followup", async () => {
       const pending = await db.payment.findMany({
-        where: { status: "PENDING" },
+        // Client 2026-10-27 — no payment reminders for a cancelled request (Lost / Closed lead, cancelled booking).
+        where: { status: "PENDING", booking: { status: { notIn: ["CANCELLED", "REFUNDED"] }, lead: { status: { notIn: ["LOST", "CLOSED"] } } } },
         include: { booking: { include: { customer: true, lead: true } } },
       });
 
