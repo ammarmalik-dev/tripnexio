@@ -50,6 +50,18 @@ describe("customer Track Status steps (client doc 2026-10-27, C7)", () => {
     expect(labels(stages)).not.toContain("OTB Approved");
     expect(stages.every((stage) => stage.status !== "upcoming")).toBe(true);
   });
+  it("a skipped main step is not shown as done, and a hold sits where it happened (11026OT099)", () => {
+    const withHold = [...otb, st("Booking On Hold", "Booking On Hold", { systemEvent: "ON_HOLD" })];
+    const reached = new Set(["Paid", "Booking On Hold", "Additional Documents Received"]);
+    const stages = customerStages(withHold, withHold[6], reached);
+    expect(stages).toEqual([
+      { label: "Payment Pending", status: "done" },
+      { label: "Payment Received", status: "done" },
+      { label: "Booking On Hold", status: "done" },
+      { label: "Additional Documents Received", status: "current" },
+      { label: "OTB Approved", status: "upcoming" },
+    ]);
+  });
   it("reads the statuses a booking was moved to from its audit notes", () => {
     const names = reachedStatusNames([
       "Paid -> Document Pending [CONFIRMED -> CONFIRMED]: system event DOCUMENTS_REQUESTED (by Asha)",

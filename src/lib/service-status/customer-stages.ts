@@ -53,9 +53,14 @@ export function isBranchStatus(status: Pick<StageStatus, "name" | "systemEvent" 
 
 /**
  * The steps to show: main steps, plus the branches the booking has been on (`reachedIds`, from its status
- * history) or is on now. A step is done when it was reached (or, for records older than the history, when it
- * lies before the current step and isn't a final outcome); once the booking is on a final status nothing is
- * left upcoming. Labels repeat across statuses (e.g. two "Documents Required"), so they're merged.
+ * history in the order they happened) or is on now. Labels repeat across statuses (e.g. two "Documents
+ * Required"), so they're merged. Once the booking is on a final status nothing is left upcoming.
+ *
+ * With a status history, a main step before the current one that the booking never went through (e.g.
+ * "Sent to Airlines" when it was never sent) is left out instead of being shown as done, and the steps that
+ * happened are listed in the order they happened (a hold sits where it happened, not at the end). Steps
+ * before the first recorded one (the lead stage, e.g. "Payment Pending") count as done. Records older than
+ * the history fall back to "every main step before the current one is done".
  */
 export function customerStages(
   statuses: StageStatus[],
@@ -71,25 +76,48 @@ export function customerStages(
     null;
   const finished = !!currentRow && currentRow.isTerminal;
 
+  // Client doc 2026-10-27 (C7) — the order the booking actually went through its statuses.
+  const history = [...reachedIds];
+  const hasHistory = history.length > 0;
+  const reachedMainOrders = labelled.filter((status) => reachedIds.has(status.id) && !isBranchStatus(status)).map((status) => status.displayOrder);
+  const firstRecorded = reachedMainOrders.length > 0 ? Math.min(...reachedMainOrders) : Number.POSITIVE_INFINITY;
+  const beforeCurrent = (status: StageStatus) => !!currentStep && status.displayOrder < currentStep.displayOrder;
+  const preHistory = (status: StageStatus) => hasHistory && !reachedIds.has(status.id) && status.displayOrder < firstRecorded;
+
   const shown = labelled.filter((status) => {
     if (status.id === currentStep?.id) return true;
     const detour = (status.customerLabel ?? "").toLowerCase().startsWith("additional documents");
     if (isBranchStatus(status) || detour) return reachedIds.has(status.id);
+    // A main step the booking skipped is not shown as done.
+    if (hasHistory && beforeCurrent(status) && !reachedIds.has(status.id) && !preHistory(status)) return false;
     return true;
   });
 
   const stateOf = (status: StageStatus): CustomerStageStatus => {
     if (status.id === currentStep?.id) return "current";
     if (reachedIds.has(status.id)) return "done";
-    if (currentStep && status.displayOrder < currentStep.displayOrder && !status.isTerminal) return "done";
+    if (preHistory(status)) return "done";
+    if (!hasHistory && beforeCurrent(status) && !status.isTerminal) return "done";
     return "upcoming";
   };
 
+  // Done steps in the order they happened, then the current step, then what's still to come.
+  const sortKey = (status: StageStatus, state: CustomerStageStatus): [number, number] => {
+    if (!hasHistory) return [0, status.displayOrder];
+    if (state === "upcoming") return [3, status.displayOrder];
+    if (state === "current") return [2, 0];
+    if (preHistory(status)) return [0, status.displayOrder];
+    return [1, history.indexOf(status.id)];
+  };
+  const ordered = shown
+    .map((status) => ({ status, state: stateOf(status) }))
+    .map((entry) => ({ ...entry, key: sortKey(entry.status, entry.state) }))
+    .sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1]);
+
   const merged: { label: string; status: CustomerStageStatus }[] = [];
   const rank: Record<CustomerStageStatus, number> = { upcoming: 0, done: 1, current: 2 };
-  for (const status of shown) {
+  for (const { status, state } of ordered) {
     const label = (status.customerLabel as string).trim();
-    const state = stateOf(status);
     if (finished && state === "upcoming") continue;
     const existing = merged.find((entry) => entry.label === label);
     if (existing) {
@@ -97,6 +125,13 @@ export function customerStages(
       continue;
     }
     merged.push({ label, status: state });
+  }
+  // A label merged into an earlier "done" entry that is now current moves to the current position.
+  const currentIndex = merged.findIndex((entry) => entry.status === "current");
+  if (currentIndex >= 0) {
+    const [entry] = merged.splice(currentIndex, 1);
+    const firstUpcoming = merged.findIndex((item) => item.status === "upcoming");
+    merged.splice(firstUpcoming < 0 ? merged.length : firstUpcoming, 0, entry);
   }
   return merged;
 }
