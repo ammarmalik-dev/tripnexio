@@ -75,3 +75,18 @@ Open for the client: one service has GST % 17.83 in Admin → Services (others 1
 - Partial refund: remaining passengers carry on (client status matrix "remaining passengers may stay active"); refund statuses only from the refund engine.
 - Client reply: invoice serial AA02699 → AB02601 (already so); Special Fare summary = Trip Details / Flight Details / Pax Info / Fare Info (done).
 - Not run end to end (agent stopped): SF payment → per-passenger tickets, VE/VC quote send after payment, GST-on invoice, email render, WhatsApp handover, manual lead, enquiry email, signup OTP — covered by unit tests and code review only.
+
+## Client messages 27–28 Oct night (commit 08b043c, backup pre-deploy-20261027T223943)
+- [x] Special Fare passenger note: "— fare varies by type" removed (passenger step + summary)
+- [x] Status card on the right with a "Move to" list; no row of status buttons on top (CRM + Admin)
+- [x] Statuses with an action move by themselves (payment, quotation, documents, outputs, passenger results, refunds, each service's Operations panel); only no-action statuses are manual; server refuses manual picks; Admin override unchanged
+- [x] No skipping: nothing after Sent to Airlines / Applied to Embassy before the booking reaches it
+- [x] Partially Cancelled stays put; remaining passengers move forward only
+- [x] Upload notifications: none since the 27 Oct deploy (production audit checked; local end to end confirmed)
+- [x] Old templates: 5 never-sent events retired (no delete); Admin templates grouped by service, "Show retired templates"
+- [x] Request received identical on website screen, WhatsApp bot and email (client's WhatsApp wording, per service; Admin-edited emails untouched)
+- [x] Admin/CRM status pills wrap inside their column; Refresh / Export on the first filter line (shared ListToolbar); request forms aligned
+- [x] Also: no quote / payment reminders for cancelled requests; urgent VE link closes at the 6 PM deadline; PNR only after availability; profit reports count fines as cost; no "Total GST ₹0" line on invoices
+- [x] Local end to end (mock gateway): all 9 remaining flows PASS (SF tickets per passenger, VE/VC quotes, GST on/off + invoice + verify page, email layout, WhatsApp handover, manual lead, enquiry email, signup OTP)
+- Guide for the client: client-message/GUIDE_STATUS_AND_NOTIFICATIONS.md (updated)
+- To check live once logged in: status card on a booking, Admin Bookings table, Notification Templates page
