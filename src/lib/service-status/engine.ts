@@ -74,9 +74,17 @@ export const APPLY_STEP_EVENT: Partial<Record<ServiceType, ServiceStatusSystemEv
   NEW_VISA: "EMBASSY_APPLIED",
 };
 
-/** Steps that send documents on (the apply step, plus OTB's additional documents to the airline) — documents validated first. */
+/**
+ * Client doc 2026-10-27 (C11) — "Documents Validated" (main or additional) tells the customer their documents
+ * are all validated, so a staff "Move to…" onto it needs the documents really validated too (the document
+ * review sets it by itself once they are).
+ */
+const VALIDATED_STATUS_EVENTS = new Set<string>(["DOCUMENTS_VALIDATED", "ADDITIONAL_DOCUMENTS_VALIDATED"]);
+
+/** Steps that send documents on (the apply step, plus OTB's additional documents to the airline) or announce them validated — documents validated first. */
 export function needsValidatedDocuments(serviceType: ServiceType, status: Pick<ServiceStatus, "systemEvent">): boolean {
   if (!status.systemEvent) return false;
+  if (VALIDATED_STATUS_EVENTS.has(status.systemEvent)) return true;
   return status.systemEvent === APPLY_STEP_EVENT[serviceType] || (serviceType === "OTB" && status.systemEvent === "OTB_ADDITIONAL_DOCUMENTS");
 }
 

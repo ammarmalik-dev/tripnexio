@@ -9,6 +9,8 @@ import { getNewVisaTravelRules } from "@/lib/new-visa/travel-rules";
  * applies that destination's own timeline (client testing 2026-10-09, B31).
  */
 export async function GET(request: NextRequest) {
-  const country = request.nextUrl.searchParams.get("country")?.trim().slice(0, 8) || null;
+  // Client doc 2026-10-27 (E1) — any Admin country code (e.g. SAUDI_ARABIA): a code cut to 8 characters matched no
+  // timeline, so the form lost the country's processing days (no Expected Approval Date) and minimum travel days.
+  const country = request.nextUrl.searchParams.get("country")?.trim().slice(0, 20) || null;
   return jsonSuccess(await getNewVisaTravelRules(country));
 }

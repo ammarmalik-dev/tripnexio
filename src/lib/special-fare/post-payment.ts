@@ -241,8 +241,12 @@ export async function markUnavailable(bookingId: string, input: AlternativeOptio
   // P22 — refunds raised inside the transaction are announced to refunds.approve staff once it commits.
   const raisedRefundIds: string[] = [];
   const result = await db.$transaction(async (tx): Promise<Result> => {
-    const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { id: true, leadId: true } });
+    const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { id: true, leadId: true, alternativeOffer: true } });
     if (!booking) return { ok: false as const, httpStatus: 404, error: "Booking not found." };
+    // Already marked unavailable with no alternative: its full refund is raised — never a second "unavailable".
+    if (parseAlternativeOffer(booking.alternativeOffer)?.direction === "NONE") {
+      return { ok: false as const, httpStatus: 409, error: "This booking is already marked unavailable — its full refund has been raised." };
+    }
     const now = new Date().toISOString();
 
     if (!alternative) {
@@ -289,7 +293,9 @@ export async function markUnavailable(bookingId: string, input: AlternativeOptio
       if (primary) {
         // Refund the difference together with the GST charged on it.
         const net = Number(primary.amount) - Number(primary.couponDiscount ?? 0);
-        const gstRate = net > 0 ? Number(primary.gstAmount) / net : 0;
+        // Client doc 2026-10-27 (C5/F2) — a payment with a service-fee snapshot charged GST on that fixed fee only, so a
+        // fare difference (pass-through) carries no GST; older payments taxed the whole amount.
+        const gstRate = primary.invoiceServiceFee == null && net > 0 ? Number(primary.gstAmount) / net : 0;
         refundAmount = round(-difference * (1 + gstRate));
         const differenceRefund = await raiseRefund(tx, { paymentId: primary.id, amount: Math.min(refundAmount, paymentTotal(primary)), reason: `Special Fare alternative is ₹${-difference} cheaper — fare difference refund`, actorLabel: actor.label });
         if (differenceRefund) raisedRefundIds.push(differenceRefund.id);

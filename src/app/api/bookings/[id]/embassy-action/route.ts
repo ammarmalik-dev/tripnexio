@@ -75,7 +75,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // Client doc 2026-10-15 (I7) — the vendor is picked once every document is validated.
   if (action === "APPLIED") {
     const documents = await db.document.findMany({ where: bookingDocumentsWhere({ id, leadId: booking.leadId }), select: { type: true, status: true, passengerId: true, createdAt: true, purgedAt: true } });
-    const blocked = vendorChoiceBlock("NEW_VISA", documents);
+    const cancelled = await db.bookingPassenger.findMany({ where: { bookingId: id, outcome: "CANCELLED" }, select: { passengerId: true } });
+    const blocked = vendorChoiceBlock("NEW_VISA", documents, cancelled.map((row) => row.passengerId));
     if (blocked) return jsonError(409, blocked);
     // Client doc 2026-10-27 (C13) — a vendor with a rate for this booking, so the P&L uses its cost.
     const rateProblem = vendor ? await vendorRateProblem(db, id, vendor.id) : null;

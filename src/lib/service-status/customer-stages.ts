@@ -145,3 +145,16 @@ export function reachedStatusNames(notes: (string | null)[]): Set<string> {
   }
   return names;
 }
+
+/**
+ * The ids of the statuses a booking has been moved to, in the order it reached them (first time each) — the order
+ * customerStages lists done steps in. Built from the audit notes (oldest first), never from the status list's order.
+ */
+export function reachedStatusIds(statuses: Pick<StageStatus, "id" | "name">[], notesOldestFirst: (string | null)[]): Set<string> {
+  const ids = new Set<string>();
+  for (const name of reachedStatusNames(notesOldestFirst)) {
+    const id = statuses.find((status) => status.name === name)?.id;
+    if (id) ids.add(id);
+  }
+  return ids;
+}

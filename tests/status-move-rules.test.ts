@@ -62,3 +62,12 @@ describe("apply steps (client doc 2026-10-27, C1/C13)", () => {
     expect(needsValidatedDocuments("OTB", { systemEvent: "OTB_APPROVED" })).toBe(false);
   });
 });
+
+describe("Documents Validated by hand (client doc 2026-10-27, C11)", () => {
+  it("a staff move onto a validated status needs the documents really validated", () => {
+    expect(needsValidatedDocuments("OTB", { systemEvent: "DOCUMENTS_VALIDATED" })).toBe(true);
+    expect(needsValidatedDocuments("NEW_VISA", { systemEvent: "ADDITIONAL_DOCUMENTS_VALIDATED" })).toBe(true);
+    expect(needsValidatedDocuments("OTB", { systemEvent: "DOCUMENTS_RECEIVED" })).toBe(false);
+    expect(needsValidatedDocuments("OTB", { systemEvent: null })).toBe(false);
+  });
+});

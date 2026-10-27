@@ -156,7 +156,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       appliedToEmbassyAt: booking.appliedToEmbassyAt,
     }),
     // Client doc 2026-10-15 (I7) — whether staff can pick the vendor now (and why not).
-    vendorChoiceBlockedReason: vendorChoiceBlock(booking.lead.serviceType, booking.documents),
+    vendorChoiceBlockedReason: vendorChoiceBlock(
+      booking.lead.serviceType,
+      booking.documents,
+      booking.passengers.filter((row) => row.outcome === "CANCELLED").map((row) => row.passengerId)
+    ),
     // Client doc 2026-10-27 (C1) — why Sent to Airlines / Applied to Embassy can't be taken yet (documents not validated).
     applyBlockedReason: documentsValidatedBlock(
       booking.documents,

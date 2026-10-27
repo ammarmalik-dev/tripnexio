@@ -82,7 +82,8 @@ export async function applyRefundStatus(
     await applySystemEvent(tx, { scope: "BOOKING", entityId: booking.id, event: "CANCELLED_AND_REFUNDED", userId: actor.userId, actorLabel: actor.label, silent: true });
   } else {
     // Client doc 2026-10-20 (N2) — a partial refund shows its passengers as cancelled (no undecided passenger
-    // is left looking active), then the remaining passengers carry on from where the booking was.
+    // is left looking active), then the remaining passengers carry on from where the booking was. Client doc
+    // 2026-10-27 (C4) — staff can't pick a refund / partial status again: those only come from the refund engine.
     if (refund.passengerIds.length > 0) {
       const cancelledRows = await tx.bookingPassenger.updateMany({
         where: { bookingId: booking.id, passengerId: { in: refund.passengerIds }, outcome: null },

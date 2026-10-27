@@ -123,6 +123,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Client doc 2026-10-20 (A10) / 2026-10-27 (A5) — once a ticket is delivered, staff can't record the flight as
     // unavailable; only an Admin can, as an audited override with a reason.
     let unavailableActor: { userId?: string; label: string; adminOverride?: boolean } = actor;
+    let overrideNote: string | null = null;
     if (input.action === "UNAVAILABLE") {
       const delivered = await db.document.count({ where: { bookingId: id, type: "TICKET_PDF" } });
       if (delivered > 0) {
@@ -134,7 +135,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return jsonError(400, "A ticket was already delivered — give the reason for this Admin override.", { overrideReason: ["Enter a reason (at least 5 characters)."] });
         }
         unavailableActor = { ...actor, label: `${actor.label} — Admin override after ticket delivery: ${reason}`, adminOverride: true };
-        await writeAudit(db, { entityType: "Booking", entityId: id, action: "FSF_UNAVAILABLE_OVERRIDE", byUserId: session.id, note: `Marked unavailable after a ticket was delivered: ${reason} (by ${session.name})` });
+        overrideNote = `Marked unavailable after a ticket was delivered: ${reason} (by ${session.name})`;
       }
     }
 
@@ -145,6 +146,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           ? await markUnavailable(id, input.alternative, unavailableActor)
           : await recordPnr(id, { pnr: input.pnr, vendorReference: input.vendorReference }, actor);
     if (!result.ok) return jsonError(result.httpStatus, result.error);
+    // The override is audited only once the move went through.
+    if (overrideNote) await writeAudit(db, { entityType: "Booking", entityId: id, action: "FSF_UNAVAILABLE_OVERRIDE", byUserId: session.id, note: overrideNote });
     await dispatchStatusNotifications(result.notifications);
     return jsonSuccess({ message: result.message });
   } catch (error) {

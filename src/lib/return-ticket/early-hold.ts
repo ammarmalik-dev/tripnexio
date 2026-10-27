@@ -57,7 +57,18 @@ export async function runReturnTicketEarlyHolds(now: Date = new Date()): Promise
     where: {
       status: { in: ["CONFIRMED", "PROCESSING"] },
       lead: { serviceType: "RETURN_TICKET", travelDate: { not: null } },
-      serviceStatus: { isTerminal: false, blocksRefund: false, OR: [{ systemEvent: null }, { systemEvent: { notIn: ["ON_HOLD", "SENT_TO_AIRLINES", "RT_RESERVATION_ISSUED"] } }] },
+      serviceStatus: { isTerminal: false, blocksRefund: false, OR: [{ systemEvent: null }, { systemEvent: { notIn: [
+        "ON_HOLD",
+        "SENT_TO_AIRLINES",
+        "RT_RESERVATION_ISSUED",
+        // A refund / cancellation is under way: never held (the release couldn't put a refund status back — 2026-10-27 C2).
+        "CANCELLED",
+        "REFUND_RAISED",
+        "REFUND_APPROVED",
+        "REFUND_COMPLETED",
+        "REFUND_PARTIALLY_COMPLETED",
+        "CANCELLED_AND_REFUNDED",
+      ] } }] },
     },
     select: { id: true, bookingId: true, leadId: true, serviceStatusId: true, lead: { select: { travelDate: true } } },
     take: 200,

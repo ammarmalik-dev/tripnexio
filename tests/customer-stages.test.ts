@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { customerStages, reachedStatusNames, type StageStatus } from "../src/lib/service-status/customer-stages";
+import { customerStages, reachedStatusIds, reachedStatusNames, type StageStatus } from "../src/lib/service-status/customer-stages";
 
 let order = 0;
 const st = (name: string, label: string, extra: Partial<StageStatus> = {}): StageStatus => ({
@@ -70,5 +70,16 @@ describe("customer Track Status steps (client doc 2026-10-27, C7)", () => {
       null,
     ]);
     expect([...names]).toEqual(["Document Pending", "OTB Approved for Partially Applicants", "OTB Application Approved"]);
+  });
+  it("reached ids keep the order the booking went through them, not the status list's order", () => {
+    const withHold = [...otb, st("Booking On Hold", "Booking On Hold", { systemEvent: "ON_HOLD" })];
+    const ids = reachedStatusIds(withHold, [
+      "(none) -> Paid (by system)",
+      "Paid -> Booking On Hold (automatic hold)",
+      "Booking On Hold -> Additional Documents Received (by Asha)",
+    ]);
+    expect([...ids]).toEqual(["Paid", "Booking On Hold", "Additional Documents Received"]);
+    const stages = customerStages(withHold, withHold[6], ids);
+    expect(stages.map((stage) => stage.label).indexOf("Booking On Hold")).toBeLessThan(stages.map((stage) => stage.label).indexOf("Additional Documents Received"));
   });
 });

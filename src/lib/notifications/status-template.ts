@@ -497,7 +497,9 @@ export async function sendStatusTemplate(input: {
     // Client 2026-10-23 audit — never the same message twice for one record: the same event within 2 minutes (two
     // triggers firing together) is dropped, and "User Not Responding" goes at most once a day.
     const entityType = input.scope === "LEAD" ? "Lead" : "Booking";
-    const dedupeKey = `STATUS_MSG:${input.event}`;
+    // A per-passenger delivery (one passenger's ticket / visa, then the rest's) is a different message, not a repeat.
+    const passengerPart = input.extraVariables?.passenger_names ? `:${input.extraVariables.passenger_names.slice(0, 150)}` : "";
+    const dedupeKey = `STATUS_MSG:${input.event}${passengerPart}`;
     const notResponding = /not responding/i.test(input.statusLabel ?? "") || /NOT_RESPONDING/.test(input.event);
     if (await wasRecentlyReminded(dedupeKey, entityType, input.entityId, notResponding ? NOT_RESPONDING_COOLDOWN_MS : DUPLICATE_WINDOW_MS)) return;
     await logReminder(dedupeKey, entityType, input.entityId);

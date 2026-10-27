@@ -15,10 +15,11 @@ import { DIRECT_VENDOR_NAME, VENDOR_AFTER_DOCUMENTS_SERVICES } from "./vendor-na
  */
 
 /** Why the booking's vendor can't be picked yet (or at all) — null when it can. */
-export function vendorChoiceBlock(serviceType: ServiceType, documents: ReadinessDocument[]): string | null {
+export function vendorChoiceBlock(serviceType: ServiceType, documents: ReadinessDocument[], cancelledPassengerIds: Iterable<string> = []): string | null {
   if (!VENDOR_AFTER_DOCUMENTS_SERVICES.has(serviceType)) return "The vendor comes from the selected quotation.";
   // Client doc 2026-10-27 (C1) — the same rule as Sent to Airlines / Applied (latest copy per passenger × document).
-  if (documentsValidatedBlock(documents)) return "Pick the vendor once every document is validated.";
+  // A cancelled passenger's documents don't count (the same as the status engine's check).
+  if (documentsValidatedBlock(documents, cancelledPassengerIds)) return "Pick the vendor once every document is validated.";
   return null;
 }
 
@@ -48,9 +49,12 @@ export async function setBookingVendor(
   if (!quotation) return "This booking has no selected quotation to record the vendor on.";
   if (quotation.vendorId === input.vendor.id) return null;
 
-  const booking = await tx.booking.findUniqueOrThrow({ where: { id: input.bookingId }, select: { id: true, leadId: true, lead: { select: { serviceType: true } } } });
+  const booking = await tx.booking.findUniqueOrThrow({
+    where: { id: input.bookingId },
+    select: { id: true, leadId: true, lead: { select: { serviceType: true } }, passengers: { where: { outcome: "CANCELLED" }, select: { passengerId: true } } },
+  });
   const documents = await tx.document.findMany({ where: bookingDocumentsWhere(booking), select: { type: true, status: true, passengerId: true, createdAt: true, purgedAt: true } });
-  const blocked = vendorChoiceBlock(booking.lead.serviceType, documents);
+  const blocked = vendorChoiceBlock(booking.lead.serviceType, documents, booking.passengers.map((row) => row.passengerId));
   if (blocked) return blocked;
 
   // Client doc 2026-10-14 — OTB / Return Ticket: the vendor's rate for this country / airline /

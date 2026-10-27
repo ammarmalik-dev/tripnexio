@@ -18,4 +18,12 @@ describe("vendorChoiceBlock (client doc 2026-10-15, I7)", () => {
   it("takes the vendor from the quotation for quoted services", () => {
     expect(vendorChoiceBlock("VISA_CHANGE", [{ type: "PASSPORT", status: "VERIFIED" }])).toMatch(/quotation/);
   });
+  it("ignores a cancelled passenger's documents, like the Sent to Airlines check (client doc 2026-10-27, C1)", () => {
+    const documents = [
+      { type: "PASSPORT", status: "VERIFIED", passengerId: "p1" },
+      { type: "PASSPORT", status: "REQUIRED", passengerId: "p2" },
+    ];
+    expect(vendorChoiceBlock("OTB", documents)).toMatch(/validated/);
+    expect(vendorChoiceBlock("OTB", documents, ["p2"])).toBeNull();
+  });
 });

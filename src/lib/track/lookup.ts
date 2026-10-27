@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import type { TrackResult, TrackStage, TrackStageStatus } from "./types";
-import { customerStages, reachedStatusNames } from "../service-status/customer-stages";
+import { customerStages, reachedStatusIds } from "../service-status/customer-stages";
 import type { BookingStatus, LeadStatus, ServiceType } from "../../generated/prisma/enums";
 import { HOLD_MARKER } from "../service-status/events";
 import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, type OutputType } from "../outputs/output-types";
@@ -114,8 +114,8 @@ async function buildServiceStages(serviceType: ServiceType, current: CurrentServ
         take: 300,
       })
     : [];
-  const reachedNames = reachedStatusNames(history.map((row) => row.note));
-  const reachedIds = new Set(statuses.filter((status) => reachedNames.has(status.name)).map((status) => status.id));
+  // In the order they happened (not the status list's order) — customerStages sorts done steps by it.
+  const reachedIds = reachedStatusIds(statuses, history.map((row) => row.note));
   const stages = customerStages(statuses, current, reachedIds);
   return stages.length > 0 ? stages : null;
 }
