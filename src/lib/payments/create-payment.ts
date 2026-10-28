@@ -129,7 +129,7 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
       break;
     } catch (error) {
       lastError = error;
-      const message = (error instanceof Error ? error.message : String(error)).slice(0, 500);
+      const message = gatewayErrorText(error).slice(0, 500);
       const hasNext = index < candidates.length - 1;
       if (candidate.account) {
         attempts.push({ accountId: candidate.account.id, succeeded: false, errorMessage: message });
@@ -291,4 +291,23 @@ export async function createExtraPayment(input: {
 }) {
   const { booking, amount, description, actor } = input;
   return createGatewayPayment({ booking, actor, baseAmount: amount, purpose: "EXTRA", description });
+}
+
+/**
+ * Admin live check 2026-10-29 — the Razorpay SDK rejects with a plain object ({ statusCode, error: { description } }),
+ * which `String()` turned into "[object Object]" in the audit / Integrations Health. Read its description instead.
+ */
+export function gatewayErrorText(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null) {
+    const body = error as { error?: { description?: unknown; code?: unknown }; statusCode?: unknown; message?: unknown };
+    const description = typeof body.error?.description === "string" ? body.error.description : typeof body.message === "string" ? body.message : null;
+    if (description) return body.statusCode ? `${description} (HTTP ${String(body.statusCode)})` : description;
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return "Unknown gateway error";
+    }
+  }
+  return String(error);
 }
