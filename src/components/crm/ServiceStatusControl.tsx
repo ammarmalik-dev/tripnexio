@@ -157,7 +157,7 @@ export function ServiceStatusControl<TCoarse extends string>({
       {dialog}
       {/* Client 2026-10-27 — no row of status buttons on top: one list on the right side to select the next status. */}
       <div className="flex justify-end">
-        <div className="flex w-full flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-3 sm:w-80">
+        <div className="flex w-full flex-col gap-2 rounded-xl border border-hairline bg-surface-1 p-3">
           <div className="flex items-start justify-between gap-3">
             {state.current ? (
               <span className="flex flex-col leading-tight">
