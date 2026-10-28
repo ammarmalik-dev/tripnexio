@@ -89,6 +89,13 @@ export function emailButtonHtml(label: string, url: string): string {
   return `<table role="presentation" cellspacing="0" cellpadding="0" style="margin:14px 0"><tr><td style="border-radius:10px;background:${BLUE}"><a href="${escapeEmailText(url)}" style="${FONT}display:inline-block;padding:12px 28px;font-size:15px;font-weight:700;color:#FFFFFF;text-decoration:none;border-radius:10px">${escapeEmailText(label)}</a></td></tr></table>`;
 }
 
+/** Client 2026-10-29 — the two-colour wordmark ("Trip" + Electric Blue "Nexio") in the header, no logo image. */
+function wordmarkHtml(companyName: string): string {
+  const match = /^(Trip)(Nexio)$/i.exec(companyName.trim());
+  if (!match) return escapeEmailText(companyName);
+  return `${escapeEmailText(match[1])}<span style="color:${BLUE}">${escapeEmailText(match[2])}</span>`;
+}
+
 function isHttpUrl(value: string): boolean {
   return /^https?:\/\//i.test(value);
 }
@@ -174,7 +181,7 @@ export function renderEmailLayout(input: EmailLayoutInput): string {
 <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="width:100%;max-width:600px;background:#FFFFFF;border-radius:16px;overflow:hidden">
   <tr><td align="center" style="background:${NAVY};padding:26px 18px">
     <!-- Client doc 2026-10-27 (H1): the name as large bold white text with the tagline under it, centred (HTML text, so it shows with images off). -->
-    <p style="${FONT}margin:0;font-size:34px;line-height:1.2;font-weight:700;color:#FFFFFF">${esc(input.companyName)}</p>
+    <p style="${FONT}margin:0;font-size:34px;line-height:1.2;font-weight:700;color:#FFFFFF">${wordmarkHtml(input.companyName)}</p>
     ${input.tagline.trim() ? `<p style="${FONT}margin:6px 0 0;font-size:16px;line-height:1.4;color:#DCE6F7">${esc(input.tagline)}</p>` : ""}
   </td></tr>
   <tr><td style="padding:0 20px">

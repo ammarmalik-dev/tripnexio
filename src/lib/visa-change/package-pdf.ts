@@ -45,19 +45,10 @@ export async function renderVisaChangePackagePdf(input: VisaChangePackageInput):
 
   // Header band
   doc.rect(0, 0, pageWidth, 96).fill(PDF_BRAND.deepNavy);
-  let textLeft = left;
-  if (input.company.logoBuffer) {
-    try {
-      // Light tile so a dark logo stays visible on the navy band.
-      doc.roundedRect(left, 16, 64, 64, 6).fill(PDF_BRAND.warmWhite);
-      doc.image(input.company.logoBuffer, left + 4, 20, { fit: [56, 56], align: "center", valign: "center" });
-      textLeft = left + 76;
-    } catch (error) {
-      console.error("[visa-change/package-pdf] couldn't draw company logo", error);
-    }
-  }
-  doc.fillColor(PDF_BRAND.warmWhite).font("Helvetica-Bold").fontSize(18).text(companyName, textLeft, 26, { width: contentWidth - (textLeft - left) });
-  if (contactLine) doc.font("Helvetica").fontSize(9).fillColor(PDF_BRAND.warmWhite).text(contactLine, textLeft, 52);
+  // Client 2026-10-29 — the wordmark only ("Trip" + Electric Blue "Nexio"), no "N" symbol / logo image.
+  doc.font("Helvetica-Bold").fontSize(22).fillColor(PDF_BRAND.warmWhite).text("Trip", left, 22, { continued: true, lineBreak: false }).fillColor(PDF_BRAND.electricBlue).text("Nexio", { lineBreak: false });
+  if (companyName !== siteConfig.name) doc.font("Helvetica").fontSize(9).fillColor(PDF_BRAND.warmWhite).text(companyName, left, 66);
+  if (contactLine) doc.font("Helvetica").fontSize(9).fillColor(PDF_BRAND.warmWhite).text(contactLine, left, 52);
   doc.rect(0, 96, pageWidth, 4).fill(PDF_BRAND.electricBlue);
 
   // Title

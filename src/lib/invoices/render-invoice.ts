@@ -131,19 +131,9 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
 
   // ---- Header: logo / wordmark + company block
   let y = M;
-  if (invoice.company.logoBuffer) {
-    // Client testing 2026-10-09 (G1) — the uploaded logo, then the name and tagline to its right.
-    try {
-      doc.image(invoice.company.logoBuffer, M, y, { fit: [52, 52] });
-    } catch (error) {
-      console.error("[render-invoice] couldn't draw company logo", error);
-    }
-    doc.font(F.bold).fontSize(26).fillColor(NAVY).text("Trip", M + 62, y + 2, { continued: true, lineBreak: false }).fillColor(BLUE).text("Nexio", { lineBreak: false });
-  } else {
-    doc.font(F.bold).fontSize(30).fillColor(NAVY).text("Trip", M, y - 4, { continued: true, lineBreak: false }).fillColor(BLUE).text("Nexio", { lineBreak: false });
-  }
-  if (invoice.company.logoBuffer) text("Travel Made Easy with TripNexio.", M + 62, y + 34, { font: F.semi, size: 10, color: NAVY });
-  else text("Travel Made Easy with TripNexio.", M, y + 50, { font: F.semi, size: 10, color: NAVY });
+  // Client 2026-10-29 — the wordmark only (no "N" symbol / uploaded logo image) on every invoice and quotation.
+  doc.font(F.bold).fontSize(30).fillColor(NAVY).text("Trip", M, y - 4, { continued: true, lineBreak: false }).fillColor(BLUE).text("Nexio", { lineBreak: false });
+  text("Travel Made Easy with TripNexio.", M, y + 50, { font: F.semi, size: 10, color: NAVY });
 
   const companyX = M + 262;
   doc.moveTo(companyX - 14, y + 2).lineTo(companyX - 14, y + 70).strokeColor(BORDER).lineWidth(1).stroke();

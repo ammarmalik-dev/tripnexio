@@ -31,7 +31,7 @@ describe("email footer", () => {
     const html = renderEmailLayout({ ...base, bodyHtml: "<p>Hi</p>", footerText: "Do not reply." });
     expect(html.indexOf("<p>Hi</p>")).toBeLessThan(html.indexOf("Do not reply."));
     // Client doc 2026-10-27 (H1) — the name as text on the dark-navy header with the tagline, then "Follow Us On" above the one-line note.
-    expect(html).toMatch(/font-size:34px[^>]*>TripNexio<\/p>/);
+    expect(html).toMatch(/font-size:34px[^>]*>Trip<span style="color:#3E6FDB">Nexio<\/span><\/p>/);
     expect(html).toContain("Travel Made Easy with TripNexio.");
     expect(html.indexOf("Follow Us On")).toBeLessThan(html.indexOf("This is an automated email."));
     expect(html).toContain("Need assistance?");

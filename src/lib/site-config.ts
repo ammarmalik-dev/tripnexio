@@ -9,7 +9,7 @@ export const siteConfig = {
   // TODO(client): confirm production domain before launch.
   url: "https://tripnexio.com",
   // Client testing 2026-10-09 (B4) — new file name so WhatsApp/SMS previews drop the cached old image.
-  ogImage: "/og-image-2026.jpg",
+  ogImage: "/og-image-2026-wordmark.jpg",
   contact: {
     address: "Mumbai, India",
     phone: "+91 92381 84005",
