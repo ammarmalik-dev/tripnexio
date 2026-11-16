@@ -3,7 +3,7 @@
 Source: `client-message/new-doc-from-client-16-nov/TripNexio Project.docx` (its first page holds live credentials — never commit it, never copy values out of it except into env vars).
 The doc ends with the **final status lists** for Visa / Visa Change / Visa Extension / Flight / Return Ticket / OTB (§S below) — these replace the 20 Oct lists in `src/lib/service-status/catalog.ts` + `template-catalog.json`.
 
-Status 16 Nov: unit 1 (broken bugs) done locally — F3, K11, J13, M3, H10 ticked; I3 partly (see note); M1 waits on a production check; A9 moved to the Special Fare unit. Questions for the client are in §Q — don't build those items until answered.
+Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-deploy-20261116T154612, migration 20261116120000 applied) — F3, K11, J13, M3, H10 ticked; I3 partly (see note); M1 confirmed: all 136 active WhatsApp templates lack a Meta template name (90 website messages skipped in 30 days) — client must get templates approved and enter the names in Admin; A9 moved to the Special Fare unit. Questions for the client are in §Q — don't build those items until answered.
 
 ## Q. Questions for the client (conflicts / unclear in the doc)
 - [ ] Q1 "Quotation Approved" is renamed to **Quotation Selected** in one place and **Package Selected** in another (Visa Change?), while the status list uses **Quotation Accepted**. Which label where?
