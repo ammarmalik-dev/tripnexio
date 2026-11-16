@@ -7,7 +7,7 @@ import { toWhatsAppId } from "../whatsapp/phone";
 import { leadReference } from "../leads/reference";
 import { sendStatusTemplate, statusInputsFor, type StatusInputs } from "../notifications/status-template";
 import type { EmailAttachment } from "../email/sender";
-import { HOLD_MARKER, type ServiceStatusSystemEvent } from "./events";
+import { HOLD_MARKER, NOT_RESPONDING_MARKER, type ServiceStatusSystemEvent } from "./events";
 import { customerStatusLabel } from "./customer-label";
 import { bookingDocumentsValidatedBlock } from "../bookings/documents-ready";
 
@@ -40,14 +40,33 @@ export interface StatusNotification {
 }
 
 /** Client doc 2026-10-20 — refund steps a final status (e.g. Rejected, Cancelled) may still move on to. */
-const REFUND_STEP_EVENTS = new Set(["REFUND_RAISED", "REFUND_APPROVED", "REFUND_COMPLETED", "CANCELLED_AND_REFUNDED"]);
+const REFUND_STEP_EVENTS = new Set(["REFUND_RAISED", "PARTIAL_REFUND_RAISED", "REFUND_APPROVED", "REFUND_COMPLETED", "CANCELLED_AND_REFUNDED"]);
 
 /**
  * Client doc 2026-10-27 (C2/C3) — the refund statuses (Refund Pending / Processing / Completed, Partially
  * Cancelled / Refunded, Cancelled and Refunded). Only the refund engine moves a booking onto them (a refund
  * raised, approved, completed — src/lib/refunds/), never a staff "Move to…"; an Admin override still can.
  */
-const REFUND_ENGINE_EVENTS = new Set(["REFUND_RAISED", "REFUND_APPROVED", "REFUND_COMPLETED", "REFUND_PARTIALLY_COMPLETED", "CANCELLED_AND_REFUNDED"]);
+const REFUND_ENGINE_EVENTS = new Set(["REFUND_RAISED", "PARTIAL_REFUND_RAISED", "REFUND_APPROVED", "REFUND_COMPLETED", "REFUND_PARTIALLY_COMPLETED", "CANCELLED_AND_REFUNDED"]);
+
+/**
+ * Client doc 16 Nov — the status lists no longer carry every refund step (Refund Pending / Processing / Completed and
+ * "Cancelled and Refunded" are folded into Cancellation Requested → Partially Cancelled / Cancelled). An event whose own
+ * status a service doesn't have lands on the next one listed here instead.
+ */
+const EVENT_FALLBACK: Partial<Record<ServiceStatusSystemEvent, ServiceStatusSystemEvent[]>> = {
+  // A refund raised for some passengers: OTB's own "Partially Cancellation Requested", else "Cancellation Requested".
+  PARTIAL_REFUND_RAISED: ["REFUND_RAISED"],
+  // A staff "cancel" (e.g. OTB Unable to Process, which raises the full refund): under review until the refund is approved.
+  CANCELLED: ["REFUND_RAISED"],
+  // A rejected document: the services without a separate "Documents Required" use "Documents Pending".
+  DOCUMENTS_REJECTED: ["DOCUMENTS_REQUESTED"],
+};
+
+/** Client doc 16 Nov rules 6–7 — "User Not Responding" and "Booking On Hold": set by hand, only before the hand-over. */
+function isManualPauseStatus(status: Pick<ServiceStatus, "systemEvent">): boolean {
+  return status.systemEvent === HOLD_MARKER || status.systemEvent === NOT_RESPONDING_MARKER;
+}
 /** Client doc 2026-10-27 (C4) — the refund outcomes: once a booking is on one, staff have no further status moves. */
 const REFUND_OUTCOME_EVENTS = new Set(["REFUND_COMPLETED", "REFUND_PARTIALLY_COMPLETED", "CANCELLED_AND_REFUNDED"]);
 
@@ -145,7 +164,7 @@ async function loadEntity(tx: Tx, scope: StatusScope, entityId: string): Promise
 /** The first active status of a service's list for that scope (lowest display order, never On Hold) — what a new record starts on. */
 export async function getInitialServiceStatusId(tx: Tx, serviceType: ServiceType, scope: StatusScope): Promise<string | null> {
   const status = await tx.serviceStatus.findFirst({
-    where: { serviceType, scope, active: true, OR: [{ systemEvent: null }, { systemEvent: { not: HOLD_MARKER } }] },
+    where: { serviceType, scope, active: true, OR: [{ systemEvent: null }, { systemEvent: { notIn: [HOLD_MARKER, NOT_RESPONDING_MARKER] } }] },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
     select: { id: true },
   });
@@ -182,7 +201,7 @@ export function staffMoveBlock(
   }
   // Client doc 2026-10-27 (C4) — after a completed refund (full or partial) staff have no further moves.
   if (from && !options.afterRefund && isRefundOutcomeStatus(from)) return `"${from.name}" is final once the refund is done — only an Admin can change it.`;
-  if (!from || from.systemEvent === HOLD_MARKER || to.systemEvent === HOLD_MARKER) return null;
+  if (!from || isManualPauseStatus(from) || isManualPauseStatus(to)) return null;
   const coarse = (status: StatusShape) => (scope === "LEAD" ? status.mapsToLeadStatus : status.mapsToBookingStatus) ?? null;
   const toCoarse = coarse(to);
   const fromCoarse = coarse(from);
@@ -282,6 +301,20 @@ export function skipsHandover(handover: SkipShape | null, from: SkipShape | null
   return `"${to.name}" comes after "${handover.name}" — the booking has to reach "${handover.name}" first.`;
 }
 
+/**
+ * Client doc 16 Nov rules 6–7 (G3) — "Booking On Hold" and "User Not Responding" are only for a booking that hasn't been
+ * handed to the embassy / airline yet (and never after delivery — a final status has no move into them). Pure.
+ */
+export function pauseAfterHandover(
+  handover: Pick<ServiceStatus, "name" | "displayOrder"> | null,
+  from: Pick<ServiceStatus, "displayOrder" | "systemEvent"> | null,
+  to: Pick<ServiceStatus, "name" | "systemEvent">
+): string | null {
+  if (!handover || !from || !isManualPauseStatus(to) || isManualPauseStatus(from)) return null;
+  if (from.displayOrder < handover.displayOrder) return null;
+  return `"${to.name}" is only available before "${handover.name}".`;
+}
+
 /** The service's hand-over status (first by order), or null when its list has none. */
 async function handoverStatus(client: Tx | typeof db, serviceType: ServiceType, scope: StatusScope) {
   if (scope !== "BOOKING") return null;
@@ -322,6 +355,8 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
         .filter((to) => staffMoveBlock(scope, movesFrom, to) === null)
         // Client 2026-10-27 — no skipping the hand-over to the airline / embassy.
         .filter((to) => skipsHandover(handover, movesFrom, to) === null)
+        // Client doc 16 Nov (G3) — hold / not responding only before the hand-over.
+        .filter((to) => pauseAfterHandover(handover, movesFrom, to) === null)
         // Client doc 2026-10-27 (C1/C13) — the apply step comes from the service's action panel (vendor + documents).
         .filter((to) => {
           if (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)) return true;
@@ -470,7 +505,8 @@ export async function setServiceStatus(
     const blocked = staffMoveBlock(input.scope, movesFrom, to, { refundEngine: input.refundEngine, afterRefund: input.afterRefund });
     if (blocked) return { ok: false, httpStatus: 409, error: blocked };
     if (!input.refundEngine && !input.afterRefund) {
-      const skipped = skipsHandover(await handoverStatus(tx, entity.serviceType, input.scope), movesFrom, to);
+      const handover = await handoverStatus(tx, entity.serviceType, input.scope);
+      const skipped = skipsHandover(handover, movesFrom, to) ?? pauseAfterHandover(handover, movesFrom, to);
       if (skipped) return { ok: false, httpStatus: 409, error: skipped };
     }
     // Client doc 2026-10-27 (C1) — never sent to the airline / applied before every document is validated.
@@ -505,6 +541,10 @@ export async function applySystemEvent(
     });
   const from = entity.serviceStatusId ? await tx.serviceStatus.findUnique({ where: { id: entity.serviceStatusId } }) : null;
   let to = await findTarget(input.event);
+  for (const fallback of EVENT_FALLBACK[input.event] ?? []) {
+    if (to) break;
+    to = await findTarget(fallback);
+  }
   // Client doc 2026-10-20 — past the main document stage, documents received / validated are the additional ones.
   const alias = ADDITIONAL_ALIAS[input.event];
   if (alias && from && (!to || from.displayOrder >= to.displayOrder)) {
@@ -518,6 +558,9 @@ export async function applySystemEvent(
   const stage = isRefundEngineEvent(input.event) ? from : await operationalFrom(tx, input.scope, entity.id, from);
   // Client 2026-10-23 — a partial refund may also follow a final status (e.g. some applicants approved).
   if (stage && stage.isTerminal && !REFUND_STEP_EVENTS.has(input.event) && input.event !== "REFUND_PARTIALLY_COMPLETED") return null;
+  // Client doc 16 Nov — a booking already closed as rejected / not processed / ticket cancelled keeps that outcome: the
+  // refund that follows doesn't relabel it "Cancellation Requested" / "Cancelled" (its coarse status still becomes REFUNDED).
+  if (stage && stage.isTerminal && stage.mapsToBookingStatus === "CANCELLED" && isRefundEngineEvent(input.event)) return null;
   const loopsBack = !!stage?.systemEvent && !!LOOP_BACK_FROM[input.event]?.has(stage.systemEvent);
   if (stage && stage.displayOrder >= to.displayOrder && !loopsBack) return null;
 

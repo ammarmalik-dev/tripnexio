@@ -59,6 +59,10 @@ describe("retired legacy notification templates (client 2026-10-28)", () => {
     expect(templateGroupFor("OTB_01_NEW")).toBe("OTB");
     expect(templateGroupFor("OTB_APPROVED")).toBe("GENERAL");
     expect(templateGroupFor("LEAD_RECEIVED")).toBe("GENERAL");
-    for (const row of templates as { event: string }[]) expect(templateGroupFor(row.event), row.event).not.toBe("GENERAL");
+    // Client doc 16 Nov rule 6 — the one common "User Not Responding" template is shared by every service (General).
+    expect(templateGroupFor("USER_NOT_RESPONDING")).toBe("GENERAL");
+    for (const row of templates as { event: string }[]) {
+      if (row.event !== "USER_NOT_RESPONDING") expect(templateGroupFor(row.event), row.event).not.toBe("GENERAL");
+    }
   });
 });

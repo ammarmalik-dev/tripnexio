@@ -62,6 +62,9 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   "REFUND_RAISED",
   "REFUND_APPROVED",
   "CANCELLED_AND_REFUNDED",
+  // Client doc 16 Nov — a refund raised for some passengers only (OTB "Partially Cancellation Requested"; elsewhere
+  // it lands on the service's "Cancellation Requested").
+  "PARTIAL_REFUND_RAISED",
   "QUOTE_EXPIRING",
   "QUOTE_EXPIRED",
   "NEW_QUOTE_REQUESTED",
@@ -73,7 +76,14 @@ export type ServiceStatusSystemEvent = (typeof SERVICE_STATUS_SYSTEM_EVENTS)[num
 /** systemEvent value marking a service's "On Hold" status — system events never move a record out of it. */
 export const HOLD_MARKER = "ON_HOLD" as const;
 
-export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_MARKER, string> = {
+/**
+ * Client doc 16 Nov rule 6 — systemEvent value marking the one common "User Not Responding" status. Like On Hold,
+ * staff set it by hand (before the hand-over) and leave it to any status; unlike On Hold, the customer's own next
+ * action (an upload, a payment, a quotation accepted) moves the record on by itself.
+ */
+export const NOT_RESPONDING_MARKER = "NOT_RESPONDING" as const;
+
+export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_MARKER | typeof NOT_RESPONDING_MARKER, string> = {
   QUOTATION_CREATED: "Quotation created",
   QUOTATION_ACCEPTED: "Quotation accepted",
   PAYMENT_SUCCESS: "Payment successful",
@@ -122,9 +132,11 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   REFUND_RAISED: "Refund raised (pending)",
   REFUND_APPROVED: "Refund approved (processing)",
   CANCELLED_AND_REFUNDED: "Cancelled and refunded (final)",
+  PARTIAL_REFUND_RAISED: "Refund raised for some passengers (pending)",
   QUOTE_EXPIRING: "Quotation expiring soon",
   QUOTE_EXPIRED: "Quotation expired",
   NEW_QUOTE_REQUESTED: "Customer asked for a new quotation",
   FSF_SEAT_UNAVAILABLE: "Special Fare: requested flight unavailable",
   ON_HOLD: "On Hold (marker)",
+  NOT_RESPONDING: "User Not Responding (marker)",
 };

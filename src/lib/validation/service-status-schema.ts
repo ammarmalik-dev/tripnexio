@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { partialUpdateSchema } from "./partial-update";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
-import { HOLD_MARKER, SERVICE_STATUS_SYSTEM_EVENTS } from "../service-status/events";
+import { HOLD_MARKER, NOT_RESPONDING_MARKER, SERVICE_STATUS_SYSTEM_EVENTS } from "../service-status/events";
 import { ServiceType, StatusScope, LeadStatus, BookingStatus, type ServiceType as ServiceTypeT, type StatusScope as StatusScopeT, type LeadStatus as LeadStatusT, type BookingStatus as BookingStatusT } from "../../generated/prisma/enums";
 
 const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeT, ...ServiceTypeT[]];
@@ -23,7 +23,7 @@ export const createServiceStatusSchema = z.object({
   /** P08 — customer message sent when a record enters this status. */
   notificationEvent: z.enum(Object.values(NOTIFICATION_EVENTS) as [string, ...string[]]).nullable().optional(),
   /** P08 — system event that moves a record here, or the On Hold marker. */
-  systemEvent: z.enum([...SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER]).nullable().optional(),
+  systemEvent: z.enum([...SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER, NOT_RESPONDING_MARKER]).nullable().optional(),
 });
 
 export const updateServiceStatusSchema = partialUpdateSchema(

@@ -1,4 +1,5 @@
 import type { ServiceType, StatusScope } from "../../generated/prisma/enums";
+import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import { db } from "../db";
 import { siteConfig } from "../site-config";
 import { getSiteContact } from "../settings/system-config";
@@ -142,6 +143,8 @@ export const STATUS_VARIABLE_NAMES = [
   "secure_refund_link",
   "support_link",
   "support_email",
+  // Client doc 16 Nov — the service's name, for the one common "User Not Responding" message.
+  "service_name",
   "customerName",
   "bookingId",
   "leadReference",
@@ -439,6 +442,7 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     secure_refund_link: refundPage,
     support_link: `${site}/contact`,
     support_email: contact.email,
+    service_name: SERVICE_TYPE_LABELS[lead.serviceType] ?? "",
     // Names the shared email shell (Booking ID card, status pill) reads.
     customerName: lead.customer.name,
     bookingId: booking?.bookingId ?? "",

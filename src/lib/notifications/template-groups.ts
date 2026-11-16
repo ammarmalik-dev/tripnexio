@@ -1,4 +1,5 @@
 import { NOTIFICATION_EVENTS } from "./events";
+import { RETIRED_STATUS_TEMPLATE_EVENTS } from "../service-status/catalog";
 
 /**
  * Client 2026-10-28 ("remove old template and add new template") — the legacy NotificationTemplate events that no
@@ -24,7 +25,8 @@ export const RETIRED_NOTIFICATION_EVENTS = [
   "SAMPLE_PAYMENT_SUCCESS",
 ] as const;
 
-const RETIRED = new Set<string>(RETIRED_NOTIFICATION_EVENTS);
+// Client doc 16 Nov — plus the status templates of statuses taken off the final lists (catalog.ts).
+const RETIRED = new Set<string>([...RETIRED_NOTIFICATION_EVENTS, ...RETIRED_STATUS_TEMPLATE_EVENTS]);
 
 export function isRetiredNotificationEvent(event: string): boolean {
   return RETIRED.has(event);

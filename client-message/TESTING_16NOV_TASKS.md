@@ -6,7 +6,7 @@ The doc ends with the **final status lists** for Visa / Visa Change / Visa Exten
 Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-deploy-20261116T154612, migration 20261116120000 applied) — F3, K11, J13, M3, H10 ticked; I3 partly (see note); M1 confirmed: all 136 active WhatsApp templates lack a Meta template name (90 website messages skipped in 30 days) — client must get templates approved and enter the names in Admin; A9 moved to the Special Fare unit. Questions for the client are in §Q — don't build those items until answered.
 
 ## Q. Questions for the client (conflicts / unclear in the doc)
-- [ ] Q1 "Quotation Approved" is renamed to **Quotation Selected** in one place and **Package Selected** in another (Visa Change?), while the status list uses **Quotation Accepted**. Which label where?
+- [ ] Q1 (unit 2a followed the doc's own status list: internal "Quotation Accepted"; confirm if "Quotation Selected" / "Package Selected" wording is still wanted anywhere) "Quotation Approved" is renamed to **Quotation Selected** in one place and **Package Selected** in another (Visa Change?), while the status list uses **Quotation Accepted**. Which label where?
 - [ ] Q2 Quotation statuses: "Sent, Selected, Unpaid, Expired" vs "Selected, Accepted, Expired". Final list?
 - [ ] Q3 Return Ticket On Hold message says "issue 12 hours before departure"; the 25 Oct rule was "day before travel". Is it now 12 h?
 - [ ] Q4 Return Ticket pricing "Within 20 Days / After 20 Days": 20 days counted from what (travel date → return date)?
@@ -86,7 +86,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 ## G. Status engine & workflow (all services)
 - [ ] G1 Replace status lists with §S; remove old statuses (incl. filters/templates); Admin can delete; status config per Service × Country with the workflow shown
 - [ ] G2 Take Action button per booking showing only valid actions for service + stage (enforced in backend)
-- [ ] G3 Hold only before external processing; no Hold after delivery
+- [x] G3 Hold only before external processing; no Hold after delivery — unit 2a: hold / not responding only before Applied to Embassy / Sent to Airlines (engine pauseAfterHandover, list + server)
 - [ ] G4 Additional documents: select documents from Document Master + passengers, one notification; upload → Under Review → validate → resubmit → decision; no visa upload before/under Additional Documents Required
 - [ ] G5 Additional Documents Validated only when actually requested + uploaded + validated
 - [ ] G6 Embassy Decision per passenger (Approved / Rejected with reason / Pending); Partially Approved only if ≥1 approved
@@ -187,8 +187,8 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] N15 No automatic booking completion; keep retention/purge settings unchanged
 
 ## S. Final status lists (doc §2–§8)
-- [ ] S1 Visa, Visa Change, Visa Extension, Flight, Return Ticket, OTB lists exactly per doc (CRM status, customer label, auto/manual)
-- [ ] S2 One common User Not Responding and Booking On Hold; "Quotation Sent" / customer "Quotation Ready" for all quotation services
-- [ ] S3 Flight: pre-issuance cancellation uses shared Cancelled / Partially Cancelled; post-issuance ends at Ticket Cancelled; Cancelled by Airline / Rescheduled by Airline
-- [ ] S4 Refund rules: gateway Refund ID in notification; bank transfer needs transaction no. before approval; remark required
+- [x] S1 Visa, Visa Change, Visa Extension, Flight, Return Ticket, OTB lists exactly per doc (CRM status, customer label, auto/manual) — unit 2a: catalog.ts + migration 20261116140000 (records on removed statuses moved, removed ones switched off)
+- [x] S2 One common User Not Responding and Booking On Hold; "Quotation Sent" / customer "Quotation Ready" for all quotation services — unit 2a: one User Not Responding (common USER_NOT_RESPONDING template) + one Booking On Hold per list; Quotation Ready / Quotation Accepted
+- [ ] S3 Flight: pre-issuance cancellation uses shared Cancelled / Partially Cancelled; post-issuance ends at Ticket Cancelled; Cancelled by Airline / Rescheduled by Airline — unit 2a: statuses + templates exist (Cancelled by Airline / Rescheduled by Airline new); the post-issuance cancellation / reschedule FLOWS come with the Special Fare unit (A12, A14)
+- [ ] S4 Refund rules: gateway Refund ID in notification; bank transfer needs transaction no. before approval; remark required — unit 2a: Partially Cancelled / Cancelled messages now carry Refund ID + amount; bank-transfer transaction no. + remark come with unit 3 (H)
 - [ ] S5 "To Confirm / To Configure" rows: no automation until confirmed (Q6)

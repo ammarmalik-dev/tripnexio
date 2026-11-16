@@ -13,7 +13,7 @@ import { toast } from "@/components/ui/Toaster";
 import { SERVICE_TYPE_OPTIONS, SERVICE_TYPE_LABELS, BOOKING_STATUS_OPTIONS, LEAD_STATUS_OPTIONS } from "@/lib/crm/labels";
 import { NOTIFICATION_EVENT_CATALOG } from "@/lib/notifications/events";
 import { isRetiredNotificationEvent } from "@/lib/notifications/template-groups";
-import { SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER, SYSTEM_EVENT_LABELS } from "@/lib/service-status/events";
+import { SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER, NOT_RESPONDING_MARKER, SYSTEM_EVENT_LABELS } from "@/lib/service-status/events";
 import { cn } from "@/lib/cn";
 import type { ServiceType, BookingStatus, LeadStatus } from "../../generated/prisma/enums";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
@@ -24,7 +24,7 @@ import { useClientPagination } from "@/components/crm/usePagination";
 /** Group filter value for "every group" (an empty string is the real "ungrouped" group). */
 const ALL_GROUPS = "__all";
 
-const SYSTEM_EVENT_OPTIONS = [...SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER].map((value) => ({ value, label: SYSTEM_EVENT_LABELS[value] }));
+const SYSTEM_EVENT_OPTIONS = [...SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER, NOT_RESPONDING_MARKER].map((value) => ({ value, label: SYSTEM_EVENT_LABELS[value] }));
 
 type StatusScope = "LEAD" | "BOOKING";
 

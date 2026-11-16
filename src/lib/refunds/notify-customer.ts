@@ -3,35 +3,27 @@ import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
-import type { ServiceType } from "../../generated/prisma/enums";
 import { paymentTotal } from "../payments/totals";
 import { applySystemEvent, dispatchStatusNotifications } from "../service-status/engine";
-import { sendStatusTemplate, statusTemplateFor, usesStatusTemplates } from "../notifications/status-template";
-
-const STAGE_EVENT = { raised: "REFUND_RAISED", processing: "REFUND_APPROVED", completed: "REFUND_COMPLETED" } as const;
+import { usesStatusTemplates } from "../notifications/status-template";
 
 /**
- * Client doc 2026-10-20 — a refund on a service with the client's status templates: a refund of everything
- * paid moves the booking (Refund Pending → Refund Processing → Refund Completed; completion is applied in
- * applyRefundStatus); a partial one leaves the booking where it is and only sends that step's message
- * (e.g. Refund Completed with the refund ID and amount), when the service has one. A rejected refund
- * isn't on the client's lists, so nothing is sent.
+ * Client doc 16 Nov (§1 rules 12–14, §8) — a refund on a service with the client's status templates moves the booking
+ * along the shared cancellation tail: raised → "Cancellation Requested" (OTB: "Partially Cancellation Requested" when
+ * it covers some passengers only), each with its message; approval / gateway processing has no status of its own; the
+ * completed refund sets "Partially Cancelled" or "Cancelled" (with that message) in applyRefundStatus. A rejected
+ * refund isn't on the client's lists, so nothing is sent here.
  */
-async function refundStatusStep(refundId: string, bookingId: string, serviceType: ServiceType, stage: RefundCustomerStage): Promise<void> {
-  if (stage === "rejected") return;
-  const event = STAGE_EVENT[stage];
+async function refundStatusStep(bookingId: string, stage: RefundCustomerStage): Promise<void> {
+  if (stage !== "raised") return;
   const paid = await db.payment.findMany({ where: { bookingId, status: "SUCCESS" } });
   const totalPaid = paid.reduce((sum, payment) => sum + paymentTotal(payment), 0);
   const refunds = await db.refund.aggregate({ where: { payment: { bookingId }, status: { not: "REJECTED" } }, _sum: { refundAmount: true } });
   const full = totalPaid > 0 && Number(refunds._sum.refundAmount ?? 0) + 0.001 >= totalPaid;
-  if (full && stage !== "completed") {
-    const notification = await db.$transaction((tx) => applySystemEvent(tx, { scope: "BOOKING", entityId: bookingId, event, actorLabel: `refund ${stage}` }));
-    await dispatchStatusNotifications([notification]);
-    return;
-  }
-  if (full) return; // the completion's status message was sent with applyRefundStatus
-  const template = await statusTemplateFor(serviceType, "BOOKING", event);
-  if (template) await sendStatusTemplate({ event: template.event, scope: "BOOKING", entityId: bookingId, statusLabel: template.label });
+  const notification = await db.$transaction((tx) =>
+    applySystemEvent(tx, { scope: "BOOKING", entityId: bookingId, event: full ? "REFUND_RAISED" : "PARTIAL_REFUND_RAISED", actorLabel: "refund raised" })
+  );
+  await dispatchStatusNotifications([notification]);
 }
 
 const STATUS_WORDING = {
@@ -57,7 +49,7 @@ export async function notifyCustomerRefund(refundId: string, stage: RefundCustom
     if (!refund) return;
     const { booking } = refund.payment;
     if (await usesStatusTemplates(booking.lead.serviceType)) {
-      await refundStatusStep(refund.id, booking.id, booking.lead.serviceType, stage);
+      await refundStatusStep(booking.id, stage);
       return;
     }
     await notifyCustomer({

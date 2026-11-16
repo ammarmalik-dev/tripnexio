@@ -68,6 +68,7 @@ export async function runReturnTicketEarlyHolds(now: Date = new Date()): Promise
         "REFUND_COMPLETED",
         "REFUND_PARTIALLY_COMPLETED",
         "CANCELLED_AND_REFUNDED",
+        "PARTIAL_REFUND_RAISED",
       ] } }] },
     },
     select: { id: true, bookingId: true, leadId: true, serviceStatusId: true, lead: { select: { travelDate: true } } },

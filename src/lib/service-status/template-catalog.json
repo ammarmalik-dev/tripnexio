@@ -270,7 +270,7 @@
   "channel": "EMAIL",
   "subject": "Partial cancellation update — {{booking_id}}",
   "heading": "Some passengers have been cancelled",
-  "body": "Hi {{customer_name}},\n\nThe cancellation has been confirmed for the passengers listed below. Other passengers may remain active under this booking.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nOther passenger outcomes: {{other_passenger_outcomes}}\n\nAny eligible refund will be processed according to the applicable refund policy and approval. Refund status will be communicated separately.",
+  "body": "Hi {{customer_name}},\n\nThe cancellation has been confirmed for the passengers listed below. Other passengers may remain active under this booking.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nOther passenger outcomes: {{other_passenger_outcomes}}\n\nAny eligible refund will be processed according to the applicable refund policy and approval. Refund status will be communicated separately.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url"
  },
@@ -279,7 +279,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nPartial cancellation confirmed for booking {{booking_id}}.\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nOther outcomes: {{other_passenger_outcomes}}\nAny eligible refund is subject to refund policy and approval.",
+  "body": "Hi {{customer_name}},\n\nPartial cancellation confirmed for booking {{booking_id}}.\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nOther outcomes: {{other_passenger_outcomes}}\nAny eligible refund is subject to refund policy and approval.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "NV_PARTIAL_CANCELLATION_WA"
@@ -289,7 +289,7 @@
   "channel": "EMAIL",
   "subject": "Your New Visa booking has been cancelled — {{booking_id}}",
   "heading": "Booking cancelled",
-  "body": "Hi {{customer_name}},\n\nYour New Visa booking has been cancelled.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\n\nAny eligible refund will be processed according to the applicable refund policy and approval. Refund processing is not confirmed by this cancellation notice.",
+  "body": "Hi {{customer_name}},\n\nYour New Visa booking has been cancelled.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\n\nAny eligible refund will be processed according to the applicable refund policy and approval. Refund processing is not confirmed by this cancellation notice.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url"
  },
@@ -298,7 +298,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nYour New Visa booking {{booking_id}} has been cancelled.\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nAny eligible refund will be processed according to the applicable refund policy and approval.",
+  "body": "Hi {{customer_name}},\n\nYour New Visa booking {{booking_id}} has been cancelled.\nCountry: {{country_name}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nAny eligible refund will be processed according to the applicable refund policy and approval.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "NV_CANCELLED_WA"
@@ -669,7 +669,7 @@
   "channel": "EMAIL",
   "subject": "Partial cancellation update — {{booking_id}}",
   "heading": "Your booking has been partially cancelled",
-  "body": "Hi {{customer_name}},\n\nThe cancellation is confirmed for some passengers in your Visa Change booking.\n\nBooking ID: {{booking_id}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nRemaining active passenger(s): {{active_passenger_names}}\n\nAny eligible refund is subject to the applicable refund policy and approval. Remaining active services are not cancelled by this update.",
+  "body": "Hi {{customer_name}},\n\nThe cancellation is confirmed for some passengers in your Visa Change booking.\n\nBooking ID: {{booking_id}}\nCancelled passenger(s): {{cancelled_passenger_names}}\nRemaining active passenger(s): {{active_passenger_names}}\n\nAny eligible refund is subject to the applicable refund policy and approval. Remaining active services are not cancelled by this update.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url"
  },
@@ -678,7 +678,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nVisa Change booking {{booking_id}} has been partially cancelled. Cancelled: {{cancelled_passenger_names}}. Still active: {{active_passenger_names}}. Any eligible refund is subject to policy and approval.",
+  "body": "Hi {{customer_name}},\n\nVisa Change booking {{booking_id}} has been partially cancelled. Cancelled: {{cancelled_passenger_names}}. Still active: {{active_passenger_names}}. Any eligible refund is subject to policy and approval.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "VC_PARTIALLY_CANCELLED_WA"
@@ -688,7 +688,7 @@
   "channel": "EMAIL",
   "subject": "Visa Change booking cancelled — {{booking_id}}",
   "heading": "Your booking cancellation is confirmed",
-  "body": "Hi {{customer_name}},\n\nThe cancellation of your Visa Change booking has been confirmed.\n\nBooking ID: {{booking_id}}\nCancelled passenger(s): {{cancelled_passenger_names}}\n\nAny eligible refund will be handled according to the applicable refund policy and approval process. We'll notify you when the refund status is confirmed.",
+  "body": "Hi {{customer_name}},\n\nThe cancellation of your Visa Change booking has been confirmed.\n\nBooking ID: {{booking_id}}\nCancelled passenger(s): {{cancelled_passenger_names}}\n\nAny eligible refund will be handled according to the applicable refund policy and approval process. We'll notify you when the refund status is confirmed.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url"
  },
@@ -697,7 +697,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nVisa Change booking {{booking_id}} has been cancelled. Any eligible refund is subject to the applicable refund policy and approval.",
+  "body": "Hi {{customer_name}},\n\nVisa Change booking {{booking_id}} has been cancelled. Any eligible refund is subject to the applicable refund policy and approval.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "VC_CANCELLED_WA"
@@ -1068,7 +1068,7 @@
   "channel": "EMAIL",
   "subject": "Partial cancellation update — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nBooking partially cancelled. Cancelled: {{cancelled_passengers_or_items}}. Remaining active: {{remaining_passengers_or_items}}. Any refund is assessed separately.",
+  "body": "Hi {{customer_name}},\n\nBooking partially cancelled. Cancelled: {{cancelled_passengers_or_items}}. Remaining active: {{remaining_passengers_or_items}}. Any refund is assessed separately.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url"
  },
@@ -1077,7 +1077,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Booking {{booking_id}} is partially cancelled. Cancelled: {{cancelled_passengers_or_items}}. Remaining: {{remaining_passengers_or_items}}.",
+  "body": "Booking {{booking_id}} is partially cancelled. Cancelled: {{cancelled_passengers_or_items}}. Remaining: {{remaining_passengers_or_items}}.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "EXT_19_WA"
@@ -1087,7 +1087,7 @@
   "channel": "EMAIL",
   "subject": "Visa Extension cancelled — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nYour Visa Extension booking {{booking_id}} has been cancelled. Details: {{verified_cancellation_details}}. Refund eligibility is subject to policy and confirmation.",
+  "body": "Hi {{customer_name}},\n\nYour Visa Extension booking {{booking_id}} has been cancelled. Details: {{verified_cancellation_details}}. Refund eligibility is subject to policy and confirmation.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url"
  },
@@ -1096,7 +1096,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Your Visa Extension booking {{booking_id}} has been cancelled. Any refund is reviewed separately.",
+  "body": "Your Visa Extension booking {{booking_id}} has been cancelled. Any refund is reviewed separately.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "EXT_20_WA"
@@ -1391,7 +1391,7 @@
   "channel": "EMAIL",
   "subject": "Partial cancellation confirmed — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nPartial cancellation is confirmed for these passenger(s) in booking {{booking_id}}: {{cancelled_passengers}}\nOther passengers are not included in this cancellation. Any applicable refund amount and status will be communicated based on confirmed records.",
+  "body": "Hi {{customer_name}},\n\nPartial cancellation is confirmed for these passenger(s) in booking {{booking_id}}: {{cancelled_passengers}}\nOther passengers are not included in this cancellation. Any applicable refund amount and status will be communicated based on confirmed records.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "Track Status",
   "ctaLink": "track_status_url"
  },
@@ -1400,7 +1400,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Booking {{booking_id}} has been partially cancelled for: {{cancelled_passengers}}. Other passengers, if any, are not included. Any refund update will be sent when confirmed.",
+  "body": "Booking {{booking_id}} has been partially cancelled for: {{cancelled_passengers}}. Other passengers, if any, are not included. Any refund update will be sent when confirmed.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "Track Status",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "OTB_14_PARTIALLY_CANCELLED_WA"
@@ -1429,7 +1429,7 @@
   "channel": "EMAIL",
   "subject": "OTB booking cancelled — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nOTB booking {{booking_id}} is now marked as cancelled. Cancellation does not itself confirm that a refund is complete. We'll update you if a refund applies and when its status is confirmed.",
+  "body": "Hi {{customer_name}},\n\nOTB booking {{booking_id}} is now marked as cancelled. Cancellation does not itself confirm that a refund is complete. We'll update you if a refund applies and when its status is confirmed.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "Track Status",
   "ctaLink": "track_status_url"
  },
@@ -1438,7 +1438,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "OTB booking {{booking_id}} is now marked as cancelled. Any applicable refund will be updated separately once confirmed.",
+  "body": "OTB booking {{booking_id}} is now marked as cancelled. Any applicable refund will be updated separately once confirmed.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "Track Status",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "OTB_16_CANCELLED_WA"
@@ -1695,7 +1695,7 @@
   "channel": "EMAIL",
   "subject": "Partial Cancellation Confirmed — {{booking_id}}",
   "heading": null,
-  "body": "Dear {{customer_name}},\n\nA partial cancellation has been confirmed for request {{booking_id}}.\nCancelled passenger(s)/segment(s): {{cancelled_scope}}\nRemaining active passenger(s)/segment(s): {{remaining_scope}}\nRefund status, if applicable: {{refund_status}}\n\nThis update applies only to the items listed above. Please review your booking details.",
+  "body": "Dear {{customer_name}},\n\nA partial cancellation has been confirmed for request {{booking_id}}.\nCancelled passenger(s)/segment(s): {{cancelled_scope}}\nRemaining active passenger(s)/segment(s): {{remaining_scope}}\nRefund status, if applicable: {{refund_status}}\n\nThis update applies only to the items listed above. Please review your booking details.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url"
  },
@@ -1704,7 +1704,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Partial cancellation confirmed for {{booking_id}}. Cancelled passenger(s)/segment(s): {{cancelled_scope}}. Remaining active passenger(s)/segment(s): {{remaining_scope}}.",
+  "body": "Partial cancellation confirmed for {{booking_id}}. Cancelled passenger(s)/segment(s): {{cancelled_scope}}. Remaining active passenger(s)/segment(s): {{remaining_scope}}.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "rvt_partially_cancelled"
@@ -1714,7 +1714,7 @@
   "channel": "EMAIL",
   "subject": "Cancellation Confirmed — {{booking_id}}",
   "heading": null,
-  "body": "Dear {{customer_name}},\n\nCancellation has been confirmed for request {{booking_id}}.\nCancelled passenger(s)/segment(s): {{cancelled_scope}}\nRefund status, if applicable: {{refund_status}}\n\nPlease note that cancellation and refund are separate outcomes; a refund is not confirmed unless we explicitly mark it completed.",
+  "body": "Dear {{customer_name}},\n\nCancellation has been confirmed for request {{booking_id}}.\nCancelled passenger(s)/segment(s): {{cancelled_scope}}\nRefund status, if applicable: {{refund_status}}\n\nPlease note that cancellation and refund are separate outcomes; a refund is not confirmed unless we explicitly mark it completed.\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url"
  },
@@ -1723,7 +1723,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Cancellation for {{booking_id}} is confirmed. Cancelled scope: {{cancelled_scope}}. Refund status, if applicable: {{refund_status}}.",
+  "body": "Cancellation for {{booking_id}} is confirmed. Cancelled scope: {{cancelled_scope}}. Refund status, if applicable: {{refund_status}}.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "rvt_cancelled"
@@ -2297,5 +2297,113 @@
   "ctaLabel": "View Booking",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "SF_29_WA"
+ },
+ {
+  "event": "USER_NOT_RESPONDING",
+  "channel": "EMAIL",
+  "subject": "We're waiting for your response — {{booking_id}}",
+  "heading": "Your response is needed",
+  "body": "Hi {{customer_name}},\n\nWe're waiting for your response to continue your {{service_name}} request.\n\nReference: {{booking_id}}\n\nPlease open your booking and complete the pending step. If you've already responded, please disregard this message.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "track_status_url"
+ },
+ {
+  "event": "USER_NOT_RESPONDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, we're waiting for your response to continue your {{service_name}} request.\nReference: {{booking_id}}\nPlease review your booking and respond when you can.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "track_status_url"
+ },
+ {
+  "event": "EXT_DOCUMENTS_PENDING",
+  "channel": "EMAIL",
+  "subject": "Upload documents for your Visa Extension — {{booking_id}}",
+  "heading": "Documents pending",
+  "body": "Hi {{customer_name}},\n\nPlease upload the required documents to continue your Visa Extension.\n\nBooking ID: {{booking_id}}\nPassenger: {{passenger_name}}\nFollowing documents are required:\n{{required_documents}}\n\nPlease upload clear, complete copies.\n\nUse the Upload Documents button below to open the secure upload page.",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "EXT_DOCUMENTS_PENDING",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}},\n\nPlease upload the following required documents for your Visa Extension:\nBooking ID: {{booking_id}}\nPassenger: {{passenger_name}}\nPlease upload: {{required_documents}}",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
+ },
+ {
+  "event": "SF_PARTIALLY_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "Partial cancellation confirmed — {{booking_id}}",
+  "heading": "Partial cancellation confirmed",
+  "body": "Hi {{customer_name}},\n\nA partial cancellation has been confirmed for booking {{booking_id}}.\nCancelled passenger(s): {{cancelled_passenger_names}}\nRemaining active passenger(s): {{active_passenger_names}}\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}\n\nThe remaining passengers' booking continues as planned.",
+  "ctaLabel": "Track Refund",
+  "ctaLink": "secure_refund_link"
+ },
+ {
+  "event": "SF_PARTIALLY_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, a partial cancellation is confirmed for booking {{booking_id}}.\nCancelled: {{cancelled_passenger_names}}\nStill active: {{active_passenger_names}}\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}",
+  "ctaLabel": "Track Refund",
+  "ctaLink": "secure_refund_link"
+ },
+ {
+  "event": "SF_CANCELLED",
+  "channel": "EMAIL",
+  "subject": "Booking cancelled — {{booking_id}}",
+  "heading": "Booking cancelled",
+  "body": "Hi {{customer_name}},\n\nYour flight booking {{booking_id}} has been cancelled and your refund has been approved.\nPassenger(s): {{cancelled_passenger_names}}\n\nRefund ID: {{refund_id}}\nRefund amount: {{currency}} {{refund_amount}}\n\nBanks usually take 5–7 working days to show the amount in your account.",
+  "ctaLabel": "Track Refund",
+  "ctaLink": "secure_refund_link"
+ },
+ {
+  "event": "SF_CANCELLED",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, your flight booking {{booking_id}} is cancelled and the refund is approved.\nRefund ID: {{refund_id}} · Amount: {{currency}} {{refund_amount}}\nBanks usually take 5–7 working days to show it.",
+  "ctaLabel": "Track Refund",
+  "ctaLink": "secure_refund_link"
+ },
+ {
+  "event": "SF_CANCELLED_BY_AIRLINE",
+  "channel": "EMAIL",
+  "subject": "Your flight has been cancelled by the airline — {{booking_id}}",
+  "heading": "Flight cancelled by the airline",
+  "body": "Hi {{customer_name}},\n\nThe airline has cancelled the flight on your booking {{booking_id}}.\nFlight: {{airline_flight_number}}\nItinerary: {{itinerary_summary}}\n\nThis cancellation was made by the airline, not by you. Our team will share the available alternatives and the airline's refund options with you shortly.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "track_status_url"
+ },
+ {
+  "event": "SF_CANCELLED_BY_AIRLINE",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, the airline has cancelled the flight on your booking {{booking_id}} ({{airline_flight_number}}). This was the airline's decision, not yours. Our team will share the alternatives and refund options shortly.",
+  "ctaLabel": "View Booking",
+  "ctaLink": "track_status_url"
+ },
+ {
+  "event": "SF_RESCHEDULED_BY_AIRLINE",
+  "channel": "EMAIL",
+  "subject": "Your flight has been rescheduled by the airline — {{booking_id}}",
+  "heading": "Flight rescheduled by the airline",
+  "body": "Hi {{customer_name}},\n\nThe airline has rescheduled the flight on your booking {{booking_id}}.\nOriginal flight: {{airline_flight_number}}\nRevised itinerary: {{alternative_itinerary}}\n\nPlease review the new schedule and let us know whether you accept it or would like a refund.",
+  "ctaLabel": "Review Options",
+  "ctaLink": "secure_link"
+ },
+ {
+  "event": "SF_RESCHEDULED_BY_AIRLINE",
+  "channel": "WHATSAPP",
+  "subject": null,
+  "heading": null,
+  "body": "Hi {{customer_name}}, the airline has rescheduled the flight on your booking {{booking_id}}.\nOriginal: {{airline_flight_number}}\nRevised: {{alternative_itinerary}}\nPlease review and tell us whether you accept the new schedule or want a refund.",
+  "ctaLabel": "Review Options",
+  "ctaLink": "secure_link"
  }
 ]

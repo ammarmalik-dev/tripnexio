@@ -32,6 +32,8 @@ const BRANCH_EVENTS = new Set([
   "REFUND_COMPLETED",
   "REFUND_PARTIALLY_COMPLETED",
   "CANCELLED_AND_REFUNDED",
+  "PARTIAL_REFUND_RAISED",
+  "NOT_RESPONDING",
   "FSF_SEAT_UNAVAILABLE",
   "FSF_ALTERNATIVE_OFFERED",
   "FSF_ADDITIONAL_PAYMENT_PENDING",
@@ -42,7 +44,7 @@ const BRANCH_EVENTS = new Set([
   "ON_HOLD",
 ]);
 
-const BRANCH_NAME = /partial|reject|cancel|refund|unable|not responding|not accepted|not eligible|unavailable|alternative|additional payment|on hold|expir/i;
+const BRANCH_NAME = /partial|reject|cancel|refund|unable|not responding|not accepted|not eligible|unavailable|alternative|additional payment|on hold|expir|reschedul|by airline/i;
 
 /** A side outcome rather than a step every booking passes through. */
 export function isBranchStatus(status: Pick<StageStatus, "name" | "systemEvent" | "mapsToBookingStatus">): boolean {
