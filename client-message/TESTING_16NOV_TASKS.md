@@ -41,8 +41,8 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] B4 From OTB: don't ask return ticket again at upload; destination auto-selected with price
 
 ## C. OTB
-- [ ] C1 Rejected only after Sent to Airlines
-- [ ] C2 Additional Documents Sent to Airline only when documents were requested (from Document Master) and uploaded
+- [x] C1 Rejected only after Sent to Airlines — checked: OTB Rejected only after Sent to Airlines (engine)
+- [x] C2 Additional Documents Sent to Airline only when documents were requested (from Document Master) and uploaded — unit 2b: OTB additional documents only after Sent to Airlines and from the Document Master
 - [ ] C3 Manual lead: active countries + live airlines only, calendar rules, configured documents auto-fetched (staff upload or notify)
 - [ ] C4 No staff refund after OTB approved
 - [ ] C5 WhatsApp bot offers Return Ticket in the OTB flow
@@ -75,7 +75,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] F2 Under-18 parent/guardian requirement per country (Admin setting)
 - [x] F3 Fix "Invalid option: expected one of FATHER|MOTHER" — unit 1: empty hidden value accepted, minors still must choose
 - [ ] F4 Booking summary: Visa Fee / Service Charge / Total separately
-- [ ] F5 Workflow validation (backend + UI): document actions only on real uploads; additional docs / visa upload / rejection only after Applied; approval needs Visa PDF; no Hold after approval
+- [x] F5 Workflow validation (backend + UI): document actions only on real uploads; additional docs / visa upload / rejection only after Applied; approval needs Visa PDF; no Hold after approval — unit 2b: document actions need an uploaded file, additional docs / visa upload / rejection only after Applied, approval needs the visa PDF, no hold after approval
 - [ ] F6 After applied: request only the Visa Copy, not a package
 - [ ] F7 Visa Type column shows Tourist / Transit / Any (not "New Visa"); service details: stay, entry (validity only if enabled)
 - [ ] F8 Visa Validity: hidden everywhere customer/staff-facing; country-wise Admin toggle (off by default)
@@ -85,18 +85,18 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 
 ## G. Status engine & workflow (all services)
 - [ ] G1 Replace status lists with §S; remove old statuses (incl. filters/templates); Admin can delete; status config per Service × Country with the workflow shown
-- [ ] G2 Take Action button per booking showing only valid actions for service + stage (enforced in backend)
+- [x] G2 Take Action button per booking showing only valid actions for service + stage (enforced in backend) — unit 2b: Take Action button per row in the bookings list (only the server-allowed moves; reason / panel steps open the booking)
 - [x] G3 Hold only before external processing; no Hold after delivery — unit 2a: hold / not responding only before Applied to Embassy / Sent to Airlines (engine pauseAfterHandover, list + server)
-- [ ] G4 Additional documents: select documents from Document Master + passengers, one notification; upload → Under Review → validate → resubmit → decision; no visa upload before/under Additional Documents Required
-- [ ] G5 Additional Documents Validated only when actually requested + uploaded + validated
-- [ ] G6 Embassy Decision per passenger (Approved / Rejected with reason / Pending); Partially Approved only if ≥1 approved
-- [ ] G7 Vendor name required when forwarding to embassy
-- [ ] G8 Processing (applied) date captured for every service; travel-date rules per service
-- [ ] G9 Visa Delivered / Rejected / Additional Docs hidden before Applied
-- [ ] G10 Document upload UX: Uploaded / Replace while under review / Validated (locked) / Rejected (replace); OCR review = single Confirm / Reject
-- [ ] G11 Website status mapping fixes (Submitted for Processing shown too early; pre-payment statuses)
-- [ ] G12 Admin override: no automatic notifications; other validations stay for regular staff
-- [ ] G13 Payment cannot be marked completed without real receipt
+- [x] G4 Additional documents: select documents from Document Master + passengers, one notification; upload → Under Review → validate → resubmit → decision; no visa upload before/under Additional Documents Required — unit 2b: documents picked from the Document Master (staff /api/document-types), several passengers + one message, only after Applied / Sent to Airlines, never cancelled passengers; upload -> Additional Documents Submitted -> Validated checked
+- [x] G5 Additional Documents Validated only when actually requested + uploaded + validated — unit 2b: additional-document statuses only after the hand-over (VC after Package Generated no longer jumps)
+- [x] G6 Embassy Decision per passenger (Approved / Rejected with reason / Pending); Partially Approved only if ≥1 approved — unit 2b: per-passenger decision only after Applied / Sent; visa Approved only with that passenger visa PDF; Partially Approved needs >=1 approved; Cancelled only via refund
+- [x] G7 Vendor name required when forwarding to embassy — checked: New Visa asks the vendor at Applied to Embassy; Visa Change / Extension take it from the quotation (2026-10-15 I7)
+- [x] G8 Processing (applied) date captured for every service; travel-date rules per service — unit 2b: hand-over records the processing date for every service; Visa Extension travel date = applied date; Visa Change = A2A exit flight date
+- [x] G9 Visa Delivered / Rejected / Additional Docs hidden before Applied — checked by the engine (skipsHandover) + unit 2b passenger rule
+- [x] G10 Document upload UX: Uploaded / Replace while under review / Validated (locked) / Rejected (replace); OCR review = single Confirm / Reject — unit 2b: pay page shows Uploaded (under review, Replace) / Validated (locked) / Rejected (reason, Upload again) + descriptions; server refuses replacing a validated document
+- [x] G11 Website status mapping fixes (Submitted for Processing shown too early; pre-payment statuses) — unit 2b: Track shows the lead own steps before payment (Quotation Ready / Payment Pending) and the service steps while on hold (no generic Submitted for Processing)
+- [x] G12 Admin override: no automatic notifications; other validations stay for regular staff — unit 2b: Admin override sends no customer message
+- [x] G13 Payment cannot be marked completed without real receipt — checked: payment completes only via gateway check / approved bank transfer; unit 2b blocks any status (even Admin override) saying Paid without a received payment
 
 ## H. Cancellation, refunds & partial cancellation (all services)
 - [ ] H1 No direct Cancel / Approve / Refund buttons on bookings; only Initiate Refund (booking section)

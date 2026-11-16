@@ -47,7 +47,9 @@ interface CheckoutView {
   demoGateway: boolean;
   applicants: { id: string; fullName: string }[];
   /** `passengerIds` = only these passengers need it (client doc 2026-10-27, D11); absent = everyone. */
-  documentTypes: { type: string; label: string; required: boolean; passengerIds?: string[] }[];
+  documentTypes: { type: string; label: string; required: boolean; passengerIds?: string[]; description?: string | null }[];
+  /** Client doc 16 Nov (G10) — each passenger + document's state (uploaded / validated / rejected). */
+  documentStates: { passengerId: string; type: string; status: "RECEIVED" | "VERIFIED" | "REJECTED"; rejectionReason: string | null }[];
   /** P11 — extra documents staff asked a passenger for. */
   requestedDocuments: { passengerId: string; type: string; reason: string; status: string }[];
   /** P10 — earlier uploads the customer may choose to reuse ("Use existing"). */
@@ -116,12 +118,16 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
+type SlotState = { status: "RECEIVED" | "VERIFIED" | "REJECTED"; rejectionReason: string | null } | null;
+
 function DocumentSlot({
   label,
   uploaded,
   uploading,
   onFile,
   reuse,
+  state = null,
+  description,
 }: {
   label: string;
   uploaded: boolean;
@@ -129,7 +135,13 @@ function DocumentSlot({
   onFile: (file: File) => void;
   /** P10 — when set, offer "Use existing" next to "Upload new"; nothing is reused without this click. */
   reuse?: { uploadedAt: string; onUse: () => void };
+  /** Client doc 16 Nov (G10) — under review (replaceable), validated (locked) or rejected (upload again). */
+  state?: SlotState;
+  /** Client doc 16 Nov (F10) — the Document Master description. */
+  description?: string | null;
 }) {
+  const validated = state?.status === "VERIFIED";
+  const rejected = state?.status === "REJECTED";
   const [error, setError] = useState<string | null>(null);
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -145,13 +157,21 @@ function DocumentSlot({
     <div className="flex flex-col gap-1 rounded-lg border border-hairline bg-surface-2 px-4 py-3">
       <div className="flex items-center justify-between gap-3">
         <span className="flex items-center gap-2 text-sm text-ink-primary">
-          {uploaded ? (
+          {validated || (uploaded && !rejected) ? (
             <FileCheck2 className="h-4 w-4 text-success" aria-hidden="true" />
+          ) : rejected ? (
+            <XCircle className="h-4 w-4 text-error" aria-hidden="true" />
           ) : (
             <Upload className="h-4 w-4 text-ink-tertiary" aria-hidden="true" />
           )}
           {label}
-          {uploaded ? <span className="text-xs text-success">Uploaded</span> : null}
+          {validated ? (
+            <span className="text-xs font-medium text-success">Validated</span>
+          ) : rejected ? (
+            <span className="text-xs font-medium text-error">Rejected</span>
+          ) : uploaded ? (
+            <span className="text-xs text-success">Uploaded — under review</span>
+          ) : null}
         </span>
         <span className="flex items-center gap-2">
           {reuse && !uploaded ? (
@@ -164,12 +184,16 @@ function DocumentSlot({
               Use existing
             </button>
           ) : null}
-          <label className={DOCUMENT_UPLOAD_BUTTON_CLASS}>
-            {uploading ? "Uploading..." : uploaded ? "Replace" : reuse ? "Upload new" : "Choose file"}
-            <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="sr-only" onChange={handleChange} disabled={uploading} />
-          </label>
+          {validated ? null : (
+            <label className={DOCUMENT_UPLOAD_BUTTON_CLASS}>
+              {uploading ? "Uploading..." : rejected ? "Upload again" : uploaded ? "Replace" : reuse ? "Upload new" : "Choose file"}
+              <input type="file" accept={DOCUMENT_UPLOAD_ACCEPT} className="sr-only" onChange={handleChange} disabled={uploading} />
+            </label>
+          )}
         </span>
       </div>
+      {description ? <span className="text-xs text-ink-tertiary">{description}</span> : null}
+      {rejected && state?.rejectionReason ? <span className="text-xs text-error">Reason: {state.rejectionReason}</span> : null}
       {reuse && !uploaded ? (
         <span className="text-xs text-ink-tertiary">
           We have the copy you uploaded on {new Date(reuse.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
@@ -315,6 +339,8 @@ export function CheckoutPanel({ token }: { token: string }) {
   // Client doc 2026-10-27 (C8 / E3) — `view.documents` holds only real files for this booking (never "Pending" slots).
   const hasDocument = (passengerId: string, type: string) =>
     view.documents.some((document) => document.passengerId === passengerId && document.type === type);
+  const slotState = (passengerId: string, type: string): SlotState =>
+    view.documentStates.find((document) => document.passengerId === passengerId && document.type === type) ?? null;
   const { uploaded: uploadedCount, required: requiredCount } = countRequiredUploaded({
     passengerIds: view.applicants.map((applicant) => applicant.id),
     requiredTypes: view.documentTypes.filter((doc) => doc.required),
@@ -501,6 +527,8 @@ export function CheckoutPanel({ token }: { token: string }) {
                     <DocumentSlot
                       key={doc.type}
                       label={doc.required ? doc.label : `${doc.label} (where applicable)`}
+                      description={doc.description}
+                      state={slotState(applicant.id, doc.type)}
                       uploaded={hasDocument(applicant.id, doc.type)}
                       uploading={uploadingKey === `${applicant.id}:${doc.type}`}
                       onFile={(file) => void handleUpload(applicant.id, doc.type, file)}
@@ -518,6 +546,7 @@ export function CheckoutPanel({ token }: { token: string }) {
                       <div key={`requested-${doc.type}`} className="flex flex-col gap-1">
                         <DocumentSlot
                           label={`${doc.type} (requested)`}
+                          state={slotState(applicant.id, doc.type)}
                           uploaded={doc.status === "RECEIVED" || doc.status === "VERIFIED"}
                           uploading={uploadingKey === `${applicant.id}:${doc.type}`}
                           onFile={(file) => void handleUpload(applicant.id, doc.type, file)}

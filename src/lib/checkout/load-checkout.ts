@@ -82,7 +82,12 @@ export async function loadCheckoutByToken(token: string) {
     invoiceServiceFee: payment?.invoiceServiceFee != null ? Number(payment.invoiceServiceFee) : null,
   });
 
-  const documentTypes = paid ? await resolveCheckoutDocumentTypes(booking) : [];
+  const resolvedTypes = paid ? await resolveCheckoutDocumentTypes(booking) : [];
+  // Client doc 16 Nov (F10 / G10) — each document's Document Master description, shown under its name.
+  const descriptions = resolvedTypes.length
+    ? await db.documentType.findMany({ where: { name: { in: resolvedTypes.map((doc) => doc.type) } }, select: { name: true, description: true } })
+    : [];
+  const documentTypes = resolvedTypes.map((doc) => ({ ...doc, description: descriptions.find((row) => row.name === doc.type)?.description ?? null }));
   // P10/P15 — New Visa and Special Fare returning passengers: earlier uploads that could fill a slot (offered, never auto-used).
   // P18 — OTB: a recognised customer may reuse their stored passport and visa.
   const reusable =
@@ -147,7 +152,10 @@ export async function loadCheckoutByToken(token: string) {
       termsAccepted,
       terms: terms ? { title: terms.title, body: terms.body, version: terms.version, acceptanceText: terms.acceptanceText } : null,
       demoGateway: isMockGatewayActive(),
-      applicants: booking.passengers.map((row) => ({ id: row.passenger.id, fullName: row.passenger.fullName })),
+      // Client doc 16 Nov (H2) — documents are asked only from active passengers (not cancelled / rejected).
+      applicants: booking.passengers
+        .filter((row) => row.outcome !== "CANCELLED" && row.outcome !== "REJECTED")
+        .map((row) => ({ id: row.passenger.id, fullName: row.passenger.fullName })),
       documentTypes,
       reusable,
       // P11 — extra documents staff asked a passenger for, with the reason.
@@ -172,6 +180,17 @@ export async function loadCheckoutByToken(token: string) {
       documents: booking.documents
         .filter((document) => document.passengerId && isDocumentUploaded(document))
         .map((document) => ({ passengerId: document.passengerId as string, type: document.type, status: document.status })),
+      // Client doc 16 Nov (G10) — each slot's state: uploaded (under review, may be replaced), validated (locked) or
+      // rejected (with the reason, upload again). The newest row per passenger + document wins.
+      documentStates: booking.documents
+        .filter((document) => document.passengerId && (document.status === "VERIFIED" || document.status === "REJECTED" || (document.status === "RECEIVED" && document.fileUrl)))
+        .filter((document, index, all) => all.findIndex((other) => other.passengerId === document.passengerId && other.type === document.type) === index)
+        .map((document) => ({
+          passengerId: document.passengerId as string,
+          type: document.type,
+          status: document.status as "RECEIVED" | "VERIFIED" | "REJECTED",
+          rejectionReason: document.status === "REJECTED" ? document.rejectionReason : null,
+        })),
       refunds: refunds.map((refund) => ({
         amount: Number(refund.refundAmount),
         status: refund.status,

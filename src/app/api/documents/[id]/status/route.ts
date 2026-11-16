@@ -14,7 +14,7 @@ import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { createTask, autoCompleteTasksForEntity } from "@/lib/tasks/create-task";
-import { assertValidDocumentTransition } from "@/lib/documents/transitions";
+import { assertValidDocumentTransition, documentFileBlock } from "@/lib/documents/transitions";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { notifyDocumentRejected } from "@/lib/staff-notifications/triggers";
 import { reviewRoundOutcome } from "@/lib/documents/review-round";
@@ -61,7 +61,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if ((parsed.data.overrideReason?.length ?? 0) < 5) return jsonError(400, "Give a reason (at least 5 characters).", { overrideReason: ["Reason required"] });
     if (existing.status === parsed.data.status) return jsonError(409, `This document is already ${parsed.data.status.toLowerCase()}.`);
   } else {
-    const transitionError = assertValidDocumentTransition(existing.status, parsed.data.status);
+    const transitionError = assertValidDocumentTransition(existing.status, parsed.data.status) ?? documentFileBlock(parsed.data.status, existing);
     if (transitionError) return jsonError(409, transitionError);
   }
   const rejectionReason = parsed.data.status === "REJECTED" ? parsed.data.rejectionReason! : null;

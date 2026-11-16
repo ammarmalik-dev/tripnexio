@@ -14,8 +14,18 @@ const ALLOWED: Record<DocumentStatus, DocumentStatus[]> = {
   VERIFIED: [],
 };
 
-export function getAllowedNextDocumentStatuses(current: DocumentStatus): DocumentStatus[] {
-  return ALLOWED[current];
+/** Statuses that say a file is there (uploaded, validated, rejected) — client doc 16 Nov (F5): never without one. */
+const NEEDS_FILE = new Set<DocumentStatus>(["RECEIVED", "VERIFIED", "REJECTED"]);
+
+/** The next statuses staff may pick; without an uploaded file only "missing" is left (client doc 16 Nov, F5). */
+export function getAllowedNextDocumentStatuses(current: DocumentStatus, hasFile = true): DocumentStatus[] {
+  return ALLOWED[current].filter((next) => hasFile || !NEEDS_FILE.has(next));
+}
+
+/** Client doc 16 Nov (F5) — "Uploaded / Validated / Rejected" only for a document whose file was really uploaded. */
+export function documentFileBlock(next: DocumentStatus, file: { fileUrl: string | null; purgedAt: Date | null }): string | null {
+  if (!NEEDS_FILE.has(next) || (file.fileUrl && !file.purgedAt)) return null;
+  return "No file has been uploaded for this document yet — it can't be marked uploaded, validated or rejected.";
 }
 
 export function assertValidDocumentTransition(current: DocumentStatus, next: DocumentStatus): string | null {

@@ -63,6 +63,9 @@ const EVENT_FALLBACK: Partial<Record<ServiceStatusSystemEvent, ServiceStatusSyst
   DOCUMENTS_REJECTED: ["DOCUMENTS_REQUESTED"],
 };
 
+/** Client doc 16 Nov (G8) — the steps that hand a booking to the embassy / airline: its processing date. */
+const PROCESSING_DATE_EVENTS = new Set<string>(["EMBASSY_APPLIED", "OTB_SUBMITTED", "SENT_TO_AIRLINES", "FSF_AVAILABILITY_CONFIRMED"]);
+
 /** Client doc 16 Nov rules 6–7 — "User Not Responding" and "Booking On Hold": set by hand, only before the hand-over. */
 function isManualPauseStatus(status: Pick<ServiceStatus, "systemEvent">): boolean {
   return status.systemEvent === HOLD_MARKER || status.systemEvent === NOT_RESPONDING_MARKER;
@@ -417,6 +420,12 @@ async function applyStatus(
     await tx.booking.update({ where: { id: entity.id }, data: { resumeServiceStatusId: from?.id ?? null } });
   }
 
+  // Client doc 16 Nov (G8) — the hand-over (Applied to Embassy / Sent to Airlines) records the booking's processing date,
+  // for every service (it was only set by New Visa's own panel), once.
+  if (scope === "BOOKING" && to.systemEvent && PROCESSING_DATE_EVENTS.has(to.systemEvent)) {
+    await tx.booking.updateMany({ where: { id: entity.id, appliedToEmbassyAt: null }, data: { appliedToEmbassyAt: new Date() } });
+  }
+
   if (scope === "LEAD") {
     await tx.lead.update({
       where: { id: entity.id },
@@ -482,6 +491,11 @@ export async function setServiceStatus(
   if (entity.serviceStatusId === to.id) return { ok: true, changed: false, notification: null };
 
   const from = entity.serviceStatusId ? await tx.serviceStatus.findUnique({ where: { id: entity.serviceStatusId } }) : null;
+  // Client doc 16 Nov (G13 / "Admin override") — no status, not even an Admin's, says "paid" without a received payment.
+  if (to.systemEvent === "PAYMENT_SUCCESS" && input.scope === "BOOKING") {
+    const received = await tx.payment.count({ where: { bookingId: entity.id, status: "SUCCESS" } });
+    if (received === 0) return { ok: false, httpStatus: 409, error: `"${to.name}" follows a received payment (gateway or approved bank transfer) — it can't be set by hand.` };
+  }
   if (input.adminOverride) {
     await writeAudit(tx, {
       entityType: input.scope === "LEAD" ? "Lead" : "Booking",
@@ -516,7 +530,8 @@ export async function setServiceStatus(
     }
   }
 
-  const notification = await applyStatus(tx, input.scope, entity, from, to, input);
+  // Client doc 16 Nov (G12) — an Admin override never messages the customer (it is a correction, audited above).
+  const notification = await applyStatus(tx, input.scope, entity, from, to, { ...input, silent: input.adminOverride === true });
   return { ok: true, changed: true, notification };
 }
 
@@ -546,8 +561,11 @@ export async function applySystemEvent(
     to = await findTarget(fallback);
   }
   // Client doc 2026-10-20 — past the main document stage, documents received / validated are the additional ones.
+  // Client doc 16 Nov (G5) — but only once the booking is with the embassy / airline (additional documents are asked
+  // after the hand-over): a Visa Change validated after "Package Generated" no longer jumps to "Additional Documents Validated".
   const alias = ADDITIONAL_ALIAS[input.event];
-  if (alias && from && (!to || from.displayOrder >= to.displayOrder)) {
+  const handover = alias && from ? await handoverStatus(tx, entity.serviceType, input.scope) : null;
+  if (alias && from && (!to || from.displayOrder >= to.displayOrder) && (!handover || from.displayOrder >= handover.displayOrder)) {
     const additional = await findTarget(alias);
     if (additional) to = additional;
   }

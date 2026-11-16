@@ -258,6 +258,7 @@ export function DocumentReviewQueue() {
                       documentId={document.id}
                       status={statusOverrides[document.id] ?? document.status}
                       rejectionReason={reasonOverrides[document.id] ?? document.rejectionReason}
+                      hasFile={Boolean(document.fileUrl)}
                       onChanged={(next, reason) => {
                         setStatusOverrides((current) => ({ ...current, [document.id]: next }));
                         setReasonOverrides((current) => ({ ...current, [document.id]: reason ?? null }));

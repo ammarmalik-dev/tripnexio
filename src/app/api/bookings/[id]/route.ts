@@ -31,6 +31,12 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+/** Client doc 16 Nov (G8) — a Visa Change Airport-to-Airport option's exit flight date (the booking's actual travel date). */
+function vcExitDate(block: unknown): string | null {
+  const parsed = parseOperationalBlock(block);
+  return parsed && parsed.kind !== "BORDER" ? parsed.flightDate : null;
+}
+
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("bookings.view");
   if (auth.error) return auth.error;
@@ -154,6 +160,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
       details: booking.lead.details,
       bookingCreatedAt: synced.createdAt,
       appliedToEmbassyAt: booking.appliedToEmbassyAt,
+      exitDate: vcExitDate(selectedQuotation?.operationalBlock),
     }),
     // Client doc 2026-10-15 (I7) — whether staff can pick the vendor now (and why not).
     vendorChoiceBlockedReason: vendorChoiceBlock(

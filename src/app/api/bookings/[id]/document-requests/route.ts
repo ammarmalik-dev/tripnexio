@@ -9,7 +9,8 @@ import { writeAudit } from "@/lib/audit/log";
 import { createTask } from "@/lib/tasks/create-task";
 import { applyBookingDocumentEvent } from "@/lib/service-status/document-events";
 import { sendDocumentsStatusTemplate } from "@/lib/notifications/status-template";
-import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
+import { dispatchStatusNotifications, hasReachedStatusEvent, type StatusNotification } from "@/lib/service-status/engine";
+import type { ServiceStatusSystemEvent } from "@/lib/service-status/events";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { leadReference } from "@/lib/leads/reference";
@@ -21,6 +22,14 @@ import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
+
+/** Client doc 16 Nov (G4) — the step after which a service's additional documents may be requested. */
+const ADDITIONAL_DOCS_AFTER: Partial<Record<string, ServiceStatusSystemEvent>> = {
+  NEW_VISA: "EMBASSY_APPLIED",
+  VISA_CHANGE: "EMBASSY_APPLIED",
+  VISA_EXTENSION: "EMBASSY_APPLIED",
+  OTB: "OTB_SUBMITTED",
+};
 
 const itemSchema = z.object({
   passengerId: z.string().min(1, "Select the passenger"),
@@ -67,6 +76,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const passengerOf = (passengerId: string) => booking.passengers.find((row) => row.passenger.id === passengerId)?.passenger;
   if (items.some((item) => !passengerOf(item.passengerId))) {
     return jsonError(400, "That passenger isn't on this booking.", { passengerId: ["Select a passenger on this booking."] });
+  }
+  // Client doc 16 Nov (H2 / F-partial cancellation) — never ask a cancelled (or rejected) passenger for documents.
+  const inactive = booking.passengers.filter((row) => row.outcome === "CANCELLED" || row.outcome === "REJECTED").map((row) => row.passenger.id);
+  if (items.some((item) => inactive.includes(item.passengerId))) {
+    return jsonError(409, "That passenger is cancelled / rejected — documents are requested only for active passengers.", { passengerId: ["Pick an active passenger."] });
+  }
+  // Client doc 16 Nov (G4) — additional documents come from the Document Master list.
+  const master = await db.documentType.findMany({ where: { active: true, name: { in: items.map((item) => item.documentName) } }, select: { name: true } });
+  const known = new Set(master.map((row) => row.name));
+  const unknown = items.find((item) => !known.has(item.documentName));
+  if (unknown) return jsonError(400, `"${unknown.documentName}" isn't in the Document Master list — pick a document from the list.`, { documentName: ["Pick from the list."] });
+  // Client doc 16 Nov (G4 / F5 / C2) — for visa services and OTB, additional documents are asked only after the
+  // application went to the embassy / airline (before that the configured checklist applies).
+  const stageEvent = ADDITIONAL_DOCS_AFTER[booking.lead.serviceType];
+  if (stageEvent && !(await hasReachedStatusEvent(booking.id, stageEvent))) {
+    return jsonError(409, `Additional documents can be requested only after the application is ${booking.lead.serviceType === "OTB" ? "sent to the airline" : "applied to the embassy"}.`);
   }
 
   let statusNotifications: StatusNotification[] = [];

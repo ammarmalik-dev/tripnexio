@@ -25,7 +25,10 @@ export interface BookingDatesInput {
   serviceType: ServiceType;
   details: unknown;
   bookingCreatedAt: Date;
+  /** The hand-over date (Applied to Embassy / Sent to Airlines) — client doc 16 Nov (G8): the processing date of every service. */
   appliedToEmbassyAt: Date | null;
+  /** Client doc 16 Nov (G8) — Visa Change Airport-to-Airport: the selected option's exit flight date (YYYY-MM-DD). */
+  exitDate?: string | null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -59,6 +62,8 @@ function date(key: string, label: string, value: string | null, hint?: string): 
 export function getBookingDates(input: BookingDatesInput): BookingDateItem[] {
   const details = asRecord(input.details);
   const bookingDate = date("bookingDate", "Booking Date", input.bookingCreatedAt.toISOString());
+  const processing = input.appliedToEmbassyAt ? input.appliedToEmbassyAt.toISOString() : null;
+  const processingDate = date("processingDate", "Processing Date", processing);
 
   switch (input.serviceType) {
     case "NEW_VISA":
@@ -78,6 +83,8 @@ export function getBookingDates(input: BookingDatesInput): BookingDateItem[] {
       const hint = verified ? "staff-verified" : applicants.count > 1 ? `earliest of ${applicants.count} applicants` : undefined;
       return [
         bookingDate,
+        // Client doc 16 Nov (G8) — for Visa Extension the applied date is the travel date.
+        date("appliedToEmbassyDate", "Applied Date (Travel Date)", processing),
         date("visaExpiryDate", "Current Visa Last Date / Expiry", expiry, hint),
         date("extensionRequiredDate", "Extension Required Date", dateString(details.extensionRequiredDate)),
       ];
@@ -87,7 +94,9 @@ export function getBookingDates(input: BookingDatesInput): BookingDateItem[] {
       const lastDate = earliestDate(details.passengers, "visaLastDate");
       return [
         bookingDate,
-        date("travelDate", "Travel / Required Date", dateString(details.travelDate) ?? dateString(details.requiredDate)),
+        processingDate,
+        // Client doc 16 Nov (G8) — the actual exit date: the A2A option's exit flight, else the date given on the request.
+        date("travelDate", "Exit / Travel Date", dateString(input.exitDate) ?? dateString(details.travelDate) ?? dateString(details.requiredDate)),
         { key: "visaNumber", label: "Visa Number", value: textString(details.visaNumber), kind: "text" },
         date(
           "visaLastDate",
@@ -99,14 +108,14 @@ export function getBookingDates(input: BookingDatesInput): BookingDateItem[] {
     }
 
     case "FLIGHT_SPECIAL_FARE": {
-      const items = [bookingDate, date("travelDate", "Travel / Departure Date", dateString(details.travelDate))];
+      const items = [bookingDate, processingDate, date("travelDate", "Travel / Departure Date", dateString(details.travelDate))];
       const returnDate = dateString(details.returnDate);
       if (returnDate) items.push(date("returnDate", "Return Date", returnDate));
       return items;
     }
 
     case "RETURN_TICKET": {
-      const items = [bookingDate, date("returnTravelDate", "Return Travel Date", dateString(details.expectedReturnDate))];
+      const items = [bookingDate, processingDate, date("returnTravelDate", "Return Travel Date", dateString(details.expectedReturnDate))];
       // The onward travel date drives the reservation issue window, so it's shown too when present.
       const travelDate = dateString(details.travelDate);
       if (travelDate) items.push(date("travelDate", "Onward Travel Date", travelDate));
@@ -114,7 +123,7 @@ export function getBookingDates(input: BookingDatesInput): BookingDateItem[] {
     }
 
     case "OTB":
-      return [bookingDate, date("travelDate", "Travel Date", dateString(details.travelDate))];
+      return [bookingDate, processingDate, date("travelDate", "Travel Date", dateString(details.travelDate))];
 
     default:
       return [bookingDate, date("travelDate", "Service / Travel Date", dateString(details.travelDate))];

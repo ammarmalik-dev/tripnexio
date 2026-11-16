@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { FilePlus2, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
-import { postJson, ApiError } from "@/lib/api/client";
+import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 
@@ -33,6 +33,25 @@ export function RequestDocumentForm({
   const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<RequestRow[]>(() => [blankRow()]);
   const [saving, setSaving] = useState(false);
+  // Client doc 16 Nov (G4) — documents are picked from the Document Master list (with their descriptions).
+  const [masterList, setMasterList] = useState<{ id: string; name: string; description: string | null }[] | null>(null);
+  const [masterError, setMasterError] = useState(false);
+  useEffect(() => {
+    if (!open || masterList) return;
+    let cancelled = false;
+    async function load() {
+      try {
+        const types = await getJson<{ id: string; name: string; description: string | null }[]>("/api/document-types");
+        if (!cancelled) setMasterList(types);
+      } catch {
+        if (!cancelled) setMasterError(true);
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, masterList]);
 
   if (!open) {
     return (
@@ -92,14 +111,22 @@ export function RequestDocumentForm({
               </option>
             ))}
           </select>
-          <input
+          <select
             aria-label={`Document for request ${index + 1}`}
-            placeholder="e.g. Bank statement"
             value={row.documentName}
-            disabled={saving}
+            disabled={saving || !masterList}
             onChange={(e) => update(index, { documentName: e.target.value })}
             className={control}
-          />
+          >
+            <option value="" disabled>
+              {masterError ? "Couldn't load the list" : masterList ? "Select a document" : "Loading…"}
+            </option>
+            {(masterList ?? []).map((type) => (
+              <option key={type.id} value={type.name} title={type.description ?? undefined}>
+                {type.name}
+              </option>
+            ))}
+          </select>
           <input
             aria-label={`Reason for request ${index + 1}`}
             placeholder="Why it is needed"

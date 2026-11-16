@@ -325,6 +325,7 @@ export function BookingDetail({
             documentId={document.id}
             status={document.status}
             rejectionReason={document.rejectionReason}
+            hasFile={Boolean(document.fileUrl)}
             onChanged={(status, rejectionReason) => updateDocument(document.id, status, rejectionReason)}
           />
         </div>
@@ -374,7 +375,8 @@ export function BookingDetail({
           { label: "Payment", value: latestPayment ? <PaymentStatusBadge status={latestPayment.status} /> : <span className="text-ink-tertiary">No payment</span> },
         ]}
         status={
-          <div className="flex flex-col gap-2">
+          // Client doc 16 Nov (G2) — the bookings list's Take Action opens here (#status) for a move that needs a reason.
+          <div id="status" className="flex scroll-mt-24 flex-col gap-2">
             <BookingStatusControl
               bookingId={booking.id}
               status={booking.status}
@@ -691,7 +693,11 @@ export function BookingDetail({
                   <div className="mb-4">
                     <AddDocumentForm bookingId={booking.id} passengers={booking.passengers} onAdded={refresh} />
                     <div className="mt-2">
-                      <RequestDocumentForm bookingId={booking.id} passengers={booking.passengers} onRequested={refresh} />
+                      <RequestDocumentForm
+                        bookingId={booking.id}
+                        passengers={booking.passengers.filter((passenger) => passenger.outcome !== "CANCELLED" && passenger.outcome !== "REJECTED")}
+                        onRequested={refresh}
+                      />
                     </div>
                   </div>
                   {booking.passengers.length === 0 ? (

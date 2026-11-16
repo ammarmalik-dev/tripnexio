@@ -74,6 +74,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       orderBy: { updatedAt: "desc" },
     });
 
+    // Client doc 16 Nov (G10) — a validated document is locked: the customer can't replace it.
+    if (existing && existing.status === "VERIFIED" && existing.fileUrl && !existing.purgedAt) {
+      await deleteUploadedFile(url);
+      return jsonError(409, "This document is already validated — it can't be replaced.");
+    }
+
     let statusNotifications: StatusNotification[] = [];
     const document = await db.$transaction(async (tx) => {
       const saved = existing

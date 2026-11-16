@@ -23,6 +23,7 @@ import {
   PAYMENT_STATUS_OPTIONS,
 } from "@/lib/crm/labels";
 import { ListPagination } from "./ListPagination";
+import { BookingTakeActionButton } from "./BookingTakeActionButton";
 import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
@@ -483,13 +484,18 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{booking.appliedAt ? formatDate(booking.appliedAt) : "—"}</td>
                     <td className="px-3 py-3 text-right">
-                      <Link
-                        href={href}
-                        className="inline-flex items-center gap-1 rounded-lg border border-hairline px-3 py-1.5 font-medium text-ink-heading transition-colors hover:border-glass-border hover:bg-ink-primary/[0.03]"
-                      >
-                        View
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </Link>
+                      {/* Client doc 16 Nov (G2) — one Take Action button: only this booking's valid moves. */}
+                      <div className="inline-flex items-center gap-1.5">
+                        <BookingTakeActionButton bookingId={booking.id} href={href} onChanged={() => setRefreshNonce((current) => current + 1)} />
+                        <Link
+                          href={href}
+                          aria-label={`View booking ${booking.bookingId}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-hairline px-2 py-1.5 font-medium text-ink-heading transition-colors hover:border-glass-border hover:bg-ink-primary/[0.03]"
+                        >
+                          View
+                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );

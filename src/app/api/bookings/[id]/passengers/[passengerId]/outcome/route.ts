@@ -10,7 +10,22 @@ import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 import { PASSENGER_OUTCOME_LABELS, bookingOutcomeLabel } from "@/lib/bookings/passenger-outcomes";
 import { describeError } from "@/lib/api/describe-error";
-import { applySystemEvent, dispatchStatusNotifications, setServiceStatus, type StatusNotification } from "@/lib/service-status/engine";
+import { applySystemEvent, dispatchStatusNotifications, hasReachedStatusEvent, setServiceStatus, type StatusNotification } from "@/lib/service-status/engine";
+import type { ServiceStatusSystemEvent } from "@/lib/service-status/events";
+
+/** Client doc 16 Nov (G6 / F5 / C6) — the embassy's / airline's decision exists only once the application was sent there. */
+const DECISION_AFTER: Partial<Record<string, ServiceStatusSystemEvent>> = {
+  NEW_VISA: "EMBASSY_APPLIED",
+  VISA_CHANGE: "EMBASSY_APPLIED",
+  VISA_EXTENSION: "EMBASSY_APPLIED",
+  OTB: "OTB_SUBMITTED",
+};
+/** Client doc 16 Nov (F5 / E8) — a visa passenger is approved by delivering their visa PDF, never by a bare "Approved". */
+const APPROVAL_OUTPUTS: Partial<Record<string, string[]>> = {
+  NEW_VISA: ["VISA_PDF"],
+  VISA_CHANGE: ["VISA_PDF"],
+  VISA_EXTENSION: ["EXTENDED_VISA_PDF", "VISA_PDF"],
+};
 import type { Prisma } from "@/generated/prisma/client";
 
 interface RouteParams {
@@ -58,8 +73,27 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (actionError) return actionError;
     const row = booking.passengers.find((passenger) => passenger.passengerId === passengerId);
     if (!row) return jsonError(404, "That passenger isn't on this booking.");
-    if (row.outcome === "APPROVED" && parsed.data.outcome !== "APPROVED" && !session.permissions.includes(ADMIN_FULL_PERMISSION)) {
+    const isAdmin = session.permissions.includes(ADMIN_FULL_PERMISSION);
+    if (row.outcome === "APPROVED" && parsed.data.outcome !== "APPROVED" && !isAdmin) {
       return jsonError(409, "This passenger is approved — only an Admin can change that.");
+    }
+    if (!isAdmin) {
+      const serviceType = booking.lead.serviceType;
+      // Client doc 16 Nov (H1 / H2) — a passenger is cancelled only by an approved refund (Initiate Refund).
+      if (parsed.data.outcome === "CANCELLED" && row.outcome !== "CANCELLED") {
+        return jsonError(409, "Cancel a passenger with Initiate Refund — the approved refund marks them Cancelled.");
+      }
+      const decisionStep = DECISION_AFTER[serviceType];
+      if ((parsed.data.outcome === "APPROVED" || parsed.data.outcome === "REJECTED") && decisionStep && !(await hasReachedStatusEvent(bookingId, decisionStep))) {
+        return jsonError(409, `A decision can be recorded only after the application is ${serviceType === "OTB" ? "sent to the airline" : "applied to the embassy"}.`);
+      }
+      const outputs = APPROVAL_OUTPUTS[serviceType];
+      if (parsed.data.outcome === "APPROVED" && outputs) {
+        const delivered = await db.document.count({
+          where: { bookingId, type: { in: outputs }, deliveredAt: { not: null }, OR: [{ passengerId }, { passengerId: null }] },
+        });
+        if (delivered === 0) return jsonError(409, "Upload this passenger's visa PDF (Deliver to customer) — that records the approval.");
+      }
     }
 
     const label = (value: string | null) => (value ? PASSENGER_OUTCOME_LABELS[value as keyof typeof PASSENGER_OUTCOME_LABELS] : "In progress");

@@ -17,14 +17,16 @@ interface DocumentStatusControlProps {
   status: DocumentStatus;
   /** Shown under the badge while the document is REJECTED. */
   rejectionReason?: string | null;
+  /** Client doc 16 Nov (F5) — false when no file has been uploaded: only "missing" can be picked. */
+  hasFile?: boolean;
   onChanged: (status: DocumentStatus, rejectionReason?: string | null) => void;
 }
 
 /** Offers only the allowed next statuses (src/lib/documents/transitions.ts); rejecting asks for a mandatory reason. */
-export function DocumentStatusControl({ documentId, status, rejectionReason, onChanged }: DocumentStatusControlProps) {
+export function DocumentStatusControl({ documentId, status, rejectionReason, hasFile = true, onChanged }: DocumentStatusControlProps) {
   const [pending, setPending] = useState(false);
   const [rejecting, setRejecting] = useState(false);
-  const nextStatuses = getAllowedNextDocumentStatuses(status);
+  const nextStatuses = getAllowedNextDocumentStatuses(status, hasFile);
   // Client doc 2026-10-15 (I9) — an Admin can move a validated / rejected document back for re-validation.
   const isAdmin = useHasPermission("admin.full");
   const [movingBack, setMovingBack] = useState(false);

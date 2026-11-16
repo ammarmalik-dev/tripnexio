@@ -3,7 +3,6 @@ import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import type { TrackResult, TrackStage, TrackStageStatus } from "./types";
 import { customerStages, reachedStatusIds } from "../service-status/customer-stages";
 import type { BookingStatus, LeadStatus, ServiceType } from "../../generated/prisma/enums";
-import { HOLD_MARKER } from "../service-status/events";
 import { OUTPUT_TYPES, OUTPUT_TYPE_LABELS, type OutputType } from "../outputs/output-types";
 import { customerPassengerStatuses } from "../protection-plan/customer-passenger-statuses";
 
@@ -96,19 +95,29 @@ interface CurrentServiceStatus {
  * booking has no per-service status, is On Hold, or its service has no
  * customer labels configured.
  */
-async function buildServiceStages(serviceType: ServiceType, current: CurrentServiceStatus | null, bookingId?: string): Promise<TrackStage[] | null> {
-  if (!current || current.systemEvent === HOLD_MARKER) return null;
+async function buildServiceStages(
+  serviceType: ServiceType,
+  current: CurrentServiceStatus | null,
+  bookingId?: string,
+  /** Client doc 16 Nov (G11) — before payment the lead's own list (Request Received → Quotation Ready → Payment Pending). */
+  lead?: { id: string }
+): Promise<TrackStage[] | null> {
+  // Client doc 16 Nov (G11) — on hold too: the service's own steps with "Booking On Hold" as the current one (the
+  // generic 5 stages used to show "Submitted for Processing" done for a booking that was never submitted).
+  if (!current) return null;
+  const scope = lead ? "LEAD" : "BOOKING";
   const statuses = await db.serviceStatus.findMany({
-    where: { serviceType, scope: "BOOKING", active: true, customerLabel: { not: null } },
+    where: { serviceType, scope, active: true, customerLabel: { not: null } },
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
     select: { id: true, name: true, customerLabel: true, displayOrder: true, systemEvent: true, isTerminal: true, mapsToBookingStatus: true },
   });
   if (statuses.length === 0) return null;
   // Client doc 2026-10-27 (C7) — branch outcomes (partial approval, rejected, cancelled, refund…) only once they
   // happened: the statuses this booking has been moved to, from its audit trail.
-  const history = bookingId
+  const historyEntity = lead ? { entityType: "Lead", entityId: lead.id } : bookingId ? { entityType: "Booking", entityId: bookingId } : null;
+  const history = historyEntity
     ? await db.auditTrail.findMany({
-        where: { entityType: "Booking", entityId: bookingId, action: { in: ["SERVICE_STATUS_CHANGE", "SERVICE_STATUS_OVERRIDE"] } },
+        where: { ...historyEntity, action: { in: ["SERVICE_STATUS_CHANGE", "SERVICE_STATUS_OVERRIDE"] } },
         select: { note: true },
         orderBy: { timestamp: "asc" },
         take: 300,
@@ -198,6 +207,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
     orderBy: { createdAt: "desc" },
     include: {
       customer: { select: { name: true, mobile: true, email: true } },
+      serviceStatus: { select: { id: true, customerLabel: true, displayOrder: true, systemEvent: true } },
       // P11 — the latest booking, whatever its state, so a rejected/cancelled
       // one shows its closed message instead of generic lead stages.
       bookings: {
@@ -214,7 +224,14 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
     if (!matchesVerifier(lead.customer, verifier, leadPageKeys)) return null;
     const booking = lead.bookings[0] ?? null;
     const stageIndex = resolveStage(lead.status, booking?.status ?? null);
-    const serviceStages = booking && stageIndex !== "closed" ? await buildServiceStages(lead.serviceType, booking.serviceStatus, booking.id) : null;
+    // Client doc 16 Nov (G11 / D3) — not paid yet (no booking, or its payment still pending): the lead's own steps.
+    const unpaid = !booking || booking.status === "PENDING";
+    const serviceStages =
+      stageIndex === "closed"
+        ? null
+        : unpaid
+          ? await buildServiceStages(lead.serviceType, lead.serviceStatus, undefined, { id: lead.id })
+          : await buildServiceStages(lead.serviceType, booking.serviceStatus, booking.id);
     return {
       referenceId: lead.reference ?? referenceId,
       service: SERVICE_TYPE_LABELS[lead.serviceType],

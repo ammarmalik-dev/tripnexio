@@ -622,6 +622,7 @@ export function LeadDetail({
                                     documentId={document.id}
                                     status={document.status}
                                     rejectionReason={document.rejectionReason}
+                                    hasFile={Boolean(document.fileUrl)}
                                     onChanged={() => refresh()}
                                   />
                                 </div>
