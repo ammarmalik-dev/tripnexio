@@ -120,7 +120,8 @@ async function createGatewayPayment(input: CreateGatewayPaymentInput) {
         customerName: booking.customer.name,
         customerMobile: booking.customer.mobile,
         customerEmail: booking.customer.email,
-        notes: { bookingId: booking.id, leadId: booking.leadId, purpose },
+        // Client doc 16 Nov (I4) — the Booking ID and Lead Code staff search for in the gateway's dashboard (plus our ids).
+        notes: { booking_id: booking.bookingId, lead_code: reference, purpose, bookingRef: booking.id, leadRef: booking.leadId },
         expiresAt: linkExpiresAt,
         ...(booking.customerToken ? { callbackUrl: `${siteConfig.url}/pay/${booking.customerToken}` } : {}),
       });

@@ -43,6 +43,19 @@ export class RazorpayGateway implements PaymentGateway {
     return { refundId: body.id, status: body.status ?? "pending" };
   }
 
+  /** POST /v1/payment_links/:id/cancel — only an unpaid link can be cancelled. */
+  async cancelPaymentLink(gatewayRef: string): Promise<void> {
+    const response = await fetch(`https://api.razorpay.com/v1/payment_links/${encodeURIComponent(gatewayRef)}/cancel`, {
+      method: "POST",
+      headers: { Authorization: `Basic ${this.basicAuth}`, "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { error?: { description?: string } } | null;
+      throw new Error(`Razorpay couldn't cancel the payment link (HTTP ${response.status}${body?.error?.description ? `: ${body.error.description}` : ""})`);
+    }
+  }
+
   /** GET /v1/refunds/:id — "pending" until the bank confirms, then "processed" (or "failed"). */
   async fetchRefundStatus(refundId: string): Promise<GatewayRefundResult> {
     const response = await fetch(`https://api.razorpay.com/v1/refunds/${encodeURIComponent(refundId)}`, {

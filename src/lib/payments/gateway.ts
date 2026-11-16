@@ -73,6 +73,11 @@ export interface PaymentGateway {
   refundPayment(gatewayRef: string, amountInPaise: number, notes: Record<string, string>): Promise<GatewayRefundResult>;
   /** Client doc 2026-10-15 (I5) — the gateway's current status of a refund it accepted ("processed", "pending", "failed"). */
   fetchRefundStatus(refundId: string): Promise<GatewayRefundResult>;
+  /**
+   * Client doc 16 Nov (I1) — cancels an unpaid payment link (staff switch the payment to bank transfer), so the customer
+   * can't also pay the old link. Throws when the gateway refuses (e.g. the link was already paid).
+   */
+  cancelPaymentLink(gatewayRef: string): Promise<void>;
 }
 
 export interface GatewayRefundResult {

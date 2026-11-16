@@ -12,6 +12,7 @@ import { bookingDocumentsWhere } from "../documents/document-lead";
 import { displayFeeSplit } from "../invoices/service-fee";
 import { feeLabelFor } from "../invoices/invoice-document";
 import { isDocumentUploaded, uploadedDocumentSlots } from "../documents/upload-state";
+import { OFFLINE_PAYMENT_SERVICES } from "../payments/offline-payment";
 
 function linkedOrderView(
   linked: {
@@ -109,6 +110,11 @@ export async function loadCheckoutByToken(token: string) {
     select: { refundAmount: true, status: true, gatewayRefundId: true, createdAt: true, completedAt: true },
   });
   const notPayableReason = payment?.status === "PENDING" ? await assertQuotationPayable({ purpose: payment.purpose, booking }) : null;
+  // Client doc 16 Nov (I2) — the quotation services may pay by bank transfer: Admin's bank details (Invoice Settings).
+  const offlineService = OFFLINE_PAYMENT_SERVICES.has(booking.lead.serviceType) && payment?.status === "PENDING" && payment.purpose !== "EXTRA";
+  const bankConfig = offlineService
+    ? await db.invoiceConfig.findUnique({ where: { id: "singleton" }, select: { bankAccountName: true, bankAccountNumber: true, bankIfscCode: true, bankName: true, bankBranch: true } })
+    : null;
   const quotationExpired = notPayableReason !== null;
   // P09 — the customer must agree to the service's Terms before any payment
   // option (gateway link or demo button) is offered.
@@ -147,6 +153,18 @@ export async function loadCheckoutByToken(token: string) {
           }
         : null,
       quotationExpired,
+      /** Client doc 16 Nov (I2) — pay the accepted quotation by bank transfer (null = not offered). */
+      bankTransfer:
+        offlineService && bankConfig?.bankAccountNumber
+          ? {
+              accountName: bankConfig.bankAccountName,
+              accountNumber: bankConfig.bankAccountNumber,
+              ifsc: bankConfig.bankIfscCode,
+              bankName: bankConfig.bankName,
+              branch: bankConfig.bankBranch,
+              receiptUploaded: payment?.method === "BANK_TRANSFER" && Boolean(payment.bankSlipUrl),
+            }
+          : null,
       /** Why the payment can't be made (expired quotation, cancelled request), shown instead of the payment button. */
       notPayableReason,
       termsAccepted,

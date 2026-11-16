@@ -31,6 +31,9 @@ export class MockPaymentGateway implements PaymentGateway {
     return { ok: true, message: "Development mock gateway (no real payments)." };
   }
 
+  /** Development only — a mock link has no state to cancel. */
+  async cancelPaymentLink(): Promise<void> {}
+
   async createPaymentLink(_input: CreatePaymentLinkInput): Promise<CreatePaymentLinkResult> {
     const id = `mock_plink_${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`;
     return { gatewayRef: id, paymentLink: `https://mock-gateway.tripnexio.local/pay/${id}` };

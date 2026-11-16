@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { Send } from "lucide-react";
+import { Send, Repeat } from "lucide-react";
+import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { Button } from "@/components/ui/Button";
 import { CopyPaymentLinkButton } from "./CopyPaymentLinkButton";
 import { CopyLinkButton } from "./CopyLinkButton";
@@ -13,6 +14,7 @@ import type { BookingStatus, PaymentStatus } from "../../generated/prisma/enums"
 interface PaymentItem {
   id: string;
   status: PaymentStatus;
+  method: "GATEWAY" | "BANK_TRANSFER";
   paymentLink: string | null;
   linkExpiresAt: string | null;
 }
@@ -42,6 +44,32 @@ export function PaymentLinkAction({ bookingId }: { bookingId: string }) {
   const [booking, setBooking] = useState<BookingPaymentInfo | null>(null);
   const [generating, setGenerating] = useState(false);
   const [resending, setResending] = useState(false);
+  const [switching, setSwitching] = useState(false);
+  const { confirm, dialog } = useConfirmAction();
+
+  // Client doc 16 Nov (I1) — switch the unpaid payment between an online link and bank transfer (the link is cancelled
+  // at the gateway first, so the customer can't pay twice).
+  const handleSwitch = async (to: "GATEWAY" | "BANK_TRANSFER") => {
+    const reason = await confirm({
+      title: to === "BANK_TRANSFER" ? "Switch to bank transfer?" : "Switch to an online payment link?",
+      description:
+        to === "BANK_TRANSFER"
+          ? "The online payment link is cancelled at the gateway and a bank-transfer payment is created — upload the customer's slip on the booking for approval."
+          : "The bank-transfer payment is withdrawn and a new online payment link is created and sent to the customer.",
+      confirmLabel: "Switch",
+    });
+    if (!reason) return;
+    setSwitching(true);
+    try {
+      await postJson(`/api/bookings/${bookingId}/payment-method`, { to, reason });
+      toast.success(to === "BANK_TRANSFER" ? "Switched to bank transfer." : "Switched to an online payment link.");
+      setReloadNonce((current) => current + 1);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't switch the payment method.");
+    } finally {
+      setSwitching(false);
+    }
+  };
   const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
@@ -95,6 +123,7 @@ export function PaymentLinkAction({ bookingId }: { bookingId: string }) {
   if (state === "error" || !booking) return <p className="text-sm text-error">Couldn&apos;t load this booking&apos;s payment details.</p>;
 
   const pendingPayment = booking.payments.find((payment) => payment.status === "PENDING" && payment.paymentLink);
+  const unpaid = booking.payments.find((payment) => payment.status === "PENDING");
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -118,6 +147,13 @@ export function PaymentLinkAction({ bookingId }: { bookingId: string }) {
       ) : !booking.customerToken ? (
         <p className="text-sm text-ink-tertiary">No payment is currently pending on this booking.</p>
       ) : null}
+      {unpaid ? (
+        <Button type="button" size="sm" variant="ghost" onClick={() => void handleSwitch(unpaid.method === "GATEWAY" ? "BANK_TRANSFER" : "GATEWAY")} isLoading={switching}>
+          <Repeat className="h-4 w-4" aria-hidden="true" />
+          {unpaid.method === "GATEWAY" ? "Switch to bank transfer" : "Switch to online link"}
+        </Button>
+      ) : null}
+      {dialog}
     </div>
   );
 }

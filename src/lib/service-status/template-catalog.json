@@ -24,8 +24,8 @@
   "subject": "Thanks for choosing TripNexio! Your booking is received — {{booking_id}}",
   "heading": "Payment Received",
   "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio! We've received your payment and your New Visa booking is confirmed as received. Your payment invoice is attached to this email.\n\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nVisa type/duration: {{visa_type}} / {{visa_duration}}\nPassengers: {{passenger_count}}\n\nOur team will review the application and documents and contact you if anything else is required.",
-  "ctaLabel": "View Booking",
-  "ctaLink": "track_status_url"
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
  },
  {
   "event": "NV_PAYMENT_RECEIVED",
@@ -33,8 +33,8 @@
   "subject": null,
   "heading": null,
   "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio! Your New Visa Payment has been received.\nBooking ID: {{booking_id}}\nCountry: {{country_name}}\nPassengers: {{passenger_count}}\nWe'll update you when there is a next step.",
-  "ctaLabel": "View Booking",
-  "ctaLink": "track_status_url",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
   "suggestedMetaName": "NV_PAYMENT_RECEIVED_WA"
  },
  {
@@ -404,8 +404,8 @@
   "subject": "Visa Change Payment received — {{booking_id}}",
   "heading": "Thanks for choosing TripNexio! Your Payment is received",
   "body": "Hi {{customer_name}},\n\nThanks for choosing TripNexio! Your Visa Change booking is received and payment is confirmed.\n\nBooking ID: {{booking_id}}\nPassenger(s): {{passenger_names}}\nMethod: {{visa_change_method}}\nAmount paid: {{currency}} {{amount_paid}}\n\nYour payment invoice is attached. Please follow the document instructions in your TripNexio account.",
-  "ctaLabel": "View Booking",
-  "ctaLink": "track_status_url"
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
  },
  {
   "event": "VC_PAID",
@@ -413,8 +413,8 @@
   "subject": null,
   "heading": null,
   "body": "Hi {{customer_name}}, Thanks for choosing TripNexio! Your Visa Change booking is received and payment is confirmed. Booking ID: {{booking_id}}. Please check your email for the invoice and next steps.",
-  "ctaLabel": "View Booking",
-  "ctaLink": "track_status_url",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
   "suggestedMetaName": "VC_PAID_WA"
  },
  {
@@ -841,8 +841,8 @@
   "subject": "Payment received — {{booking_id}}",
   "heading": null,
   "body": "Hi {{customer_name}},\n\nPayment received for your Visa Extension. Booking ID: {{booking_id}}. Amount: {{amount_paid}}. Processing will now begin. Invoice attached where supported.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "track_status_url"
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
  },
  {
   "event": "EXT_07",
@@ -850,8 +850,8 @@
   "subject": null,
   "heading": null,
   "body": "Payment received for your Visa Extension. Booking ID: {{booking_id}}. We'll update you as processing progresses.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "track_status_url",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
   "suggestedMetaName": "EXT_07_WA"
  },
  {
@@ -1164,8 +1164,8 @@
   "subject": "Payment confirmed for OTB — {{booking_id}}",
   "heading": null,
   "body": "Hi {{customer_name}},\n\nWe've confirmed your payment for OTB booking {{booking_id}}.\nAmount: {{payment_amount}}\nPayment reference: {{payment_reference}}\nPayment confirmation does not mean OTB approval. Your request proceeds subject to document validation and airline requirements.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "track_status_url"
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
  },
  {
   "event": "OTB_02_PAYMENT_SUCCESSFUL",
@@ -1173,8 +1173,8 @@
   "subject": null,
   "heading": null,
   "body": "Your payment for OTB booking {{booking_id}} is confirmed. Amount: {{payment_amount}}. Payment confirmation does not mean OTB approval.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "track_status_url",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
   "suggestedMetaName": "OTB_02_PAYMENT_SUCCESSFUL_WA"
  },
  {
@@ -1525,8 +1525,8 @@
   "subject": "Payment Completed — {{booking_id}}",
   "heading": null,
   "body": "Dear {{customer_name}},\n\nWe have confirmed your payment for Return Verified Ticket request {{booking_id}}.\nAmount paid: {{amount_paid}}\nPayment reference: {{payment_reference}}\n\nWe will proceed with the next step. If any document or information is required, we will contact you.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "track_status_url"
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
  },
  {
   "event": "RVT_PAID",
@@ -1534,8 +1534,8 @@
   "subject": null,
   "heading": null,
   "body": "Payment for request {{booking_id}} is completed. We'll proceed with the next step and notify you if any document or information is required.",
-  "ctaLabel": "Track Status",
-  "ctaLink": "track_status_url",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
   "suggestedMetaName": "rvt_paid"
  },
  {
@@ -1905,8 +1905,8 @@
   "subject": "Payment received — {{booking_id}}",
   "heading": null,
   "body": "Hi {{customer_name}},\n\nPayment received for {{booking_id}}: {{currency}} {{paid_amount}}. We'll check final availability now. Your ticket has not yet been issued.",
-  "ctaLabel": "View Booking",
-  "ctaLink": "track_status_url"
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link"
  },
  {
   "event": "SF_08",
@@ -1914,8 +1914,8 @@
   "subject": null,
   "heading": null,
   "body": "Hi {{customer_name}},\n\nPayment received for {{booking_id}}: {{currency}} {{paid_amount}}. We'll check final availability now. Your ticket has not yet been issued.",
-  "ctaLabel": "View Booking",
-  "ctaLink": "track_status_url",
+  "ctaLabel": "Upload Documents",
+  "ctaLink": "secure_upload_link",
   "suggestedMetaName": "SF_08_WA"
  },
  {

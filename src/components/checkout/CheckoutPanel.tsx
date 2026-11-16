@@ -41,6 +41,15 @@ interface CheckoutView {
     linkExpiresAt: string | null;
   } | null;
   quotationExpired: boolean;
+  /** Client doc 16 Nov (I2) — bank-transfer option for the quotation services (null = not offered). */
+  bankTransfer: {
+    accountName: string | null;
+    accountNumber: string;
+    ifsc: string | null;
+    bankName: string | null;
+    branch: string | null;
+    receiptUploaded: boolean;
+  } | null;
   notPayableReason: string | null;
   termsAccepted: boolean;
   terms: { title: string; body: string; version: number } | null;
@@ -214,6 +223,64 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 /** Guest customer page: pay for a Return Ticket / OTB request, then upload the documents it needs. */
+/** Client doc 16 Nov (I2) — pay the accepted quotation by bank transfer and upload the receipt for verification. */
+function BankTransferCard({ token, bank, onUploaded }: { token: string; bank: NonNullable<CheckoutView["bankTransfer"]>; onUploaded: () => void }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const handleChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const invalid = documentUploadError(file);
+    if (invalid) return setError(invalid);
+    setError(null);
+    setUploading(true);
+    try {
+      const fileBase64 = await fileToBase64(file);
+      await postJson(`/api/pay/${token}/bank-transfer`, { fileBase64, mimeType: file.type });
+      toast.success("Receipt uploaded — we'll confirm your payment once our team verifies the transfer.");
+      onUploaded();
+    } catch (uploadError) {
+      toast.error(uploadError instanceof ApiError ? uploadError.message : "Couldn't upload the receipt. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+  const rows: [string, string | null][] = [
+    ["Account name", bank.accountName],
+    ["Account number", bank.accountNumber],
+    ["IFSC", bank.ifsc],
+    ["Bank", [bank.bankName, bank.branch].filter(Boolean).join(", ") || null],
+  ];
+  return (
+    <section className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-4">
+      <h2 className="text-base font-semibold text-ink-heading">{bank.receiptUploaded ? "Bank transfer — verification pending" : "Or pay by bank transfer"}</h2>
+      {bank.receiptUploaded ? (
+        <p className="text-sm text-ink-secondary">
+          Thank you — we have your receipt. Your payment is confirmed once our team verifies the transfer; you&apos;ll get a confirmation by email and WhatsApp.
+        </p>
+      ) : (
+        <p className="text-sm text-ink-secondary">Transfer the total above to this account, then upload the receipt. Your booking is confirmed after we verify it.</p>
+      )}
+      <dl className="grid grid-cols-1 gap-1 text-sm sm:grid-cols-2">
+        {rows
+          .filter(([, value]) => value)
+          .map(([label, value]) => (
+            <div key={label} className="flex justify-between gap-3 border-b border-hairline py-1.5 sm:block sm:border-0">
+              <dt className="text-xs text-ink-tertiary">{label}</dt>
+              <dd className="font-medium text-ink-primary">{value}</dd>
+            </div>
+          ))}
+      </dl>
+      <label className={DOCUMENT_UPLOAD_BUTTON_CLASS}>
+        {uploading ? "Uploading..." : bank.receiptUploaded ? "Replace receipt" : "Upload transfer receipt"}
+        <input type="file" accept="image/jpeg,image/png,application/pdf" className="sr-only" onChange={(event) => void handleChange(event)} disabled={uploading} />
+      </label>
+      {error ? <span className="text-xs text-error">{error}</span> : null}
+    </section>
+  );
+}
+
 export function CheckoutPanel({ token }: { token: string }) {
   const contact = useSiteContact();
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
@@ -477,6 +544,10 @@ export function CheckoutPanel({ token }: { token: string }) {
             </>
           ) : null}
         </div>
+      ) : null}
+
+      {payment?.status === "PENDING" && !view.quotationExpired && view.termsAccepted && view.bankTransfer ? (
+        <BankTransferCard token={token} bank={view.bankTransfer} onUploaded={refresh} />
       ) : null}
 
       {payment && (payment.status === "FAILED" || payment.status === "EXPIRED") ? (

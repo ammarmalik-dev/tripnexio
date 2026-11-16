@@ -402,7 +402,8 @@ export function BookingDetail({
             </span>
           </div>
         }
-        actions={<CopyPaymentLinkButton customerToken={booking.customerToken} />}
+        // Client doc 16 Nov (I5) — the payment link only while a payment is still pending; once paid it's not shown.
+        actions={booking.payments.some((payment) => payment.status === "PENDING") ? <CopyPaymentLinkButton customerToken={booking.customerToken} /> : null}
       />
 
       {missingDocuments.length > 0 ? (

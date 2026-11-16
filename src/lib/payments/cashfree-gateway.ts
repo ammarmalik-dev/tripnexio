@@ -39,6 +39,19 @@ export class CashfreeGateway implements PaymentGateway {
     };
   }
 
+  /** POST /pg/links/{link_id}/cancel — only an active (unpaid) link can be cancelled. */
+  async cancelPaymentLink(gatewayRef: string): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/pg/links/${encodeURIComponent(gatewayRef)}/cancel`, {
+      method: "POST",
+      headers: this.headers(),
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!response.ok) {
+      const body = (await response.json().catch(() => null)) as { message?: string } | null;
+      throw new Error(`Cashfree couldn't cancel the payment link (HTTP ${response.status}${body?.message ? `: ${body.message}` : ""})`);
+    }
+  }
+
   async createPaymentLink(input: CreatePaymentLinkInput): Promise<CreatePaymentLinkResult> {
     // Our own link id (Cashfree requires one, max 50 chars, alphanumeric/_/-).
     const linkId = `tnx_${Date.now().toString(36)}_${crypto.randomBytes(5).toString("hex")}`;
