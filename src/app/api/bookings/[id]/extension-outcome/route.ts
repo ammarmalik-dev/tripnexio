@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { bookingActionBlock } from "@/lib/bookings/action-block";
 import { setExtensionOutcomeSchema } from "@/lib/validation/extension-outcome-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -41,6 +42,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const ownershipError = await assertOwnsEntity(auth.session, "booking", id);
 
   if (ownershipError) return ownershipError;
+  // Client doc 16 Nov (H3 / H4) — nothing more on a cancelled booking, or while a refund on it is open.
+  const actionBlock = await bookingActionBlock(id);
+  if (actionBlock) return jsonError(409, actionBlock);
 
   let body: unknown;
   try {

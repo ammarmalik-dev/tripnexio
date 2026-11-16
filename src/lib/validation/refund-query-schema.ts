@@ -1,10 +1,17 @@
 import { z } from "zod";
-import { RefundStatus, type RefundStatus as RefundStatusType } from "../../generated/prisma/enums";
+import { RefundStatus, ServiceType, type RefundStatus as RefundStatusType, type ServiceType as ServiceTypeValue } from "../../generated/prisma/enums";
+
+const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeValue, ...ServiceTypeValue[]];
 
 const refundStatusValues = Object.values(RefundStatus) as [RefundStatusType, ...RefundStatusType[]];
 
 export const refundListQuerySchema = z.object({
   status: z.enum(refundStatusValues).optional(),
+  /** Client doc 16 Nov (H9) — Service, POC, Refund Type (Full / Partial) and Refund Method (Gateway / Bank Transfer). */
+  serviceType: z.enum(serviceTypeValues).optional(),
+  assignedStaffId: z.string().trim().min(1).optional(),
+  refundType: z.enum(["FULL", "PARTIAL"]).optional(),
+  method: z.enum(["GATEWAY", "BANK_TRANSFER"]).optional(),
   search: z.string().trim().min(1).optional(),
   /** Step 54 — standardized date-range filter, matching Leads/Quotations/Payments. */
   dateFrom: z.string().optional(),

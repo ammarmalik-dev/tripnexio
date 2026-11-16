@@ -132,7 +132,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const share = totalSelling > 0 ? selectedSelling / totalSelling : selectedIds.length / bookingPassengerIds.size;
     baseAmount = Math.round(paidAmount * share * 100) / 100;
   }
-  const refundAmount = computeRefundAmount({ paidAmount: baseAmount, cancellationCharge, gatewayCharge, fixedDeduction: rule.fixedDeduction });
+  const computedAmount = computeRefundAmount({ paidAmount: baseAmount, cancellationCharge, gatewayCharge, fixedDeduction: rule.fixedDeduction });
+  // Client doc 16 Nov (H6) — staff may enter the total themselves (the passengers' actual fares); the cap below still
+  // keeps every refund on the payment within what was collected.
+  const refundAmount = parsed.data.refundAmount != null ? Math.round(parsed.data.refundAmount * 100) / 100 : computedAmount;
+  const amountNote = parsed.data.refundAmount != null && refundAmount !== computedAmount ? ` (entered by staff; calculated ₹${computedAmount})` : "";
 
   const ruleNote = rule.fixedDeduction > 0 ? ` (includes ₹${rule.fixedDeduction} per: ${rule.label})` : "";
 
@@ -172,7 +176,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       entityId: created.id,
       action: "CREATE",
       byUserId: session.id,
-      note: withReason(`Refund calculated for payment ${paymentId}: ₹${refundAmount}${ruleNote}${passengerNote} (by ${session.name})`, reason),
+      note: withReason(`Refund for payment ${paymentId}: ₹${refundAmount}${amountNote}${ruleNote}${passengerNote} (by ${session.name})`, reason),
     });
 
     return created;

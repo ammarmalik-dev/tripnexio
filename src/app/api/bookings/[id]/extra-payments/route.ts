@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { bookingActionBlock } from "@/lib/bookings/action-block";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -34,6 +35,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
   const ownershipError = await assertOwnsEntity(auth.session, "booking", bookingId);
   if (ownershipError) return ownershipError;
+  // Client doc 16 Nov (H3 / H4) — nothing more on a cancelled booking, or while a refund on it is open.
+  const actionBlock = await bookingActionBlock(bookingId);
+  if (actionBlock) return jsonError(409, actionBlock);
 
   const booking = await db.booking.findUnique({ where: { id: bookingId }, include: { customer: true, lead: true } });
   if (!booking) return jsonError(404, "Booking not found.");

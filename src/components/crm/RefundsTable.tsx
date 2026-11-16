@@ -20,7 +20,8 @@ import { ListPagination } from "./ListPagination";
 import { usePaginationState } from "./usePagination";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
-import type { RefundStatus } from "../../generated/prisma/enums";
+import type { RefundStatus, ServiceType } from "../../generated/prisma/enums";
+import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 
 interface RefundListItem {
   id: string;
@@ -39,6 +40,12 @@ interface RefundListItem {
   refundReference?: string;
   leadReferenceId: string;
   customer: { name: string; mobile: string };
+  createdBy: string | null;
+  poc: string | null;
+  serviceType: ServiceType;
+  refundType: "FULL" | "PARTIAL";
+  method: "GATEWAY" | "BANK_TRANSFER";
+  collectedAmount: number;
 }
 
 interface RefundListResponse {
@@ -68,6 +75,27 @@ export function RefundsTable({
   // Step 53 — read once on mount, so the "Refunds Raised" KPI card's link lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  // Client doc 16 Nov (H9) — Service, POC, Refund Type and Refund Method filters.
+  const [serviceType, setServiceType] = useState("");
+  const [assignedStaffId, setAssignedStaffId] = useState("");
+  const [refundType, setRefundType] = useState("");
+  const [method, setMethod] = useState("");
+  const [staff, setStaff] = useState<{ id: string; name: string; active: boolean }[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadStaff() {
+      try {
+        const result = await getJson<{ staff: { id: string; name: string; active: boolean }[] }>("/api/admin/bookings/filters");
+        if (!cancelled) setStaff(result.staff);
+      } catch {
+        // The POC filter just stays empty.
+      }
+    }
+    void loadStaff();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const { dateFrom, dateTo, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
@@ -86,6 +114,10 @@ export function RefundsTable({
   function buildFilterParams() {
     const params = new URLSearchParams();
     if (status) params.set("status", status);
+    if (serviceType) params.set("serviceType", serviceType);
+    if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
+    if (refundType) params.set("refundType", refundType);
+    if (method) params.set("method", method);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     if (search) params.set("search", search);
@@ -102,6 +134,10 @@ export function RefundsTable({
       try {
         const params = new URLSearchParams();
         if (status) params.set("status", status);
+        if (serviceType) params.set("serviceType", serviceType);
+        if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
+        if (refundType) params.set("refundType", refundType);
+        if (method) params.set("method", method);
         if (dateFrom) params.set("dateFrom", dateFrom);
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
@@ -126,7 +162,7 @@ export function RefundsTable({
     return () => {
       cancelled = true;
     };
-  }, [status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [status, serviceType, assignedStaffId, refundType, method, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -160,6 +196,44 @@ export function RefundsTable({
             </option>
           ))}
         </select>
+
+        {(
+          [
+            ["filter-refund-service", "Filter by service", serviceType, setServiceType, "All services", Object.entries(SERVICE_TYPE_LABELS).map(([value, label]) => ({ value, label }))],
+            [
+              "filter-refund-poc",
+              "Filter by POC",
+              assignedStaffId,
+              setAssignedStaffId,
+              "All POCs",
+              [{ value: "unassigned", label: "Unassigned" }, ...staff.map((member) => ({ value: member.id, label: member.active ? member.name : `${member.name} (inactive)` }))],
+            ],
+            ["filter-refund-type", "Filter by refund type", refundType, setRefundType, "Full & partial", [{ value: "FULL", label: "Full" }, { value: "PARTIAL", label: "Partial" }]],
+            ["filter-refund-method", "Filter by refund method", method, setMethod, "All methods", [{ value: "GATEWAY", label: "Gateway" }, { value: "BANK_TRANSFER", label: "Bank transfer" }]],
+          ] as [string, string, string, (value: string) => void, string, { value: string; label: string }[]][]
+        ).map(([id, label, value, setValue, allLabel, choices]) => (
+          <span key={id}>
+            <label htmlFor={id} className="sr-only">
+              {label}
+            </label>
+            <select
+              id={id}
+              value={value}
+              onChange={(event) => {
+                setValue(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+            >
+              <option value="">{allLabel}</option>
+              {choices.map((choice) => (
+                <option key={choice.value} value={choice.value}>
+                  {choice.label}
+                </option>
+              ))}
+            </select>
+          </span>
+        ))}
 
         <label htmlFor="sort-refunds" className="sr-only">
           Sort by created date
@@ -232,12 +306,16 @@ export function RefundsTable({
               <tr className="border-b border-hairline text-left text-xs font-medium uppercase tracking-wide text-ink-tertiary">
                 <th className="px-4 py-3">Booking</th>
                 <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">Service</th>
+                <th className="px-4 py-3">Type / Method</th>
+                <th className="px-4 py-3">Collected</th>
                 <th className="px-4 py-3">Breakdown</th>
                 <th className="px-4 py-3">Refund Amount</th>
                 <th className="px-4 py-3">Reason</th>
                 <th className="px-4 py-3">Refund ID</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
+                <th className="px-4 py-3">Created By / POC</th>
               </tr>
             </thead>
             <tbody>
@@ -255,6 +333,11 @@ export function RefundsTable({
                       <span className="text-xs text-ink-tertiary">{refund.customer.mobile}</span>
                     </div>
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{SERVICE_TYPE_LABELS[refund.serviceType]}</td>
+                  <td className="px-4 py-3 text-xs whitespace-nowrap text-ink-secondary">
+                    {refund.refundType === "FULL" ? "Full" : "Partial"} · {refund.method === "GATEWAY" ? "Gateway" : "Bank transfer"}
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{money(String(refund.collectedAmount))}</td>
                   <td className="px-4 py-3 text-xs whitespace-nowrap text-ink-tertiary">
                     Paid {money(refund.paidAmount)} − Cancel {money(refund.cancellationCharge)} − Gateway {money(refund.gatewayCharge)}
                   </td>
@@ -273,6 +356,8 @@ export function RefundsTable({
                       canApprove={canApproveRefunds}
                       gatewayRefundId={refund.gatewayRefundId}
                       gatewayRefundStatus={refund.gatewayRefundStatus}
+                      bankTransfer={refund.method === "BANK_TRANSFER"}
+                      refundAmount={Number(refund.refundAmount)}
                       approvalLimitLabel={
                         approvalLimit != null && isAboveApprovalLimit({ limit: approvalLimit, isAdmin: false, amount: Number(refund.refundAmount) })
                           ? formatRupees(approvalLimit)
@@ -281,6 +366,10 @@ export function RefundsTable({
                     />
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(refund.createdAt)}</td>
+                  <td className="px-4 py-3 text-xs whitespace-nowrap text-ink-secondary">
+                    <div>{refund.createdBy ?? "—"}</div>
+                    <div className="text-ink-tertiary">POC: {refund.poc ?? "—"}</div>
+                  </td>
                 </tr>
               ))}
             </tbody>

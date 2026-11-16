@@ -30,7 +30,7 @@ export async function applyRefundStatus(
   refundId: string,
   targetStatus: RefundStatus,
   actor: RefundActor,
-  extra: { note?: string; gatewayRefundId?: string; gatewayRefundStatus?: string } = {}
+  extra: { note?: string; gatewayRefundId?: string; gatewayRefundStatus?: string; bankTransactionRef?: string; bankTransactionDate?: Date } = {}
 ): Promise<StatusNotification[]> {
   const refund = await tx.refund.findUniqueOrThrow({
     where: { id: refundId },
@@ -42,6 +42,8 @@ export async function applyRefundStatus(
       status: targetStatus,
       ...(extra.gatewayRefundId ? { gatewayRefundId: extra.gatewayRefundId } : {}),
       ...(extra.gatewayRefundStatus ? { gatewayRefundStatus: extra.gatewayRefundStatus } : {}),
+      ...(extra.bankTransactionRef ? { bankTransactionRef: extra.bankTransactionRef } : {}),
+      ...(extra.bankTransactionDate ? { bankTransactionDate: extra.bankTransactionDate } : {}),
       ...(targetStatus === "COMPLETED" && !refund.completedAt ? { completedAt: new Date() } : {}),
     },
   });

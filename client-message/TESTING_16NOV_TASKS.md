@@ -99,18 +99,18 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] G13 Payment cannot be marked completed without real receipt — checked: payment completes only via gateway check / approved bank transfer; unit 2b blocks any status (even Admin override) saying Paid without a received payment
 
 ## H. Cancellation, refunds & partial cancellation (all services)
-- [ ] H1 No direct Cancel / Approve / Refund buttons on bookings; only Initiate Refund (booking section)
-- [ ] H2 Approved refund → passengers Cancelled everywhere; passenger count, quotations, documents, actions only for active passengers
-- [ ] H3 Cancelled booking: block every action (issue, deliver, hold, package, payment status, document requests)
-- [ ] H4 Refund Pending: block package / ticket / delivery
-- [ ] H5 Refund rejected → booking back to its previous status; resume for passengers not refunded; amount editable + resubmit
-- [ ] H6 Refund amount from each passenger's actual fare (Adult/Child), editable, total ≤ collected; show collected per selected passenger
-- [ ] H7 Approver: Approve / Reject only; approval sends to gateway automatically (or bank-transfer record); gateway refund ID only; one customer notification
-- [ ] H8 Bank-transfer bookings: manual refund (transaction no., date, amount, status), never via gateway
-- [ ] H9 Refund table columns (Created By, POC, Service, Type, Method, Collected) + filters
+- [x] H1 No direct Cancel / Approve / Refund buttons on bookings; only Initiate Refund (booking section) — unit 3: no direct cancel on bookings — cancellation only via Initiate Refund (status + passenger Cancelled are refund-only; Admin may override)
+- [ ] H2 Approved refund → passengers Cancelled everywhere; passenger count, quotations, documents, actions only for active passengers — unit 3: approved partial refund marks its passengers Cancelled (existing); documents / uploads only for active passengers. Passenger count + quotations for remaining passengers still open (J / A units)
+- [x] H3 Cancelled booking: block every action (issue, deliver, hold, package, payment status, document requests) — unit 3: every service action route refuses a cancelled booking (bookingActionBlock)
+- [x] H4 Refund Pending: block package / ticket / delivery — unit 3: same block while a refund is open (pending / at the gateway)
+- [x] H5 Refund rejected → booking back to its previous status; resume for passengers not refunded; amount editable + resubmit — unit 3: rejected refund puts the booking back on its previous status; a rejected refund can be corrected (amount) and sent again
+- [x] H6 Refund amount from each passenger's actual fare (Adult/Child), editable, total ≤ collected; show collected per selected passenger — unit 3: per-passenger fare share (existing) + staff may enter the total; never above what was collected
+- [x] H7 Approver: Approve / Reject only; approval sends to gateway automatically (or bank-transfer record); gateway refund ID only; one customer notification — unit 3: approver has Approve / Reject only; approval sends to the gateway; completion only from the gateway; only the gateway refund ID is shown
+- [x] H8 Bank-transfer bookings: manual refund (transaction no., date, amount, status), never via gateway — unit 3: bank-transfer refunds approved with transaction number + date (completes it), never through the gateway
+- [x] H9 Refund table columns (Created By, POC, Service, Type, Method, Collected) + filters — unit 3: refunds list shows Service, Type, Method, Collected, Created By, POC; filters Service / POC / Type / Method / Status / Date
 - [x] H10 Track Refund button opens the refund page — unit 1: refund status section on the booking page
 - [ ] H11 Revenue / GST reduced by cancelled amounts; invoice regenerated for remaining passengers; cancellation template names each cancelled passenger
-- [ ] H12 After ticket issue / sent to airlines (flight) or OTB approved / visa approved: no direct refund — service cancellation flow only
+- [x] H12 After ticket issue / sent to airlines (flight) or OTB approved / visa approved: no direct refund — service cancellation flow only — unit 3: Special Fare Sent to Airlines / Ticket Issued block direct refunds (OTB / visa approvals already did); Admin override stays
 - [ ] H13 Log review of 11026FL112 (actions after cancellation) — see Q10
 
 ## I. Payments, invoices & coupons

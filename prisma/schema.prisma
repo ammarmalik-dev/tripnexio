@@ -798,6 +798,10 @@ model Refund {
   /// recorded when Admin approval sends the refund to the gateway; null for manual (bank transfer) refunds.
   gatewayRefundId     String?
   gatewayRefundStatus String?
+  /// Client doc 16 Nov (H8, §8) — a refund of a bank-transfer payment is paid back by bank transfer (never through the
+  /// gateway): the approver enters the transaction number and date, which complete it.
+  bankTransactionRef  String?
+  bankTransactionDate DateTime?
   /// When the refund reached COMPLETED.
   completedAt        DateTime?
   createdAt          DateTime     @default(now())

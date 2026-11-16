@@ -348,8 +348,9 @@ export const STATUS_CATALOG: CatalogList[] = [
       { name: "Seat Unavailable", customerLabel: "Requested Flight Unavailable", notify: "SF_27", systemEvent: "FSF_SEAT_UNAVAILABLE", maps: "CONFIRMED" },
       { name: "Alternative Offered", customerLabel: "Alternative Flight Offered", notify: "SF_13", systemEvent: "FSF_ALTERNATIVE_OFFERED", maps: "CONFIRMED", from: ["Alternative Offered"] },
       { name: "Additional Payment Pending", customerLabel: "Additional Payment Required", notify: "SF_14", systemEvent: "FSF_ADDITIONAL_PAYMENT_PENDING", maps: "CONFIRMED", from: ["Additional Payment Pending"] },
-      { name: "Sent to Airlines", customerLabel: "Sent to Airlines", notify: "SF_12", systemEvent: "FSF_AVAILABILITY_CONFIRMED", maps: "PROCESSING", from: ["Sent to Airlines", "PNR Recorded"] },
-      { name: "Ticket Issued", customerLabel: "Ticket Issued", notify: "SF_15", systemEvent: "DELIVERED_TICKET_PDF", maps: "COMPLETED", terminal: true, from: ["Ticket Issued"] },
+      // Client doc 16 Nov (H12 / A13) — once sent to the airline / issued, no direct refund: the ticket-cancellation steps.
+      { name: "Sent to Airlines", customerLabel: "Sent to Airlines", notify: "SF_12", systemEvent: "FSF_AVAILABILITY_CONFIRMED", maps: "PROCESSING", blocksRefund: true, from: ["Sent to Airlines", "PNR Recorded"] },
+      { name: "Ticket Issued", customerLabel: "Ticket Issued", notify: "SF_15", systemEvent: "DELIVERED_TICKET_PDF", maps: "COMPLETED", terminal: true, blocksRefund: true, from: ["Ticket Issued"] },
       // Client doc 16 Nov §5 — after the ticket is issued, the airline's ticket-cancellation steps (ending at Ticket Cancelled);
       // before it, the shared cancellation tail below.
       { name: "Ticket Cancellation Requested", customerLabel: "Cancellation Request Received", notify: "SF_17" },

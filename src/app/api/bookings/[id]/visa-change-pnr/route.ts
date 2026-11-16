@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { bookingActionBlock } from "@/lib/bookings/action-block";
 import { z } from "zod";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -35,6 +36,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
   const ownershipError = await assertOwnsEntity(auth.session, "booking", id);
   if (ownershipError) return ownershipError;
+  // Client doc 16 Nov (H3 / H4) — nothing more on a cancelled booking, or while a refund on it is open.
+  const actionBlock = await bookingActionBlock(id);
+  if (actionBlock) return jsonError(409, actionBlock);
 
   let body: unknown;
   try {

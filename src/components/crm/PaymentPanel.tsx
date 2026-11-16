@@ -325,6 +325,8 @@ export function PaymentPanel({
                   canApprove={canApproveRefunds}
                   gatewayRefundId={refund.gatewayRefundId}
                   gatewayRefundStatus={refund.gatewayRefundStatus}
+                  bankTransfer={payment.method === "BANK_TRANSFER"}
+                  refundAmount={Number(refund.refundAmount)}
                   approvalLimitLabel={
                     isAboveApprovalLimit({ limit: refundApprovalLimit, isAdmin: false, amount: Number(refund.refundAmount) }) && refundApprovalLimit !== null
                       ? money(refundApprovalLimit)

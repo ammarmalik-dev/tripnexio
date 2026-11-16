@@ -1,5 +1,6 @@
 "use client";
 
+import { useHasPermission } from "../StaffPermissions";
 import { useState } from "react";
 import { fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
 import { ConfirmActionDialog } from "@/components/crm/ConfirmActionDialog";
@@ -42,6 +43,8 @@ export function PassengerOutcomeControl({
 }) {
   const [pendingOutcome, setPendingOutcome] = useState<PassengerOutcome | "" | null>(null);
   const [saving, setSaving] = useState(false);
+  // Client doc 16 Nov (H1 / H2) — a passenger is cancelled only by an approved refund (Initiate Refund); an Admin still can.
+  const isAdmin = useHasPermission("admin.full");
 
   const save = async (reason: string) => {
     if (pendingOutcome === null) return;
@@ -77,10 +80,10 @@ export function PassengerOutcomeControl({
             className={cn(fieldControlClass, fieldBorderClass(false), "h-8 w-auto min-w-[120px] text-xs")}
           >
             <option value="" disabled>
-              {outcome ? "Change result…" : "Approved / Rejected / Cancelled…"}
+              {outcome ? "Change result…" : "Embassy / airline decision…"}
             </option>
             {(Object.keys(PASSENGER_OUTCOME_LABELS) as PassengerOutcome[])
-              .filter((value) => value !== outcome)
+              .filter((value) => value !== outcome && (value !== "CANCELLED" || isAdmin))
               .map((value) => (
                 <option key={value} value={value}>
                   {PASSENGER_OUTCOME_LABELS[value]}

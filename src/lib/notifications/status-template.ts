@@ -310,7 +310,8 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     ? await db.refund.findFirst({ where: { payment: { bookingId: booking.id }, status: { not: "REJECTED" } }, orderBy: { updatedAt: "desc" } })
     : null;
   const refundAmount = refund ? money(Number(refund.refundAmount)) : "";
-  const refundRef = refund ? (refund.gatewayRefundId ?? `RF-${refund.id.slice(-8).toUpperCase()}`) : "";
+  // Client doc 16 Nov (H7) — only the gateway's own refund ID (a bank-transfer refund: its transaction number), never a made-up one.
+  const refundRef = refund ? (refund.gatewayRefundId ?? refund.bankTransactionRef ?? "") : "";
 
   // Special Fare alternative (booking.alternativeOffer — read here directly to keep this module free of the SF module).
   const offer = (booking?.alternativeOffer ?? null) as { route?: string; airline?: string; flightNumber?: string; flightDateTime?: string; sellingPrice?: number; difference?: number } | null;
