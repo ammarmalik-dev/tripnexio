@@ -58,3 +58,6 @@ next-env.d.ts
 
 # Client docs that contain live credentials — never commit
 client-message/new-doc-from-client*/
+
+# Client credential docs (16 Nov 2026)
+client-message/doc/
