@@ -10,6 +10,9 @@ import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { siteConfig } from "../site-config";
 import { paymentTotal } from "./totals";
 
+/** Services paid by a direct link from the lead (no quotation) — client testing 2026-10-09 (A2). */
+const DIRECT_PAYMENT_SERVICES = new Set<string>(["NEW_VISA", "OTB", "RETURN_TICKET"]);
+
 /**
  * Client testing 2026-10-09 (A3, E4) — every new payment link reaches the
  * customer on email + WhatsApp with the Booking ID and the link to their
@@ -30,13 +33,21 @@ export async function notifyPaymentLinkReady(paymentId: string, options: { skipW
     // Special Fare difference payment is announced by its "Additional Payment Required" status.
     if (await usesStatusTemplates(booking.lead.serviceType)) {
       if (payment.purpose !== "EXTRA") {
-        // Only a new request's first link (New Visa / OTB / Return Ticket) — a quotation's link was in "Quotation Approved".
-        const leadStatus = await db.serviceStatus.findFirst({ where: { leads: { some: { id: booking.leadId } } }, select: { displayOrder: true, systemEvent: true } });
-        if (leadStatus && leadStatus.displayOrder === 0) await sendCurrentStatusTemplate("LEAD", booking.leadId, { skipWhatsApp: options.skipWhatsApp });
-        return;
+        // A new request's first link (New Visa / OTB / Return Ticket) rides on the lead's first status message; a
+        // quotation's link was already in "Quotation Approved".
+        const leadStatus = await db.serviceStatus.findFirst({ where: { leads: { some: { id: booking.leadId } } }, select: { displayOrder: true } });
+        if (leadStatus && leadStatus.displayOrder === 0) {
+          await sendCurrentStatusTemplate("LEAD", booking.leadId, { skipWhatsApp: options.skipWhatsApp });
+          return;
+        }
+        // Client doc 16 Nov (I3) — a direct-payment link created later (a Manual Lead's "Create Payment Link" after
+        // staff moved the lead to Contacted / Interested…) used to send nothing at all: it goes out as the
+        // payment-link message below. Quotation services keep relying on "Quotation Approved".
+        if (!DIRECT_PAYMENT_SERVICES.has(booking.lead.serviceType)) return;
+      } else {
+        const current = await db.serviceStatus.findFirst({ where: { bookings: { some: { id: booking.id } } }, select: { systemEvent: true } });
+        if (current?.systemEvent === "FSF_ADDITIONAL_PAYMENT_PENDING") return;
       }
-      const current = await db.serviceStatus.findFirst({ where: { bookings: { some: { id: booking.id } } }, select: { systemEvent: true } });
-      if (current?.systemEvent === "FSF_ADDITIONAL_PAYMENT_PENDING") return;
     }
     await notifyCustomer({
       event: NOTIFICATION_EVENTS.PAYMENT_LINK_READY,

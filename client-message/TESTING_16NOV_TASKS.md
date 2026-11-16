@@ -3,7 +3,7 @@
 Source: `client-message/new-doc-from-client-16-nov/TripNexio Project.docx` (its first page holds live credentials — never commit it, never copy values out of it except into env vars).
 The doc ends with the **final status lists** for Visa / Visa Change / Visa Extension / Flight / Return Ticket / OTB (§S below) — these replace the 20 Oct lists in `src/lib/service-status/catalog.ts` + `template-catalog.json`.
 
-Status 16 Nov: checklist written, nothing started. Questions for the client are in §Q — don't build those items until answered.
+Status 16 Nov: unit 1 (broken bugs) done locally — F3, K11, J13, M3, H10 ticked; I3 partly (see note); M1 waits on a production check; A9 moved to the Special Fare unit. Questions for the client are in §Q — don't build those items until answered.
 
 ## Q. Questions for the client (conflicts / unclear in the doc)
 - [ ] Q1 "Quotation Approved" is renamed to **Quotation Selected** in one place and **Package Selected** in another (Visa Change?), while the status list uses **Quotation Accepted**. Which label where?
@@ -73,7 +73,7 @@ Status 16 Nov: checklist written, nothing started. Questions for the client are 
 ## F. New Visa
 - [ ] F1 Page 1 after visa selection: name, mobile, email, first applicant (saved for abandoned follow-up); page 2: applicants (name, DOB, passport expiry, occupation)
 - [ ] F2 Under-18 parent/guardian requirement per country (Admin setting)
-- [ ] F3 Fix "Invalid option: expected one of FATHER|MOTHER"
+- [x] F3 Fix "Invalid option: expected one of FATHER|MOTHER" — unit 1: empty hidden value accepted, minors still must choose
 - [ ] F4 Booking summary: Visa Fee / Service Charge / Total separately
 - [ ] F5 Workflow validation (backend + UI): document actions only on real uploads; additional docs / visa upload / rejection only after Applied; approval needs Visa PDF; no Hold after approval
 - [ ] F6 After applied: request only the Visa Copy, not a package
@@ -108,7 +108,7 @@ Status 16 Nov: checklist written, nothing started. Questions for the client are 
 - [ ] H7 Approver: Approve / Reject only; approval sends to gateway automatically (or bank-transfer record); gateway refund ID only; one customer notification
 - [ ] H8 Bank-transfer bookings: manual refund (transaction no., date, amount, status), never via gateway
 - [ ] H9 Refund table columns (Created By, POC, Service, Type, Method, Collected) + filters
-- [ ] H10 Track Refund button opens the refund page
+- [x] H10 Track Refund button opens the refund page — unit 1: refund status section on the booking page
 - [ ] H11 Revenue / GST reduced by cancelled amounts; invoice regenerated for remaining passengers; cancellation template names each cancelled passenger
 - [ ] H12 After ticket issue / sent to airlines (flight) or OTB approved / visa approved: no direct refund — service cancellation flow only
 - [ ] H13 Log review of 11026FL112 (actions after cancellation) — see Q10
@@ -116,7 +116,7 @@ Status 16 Nov: checklist written, nothing started. Questions for the client are 
 ## I. Payments, invoices & coupons
 - [ ] I1 Offline Bank Transfer in CRM; slip upload; lead stays pending until approver verifies; offline payment records table; switch method before payment
 - [ ] I2 Online / Offline choice after quotation acceptance (VC / VE / Flight): bank details, receipt upload, Payment Verification Pending, ops blocked until approved
-- [ ] I3 Copy Payment Link fixed; manual-lead payment link delivered (email + WhatsApp) and visible; Offline button stays
+- [ ] I3 (unit 1 did: manual-lead link now sent when the lead is past its first status; link + Copy + Resend stay on the lead after creation. Left for the payments unit: switch to Bank Transfer while a gateway link is pending — needs gateway link cancel) Copy Payment Link fixed; manual-lead payment link delivered (email + WhatsApp) and visible; Offline button stays
 - [ ] I4 Booking ID + Lead Code passed to the gateway (visible in its dashboard)
 - [ ] I5 Payment link hidden after payment (show Paid)
 - [ ] I6 Payment confirmation email + WhatsApp with Upload Documents button
@@ -141,7 +141,7 @@ Status 16 Nov: checklist written, nothing started. Questions for the client are 
 - [ ] J10 Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations, Bookings
 - [ ] J11 Manual lead: edit instead of separate Add Passenger
 - [ ] J12 WhatsApp bot abandoned leads for every service
-- [ ] J13 Reference IDs like Q-6UOFRN → configured serial format; "Booking" instead of "Application ID"
+- [x] J13 Reference IDs like Q-6UOFRN → configured serial format; "Booking" instead of "Application ID" — unit 1: quotation reference + proforma number = lead serial (11026VC105-Q2)
 
 ## K. CRM / Admin UI
 - [ ] K1 Sticky logo + sidebar; only content scrolls (CRM + Admin)
@@ -154,7 +154,7 @@ Status 16 Nov: checklist written, nothing started. Questions for the client are 
 - [ ] K8 Visa Entry Type master (+ add button)
 - [ ] K9 Pricing Dashboard: "Visa Price Table" (no Extra Charge column, visa product type, vendor cost fix); "All Services Vendor Prices" with filters + full edit; compact By-country spacing
 - [ ] K10 Holidays: weekly offs per country; labels India / Destination Country; TAT excludes both countries' holidays
-- [ ] K11 TAT fix: Urgent = 8 working hours inside 10:00–19:00 working days (2 Nov 8 PM test gave 4 Nov for both)
+- [x] K11 TAT fix: Urgent = 8 working hours inside 10:00–19:00 working days (2 Nov 8 PM test gave 4 Nov for both) — unit 1: Urgent earliest date assumes a late flight + "flights after 6:00 PM" note (Mon 8 PM → Normal Wed 4 Nov, Urgent Tue 3 Nov)
 
 ## L. Chat, complaints, help desk, knowledge
 - [ ] L1 WhatsApp chat: staff notifications for new messages; Bot vs Agent chats separated; chat usable while working elsewhere; auto-assign to the booking's Sales POC
@@ -166,7 +166,7 @@ Status 16 Nov: checklist written, nothing started. Questions for the client are 
 ## M. Notifications & emails
 - [ ] M1 WhatsApp booking confirmation not sent for website bookings
 - [ ] M2 Delivery emails (ticket / visa / package): distinct Important Information + Disclaimer headings, highlighted opening line
-- [ ] M3 Buttons open the right page (Track Booking, View Details, Pay Now — not all to the pay page)
+- [x] M3 Buttons open the right page (Track Booking, View Details, Pay Now — not all to the pay page) — unit 1: Track Status → /track (auto-verified by page key), Upload → #documents, Track Refund → #refund; data migration 20261116120000
 - [ ] M4 Admin templates: filter by Service / Country / Status; on/off per notification and channel; editable before/after-payment content; submission messages; reminder management; Meta template editing guidance; buttons + Stop Reminder link
 
 ## N. Automation (doc "Final Automation & Notification Requirements")

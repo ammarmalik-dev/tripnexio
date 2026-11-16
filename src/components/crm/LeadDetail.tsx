@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { RecordHeader, RecordSection, RecordTabs } from "./detail/RecordDetail";
 import { LeadDirectPaymentButton } from "./LeadDirectPaymentButton";
 import { PendingBookingPaymentActions } from "./PendingBookingPaymentActions";
+import { PaymentLinkAction } from "./PaymentLinkAction";
 import { VisaChangeMethodControl } from "./VisaChangeMethodControl";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -542,6 +543,12 @@ export function LeadDetail({
                             ) : null}
                             {booking.status === "PENDING" && !booking.payments.some((payment) => payment.status === "PENDING" || payment.status === "SUCCESS") ? (
                               <PendingBookingPaymentActions bookingId={booking.id} offlinePaymentAllowed={Boolean(lead.offlinePaymentAllowed)} onCreated={refresh} />
+                            ) : null}
+                            {/* Client doc 16 Nov (I3) — once the link exists it stays reachable here: copy it or send it again. */}
+                            {booking.status === "PENDING" && booking.payments.some((payment) => payment.status === "PENDING") ? (
+                              <div className="mt-3">
+                                <PaymentLinkAction bookingId={booking.id} />
+                              </div>
                             ) : null}
                           </div>
                         ))}

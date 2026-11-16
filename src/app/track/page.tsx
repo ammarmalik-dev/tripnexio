@@ -11,11 +11,13 @@ export const metadata: Metadata = {
 };
 
 interface TrackPageProps {
-  searchParams: Promise<{ ref?: string }>;
+  searchParams: Promise<{ ref?: string; k?: string }>;
 }
 
 export default async function TrackStatusPage({ searchParams }: TrackPageProps) {
-  const { ref } = await searchParams;
+  const { ref, k } = await searchParams;
+  // Client doc 16 Nov (M3) — a notification's Track Status button carries the booking's page key: look it up at once.
+  const accessKey = typeof k === "string" && /^[a-f0-9]{32}$/.test(k) ? k : undefined;
 
   return (
     <>
@@ -44,7 +46,7 @@ export default async function TrackStatusPage({ searchParams }: TrackPageProps) 
       <section className="pb-20 sm:pb-28">
         <Container className="mx-auto max-w-3xl">
           <MotionReveal delay={0.08}>
-            <TrackStatusExplorer initialReferenceId={ref} />
+            <TrackStatusExplorer initialReferenceId={ref} accessKey={accessKey} />
           </MotionReveal>
         </Container>
       </section>

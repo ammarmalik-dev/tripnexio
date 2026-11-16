@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
                 guardian: {
                   fullName: t.guardianFullName,
                   passportNumber: t.guardianPassportNumber,
-                  relationship: t.guardianRelationship,
+                  relationship: t.guardianRelationship || undefined,
                 },
               }
             : {}),

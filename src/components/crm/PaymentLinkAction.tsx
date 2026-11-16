@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { CopyPaymentLinkButton } from "./CopyPaymentLinkButton";
 import { CopyLinkButton } from "./CopyLinkButton";
@@ -10,6 +11,7 @@ import { toast } from "@/components/ui/Toaster";
 import type { BookingStatus, PaymentStatus } from "../../generated/prisma/enums";
 
 interface PaymentItem {
+  id: string;
   status: PaymentStatus;
   paymentLink: string | null;
   linkExpiresAt: string | null;
@@ -39,6 +41,7 @@ export function PaymentLinkAction({ bookingId }: { bookingId: string }) {
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [booking, setBooking] = useState<BookingPaymentInfo | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [resending, setResending] = useState(false);
   const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
@@ -75,6 +78,19 @@ export function PaymentLinkAction({ bookingId }: { bookingId: string }) {
     }
   };
 
+  // Client doc 16 Nov (I3) — send the pending link to the customer again (email + WhatsApp).
+  const handleResend = async (paymentId: string) => {
+    setResending(true);
+    try {
+      await postJson(`/api/payments/${paymentId}/resend-link`, {});
+      toast.success("Payment link sent to the customer again.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't send the payment link. Please try again.");
+    } finally {
+      setResending(false);
+    }
+  };
+
   if (state === "loading") return <Skeleton className="h-9 w-full" />;
   if (state === "error" || !booking) return <p className="text-sm text-error">Couldn&apos;t load this booking&apos;s payment details.</p>;
 
@@ -87,6 +103,10 @@ export function PaymentLinkAction({ bookingId }: { bookingId: string }) {
       {pendingPayment?.paymentLink ? (
         <>
           <CopyLinkButton url={pendingPayment.paymentLink} label="Copy Gateway Link" />
+          <Button type="button" size="sm" variant="ghost" onClick={() => void handleResend(pendingPayment.id)} isLoading={resending}>
+            <Send className="h-4 w-4" aria-hidden="true" />
+            Resend to customer
+          </Button>
           {pendingPayment.linkExpiresAt ? (
             <span className="text-xs text-ink-tertiary">Expires {formatExpiry(pendingPayment.linkExpiresAt)}</span>
           ) : null}

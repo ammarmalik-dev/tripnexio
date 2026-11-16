@@ -162,9 +162,14 @@ export function maskName(fullName: string): string {
   return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
 }
 
-/** True when `verifier` is the last 4 digits of the customer's mobile, or their email (case-insensitive). */
-function matchesVerifier(customer: { mobile: string; email: string | null }, verifier: string): boolean {
+/**
+ * True when `verifier` is the last 4 digits of the customer's mobile, their email (case-insensitive), or —
+ * client doc 16 Nov (M3), a notification's Track Status button — one of this request's own secret page keys
+ * (the same 32-hex token its /pay or /quote link already carries).
+ */
+function matchesVerifier(customer: { mobile: string; email: string | null }, verifier: string, pageKeys: (string | null)[] = []): boolean {
   const value = verifier.trim();
+  if (/^[a-f0-9]{32}$/.test(value)) return pageKeys.some((key) => key === value);
   if (/^\d{4}$/.test(value)) return customer.mobile.replace(/\D/g, "").endsWith(value);
   return Boolean(customer.email && customer.email.trim().toLowerCase() === value.toLowerCase());
 }
@@ -203,7 +208,10 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
     },
   });
   if (lead) {
-    if (!matchesVerifier(lead.customer, verifier)) return null;
+    const leadPageKeys = /^[a-f0-9]{32}$/.test(verifier.trim())
+      ? [lead.customerToken, ...(await db.booking.findMany({ where: { leadId: lead.id }, select: { customerToken: true } })).map((row) => row.customerToken)]
+      : [];
+    if (!matchesVerifier(lead.customer, verifier, leadPageKeys)) return null;
     const booking = lead.bookings[0] ?? null;
     const stageIndex = resolveStage(lead.status, booking?.status ?? null);
     const serviceStages = booking && stageIndex !== "closed" ? await buildServiceStages(lead.serviceType, booking.serviceStatus, booking.id) : null;
@@ -229,7 +237,7 @@ export async function trackByReferenceId(rawReferenceId: string, verifier: strin
     },
   });
   if (booking) {
-    if (!matchesVerifier(booking.customer, verifier)) return null;
+    if (!matchesVerifier(booking.customer, verifier, [booking.customerToken])) return null;
     const stageIndex = resolveStage(booking.lead.status, booking.status);
     const serviceStages = stageIndex !== "closed" ? await buildServiceStages(booking.lead.serviceType, booking.serviceStatus, booking.id) : null;
     return {

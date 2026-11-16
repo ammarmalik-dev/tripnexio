@@ -359,9 +359,11 @@ export async function buildQuotationInvoiceDocument(quotationId: string): Promis
     0
   );
   const grandTotal = round2(sellingPrice - couponDiscount);
+  // Client doc 16 Nov (J13) — same serial as the quotation reference in messages (11026VC105-Q2), not a random id.
+  const quotationSerial = await db.quotation.count({ where: { leadId: lead.id, createdAt: { lte: quotation.createdAt } } });
   return {
     title: "PROFORMA INVOICE",
-    invoiceNumber: `PF-${quotation.id.slice(-8).toUpperCase()}`,
+    invoiceNumber: `PF-${leadReference(lead)}-Q${Math.max(1, quotationSerial)}`,
     issuedAt: quotation.createdAt,
     bookingId: null,
     leadReference: leadReference(lead),

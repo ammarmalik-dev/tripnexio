@@ -8,7 +8,11 @@ export const trackSchema = z.object({
     .trim()
     .min(1, "Enter the last 4 digits of your mobile number or your email")
     .max(254)
-    .refine((value) => /^\d{4}$/.test(value) || z.string().email().safeParse(value).success, "Enter the last 4 digits of your mobile number, or your email"),
+    .refine(
+      // Client doc 16 Nov (M3) — or the booking's own secret page key, carried by a notification's Track Status button.
+      (value) => /^\d{4}$/.test(value) || /^[a-f0-9]{32}$/.test(value) || z.string().email().safeParse(value).success,
+      "Enter the last 4 digits of your mobile number, or your email"
+    ),
 });
 
 export type TrackValues = z.infer<typeof trackSchema>;

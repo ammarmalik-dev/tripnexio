@@ -1,5 +1,6 @@
 import {
   DEFAULT_WORKING_CALENDAR,
+  addWorkingHours,
   isWorkingDay,
   localDate,
   workingDaysBetween,
@@ -190,7 +191,7 @@ export function earliestOtbTravelDates(
   rules: OtbAirlineRules,
   from: Date = new Date(),
   calendar: WorkingCalendar = DEFAULT_WORKING_CALENDAR,
-): { normal: string | null; urgent: string | null } {
+): { normal: string | null; urgent: string | null; urgentFlightAfter: string | null } {
   let normal: string | null = null;
   let urgent: string | null = null;
   const start = Date.UTC(
@@ -209,7 +210,20 @@ export function earliestOtbTravelDates(
       .slice(0, 10);
     const outcome = evaluateOtbTravelDate(iso, rules, from, calendar);
     if (normal === null && outcome.allowed.includes("normal")) normal = iso;
-    if (urgent === null && outcome.allowed.includes("urgent")) urgent = iso;
+    // Client doc 16 Nov (K11) — Urgent is 8 working HOURS, so its earliest date is the first day a
+    // late-evening flight still leaves after the TAT ends (Mon 8 PM + 8 h → Tue 6 PM → Tue), not the
+    // first day whose midnight is 8 h away (which made Urgent show the same date as Normal). The
+    // chosen date is still checked against the real departure time (or midnight when none is given).
+    if (urgent === null && evaluateOtbTravelDate(iso, rules, from, calendar, "23:59").allowed.includes("urgent")) urgent = iso;
   }
-  return { normal, urgent: rules.urgentAvailable ? urgent : null };
+  // On the earliest Urgent day itself the flight must leave after the TAT ends — shown as "flights after 6:00 PM".
+  let urgentFlightAfter: string | null = null;
+  if (rules.urgentAvailable && urgent) {
+    const ready = addWorkingHours(from, rules.urgentHours ?? DEFAULT_URGENT_PROCESSING_WORKING_HOURS, calendar);
+    if (localDate(ready, calendar) === urgent) {
+      const local = new Date(ready.getTime() + calendar.offsetMs);
+      urgentFlightAfter = `${String(local.getUTCHours()).padStart(2, "0")}:${String(local.getUTCMinutes()).padStart(2, "0")}`;
+    }
+  }
+  return { normal, urgent: rules.urgentAvailable ? urgent : null, urgentFlightAfter: rules.urgentAvailable ? urgentFlightAfter : null };
 }

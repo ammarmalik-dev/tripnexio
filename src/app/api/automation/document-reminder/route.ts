@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
             ),
             leadReference: leadReference(booking.lead),
             requestReason: "",
-            uploadLink: booking.customerToken ? `${siteConfig.url}/pay/${booking.customerToken}` : `${siteConfig.url}/account`,
+            uploadLink: booking.customerToken ? `${siteConfig.url}/pay/${booking.customerToken}#documents` : `${siteConfig.url}/account`,
           },
           auditTarget: { entityType: "Booking", entityId: booking.id },
         });

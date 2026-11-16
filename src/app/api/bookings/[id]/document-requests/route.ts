@@ -125,7 +125,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       documentName,
       leadReference: leadReference(booking.lead),
       requestReason: reason,
-      uploadLink: booking.customerToken ? `${siteConfig.url}/pay/${booking.customerToken}` : `${siteConfig.url}/account`,
+      uploadLink: booking.customerToken ? `${siteConfig.url}/pay/${booking.customerToken}#documents` : `${siteConfig.url}/account`,
     },
     auditTarget: { entityType: "Document", entityId: documents[0].id },
   });

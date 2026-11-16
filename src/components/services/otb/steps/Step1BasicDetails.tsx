@@ -18,6 +18,12 @@ import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
 import { useProcessingTypes } from "@/lib/processing-types/use-processing-types";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
 
+/** "18:00" -> "6:00 PM" (the earliest Express flight time, client doc 16 Nov K11). */
+function formatFlightTime(hhmm: string): string {
+  const [hours, minutes] = hhmm.split(":").map(Number);
+  return `${hours % 12 || 12}:${String(minutes).padStart(2, "0")} ${hours < 12 ? "AM" : "PM"}`;
+}
+
 export function Step1BasicDetails() {
   const {
     register,
@@ -136,6 +142,7 @@ export function Step1BasicDetails() {
             {earliest.urgent ? (
               <span>
                 <span className="font-semibold text-ink-heading">{typeLabel("urgent")}:</span> travel from {fmt(earliest.urgent)}
+                {earliest.urgentFlightAfter ? ` (flights after ${formatFlightTime(earliest.urgentFlightAfter)} — add your departure time)` : ""}
               </span>
             ) : null}
             <span className="text-ink-tertiary">Based on {airline.name}&apos;s processing time; weekends and holidays excluded.</span>

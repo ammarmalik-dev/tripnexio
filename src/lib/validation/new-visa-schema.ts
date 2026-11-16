@@ -128,7 +128,11 @@ const travellerDetailFields = {
   passportExpiry: z.string().max(20).optional(),
   guardianFullName: z.string().trim().optional(),
   guardianPassportNumber: z.string().trim().optional(),
-  guardianRelationship: z.enum(GUARDIAN_RELATIONSHIPS).optional(),
+  // "" = not chosen. The relationship <select> registers "" when it mounts (e.g. while a
+  // half-typed DOB briefly reads as a minor) and keeps it after it unmounts, so an adult's
+  // hidden "" must not fail with "expected FATHER|MOTHER" (client doc 16 Nov F3).
+  // A minor's missing relationship is still caught by findNewVisaTravellerIssues.
+  guardianRelationship: z.union([z.enum(GUARDIAN_RELATIONSHIPS), z.literal("")]).optional(),
 };
 
 export const newVisaAdditionalTravellerSchema = z.object({

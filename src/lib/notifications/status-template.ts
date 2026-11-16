@@ -224,6 +224,12 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
   // Client 2026-10-23 audit — "Complete Payment" only when there is somewhere to pay (the booking's pay page or the
   // lead's quote page); blank otherwise, so the message carries no button rather than one opening the Track page.
   const paymentPage = pendingBooking && token && pendingBooking.status === "PENDING" ? securePage : (leadPage ?? "");
+  // Client doc 16 Nov (M3) — every button opens its own page: Track Status → the Track page, already looked up with the
+  // booking's page key; Upload → the documents section; Track Refund → the refund section (not all to the pay page).
+  const pageKey = token ?? lead.customerToken ?? null;
+  const trackPage = `${site}/track?ref=${encodeURIComponent(reference)}${pageKey ? `&k=${pageKey}` : ""}`;
+  const uploadPage = token ? `${site}/pay/${token}#documents` : securePage;
+  const refundPage = token ? `${site}/pay/${token}#refund` : securePage;
 
   // Passengers and their own results (client doc 2026-10-15, I4).
   const bookingPassengers = booking?.passengers ?? [];
@@ -283,6 +289,11 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     where: { leadId: lead.id, isDraft: false },
     orderBy: [{ isSelected: "desc" }, { updatedAt: "desc" }],
   });
+  // Client doc 16 Nov (J13) — the quotation reference follows the lead's serial (11026VC105-Q2 = the
+  // lead's 2nd quotation), never a random id fragment like "Q-6UOFRN".
+  const quotationSerial = quotation
+    ? await db.quotation.count({ where: { leadId: lead.id, createdAt: { lte: quotation.createdAt } } })
+    : 0;
   const quoteTotal = quotation ? Number(quotation.sellingPrice) - Number(quotation.couponDiscount ?? 0) : null;
   const quoteExpiry = quotation?.validityExpiresAt ? await formatBusinessDateTime(quotation.validityExpiresAt) : "";
   const route = lead.serviceType === "FLIGHT_SPECIAL_FARE" ? (quotation?.route ?? requestedRouteFromDetails(lead.details) ?? "") : "";
@@ -329,7 +340,7 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     pnr: booking?.pnr ?? "",
     baggage: booking?.ticketBaggage ?? quotation?.baggageAllowance ?? "",
     itinerary_summary: [route, flight, flightTime].filter(Boolean).join(" · "),
-    quotation_id: quotation ? `Q-${quotation.id.slice(-6).toUpperCase()}` : "",
+    quotation_id: quotation ? `${reference}-Q${Math.max(1, quotationSerial)}` : "",
     currency: "",
     total_amount: money(quoteTotal),
     quoted_amount: money(quoteTotal),
@@ -401,9 +412,9 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     // Secure links: the booking's own token page (status, documents, payment), never a staff link.
     secure_link: securePage,
     portal_link: securePage,
-    track_status_url: securePage,
+    track_status_url: trackPage,
     secure_booking_link: securePage,
-    secure_upload_link: securePage,
+    secure_upload_link: uploadPage,
     payment_link: paymentPage,
     secure_payment_link: paymentPage,
     quote_link: quotePage,
@@ -425,7 +436,7 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     ticket_download_link: outputLink(TICKET_OUTPUTS) || securePage,
     secure_package_link: outputLink(["PACKAGE_PDF"]) || securePage,
     secure_visa_link: outputLink(VISA_OUTPUTS) || securePage,
-    secure_refund_link: securePage,
+    secure_refund_link: refundPage,
     support_link: `${site}/contact`,
     support_email: contact.email,
     // Names the shared email shell (Booking ID card, status pill) reads.

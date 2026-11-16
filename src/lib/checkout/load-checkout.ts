@@ -96,6 +96,13 @@ export async function loadCheckoutByToken(token: string) {
           uploaded: uploadedDocumentSlots(booking.documents),
         })
       : [];
+  // Client doc 16 Nov (H10 / M3) — "Track Refund" opens this page's refund section: customer-safe fields only
+  // (amount, status, the gateway's own refund id) — never the staff reason or the internal charge split.
+  const refunds = await db.refund.findMany({
+    where: { payment: { bookingId: booking.id } },
+    orderBy: { createdAt: "desc" },
+    select: { refundAmount: true, status: true, gatewayRefundId: true, createdAt: true, completedAt: true },
+  });
   const notPayableReason = payment?.status === "PENDING" ? await assertQuotationPayable({ purpose: payment.purpose, booking }) : null;
   const quotationExpired = notPayableReason !== null;
   // P09 — the customer must agree to the service's Terms before any payment
@@ -165,6 +172,13 @@ export async function loadCheckoutByToken(token: string) {
       documents: booking.documents
         .filter((document) => document.passengerId && isDocumentUploaded(document))
         .map((document) => ({ passengerId: document.passengerId as string, type: document.type, status: document.status })),
+      refunds: refunds.map((refund) => ({
+        amount: Number(refund.refundAmount),
+        status: refund.status,
+        reference: refund.gatewayRefundId,
+        requestedAt: refund.createdAt.toISOString(),
+        completedAt: refund.completedAt ? refund.completedAt.toISOString() : null,
+      })),
     },
   };
 }

@@ -108,7 +108,8 @@ describe("earliest OTB travel dates (client corrections 2026-10-05)", () => {
     const earliest = earliestOtbTravelDates(rules, wed10, calendar);
     expect(earliest.normal).not.toBeNull();
     expect(evaluateOtbTravelDate(earliest.normal!, rules, wed10, calendar).allowed).toContain("normal");
-    expect(evaluateOtbTravelDate(earliest.urgent!, rules, wed10, calendar).allowed).toContain("urgent");
+    // Client doc 16 Nov (K11) — Urgent's earliest date assumes a late-evening flight (the form then asks for the time).
+    expect(evaluateOtbTravelDate(earliest.urgent!, rules, wed10, calendar, "23:59").allowed).toContain("urgent");
     expect(earliest.urgent! <= earliest.normal!).toBe(true);
   });
   it("has no Express date when the airline doesn't offer it", () => {

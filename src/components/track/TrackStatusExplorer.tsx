@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, useReducedMotion, AnimatePresence } from "framer-motion";
@@ -23,9 +23,11 @@ type SearchState = "idle" | "loading" | "found" | "not-found" | "error";
 
 interface TrackStatusExplorerProps {
   initialReferenceId?: string;
+  /** Client doc 16 Nov (M3) — the booking's page key from a notification button; used once, never shown in the form. */
+  accessKey?: string;
 }
 
-export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerProps) {
+export function TrackStatusExplorer({ initialReferenceId, accessKey }: TrackStatusExplorerProps) {
   const contact = useSiteContact();
   const {
     register,
@@ -38,6 +40,28 @@ export function TrackStatusExplorer({ initialReferenceId }: TrackStatusExplorerP
   const [state, setState] = useState<SearchState>("idle");
   const [result, setResult] = useState<TrackResult | null>(null);
   const shouldReduceMotion = useReducedMotion();
+
+  // Opened from a notification button (?ref=…&k=…): show the status straight away, no digits to type.
+  useEffect(() => {
+    if (!initialReferenceId || !accessKey) return;
+    let cancelled = false;
+    async function lookUp() {
+      setState("loading");
+      try {
+        const found = await postJson<TrackResult>("/api/track", { referenceId: initialReferenceId, verifier: accessKey });
+        if (cancelled) return;
+        setResult(found);
+        setState("found");
+      } catch {
+        // A stale or mistyped link just falls back to the normal form.
+        if (!cancelled) setState("idle");
+      }
+    }
+    void lookUp();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialReferenceId, accessKey]);
 
   const runSearch = handleSubmit(async (values) => {
     setState("loading");

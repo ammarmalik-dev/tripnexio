@@ -61,6 +61,48 @@ interface CheckoutView {
   returnTicketCancellation: { fee: number | null } | null;
   /** P18 — the other half of an OTB + Return Verified Ticket order. */
   linkedOrder: { service: "OTB" | "RETURN_TICKET"; token: string; paymentStatus: string | null; total: number | null } | null;
+  /** Client doc 16 Nov (H10) — this booking's refunds, customer-safe fields only. */
+  refunds: { amount: number; status: "PENDING" | "PROCESSING" | "COMPLETED" | "REJECTED"; reference: string | null; requestedAt: string; completedAt: string | null }[];
+}
+
+const REFUND_STATUS_LABEL: Record<CheckoutView["refunds"][number]["status"], string> = {
+  PENDING: "Under review",
+  PROCESSING: "Being processed",
+  COMPLETED: "Refunded",
+  REJECTED: "Not approved",
+};
+
+function formatRefundDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+}
+
+/** Client doc 16 Nov (H10) — the "Track Refund" button lands here (#refund). */
+function RefundStatusSection({ refunds }: { refunds: CheckoutView["refunds"] }) {
+  return (
+    <section id="refund" className="flex scroll-mt-24 flex-col gap-3">
+      <h2 className="text-lg font-semibold text-ink-heading">Refund status</h2>
+      {refunds.length === 0 ? (
+        <p className="rounded-xl border border-hairline bg-surface-1 p-4 text-sm text-ink-secondary">No refund has been requested for this booking.</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {refunds.map((refund) => (
+            <li key={refund.requestedAt} className="flex flex-col gap-1 rounded-xl border border-hairline bg-surface-1 p-4 text-sm text-ink-secondary">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-base font-semibold text-ink-heading">{formatRupees(refund.amount)}</span>
+                <span className={refund.status === "COMPLETED" ? "font-semibold text-success" : refund.status === "REJECTED" ? "font-semibold text-error" : "font-semibold text-ink-accent"}>
+                  {REFUND_STATUS_LABEL[refund.status]}
+                </span>
+              </div>
+              <span>Requested on {formatRefundDate(refund.requestedAt)}</span>
+              {refund.completedAt ? <span>Refunded on {formatRefundDate(refund.completedAt)}</span> : null}
+              {refund.reference ? <span>Refund ID: <span className="font-medium text-ink-heading">{refund.reference}</span></span> : null}
+              {refund.status === "COMPLETED" ? <span className="text-xs text-ink-tertiary">Banks usually take 5–7 working days to show the amount in your account.</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
 }
 
 const POLL_MS = 4000;
@@ -158,6 +200,8 @@ export function CheckoutPanel({ token }: { token: string }) {
   const [awaitingGateway, setAwaitingGateway] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).has("razorpay_payment_link_status")
   );
+  // Client doc 16 Nov (M3) — notification buttons link to a section of this page (#documents, #refund).
+  const [isRefundHash] = useState(() => typeof window !== "undefined" && window.location.hash === "#refund");
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -192,6 +236,15 @@ export function CheckoutPanel({ token }: { token: string }) {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [awaitingGateway, refresh]);
+
+  // The page renders after its data loads, so the browser's own jump to the #section has nothing to land on yet.
+  useEffect(() => {
+    if (state !== "success" || typeof window === "undefined" || !window.location.hash) return;
+    const target = document.getElementById(window.location.hash.slice(1));
+    if (!target) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }, [state]);
 
   const paymentStatus = view?.payment?.status;
   useEffect(() => {
@@ -429,7 +482,7 @@ export function CheckoutPanel({ token }: { token: string }) {
           </div>
 
           {view.documentTypes.length > 0 || view.requestedDocuments.length > 0 ? (
-            <section className="flex flex-col gap-4">
+            <section id="documents" className="flex scroll-mt-24 flex-col gap-4">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="text-lg font-semibold text-ink-heading">Upload your documents</h2>
                 <span className="text-xs text-ink-tertiary">
@@ -481,6 +534,8 @@ export function CheckoutPanel({ token }: { token: string }) {
           ) : null}
 
           {view.postTicketOffer ? <PostTicketOfferCard bookingToken={token} /> : null}
+
+          {view.refunds.length > 0 || isRefundHash ? <RefundStatusSection refunds={view.refunds} /> : null}
 
           <div className="flex flex-wrap gap-3">
             <ButtonLink href={utilityLinks.trackStatus.href}>Track Status</ButtonLink>
