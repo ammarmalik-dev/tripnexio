@@ -12,7 +12,36 @@ export async function GET() {
   if (auth.error) return auth.error;
 
   const coupons = await db.coupon.findMany({ orderBy: { createdAt: "desc" } });
-  return jsonSuccess(coupons);
+  // Client doc 16 Nov (I11) — tracking: who created it, and who used it when (with the booking's POC).
+  const [creators, uses] = await Promise.all([
+    db.user.findMany({ where: { id: { in: [...new Set(coupons.map((coupon) => coupon.createdByUserId).filter((id): id is string => !!id))] } }, select: { id: true, name: true } }),
+    db.payment.findMany({
+      where: { couponId: { in: coupons.map((coupon) => coupon.id) }, status: "SUCCESS" },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        couponId: true,
+        updatedAt: true,
+        booking: { select: { bookingId: true, customer: { select: { name: true } }, lead: { select: { assignedStaff: { select: { name: true } } } } } },
+      },
+    }),
+  ]);
+  return jsonSuccess(
+    coupons.map((coupon) => {
+      const lastUse = uses.find((use) => use.couponId === coupon.id);
+      return {
+        ...coupon,
+        createdByName: creators.find((user) => user.id === coupon.createdByUserId)?.name ?? (coupon.createdByUserId ? null : "System"),
+        lastUse: lastUse
+          ? {
+              at: lastUse.updatedAt,
+              bookingId: lastUse.booking.bookingId,
+              customerName: lastUse.booking.customer.name,
+              poc: lastUse.booking.lead.assignedStaff?.name ?? null,
+            }
+          : null,
+      };
+    })
+  );
 }
 
 export async function POST(request: NextRequest) {
@@ -51,6 +80,7 @@ export async function POST(request: NextRequest) {
   const coupon = await db.$transaction(async (tx) => {
     const created = await tx.coupon.create({
       data: {
+        createdByUserId: session.id,
         code: parsed.data.code,
         type: parsed.data.type,
         category: parsed.data.category,

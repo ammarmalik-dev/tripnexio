@@ -16,6 +16,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] Q8 Gateway fee by payment method (Card/UPI/Net Banking): Razorpay payment links don't let us pick the method upfront — fee is known only after payment. OK to apply it from the webhook's method?
 - [ ] Q9 Removing Admin → Data Export: confirm every export it offered exists on the individual pages first.
 - [ ] Q10 Bookings 11026FL112 / FL113 log review: production data — OK to read prod audit logs?
+- [ ] Q11 I11 says coupons only for New Visa / OTB / Return Ticket, but N9.2 sends unpaid-quotation coupons for Visa Change / Flight / Visa Extension. Which is right? (Today each coupon has its own service list in Admin.)
 
 ## A. Special Fare (flight)
 - [ ] A1 Manual lead: origin city, destination city, return date (round trip)
@@ -124,7 +125,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] I8 Proforma: only configured service charge + GST — unit 4: proforma shows the configured service charge (Admin → Services) + GST, the rest as the Govt./Vendor/Airline fee
 - [ ] I9 Gateway fees per method; actual vs configured fee in invoice edit; P&L from net received (see Q8) — unit 4: actual amount collected + actual gateway fee recorded on the invoice edit. Gateway fee rates per payment method (Card / UPI / Net Banking) + P&L from net received still open (see Q8)
 - [x] I10 Vendor / sponsor Credit / Paid tracking with outstanding balances — unit 4: booking records the amount paid to the vendor / sponsor, date and transaction ref (finance.manage, audited); Credit until it reaches the vendor cost, then Paid; Vendor Payments report shows Paid + Outstanding per vendor
-- [ ] I11 Coupons: create from Manual Lead (amount, auto code, applied); New Visa / OTB / Return Ticket only; checkout coupon field; tracking (creator, user, date, POC, used/unused, expiry) in one line; P&L accounting (see Q7)
+- [ ] I11 Coupons: create from Manual Lead (amount, auto code, applied); New Visa / OTB / Return Ticket only; checkout coupon field; tracking (creator, user, date, POC, used/unused, expiry) in one line; P&L accounting (see Q7) — unit 4: customer coupon field on the payment page (NV / OTB / RT; link renewed for the discounted total); coupon tracking: creator, last use (customer, booking, date, POC), Used / Unused / Expired filter; staff coupons from the Manual Lead flow already exist. Service restriction is per coupon (Admin) because N9.2 also sends coupons for VC / Flight / VE — see Q11. P&L coupon accounting waits on Q7
 - [ ] I12 Manual lead for NV / OTB / RT only when pricing is configured; extra charges under Vendor/Airline Fee — unit 4: NV / OTB / RT manual leads refused until their price is configured. Extra charges under Vendor/Airline fee still open
 - [x] I13 Extra charges included in Sales Price in P&L — checked: extra payments add revenue in the P&L (finance reports) and extra charges are part of the selling price
 

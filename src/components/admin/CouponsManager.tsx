@@ -29,6 +29,9 @@ interface CouponData {
   validUntil: string;
   usageLimit: number | null;
   usageCount: number;
+  /** Client doc 16 Nov (I11) — tracking. */
+  createdByName?: string | null;
+  lastUse?: { at: string; bookingId: string; customerName: string; poc: string | null } | null;
   maxDiscount: string | null;
   leadId: string | null;
   active: boolean;
@@ -36,7 +39,7 @@ interface CouponData {
 }
 
 type FetchState = "loading" | "success" | "error";
-type StatusFilter = "all" | "active" | "disabled";
+type StatusFilter = "all" | "active" | "disabled" | "used" | "unused" | "expired";
 
 interface FormState {
   code: string;
@@ -424,6 +427,9 @@ export function CouponsManager() {
       if (categoryFilter && coupon.category !== categoryFilter) return false;
       if (statusFilter === "active" && !coupon.active) return false;
       if (statusFilter === "disabled" && coupon.active) return false;
+      if (statusFilter === "used" && coupon.usageCount === 0) return false;
+      if (statusFilter === "unused" && coupon.usageCount > 0) return false;
+      if (statusFilter === "expired" && new Date(coupon.validUntil).getTime() >= Date.now()) return false;
       // A coupon with no restriction is valid for every service, so it matches any service filter.
       if (serviceFilter && (coupon.serviceTypes ?? []).length > 0 && !coupon.serviceTypes.includes(serviceFilter)) return false;
       if (!term) return true;
@@ -570,6 +576,9 @@ export function CouponsManager() {
             <option value="all">All statuses</option>
             <option value="active">Active</option>
             <option value="disabled">Disabled</option>
+            <option value="used">Used</option>
+            <option value="unused">Unused</option>
+            <option value="expired">Expired</option>
           </select>
           <select
             aria-label="Filter by service"
@@ -626,6 +635,13 @@ export function CouponsManager() {
                 Valid {new Date(coupon.validFrom).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} –{" "}
                 {new Date(coupon.validUntil).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} · Used {coupon.usageCount}
                 {coupon.usageLimit ? ` / ${coupon.usageLimit}` : ""}
+              </p>
+              {/* Client doc 16 Nov (I11) — tracking in one line: creator, last use, booking, POC. */}
+              <p className="text-xs text-ink-tertiary">
+                By {coupon.createdByName ?? "—"}
+                {coupon.lastUse
+                  ? ` · Used by ${coupon.lastUse.customerName} (${coupon.lastUse.bookingId}) on ${new Date(coupon.lastUse.at).toLocaleDateString("en-IN", { day: "numeric", month: "short" })} · POC ${coupon.lastUse.poc ?? "—"}`
+                  : " · Not used yet"}
               </p>
             </div>
           )}

@@ -114,6 +114,7 @@ export async function POST(request: NextRequest) {
         const coupon = await db.$transaction(async (tx) => {
           const created = await tx.coupon.create({
             data: {
+              createdByUserId: session.id,
               code: newCouponCode(),
               type: "FIXED_AMOUNT",
               value: amount,

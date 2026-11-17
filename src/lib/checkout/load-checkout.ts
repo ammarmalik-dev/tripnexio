@@ -153,6 +153,13 @@ export async function loadCheckoutByToken(token: string) {
           }
         : null,
       quotationExpired,
+      /** Client doc 16 Nov (I11) — the customer may enter a coupon here (New Visa / OTB / Return Ticket, online payment, none applied yet). */
+      couponAllowed:
+        (booking.lead.serviceType === "NEW_VISA" || booking.lead.serviceType === "OTB" || booking.lead.serviceType === "RETURN_TICKET") &&
+        payment?.status === "PENDING" &&
+        payment.method === "GATEWAY" &&
+        payment.purpose !== "EXTRA" &&
+        discount === 0,
       /** Client doc 16 Nov (I2) — pay the accepted quotation by bank transfer (null = not offered). */
       bankTransfer:
         offlineService && bankConfig?.bankAccountNumber

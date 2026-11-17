@@ -1686,6 +1686,8 @@ model Coupon {
   /// P24 - set on a single-use coupon auto-generated for an abandoned quotation.
   leadId      String?
   active      Boolean        @default(true)
+  /// Client doc 16 Nov (I11) — who created the coupon (staff / Admin); null for the automation's own coupons.
+  createdByUserId String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 

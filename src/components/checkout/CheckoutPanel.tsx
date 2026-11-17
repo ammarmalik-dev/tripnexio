@@ -41,6 +41,8 @@ interface CheckoutView {
     linkExpiresAt: string | null;
   } | null;
   quotationExpired: boolean;
+  /** Client doc 16 Nov (I11) — a coupon may be entered before paying. */
+  couponAllowed: boolean;
   /** Client doc 16 Nov (I2) — bank-transfer option for the quotation services (null = not offered). */
   bankTransfer: {
     accountName: string | null;
@@ -278,6 +280,47 @@ function BankTransferCard({ token, bank, onUploaded }: { token: string; bank: No
       </label>
       {error ? <span className="text-xs text-error">{error}</span> : null}
     </section>
+  );
+}
+
+/** Client doc 16 Nov (I11) — enter a coupon before paying; the total and the payment link are renewed. */
+function CouponField({ token, onApplied }: { token: string; onApplied: () => void }) {
+  const [code, setCode] = useState("");
+  const [applying, setApplying] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const apply = async () => {
+    setApplying(true);
+    setError(null);
+    try {
+      const result = await postJson<{ couponCode: string; discount: number }>(`/api/pay/${token}/coupon`, { code: code.trim() });
+      toast.success(`Coupon ${result.couponCode} applied — ${formatRupees(result.discount)} off.`);
+      onApplied();
+    } catch (applyError) {
+      setError(applyError instanceof ApiError ? applyError.message : "Couldn't apply the coupon.");
+    } finally {
+      setApplying(false);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex gap-2">
+        <label htmlFor="checkout-coupon" className="sr-only">
+          Coupon code
+        </label>
+        <input
+          id="checkout-coupon"
+          value={code}
+          onChange={(event) => setCode(event.target.value.toUpperCase())}
+          placeholder="Have a coupon code?"
+          maxLength={40}
+          className="h-10 flex-1 rounded-lg border border-hairline bg-surface-1 px-3 text-sm uppercase text-ink-primary"
+        />
+        <Button type="button" size="sm" variant="ghost" onClick={() => void apply()} isLoading={applying} disabled={code.trim().length < 3}>
+          Apply
+        </Button>
+      </div>
+      {error ? <span className="text-xs text-error">{error}</span> : null}
+    </div>
   );
 }
 
@@ -545,6 +588,8 @@ export function CheckoutPanel({ token }: { token: string }) {
           ) : null}
         </div>
       ) : null}
+
+      {payment?.status === "PENDING" && !view.quotationExpired && view.couponAllowed ? <CouponField token={token} onApplied={refresh} /> : null}
 
       {payment?.status === "PENDING" && !view.quotationExpired && view.termsAccepted && view.bankTransfer ? (
         <BankTransferCard token={token} bank={view.bankTransfer} onUploaded={refresh} />
