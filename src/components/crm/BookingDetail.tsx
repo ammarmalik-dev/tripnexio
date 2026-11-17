@@ -1,5 +1,6 @@
 "use client";
 
+import { VendorPaymentControl } from "./VendorPaymentControl";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Plus } from "lucide-react";
@@ -639,6 +640,14 @@ export function BookingDetail({
                   {booking.vendorSummary ? (
                     <div className="flex flex-col gap-3">
                       <BookingVendorSummary vendor={booking.vendorSummary} compact={booking.serviceType === "RETURN_TICKET"} />
+                      {booking.vendorSummary.vendorPayment ? (
+                        <VendorPaymentControl
+                          bookingId={booking.id}
+                          vendorCost={Number(booking.vendorSummary.vendorCost)}
+                          payment={booking.vendorSummary.vendorPayment}
+                          onSaved={refresh}
+                        />
+                      ) : null}
                       {/* Client doc 2026-10-15 (I7) — OTB / New Visa / Return Ticket: pick the vendor once every document is validated. */}
                       {VENDOR_AFTER_DOCUMENTS_SERVICES.has(booking.serviceType) ? (
                         booking.vendorChoiceBlockedReason ? (

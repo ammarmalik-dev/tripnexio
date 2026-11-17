@@ -11,6 +11,8 @@ export interface BookingVendorSummaryData {
   /** Booking.pnrVendorReference — recorded after payment. */
   vendorReference: string | null;
   pnr: string | null;
+  /** Client doc 16 Nov (I10) — what was paid to the vendor (finance users only; null otherwise). */
+  vendorPayment?: { paidAmount: number; paidAt: string | null; reference: string | null } | null;
 }
 
 function money(value: string): string {

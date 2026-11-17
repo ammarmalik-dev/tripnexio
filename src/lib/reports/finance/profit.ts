@@ -46,13 +46,17 @@ export const vendorPaymentsReport: ReportDefinition = {
     const notes: string[] = [];
     const bookings = await loadRecognisedBookings(filters, notes);
 
-    const groups = new Map<string, { vendor: string; service: string; bookings: number; vendorCost: number; sellingTotal: number; margin: number }>();
+    const groups = new Map<
+      string,
+      { vendor: string; service: string; bookings: number; vendorCost: number; paid: number; sellingTotal: number; margin: number }
+    >();
     for (const booking of bookings) {
       const vendor = booking.vendorName ?? "(no selected quotation)";
       const key = `${booking.vendorId ?? ""}|${booking.serviceType}`;
-      const entry = groups.get(key) ?? { vendor, service: serviceLabel(booking.serviceType), bookings: 0, vendorCost: 0, sellingTotal: 0, margin: 0 };
+      const entry = groups.get(key) ?? { vendor, service: serviceLabel(booking.serviceType), bookings: 0, vendorCost: 0, paid: 0, sellingTotal: 0, margin: 0 };
       entry.bookings += 1;
       entry.vendorCost += booking.vendorCost;
+      entry.paid += booking.vendorPaid;
       entry.sellingTotal += booking.sellingPrice;
       entry.margin += booking.quoteMargin;
       groups.set(key, entry);
@@ -65,6 +69,9 @@ export const vendorPaymentsReport: ReportDefinition = {
         service: entry.service,
         bookings: entry.bookings,
         vendorCost: round2(entry.vendorCost),
+        // Client doc 16 Nov (I10) — paid to the vendor and still on credit.
+        paid: round2(entry.paid),
+        outstanding: round2(Math.max(0, entry.vendorCost - entry.paid)),
         sellingTotal: round2(entry.sellingTotal),
         margin: round2(entry.margin),
         marginPct: pct(entry.margin, entry.sellingTotal),
@@ -81,12 +88,14 @@ export const vendorPaymentsReport: ReportDefinition = {
         { key: "service", label: "Service", kind: "text" },
         { key: "bookings", label: "Bookings", kind: "number" },
         { key: "vendorCost", label: "Vendor cost", kind: "money" },
+        { key: "paid", label: "Paid to vendor", kind: "money" },
+        { key: "outstanding", label: "Outstanding (credit)", kind: "money" },
         { key: "sellingTotal", label: "Selling total", kind: "money" },
         { key: "margin", label: "Margin", kind: "money" },
         { key: "marginPct", label: "Margin %", kind: "percent" },
       ],
       rows: capRows(rows, notes),
-      totals: sumColumns(rows, ["bookings", "vendorCost", "sellingTotal", "margin"]),
+      totals: sumColumns(rows, ["bookings", "vendorCost", "paid", "outstanding", "sellingTotal", "margin"]),
       notes,
     };
   },

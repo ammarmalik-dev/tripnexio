@@ -184,6 +184,14 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
           quotationVendorReference: selectedQuotation.vendorReference,
           vendorReference: booking.pnrVendorReference,
           pnr: booking.pnr,
+          // Client doc 16 Nov (I10) — Credit / Paid to the vendor; finance only.
+          vendorPayment: auth.session.permissions.includes("finance.manage") || auth.session.permissions.includes(ADMIN_FULL_PERMISSION)
+            ? {
+                paidAmount: Number(booking.vendorPaidAmount ?? 0),
+                paidAt: booking.vendorPaidAt,
+                reference: booking.vendorPaymentRef,
+              }
+            : null,
         }
       : null,
     // P21 — CRM.md §36: booking + lead + quotations + payments/refunds + documents, oldest first, capped.

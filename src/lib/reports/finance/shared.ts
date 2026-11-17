@@ -182,6 +182,8 @@ export interface BookingInfo {
   vendorCost: number;
   sellingPrice: number;
   quoteMargin: number;
+  /** Client doc 16 Nov (I10) — what was paid to the vendor so far (Booking.vendorPaidAmount). */
+  vendorPaid: number;
 }
 
 /** Loads flat context for the given Booking row ids (6 sequential, chunked queries). */
@@ -192,7 +194,7 @@ export async function loadBookingInfo(bookingIds: readonly string[]): Promise<Ma
   const bookings = await findInChunks(bookingIds, (ids) =>
     db.booking.findMany({
       where: { id: { in: ids } },
-      select: { id: true, bookingId: true, status: true, createdAt: true, leadId: true, customerId: true },
+      select: { id: true, bookingId: true, status: true, createdAt: true, leadId: true, customerId: true, vendorPaidAmount: true },
     })
   );
   const leads = await findInChunks(
@@ -249,6 +251,7 @@ export async function loadBookingInfo(bookingIds: readonly string[]): Promise<Ma
       vendorCost: quote ? quotationCost(quote) : 0,
       sellingPrice: num(quote?.sellingPrice),
       quoteMargin: num(quote?.margin),
+      vendorPaid: num(booking.vendorPaidAmount),
     });
   }
   return result;

@@ -550,6 +550,11 @@ model Booking {
   /// PNR and ticket issuance are separate states (Locked v2.0 Q18).
   pnr                       String?
   pnrVendorReference        String?
+  /// Client doc 16 Nov (I10) — what TripNexio has paid the vendor / sponsor for this booking (Credit until it reaches
+  /// the vendor cost on the selected quotation, then Paid), with the date and transaction reference of the payment.
+  vendorPaidAmount          Decimal?           @db.Decimal(10, 2)
+  vendorPaidAt              DateTime?
+  vendorPaymentRef          String?
   pnrRecordedAt             DateTime?
   ticketIssuedAt            DateTime?
   ticketBaggage             String?
