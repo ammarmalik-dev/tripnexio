@@ -138,9 +138,14 @@ async function computePeriod(filters: ReportFilters): Promise<PeriodFigures> {
   // Refunds — COMPLETED refunds whose updatedAt (≈ completion time) falls in range.
   const refundRows = await db.refund.findMany({
     where: { AND: [refundScope, { status: "COMPLETED", updatedAt: range }] },
-    select: { refundAmount: true },
+    select: { refundAmount: true, payment: { select: { amount: true, couponDiscount: true, gstAmount: true, gatewayFee: true } } },
   });
   const refunds = refundRows.reduce((sum, refund) => sum + num(refund.refundAmount), 0);
+  // Client doc 16 Nov (H11) — a refund gives back its payment's GST in proportion, so the GST liability drops by that share.
+  const gstRefunded = refundRows.reduce((sum, refund) => {
+    const collectedOnPayment = paymentTotal(refund.payment);
+    return collectedOnPayment > 0 ? sum + (num(refund.refundAmount) * num(refund.payment.gstAmount)) / collectedOnPayment : sum;
+  }, 0);
 
   // Expenses — dated in range. Service/country/staff/vendor filters never apply (expenses aren't tied to a lead).
   // Client corrections 2026-10-05 — an expense costs its total, GST included.
@@ -149,8 +154,8 @@ async function computePeriod(filters: ReportFilters): Promise<PeriodFigures> {
 
   const grossProfit = revenue - cost;
   const netProfit = grossProfit - refunds - expenses;
-  // Refund rows carry no GST split, so GST refunded can't be netted off — liability = GST collected.
-  const gstLiability = gstCollected;
+  // Client doc 16 Nov (H11) — GST collected less the refunded payments' GST share.
+  const gstLiability = Math.max(0, gstCollected - gstRefunded);
   const cashPosition = collected - refunds - expenses;
 
   return {
@@ -261,7 +266,7 @@ export async function buildManagementReport(filters: ReportFilters): Promise<Man
       kind: "info",
       value: current.gstLiability,
       previousValue: previous.gstLiability,
-      definition: "GST collected on successful payments in the period. GST refunded is not tracked separately on refunds, so it is not netted off here.",
+      definition: "GST collected on successful payments in the period, less the GST share of refunds completed in it.",
       detail: "",
     },
     {
@@ -277,7 +282,7 @@ export async function buildManagementReport(filters: ReportFilters): Promise<Man
 
   const notes = [
     "Payment has no dedicated succeeded-at timestamp, so a payment's last update time stands in for when it succeeded (same as the P&L report).",
-    "Refund rows don't record how much of the refund was GST, so GST liability is GST collected, not net of refunds.",
+    "GST liability = GST collected less the GST share of completed refunds (each refund in proportion to its payment).",
     "Expenses are company-wide: the service, country, staff and vendor filters narrow every other figure but never expenses.",
     "Net Cash Movement is the period's net inflow/outflow, not a bank or cash balance — there is no bank ledger to reconcile against.",
     `Comparison period: ${isoDay(previousFilters.from)} to ${lastDay(previousFilters.to)} (the same number of days immediately before).`,

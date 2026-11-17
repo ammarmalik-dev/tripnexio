@@ -109,7 +109,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] H8 Bank-transfer bookings: manual refund (transaction no., date, amount, status), never via gateway — unit 3: bank-transfer refunds approved with transaction number + date (completes it), never through the gateway
 - [x] H9 Refund table columns (Created By, POC, Service, Type, Method, Collected) + filters — unit 3: refunds list shows Service, Type, Method, Collected, Created By, POC; filters Service / POC / Type / Method / Status / Date
 - [x] H10 Track Refund button opens the refund page — unit 1: refund status section on the booking page
-- [ ] H11 Revenue / GST reduced by cancelled amounts; invoice regenerated for remaining passengers; cancellation template names each cancelled passenger
+- [ ] H11 Revenue / GST reduced by cancelled amounts; invoice regenerated for remaining passengers; cancellation template names each cancelled passenger — unit 4: finance reports deduct completed refunds from revenue (ex their GST / gateway-fee share); management GST liability net of refunded GST. Invoice regeneration for remaining passengers after a partial cancellation still open
 - [x] H12 After ticket issue / sent to airlines (flight) or OTB approved / visa approved: no direct refund — service cancellation flow only — unit 3: Special Fare Sent to Airlines / Ticket Issued block direct refunds (OTB / visa approvals already did); Admin override stays
 - [ ] H13 Log review of 11026FL112 (actions after cancellation) — see Q10
 
@@ -126,7 +126,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] I10 Vendor / sponsor Credit / Paid tracking with outstanding balances
 - [ ] I11 Coupons: create from Manual Lead (amount, auto code, applied); New Visa / OTB / Return Ticket only; checkout coupon field; tracking (creator, user, date, POC, used/unused, expiry) in one line; P&L accounting (see Q7)
 - [ ] I12 Manual lead for NV / OTB / RT only when pricing is configured; extra charges under Vendor/Airline Fee — unit 4: NV / OTB / RT manual leads refused until their price is configured. Extra charges under Vendor/Airline fee still open
-- [ ] I13 Extra charges included in Sales Price in P&L
+- [x] I13 Extra charges included in Sales Price in P&L — checked: extra payments add revenue in the P&L (finance reports) and extra charges are part of the selling price
 
 ## J. Leads, quotations & sales/ops separation
 - [ ] J1 Lead statuses: New, Contacted, Interested, Under Review, User Not Responding (notifies), Unqualified, Converted (auto after paid); follow-up date until converted/unqualified; temperature unchanged

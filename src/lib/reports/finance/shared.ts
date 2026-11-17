@@ -269,13 +269,18 @@ export interface RecognisedBooking extends BookingInfo {
   /** Timestamp of the booking's first SUCCESS payment (payment.updatedAt). */
   recognisedAt: Date;
   successfulPayments: number;
-  /** Sum of (amount - couponDiscount) over the booking's SUCCESS payments up to the range end - ex GST and gateway fee. */
+  /**
+   * Sum of (amount - couponDiscount) over the booking's SUCCESS payments up to the range end - ex GST and gateway fee -
+   * less the completed refunds' share of it (client doc 16 Nov, H11: revenue is what was kept after cancellations).
+   */
   revenue: number;
+  /** Client doc 16 Nov (H11) — the part of the revenue given back by completed refunds (ex GST / gateway fee share). */
+  refunded: number;
   profit: number;
 }
 
 export const RECOGNITION_NOTE =
-  "A booking is counted in the period its FIRST successful payment falls in (payment.updatedAt of the SUCCESS row - Payment has no dedicated succeeded-at timestamp). Revenue = every SUCCESS payment on that booking up to the range end (primary + extra), amount minus coupon discount, excluding GST and gateway fee (pass-through). Vendor cost = the lead's selected quotation vendorCost, counted once per booking.";
+  "A booking is counted in the period its FIRST successful payment falls in (payment.updatedAt of the SUCCESS row - Payment has no dedicated succeeded-at timestamp). Revenue = every SUCCESS payment on that booking up to the range end (primary + extra), amount minus coupon discount, excluding GST and gateway fee (pass-through). Vendor cost = the lead's selected quotation vendorCost, counted once per booking. Completed refunds (up to the range end) are deducted from the revenue in proportion (their GST / gateway-fee share is left out), so a cancelled booking shows only what was kept.";
 
 /**
  * Bookings recognised in the range: those whose first SUCCESS payment's
@@ -296,20 +301,34 @@ export async function loadRecognisedBookings(filters: ReportFilters, notes: stri
     (ids) =>
       db.payment.findMany({
         where: { bookingId: { in: ids }, status: "SUCCESS", updatedAt: { lt: filters.to } },
-        select: { bookingId: true, amount: true, couponDiscount: true, updatedAt: true },
+        select: { id: true, bookingId: true, amount: true, couponDiscount: true, gstAmount: true, gatewayFee: true, updatedAt: true },
+      })
+  );
+  // Client doc 16 Nov (H11) — completed refunds up to the range end, per payment.
+  const refunds = await findInChunks(
+    payments.map((payment) => payment.id),
+    (ids) =>
+      db.refund.findMany({
+        where: { paymentId: { in: ids }, status: "COMPLETED", completedAt: { lt: filters.to } },
+        select: { paymentId: true, refundAmount: true },
       })
   );
 
-  const perBooking = new Map<string, { first: Date; revenue: number; count: number }>();
+  const perBooking = new Map<string, { first: Date; revenue: number; refunded: number; count: number }>();
   for (const payment of payments) {
     const revenue = Math.max(0, num(payment.amount) - num(payment.couponDiscount));
+    // The refund gave back a share of everything paid (incl. GST + gateway fee); only its revenue share is deducted.
+    const collected = revenue + num(payment.gstAmount) + num(payment.gatewayFee);
+    const refundedTotal = refunds.filter((refund) => refund.paymentId === payment.id).reduce((sum, refund) => sum + num(refund.refundAmount), 0);
+    const refunded = collected > 0 ? Math.min(revenue, (refundedTotal * revenue) / collected) : 0;
     const entry = perBooking.get(payment.bookingId);
     if (entry) {
       if (payment.updatedAt < entry.first) entry.first = payment.updatedAt;
       entry.revenue += revenue;
+      entry.refunded += refunded;
       entry.count += 1;
     } else {
-      perBooking.set(payment.bookingId, { first: payment.updatedAt, revenue, count: 1 });
+      perBooking.set(payment.bookingId, { first: payment.updatedAt, revenue, refunded, count: 1 });
     }
   }
 
@@ -321,12 +340,14 @@ export async function loadRecognisedBookings(filters: ReportFilters, notes: stri
     const booking = info.get(id);
     const entry = perBooking.get(id);
     if (!booking || !entry) continue;
-    const revenue = round2(entry.revenue);
+    const refunded = round2(entry.refunded);
+    const revenue = round2(entry.revenue - refunded);
     rows.push({
       ...booking,
       recognisedAt: entry.first,
       successfulPayments: entry.count,
       revenue,
+      refunded,
       profit: round2(revenue - booking.vendorCost),
     });
   }
