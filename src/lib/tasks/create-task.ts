@@ -15,6 +15,8 @@ export interface CreateTaskInput {
   passengerId?: string | null;
   serviceType?: ServiceType | null;
   dueDate?: Date | null;
+  /** Explicit assignee; otherwise the lead's / booking's POC (client doc 16 Nov, J7). */
+  assignedToId?: string | null;
 }
 
 /**
@@ -30,8 +32,12 @@ export interface CreateTaskInput {
  * surrounding logic already committed).
  */
 export async function createTask(tx: Prisma.TransactionClient, input: CreateTaskInput) {
+  // Client doc 16 Nov (J7) — every task goes to the responsible POC: the lead's (or the booking's lead's) assignee —
+  // Sales before payment, Operations after (J5) — so no task is left unassigned while someone owns the record.
+  const assignedToId = input.assignedToId ?? (await responsiblePoc(tx, input.leadId, input.bookingId));
   const task = await tx.task.create({
     data: {
+      assignedToId: assignedToId ?? undefined,
       type: input.type,
       priority: input.priority ?? "NORMAL",
       title: input.title,
@@ -54,6 +60,16 @@ export async function createTask(tx: Prisma.TransactionClient, input: CreateTask
   });
 
   return task;
+}
+
+/** The POC of the task's lead (or of its booking's lead), when one is assigned and active. */
+async function responsiblePoc(tx: Prisma.TransactionClient, leadId?: string | null, bookingId?: string | null): Promise<string | null> {
+  const lead = leadId
+    ? await tx.lead.findUnique({ where: { id: leadId }, select: { assignedStaff: { select: { id: true, active: true } } } })
+    : bookingId
+      ? (await tx.booking.findUnique({ where: { id: bookingId }, select: { lead: { select: { assignedStaff: { select: { id: true, active: true } } } } } }))?.lead
+      : null;
+  return lead?.assignedStaff?.active ? lead.assignedStaff.id : null;
 }
 
 /**

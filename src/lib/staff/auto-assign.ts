@@ -239,6 +239,13 @@ export async function autoAssignLead(
       });
       if (updated.count === 0) return false;
       await writeAudit(tx, { entityType: "Lead", entityId: leadId, action: "AUTO_ASSIGN", note: reason });
+      // Client doc 16 Nov (J7) — on the hand-over to Operations the lead's open tasks follow it.
+      if (options.handOver && previousAssignee) {
+        await tx.task.updateMany({
+          where: { assignedToId: previousAssignee, status: { in: ["OPEN", "IN_PROGRESS"] }, OR: [{ leadId }, { booking: { leadId } }] },
+          data: { assignedToId: chosen.row.userId },
+        });
+      }
       return true;
     });
     if (!assigned) return null;

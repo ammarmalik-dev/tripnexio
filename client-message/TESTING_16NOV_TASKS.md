@@ -136,7 +136,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] J4 Separate histories: Lead / Quotation / Booking, no cross-booking mixing
 - [x] J5 Assignment: NV / OTB / RT → Sales POC before payment, Ops after; Flight / VC / VE → Ops; abandoned leads auto-assigned to Sales; manual leads by Super Admin re-assigned after payment; fair round-robin / workload (1-1-1-1) — unit 5: staff Team (Sales / Operations / both, Admin → Staff, migration 20261117140000); NV / OTB / RT leads + abandoned drafts go to Sales, SF / VC / VE to Operations; paid NV / OTB / RT handed to an Operations POC; assignment by fewest open leads (1-1-1-1), then PAX. Needs Auto-assign ON + teams set in Admin
 - [ ] J6 Permissions: Sales vs Operations; separate View All Bookings vs action permission
-- [ ] J7 Task auto-assignment by responsibility (sales vs ops)
+- [x] J7 Task auto-assignment by responsibility (sales vs ops) — unit 5: every system task is assigned to its lead / booking POC (Sales before payment, Operations after); on the hand-over to Operations the open tasks move with the lead
 - [ ] J8 Sales Overview: Converted Leads instead of Qualified; Sales vs Ops dashboard cards/filters per doc — unit 5: Command Centre shows Converted Leads instead of Qualified. Sales / Ops split of cards + filters still open
 - [ ] J9 Admin Sales Tracker: targets per POC, metrics, filters
 - [x] J10 Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations, Bookings — unit 5: Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations and Bookings — Manual = staff-created (details.manualEntry), WhatsApp = bot, Website = the rest; also via ?entrySource=
