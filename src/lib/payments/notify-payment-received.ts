@@ -1,4 +1,6 @@
 import { db } from "../db";
+import { autoAssignLead } from "../staff/auto-assign";
+import { movesToOperationsOnPayment } from "../staff/teams";
 import { tripSummaryForLead } from "../leads/trip-summary";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import { leadReference } from "../leads/reference";
@@ -32,6 +34,11 @@ export async function notifyPaymentReceived(paymentId: string, statusNotificatio
     where: { id: paymentId },
     include: { booking: { include: { customer: true, lead: true } } },
   });
+  // Client doc 16 Nov (J5) — once paid, New Visa / OTB / Return Ticket go from Sales to an Operations POC (after commit;
+  // autoAssignLead never throws and keeps an assignee who is already in Operations).
+  if (payment && payment.purpose !== "EXTRA" && movesToOperationsOnPayment(payment.booking.lead.serviceType)) {
+    await autoAssignLead(payment.booking.leadId, payment.booking.lead.serviceType, { team: "OPERATIONS", handOver: true });
+  }
   if (!payment) {
     await dispatchStatusNotifications(statusNotifications);
     return;

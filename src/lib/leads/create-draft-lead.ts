@@ -1,4 +1,5 @@
 import { leadListFacts } from "./list-facts";
+import { autoAssignLead } from "../staff/auto-assign";
 import { db } from "../db";
 import type { Prisma, ServiceType } from "../../generated/prisma/client";
 import { findOrCreateCustomer, type LeadContact } from "./create-lead";
@@ -21,6 +22,13 @@ export interface DraftLeadResult {
  * notification: a draft is not a submitted request.
  */
 export async function createOrRefreshDraftLead(serviceType: ServiceType, contact: LeadContact): Promise<DraftLeadResult> {
+  const result = await createOrRefreshDraft(serviceType, contact);
+  // Client doc 16 Nov (J5) — an abandoned lead goes to an active Sales POC for follow-up (after the commit).
+  if (result.outcome === "created") await autoAssignLead(result.leadId, serviceType, { team: "SALES" });
+  return result;
+}
+
+async function createOrRefreshDraft(serviceType: ServiceType, contact: LeadContact) {
   return db.$transaction(async (tx) => {
     const customer = await findOrCreateCustomer(tx, contact);
     const draftDetails = {

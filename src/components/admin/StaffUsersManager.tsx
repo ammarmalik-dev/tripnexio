@@ -37,6 +37,7 @@ interface StaffUser {
   allowedServiceTypes: ServiceType[];
   /** P24 — Country ids this staff member handles; empty = every country. */
   countriesHandled: string[];
+  team?: "SALES" | "OPERATIONS" | null;
   /** Client corrections 2026-10-05 — profile details from the Create Staff form. */
   mobile: string | null;
   officialId: string | null;
@@ -139,6 +140,36 @@ function CountryMultiSelect({
         ) : null}
       </div>
     </details>
+  );
+}
+
+/** Client doc 16 Nov (J5) — Sales / Operations / both: decides which leads are auto-assigned to this person. */
+function TeamCell({ user, onSaved }: { user: StaffUser; onSaved: (user: StaffUser) => void }) {
+  const [saving, setSaving] = useState(false);
+  const change = async (value: string) => {
+    setSaving(true);
+    try {
+      const updated = await patchJson<StaffUser>(`/api/admin/users/${user.id}`, { team: value === "" ? null : value });
+      toast.success(`${updated.name}'s team updated.`);
+      onSaved(updated);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't update the team.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <select
+      aria-label="Team"
+      value={user.team ?? ""}
+      disabled={saving}
+      onChange={(event) => void change(event.target.value)}
+      className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-48 text-sm")}
+    >
+      <option value="">Sales + Operations</option>
+      <option value="SALES">Sales</option>
+      <option value="OPERATIONS">Operations</option>
+    </select>
   );
 }
 
@@ -602,6 +633,8 @@ export function StaffUsersManager() {
             <ServiceScopeCell user={openUser} onSaved={replaceUser} />
             <h3 className="mt-2 text-sm font-semibold text-ink-heading">Countries Handled</h3>
             <CountriesCell user={openUser} countries={countries} onSaved={replaceUser} />
+            <h3 className="mt-2 text-sm font-semibold text-ink-heading">Team</h3>
+            <TeamCell user={openUser} onSaved={replaceUser} />
           </section>
           <section className="flex flex-col gap-3 rounded-2xl border border-hairline bg-surface-1 p-6">
             <h3 className="text-sm font-semibold text-ink-heading">Profile Details</h3>

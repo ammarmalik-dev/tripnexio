@@ -2404,6 +2404,8 @@ model User {
   name                String
   email               String        @unique
   passwordHash        String
+  /// Client doc 16 Nov (J5 / J6) — SALES (follow-up + payment) or OPERATIONS (processing); null = both.
+  team                String?
   roleId              String
   active              Boolean       @default(true)
   /// Step 39 (Admin FINAL handover §1): per-user service scoping, not

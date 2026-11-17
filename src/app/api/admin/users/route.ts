@@ -27,6 +27,7 @@ export async function GET() {
       allowedServiceTypes: user.allowedServiceTypes,
       /** P24 — Country ids; empty = every country. */
       countriesHandled: user.countriesHandled,
+      team: user.team,
       mobile: user.mobile,
       officialId: user.officialId,
       personalDetails: user.personalDetails,
@@ -132,6 +133,7 @@ export async function POST(request: NextRequest) {
       role: { id: user.role.id, name: user.role.name },
       allowedServiceTypes: user.allowedServiceTypes,
       countriesHandled: user.countriesHandled,
+      team: user.team,
       mobile: user.mobile,
       officialId: user.officialId,
       personalDetails: user.personalDetails,

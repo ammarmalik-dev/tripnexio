@@ -5,6 +5,7 @@ import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { getStaffIdsOnApprovedLeave, isAutoAssignable } from "./eligible-for-assignment";
 import { getStaffWorkloads } from "./workload";
 import type { ServiceType } from "../../generated/prisma/enums";
+import { initialTeamFor, type StaffTeam } from "./teams";
 
 const SYSTEM_CONFIG_ID = "singleton";
 
@@ -116,18 +117,31 @@ async function getApplicableRules(serviceType: ServiceType, subServiceId: string
  *     who claimed it in the meantime wins) + an AUTO_ASSIGN audit row.
  *  No eligible candidate → the lead stays unassigned, no error.
  */
-export async function autoAssignLead(leadId: string, serviceType: ServiceType): Promise<AutoAssignResult | null> {
+export async function autoAssignLead(
+  leadId: string,
+  serviceType: ServiceType,
+  options: {
+    /** Client doc 16 Nov (J5) — the team to pick from (default: the service's starting team). */
+    team?: StaffTeam;
+    /** Client doc 16 Nov (J5) — payment moved a Sales lead to Operations: replace an assignee who isn't in the team. */
+    handOver?: boolean;
+  } = {}
+): Promise<AutoAssignResult | null> {
   try {
     const config = await db.systemConfig.findUnique({ where: { id: SYSTEM_CONFIG_ID }, select: { autoAssignLeads: true } });
     if (!config?.autoAssignLeads) return null;
+    const team = options.team ?? initialTeamFor(serviceType);
 
-    const lead = await db.lead.findUnique({ where: { id: leadId }, select: { assignedStaffId: true, details: true } });
-    if (!lead || lead.assignedStaffId) return null;
+    const lead = await db.lead.findUnique({ where: { id: leadId }, select: { assignedStaffId: true, details: true, assignedStaff: { select: { team: true } } } });
+    if (!lead) return null;
+    // Already with someone: kept, unless a hand-over to Operations finds them outside it.
+    if (lead.assignedStaffId && (!options.handOver || lead.assignedStaff?.team === team)) return null;
+    const previousAssignee = lead.assignedStaffId;
     const details =
       typeof lead.details === "object" && lead.details !== null && !Array.isArray(lead.details)
         ? (lead.details as Record<string, unknown>)
         : null;
-    if (details && details.abandonedDraft === true) return null;
+    // Client doc 16 Nov (J5) — abandoned (draft) leads are assigned too, to Sales, so nobody misses the follow-up.
 
     const offsetMinutes = await getTimezoneOffsetMinutes(db);
     const dayOfWeek = weekdayInAdminTimezone(offsetMinutes);
@@ -165,9 +179,12 @@ export async function autoAssignLead(leadId: string, serviceType: ServiceType): 
 
     // 4b — countries handled.
     const countryId = await resolveLeadCountryId(details);
-    const candidates = countryId
+    const inCountry = countryId
       ? rostered.filter((row) => row.user.countriesHandled.length === 0 || row.user.countriesHandled.includes(countryId))
       : rostered;
+    // Client doc 16 Nov (J5) — the team's members (team null = both); nobody in the team → anyone eligible.
+    const inTeam = inCountry.filter((row) => !row.user.team || row.user.team === team);
+    const candidates = inTeam.length > 0 ? inTeam : inCountry;
     if (candidates.length === 0) return null;
 
     const workloads = await getStaffWorkloads(candidates.map((row) => row.userId));
@@ -191,10 +208,11 @@ export async function autoAssignLead(leadId: string, serviceType: ServiceType): 
     }
     if (rules.length > 0 && !matchedRule) return null;
 
+    // Client doc 16 Nov (J5) — "distributed equally (1-1-1-1)": fewest open leads first, then PAX, then roster order.
     const ranked = [...pool].sort(
       (a, b) =>
-        a.workload.paxCount - b.workload.paxCount ||
         a.workload.openLeadCount - b.workload.openLeadCount ||
+        a.workload.paxCount - b.workload.paxCount ||
         a.rosterIndex - b.rosterIndex
     );
     const chosen = ranked[0];
@@ -208,14 +226,15 @@ export async function autoAssignLead(leadId: string, serviceType: ServiceType): 
 
     const reason =
       `Auto-assigned to ${chosen.row.user.name}: ${usedRoster ? `rostered for ${SERVICE_TYPE_LABELS[serviceType]} on ${WEEKDAY_LABELS[dayOfWeek]}` : `in scope for ${SERVICE_TYPE_LABELS[serviceType]} (no roster set for ${WEEKDAY_LABELS[dayOfWeek]})`}, ` +
-      `lowest PAX workload (${chosen.workload.paxCount} PAX across ${chosen.workload.openLeadCount} open lead(s), ` +
+      `${options.handOver ? "handed to Operations after payment; " : ""}${team === "SALES" ? "Sales" : "Operations"} team; ` +
+      `fewest open leads (${chosen.workload.openLeadCount} open lead(s), ${chosen.workload.paxCount} PAX, ` +
       `${chosen.workload.openBookingCount} open booking(s)) among ${pool.length} eligible staff` +
       ruleNote +
       countryNote;
 
     const assigned = await db.$transaction(async (tx) => {
       const updated = await tx.lead.updateMany({
-        where: { id: leadId, assignedStaffId: null },
+        where: { id: leadId, assignedStaffId: previousAssignee },
         data: { assignedStaffId: chosen.row.userId },
       });
       if (updated.count === 0) return false;

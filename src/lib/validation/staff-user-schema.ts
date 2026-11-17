@@ -31,6 +31,7 @@ export const createStaffUserSchema = z.object({
   personalDetails: personalDetailsField.optional(),
   allowedServiceTypes: allowedServiceTypesField,
   countriesHandled: countriesHandledField,
+  team: z.enum(["SALES", "OPERATIONS"]).nullable().optional(),
 });
 
 export const updateStaffUserSchema = z.object({
@@ -42,6 +43,8 @@ export const updateStaffUserSchema = z.object({
   personalDetails: personalDetailsField.optional(),
   allowedServiceTypes: allowedServiceTypesField,
   countriesHandled: countriesHandledField,
+  /** Client doc 16 Nov (J5) — SALES / OPERATIONS; null = both. */
+  team: z.enum(["SALES", "OPERATIONS"]).nullable().optional(),
 });
 
 export type CreateStaffUserValues = z.infer<typeof createStaffUserSchema>;
