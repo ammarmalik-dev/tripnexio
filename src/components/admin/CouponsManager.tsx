@@ -420,6 +420,8 @@ export function CouponsManager() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [serviceFilter, setServiceFilter] = useState<ServiceType | "">("");
   const [showCreate, setShowCreate] = useState(false);
+  // The "expired" filter compares with the time the page was opened (no impure Date.now() during render).
+  const [openedAt] = useState(() => Date.now());
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -429,13 +431,13 @@ export function CouponsManager() {
       if (statusFilter === "disabled" && coupon.active) return false;
       if (statusFilter === "used" && coupon.usageCount === 0) return false;
       if (statusFilter === "unused" && coupon.usageCount > 0) return false;
-      if (statusFilter === "expired" && new Date(coupon.validUntil).getTime() >= Date.now()) return false;
+      if (statusFilter === "expired" && new Date(coupon.validUntil).getTime() >= openedAt) return false;
       // A coupon with no restriction is valid for every service, so it matches any service filter.
       if (serviceFilter && (coupon.serviceTypes ?? []).length > 0 && !coupon.serviceTypes.includes(serviceFilter)) return false;
       if (!term) return true;
       return [coupon.code, coupon.leadId ?? ""].some((value) => value.toLowerCase().includes(term));
     });
-  }, [coupons, search, categoryFilter, statusFilter, serviceFilter]);
+  }, [coupons, search, categoryFilter, statusFilter, serviceFilter, openedAt]);
   const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
