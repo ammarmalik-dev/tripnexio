@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { db } from "../db";
 import { leadReference } from "../leads/reference";
+import { serviceInvoiceFee } from "./service-fee";
 import { subServiceLabel } from "../leads/sub-service-label";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import { siteConfig } from "../site-config";
@@ -148,7 +149,7 @@ function priceLines(input: {
     }));
     const fine = round2(Number(quotation?.fineOrCharges ?? 0));
     const other = round2(Number(quotation?.otherCharges ?? 0));
-    if (fineIsFee && fine > 0) lines.push({ description: "Fine / status-change charges", sac, quantity: 1, governmentFee: fine, serviceFee: 0 });
+    if (fineIsFee && fine > 0) lines.push({ description: "Fine", sac, quantity: 1, governmentFee: fine, serviceFee: 0 });
     const extras = round2((fineIsFee ? 0 : fine) + other);
     if (extras > 0) lines.push({ description: "Additional charges", sac, quantity: 1, governmentFee: 0, serviceFee: extras });
     const sum = round2(lines.reduce((total, line) => total + line.governmentFee + line.serviceFee, 0));
@@ -156,6 +157,28 @@ function priceLines(input: {
   }
   const governmentFee = round2(Math.min(Math.max(quotation ? nonTaxableQuotationAmount(serviceType, quotation) : 0, 0), serviceAmount));
   return [{ description: defaultDescription, sac, quantity: 1, governmentFee, serviceFee: round2(serviceAmount - governmentFee) }];
+}
+
+/**
+ * Client doc 16 Nov (I8 / D7 / E4) — the invoice / proforma shows the service's CONFIGURED service fee as the service
+ * charge (GST on it), the fine (Visa Change / Extension) on its own "Fine" line, and the rest of the price as the
+ * Govt./Airline/Vendor fee — never the whole amount or the company's profit as "service charge".
+ */
+function configuredFeeLines(input: {
+  serviceType: ServiceType;
+  quotation: Pick<Quotation, "fineOrCharges"> | null;
+  serviceAmount: number;
+  configuredFee: number;
+  description: string;
+  sac: string | null;
+}): Omit<InvoiceDocumentLine, "gstAmount">[] {
+  const fine = FINE_AS_FEE_SERVICES.includes(input.serviceType) ? round2(Math.min(Math.max(Number(input.quotation?.fineOrCharges ?? 0), 0), input.serviceAmount)) : 0;
+  const fee = round2(Math.min(input.configuredFee, input.serviceAmount - fine));
+  const lines: Omit<InvoiceDocumentLine, "gstAmount">[] = [
+    { description: input.description, sac: input.sac, quantity: 1, governmentFee: round2(input.serviceAmount - fine - fee), serviceFee: fee },
+  ];
+  if (fine > 0) lines.push({ description: "Fine", sac: input.sac, quantity: 1, governmentFee: fine, serviceFee: 0 });
+  return lines;
 }
 
 /** GST is charged on service fees only; the stored total is spread across lines in proportion (the last line takes the rounding). */
@@ -266,14 +289,17 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
   const snapshotFee = payment.invoiceServiceFee != null ? Number(payment.invoiceServiceFee) : null;
   const defaultDescription = subService ? `${serviceLabel} — ${subService}` : serviceLabel;
   if (serviceAmount >= 0.005 && snapshotFee !== null) {
-    const fee = round2(Math.min(snapshotFee, serviceAmount));
-    baseLines.push({
-      description: payment.purpose === "EXTRA" ? (payment.description ?? "Extra Payment") : defaultDescription,
-      sac,
-      quantity: 1,
-      governmentFee: round2(serviceAmount - fee),
-      serviceFee: fee,
-    });
+    baseLines.push(
+      ...configuredFeeLines({
+        serviceType: lead.serviceType,
+        // Client doc 16 Nov (D7) — the fine is on the tax invoice too (its own line); never on an extra payment.
+        quotation: payment.purpose === "EXTRA" ? null : (lead.quotations[0] ?? null),
+        serviceAmount,
+        configuredFee: snapshotFee,
+        description: payment.purpose === "EXTRA" ? (payment.description ?? "Extra Payment") : defaultDescription,
+        sac,
+      })
+    );
   } else if (serviceAmount >= 0.005) {
     if (payment.purpose === "EXTRA") {
       baseLines.push({ description: payment.description ?? "Extra Payment", sac, quantity: 1, governmentFee: 0, serviceFee: serviceAmount });
@@ -354,8 +380,13 @@ export async function buildQuotationInvoiceDocument(quotationId: string): Promis
   const { serviceLabel, subService } = describeService(lead.serviceType, lead.details, lead.country?.name);
   const sellingPrice = Number(quotation.sellingPrice);
   const couponDiscount = Number(quotation.couponDiscount ?? 0);
+  const description = subService ? `${serviceLabel} — ${subService}` : serviceLabel;
+  // Client doc 16 Nov (I8 / E4) — the configured service fee is the proforma's service charge (not the profit).
+  const configured = await serviceInvoiceFee(lead.serviceType, lead.paxCount ?? 1);
   const lines = withGst(
-    priceLines({ serviceType: lead.serviceType, quotation, serviceAmount: sellingPrice, defaultDescription: subService ? `${serviceLabel} — ${subService}` : serviceLabel, sac }),
+    configured.fee !== null
+      ? configuredFeeLines({ serviceType: lead.serviceType, quotation, serviceAmount: sellingPrice, configuredFee: configured.fee, description, sac })
+      : priceLines({ serviceType: lead.serviceType, quotation, serviceAmount: sellingPrice, defaultDescription: description, sac }),
     0
   );
   const grandTotal = round2(sellingPrice - couponDiscount);

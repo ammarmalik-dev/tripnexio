@@ -56,14 +56,14 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] D4 Partial visa upload in CRM
 - [ ] D5 Manual lead: no travel date; Exit Method (A2A / Border) + Nationality → document checklist; offline lead shows configured documents
 - [ ] D6 Travel date = actual exit date (A2A + Border); shown when creating the bus itinerary
-- [ ] D7 Proforma: "Fine" (not "Fine / Status-Change Charges"); service fee = configured fee not profit; tax invoice includes the fine
+- [x] D7 Proforma: "Fine" (not "Fine / Status-Change Charges"); service fee = configured fee not profit; tax invoice includes the fine — unit 4: line reads Fine; configured fee is the service charge (not profit); the tax invoice has the Fine line too
 - [ ] D8 Second form page message: "Our team will verify each applicant's visa details before sending your quotation."
 
 ## E. Visa Extension
 - [ ] E1 Mixed PAX (one TripNexio visa, one external) — allow extension for eligible passengers
 - [ ] E2 Quotations only for eligible passengers
 - [ ] E3 Calendar: don't block past dates (Visa Change + Extension)
-- [ ] E4 Proforma: service charge per Admin config, profit separate
+- [x] E4 Proforma: service charge per Admin config, profit separate — unit 4: same rule — configured service charge, profit stays internal
 - [ ] E5 Bot: ask total PAX only; fix "TripNexio Visa Not Found"
 - [ ] E6 Manual lead: no travel date; passport number per passenger; configured documents auto-fetched
 - [ ] E7 No Applied to Embassy before document validation; validated documents not re-requested; download visa/passport copies; reject before expiry date + quotation
@@ -121,11 +121,11 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] I5 Payment link hidden after payment (show Paid) — unit 4: Copy Payment Link only while a payment is pending
 - [x] I6 Payment confirmation email + WhatsApp with Upload Documents button — unit 4: payment confirmation email + WhatsApp button = Upload Documents (migration 20261116180000)
 - [x] I7 Invoice: PAX count only (no "-1" quantity); invoice edit with vendor name + cost → booking + P&L; separate Invoice Edit permission; audit old/new values — unit 4: separate invoices.edit permission; invoice edit sets vendor + vendor cost (selected quotation, so booking + P&L follow); audit keeps old and new values
-- [ ] I8 Proforma: only configured service charge + GST
+- [x] I8 Proforma: only configured service charge + GST — unit 4: proforma shows the configured service charge (Admin → Services) + GST, the rest as the Govt./Vendor/Airline fee
 - [ ] I9 Gateway fees per method; actual vs configured fee in invoice edit; P&L from net received (see Q8) — unit 4: actual amount collected + actual gateway fee recorded on the invoice edit. Gateway fee rates per payment method (Card / UPI / Net Banking) + P&L from net received still open (see Q8)
 - [ ] I10 Vendor / sponsor Credit / Paid tracking with outstanding balances
 - [ ] I11 Coupons: create from Manual Lead (amount, auto code, applied); New Visa / OTB / Return Ticket only; checkout coupon field; tracking (creator, user, date, POC, used/unused, expiry) in one line; P&L accounting (see Q7)
-- [ ] I12 Manual lead for NV / OTB / RT only when pricing is configured; extra charges under Vendor/Airline Fee
+- [ ] I12 Manual lead for NV / OTB / RT only when pricing is configured; extra charges under Vendor/Airline Fee — unit 4: NV / OTB / RT manual leads refused until their price is configured. Extra charges under Vendor/Airline fee still open
 - [ ] I13 Extra charges included in Sales Price in P&L
 
 ## J. Leads, quotations & sales/ops separation

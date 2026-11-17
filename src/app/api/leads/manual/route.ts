@@ -75,8 +75,9 @@ export async function POST(request: NextRequest) {
   let resolvedPrice: Extract<DirectPaymentPrice, { ok: true }> | null = null;
   if (isFixedRateService(data.serviceType)) {
     const { price } = await previewManualLeadPrice(data, serviceDetails);
-    if (price.ok) resolvedPrice = price;
-    else pricingNote = price.error;
+    // Client doc 16 Nov (I12) — New Visa / OTB / Return Ticket manual leads only when their price is configured.
+    if (!price.ok) return jsonError(409, `${price.error} Configure the price in Admin first — a manual lead for this service needs it.`);
+    resolvedPrice = price;
   }
 
   const result = await createLeadFromSubmission({
