@@ -398,7 +398,8 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
               <KpiCard label="Hot Leads" value={data.sales.hotLeads} icon={Flame} tint="error" href={leadsHref({ temperature: "HOT" })} />
               <KpiCard label="Warm Leads" value={data.sales.warmLeads} icon={Sun} tint="warning" href={leadsHref({ temperature: "WARM" })} />
               <KpiCard label="Cold Leads" value={data.sales.coldLeads} icon={Snowflake} tint="neutral" href={leadsHref({ temperature: "COLD" })} />
-              <KpiCard label="Qualified Leads" value={data.sales.qualifiedLeads} icon={BadgeCheck} tint="success" href={leadsHref({ status: "QUALIFIED" })} />
+              {/* Client doc 16 Nov (J8) — Converted Leads (paid) instead of Qualified Leads. */}
+              <KpiCard label="Converted Leads" value={data.sales.convertedLeads} icon={BadgeCheck} tint="success" href={leadsHref({ status: "CONVERTED" })} />
               <KpiCard label="Quotations" value={data.sales.quotationsCreated} icon={FileText} tint="accent" href={quotationsHref({})} />
               <KpiCard label="Accepted Quotations" value={data.sales.acceptedQuotations} icon={CheckCircle2} tint="success" href={quotationsHref({ status: "SELECTED" })} />
               <KpiCard

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/Button";
 import { LeadStatusControl } from "./LeadStatusControl";
 import { LeadAssignmentControl } from "./LeadAssignmentControl";
 import { LeadTemperatureControl } from "./LeadTemperatureControl";
+import { LeadFollowUpControl } from "./LeadFollowUpControl";
 import { LeadServiceTypeControl } from "./LeadServiceTypeControl";
 import { BookingStatusBadge } from "./BookingStatusBadge";
 import { PaymentStatusBadge } from "./PaymentStatusBadge";
@@ -109,6 +110,8 @@ interface LeadDetailResponse {
   serviceType: ServiceType;
   status: LeadStatus;
   temperature: LeadTemperature | null;
+  nextFollowUpAt: string | null;
+  followUpNote: string | null;
   source: string | null;
   details: Record<string, unknown>;
   createdAt: string;
@@ -353,6 +356,18 @@ export function LeadDetail({
                 onChanged={(temperature) => setLead((current) => (current ? { ...current, temperature } : current))}
               />
             </div>
+            {/* Client doc 16 Nov (J1) — follow-up until the lead converts or is unqualified. */}
+            {lead.status !== "CONVERTED" && lead.status !== "LOST" && lead.status !== "CLOSED" ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">Follow-up</span>
+                <LeadFollowUpControl
+                  leadId={lead.id}
+                  nextFollowUpAt={lead.nextFollowUpAt}
+                  followUpNote={lead.followUpNote}
+                  onChanged={(value) => setLead((current) => (current ? { ...current, ...value } : current))}
+                />
+              </div>
+            ) : null}
           </>
         }
         actions={

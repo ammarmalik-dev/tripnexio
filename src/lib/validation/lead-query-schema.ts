@@ -17,6 +17,8 @@ export const leadListQuerySchema = z.object({
   status: z.enum(leadStatusValues).optional(),
   /** No "unset" filter option — a plain All/Cold/Warm/Hot dropdown, matching the roadmap prompt's "filterable on the Leads list" ask. */
   temperature: z.enum(leadTemperatureValues).optional(),
+  /** Client doc 16 Nov (J1 / J8) — Follow-ups: leads not responding, or whose follow-up date is today or earlier. */
+  followUpDue: z.enum(["1"]).optional(),
   search: z.string().trim().min(1).optional(),
   /** Step 53 — Command Centre's Sales Overview cards are period-scoped by createdAt; a card's link needs this to make the linked list's count actually match. */
   dateFrom: z.string().optional(),

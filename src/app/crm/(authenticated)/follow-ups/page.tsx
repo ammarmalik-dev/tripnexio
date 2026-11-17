@@ -10,10 +10,10 @@ export default function CrmFollowUpsPage() {
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Follow-ups</h1>
-        <p className="text-sm text-ink-tertiary">Leads waiting for a follow-up call or message.</p>
+        <p className="text-sm text-ink-tertiary">Leads whose follow-up is due today or earlier, and leads not responding.</p>
       </div>
       <Suspense>
-        <LeadsTable defaultStatus="FOLLOW_UP_REQUIRED" />
+        <LeadsTable followUpsDue />
       </Suspense>
     </div>
   );

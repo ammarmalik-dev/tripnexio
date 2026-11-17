@@ -70,8 +70,8 @@ function formatTravelDate(value: string | null): string {
     : "—";
 }
 
-/** `defaultStatus` pre-filters the list (e.g. the Follow-ups screen). */
-export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = {}) {
+/** `defaultStatus` pre-filters the list; `followUpsDue` lists the due follow-ups (client doc 16 Nov, J1 / J8). */
+export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defaultStatus?: string; followUpsDue?: boolean } = {}) {
   // Step 53 — read once on mount, so a Command Centre KPI card's link
   // (e.g. /crm/leads?status=NEW&dateFrom=...&dateTo=...) lands pre-filtered.
   const searchParams = useSearchParams();
@@ -130,6 +130,7 @@ export function LeadsTable({ defaultStatus = "" }: { defaultStatus?: string } = 
     const params = new URLSearchParams();
     if (serviceType) params.set("serviceType", serviceType);
     if (status) params.set("status", status);
+    if (followUpsDue) params.set("followUpDue", "1");
     if (temperature) params.set("temperature", temperature);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);

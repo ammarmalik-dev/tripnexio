@@ -91,6 +91,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
     serviceType: lead.serviceType,
     status: lead.status,
     temperature: lead.temperature,
+    // Client doc 16 Nov (J1) — the next follow-up.
+    nextFollowUpAt: lead.nextFollowUpAt,
+    followUpNote: lead.followUpNote,
     source: lead.source,
     details: lead.details,
     createdAt: lead.createdAt,

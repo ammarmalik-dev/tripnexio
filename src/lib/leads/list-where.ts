@@ -51,6 +51,12 @@ export function leadListWhere(
   };
   // Client doc 2026-10-27 (A1) — a Special Fare / Visa Extension / Visa Change request still waiting for its
   // quotation is listed here too (marked "Awaiting quotation"), not only under Quotations → Awaiting quotation.
-  const conditions = [base, ...(Object.keys(ownership).length > 0 ? [ownership] : [])];
+  // Client doc 16 Nov (J1 / J8) — due follow-ups: not responding, or the follow-up date reached; open leads only.
+  const endOfToday = new Date();
+  endOfToday.setUTCHours(23, 59, 59, 999);
+  const followUp: Prisma.LeadWhereInput | null = query.followUpDue
+    ? { status: { notIn: ["CONVERTED", "LOST", "CLOSED"] }, OR: [{ status: "FOLLOW_UP_REQUIRED" }, { nextFollowUpAt: { lte: endOfToday } }] }
+    : null;
+  const conditions = [base, ...(Object.keys(ownership).length > 0 ? [ownership] : []), ...(followUp ? [followUp] : [])];
   return conditions.length === 1 ? base : { AND: conditions };
 }

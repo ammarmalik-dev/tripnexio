@@ -273,6 +273,9 @@ model Lead {
   reference       String?          @unique
   /// Customer opted out of periodic follow-up reminders (unsubscribe link in the message).
   followUpOptOut  Boolean          @default(false)
+  /// Client doc 16 Nov (J1 / J8) — the next follow-up staff set on the lead (until it converts or is unqualified).
+  nextFollowUpAt  DateTime?
+  followUpNote    String?
   /// P15 — the customer said "No thanks" to the post-ticket Return Ticket / OTB
   /// offer: never repeated for this lead's journey.
   crossSellOptOut Boolean          @default(false)
@@ -327,6 +330,7 @@ model Lead {
   @@index([serviceType])
   @@index([status])
   @@index([temperature])
+  @@index([nextFollowUpAt])
   @@index([assignedStaffId])
   @@index([serviceStatusId])
   @@index([reference])

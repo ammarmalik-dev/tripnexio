@@ -30,6 +30,8 @@ export interface DashboardPeriod {
 export interface SalesOverview {
   newLeads: number;
   qualifiedLeads: number;
+  /** Client doc 16 Nov (J8) — leads converted into bookings (paid). */
+  convertedLeads: number;
   hotLeads: number;
   warmLeads: number;
   coldLeads: number;
@@ -181,6 +183,7 @@ export async function getSalesOverview(period: DashboardPeriod, allowedServiceTy
   return {
     newLeads: leadCountByStatus("NEW"),
     qualifiedLeads: leadCountByStatus("QUALIFIED"),
+    convertedLeads: leadCountByStatus("CONVERTED"),
     hotLeads: leadCountByTemperature("HOT"),
     warmLeads: leadCountByTemperature("WARM"),
     coldLeads: leadCountByTemperature("COLD"),

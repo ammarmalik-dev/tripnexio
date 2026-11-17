@@ -130,14 +130,14 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] I13 Extra charges included in Sales Price in P&L — checked: extra payments add revenue in the P&L (finance reports) and extra charges are part of the selling price
 
 ## J. Leads, quotations & sales/ops separation
-- [ ] J1 Lead statuses: New, Contacted, Interested, Under Review, User Not Responding (notifies), Unqualified, Converted (auto after paid); follow-up date until converted/unqualified; temperature unchanged
+- [x] J1 Lead statuses: New, Contacted, Interested, Under Review, User Not Responding (notifies), Unqualified, Converted (auto after paid); follow-up date until converted/unqualified; temperature unchanged — unit 5: lead lists New / User Not Responding (only one that notifies) / Contacted / Interested / Under Review (VC, VE keep their own review step) / Converted (payment) / Unqualified; lead On Hold + Cancelled gone; follow-up date + note on the lead, Follow-ups lists the due ones (migrations 20261117120000, 20261117130000). VC / VE / SF keep Quotation + Payment Pending steps per the final status list
 - [ ] J2 Unpaid / abandoned: selecting a quote or reaching the pay page keeps the record in Leads (Unpaid / Payment Abandoned); Booking only after payment (+ approval)
 - [ ] J3 Quotations only for SF / VC / VE; payment status shown separately; filters Service / Country / Status / Payment; validity from Admin; quotation history stays in Quotations
 - [ ] J4 Separate histories: Lead / Quotation / Booking, no cross-booking mixing
 - [ ] J5 Assignment: NV / OTB / RT → Sales POC before payment, Ops after; Flight / VC / VE → Ops; abandoned leads auto-assigned to Sales; manual leads by Super Admin re-assigned after payment; fair round-robin / workload (1-1-1-1)
 - [ ] J6 Permissions: Sales vs Operations; separate View All Bookings vs action permission
 - [ ] J7 Task auto-assignment by responsibility (sales vs ops)
-- [ ] J8 Sales Overview: Converted Leads instead of Qualified; Sales vs Ops dashboard cards/filters per doc
+- [ ] J8 Sales Overview: Converted Leads instead of Qualified; Sales vs Ops dashboard cards/filters per doc — unit 5: Command Centre shows Converted Leads instead of Qualified. Sales / Ops split of cards + filters still open
 - [ ] J9 Admin Sales Tracker: targets per POC, metrics, filters
 - [ ] J10 Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations, Bookings
 - [ ] J11 Manual lead: edit instead of separate Add Passenger

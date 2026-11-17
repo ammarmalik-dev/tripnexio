@@ -35,18 +35,26 @@ const NOT_RESPONDING = "NOT_RESPONDING";
 /** Client doc 16 Nov rule 6 — one common template for "User Not Responding" in every service. */
 const UNR_TEMPLATE = "USER_NOT_RESPONDING";
 
-/** Lead-stage closers shared by every service: paid (the booking takes over) or dropped. */
-const leadPaid = (from: string[] = ["Converted"]): CatalogStatus => ({
-  name: "Paid",
+/**
+ * Client doc 16 Nov (J1) — the lead section's own statuses: New, User Not Responding (the only one that messages the
+ * customer), Contacted, Interested, Under Review, Unqualified, and Converted (set by the payment itself). Lead "On Hold"
+ * and "Cancelled" are gone (a dropped lead is Unqualified); the quotation services keep their quotation steps (§S).
+ */
+const leadConverted: CatalogStatus = {
+  name: "Converted",
   customerLabel: "Payment Received",
   notify: null,
   systemEvent: "PAYMENT_SUCCESS",
   maps: "CONVERTED",
   terminal: true,
-  from,
-});
-const leadCancelled: CatalogStatus = { name: "Cancelled", customerLabel: "Cancelled", notify: null, maps: "LOST", terminal: true, from: ["Lost", "Closed"] };
-const leadHold: CatalogStatus = { name: "On Hold", customerLabel: "Booking On Hold", notify: null, systemEvent: HOLD, from: ["On Hold"] };
+  from: ["Paid", "Converted"],
+};
+const leadUnqualified: CatalogStatus = { name: "Unqualified", customerLabel: "Closed", notify: null, maps: "LOST", terminal: true, from: ["Cancelled", "Lost", "Closed"] };
+const leadContacted: CatalogStatus = { name: "Contacted", customerLabel: "Request Received", notify: null, maps: "CONTACTED", from: ["Contacted", "On Hold"] };
+const leadInterested: CatalogStatus = { name: "Interested", customerLabel: "Request Received", notify: null, maps: "CUSTOMER_RESPONDED", from: ["Customer Responded"] };
+const leadUnderReview: CatalogStatus = { name: "Under Review", customerLabel: "Request Under Review", notify: null, maps: "QUALIFIED", from: ["Qualified"] };
+/** The sales statuses every lead list starts with (after New / User Not Responding). */
+const leadSales = (withReview: boolean): CatalogStatus[] => (withReview ? [leadContacted, leadInterested, leadUnderReview] : [leadContacted, leadInterested]);
 const leadNotResponding: CatalogStatus = {
   name: "User Not Responding",
   customerLabel: "User Not Responding",
@@ -120,11 +128,11 @@ export const STATUS_CATALOG: CatalogList[] = [
     serviceType: "NEW_VISA",
     scope: "LEAD",
     statuses: [
-      { name: "New", customerLabel: "Payment Pending", notify: "NV_COUNTRY_REQUEST_PAYMENT_PENDING", maps: "NEW", from: ["New", "Contacted", "Customer Responded", "Qualified", "Quotation Created", "Quotation Accepted", "Payment Pending"] },
+      { name: "New", customerLabel: "Payment Pending", notify: "NV_COUNTRY_REQUEST_PAYMENT_PENDING", maps: "NEW", from: ["New", "Quotation Created", "Quotation Accepted", "Payment Pending"] },
       leadNotResponding,
-      leadPaid(),
-      leadCancelled,
-      leadHold,
+      ...leadSales(true),
+      leadConverted,
+      leadUnqualified,
     ],
   },
   {
@@ -154,15 +162,15 @@ export const STATUS_CATALOG: CatalogList[] = [
     serviceType: "VISA_CHANGE",
     scope: "LEAD",
     statuses: [
-      { name: "New", customerLabel: "Visa Change Request Received", notify: "VC_NEW", maps: "NEW", from: ["New", "Customer Responded"] },
+      { name: "New", customerLabel: "Visa Change Request Received", notify: "VC_NEW", maps: "NEW", from: ["New"] },
       leadNotResponding,
-      { name: "Current Visa Review", customerLabel: "Current Visa Being Reviewed", notify: null, maps: "CONTACTED", from: ["Contacted", "Qualified"] },
+      ...leadSales(false),
+      { name: "Current Visa Review", customerLabel: "Current Visa Being Reviewed", notify: null, maps: "QUALIFIED", from: ["Qualified"] },
       quotationSent("VC_QUOTATION_SENT"),
       quotationAccepted("VC_QUOTATION_APPROVED"),
       { name: "Payment Pending", customerLabel: "Payment Pending", notify: "VC_PAYMENT_PENDING", maps: "PAYMENT_PENDING", from: ["Payment Pending"] },
-      leadPaid(),
-      leadCancelled,
-      leadHold,
+      leadConverted,
+      leadUnqualified,
     ],
   },
   {
@@ -201,16 +209,16 @@ export const STATUS_CATALOG: CatalogList[] = [
     serviceType: "VISA_EXTENSION",
     scope: "LEAD",
     statuses: [
-      { name: "New", customerLabel: "New Extension Request", notify: "EXT_01", maps: "NEW", from: ["New", "Customer Responded"] },
+      { name: "New", customerLabel: "New Extension Request", notify: "EXT_01", maps: "NEW", from: ["New"] },
       leadNotResponding,
-      { name: "Eligibility Review", customerLabel: "Eligibility Under Review", notify: null, maps: "CONTACTED", from: ["Contacted", "Qualified"] },
+      ...leadSales(false),
+      { name: "Eligibility Review", customerLabel: "Eligibility Under Review", notify: null, maps: "QUALIFIED", from: ["Qualified"] },
       { name: "Not Eligible", customerLabel: "Not Eligible for Extension", notify: "EXT_03", maps: "LOST", terminal: true },
       quotationSent("EXT_04"),
       quotationAccepted("EXT_05"),
       { name: "Payment Pending", customerLabel: "Payment Pending", notify: "EXT_06", maps: "PAYMENT_PENDING", from: ["Payment Pending"] },
-      leadPaid(),
-      leadCancelled,
-      leadHold,
+      leadConverted,
+      leadUnqualified,
     ],
   },
   {
@@ -247,11 +255,11 @@ export const STATUS_CATALOG: CatalogList[] = [
     serviceType: "OTB",
     scope: "LEAD",
     statuses: [
-      { name: "New", customerLabel: "New Request Received", notify: "OTB_01_NEW", maps: "NEW", from: ["New", "Contacted", "Customer Responded", "Qualified", "Quotation Created", "Quotation Accepted", "Payment Pending"] },
+      { name: "New", customerLabel: "New Request Received", notify: "OTB_01_NEW", maps: "NEW", from: ["New", "Quotation Created", "Quotation Accepted", "Payment Pending"] },
       leadNotResponding,
-      leadPaid(),
-      leadCancelled,
-      leadHold,
+      ...leadSales(true),
+      leadConverted,
+      leadUnqualified,
     ],
   },
   {
@@ -283,11 +291,11 @@ export const STATUS_CATALOG: CatalogList[] = [
     serviceType: "RETURN_TICKET",
     scope: "LEAD",
     statuses: [
-      { name: "New", customerLabel: "New Request Received", notify: "RVT_NEW", maps: "NEW", from: ["New", "Contacted", "Customer Responded", "Qualified", "Quotation Created", "Quotation Accepted", "Payment Pending"] },
+      { name: "New", customerLabel: "New Request Received", notify: "RVT_NEW", maps: "NEW", from: ["New", "Quotation Created", "Quotation Accepted", "Payment Pending"] },
       leadNotResponding,
-      leadPaid(),
-      leadCancelled,
-      leadHold,
+      ...leadSales(true),
+      leadConverted,
+      leadUnqualified,
     ],
   },
   {
@@ -314,17 +322,17 @@ export const STATUS_CATALOG: CatalogList[] = [
     serviceType: "FLIGHT_SPECIAL_FARE",
     scope: "LEAD",
     statuses: [
-      { name: "New", customerLabel: "Request Received", notify: "SF_01", maps: "NEW", from: ["New", "Contacted", "Customer Responded", "Qualified"] },
+      { name: "New", customerLabel: "Request Received", notify: "SF_01", maps: "NEW", from: ["New"] },
       leadNotResponding,
+      ...leadSales(true),
       quotationSent("SF_02"),
       { name: "Expiring", customerLabel: "Quotation Expiring Soon", notify: null, systemEvent: "QUOTE_EXPIRING", maps: "QUOTATION_CREATED" },
       { name: "Expired", customerLabel: "Quotation Expired", notify: "SF_05", systemEvent: "QUOTE_EXPIRED", maps: "QUOTATION_CREATED" },
       { name: "New Quote Requested", customerLabel: "New Quotation Request Received", notify: "SF_06", systemEvent: "NEW_QUOTE_REQUESTED", maps: "QUALIFIED" },
       quotationAccepted("SF_03"),
       { name: "Payment Pending", customerLabel: "Payment Pending", notify: "SF_07", maps: "PAYMENT_PENDING", from: ["Payment Pending"] },
-      leadPaid(),
-      leadCancelled,
-      leadHold,
+      leadConverted,
+      leadUnqualified,
     ],
   },
   {
