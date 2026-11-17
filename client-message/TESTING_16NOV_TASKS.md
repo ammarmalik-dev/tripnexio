@@ -139,7 +139,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] J7 Task auto-assignment by responsibility (sales vs ops)
 - [ ] J8 Sales Overview: Converted Leads instead of Qualified; Sales vs Ops dashboard cards/filters per doc — unit 5: Command Centre shows Converted Leads instead of Qualified. Sales / Ops split of cards + filters still open
 - [ ] J9 Admin Sales Tracker: targets per POC, metrics, filters
-- [ ] J10 Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations, Bookings
+- [x] J10 Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations, Bookings — unit 5: Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations and Bookings — Manual = staff-created (details.manualEntry), WhatsApp = bot, Website = the rest; also via ?entrySource=
 - [ ] J11 Manual lead: edit instead of separate Add Passenger
 - [ ] J12 WhatsApp bot abandoned leads for every service
 - [x] J13 Reference IDs like Q-6UOFRN → configured serial format; "Booking" instead of "Application ID" — unit 1: quotation reference + proforma number = lead serial (11026VC105-Q2)

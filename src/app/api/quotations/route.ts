@@ -1,4 +1,5 @@
 import { leadOwnershipWhere, seesAllRecords } from "@/lib/auth/ownership";
+import { entrySourceWhere } from "@/lib/leads/entry-source";
 import { resolveLeadSubServiceCodes, vendorSubServiceProblem } from "@/lib/vendors/sub-service-scope";
 import { specialFarePaxCounts, specialFareTotals } from "@/lib/special-fare/pax-counts";
 import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
@@ -86,6 +87,7 @@ export async function GET(request: NextRequest) {
   }
   const { serviceType, status, search, dateFrom, dateTo, assignedStaffId, countryId, travelFrom, travelTo, sort, page, pageSize } = parsed.data;
   const leadFilter: Prisma.LeadWhereInput = {
+    ...entrySourceWhere(parsed.data.entrySource),
     ...(assignedStaffId ? { assignedStaffId: assignedStaffId === "unassigned" ? null : assignedStaffId } : {}),
     ...(countryId ? { countryId } : {}),
     ...(travelFrom || travelTo

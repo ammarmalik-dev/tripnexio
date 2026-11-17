@@ -1,5 +1,6 @@
 "use client";
 
+import { ENTRY_SOURCE_OPTIONS } from "@/lib/leads/entry-source-options";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -84,6 +85,7 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
   const [travelTo, setTravelTo] = useState(() => searchParams.get("travelTo") ?? "");
   const filterOptions = useListFilterOptions();
   const [temperature, setTemperature] = useState(() => searchParams.get("temperature") ?? "");
+  const [entrySource, setEntrySource] = useState(() => searchParams.get("entrySource") ?? "");
   const [paymentFailed, setPaymentFailed] = useState(() => searchParams.get("paymentFailed") === "1");
   const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
   const {
@@ -132,6 +134,7 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
     if (status) params.set("status", status);
     if (followUpsDue) params.set("followUpDue", "1");
     if (temperature) params.set("temperature", temperature);
+    if (entrySource) params.set("entrySource", entrySource);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
@@ -172,7 +175,7 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
     };
     // buildFilterParams reads exactly the state listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceType, status, temperature, paymentFailed, assignedStaffId, countryId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [serviceType, status, temperature, entrySource, paymentFailed, assignedStaffId, countryId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -220,6 +223,27 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
         >
           <option value="">All statuses</option>
           {LEAD_STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        {/* Client doc 16 Nov (J10) — entry source. */}
+        <label htmlFor="filter-lead-entry-source" className="sr-only">
+          Filter by entry source
+        </label>
+        <select
+          id="filter-lead-entry-source"
+          value={entrySource}
+          onChange={(event) => {
+            setEntrySource(event.target.value);
+            setPage(1);
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+        >
+          <option value="">All sources</option>
+          {ENTRY_SOURCE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

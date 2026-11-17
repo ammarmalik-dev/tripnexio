@@ -13,6 +13,8 @@ const leadStatusValues = Object.values(LeadStatus) as [LeadStatusType, ...LeadSt
 const leadTemperatureValues = Object.values(LeadTemperature) as [LeadTemperatureType, ...LeadTemperatureType[]];
 
 export const leadListQuerySchema = z.object({
+  /** Client doc 16 Nov (J10) — Website / WhatsApp / Manual. */
+  entrySource: z.enum(["WEBSITE", "WHATSAPP", "MANUAL"]).optional(),
   serviceType: z.enum(serviceTypeValues).optional(),
   status: z.enum(leadStatusValues).optional(),
   /** No "unset" filter option — a plain All/Cold/Warm/Hot dropdown, matching the roadmap prompt's "filterable on the Leads list" ask. */

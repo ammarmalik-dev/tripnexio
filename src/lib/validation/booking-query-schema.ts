@@ -30,6 +30,8 @@ const statusListSchema = z
   .pipe(z.array(z.enum([...bookingStatusValues, ...DERIVED_BOOKING_FILTERS])).min(1));
 
 export const bookingListQuerySchema = z.object({
+  /** Client doc 16 Nov (J10) — Website / WhatsApp / Manual. */
+  entrySource: z.enum(["WEBSITE", "WHATSAPP", "MANUAL"]).optional(),
   status: statusListSchema.optional(),
   /** P21 item 4 — filter by the booking's lead's serviceType. */
   serviceType: z.enum(serviceTypeValues).optional(),

@@ -1,5 +1,6 @@
 "use client";
 
+import { ENTRY_SOURCE_OPTIONS } from "@/lib/leads/entry-source-options";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -105,6 +106,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
   const [paymentStatus, setPaymentStatus] = useState(() => param("paymentStatus"));
   const [assignedStaffId, setAssignedStaffId] = useState(() => param("assignedStaffId"));
   const [countryId, setCountryId] = useState(() => param("countryId"));
+  const [entrySource, setEntrySource] = useState(() => param("entrySource"));
   const [vendorId, setVendorId] = useState(() => param("vendorId"));
   const [travelFrom, setTravelFrom] = useState(() => param("travelFrom"));
   const [travelTo, setTravelTo] = useState(() => param("travelTo"));
@@ -146,6 +148,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
       ["paymentStatus", paymentStatus],
       ["assignedStaffId", assignedStaffId],
       ["countryId", countryId],
+      ["entrySource", entrySource],
       ["vendorId", vendorId],
       ["travelFrom", travelFrom],
       ["travelTo", travelTo],
@@ -185,7 +188,7 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
     };
     // buildFilterParams reads exactly the state listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, serviceType, serviceStatusId, customerStatus, paymentStatus, assignedStaffId, countryId, vendorId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [status, serviceType, serviceStatusId, customerStatus, paymentStatus, assignedStaffId, countryId, entrySource, vendorId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   // Client testing 2026-10-09 (E13) — every status is in the filters, not only after picking a service.
   const internalStatusOptions = serviceType ? options.serviceStatuses.filter((option) => option.serviceType === serviceType) : options.serviceStatuses;
@@ -279,6 +282,8 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
           }))
         )}
         {filterSelect("filter-booking-payment", "Filter by payment status", paymentStatus, setPaymentStatus, "All payments", PAYMENT_STATUS_OPTIONS)}
+        {/* Client doc 16 Nov (J10) — entry source. */}
+        {filterSelect("filter-booking-entry-source", "Filter by entry source", entrySource, setEntrySource, "All sources", ENTRY_SOURCE_OPTIONS)}
         {filterSelect("filter-booking-poc", "Filter by POC", assignedStaffId, setAssignedStaffId, "All POCs", [
           { value: "unassigned", label: "Unassigned" },
           ...options.staff.map((member) => ({ value: member.id, label: member.active ? member.name : `${member.name} (inactive)` })),

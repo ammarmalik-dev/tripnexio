@@ -1,5 +1,6 @@
 "use client";
 
+import { ENTRY_SOURCE_OPTIONS } from "@/lib/leads/entry-source-options";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -98,6 +99,7 @@ export function QuotationsTable() {
   // Client corrections 2026-10-05 — POC, country and travel-date filters; no page search box (global 360 search).
   const [assignedStaffId, setAssignedStaffId] = useState(() => searchParams.get("assignedStaffId") ?? "");
   const [countryId, setCountryId] = useState(() => searchParams.get("countryId") ?? "");
+  const [entrySource, setEntrySource] = useState(() => searchParams.get("entrySource") ?? "");
   const [travelFrom, setTravelFrom] = useState(() => searchParams.get("travelFrom") ?? "");
   const [travelTo, setTravelTo] = useState(() => searchParams.get("travelTo") ?? "");
   const [search] = useState(() => searchParams.get("search") ?? "");
@@ -118,6 +120,7 @@ export function QuotationsTable() {
     if (dateTo) params.set("dateTo", dateTo);
     if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
     if (countryId) params.set("countryId", countryId);
+    if (entrySource) params.set("entrySource", entrySource);
     if (travelFrom) params.set("travelFrom", travelFrom);
     if (travelTo) params.set("travelTo", travelTo);
     if (search) params.set("search", search);
@@ -153,7 +156,7 @@ export function QuotationsTable() {
     };
     // buildFilterParams reads exactly the state listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceType, status, assignedStaffId, countryId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [serviceType, status, assignedStaffId, countryId, entrySource, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -181,6 +184,27 @@ export function QuotationsTable() {
           <option value="">All POCs</option>
           <option value="unassigned">Unassigned</option>
           {filterOptions.staff.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+
+        {/* Client doc 16 Nov (J10) — entry source. */}
+        <label htmlFor="filter-quote-entry-source" className="sr-only">
+          Filter by entry source
+        </label>
+        <select
+          id="filter-quote-entry-source"
+          value={entrySource}
+          onChange={(event) => {
+            setEntrySource(event.target.value);
+            resetPage();
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+        >
+          <option value="">All sources</option>
+          {ENTRY_SOURCE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

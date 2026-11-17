@@ -1,4 +1,5 @@
 import { leadOwnershipWhere } from "../auth/ownership";
+import { entrySourceWhere } from "../leads/entry-source";
 import type { Prisma } from "../../generated/prisma/client";
 import { isServiceScopeUnrestricted, serviceTypeCondition } from "../auth/service-scope";
 import type { StaffSession } from "../auth/staff-session";
@@ -45,6 +46,7 @@ export function bookingListWhere(session: StaffSession, query: BookingListQueryV
         }
       : {}),
     ...(vendorId ? { quotations: { some: { isSelected: true, vendorId } } } : {}),
+    ...entrySourceWhere(query.entrySource),
     // Client testing 2026-10-09 (E7) — staff see bookings of their own + unassigned leads.
     ...leadOwnershipWhere(session),
   };

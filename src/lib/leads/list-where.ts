@@ -3,6 +3,7 @@ import type { Prisma } from "../../generated/prisma/client";
 import { serviceTypeCondition } from "../auth/service-scope";
 import type { StaffSession } from "../auth/staff-session";
 import type { LeadListQueryValues } from "../validation/lead-query-schema";
+import { entrySourceWhere } from "./entry-source";
 
 /**
  * The Leads list's where clause, shared by GET /api/leads and its CSV export
@@ -19,6 +20,7 @@ export function leadListWhere(
   const ownership = leadOwnershipWhere(session);
   const base: Prisma.LeadWhereInput = {
     ...serviceTypeCondition(session, serviceType),
+    ...entrySourceWhere(query.entrySource),
     ...(status ? { status } : {}),
     ...(temperature ? { temperature } : {}),
     ...(assignedStaffId ? { assignedStaffId: assignedStaffId === "unassigned" ? null : assignedStaffId } : {}),

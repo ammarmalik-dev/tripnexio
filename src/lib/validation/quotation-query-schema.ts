@@ -9,6 +9,8 @@ const serviceTypeValues = Object.values(ServiceType) as [ServiceTypeType, ...Ser
  * quotationStatus() in src/app/api/quotations/route.ts for the mapping.
  */
 export const quotationListQuerySchema = z.object({
+  /** Client doc 16 Nov (J10) — Website / WhatsApp / Manual. */
+  entrySource: z.enum(["WEBSITE", "WHATSAPP", "MANUAL"]).optional(),
   serviceType: z.enum(serviceTypeValues).optional(),
   status: z.enum(["SELECTED", "EXPIRED", "PENDING"]).optional(),
   search: z.string().trim().min(1).optional(),
