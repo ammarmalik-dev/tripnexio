@@ -1,4 +1,4 @@
-import { leadOwnershipWhere, seesAllRecords } from "@/lib/auth/ownership";
+import { leadOwnershipWhere, seesAllForViewing } from "@/lib/auth/ownership";
 import { entrySourceWhere } from "@/lib/leads/entry-source";
 import { resolveLeadSubServiceCodes, vendorSubServiceProblem } from "@/lib/vendors/sub-service-scope";
 import { specialFarePaxCounts, specialFareTotals } from "@/lib/special-fare/pax-counts";
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),
-    ...(serviceType || search || hasLeadFilter || !isServiceScopeUnrestricted(auth.session) || !seesAllRecords(auth.session)
+    ...(serviceType || search || hasLeadFilter || !isServiceScopeUnrestricted(auth.session) || !seesAllForViewing(auth.session)
       ? {
           lead: {
             // Client testing 2026-10-09 (E7) — staff see quotations of their own + unassigned leads.

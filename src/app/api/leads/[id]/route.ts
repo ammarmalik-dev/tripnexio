@@ -1,4 +1,4 @@
-import { assertOwnsRecord } from "@/lib/auth/ownership";
+import { assertCanViewRecord } from "@/lib/auth/ownership";
 import { subServiceLabel } from "@/lib/leads/sub-service-label";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -44,7 +44,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   if (!lead) return jsonError(404, "Lead not found.");
   const scopeError = assertServiceAccess(auth.session, lead.serviceType);
   if (scopeError) return scopeError;
-  const ownershipError = assertOwnsRecord(auth.session, lead.assignedStaffId);
+  // Client doc 16 Nov (J6) — viewing: own records, or every record with bookings.viewAll.
+  const ownershipError = assertCanViewRecord(auth.session, lead.assignedStaffId);
   if (ownershipError) return ownershipError;
 
   const quotations = await syncExpiredQuotations(lead.quotations);

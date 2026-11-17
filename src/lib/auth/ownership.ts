@@ -18,8 +18,23 @@ export function seesAllRecords(session: OwnershipSession): boolean {
   return hasPermission(session, "leads.reassign");
 }
 
+/**
+ * Client doc 16 Nov (J6) — "View All Bookings": staff with bookings.viewAll SEE every record (lists, detail pages) but
+ * still ACT only on their own (assertOwnsEntity / assertOwnsRecord keep using seesAllRecords). Viewing never grants
+ * the right to act.
+ */
+export function seesAllForViewing(session: OwnershipSession): boolean {
+  return seesAllRecords(session) || hasPermission(session, "bookings.viewAll");
+}
+
+/** A 403 for opening a record assigned to someone else — unless the viewer may view all records (J6). */
+export function assertCanViewRecord(session: OwnershipSession, assignedStaffId: string | null | undefined): Response | null {
+  if (seesAllForViewing(session)) return null;
+  return assertOwnsRecord(session, assignedStaffId);
+}
+
 export function leadOwnershipWhere(session: OwnershipSession): Prisma.LeadWhereInput {
-  if (seesAllRecords(session)) return {};
+  if (seesAllForViewing(session)) return {};
   return { OR: [{ assignedStaffId: session.id }, { assignedStaffId: null }] };
 }
 

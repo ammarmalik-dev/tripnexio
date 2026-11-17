@@ -1,4 +1,4 @@
-import { assertOwnsRecord } from "@/lib/auth/ownership";
+import { assertCanViewRecord } from "@/lib/auth/ownership";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { subServiceLabel } from "@/lib/leads/sub-service-label";
@@ -71,7 +71,8 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const ticketDocs = booking.documents.filter((doc) => doc.type === "TICKET_PDF" && doc.bookingId === booking.id && !doc.purgedAt);
   const scopeError = assertServiceAccess(auth.session, booking.lead.serviceType);
   if (scopeError) return scopeError;
-  const ownershipError = assertOwnsRecord(auth.session, booking.lead.assignedStaffId);
+  // Client doc 16 Nov (J6) — viewing: own records, or every record with bookings.viewAll.
+  const ownershipError = assertCanViewRecord(auth.session, booking.lead.assignedStaffId);
   if (ownershipError) return ownershipError;
 
   // Return_Verified_Ticket.md §7: "Staff should be able to see the internal

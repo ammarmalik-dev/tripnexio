@@ -57,6 +57,7 @@ export const PERMISSION_CATALOG: { name: string; description: string }[] = [
   { name: "data.export", description: "Export core tables (customers, leads, bookings, payments) to CSV" },
   { name: "automation.view", description: "View background automation (n8n workflow) run history and health" },
   { name: "ai.assist", description: "Use the Admin AI Command Center — natural-language read-only queries across bookings, refunds, payments, staff workload, and integration health" },
+  { name: "bookings.viewAll", description: "View every lead, quotation and booking (actions stay limited to the staff member's own) — client doc 16 Nov, J6" },
   { name: "invoices.edit", description: "Edit an issued invoice: lines, GST, vendor + vendor cost, actual amount collected and gateway fee (client doc 16 Nov, I7 / I9)" },
   { name: "finance.manage", description: "Record/edit expenses and view the P&L report — ADMIN.md §29: internal vendor cost and margin must remain Admin-only" },
   { name: ADMIN_FULL_PERMISSION, description: "Full system access — bypasses every other permission check" },
