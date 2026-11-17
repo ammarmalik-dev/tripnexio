@@ -25,7 +25,7 @@ export default async function AdminInvoicesPage() {
           download, export as CSV, or download the matching PDFs as a ZIP.
         </p>
       </div>
-      <InvoiceHistory canEdit={hasPermission(session, "finance.manage")} />
+      <InvoiceHistory canEdit={hasPermission(session, "invoices.edit")} />
     </div>
   );
 }

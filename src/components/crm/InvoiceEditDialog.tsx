@@ -21,6 +21,12 @@ interface EditableInvoice {
   couponDiscount: number;
   gatewayFee: number;
   grandTotal: number;
+  /** Client doc 16 Nov (I7 / I9). */
+  vendorId: string | null;
+  vendorCost: number | null;
+  vendors: { id: string; name: string }[];
+  actualCollected: number | null;
+  actualGatewayFee: number | null;
 }
 
 interface LineDraft {
@@ -43,6 +49,10 @@ export function InvoiceEditDialog({ paymentId, onClose }: { paymentId: string; o
   const [error, setError] = useState("");
   const [lines, setLines] = useState<LineDraft[]>([]);
   const [gst, setGst] = useState("0");
+  const [vendorId, setVendorId] = useState("");
+  const [vendorCost, setVendorCost] = useState("");
+  const [actualCollected, setActualCollected] = useState("");
+  const [actualGatewayFee, setActualGatewayFee] = useState("");
   const [saving, setSaving] = useState(false);
   const { confirm, dialog } = useConfirmAction();
 
@@ -55,6 +65,10 @@ export function InvoiceEditDialog({ paymentId, onClose }: { paymentId: string; o
         setInvoice(result);
         setLines(result.lines.map((line) => ({ description: line.description, quantity: String(line.quantity), governmentFee: String(line.governmentFee), serviceFee: String(line.serviceFee) })));
         setGst(String(result.gstAmount));
+        setVendorId(result.vendorId ?? "");
+        setVendorCost(result.vendorCost != null ? String(result.vendorCost) : "");
+        setActualCollected(result.actualCollected != null ? String(result.actualCollected) : "");
+        setActualGatewayFee(result.actualGatewayFee != null ? String(result.actualGatewayFee) : "");
       } catch (loadError) {
         if (!cancelled) setError(loadError instanceof ApiError ? loadError.message : "Couldn't load the invoice.");
       }
@@ -83,7 +97,18 @@ export function InvoiceEditDialog({ paymentId, onClose }: { paymentId: string; o
     if (!reason) return;
     setSaving(true);
     try {
-      await patchJson(`/api/payments/${paymentId}/invoice-edit`, reset ? { reset: true, reason } : { lines: values, gstAmount: num(gst), reason });
+      await patchJson(`/api/payments/${paymentId}/invoice-edit`,
+        reset
+          ? { reset: true, reason }
+          : {
+              lines: values,
+              gstAmount: num(gst),
+              ...(vendorId && vendorId !== invoice?.vendorId ? { vendorId } : {}),
+              ...(vendorCost.trim() !== "" && num(vendorCost) !== invoice?.vendorCost ? { vendorCost: num(vendorCost) } : {}),
+              ...(actualCollected.trim() !== "" ? { actualCollected: num(actualCollected) } : {}),
+              ...(actualGatewayFee.trim() !== "" ? { actualGatewayFee: num(actualGatewayFee) } : {}),
+              reason,
+            });
       toast.success(reset ? "Invoice reset." : "Invoice saved.");
       onClose();
     } catch (saveError) {
@@ -160,6 +185,37 @@ export function InvoiceEditDialog({ paymentId, onClose }: { paymentId: string; o
               <Plus className="h-4 w-4" aria-hidden="true" />
               Add line
             </Button>
+            {/* Client doc 16 Nov (I7 / I9) — vendor + cost (the booking and P&L follow), actual collection and gateway fee. */}
+            <div className="grid grid-cols-1 gap-3 border-t border-hairline pt-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-xs text-ink-secondary">
+                <span className="font-medium">Vendor</span>
+                <select
+                  value={vendorId}
+                  onChange={(event) => setVendorId(event.target.value)}
+                  className="h-9 rounded-md border border-hairline bg-surface-1 px-2 text-sm text-ink-primary"
+                  disabled={invoice.vendors.length === 0}
+                >
+                  <option value="">—</option>
+                  {invoice.vendors.map((vendor) => (
+                    <option key={vendor.id} value={vendor.id}>
+                      {vendor.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-ink-secondary">
+                <span className="font-medium">Vendor cost (₹)</span>
+                {input(vendorCost, setVendorCost, "Vendor cost")}
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-ink-secondary">
+                <span className="font-medium">Actual amount collected (₹, optional)</span>
+                {input(actualCollected, setActualCollected, "Actual amount collected")}
+              </label>
+              <label className="flex flex-col gap-1 text-xs text-ink-secondary">
+                <span className="font-medium">Actual gateway fee charged (₹, optional)</span>
+                {input(actualGatewayFee, setActualGatewayFee, "Actual gateway fee")}
+              </label>
+            </div>
             <div className="flex flex-wrap items-end justify-between gap-3 border-t border-hairline pt-3">
               <label className="flex w-40 flex-col gap-1 text-xs text-ink-secondary">
                 <span className="font-medium">GST amount (₹)</span>

@@ -114,15 +114,15 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] H13 Log review of 11026FL112 (actions after cancellation) — see Q10
 
 ## I. Payments, invoices & coupons
-- [ ] I1 Offline Bank Transfer in CRM; slip upload; lead stays pending until approver verifies; offline payment records table; switch method before payment
-- [ ] I2 Online / Offline choice after quotation acceptance (VC / VE / Flight): bank details, receipt upload, Payment Verification Pending, ops blocked until approved
-- [ ] I3 (unit 1 did: manual-lead link now sent when the lead is past its first status; link + Copy + Resend stay on the lead after creation. Left for the payments unit: switch to Bank Transfer while a gateway link is pending — needs gateway link cancel) Copy Payment Link fixed; manual-lead payment link delivered (email + WhatsApp) and visible; Offline button stays
-- [ ] I4 Booking ID + Lead Code passed to the gateway (visible in its dashboard)
-- [ ] I5 Payment link hidden after payment (show Paid)
-- [ ] I6 Payment confirmation email + WhatsApp with Upload Documents button
-- [ ] I7 Invoice: PAX count only (no "-1" quantity); invoice edit with vendor name + cost → booking + P&L; separate Invoice Edit permission; audit old/new values
+- [x] I1 Offline Bank Transfer in CRM; slip upload; lead stays pending until approver verifies; offline payment records table; switch method before payment — unit 4: switch an unpaid payment online link <-> bank transfer (link cancelled at the gateway first); bank transfer stays pending until the approver verifies the slip (existing maker-checker)
+- [x] I2 Online / Offline choice after quotation acceptance (VC / VE / Flight): bank details, receipt upload, Payment Verification Pending, ops blocked until approved — unit 4: VC / VE / Special Fare pay page offers bank transfer (Admin bank details from Invoice Settings), customer uploads the receipt, approver verifies before the booking is active
+- [x] I3 (unit 1 did: manual-lead link now sent when the lead is past its first status; link + Copy + Resend stay on the lead after creation. Left for the payments unit: switch to Bank Transfer while a gateway link is pending — needs gateway link cancel) Copy Payment Link fixed; manual-lead payment link delivered (email + WhatsApp) and visible; Offline button stays — unit 1 + 4: link sent / copied / resent from the lead; Offline option via Switch to bank transfer
+- [x] I4 Booking ID + Lead Code passed to the gateway (visible in its dashboard) — unit 4: gateway notes carry booking_id + lead_code
+- [x] I5 Payment link hidden after payment (show Paid) — unit 4: Copy Payment Link only while a payment is pending
+- [x] I6 Payment confirmation email + WhatsApp with Upload Documents button — unit 4: payment confirmation email + WhatsApp button = Upload Documents (migration 20261116180000)
+- [x] I7 Invoice: PAX count only (no "-1" quantity); invoice edit with vendor name + cost → booking + P&L; separate Invoice Edit permission; audit old/new values — unit 4: separate invoices.edit permission; invoice edit sets vendor + vendor cost (selected quotation, so booking + P&L follow); audit keeps old and new values
 - [ ] I8 Proforma: only configured service charge + GST
-- [ ] I9 Gateway fees per method; actual vs configured fee in invoice edit; P&L from net received (see Q8)
+- [ ] I9 Gateway fees per method; actual vs configured fee in invoice edit; P&L from net received (see Q8) — unit 4: actual amount collected + actual gateway fee recorded on the invoice edit. Gateway fee rates per payment method (Card / UPI / Net Banking) + P&L from net received still open (see Q8)
 - [ ] I10 Vendor / sponsor Credit / Paid tracking with outstanding balances
 - [ ] I11 Coupons: create from Manual Lead (amount, auto code, applied); New Visa / OTB / Return Ticket only; checkout coupon field; tracking (creator, user, date, POC, used/unused, expiry) in one line; P&L accounting (see Q7)
 - [ ] I12 Manual lead for NV / OTB / RT only when pricing is configured; extra charges under Vendor/Airline Fee
