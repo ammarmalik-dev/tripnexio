@@ -141,8 +141,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       });
     }
 
-    // Client doc 2026-10-20 (I2) — the customer is told when their enquiry is resolved or closed, with the remark.
-    if (closing) {
+    // Client doc 2026-10-20 (I2) — the customer is told when their enquiry is resolved, with the remark.
+    // Client doc 16 Nov (L2) — only on Resolved; "Closed" sends nothing.
+    if (closing && status === "RESOLVED") {
       await notifyCustomer({
         event: NOTIFICATION_EVENTS.ENQUIRY_RESOLVED,
         emailTo: existing.email,

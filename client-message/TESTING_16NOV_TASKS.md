@@ -21,7 +21,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 ## A. Special Fare (flight)
 - [ ] A1 Manual lead: origin city, destination city, return date (round trip)
 - [ ] A2 Send multiple quotations in one click (Special Fare + Visa Change only)
-- [ ] A3 Email heading: no airline logo of the first quotation
+- [x] A3 Email heading: no airline logo of the first quotation — unit 6: email heading shows only the SELECTED flight airline (no logo while several options are open)
 - [ ] A4 Ticket upload: reuse baggage from the quotation, don't ask again
 - [ ] A5 Partial ticket issuance → status Partially Issued (CRM + website)
 - [ ] A6 Ticket upload: compare ticket details with passenger data; block on mismatch
@@ -149,7 +149,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] K2 Compact list pages: filters ≤ 2 rows, full width, ≥ 10 rows visible, Express highlight only (no "Normal"), PAX inline — Leads, Quotations, Bookings, Payments, Invoices, Refunds, Tasks
 - [ ] K3 POC name column + filter: Tasks, Follow-ups, Documents, Refunds, Invoices, Payments
 - [ ] K4 Quick Booking Search icon in those sections + Admin Live Activity, OCR Monitor, Audit Trail; audit filters in one row
-- [ ] K5 No number-input spinner arrows
+- [x] K5 No number-input spinner arrows — unit 6: number inputs have no spinner arrows anywhere (globals.css)
 - [ ] K6 Website booking summary centred
 - [ ] K7 Customer export; remove Admin → Data Export (see Q9)
 - [ ] K8 Visa Entry Type master (+ add button)
@@ -159,7 +159,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 
 ## L. Chat, complaints, help desk, knowledge
 - [ ] L1 WhatsApp chat: staff notifications for new messages; Bot vs Agent chats separated; chat usable while working elsewhere; auto-assign to the booking's Sales POC
-- [ ] L2 Complaint: WhatsApp + email on submit; notify only on Resolved (not Closed)
+- [x] L2 Complaint: WhatsApp + email on submit; notify only on Resolved (not Closed) — unit 6: enquiry / complaint acknowledged on WhatsApp too (needs the Meta template name, see M1); customer message only on Resolved, not Closed
 - [ ] L3 Help desk tickets: ID `TNITXXXX`, email to creator, Admin alert, attachments, Admin ticket management (assign, status Open / In Progress / Resolved, comments, resolution note, history)
 - [ ] L4 Knowledge Centre bulk upload (PDF / DOC / DOCX, progress, manage/delete)
 - [ ] L5 WhatsApp bot reuses known customer name/email

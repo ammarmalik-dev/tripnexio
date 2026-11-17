@@ -122,9 +122,11 @@ async function airlineFor(target: { entityType: string; entityId: string }): Pro
                 ? (await db.document.findUnique({ where: { id: target.entityId }, select: { booking: { select: { leadId: true } } } }))?.booking?.leadId
                 : null;
       if (leadId) {
+        // Client doc 16 Nov (A3) — only the customer's SELECTED flight; while several options are open (the quotation
+        // email) the heading shows no airline, never the first option's logo.
         const quote = await db.quotation.findFirst({
-          where: { leadId, isDraft: false, airline: { not: null } },
-          orderBy: [{ isSelected: "desc" }, { updatedAt: "desc" }],
+          where: { leadId, isDraft: false, isSelected: true, airline: { not: null } },
+          orderBy: { updatedAt: "desc" },
           select: { airline: true },
         });
         code = quote?.airline ?? null;

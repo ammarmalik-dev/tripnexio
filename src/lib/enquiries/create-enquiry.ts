@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { toWhatsAppId } from "../whatsapp/phone";
 import { writeAudit } from "../audit/log";
 import { findCustomerByMobile } from "../customers/find-by-mobile";
 import { notifyStaff } from "../staff-notifications/notify";
@@ -88,7 +89,8 @@ export async function createEnquiry(input: CreateEnquiryInput): Promise<{ id: st
   await notifyCustomer({
     event: isComplaint ? NOTIFICATION_EVENTS.COMPLAINT_RECEIVED : NOTIFICATION_EVENTS.ENQUIRY_RECEIVED,
     emailTo: input.email,
-    whatsappTo: null,
+    // Client doc 16 Nov (L2) — a complaint (and an enquiry) is acknowledged on WhatsApp too.
+    whatsappTo: toWhatsAppId(input.mobile),
     variables: {
       customerName: input.fullName,
       enquiryReference: enquiry.reference,

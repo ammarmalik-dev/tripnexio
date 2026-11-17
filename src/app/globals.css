@@ -402,3 +402,14 @@ body {
     background-color: var(--surface-1);
   }
 }
+
+/* Client doc 16 Nov (K5) — no increment / decrement spinner arrows on number inputs anywhere (plain numeric fields). */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
