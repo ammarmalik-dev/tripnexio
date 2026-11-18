@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { KnowledgeCentreManager } from "@/components/crm/KnowledgeCentreManager";
+import { KnowledgeDocumentsPanel } from "@/components/crm/KnowledgeDocumentsPanel";
 
 export const metadata: Metadata = { title: "Knowledge Centre | Internal Dashboard" };
 
@@ -16,6 +17,8 @@ export default async function KnowledgeCentrePage() {
         <p className="text-sm text-ink-tertiary">SOPs/documentation, an internal staff FAQ, and training material — search or browse by category.</p>
       </div>
       <KnowledgeCentreManager canEdit={canEdit} />
+      {/* Client doc 16 Nov (L4) — uploaded files, several at a time. */}
+      <KnowledgeDocumentsPanel canEdit={canEdit} />
     </div>
   );
 }

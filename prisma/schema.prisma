@@ -2473,6 +2473,7 @@ model User {
 
   @@index([roleId])
   @@index([active])
+  knowledgeDocuments KnowledgeDocument[] @relation("KnowledgeDocumentUploader")
 }
 
 /// Step 48 (Internal Dashboard Merged §1) — a real forgot-password flow.
@@ -2764,6 +2765,26 @@ model KnowledgeArticle {
 
   @@index([category])
   @@index([active])
+}
+
+/// Client doc 16 Nov (L4) — a file (PDF / DOC / DOCX) uploaded to the Knowledge Centre, several at a time.
+/// Stored privately (disk, or the database on a host without one) and served only to staff with knowledge.view.
+model KnowledgeDocument {
+  id           String                    @id @default(cuid())
+  title        String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  /// "disk:<file>" (storage/knowledge/) or "blob:<FileBlob id>".
+  storageKey   String
+  category     KnowledgeArticleCategory?
+  uploadedById String?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  uploadedBy User? @relation("KnowledgeDocumentUploader", fields: [uploadedById], references: [id])
+
+  @@index([createdAt])
 }
 
 /// Monthly sequence behind Lead.reference (P07). One row per period "MMYY"

@@ -161,7 +161,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] L1 WhatsApp chat: staff notifications for new messages; Bot vs Agent chats separated; chat usable while working elsewhere; auto-assign to the booking's Sales POC
 - [x] L2 Complaint: WhatsApp + email on submit; notify only on Resolved (not Closed) — unit 6: enquiry / complaint acknowledged on WhatsApp too (needs the Meta template name, see M1); customer message only on Resolved, not Closed
 - [ ] L3 Help desk tickets: ID `TNITXXXX`, email to creator, Admin alert, attachments, Admin ticket management (assign, status Open / In Progress / Resolved, comments, resolution note, history)
-- [ ] L4 Knowledge Centre bulk upload (PDF / DOC / DOCX, progress, manage/delete)
+- [x] L4 Knowledge Centre bulk upload (PDF / DOC / DOCX, progress, manage/delete) — unit 8: Knowledge Centre → Documents: pick several PDF / DOC / DOCX files at once (10MB each), each uploads with its own progress bar and Uploaded / failed reason; type checked from the bytes; private storage (storage/knowledge or FileBlob); list with search, View (PDF) / Download, Delete with reason (audited); knowledge.edit to upload / delete, knowledge.view to see. Migration 20261118160000 (new KnowledgeDocument table). Tested via API + browser
 - [x] L5 WhatsApp bot reuses known customer name/email — unit 6: a returning customer (same WhatsApp number) is not asked name / email again
 
 ## M. Notifications & emails
