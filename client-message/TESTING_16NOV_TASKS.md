@@ -33,7 +33,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] A12 Ticket cancellation flow (post-issuance only): Ticket Cancellation Requested → Sent to Airlines for Cancellation → Cancellation Quotation (airline fee + admin service charge + GST, company profit to MIS) → customer approval → refund of the remainder → Ticket Cancelled
 - [ ] A13 Cancellation request not allowed before ticket issuance (use normal refund flow)
 - [ ] A14 Airline Reschedule (accept / refund, new ticket upload) and Airline Cancellation (full refund); P&L updated
-- [ ] A15 Travel date auto-updated when the customer accepts a flight option
+- [x] A15 Travel date auto-updated when the customer accepts a flight option — unit 8: selecting a Special Fare option (customer or staff) sets the lead travel date from the outbound flight and the return date from the return sector (business timezone), audited TRAVEL_DATE_UPDATED
 
 ## B. Return Ticket
 - [ ] B1 Travel > 24 h away → task + On Hold + automatic customer message (wording per doc; see Q3)

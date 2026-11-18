@@ -1,4 +1,6 @@
 import crypto from "crypto";
+import { getTimezoneOffsetMinutes } from "../settings/system-config";
+import { parseStoredItinerary } from "./itinerary";
 import type { Prisma } from "../../generated/prisma/client";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
@@ -78,6 +80,9 @@ export async function selectQuotation(quotationId: string, actor: SelectActor) {
         note: `${lead.status} -> QUOTATION_ACCEPTED (quotation selected ${actor.label})`,
       });
     }
+    // Client doc 16 Nov (A15) — accepting a flight option moves the lead's travel date (and a round trip's return
+    // date) to that option's flight dates, in the business timezone; audited when it changes.
+    if (lead && lead.serviceType === "FLIGHT_SPECIAL_FARE") await syncTravelDatesFromQuote(tx, lead, selected, actor);
     if (lead) {
       statusNotifications.push(
         await applySystemEvent(tx, { scope: "LEAD", entityId: lead.id, event: "QUOTATION_ACCEPTED", userId: actor.byUserId, actorLabel: actor.label })
@@ -89,6 +94,47 @@ export async function selectQuotation(quotationId: string, actor: SelectActor) {
 
   await dispatchStatusNotifications(statusNotifications);
   return { ok: true as const, quotation: result };
+}
+
+async function syncTravelDatesFromQuote(
+  tx: Prisma.TransactionClient,
+  lead: { id: string; travelDate: Date | null; details: Prisma.JsonValue },
+  quote: { flightDateTime: Date | null; itinerary: Prisma.JsonValue },
+  actor: SelectActor
+): Promise<void> {
+  const offsetMinutes = await getTimezoneOffsetMinutes(tx);
+  const dayOf = (value: Date | string | undefined | null) => {
+    if (!value) return null;
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : new Date(date.getTime() + offsetMinutes * 60_000).toISOString().slice(0, 10);
+  };
+  const sectors = parseStoredItinerary(quote.itinerary);
+  const outboundDay = dayOf(quote.flightDateTime ?? sectors.find((sector) => sector.leg !== "RETURN")?.departAt);
+  const returnDay = dayOf(sectors.find((sector) => sector.leg === "RETURN")?.departAt);
+  const details = (lead.details ?? {}) as Record<string, unknown>;
+  const currentDay = lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null;
+  const travelChanged = outboundDay !== null && outboundDay !== currentDay;
+  const returnChanged = returnDay !== null && returnDay !== details.returnDate;
+  if (!travelChanged && !returnChanged) return;
+  await tx.lead.update({
+    where: { id: lead.id },
+    data: {
+      ...(travelChanged ? { travelDate: new Date(`${outboundDay}T00:00:00.000Z`) } : {}),
+      details: { ...details, ...(travelChanged ? { travelDate: outboundDay } : {}), ...(returnChanged ? { returnDate: returnDay } : {}) } as Prisma.InputJsonObject,
+    },
+  });
+  await writeAudit(tx, {
+    entityType: "Lead",
+    entityId: lead.id,
+    action: "TRAVEL_DATE_UPDATED",
+    byUserId: actor.byUserId,
+    note: [
+      travelChanged ? `Travel date ${currentDay ?? "—"} -> ${outboundDay}` : null,
+      returnChanged ? `Return date ${typeof details.returnDate === "string" ? details.returnDate : "—"} -> ${returnDay}` : null,
+    ]
+      .filter(Boolean)
+      .join("; ") + ` (from the selected flight option, ${actor.label})`,
+  });
 }
 
 /** Generates a random token, retrying on the astronomically unlikely unique-constraint collision. */
