@@ -51,7 +51,8 @@ describe("client status lists + templates (client doc 2026-10-20)", () => {
       const events = list.statuses.map((status) => status.systemEvent).filter((event): event is string => !!event);
       for (const event of events) expect(allowed.has(event), `${list.serviceType}/${list.scope}: ${event}`).toBe(true);
       expect(new Set(events).size, `${list.serviceType}/${list.scope} duplicate event`).toBe(events.length);
-      expect(list.statuses.filter((status) => status.systemEvent === HOLD_MARKER)).toHaveLength(1);
+      // Client doc 16 Nov (J1) — leads have no hold; every booking list has exactly one.
+      expect(list.statuses.filter((status) => status.systemEvent === HOLD_MARKER)).toHaveLength(list.scope === "BOOKING" ? 1 : 0);
       expect(new Set(list.statuses.map((status) => status.name)).size).toBe(list.statuses.length);
     }
   });

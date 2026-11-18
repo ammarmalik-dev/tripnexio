@@ -260,7 +260,14 @@ export function MultiStepRequestFlow<T extends FieldValues>({
                   exit={shouldReduceMotion ? undefined : { opacity: 0, x: -16 * direction }}
                   transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <CurrentStep />
+                  {/* Client doc 16 Nov (K6) — the review / summary step sits centred in a readable column. */}
+                  {isLastStep ? (
+                    <div className="mx-auto w-full max-w-2xl">
+                      <CurrentStep />
+                    </div>
+                  ) : (
+                    <CurrentStep />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>

@@ -150,7 +150,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] K3 POC name column + filter: Tasks, Follow-ups, Documents, Refunds, Invoices, Payments — unit 7: shared PocFilterSelect; POC column + filter on Tasks (assignee), Payments (+ CSV export), Invoices, Documents (document lead, else booking lead); Follow-ups and Refunds already had both
 - [ ] K4 Quick Booking Search icon in those sections + Admin Live Activity, OCR Monitor, Audit Trail; audit filters in one row
 - [x] K5 No number-input spinner arrows — unit 6: number inputs have no spinner arrows anywhere (globals.css)
-- [ ] K6 Website booking summary centred
+- [x] K6 Website booking summary centred — unit 7: the review / summary step of every service form sits centred (max-w-2xl) and each row is two fixed columns (label | value, both left-aligned) instead of values hugging the right edge. Not checked in the browser yet
 - [ ] K7 Customer export; remove Admin → Data Export (see Q9)
 - [ ] K8 Visa Entry Type master (+ add button)
 - [ ] K9 Pricing Dashboard: "Visa Price Table" (no Extra Charge column, visa product type, vendor cost fix); "All Services Vendor Prices" with filters + full edit; compact By-country spacing
@@ -166,7 +166,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 
 ## M. Notifications & emails
 - [ ] M1 WhatsApp booking confirmation not sent for website bookings
-- [ ] M2 Delivery emails (ticket / visa / package): distinct Important Information + Disclaimer headings, highlighted opening line
+- [x] M2 Delivery emails (ticket / visa / package): distinct Important Information + Disclaimer headings, highlighted opening line — unit 7: delivery emails (visa approved / partial, ticket issued, reservation, package, extension, OUTPUT_DELIVERED): opening line after the greeting larger + navy; Important ...: sections become a card with a serif heading; Important: notes a blue-edged note; Disclaimer a separate amber italic box (src/lib/email/delivery-blocks.ts). Checked by rendering NV_VISA_APPROVED in the browser
 - [x] M3 Buttons open the right page (Track Booking, View Details, Pay Now — not all to the pay page) — unit 1: Track Status → /track (auto-verified by page key), Upload → #documents, Track Refund → #refund; data migration 20261116120000
 - [ ] M4 Admin templates: filter by Service / Country / Status; on/off per notification and channel; editable before/after-payment content; submission messages; reminder management; Meta template editing guidance; buttons + Stop Reminder link
 

@@ -58,6 +58,8 @@ const CARD = "#F1F6FE";
 /** Client doc 2026-10-15 (H1) — the subtle light-blue page behind the email. */
 const PAGE = "#EAF1FC";
 const BORDER = "#D9E4F5";
+/** The email brand palette for other email blocks (delivery-blocks.ts). */
+export const EMAIL_PALETTE = { NAVY, BLUE, INK, MUTED, CARD, BORDER } as const;
 const FONT = "font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
 
 export function escapeEmailText(text: string): string {
