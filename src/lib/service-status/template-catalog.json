@@ -1771,7 +1771,7 @@
   "channel": "EMAIL",
   "subject": "We've received your special fare request — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nWe've received your TripNexio special fare request {{booking_id}} for {{origin}} → {{destination}} on {{travel_date}}. Our team will review it and update you if a suitable fare is available.",
+  "body": "Hi {{customer_name}},\n\nWe've received your TripNexio special fare request {{booking_id}} for {{origin}} → {{destination}} ({{passenger_count}} PAX) on {{travel_date}}. Our team will review it and update you if a suitable fare is available.",
   "ctaLabel": "View Request",
   "ctaLink": "track_status_url"
  },
@@ -1780,7 +1780,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nWe've received your TripNexio special fare request {{booking_id}} for {{origin}} → {{destination}} on {{travel_date}}. Our team will review it and update you if a suitable fare is available.",
+  "body": "Hi {{customer_name}},\n\nWe've received your TripNexio special fare request {{booking_id}} for {{origin}} → {{destination}} ({{passenger_count}} PAX) on {{travel_date}}. Our team will review it and update you if a suitable fare is available.",
   "ctaLabel": "View Request",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "SF_01_WA"
@@ -1790,7 +1790,7 @@
   "channel": "EMAIL",
   "subject": "Your special fare quotation is ready — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nYour special fare quotation is ready.\nRoute: {{origin}} → {{destination}} | Date: {{travel_date}}\nItinerary: {{itinerary_summary}}\nTotal: {{currency}} {{quoted_amount}}\nValid until: {{quote_expiry_time}}\nFare is subject to final availability. Payment must be completed before expiry; payment does not confirm ticket issuance.",
+  "body": "Hi {{customer_name}},\n\nYour special fare quotation is ready.\nRoute: {{origin}} → {{destination}} ({{passenger_count}} PAX) | Date: {{travel_date}}\nItinerary: {{itinerary_summary}}\nTotal: {{currency}} {{quoted_amount}}\nValid until: {{quote_expiry_time}}\nFare is subject to final availability. Payment must be completed before expiry; payment does not confirm ticket issuance.",
   "ctaLabel": "Review Quotation",
   "ctaLink": "quote_link"
  },
@@ -1799,7 +1799,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nYour special fare quotation is ready.\nRoute: {{origin}} → {{destination}} | Date: {{travel_date}}\nItinerary: {{itinerary_summary}}\nTotal: {{currency}} {{quoted_amount}}\nValid until: {{quote_expiry_time}}\nFare is subject to final availability. Payment must be completed before expiry; payment does not confirm ticket issuance.",
+  "body": "Hi {{customer_name}},\n\nYour special fare quotation is ready.\nRoute: {{origin}} → {{destination}} ({{passenger_count}} PAX) | Date: {{travel_date}}\nItinerary: {{itinerary_summary}}\nTotal: {{currency}} {{quoted_amount}}\nValid until: {{quote_expiry_time}}\nFare is subject to final availability. Payment must be completed before expiry; payment does not confirm ticket issuance.",
   "ctaLabel": "Review Quotation",
   "ctaLink": "quote_link",
   "suggestedMetaName": "SF_02_WA"
@@ -1923,7 +1923,7 @@
   "channel": "EMAIL",
   "subject": "Final Availability — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nWe're checking final availability for {{origin}} → {{destination}} on {{travel_date}}. Your ticket is not yet issued.",
+  "body": "Hi {{customer_name}},\n\nWe're checking final availability for {{origin}} → {{destination}} ({{passenger_count}} PAX) on {{travel_date}}. Your ticket is not yet issued.",
   "ctaLabel": "Track Status",
   "ctaLink": "track_status_url"
  },
@@ -1932,7 +1932,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nWe're checking final availability for {{origin}} → {{destination}} on {{travel_date}}. Your ticket is not yet issued.",
+  "body": "Hi {{customer_name}},\n\nWe're checking final availability for {{origin}} → {{destination}} ({{passenger_count}} PAX) on {{travel_date}}. Your ticket is not yet issued.",
   "ctaLabel": "Track Status",
   "ctaLink": "track_status_url",
   "suggestedMetaName": "SF_09_WA"
@@ -1999,7 +1999,7 @@
   "channel": "EMAIL",
   "subject": "Alternative Offered — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nThe requested flight is unavailable.\nRequested: {{requested_origin}} → {{requested_destination}}\nAlternative: {{alternative_origin}} → {{alternative_destination}}\nItinerary: {{alternative_itinerary}}\nFare: {{currency}} {{alternative_amount}} | Difference: {{currency}} {{fare_difference}}\nPlease review route and itinerary. Not confirmed until accepted and any required payment is complete.",
+  "body": "Hi {{customer_name}},\n\nThe requested flight is unavailable.\nRequested: {{requested_origin}} → {{requested_destination}} ({{passenger_count}} PAX)\nAlternative: {{alternative_origin}} → {{alternative_destination}}\nItinerary: {{alternative_itinerary}}\nFare: {{currency}} {{alternative_amount}} | Difference: {{currency}} {{fare_difference}}\nPlease review route and itinerary. Not confirmed until accepted and any required payment is complete.",
   "ctaLabel": "Review Alternative",
   "ctaLink": "secure_link"
  },
@@ -2008,7 +2008,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nThe requested flight is unavailable.\nRequested: {{requested_origin}} → {{requested_destination}}\nAlternative: {{alternative_origin}} → {{alternative_destination}}\nItinerary: {{alternative_itinerary}}\nFare: {{currency}} {{alternative_amount}} | Difference: {{currency}} {{fare_difference}}\nPlease review route and itinerary. Not confirmed until accepted and any required payment is complete.",
+  "body": "Hi {{customer_name}},\n\nThe requested flight is unavailable.\nRequested: {{requested_origin}} → {{requested_destination}} ({{passenger_count}} PAX)\nAlternative: {{alternative_origin}} → {{alternative_destination}}\nItinerary: {{alternative_itinerary}}\nFare: {{currency}} {{alternative_amount}} | Difference: {{currency}} {{fare_difference}}\nPlease review route and itinerary. Not confirmed until accepted and any required payment is complete.",
   "ctaLabel": "Review Alternative",
   "ctaLink": "secure_link",
   "suggestedMetaName": "SF_13_WA"
@@ -2037,7 +2037,7 @@
   "channel": "EMAIL",
   "subject": "Your flight ticket is issued — {{booking_id}}",
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nYour ticket for {{booking_id}} has been issued.\nPassenger(s): {{passenger_names}}\nRoute: {{origin}} → {{destination}} | Date: {{travel_date}}\nFlight: {{airline_flight_number}}\nPNR: {{pnr}}\nBaggage: {{baggage}}\nImportant Information\nAirport Reporting: Arrive at least 2 hours before domestic flights and 4 hours before international flights.\nTravel Documents: Carry a valid government-issued photo ID for domestic travel. International travellers must carry a valid passport, applicable visas and transit documents.\nTerminal & Timings: Confirm the departure terminal and latest flight status with the airline. All timings are local to the respective airports.\nWeb Check-in: Complete airline web check-in and obtain your boarding pass where required.\nBaggage: Check the baggage allowance mentioned on your ticket.\nChanges & Refunds: Cancellations, refunds and rescheduling are subject to airline fare rules and applicable charges.\nTravel Requirements: Passengers are responsible for meeting visa, transit, immigration and OTB requirements, where applicable.\nTicket Verification Disclaimer: Please check all ticket details, including passenger names, travel dates, flight timings and routes, immediately upon receipt. Report any errors to TripNexio within 12 hours of ticket issuance. Later corrections will be subject to airline rules, availability and applicable charges.\n\nHave a safe and pleasant journey with TripNexio!",
+  "body": "Hi {{customer_name}},\n\nYour ticket for {{booking_id}} has been issued.\nPassenger(s): {{passenger_names}}\nRoute: {{origin}} → {{destination}} ({{passenger_count}} PAX) | Date: {{travel_date}}\nFlight: {{airline_flight_number}}\nPNR: {{pnr}}\nBaggage: {{baggage}}\nImportant Information\nAirport Reporting: Arrive at least 2 hours before domestic flights and 4 hours before international flights.\nTravel Documents: Carry a valid government-issued photo ID for domestic travel. International travellers must carry a valid passport, applicable visas and transit documents.\nTerminal & Timings: Confirm the departure terminal and latest flight status with the airline. All timings are local to the respective airports.\nWeb Check-in: Complete airline web check-in and obtain your boarding pass where required.\nBaggage: Check the baggage allowance mentioned on your ticket.\nChanges & Refunds: Cancellations, refunds and rescheduling are subject to airline fare rules and applicable charges.\nTravel Requirements: Passengers are responsible for meeting visa, transit, immigration and OTB requirements, where applicable.\nTicket Verification Disclaimer: Please check all ticket details, including passenger names, travel dates, flight timings and routes, immediately upon receipt. Report any errors to TripNexio within 12 hours of ticket issuance. Later corrections will be subject to airline rules, availability and applicable charges.\n\nHave a safe and pleasant journey with TripNexio!",
   "ctaLabel": "Download Ticket",
   "ctaLink": "ticket_download_link"
  },
@@ -2046,7 +2046,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nYour ticket for {{booking_id}} has been issued. Route: {{origin}} → {{destination}} | Date: {{travel_date}} | Flight: {{airline_flight_number}} | PNR: {{pnr}} | Baggage: {{baggage}}. Download and check all details immediately; report errors within 12 hours. Arrive at least 2 hours before domestic flights and 4 hours before international flights. Carry required ID/passport, visas and transit documents; confirm terminal, flight status, check-in and baggage rules with the airline. Passengers are responsible for visa, transit, immigration and OTB requirements where applicable. Have a safe and pleasant journey with TripNexio!",
+  "body": "Hi {{customer_name}},\n\nYour ticket for {{booking_id}} has been issued. Route: {{origin}} → {{destination}} ({{passenger_count}} PAX) | Date: {{travel_date}} | Flight: {{airline_flight_number}} | PNR: {{pnr}} | Baggage: {{baggage}}. Download and check all details immediately; report errors within 12 hours. Arrive at least 2 hours before domestic flights and 4 hours before international flights. Carry required ID/passport, visas and transit documents; confirm terminal, flight status, check-in and baggage rules with the airline. Passengers are responsible for visa, transit, immigration and OTB requirements where applicable. Have a safe and pleasant journey with TripNexio!",
   "ctaLabel": "Download Ticket",
   "ctaLink": "ticket_download_link",
   "suggestedMetaName": "SF_15_WA"

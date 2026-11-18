@@ -26,7 +26,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] A5 Partial ticket issuance → status Partially Issued (CRM + website)
 - [ ] A6 Ticket upload: compare ticket details with passenger data; block on mismatch
 - [ ] A7 Offline flight lead: Country + Service Type shown in CRM after quotation
-- [ ] A8 Flight notifications: city names (Bengaluru → Delhi), not codes; PAX count
+- [x] A8 Flight notifications: city names (Bengaluru → Delhi), not codes; PAX count — unit 7: Special Fare status messages turn the quote route codes into Airport-master city names (origin / destination / itinerary / alternative); the ticket email lists flights by city and the PAX count; migration 20261118120000 adds ({{passenger_count}} PAX) after the route in the 10 SF templates that still carry the original route phrase (Admin-edited ones untouched)
 - [ ] A9 One-Way / Round-Trip shown with both dates and cities; round-trip quotation (FL113 lost its return date)
 - [ ] A10 "Quotation Selected" email: subject / heading / message per doc; selected flight details (airline, flight no., cities, dates, times, PAX) in email, WhatsApp and payment link
 - [ ] A11 Seat unavailable: never auto-refund or auto-send alternative; customer chooses Request Refund / Approve Alternative; refund held until choice; extra payment link or balance refund; quotation status updated

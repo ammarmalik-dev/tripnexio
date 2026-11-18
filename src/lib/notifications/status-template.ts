@@ -1,4 +1,5 @@
 import type { ServiceType, StatusScope } from "../../generated/prisma/enums";
+import { cityRoute } from "../airports/city-route";
 import { SERVICE_TYPE_LABELS } from "../crm/labels";
 import { db } from "../db";
 import { siteConfig } from "../site-config";
@@ -299,7 +300,8 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     : 0;
   const quoteTotal = quotation ? Number(quotation.sellingPrice) - Number(quotation.couponDiscount ?? 0) : null;
   const quoteExpiry = quotation?.validityExpiresAt ? await formatBusinessDateTime(quotation.validityExpiresAt) : "";
-  const route = lead.serviceType === "FLIGHT_SPECIAL_FARE" ? (quotation?.route ?? requestedRouteFromDetails(lead.details) ?? "") : "";
+  // Client doc 16 Nov (A8) — city names (Bengaluru → Delhi), never the airport codes the quote stores.
+  const route = lead.serviceType === "FLIGHT_SPECIAL_FARE" ? await cityRoute(quotation?.route ?? requestedRouteFromDetails(lead.details) ?? "") : "";
   const [origin, destination] = route.includes("→") ? route.split("→").map((part) => part.trim()) : ["", ""];
   const flight = quotation ? [quotation.airline, quotation.flightNumber].filter(Boolean).join(" ") : "";
   const flightTime = quotation?.flightDateTime ? await formatBusinessDateTime(quotation.flightDateTime) : "";
@@ -314,7 +316,8 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
   const refundRef = refund ? (refund.gatewayRefundId ?? refund.bankTransactionRef ?? "") : "";
 
   // Special Fare alternative (booking.alternativeOffer — read here directly to keep this module free of the SF module).
-  const offer = (booking?.alternativeOffer ?? null) as { route?: string; airline?: string; flightNumber?: string; flightDateTime?: string; sellingPrice?: number; difference?: number } | null;
+  const storedOffer = (booking?.alternativeOffer ?? null) as { route?: string; airline?: string; flightNumber?: string; flightDateTime?: string; sellingPrice?: number; difference?: number } | null;
+  const offer = storedOffer?.route ? { ...storedOffer, route: await cityRoute(storedOffer.route) } : storedOffer;
   const [altOrigin, altDestination] = offer?.route?.includes("→") ? offer.route.split("→").map((part) => part.trim()) : [offer?.route ?? "", ""];
   const altItinerary = offer ? [offer.route, [offer.airline, offer.flightNumber].filter(Boolean).join(" "), offer.flightDateTime].filter(Boolean).join(" · ") : "";
 

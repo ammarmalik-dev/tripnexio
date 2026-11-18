@@ -1,4 +1,5 @@
 import type { OutputType } from "./output-types";
+import { airportCities, cityFor, cityRoute } from "../airports/city-route";
 import { db } from "../db";
 import { parseStoredItinerary } from "../quotations/itinerary";
 import { VISA_CHANGE_TRAVEL_INSTRUCTIONS } from "./output-instructions";
@@ -94,15 +95,18 @@ export async function ticketDetailsFor(bookingId: string, outputType: OutputType
     for (const row of booking.passengers) lines.push(`Passenger: ${row.passenger.fullName}${row.ticketNumber ? ` · Ticket ${row.ticketNumber}` : ""}`);
     if (airline?.name || airlineCode) lines.push(`Airline: ${airline?.name ?? airlineCode}`);
     const sectors = parseStoredItinerary(quote?.itinerary);
+    // Client doc 16 Nov (A8) — city names, not airport codes.
+    const cities = await airportCities([...sectors.flatMap((sector) => [sector.from, sector.to])]);
     if (sectors.length > 0) {
       for (const sector of sectors) {
         const times = [when(sector.departAt), when(sector.arriveAt)].filter(Boolean).join(" → ");
-        lines.push(`Flight: ${[sector.flightNumber, `${sector.from} → ${sector.to}`, times].filter(Boolean).join(" · ")}`);
+        lines.push(`Flight: ${[sector.flightNumber, `${cityFor(sector.from, cities)} → ${cityFor(sector.to, cities)}`, times].filter(Boolean).join(" · ")}`);
       }
     } else if (quote?.route) {
       const times = [when(quote.flightDateTime), when(quote.arrivalDateTime)].filter(Boolean).join(" → ");
-      lines.push(`Flight: ${[quote.flightNumber, quote.route, times].filter(Boolean).join(" · ")}`);
+      lines.push(`Flight: ${[quote.flightNumber, await cityRoute(quote.route), times].filter(Boolean).join(" · ")}`);
     }
+    if (booking.passengers.length > 0) lines.push(`Passengers (PAX): ${booking.passengers.length}`);
     const baggage = booking.ticketBaggage || quote?.baggageAllowance;
     if (baggage) lines.push(`Baggage: ${baggage}`);
     return lines.join("\n");
