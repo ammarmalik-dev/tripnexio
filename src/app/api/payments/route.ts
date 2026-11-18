@@ -5,7 +5,7 @@ import { paymentListQuerySchema } from "@/lib/validation/payment-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
-import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
+import { paymentLeadWhere } from "@/lib/payments/list-where";
 import { leadReference } from "@/lib/leads/reference";
 import { countryFlagEmoji } from "@/lib/countries/flag";
 import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
@@ -20,11 +20,11 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
 
-  const { status, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
+  const { status, search, dateFrom, dateTo, sort, page, pageSize, assignedStaffId } = parsed.data;
 
   const where = {
     ...(status ? { status } : {}),
-    ...(!isServiceScopeUnrestricted(auth.session) ? { booking: { lead: serviceTypeCondition(auth.session) } } : {}),
+    ...paymentLeadWhere(auth.session, assignedStaffId),
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     db.payment.count({ where }),
     db.payment.findMany({
       where,
-      include: { booking: { include: { customer: true, lead: { include: { country: { select: { name: true, code: true, flagOverride: true } } } } } } },
+      include: { booking: { include: { customer: true, lead: { include: { country: { select: { name: true, code: true, flagOverride: true } }, assignedStaff: { select: { name: true } } } } } } },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
     countryName: payment.booking.lead.country?.name ?? null,
     countryFlag: payment.booking.lead.country ? countryFlagEmoji(payment.booking.lead.country) : null,
     countryCode: payment.booking.lead.country?.code ?? null,
+    poc: payment.booking.lead.assignedStaff?.name ?? null,
   }));
 
   return jsonSuccess({ items, total, page, pageSize });

@@ -1,5 +1,6 @@
 "use client";
 
+import { PocFilterSelect } from "./PocFilterSelect";
 import { useEffect, useState } from "react";
 import { PurgedFileTag } from "./PurgedFileTag";
 import Link from "next/link";
@@ -35,6 +36,8 @@ interface DocumentListItem {
   passenger: { id: string; fullName: string } | null;
   booking: { id: string; bookingId: string; leadReferenceId: string } | null;
   customer: { name: string; mobile: string } | null;
+  /** Client doc 16 Nov (K3). */
+  poc: string | null;
 }
 
 interface DocumentListResponse {
@@ -55,6 +58,7 @@ export function DocumentReviewQueue() {
   // lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [assignedStaffId, setAssignedStaffId] = useState("");
   const { dateFrom, dateTo, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
@@ -82,6 +86,7 @@ export function DocumentReviewQueue() {
         if (dateFrom) params.set("dateFrom", dateFrom);
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
+        if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
         params.set("sort", sort);
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
@@ -103,7 +108,7 @@ export function DocumentReviewQueue() {
     return () => {
       cancelled = true;
     };
-  }, [status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [status, assignedStaffId, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   const missingCount = items.filter((item) => (statusOverrides[item.id] ?? item.status) === "MISSING").length;
 
@@ -125,6 +130,14 @@ export function DocumentReviewQueue() {
           </>
         }
       >
+        <PocFilterSelect
+          id="filter-document-poc"
+          value={assignedStaffId}
+          onChange={(value) => {
+            setAssignedStaffId(value);
+            resetPage();
+          }}
+        />
         <label htmlFor="filter-document-status" className="sr-only">
           Filter by status
         </label>
@@ -221,6 +234,7 @@ export function DocumentReviewQueue() {
                 <th className="px-4 py-3">Type</th>
                 <th className="px-4 py-3">Linked To</th>
                 <th className="px-4 py-3">Customer</th>
+                <th className="px-4 py-3">POC</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Created</th>
               </tr>
@@ -253,6 +267,7 @@ export function DocumentReviewQueue() {
                       "—"
                     )}
                   </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">{document.poc ?? "—"}</td>
                   <td className="px-4 py-3">
                     <DocumentStatusControl
                       documentId={document.id}

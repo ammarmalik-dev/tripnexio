@@ -1,5 +1,6 @@
 "use client";
 
+import { PocFilterSelect } from "./PocFilterSelect";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -44,6 +45,8 @@ interface PaymentListItem {
   countryCode: string | null;
   paxCount: number | null;
   countryName: string | null;
+  /** Client doc 16 Nov (K3). */
+  poc: string | null;
   countryFlag: string | null;
 }
 
@@ -67,6 +70,7 @@ export function PaymentsTable() {
   // Step 53 — read once on mount, so a Command Centre KPI card's link lands pre-filtered.
   const searchParams = useSearchParams();
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [assignedStaffId, setAssignedStaffId] = useState("");
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
@@ -88,6 +92,7 @@ export function PaymentsTable() {
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     if (search) params.set("search", search);
+    if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
     params.set("sort", sort);
     return params;
   }
@@ -104,6 +109,7 @@ export function PaymentsTable() {
         if (dateFrom) params.set("dateFrom", dateFrom);
         if (dateTo) params.set("dateTo", dateTo);
         if (search) params.set("search", search);
+        if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
         params.set("sort", sort);
         params.set("page", String(page));
         params.set("pageSize", String(pageSize));
@@ -124,7 +130,7 @@ export function PaymentsTable() {
     return () => {
       cancelled = true;
     };
-  }, [status, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [status, assignedStaffId, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   // Client corrections 2026-10-05: online success is fetched from the gateway, never marked by hand.
   const handleCheckStatus = async (id: string) => {
@@ -153,6 +159,14 @@ export function PaymentsTable() {
           </>
         }
       >
+        <PocFilterSelect
+          id="filter-payment-poc"
+          value={assignedStaffId}
+          onChange={(value) => {
+            setAssignedStaffId(value);
+            resetPage();
+          }}
+        />
         <label htmlFor="filter-payment-status" className="sr-only">
           Filter by status
         </label>
@@ -256,6 +270,7 @@ export function PaymentsTable() {
                 <th className="px-4 py-3">GST</th>
                 <th className="px-4 py-3">Gateway Fee</th>
                 <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">POC</th>
                 <th className="px-4 py-3">Created</th>
                 <th className="px-4 py-3" />
               </tr>
@@ -288,6 +303,7 @@ export function PaymentsTable() {
                   <td className="px-4 py-3">
                     <PaymentStatusBadge status={payment.status} />
                   </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">{payment.poc ?? "—"}</td>
                   <td className="px-4 py-3 whitespace-nowrap text-ink-tertiary">{formatDate(payment.createdAt)}</td>
                   <td className="px-4 py-3">
                     {payment.status === "PENDING" && payment.method === "GATEWAY" ? (

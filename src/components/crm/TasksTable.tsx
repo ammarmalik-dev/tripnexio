@@ -1,5 +1,6 @@
 "use client";
 
+import { PocFilterSelect } from "./PocFilterSelect";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, Plus, X } from "lucide-react";
@@ -59,6 +60,8 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
   const [priority, setPriority] = useState("");
   const { dateFrom, dateTo, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter();
   const [sort, setSort] = useState<SortOption>("createdAt_desc");
+  // Client doc 16 Nov (K3) — filter by POC (the task's assignee).
+  const [assignedToId, setAssignedToId] = useState("");
   const [state, setState] = useState<FetchState>("loading");
   const [items, setItems] = useState<TaskListItem[]>([]);
   const [total, setTotal] = useState(0);
@@ -78,6 +81,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
         if (status) params.set("status", status);
         if (type) params.set("type", type);
         if (priority) params.set("priority", priority);
+        if (assignedToId) params.set("assignedToId", assignedToId);
         if (dateFrom) params.set("dateFrom", dateFrom);
         if (dateTo) params.set("dateTo", dateTo);
         params.set("sort", sort);
@@ -102,7 +106,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [status, type, priority, dateFrom, dateTo, sort, page, pageSize, refreshNonce]);
+  }, [status, type, priority, assignedToId, dateFrom, dateTo, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,6 +119,14 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
           </>
         }
       >
+        <PocFilterSelect
+          id="filter-task-poc"
+          value={assignedToId}
+          onChange={(value) => {
+            setAssignedToId(value);
+            resetPage();
+          }}
+        />
         <label htmlFor="filter-task-type" className="sr-only">
           Filter by task type
         </label>
@@ -267,7 +279,7 @@ export function TasksTable({ canCreate = false }: { canCreate?: boolean }) {
                 <th className="px-4 py-3">Task</th>
                 <th className="px-4 py-3">Linked to</th>
                 <th className="px-4 py-3">Priority</th>
-                <th className="px-4 py-3">Assigned</th>
+                <th className="px-4 py-3">POC</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Due</th>
               </tr>

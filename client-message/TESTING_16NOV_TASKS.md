@@ -147,7 +147,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 ## K. CRM / Admin UI
 - [x] K1 Sticky logo + sidebar; only content scrolls (CRM + Admin) — unit 6: CRM + Admin shell is the screen height; logo + sidebar and top bar stay, only the main content scrolls
 - [ ] K2 Compact list pages: filters ≤ 2 rows, full width, ≥ 10 rows visible, Express highlight only (no "Normal"), PAX inline — Leads, Quotations, Bookings, Payments, Invoices, Refunds, Tasks
-- [ ] K3 POC name column + filter: Tasks, Follow-ups, Documents, Refunds, Invoices, Payments
+- [x] K3 POC name column + filter: Tasks, Follow-ups, Documents, Refunds, Invoices, Payments — unit 7: shared PocFilterSelect; POC column + filter on Tasks (assignee), Payments (+ CSV export), Invoices, Documents (document lead, else booking lead); Follow-ups and Refunds already had both
 - [ ] K4 Quick Booking Search icon in those sections + Admin Live Activity, OCR Monitor, Audit Trail; audit filters in one row
 - [x] K5 No number-input spinner arrows — unit 6: number inputs have no spinner arrows anywhere (globals.css)
 - [ ] K6 Website booking summary centred

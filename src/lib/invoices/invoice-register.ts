@@ -41,6 +41,8 @@ export interface InvoiceSummary {
 
 export interface InvoiceListItem {
   paymentId: string;
+  /** Client doc 16 Nov (K3) — the lead's POC. */
+  poc: string | null;
   /** Null only for an old SUCCESS row that hasn't been given a number yet (assigned on first PDF download). */
   invoiceNumber: string | null;
   issuedAt: string;
@@ -116,7 +118,7 @@ export async function loadInvoiceSet(session: ServiceScopeCheckable, query: Invo
 }
 
 const invoiceInclude = {
-  booking: { include: { customer: true, lead: true } },
+  booking: { include: { customer: true, lead: { include: { assignedStaff: { select: { name: true } } } } } },
   refunds: { where: { status: "COMPLETED" as const }, select: { refundAmount: true } },
 } satisfies Prisma.PaymentInclude;
 
@@ -138,6 +140,7 @@ export function toInvoiceListItem(payment: InvoicePaymentRow): InvoiceListItem {
   const refundedAmount = roundMoney(payment.refunds.reduce((sum, refund) => sum + Number(refund.refundAmount), 0));
   return {
     paymentId: payment.id,
+    poc: payment.booking.lead.assignedStaff?.name ?? null,
     invoiceNumber: payment.invoiceNumber,
     issuedAt: payment.updatedAt.toISOString(),
     bookingRef: payment.booking.bookingId,

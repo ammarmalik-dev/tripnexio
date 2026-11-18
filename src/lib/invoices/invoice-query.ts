@@ -45,6 +45,8 @@ export const invoiceQuerySchema = z.object({
   /** Invoice number, booking id, lead reference, customer name/mobile/email. */
   search: optionalParam(z.string().trim().min(1).max(100)),
   serviceType: optionalParam(z.enum(serviceTypeValues)),
+  /** Client doc 16 Nov (K3) — the lead's POC; "unassigned" = no POC. */
+  assignedStaffId: optionalParam(z.string().trim().min(1).max(64)),
   method: optionalParam(z.enum(methodValues)),
   purpose: optionalParam(z.enum(purposeValues)),
   refundState: optionalParam(z.enum(INVOICE_REFUND_STATES)),
@@ -118,6 +120,10 @@ export function buildInvoiceWhere(
         ...(query.dateTo ? { lte: new Date(query.dateTo) } : {}),
       },
     });
+  }
+
+  if (query.assignedStaffId) {
+    and.push({ booking: { lead: { assignedStaffId: query.assignedStaffId === "unassigned" ? null : query.assignedStaffId } } });
   }
 
   if (query.refundState === "none") {

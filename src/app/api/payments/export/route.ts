@@ -1,10 +1,10 @@
 import type { NextRequest } from "next/server";
+import { paymentLeadWhere } from "@/lib/payments/list-where";
 import { paymentListQuerySchema } from "@/lib/validation/payment-query-schema";
 import { jsonError } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { exportScopedSession } from "@/lib/auth/service-actions";
-import { serviceTypeCondition, isServiceScopeUnrestricted } from "@/lib/auth/service-scope";
 import { leadReference } from "@/lib/leads/reference";
 import { csvExportResponse, EXPORT_QUERY_TAKE, exportFiltersFromSearchParams } from "@/lib/csv/export-guard";
 import { PAYMENT_STATUS_LABELS } from "@/lib/crm/labels";
@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
 
-  const { status, search, dateFrom, dateTo } = parsed.data;
+  const { status, search, dateFrom, dateTo, assignedStaffId } = parsed.data;
 
   const where = {
     ...(status ? { status } : {}),
-    ...(!isServiceScopeUnrestricted(exportSession) ? { booking: { lead: serviceTypeCondition(exportSession) } } : {}),
+    ...paymentLeadWhere(exportSession, assignedStaffId),
     ...(dateFrom || dateTo
       ? { createdAt: { ...(dateFrom ? { gte: new Date(dateFrom) } : {}), ...(dateTo ? { lte: new Date(dateTo) } : {}) } }
       : {}),

@@ -21,6 +21,8 @@ export const documentListQuerySchema = z.object({
   /** P21 item 4 — createdAt range (ISO timestamps from the shared useDateRangeFilter hook). */
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
+  /** Client doc 16 Nov (K3) — the lead's POC; "unassigned" = no POC. */
+  assignedStaffId: z.string().trim().min(1).max(64).optional(),
   sort: z.enum(["createdAt_asc", "createdAt_desc"]).default("createdAt_desc"),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(50),

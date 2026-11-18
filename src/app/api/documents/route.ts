@@ -54,7 +54,18 @@ export async function GET(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Invalid query parameters.", parsed.error.flatten().fieldErrors);
   }
-  const { status, search, dateFrom, dateTo, sort, page, pageSize } = parsed.data;
+  const { status, search, dateFrom, dateTo, sort, page, pageSize, assignedStaffId } = parsed.data;
+  // Client doc 16 Nov (K3) — POC = the document's lead's POC (older rows without leadId: the booking's lead).
+  const pocId = assignedStaffId === "unassigned" ? null : assignedStaffId;
+  const pocCondition = assignedStaffId
+    ? {
+        OR: [
+          { lead: { assignedStaffId: pocId } },
+          { leadId: null, booking: { lead: { assignedStaffId: pocId } } },
+          ...(pocId === null ? [{ leadId: null, bookingId: null }] : []),
+        ],
+      }
+    : null;
 
   // A document scoped to a Passenger only (no Booking) has no single
   // derivable serviceType — a passenger can have leads across multiple
@@ -69,16 +80,21 @@ export async function GET(request: NextRequest) {
     ...(!isServiceScopeUnrestricted(auth.session)
       ? { OR: [{ bookingId: null }, { booking: { lead: serviceTypeCondition(auth.session) } }] }
       : {}),
-    ...(search
+    ...(search || pocCondition
       ? {
           AND: [
-            {
-              OR: [
-                { type: { contains: search, mode: "insensitive" as const } },
-                { booking: { bookingId: { contains: search, mode: "insensitive" as const } } },
-                { passenger: { fullName: { contains: search, mode: "insensitive" as const } } },
-              ],
-            },
+            ...(search
+              ? [
+                  {
+                    OR: [
+                      { type: { contains: search, mode: "insensitive" as const } },
+                      { booking: { bookingId: { contains: search, mode: "insensitive" as const } } },
+                      { passenger: { fullName: { contains: search, mode: "insensitive" as const } } },
+                    ],
+                  },
+                ]
+              : []),
+            ...(pocCondition ? [pocCondition] : []),
           ],
         }
       : {}),
@@ -90,7 +106,8 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         passenger: { include: { customer: true } },
-        booking: { include: { customer: true, lead: true } },
+        booking: { include: { customer: true, lead: { include: { assignedStaff: { select: { name: true } } } } } },
+        lead: { select: { assignedStaff: { select: { name: true } } } },
       },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,
@@ -115,6 +132,7 @@ export async function GET(request: NextRequest) {
           }
         : null,
       customer: customer ? { name: customer.name, mobile: customer.mobile } : null,
+      poc: (document.lead ?? document.booking?.lead)?.assignedStaff?.name ?? null,
     };
   });
 

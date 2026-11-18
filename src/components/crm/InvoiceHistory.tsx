@@ -1,5 +1,6 @@
 "use client";
 
+import { PocFilterSelect } from "./PocFilterSelect";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Download, Eye, FileArchive, FileText, Pencil, Receipt, RotateCw, Search, X } from "lucide-react";
@@ -150,6 +151,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
   // Client corrections 2026-10-05: no page search box (one global 360 search); a ?search= link still pre-filters.
   const search = "";
   const [serviceType, setServiceType] = useState("");
+  const [assignedStaffId, setAssignedStaffId] = useState("");
   const [method, setMethod] = useState("");
   const [purpose, setPurpose] = useState("");
   const [refundState, setRefundState] = useState("");
@@ -169,6 +171,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
     const params = new URLSearchParams();
     if (search) params.set("search", search);
     if (serviceType) params.set("serviceType", serviceType);
+    if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
     if (method) params.set("method", method);
     if (purpose) params.set("purpose", purpose);
     if (refundState) params.set("refundState", refundState);
@@ -177,9 +180,9 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
     if (dateTo) params.set("dateTo", dateTo);
     params.set("sort", sort);
     return params.toString();
-  }, [search, serviceType, method, purpose, refundState, financialYear, dateFrom, dateTo, sort]);
+  }, [search, serviceType, assignedStaffId, method, purpose, refundState, financialYear, dateFrom, dateTo, sort]);
 
-  const hasFilters = Boolean(serviceType || method || purpose || refundState || financialYear || dateFrom || dateTo);
+  const hasFilters = Boolean(serviceType || assignedStaffId || method || purpose || refundState || financialYear || dateFrom || dateTo);
 
 
   useEffect(() => {
@@ -215,6 +218,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
 
   function clearFilters() {
     setServiceType("");
+    setAssignedStaffId("");
     setMethod("");
     setPurpose("");
     setRefundState("");
@@ -303,6 +307,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
       <section aria-label="Invoice filters" className="rounded-xl border border-hairline bg-surface-1/70 p-3">
         <div className="flex flex-wrap items-center gap-2 2xl:flex-nowrap">
 
+          <PocFilterSelect id="invoice-poc" value={assignedStaffId} onChange={onFilter(setAssignedStaffId)} />
           <FilterSelect id="invoice-service" label="Filter by service" value={serviceType} onChange={onFilter(setServiceType)}>
             <option value="">All services</option>
             {SERVICE_TYPE_OPTIONS.map((option) => (
@@ -475,6 +480,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
                   <th scope="col" className="px-4 py-3">Booking</th>
                   <th scope="col" className="px-4 py-3">Service</th>
                   <th scope="col" className="px-4 py-3">Method</th>
+                  <th scope="col" className="px-4 py-3">POC</th>
                   <th scope="col" className="px-4 py-3 text-right">Total</th>
                   <th scope="col" className="px-4 py-3">Refund</th>
                   <th scope="col" className="px-4 py-3 text-right">
@@ -510,6 +516,7 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
                     </td>
                     <td className="px-4 py-3 text-ink-secondary">{SERVICE_TYPE_LABELS[item.serviceType]}</td>
                     <td className="px-4 py-3 text-ink-secondary">{METHOD_LABELS[item.method]}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-ink-secondary">{item.poc ?? "—"}</td>
                     <td className="whitespace-nowrap px-4 py-3 text-right">
                       <span className="font-medium tabular-nums text-ink-primary">{money(item.total)}</span>
                       {item.gstAmount > 0 ? <div className="text-xs tabular-nums text-ink-tertiary">GST {money(item.gstAmount)}</div> : null}
