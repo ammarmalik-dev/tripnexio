@@ -99,7 +99,6 @@ export function SpecialFareActionsPanel({
   const [noAlternative, setNoAlternative] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
   const [pnr, setPnr] = useState("");
-  const [baggage, setBaggage] = useState(view.quoteBaggage ?? "");
   const [ticketFile, setTicketFile] = useState<File | null>(null);
   const [ticketFor, setTicketFor] = useState<string[]>([]);
   const [options, setOptions] = useState<{ airports: AirportOption[]; airlines: NamedOption[]; vendors: NamedOption[] } | null>(null);
@@ -168,7 +167,7 @@ export function SpecialFareActionsPanel({
       toast.error("The ticket file is too large (8MB max).");
       return;
     }
-    await run("ISSUE_TICKET", { action: "ISSUE_TICKET", passengerIds: chosen, baggage: baggage.trim() || undefined, fileBase64: await readAsBase64(ticketFile) });
+    await run("ISSUE_TICKET", { action: "ISSUE_TICKET", passengerIds: chosen, fileBase64: await readAsBase64(ticketFile) });
   };
 
   const offer = view.alternativeOffer;
@@ -316,7 +315,11 @@ export function SpecialFareActionsPanel({
             </fieldset>
           ) : null}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <TextField label="Baggage" name="ticketBaggage" value={baggage} onChange={(e) => setBaggage(e.target.value)} hint="From the quote — change only if it's different." />
+            {/* Client doc 16 Nov (A4) — baggage was given in the quotation; it is reused, never asked again here. */}
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium text-ink-secondary">Baggage (from the quotation)</span>
+              <span className="rounded-md border border-hairline bg-surface-1 px-3 py-2 text-sm text-ink-primary">{view.quoteBaggage || "—"}</span>
+            </div>
             <FormField label="Ticket file (PDF, PNG or JPG)" htmlFor={`sf-ticket-${bookingId}`}>
               <FilePickerButton id={`sf-ticket-${bookingId}`} accept={ALLOWED_TICKET_TYPES.join(",")} fileName={ticketFile?.name ?? null} onFile={setTicketFile} disabled={pending !== null} />
             </FormField>

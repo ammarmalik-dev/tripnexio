@@ -22,7 +22,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] A1 Manual lead: origin city, destination city, return date (round trip)
 - [ ] A2 Send multiple quotations in one click (Special Fare + Visa Change only)
 - [x] A3 Email heading: no airline logo of the first quotation — unit 6: email heading shows only the SELECTED flight airline (no logo while several options are open)
-- [ ] A4 Ticket upload: reuse baggage from the quotation, don't ask again
+- [x] A4 Ticket upload: reuse baggage from the quotation, don't ask again — unit 7: the Special Fare ticket step shows the quotation baggage read-only (no Baggage field); the ticket email keeps using the quote baggage
 - [ ] A5 Partial ticket issuance → status Partially Issued (CRM + website)
 - [ ] A6 Ticket upload: compare ticket details with passenger data; block on mismatch
 - [ ] A7 Offline flight lead: Country + Service Type shown in CRM after quotation
