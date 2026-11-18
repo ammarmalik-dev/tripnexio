@@ -16,9 +16,10 @@ const SAMPLE: Record<string, string> = {
   booking_id: "11026VC001",
   country_name: "United Arab Emirates",
   passenger_names: "Sample Customer",
+  passenger_count: "1",
   visa_change_method: "",
-  origin: "DEL",
-  destination: "DXB",
+  origin: "Delhi",
+  destination: "Dubai",
   travel_date: "20 Nov 2026",
 };
 
