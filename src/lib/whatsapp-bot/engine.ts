@@ -1,4 +1,6 @@
 import { createLeadFromSubmission, notifyLeadReceived } from "../leads/create-lead";
+import { createOrRefreshDraftLead } from "../leads/create-draft-lead";
+import { DRAFT_SERVICE_TYPES } from "../validation/lead-draft-schema";
 import { linkServiceBookings } from "../return-ticket/operations";
 import { findCustomerByMobile } from "../customers/find-by-mobile";
 import { tripFactsForLead, tripSummaryLine } from "../leads/trip-summary";
@@ -183,6 +185,7 @@ async function startCollecting(serviceType: ServiceType, waId: string): Promise<
     ...(known?.email ? { email: known.email } : {}),
   };
   const field = await getNextField(serviceType, prefilled);
+  if (field && !field.unavailable) await saveBotDraft(serviceType, waId, prefilled);
   if (!field || field.unavailable) {
     return { replyText: messages.handoff("This service isn't available to request right now."), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };
   }
@@ -192,6 +195,25 @@ async function startCollecting(serviceType: ServiceType, waId: string): Promise<
     nextServiceType: serviceType,
     nextCollectedFields: prefilled,
   };
+}
+
+/** Trip answers worth keeping on an abandoned WhatsApp draft (same keys the website draft keeps). */
+const BOT_DRAFT_TRIP_KEYS = ["destinationCountry", "airline", "travelDate", "processingType"] as const;
+
+/**
+ * Client doc 16 Nov (J12) — a WhatsApp request left half-way still leaves a lead: once the name and email are known
+ * an abandoned draft (one per customer + service, Sales follow-up) is created and refreshed with each answer; the
+ * finished request takes that same lead over. Never blocks or breaks the chat.
+ */
+async function saveBotDraft(serviceType: ServiceType, waId: string, collected: Record<string, string>): Promise<void> {
+  if (!collected.fullName || !collected.email) return;
+  if (!(DRAFT_SERVICE_TYPES as readonly string[]).includes(serviceType)) return;
+  try {
+    const trip = Object.fromEntries(BOT_DRAFT_TRIP_KEYS.filter((key) => collected[key]).map((key) => [key, collected[key]]));
+    await createOrRefreshDraftLead(serviceType, { fullName: collected.fullName, mobile: waId, email: collected.email }, trip, "WHATSAPP");
+  } catch (error) {
+    console.error("[whatsapp-bot] draft save failed", error instanceof Error ? error.name : "error");
+  }
 }
 
 async function continueCollecting(
@@ -227,6 +249,7 @@ async function continueCollecting(
     if (nextField.unavailable) {
       return { replyText: messages.handoff("That option isn't available right now."), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };
     }
+    await saveBotDraft(serviceType, waId, nextCollected);
     return { replyText: nextField.prompt, nextState: "COLLECTING", nextServiceType: serviceType, nextCollectedFields: nextCollected };
   }
 

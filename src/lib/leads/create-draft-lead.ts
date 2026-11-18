@@ -24,9 +24,10 @@ export interface DraftLeadResult {
 export async function createOrRefreshDraftLead(
   serviceType: ServiceType,
   contact: LeadContact,
-  trip?: Partial<Record<string, string | undefined>>
+  trip?: Partial<Record<string, string | undefined>>,
+  channel: "WEBSITE" | "WHATSAPP" = "WEBSITE"
 ): Promise<DraftLeadResult> {
-  const result = await createOrRefreshDraft(serviceType, contact, trip);
+  const result = await createOrRefreshDraft(serviceType, contact, channel === "WHATSAPP" ? { ...trip, draftChannel: "WhatsApp" } : trip);
   // Client doc 16 Nov (J5) — an abandoned lead goes to an active Sales POC for follow-up (after the commit).
   if (result.outcome === "created") await autoAssignLead(result.leadId, serviceType, { team: "SALES" });
   return result;

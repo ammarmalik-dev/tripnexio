@@ -141,7 +141,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] J9 Admin Sales Tracker: targets per POC, metrics, filters
 - [x] J10 Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations, Bookings — unit 5: Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations and Bookings — Manual = staff-created (details.manualEntry), WhatsApp = bot, Website = the rest; also via ?entrySource=
 - [ ] J11 Manual lead: edit instead of separate Add Passenger
-- [ ] J12 WhatsApp bot abandoned leads for every service
+- [x] J12 WhatsApp bot abandoned leads for every service — unit 6: once the bot has the name + email (or knows the customer) an abandoned draft lead is created for that service (draftChannel WhatsApp, Sales auto-assign) and refreshed with each answer (country / airline / date / processing); the finished request takes the same lead over
 - [x] J13 Reference IDs like Q-6UOFRN → configured serial format; "Booking" instead of "Application ID" — unit 1: quotation reference + proforma number = lead serial (11026VC105-Q2)
 
 ## K. CRM / Admin UI
