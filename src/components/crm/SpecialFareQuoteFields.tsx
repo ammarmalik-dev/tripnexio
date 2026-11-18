@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useWatch, type FieldArrayWithId, type UseFieldArrayAppend, type UseFieldArrayRemove, type UseFormReturn } from "react-hook-form";
+import { useWatch, type FieldArrayWithId, type UseFieldArrayAppend, type UseFieldArrayInsert, type UseFieldArrayRemove, type UseFormReturn } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/forms/TextField";
@@ -62,7 +62,9 @@ export function SpecialFareQuoteFields({
   form,
   sectorFields,
   appendSector,
+  insertSector,
   removeSector,
+  requestedReturnDate,
   airports,
   airlines,
   paxCounts,
@@ -70,7 +72,10 @@ export function SpecialFareQuoteFields({
   form: UseFormReturn<QuoteFormValues>;
   sectorFields: FieldArrayWithId<QuoteFormValues, "itinerary", "id">[];
   appendSector: UseFieldArrayAppend<QuoteFormValues, "itinerary">;
+  insertSector: UseFieldArrayInsert<QuoteFormValues, "itinerary">;
   removeSector: UseFieldArrayRemove;
+  /** The customer's requested return date (round-trip request), shown as a hint. */
+  requestedReturnDate?: string | null;
   airports: AirportOption[];
   airlines: AirlineOption[];
   paxCounts: PaxCountsView;
@@ -81,7 +86,12 @@ export function SpecialFareQuoteFields({
     setValue,
     formState: { errors },
   } = form;
-  const [connecting, setConnecting] = useState(sectorFields.length > 1);
+  const legs = useWatch({ control, name: "itinerary" }) ?? [];
+  const legOf = (index: number) => (legs[index]?.leg === "RETURN" ? "RETURN" : "OUTBOUND");
+  const returnIndexes = sectorFields.map((_, index) => index).filter((index) => legOf(index) === "RETURN");
+  const outboundIndexes = sectorFields.map((_, index) => index).filter((index) => legOf(index) !== "RETURN");
+  const roundTrip = returnIndexes.length > 0;
+  const [connecting, setConnecting] = useState(outboundIndexes.length > 1);
   const rates = useWatch({ control, name: ["adultFare", "childFare", "infantFare", "adultVendorCost", "childVendorCost", "infantVendorCost"] });
   const cancellationAllowed = useWatch({ control, name: "cancellationAllowed" });
 
@@ -99,8 +109,19 @@ export function SpecialFareQuoteFields({
 
   const chooseType = (next: boolean) => {
     setConnecting(next);
-    if (next && sectorFields.length < 2) appendSector({ ...EMPTY_SEGMENT });
-    if (!next && sectorFields.length > 1) removeSector(sectorFields.map((_, index) => index).slice(1));
+    // Outbound sectors only — a round trip's return sectors stay.
+    if (next && outboundIndexes.length < 2) insertSector(outboundIndexes.length, { ...EMPTY_SEGMENT });
+    if (!next && outboundIndexes.length > 1) removeSector(outboundIndexes.slice(1));
+  };
+
+  // Client doc 16 Nov (A9) — One-way / Round trip: a round trip adds a return sector (arrival → departure).
+  const chooseTrip = (nextRoundTrip: boolean) => {
+    if (nextRoundTrip && !roundTrip) {
+      const firstOut = legs[outboundIndexes[0]];
+      const lastOut = legs[outboundIndexes[outboundIndexes.length - 1]];
+      appendSector({ ...EMPTY_SEGMENT, from: lastOut?.to ?? "", to: firstOut?.from ?? "", leg: "RETURN" });
+    }
+    if (!nextRoundTrip && roundTrip) removeSector(returnIndexes);
   };
 
   const numberField = (name: "adultFare" | "childFare" | "infantFare" | "adultVendorCost" | "childVendorCost" | "infantVendorCost" | "cancellationCharge" | "noShowCharge") =>
@@ -145,6 +166,31 @@ export function SpecialFareQuoteFields({
             </button>
           ))}
         </div>
+        <div role="radiogroup" aria-label="Trip type" className="flex flex-wrap gap-2">
+          {[
+            { value: false, label: "One-way" },
+            { value: true, label: "Round trip" },
+          ].map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              role="radio"
+              aria-checked={roundTrip === option.value}
+              onClick={() => chooseTrip(option.value)}
+              className={cn(
+                "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
+                roundTrip === option.value ? "border-accent bg-accent/10 text-ink-accent" : "border-hairline text-ink-secondary hover:text-ink-primary"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        {requestedReturnDate ? (
+          <p className="text-xs font-medium text-ink-secondary">
+            Customer asked for a round trip — return on {new Date(requestedReturnDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.
+          </p>
+        ) : null}
         <p className="text-xs text-ink-tertiary">
           Starts from the customer&apos;s requested airports — change them here for this quote only. Same-country airports = Domestic, otherwise International (the
           matching T&amp;C apply).
@@ -153,12 +199,20 @@ export function SpecialFareQuoteFields({
         <ol className="flex flex-col gap-3">
           {sectorFields.map((field, index) => {
             const rowErrors = sectorErrors?.[index];
+            const isReturn = legOf(index) === "RETURN";
+            const carded = connecting || roundTrip;
             return (
-              <li key={field.id} className={cn("flex flex-col gap-3", connecting && "rounded-lg border border-hairline bg-surface-2 p-3")}>
-                {connecting ? (
+              <li key={field.id} className={cn("flex flex-col gap-3", carded && "rounded-lg border border-hairline bg-surface-2 p-3")}>
+                <input type="hidden" {...register(`itinerary.${index}.leg` as const)} />
+                {carded ? (
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-ink-heading">Sector {index + 1}</span>
-                    {sectorFields.length > 2 ? (
+                    <span className="text-xs font-semibold text-ink-heading">
+                      {roundTrip ? (isReturn ? "Return" : "Outbound") : "Sector"}
+                      {connecting || (isReturn ? returnIndexes.length : outboundIndexes.length) > 1
+                        ? ` · sector ${(isReturn ? returnIndexes : outboundIndexes).indexOf(index) + 1}`
+                        : ""}
+                    </span>
+                    {(isReturn ? returnIndexes.length > 1 : outboundIndexes.length > 2) ? (
                       <Button type="button" size="sm" variant="ghost" onClick={() => removeSector(index)} aria-label={`Remove sector ${index + 1}`}>
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         Remove
@@ -205,7 +259,7 @@ export function SpecialFareQuoteFields({
                   <TextField label="Departure terminal" placeholder="e.g. T3" {...register(`itinerary.${index}.departTerminal` as const)} error={rowErrors?.departTerminal?.message} />
                   <TextField label="Arrival terminal" placeholder="e.g. T1" {...register(`itinerary.${index}.arriveTerminal` as const)} error={rowErrors?.arriveTerminal?.message} />
                 </div>
-                {connecting ? (
+                {carded ? (
                   <Textarea
                     label="Sector notes"
                     rows={2}
@@ -219,19 +273,32 @@ export function SpecialFareQuoteFields({
           })}
         </ol>
         {sectorErrors?.message ? <p className="text-xs text-error">{sectorErrors.message}</p> : null}
-        {connecting ? (
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="self-start"
-            onClick={() => appendSector({ ...EMPTY_SEGMENT })}
-            disabled={sectorFields.length >= MAX_ITINERARY_SEGMENTS}
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Add Sector
-          </Button>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          {connecting ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => insertSector(outboundIndexes.length, { ...EMPTY_SEGMENT })}
+              disabled={sectorFields.length >= MAX_ITINERARY_SEGMENTS}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {roundTrip ? "Add outbound sector" : "Add Sector"}
+            </Button>
+          ) : null}
+          {roundTrip ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => appendSector({ ...EMPTY_SEGMENT, leg: "RETURN" })}
+              disabled={sectorFields.length >= MAX_ITINERARY_SEGMENTS}
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Add return sector
+            </Button>
+          ) : null}
+        </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <TextField label="Baggage allowance" placeholder="e.g. 15 kg check-in + 7 kg cabin" {...textField("baggageAllowance")} error={errors.baggageAllowance?.message} />
           <TextField label="Fare type" placeholder="e.g. Special Fare" {...textField("fareType")} error={errors.fareType?.message} />

@@ -100,7 +100,7 @@ export async function ticketDetailsFor(bookingId: string, outputType: OutputType
     if (sectors.length > 0) {
       for (const sector of sectors) {
         const times = [when(sector.departAt), when(sector.arriveAt)].filter(Boolean).join(" → ");
-        lines.push(`Flight: ${[sector.flightNumber, `${cityFor(sector.from, cities)} → ${cityFor(sector.to, cities)}`, times].filter(Boolean).join(" · ")}`);
+        lines.push(`${sector.leg === "RETURN" ? "Return flight" : "Flight"}: ${[sector.flightNumber, `${cityFor(sector.from, cities)} → ${cityFor(sector.to, cities)}`, times].filter(Boolean).join(" · ")}`);
       }
     } else if (quote?.route) {
       const times = [when(quote.flightDateTime), when(quote.arrivalDateTime)].filter(Boolean).join(" → ");

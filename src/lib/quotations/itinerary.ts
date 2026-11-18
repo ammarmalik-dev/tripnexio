@@ -30,6 +30,8 @@ export const itinerarySegmentSchema = z.object({
   departTerminal: optionalText(60),
   arriveTerminal: optionalText(60),
   notes: optionalText(300),
+  /** Client doc 16 Nov (A9) — a round-trip quote marks its return sectors; absent = outbound. */
+  leg: z.enum(["OUTBOUND", "RETURN"]).optional(),
 });
 
 export const itinerarySchema = z
@@ -54,6 +56,13 @@ export interface StoredItinerarySegment {
   departTerminal?: string;
   arriveTerminal?: string;
   notes?: string;
+  /** Client doc 16 Nov (A9) — only stored for a return sector. */
+  leg?: "RETURN";
+}
+
+/** Client doc 16 Nov (A9) — a quote is round trip when any sector is marked as the return. */
+export function isRoundTrip(segments: { leg?: string }[]): boolean {
+  return segments.some((segment) => segment.leg === "RETURN");
 }
 
 function blankToUndefined(value: string | undefined): string | undefined {
@@ -83,6 +92,7 @@ export function normalizeItinerary(segments: ItinerarySegment[]): StoredItinerar
     if (airline) stored.airline = airline;
     if (flightNumber) stored.flightNumber = flightNumber;
     if (notes) stored.notes = notes;
+    if (segment.leg === "RETURN") stored.leg = "RETURN";
     return stored;
   });
 }
@@ -118,8 +128,11 @@ export interface SectorFlightFields {
  * destination as the route's "to", so DEL → DXB → DEL reads "DEL → DXB".
  */
 export function flightFieldsFromSectors(
-  segments: { from: string; to: string; departAt?: string; arriveAt?: string; airline?: string; flightNumber?: string; departTerminal?: string }[]
+  allSegments: { from: string; to: string; departAt?: string; arriveAt?: string; airline?: string; flightNumber?: string; departTerminal?: string; leg?: string }[]
 ): SectorFlightFields | null {
+  // Client doc 16 Nov (A9) — a round trip's route / times are its outbound journey; the return sectors stay in the itinerary.
+  const outbound = allSegments.filter((segment) => segment.leg !== "RETURN");
+  const segments = outbound.length > 0 ? outbound : allSegments;
   if (segments.length === 0) return null;
   const first = segments[0];
   const last = segments[segments.length - 1];

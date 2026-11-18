@@ -141,6 +141,7 @@ function quoteToFormValues(quotation: QuoteCardData, flightQuote: boolean): Part
       departTerminal: segment.departTerminal ?? "",
       arriveTerminal: segment.arriveTerminal ?? "",
       notes: segment.notes ?? "",
+      ...(segment.leg ? { leg: segment.leg } : {}),
     })),
   };
 }
@@ -163,7 +164,7 @@ export function QuoteBuilder({
   visaChangeMethod?: string | null;
   /** Special Fare: the lead's Adult / Child / Infant counts and requested airports (client doc 2026-10-14). */
   paxCounts?: { adult: number; child: number; infant: number };
-  flightRequest?: { fromCode: string | null; toCode: string | null } | null;
+  flightRequest?: { fromCode: string | null; toCode: string | null; returnDate?: string | null } | null;
   /** Client doc 2026-10-15 — Visa Extension / Visa Change: the lead's passengers, costed one by one. */
   passengers?: { id: string; fullName: string }[];
 }) {

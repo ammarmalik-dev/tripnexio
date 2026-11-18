@@ -66,7 +66,7 @@ export function SpecialFareAlternativeForm({
     handleSubmit,
     formState: { errors },
   } = form;
-  const { fields: sectorFields, append: appendSector, remove: removeSector } = useFieldArray({ control, name: "itinerary" });
+  const { fields: sectorFields, append: appendSector, remove: removeSector, insert: insertSector } = useFieldArray({ control, name: "itinerary" });
 
   const airportLabel = (code: string) => {
     const airport = airports.find((row) => row.code === code);
@@ -118,6 +118,7 @@ export function SpecialFareAlternativeForm({
         form={form}
         sectorFields={sectorFields}
         appendSector={appendSector}
+        insertSector={insertSector}
         removeSector={removeSector}
         airports={airports}
         airlines={airlines.map((airline) => ({ id: airline.id, code: airline.code ?? "", name: airline.name }))}

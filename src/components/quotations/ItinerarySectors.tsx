@@ -27,7 +27,8 @@ export function ItinerarySectors({
   return (
     <div className="flex flex-col gap-2">
       <span className="text-sm font-semibold text-ink-heading">
-        {title} · {segments.length} {segments.length === 1 ? "sector" : "sectors"}
+        {title} · {segments.some((segment) => segment.leg === "RETURN") ? "Round trip · " : ""}
+        {segments.length} {segments.length === 1 ? "sector" : "sectors"}
       </span>
       <ol className="flex flex-col gap-2">
         {segments.map((segment, index) => (
@@ -40,6 +41,9 @@ export function ItinerarySectors({
             </span>
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="flex flex-wrap items-center gap-1.5 text-sm font-medium text-ink-primary">
+                {segment.leg === "RETURN" ? (
+                  <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[11px] font-semibold text-ink-accent">Return</span>
+                ) : null}
                 {segment.from}
                 <Plane className="h-3.5 w-3.5 text-ink-tertiary" aria-label="to" />
                 {segment.to}

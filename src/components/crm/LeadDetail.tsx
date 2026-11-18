@@ -524,7 +524,11 @@ export function LeadDetail({
                     visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
                     paxCounts={lead.specialFarePaxCounts ?? paxCountsOf(lead.passengers)}
                     passengers={lead.passengers.map((passenger) => ({ id: passenger.id, fullName: passenger.fullName }))}
-                    flightRequest={{ fromCode: airportCodeOf(lead.details.origin), toCode: airportCodeOf(lead.details.destination) }}
+                    flightRequest={{
+                      fromCode: airportCodeOf(lead.details.origin),
+                      toCode: airportCodeOf(lead.details.destination),
+                      returnDate: typeof lead.details.returnDate === "string" && lead.details.returnDate ? lead.details.returnDate : null,
+                    }}
                     leadStatus={lead.status}
                     onLeadChanged={refresh}
                   />

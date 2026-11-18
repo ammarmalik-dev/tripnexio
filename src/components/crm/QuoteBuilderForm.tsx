@@ -100,10 +100,17 @@ function normalizeForSubmit(values: QuoteFormValues, isFlightQuote: boolean): Qu
 }
 
 /** An older Special Fare quote entered its flight in the main fields: open it as one sector so it's edited in one place. */
-function initialSectors(values: Partial<QuoteFormValues> | undefined, request: { fromCode: string | null; toCode: string | null } | null): ItinerarySegment[] {
+function initialSectors(
+  values: Partial<QuoteFormValues> | undefined,
+  request: { fromCode: string | null; toCode: string | null; returnDate?: string | null } | null
+): ItinerarySegment[] {
   if (values?.itinerary && values.itinerary.length > 0) return values.itinerary;
   // Client doc 2026-10-14 — a new quote starts from the customer's requested airports.
-  if (!values?.fromAirportCode || !values.toAirportCode) return [{ ...EMPTY_SEGMENT, from: request?.fromCode ?? "", to: request?.toCode ?? "" }];
+  // Client doc 16 Nov (A9) — a round-trip request starts with its return sector too.
+  if (!values?.fromAirportCode || !values.toAirportCode) {
+    const outbound = { ...EMPTY_SEGMENT, from: request?.fromCode ?? "", to: request?.toCode ?? "" };
+    return request?.returnDate ? [outbound, { ...EMPTY_SEGMENT, from: request?.toCode ?? "", to: request?.fromCode ?? "", leg: "RETURN" }] : [outbound];
+  }
   return [
     {
       ...EMPTY_SEGMENT,
@@ -183,7 +190,7 @@ interface QuoteBuilderFormProps {
   /** Special Fare: the lead's Adult / Child / Infant counts (prices are per passenger). */
   paxCounts?: PaxCountsView;
   /** Special Fare: the customer's requested airports — a new quote starts from them. */
-  flightRequest?: { fromCode: string | null; toCode: string | null } | null;
+  flightRequest?: { fromCode: string | null; toCode: string | null; returnDate?: string | null } | null;
   /** Client doc 2026-10-15 — Visa Extension / Visa Change: the lead's passengers, costed one by one. */
   passengers?: { id: string; fullName: string }[];
 }
@@ -254,7 +261,7 @@ export function QuoteBuilderForm({
     control,
     formState: { errors },
   } = form;
-  const { fields: sectorFields, append: appendSector, remove: removeSector, move: moveSector } = useFieldArray({
+  const { fields: sectorFields, append: appendSector, remove: removeSector, move: moveSector, insert: insertSector } = useFieldArray({
     control,
     name: "itinerary",
   });
@@ -399,7 +406,9 @@ export function QuoteBuilderForm({
             form={form}
             sectorFields={sectorFields}
             appendSector={appendSector}
+            insertSector={insertSector}
             removeSector={removeSector}
+            requestedReturnDate={flightRequest?.returnDate ?? null}
             airports={airports}
             airlines={airlines}
             paxCounts={paxCounts}

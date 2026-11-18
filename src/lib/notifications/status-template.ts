@@ -346,7 +346,10 @@ export async function buildStatusVariables(scope: StatusScope, entityId: string,
     airline_flight_number: flight || "as per your ticket",
     pnr: booking?.pnr ?? "",
     baggage: booking?.ticketBaggage ?? quotation?.baggageAllowance ?? "",
-    itinerary_summary: [route, flight, flightTime].filter(Boolean).join(" · "),
+    // Client doc 16 Nov (A9) — a round trip names its return date.
+    itinerary_summary: [route, flight, flightTime, detailString(lead.details, "returnDate") ? `Return ${formatDate(new Date(detailString(lead.details, "returnDate")))}` : ""]
+      .filter(Boolean)
+      .join(" · "),
     quotation_id: quotation ? `${reference}-Q${Math.max(1, quotationSerial)}` : "",
     currency: "",
     total_amount: money(quoteTotal),

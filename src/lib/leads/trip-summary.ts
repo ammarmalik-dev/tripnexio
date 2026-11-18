@@ -32,6 +32,16 @@ export function tripFacts(lead: TripLead): TripFact[] {
   // Client doc 2026-10-20 (D9) — a Visa Change / Extension happens in the UAE: no "Destination" in its messages.
   else if (lead.country?.name && lead.serviceType !== "VISA_CHANGE" && lead.serviceType !== "VISA_EXTENSION") facts.push({ label: "Destination", value: lead.country.name });
   if (lead.travelDate) facts.push({ label: "Travel date", value: formatTravelDate(lead.travelDate) });
+  // Client doc 16 Nov (A9) — a flight shows One-way / Round trip, and a round trip its return date.
+  if (lead.serviceType === "FLIGHT_SPECIAL_FARE") {
+    const returnDate = (lead.details as Record<string, unknown> | null)?.returnDate;
+    const parsed = typeof returnDate === "string" && returnDate ? new Date(returnDate) : null;
+    if (parsed && !Number.isNaN(parsed.getTime())) {
+      facts.push({ label: "Trip", value: "Round trip" }, { label: "Return date", value: formatTravelDate(parsed) });
+    } else if (route) {
+      facts.push({ label: "Trip", value: "One-way" });
+    }
+  }
   return facts;
 }
 

@@ -55,7 +55,9 @@ export function serviceDetailsLine(serviceType: ServiceType, details: unknown, e
     case "FLIGHT_SPECIAL_FARE": {
       const from = place(data.origin);
       const to = place(data.destination);
-      return join([from && to ? `${from} – ${to}` : (from ?? to)]);
+      // Client doc 16 Nov (A9) — One-way / Round trip, with the return date.
+      const back = day(data.returnDate);
+      return join([from && to ? `${from} – ${to}` : (from ?? to), from || to ? (back ? `Round trip, returns ${back}` : "One-way") : null]);
     }
     case "VISA_EXTENSION": {
       const expiry = day(data.visaExpiryDate);
