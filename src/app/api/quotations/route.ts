@@ -1,4 +1,5 @@
 import { leadOwnershipWhere, seesAllForViewing } from "@/lib/auth/ownership";
+import { fillFlightLeadFromQuote } from "@/lib/special-fare/fill-lead-from-quote";
 import { entrySourceWhere } from "@/lib/leads/entry-source";
 import { resolveLeadSubServiceCodes, vendorSubServiceProblem } from "@/lib/vendors/sub-service-scope";
 import { specialFarePaxCounts, specialFareTotals } from "@/lib/special-fare/pax-counts";
@@ -490,6 +491,9 @@ export async function POST(request: NextRequest) {
         sentAt: isDraft ? null : new Date(),
       },
     });
+
+    // Client doc 16 Nov (A7) — an offline flight lead takes its country / route from the quotation.
+    await fillFlightLeadFromQuote(tx, leadId, { fromAirportCode: flightRoute?.fromAirportCode, toAirportCode: flightRoute?.toAirportCode });
 
     await writeAudit(tx, {
       entityType: "Quotation",

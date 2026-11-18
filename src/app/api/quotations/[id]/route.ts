@@ -1,4 +1,5 @@
 import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
+import { fillFlightLeadFromQuote } from "@/lib/special-fare/fill-lead-from-quote";
 import { specialFarePaxCounts, specialFareTotals } from "@/lib/special-fare/pax-counts";
 import type { NextRequest } from "next/server";
 import { updateQuotationSchema } from "@/lib/validation/quotation-schema";
@@ -345,6 +346,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   const reason = reasonResult.reason ?? null;
 
   const updated = await db.$transaction(async (tx) => {
+    // Client doc 16 Nov (A7) — an offline flight lead takes its country / route from the quotation.
+    if (routeFields) await fillFlightLeadFromQuote(tx, existing.leadId, routeFields);
     const result = await tx.quotation.update({
       where: { id },
       data: {
