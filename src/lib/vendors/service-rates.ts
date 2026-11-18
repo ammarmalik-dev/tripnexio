@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { entryKindLabel } from "../new-visa/products";
 import type { Prisma } from "../../generated/prisma/client";
 
 /**
@@ -49,7 +50,7 @@ export const VENDOR_RATE_INCLUDE = {
 /** The visa option's label on a vendor rate ("Tourist · 30 days · SINGLE"). */
 function visaOptionLabel(config: { visaCategory: string; stayDays: number | null; entryKind: string | null; duration: string } | null): string | null {
   if (!config) return null;
-  return [config.visaCategory, config.stayDays ? `${config.stayDays} days` : config.duration, config.entryKind === "MULTIPLE" ? "Multiple entry" : config.entryKind === "SINGLE" ? "Single entry" : null]
+  return [config.visaCategory, config.stayDays ? `${config.stayDays} days` : config.duration, config.entryKind ? entryKindLabel(config.entryKind) : null]
     .filter((part) => part && String(part).trim())
     .join(" · ");
 }

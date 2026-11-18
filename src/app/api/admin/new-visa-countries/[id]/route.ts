@@ -1,4 +1,4 @@
-import { checkProductMasters } from "@/lib/visa-masters/check-product-masters";
+import { checkProductMasters, entryTypeName } from "@/lib/visa-masters/check-product-masters";
 import type { NextRequest } from "next/server";
 import { updateNewVisaCountryConfigSchema } from "@/lib/validation/new-visa-country-config-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -32,13 +32,15 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
   // The country is fixed once added — to change it, remove this row and add another.
   const data = { ...parsed.data };
-  const masterErrors = await checkProductMasters({ stayDays: data.stayDays, validityTypeId: data.validityTypeId });
+  const masterErrors = await checkProductMasters({ stayDays: data.stayDays, validityTypeId: data.validityTypeId, entryKind: data.entryKind });
   if (masterErrors) return jsonError(400, "Please check the highlighted fields.", masterErrors);
   delete data.countryId;
 
   const existing = await db.newVisaCountryConfig.findUnique({ where: { id } });
   if (!existing) return jsonError(404, "New Visa country config not found.");
 
+  // Client doc 16 Nov (K8) — a new entry type brings its master name as the product's entry text.
+  if (data.entryKind && data.entryKind !== existing.entryKind && !data.entryType) data.entryType = (await entryTypeName(data.entryKind)) ?? data.entryKind;
   const nextStay = data.stayDays ?? existing.stayDays;
   const nextEntry = data.entryKind ?? existing.entryKind;
   const touchesKey = [data.stayDays, data.entryKind, data.visaCategory, data.validityTypeId].some((value) => value !== undefined);

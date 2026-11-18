@@ -2256,7 +2256,8 @@ model NewVisaCountryConfig {
   /// P10 — the product's stay duration in days; one of the Visa Stay Type master values (client corrections 2026-10-05). Null on a pre-P10 row.
   stayDays           Int?
   /// P10 — Single or Multiple entry; null on a pre-P10 row.
-  entryKind          NewVisaEntryKind?
+  /// Client doc 16 Nov (K8) — the VisaEntryType master code (SINGLE / MULTIPLE / any Admin adds).
+  entryKind          String?
   /// Client corrections 2026-10-05 — optional Visa Validity Type master entry.
   validityTypeId     String?
   displayOrder       Int               @default(0)
@@ -2292,6 +2293,19 @@ model VisaStayType {
   id           String   @id @default(cuid())
   name         String   @unique
   days         Int      @unique
+  active       Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Client doc 16 Nov (K8) — Visa Entry Type master (Single Entry, Multiple Entry, …); a New Visa product's
+/// entryKind holds the code.
+model VisaEntryType {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String   @unique
+  description  String?
   active       Boolean  @default(true)
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())
@@ -2386,10 +2400,6 @@ enum FlightScope {
   INTERNATIONAL
 }
 
-enum NewVisaEntryKind {
-  SINGLE
-  MULTIPLE
-}
 
 // ReturnTicketRuleConfig removed (client update, 2026-09-24) — the
 // visa-type-driven day-offset rule it configured no longer exists; see

@@ -1,4 +1,4 @@
-import { checkProductMasters } from "@/lib/visa-masters/check-product-masters";
+import { checkProductMasters, entryTypeName } from "@/lib/visa-masters/check-product-masters";
 import type { NextRequest } from "next/server";
 import { createNewVisaCountryConfigSchema } from "@/lib/validation/new-visa-country-config-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   const data = {
     ...parsed.data,
     duration: parsed.data.duration || `${parsed.data.stayDays} Days`,
-    entryType: parsed.data.entryType || ENTRY_KIND_LABELS[parsed.data.entryKind],
+    entryType: parsed.data.entryType || (await entryTypeName(parsed.data.entryKind)) || ENTRY_KIND_LABELS[parsed.data.entryKind] || parsed.data.entryKind,
     processingType: parsed.data.processingType ?? "",
     description: parsed.data.description ?? "",
     termsAndConditions: parsed.data.termsAndConditions ?? "",

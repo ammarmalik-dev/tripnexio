@@ -1,14 +1,21 @@
-import type { NewVisaEntryKind } from "../../generated/prisma/enums";
-
 /**
  * P10 — a New Visa product is one NewVisaCountryConfig row: a country +
  * stay duration (30 / 60 days) + Single / Multiple entry. Shared wording
  * for the product selector, the request form and lead details.
  */
-export const ENTRY_KIND_LABELS: Record<NewVisaEntryKind, string> = {
+export const ENTRY_KIND_LABELS: Record<string, string> = {
   SINGLE: "Single Entry",
   MULTIPLE: "Multiple Entry",
 };
+
+/**
+ * Client doc 16 Nov (K8) — entry kinds are the Visa Entry Type master's codes now; a code without a built-in label
+ * shows the product's stored entry text (set to the master's name on save), else the code itself.
+ */
+export function entryKindLabel(entryKind: string | null | undefined, stored?: string | null): string {
+  if (!entryKind) return stored ?? "";
+  return ENTRY_KIND_LABELS[entryKind] ?? (stored?.trim() || entryKind);
+}
 
 export const PRODUCT_CLASH_MESSAGE = "This country already has an option with the same stay duration, entry type, visa category and validity.";
 
@@ -19,7 +26,7 @@ export const PRODUCT_CLASH_MESSAGE = "This country already has an option with th
 export function newVisaProductClashWhere(key: {
   countryId: string;
   stayDays: number;
-  entryKind: NewVisaEntryKind;
+  entryKind: string;
   visaCategory: string;
   validityTypeId: string | null | undefined;
 }) {
@@ -36,8 +43,8 @@ export function productStayLabel(config: { stayDays: number | null; duration: st
   return config.stayDays ? `${config.stayDays} Days` : config.duration;
 }
 
-export function productEntryLabel(config: { entryKind: NewVisaEntryKind | null; entryType: string }): string {
-  return config.entryKind ? ENTRY_KIND_LABELS[config.entryKind] : config.entryType;
+export function productEntryLabel(config: { entryKind: string | null; entryType: string }): string {
+  return entryKindLabel(config.entryKind, config.entryType);
 }
 
 /**
@@ -47,7 +54,7 @@ export function productEntryLabel(config: { entryKind: NewVisaEntryKind | null; 
 export function productLabel(config: {
   stayDays: number | null;
   duration: string;
-  entryKind: NewVisaEntryKind | null;
+  entryKind: string | null;
   entryType: string;
   visaCategory?: string | null;
   /** Client 2026-10-25 — several options per country: the validity tells two otherwise-equal options apart. */

@@ -1,5 +1,6 @@
 "use client";
 
+import { entryKindLabel } from "@/lib/new-visa/products";
 import { useEffect, useMemo, useState } from "react";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
@@ -318,7 +319,7 @@ export function VendorServiceRatesManager() {
             .map((config) => ({
               id: config.id,
               countryId: config.countryId,
-              label: [config.visaCategory, config.stayDays ? `${config.stayDays} days` : config.duration, config.entryKind === "MULTIPLE" ? "Multiple entry" : config.entryKind === "SINGLE" ? "Single entry" : null]
+              label: [config.visaCategory, config.stayDays ? `${config.stayDays} days` : config.duration, config.entryKind ? entryKindLabel(config.entryKind) : null]
                 .filter(Boolean)
                 .join(" · "),
             }))

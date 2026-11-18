@@ -1,4 +1,5 @@
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { entryKindLabel } from "@/lib/new-visa/products";
 import { describeError } from "@/lib/api/describe-error";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
@@ -68,7 +69,7 @@ export async function GET() {
         serviceType: rule.serviceType,
         subService: rule.subService?.name ?? null,
         visaType: rule.visaType?.name ?? null,
-        product: rule.newVisaConfig?.stayDays ? `${rule.newVisaConfig.stayDays} days${rule.newVisaConfig.entryKind ? ` · ${rule.newVisaConfig.entryKind === "MULTIPLE" ? "Multiple" : "Single"} entry` : ""}` : null,
+        product: rule.newVisaConfig?.stayDays ? `${rule.newVisaConfig.stayDays} days${rule.newVisaConfig.entryKind ? ` · ${entryKindLabel(rule.newVisaConfig.entryKind)}` : ""}` : null,
         processingType: rule.processingType,
         processingLabel: rule.processingType ? (processingLabel.get(`${rule.serviceType}:${rule.processingType}`) ?? rule.processingType) : null,
         paxType: rule.paxType,

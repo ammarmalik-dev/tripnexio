@@ -1,5 +1,6 @@
 "use client";
 
+import { entryKindLabel } from "@/lib/new-visa/products";
 import { useEffect, useState } from "react";
 import { Plus, Search, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -33,7 +34,7 @@ interface ConfigData {
   duration: string;
   entryType: string;
   stayDays: number | null;
-  entryKind: "SINGLE" | "MULTIPLE" | null;
+  entryKind: string | null;
   validityTypeId: string | null;
   displayOrder: number;
   processingType: string;
@@ -74,23 +75,28 @@ interface VisaMasterOption {
   name: string;
   active: boolean;
   days?: number;
+  /** Visa Entry Types only. */
+  code?: string;
 }
 
-/** Client corrections 2026-10-05 — Visa Stay Types and Visa Validity Types for the product form. */
-function useVisaMasters(): { stayTypes: VisaMasterOption[]; validityTypes: VisaMasterOption[] } {
+/** Client corrections 2026-10-05 — Visa Stay Types and Visa Validity Types for the product form (+ Entry Types, 16 Nov K8). */
+function useVisaMasters(): { stayTypes: VisaMasterOption[]; validityTypes: VisaMasterOption[]; entryTypes: VisaMasterOption[] } {
   const [stayTypes, setStayTypes] = useState<VisaMasterOption[]>([]);
   const [validityTypes, setValidityTypes] = useState<VisaMasterOption[]>([]);
+  const [entryTypes, setEntryTypes] = useState<VisaMasterOption[]>([]);
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [stays, validities] = await Promise.all([
+        const [stays, validities, entries] = await Promise.all([
           getJson<VisaMasterOption[]>("/api/admin/visa-masters/stay-types"),
           getJson<VisaMasterOption[]>("/api/admin/visa-masters/validity-types"),
+          getJson<VisaMasterOption[]>("/api/admin/visa-masters/entry-types"),
         ]);
         if (cancelled) return;
         setStayTypes(stays);
         setValidityTypes(validities);
+        setEntryTypes(entries);
       } catch {
         // Selects stay empty; saving then reports the missing stay.
       }
@@ -100,7 +106,7 @@ function useVisaMasters(): { stayTypes: VisaMasterOption[]; validityTypes: VisaM
       cancelled = true;
     };
   }, []);
-  return { stayTypes, validityTypes };
+  return { stayTypes, validityTypes, entryTypes };
 }
 
 type FetchState = "loading" | "success" | "error";
@@ -181,7 +187,7 @@ function ConfigFields({
   disabled: boolean;
 }) {
   const id = (field: string) => `${idPrefix}-${field}`;
-  const { stayTypes, validityTypes } = useVisaMasters();
+  const { stayTypes, validityTypes, entryTypes } = useVisaMasters();
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
@@ -234,8 +240,15 @@ function ConfigFields({
             <option value="" disabled>
               Select
             </option>
-            <option value="SINGLE">Single Entry</option>
-            <option value="MULTIPLE">Multiple Entry</option>
+            {/* Client doc 16 Nov (K8) — from Admin → Visa Entry Types (the product's current one stays listed even if disabled). */}
+            {entryTypes
+              .filter((type) => type.active || type.code === form.entryKind)
+              .map((type) => (
+                <option key={type.id} value={type.code}>
+                  {type.name}
+                </option>
+              ))}
+            {form.entryKind && !entryTypes.some((type) => type.code === form.entryKind) ? <option value={form.entryKind}>{entryKindLabel(form.entryKind)}</option> : null}
           </select>
         </FormField>
         <FormField label="Visa Category" htmlFor={id("visaCategory")} error={errors.visaCategory?.[0]} required>
@@ -392,7 +405,7 @@ function ConfigCard({
         <div className="flex items-center gap-3">
           <span className="text-sm font-semibold text-ink-heading">
             {config.country.name} ({config.country.code}) · {config.stayDays ? `${config.stayDays} Days` : config.duration} ·{" "}
-            {config.entryKind ? (config.entryKind === "SINGLE" ? "Single Entry" : "Multiple Entry") : config.entryType}
+            {entryKindLabel(config.entryKind, config.entryType)}
           </span>
           <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", config.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>
             {config.active ? "Active" : "Disabled"}
@@ -650,8 +663,11 @@ export function NewVisaCountriesManager({ countryId }: { countryId?: string } = 
               className={filterClass}
             >
               <option value="">All entry types</option>
-              <option value="SINGLE">Single Entry</option>
-              <option value="MULTIPLE">Multiple Entry</option>
+              {[...new Set(configs.map((config) => config.entryKind).filter((kind): kind is string => Boolean(kind)))].map((kind) => (
+                <option key={kind} value={kind}>
+                  {entryKindLabel(kind, configs.find((config) => config.entryKind === kind)?.entryType)}
+                </option>
+              ))}
             </select>
             <label htmlFor="new-visa-product-filter-active" className="sr-only">
               Filter by status

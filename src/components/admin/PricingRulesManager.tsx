@@ -1,5 +1,6 @@
 "use client";
 
+import { entryKindLabel } from "@/lib/new-visa/products";
 import { useEffect, useState } from "react";
 import { ChevronDown, History, Plus, Search } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -101,7 +102,7 @@ interface NewVisaProductRow {
   id: string;
   countryId: string;
   stayDays: number | null;
-  entryKind: "SINGLE" | "MULTIPLE" | null;
+  entryKind: string | null;
   duration: string;
   entryType: string;
 }
@@ -784,7 +785,7 @@ export function PricingRulesManager({
           products: productList.map((row) => ({
             id: row.id,
             countryId: row.countryId,
-            label: `${row.stayDays ? `${row.stayDays} Days` : row.duration} · ${row.entryKind ? (row.entryKind === "SINGLE" ? "Single Entry" : "Multiple Entry") : row.entryType}`,
+            label: `${row.stayDays ? `${row.stayDays} Days` : row.duration} · ${entryKindLabel(row.entryKind, row.entryType)}`,
           })),
           visaTypes: visaTypeList,
           serviceOptions,

@@ -21,12 +21,15 @@ interface MasterRow {
   active: boolean;
   displayOrder: number;
   days?: number;
+  code?: string;
   description?: string | null;
   usedIn?: number;
 }
 
 interface FormValues {
   name: string;
+  /** Visa Entry Type only — set once, when created. */
+  code?: string;
   days: string;
   description: string;
   displayOrder: string;
@@ -59,6 +62,18 @@ function MasterForm({
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <TextField label="Name" name="vm-name" required value={values.name} onChange={(event) => setValues({ ...values, name: event.target.value })} error={errors.name?.[0]} disabled={saving} />
+        {kind === "entry-types" && values.code !== undefined ? (
+          <TextField
+            label="Code"
+            name="vm-code"
+            required
+            hint="Short and fixed once created, e.g. DOUBLE"
+            value={values.code}
+            onChange={(event) => setValues({ ...values, code: event.target.value })}
+            error={errors.code?.[0]}
+            disabled={saving}
+          />
+        ) : null}
         {kind === "stay-types" ? (
           <TextField label="Days" name="vm-days" type="number" required value={values.days} onChange={(event) => setValues({ ...values, days: event.target.value })} error={errors.days?.[0]} disabled={saving} />
         ) : (
@@ -120,6 +135,7 @@ export function VisaMasterManager({ kind }: { kind: VisaMasterKind }) {
     name: values.name.trim(),
     displayOrder: Number(values.displayOrder) || 0,
     ...(kind === "stay-types" ? { days: Number(values.days) } : { description: values.description.trim() || null }),
+    ...(kind === "entry-types" && values.code !== undefined ? { code: values.code.trim() } : {}),
   });
   const sort = (list: MasterRow[]) => [...list].sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
 
@@ -194,7 +210,7 @@ export function VisaMasterManager({ kind }: { kind: VisaMasterKind }) {
               <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
-          <MasterForm kind={kind} initial={empty} submitLabel="Create" onSubmit={create} onCancel={() => setCreating(false)} />
+          <MasterForm kind={kind} initial={kind === "entry-types" ? { ...empty, code: "" } : empty} submitLabel="Create" onSubmit={create} onCancel={() => setCreating(false)} />
         </section>
       ) : null}
 
@@ -206,6 +222,7 @@ export function VisaMasterManager({ kind }: { kind: VisaMasterKind }) {
             <thead>
               <tr className="border-b border-hairline text-left text-xs font-medium tracking-wide text-ink-tertiary uppercase">
                 <th className="px-4 py-3">Name</th>
+                {kind === "entry-types" ? <th className="px-4 py-3">Code · used by</th> : null}
                 <th className="px-4 py-3">{kind === "stay-types" ? "Days" : "Description"}</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3 text-right">Action</th>
@@ -215,7 +232,7 @@ export function VisaMasterManager({ kind }: { kind: VisaMasterKind }) {
               {pageItems.map((row) =>
                 editingId === row.id ? (
                   <tr key={row.id} className="border-b border-hairline bg-ink-primary/[0.02]">
-                    <td colSpan={4} className="px-4 py-4">
+                    <td colSpan={kind === "entry-types" ? 5 : 4} className="px-4 py-4">
                       <MasterForm
                         kind={kind}
                         initial={{ name: row.name, days: row.days ? String(row.days) : "", description: row.description ?? "", displayOrder: String(row.displayOrder) }}
@@ -228,6 +245,11 @@ export function VisaMasterManager({ kind }: { kind: VisaMasterKind }) {
                 ) : (
                   <tr key={row.id} className="border-b border-hairline last:border-b-0 hover:bg-ink-primary/[0.02]">
                     <td className="px-4 py-3 font-medium text-ink-primary">{row.name}</td>
+                    {kind === "entry-types" ? (
+                      <td className="px-4 py-3 text-ink-secondary">
+                        <code className="text-xs">{row.code}</code> · {row.usedIn ?? 0} {row.usedIn === 1 ? "product" : "products"}
+                      </td>
+                    ) : null}
                     <td className="px-4 py-3 text-ink-secondary">{kind === "stay-types" ? row.days : (row.description ?? "—")}</td>
                     <td className="px-4 py-3">
                       <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", row.active ? "bg-success/10 text-success" : "bg-error/10 text-error")}>

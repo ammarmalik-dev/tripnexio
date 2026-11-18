@@ -11,7 +11,8 @@ export const createNewVisaCountryConfigSchema = z.object({
   stayDays: z.number({ error: "Select the stay duration" }).int().min(1, "Select the stay duration"),
   /** Optional Visa Validity Type master entry. */
   validityTypeId: z.string().min(1).nullable().optional(),
-  entryKind: z.enum(["SINGLE", "MULTIPLE"], { error: "Select Single or Multiple entry" }),
+  /** Client doc 16 Nov (K8) — an active Visa Entry Type code (checked by the API). */
+  entryKind: z.string({ error: "Select the entry type" }).trim().min(1, "Select the entry type").max(40),
   displayOrder: z.number().int().default(0),
   visaCategory: z.string().trim().min(1, "Enter the visa category").max(120, "Visa category is too long"),
   /** Display text; derived from stayDays / entryKind when left empty. */

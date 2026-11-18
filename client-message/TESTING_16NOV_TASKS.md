@@ -152,7 +152,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] K5 No number-input spinner arrows — unit 6: number inputs have no spinner arrows anywhere (globals.css)
 - [x] K6 Website booking summary centred — unit 7: the review / summary step of every service form sits centred (max-w-2xl) and each row is two fixed columns (label | value, both left-aligned) instead of values hugging the right edge. Not checked in the browser yet
 - [ ] K7 Customer export; remove Admin → Data Export (see Q9)
-- [ ] K8 Visa Entry Type master (+ add button)
+- [x] K8 Visa Entry Type master (+ add button) — unit 8: Admin → Visa Entry Types master (Create / Edit / disable, code fixed once created, used-by count); migration 20261118140000 converts NewVisaCountryConfig.entryKind from the SINGLE/MULTIPLE enum to the master code in place (data kept) and adds Single / Multiple Entry; the product form, filters and price / vendor labels read the master
 - [ ] K9 Pricing Dashboard: "Visa Price Table" (no Extra Charge column, visa product type, vendor cost fix); "All Services Vendor Prices" with filters + full edit; compact By-country spacing
 - [ ] K10 Holidays: weekly offs per country; labels India / Destination Country; TAT excludes both countries' holidays
 - [x] K11 TAT fix: Urgent = 8 working hours inside 10:00–19:00 working days (2 Nov 8 PM test gave 4 Nov for both) — unit 1: Urgent earliest date assumes a late flight + "flights after 6:00 PM" note (Mon 8 PM → Normal Wed 4 Nov, Urgent Tue 3 Nov)

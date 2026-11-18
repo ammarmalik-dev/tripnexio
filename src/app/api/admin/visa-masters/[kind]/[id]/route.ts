@@ -42,6 +42,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           return { error: { days: ["New Visa products use this stay — add a new stay type instead of changing the days."] } };
         }
         row = await tx.visaStayType.update({ where: { id }, data });
+      } else if (kind === "entry-types") {
+        if (!(await tx.visaEntryType.findUnique({ where: { id }, select: { id: true } }))) return null;
+        row = await tx.visaEntryType.update({ where: { id }, data: { ...data, ...(data.description !== undefined ? { description: data.description || null } : {}) } });
       } else {
         if (!(await tx.visaValidityType.findUnique({ where: { id }, select: { id: true } }))) return null;
         row = await tx.visaValidityType.update({ where: { id }, data: { ...data, ...(data.description !== undefined ? { description: data.description || null } : {}) } });
