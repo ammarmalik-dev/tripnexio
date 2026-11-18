@@ -21,17 +21,25 @@ export interface DraftLeadResult {
  * travellers), no customer token, and — deliberately — NO customer
  * notification: a draft is not a submitted request.
  */
-export async function createOrRefreshDraftLead(serviceType: ServiceType, contact: LeadContact): Promise<DraftLeadResult> {
-  const result = await createOrRefreshDraft(serviceType, contact);
+export async function createOrRefreshDraftLead(
+  serviceType: ServiceType,
+  contact: LeadContact,
+  trip?: Partial<Record<string, string | undefined>>
+): Promise<DraftLeadResult> {
+  const result = await createOrRefreshDraft(serviceType, contact, trip);
   // Client doc 16 Nov (J5) — an abandoned lead goes to an active Sales POC for follow-up (after the commit).
   if (result.outcome === "created") await autoAssignLead(result.leadId, serviceType, { team: "SALES" });
   return result;
 }
 
-async function createOrRefreshDraft(serviceType: ServiceType, contact: LeadContact) {
+async function createOrRefreshDraft(serviceType: ServiceType, contact: LeadContact, trip?: Partial<Record<string, string | undefined>>) {
+  // Client doc 16 Nov (C7) — trip details already filled in (e.g. OTB country / airline / date) stay on the draft,
+  // as top-level detail keys so the CRM lists and lead view show them like a submitted request's.
+  const tripFacts = Object.fromEntries(Object.entries(trip ?? {}).filter((entry): entry is [string, string] => typeof entry[1] === "string" && entry[1] !== ""));
   return db.$transaction(async (tx) => {
     const customer = await findOrCreateCustomer(tx, contact);
     const draftDetails = {
+      ...tripFacts,
       abandonedDraft: true,
       draftContact: { fullName: contact.fullName, mobile: contact.mobile, email: contact.email },
       draftCapturedAt: new Date().toISOString(),

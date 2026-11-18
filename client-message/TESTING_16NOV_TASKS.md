@@ -48,7 +48,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] C4 No staff refund after OTB approved — checked: OTB Application Approved blocks refunds (blocksRefund); only an Admin override can refund
 - [x] C5 WhatsApp bot offers Return Ticket in the OTB flow — unit 6: bot OTB flow asks about a return ticket and can add a Return Verified Ticket (same country + passengers, return date asked), with its own pay link, bookings linked. Not run end-to-end locally (no OTB prices seeded)
 - [ ] C6 Airline Decision per passenger (Approved / Rejected / Pending)
-- [ ] C7 Website abandoned leads captured for OTB
+- [x] C7 Website abandoned leads captured for OTB — unit 6: the website draft is saved on Continue as soon as name/mobile/email are filled, even when country / airline / date still block the step; filled trip details (country, airline, travel date, processing) are kept on the draft lead
 
 ## D. Visa Change
 - [ ] D1 Before payment ask only the Visa Copy; after payment never re-ask visa/passport; configured docs after payment

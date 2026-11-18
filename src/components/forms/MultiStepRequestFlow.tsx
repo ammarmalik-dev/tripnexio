@@ -18,7 +18,7 @@ import { RequestInfoPanel } from "./RequestInfoPanel";
 import { toast } from "@/components/ui/Toaster";
 import { ApiError, RequestIneligibleOutcome } from "@/lib/api/client";
 import { firstFormErrorMessage } from "@/lib/forms-first-error";
-import type { DraftServiceType } from "@/lib/validation/lead-draft-schema";
+import { DRAFT_TRIP_FIELDS, type DraftServiceType, type DraftTripField } from "@/lib/validation/lead-draft-schema";
 
 type SubmitState = "idle" | "loading" | "success" | "error" | "ineligible";
 
@@ -59,7 +59,14 @@ interface MultiStepRequestFlowProps<T extends FieldValues> {
 }
 
 /** Fire-and-forget: a failed draft save must never surface to the visitor. */
-function saveAbandonedDraft(payload: { serviceType: DraftServiceType; fullName: string; mobile: string; email: string; website: string }) {
+function saveAbandonedDraft(payload: {
+  serviceType: DraftServiceType;
+  fullName: string;
+  mobile: string;
+  email: string;
+  website: string;
+  trip: Partial<Record<DraftTripField, string>>;
+}) {
   try {
     void fetch("/api/leads/draft", {
       method: "POST",
@@ -117,6 +124,7 @@ export function MultiStepRequestFlow<T extends FieldValues>({
   const lastDraftKey = useRef<string | null>(null);
 
   const handleNext = async () => {
+    if (draftServiceType && currentIndex === draftStepIndex) captureDraft();
     const valid = await methods.trigger(stepFields[currentIndex] as Path<T>[]);
     if (!valid) return;
     const issues = extraStepValidation?.[currentIndex]?.(methods.getValues()) ?? [];
@@ -126,22 +134,30 @@ export function MultiStepRequestFlow<T extends FieldValues>({
       }
       return;
     }
-    if (draftServiceType && currentIndex === draftStepIndex) {
-      const values = methods.getValues() as Record<string, unknown>;
-      const payload = {
-        serviceType: draftServiceType,
-        fullName: stringValue(values.fullName),
-        mobile: stringValue(values.mobile),
-        email: stringValue(values.email),
-        website: stringValue(values[HONEYPOT_FIELD]),
-      };
-      const key = `${payload.fullName}|${payload.mobile}|${payload.email}`;
-      if (payload.fullName && payload.mobile && payload.email && key !== lastDraftKey.current) {
-        lastDraftKey.current = key;
-        saveAbandonedDraft(payload);
-      }
-    }
     goNext();
+  };
+
+  // P21 / client doc 16 Nov (C7) — captured on every Continue from the contact step once name, mobile and email are
+  // filled, even when another field on that step (country, airline, date…) still blocks moving on.
+  const captureDraft = () => {
+    if (!draftServiceType) return;
+    const values = methods.getValues() as Record<string, unknown>;
+    const trip = Object.fromEntries(
+      DRAFT_TRIP_FIELDS.map((key) => [key, stringValue(values[key])]).filter((entry) => entry[1] !== "")
+    ) as Partial<Record<DraftTripField, string>>;
+    const payload = {
+      serviceType: draftServiceType,
+      fullName: stringValue(values.fullName),
+      mobile: stringValue(values.mobile),
+      email: stringValue(values.email),
+      website: stringValue(values[HONEYPOT_FIELD]),
+      trip,
+    };
+    const key = JSON.stringify([payload.fullName, payload.mobile, payload.email, trip]);
+    if (payload.fullName && payload.mobile && payload.email && key !== lastDraftKey.current) {
+      lastDraftKey.current = key;
+      saveAbandonedDraft(payload);
+    }
   };
 
   const submitHandler = methods.handleSubmit(async (values: T) => {

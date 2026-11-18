@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Invalid submission.");
   }
 
-  const { serviceType, fullName, mobile, email } = parsed.data;
+  const { serviceType, fullName, mobile, email, trip } = parsed.data;
   try {
-    const result = await createOrRefreshDraftLead(serviceType, { fullName, mobile, email });
+    const result = await createOrRefreshDraftLead(serviceType, { fullName, mobile, email }, trip);
     return jsonSuccess({ saved: true, outcome: result.outcome }, result.outcome === "created" ? 201 : 200);
   } catch (error) {
     console.error("[api/leads/draft]", describeError(error));

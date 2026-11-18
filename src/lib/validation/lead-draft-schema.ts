@@ -13,6 +13,10 @@ export const DRAFT_SERVICE_TYPES = [
 
 export type DraftServiceType = (typeof DRAFT_SERVICE_TYPES)[number];
 
+/** The trip fields an abandoned draft may carry (any service form; missing ones are simply not sent). */
+export const DRAFT_TRIP_FIELDS = ["destinationCountry", "airline", "travelDate", "departureTime", "processingType"] as const;
+export type DraftTripField = (typeof DRAFT_TRIP_FIELDS)[number];
+
 /**
  * POST /api/leads/draft — only the contact fields every service form
  * collects on its contact step (same rules as each service's own step-1
@@ -27,6 +31,10 @@ export const leadDraftSchema = z.object({
     .trim()
     .regex(/^\+?[0-9\s-]{7,15}$/, "Enter a valid mobile number"),
   email: z.string().trim().min(1, "Email is required").email("Enter a valid email address"),
+  // Client doc 16 Nov (C7) — whatever trip details the visitor had already filled in, so staff can follow up.
+  trip: z
+    .object(Object.fromEntries(DRAFT_TRIP_FIELDS.map((key) => [key, z.string().trim().max(120).optional()])) as Record<DraftTripField, z.ZodOptional<z.ZodString>>)
+    .optional(),
 });
 
 export type LeadDraftValues = z.infer<typeof leadDraftSchema>;
