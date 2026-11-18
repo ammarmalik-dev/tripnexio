@@ -204,6 +204,10 @@ export function staffMoveBlock(
   }
   // Client doc 2026-10-27 (C4) — after a completed refund (full or partial) staff have no further moves.
   if (from && !options.afterRefund && isRefundOutcomeStatus(from)) return `"${from.name}" is final once the refund is done — only an Admin can change it.`;
+  // Leaving hold / not responding goes back to work — never back to "Payment Pending" on a paid booking.
+  if (from && isManualPauseStatus(from) && scope === "BOOKING" && to.mapsToBookingStatus === "PENDING") {
+    return `"${to.name}" is before payment — a booking on "${from.name}" moves on to its next working step.`;
+  }
   if (!from || isManualPauseStatus(from) || isManualPauseStatus(to)) return null;
   const coarse = (status: StatusShape) => (scope === "LEAD" ? status.mapsToLeadStatus : status.mapsToBookingStatus) ?? null;
   const toCoarse = coarse(to);
@@ -318,6 +322,18 @@ export function pauseAfterHandover(
   return `"${to.name}" is only available before "${handover.name}".`;
 }
 
+/** The step a booking on hold / not responding returns to (null when it isn't paused or has none recorded). */
+async function pauseResumeId(
+  client: Tx | typeof db,
+  scope: StatusScope,
+  entityId: string,
+  current: Pick<ServiceStatus, "systemEvent"> | null
+): Promise<string | null> {
+  if (scope !== "BOOKING" || !current || !isManualPauseStatus(current)) return null;
+  const booking = await client.booking.findUnique({ where: { id: entityId }, select: { resumeServiceStatusId: true } });
+  return booking?.resumeServiceStatusId ?? null;
+}
+
 /** The service's hand-over status (first by order), or null when its list has none. */
 async function handoverStatus(client: Tx | typeof db, serviceType: ServiceType, scope: StatusScope) {
   if (scope !== "BOOKING") return null;
@@ -342,6 +358,8 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
   const panelOnly: { id: string; name: string }[] = [];
   const movesFrom = await operationalFrom(db, scope, entityId, current);
   const handover = await handoverStatus(db, entity.serviceType, scope);
+  // Client doc 16 Nov — from hold / not responding: back to the step the booking was on.
+  const resumeId = await pauseResumeId(db, scope, entityId, current);
   const allowed = current && movesFrom
     ? (
         await db.serviceStatusTransition.findMany({
@@ -366,8 +384,8 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
           panelOnly.push({ id: to.id, name: to.name });
           return false;
         })
-        // Client 2026-10-28 — a status an action sets by itself is not a manual move.
-        .filter((to) => !isAutoStatus(entity.serviceType, to))
+        // Client 2026-10-28 — a status an action sets by itself is not a manual move (except resuming from hold, below).
+        .filter((to) => !isAutoStatus(entity.serviceType, to) || to.id === resumeId)
         .sort((a, b) => a.displayOrder - b.displayOrder)
     : // A record that predates the engine (no status yet) may be placed on any status of its list — except the
       // refund statuses and the apply step (client doc 2026-10-27, C1/C2).
@@ -418,6 +436,14 @@ async function applyStatus(
   const leavingOperational = !from || (!isCancellationStep(from) && !REFUND_STEP_EVENTS.has(from.systemEvent ?? "") && !isRefundEngineStatus(from));
   if (scope === "BOOKING" && (isCancellationStep(to) || isRefundEngineStatus(to)) && leavingOperational) {
     await tx.booking.update({ where: { id: entity.id }, data: { resumeServiceStatusId: from?.id ?? null } });
+  }
+  // Client doc 16 Nov — a booking put on hold / not responding remembers the step it was on, so staff can resume it
+  // there (those steps are otherwise set by their actions, never picked by hand).
+  if (scope === "BOOKING" && isManualPauseStatus(to) && from && !isManualPauseStatus(from) && leavingOperational) {
+    await tx.booking.update({ where: { id: entity.id }, data: { resumeServiceStatusId: from.id } });
+  }
+  if (scope === "BOOKING" && from && isManualPauseStatus(from) && !isManualPauseStatus(to) && !isCancellationStep(to) && !isRefundEngineStatus(to)) {
+    await tx.booking.update({ where: { id: entity.id }, data: { resumeServiceStatusId: null } });
   }
 
   // Client doc 16 Nov (G8) — the hand-over (Applied to Embassy / Sent to Airlines) records the booking's processing date,
@@ -512,7 +538,8 @@ export async function setServiceStatus(
     });
     if (!allowed) return { ok: false, httpStatus: 409, error: `Can't move from "${from.name}" to "${to.name}".` };
   }
-  if (!input.adminOverride && input.manual && isAutoStatus(entity.serviceType, to)) {
+  const resumesFromPause = (await pauseResumeId(tx, input.scope, entity.id, from)) === to.id;
+  if (!input.adminOverride && input.manual && isAutoStatus(entity.serviceType, to) && !resumesFromPause) {
     return { ok: false, httpStatus: 409, error: `"${to.name}" is set automatically when its action is done (documents, payment, the Operations panel…) — it can't be picked by hand.` };
   }
   if (!input.adminOverride) {
