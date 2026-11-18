@@ -47,7 +47,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] C3 Manual lead: active countries + live airlines only, calendar rules, configured documents auto-fetched (staff upload or notify)
 - [x] C4 No staff refund after OTB approved — checked: OTB Application Approved blocks refunds (blocksRefund); only an Admin override can refund
 - [x] C5 WhatsApp bot offers Return Ticket in the OTB flow — unit 6: bot OTB flow asks about a return ticket and can add a Return Verified Ticket (same country + passengers, return date asked), with its own pay link, bookings linked. Not run end-to-end locally (no OTB prices seeded)
-- [ ] C6 Airline Decision per passenger (Approved / Rejected / Pending)
+- [x] C6 Airline Decision per passenger (Approved / Rejected / Pending) — unit 7: per-passenger decision titled Airline Decision (OTB) / Embassy Decision (NV / VC / VE); Pending badge until decided; options Approved / Rejected (give the reason) / Pending; reason required and audited (server rules from unit 2b: only after sent to airline / applied)
 - [x] C7 Website abandoned leads captured for OTB — unit 6: the website draft is saved on Continue as soon as name/mobile/email are filled, even when country / airline / date still block the step; filled trip details (country, airline, travel date, processing) are kept on the draft lead
 
 ## D. Visa Change

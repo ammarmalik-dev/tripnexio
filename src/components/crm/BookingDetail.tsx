@@ -728,6 +728,7 @@ export function BookingDetail({
                               passengerId={passenger.id}
                               outcome={passenger.outcome}
                               outcomeNote={passenger.outcomeNote}
+                              serviceType={booking.serviceType}
                               amounts={passenger.amounts}
                               onChanged={refresh}
                             />
