@@ -24,7 +24,7 @@ describe("trip summary", () => {
       details: { origin: "Delhi - Indira Gandhi International Airport (DEL)", destination: "Dubai - Dubai International Airport (DXB)" },
       country: null,
     });
-    expect(tripSummaryLine(facts)).toBe("Passengers: 2 · Route: Delhi → Dubai · Travel date: 20 Oct 2026");
+    expect(tripSummaryLine(facts)).toBe("Passengers: 2 · Route: Delhi → Dubai · Travel date: 20 Oct 2026 · Trip: One-way");
   });
 
   it("uses the destination country when there is no route", () => {
