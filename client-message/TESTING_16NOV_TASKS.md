@@ -39,14 +39,14 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] B1 Travel > 24 h away → task + On Hold + automatic customer message (wording per doc; see Q3)
 - [ ] B2 Pricing: Within 20 Days / After 20 Days categories, vendor rates for each, calendar split, auto price (see Q4)
 - [x] B3 Country not repeated in Service Details — unit 6: Return Ticket service details no longer repeat the country (it has its own column)
-- [ ] B4 From OTB: don't ask return ticket again at upload; destination auto-selected with price
+- [ ] B4 From OTB: don't ask return ticket again at upload; destination auto-selected with price — unit 6: the WhatsApp bot uses the OTB country for the added Return Ticket (not asked again). Website upload step still open
 
 ## C. OTB
 - [x] C1 Rejected only after Sent to Airlines — checked: OTB Rejected only after Sent to Airlines (engine)
 - [x] C2 Additional Documents Sent to Airline only when documents were requested (from Document Master) and uploaded — unit 2b: OTB additional documents only after Sent to Airlines and from the Document Master
 - [ ] C3 Manual lead: active countries + live airlines only, calendar rules, configured documents auto-fetched (staff upload or notify)
 - [x] C4 No staff refund after OTB approved — checked: OTB Application Approved blocks refunds (blocksRefund); only an Admin override can refund
-- [ ] C5 WhatsApp bot offers Return Ticket in the OTB flow
+- [x] C5 WhatsApp bot offers Return Ticket in the OTB flow — unit 6: bot OTB flow asks about a return ticket and can add a Return Verified Ticket (same country + passengers, return date asked), with its own pay link, bookings linked. Not run end-to-end locally (no OTB prices seeded)
 - [ ] C6 Airline Decision per passenger (Approved / Rejected / Pending)
 - [ ] C7 Website abandoned leads captured for OTB
 
@@ -162,7 +162,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] L2 Complaint: WhatsApp + email on submit; notify only on Resolved (not Closed) — unit 6: enquiry / complaint acknowledged on WhatsApp too (needs the Meta template name, see M1); customer message only on Resolved, not Closed
 - [ ] L3 Help desk tickets: ID `TNITXXXX`, email to creator, Admin alert, attachments, Admin ticket management (assign, status Open / In Progress / Resolved, comments, resolution note, history)
 - [ ] L4 Knowledge Centre bulk upload (PDF / DOC / DOCX, progress, manage/delete)
-- [ ] L5 WhatsApp bot reuses known customer name/email
+- [x] L5 WhatsApp bot reuses known customer name/email — unit 6: a returning customer (same WhatsApp number) is not asked name / email again
 
 ## M. Notifications & emails
 - [ ] M1 WhatsApp booking confirmation not sent for website bookings

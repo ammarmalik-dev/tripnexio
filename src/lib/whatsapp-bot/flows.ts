@@ -402,6 +402,13 @@ function passengerStep(
 }
 
 /** OTB destinations: the countries Admin priced OTB for, on any active airline (OTB is priced only per country × airline). */
+/** Client doc 16 Nov (C5 / B4) — the Return Ticket destination for the OTB country (by country code), when it has a rate. */
+export async function otbReturnTicketDestinationId(countryCode: string | undefined): Promise<string | null> {
+  if (!countryCode) return null;
+  const destination = await db.returnTicketDestination.findFirst({ where: { active: true, country: { code: countryCode } }, select: { countryId: true } });
+  return destination?.countryId ?? null;
+}
+
 async function getOtbDestinationOptions() {
   const priced = await db.otbPrice.findMany({
     where: { active: true, airline: { active: true }, country: { active: true } },
@@ -464,7 +471,33 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         const header = outcome.message ? `${outcome.message}\nWhich processing type?` : "Which processing type?";
         return numberedChoiceStep("processingType", header, options);
       }
-      return passengerStep(collected, true, { sameRateForAll: true });
+      const otbPax = passengerStep(collected, true, { sameRateForAll: true });
+      if (otbPax) return otbPax;
+      // Client doc 16 Nov (C5 / B4) — the Return Ticket offer, as on the website: no return ticket → we can arrange a
+      // Return Verified Ticket to the same country (not asked again), only the expected return date is needed.
+      if (!has("hasReturnTicket")) {
+        return numberedChoiceStep("hasReturnTicket", "Do you already have a return ticket?", [
+          { value: "yes", label: "Yes, I have one" },
+          { value: "no", label: "No" },
+        ]);
+      }
+      if (collected.hasReturnTicket === "no" && (await otbReturnTicketDestinationId(collected.destinationCountry))) {
+        if (!has("addReturnTicket")) {
+          return numberedChoiceStep("addReturnTicket", "We can arrange a Return Verified Ticket for the same country. Shall we add it?", [
+            { value: "yes", label: "Yes, add a Return Verified Ticket" },
+            { value: "no", label: "No, thanks" },
+          ]);
+        }
+        if (collected.addReturnTicket === "yes" && !has("expectedReturnDate")) {
+          return dateStep(
+            "expectedReturnDate",
+            "What's your expected return date?",
+            returnTicketFieldsSchema.shape.expectedReturnDate,
+            (iso) => (iso < collected.travelDate ? "Your expected return date should be on or after your travel date." : null)
+          );
+        }
+      }
+      return null;
     }
 
     case "NEW_VISA": {

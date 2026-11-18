@@ -1,11 +1,13 @@
 import { createLeadFromSubmission, notifyLeadReceived } from "../leads/create-lead";
+import { linkServiceBookings } from "../return-ticket/operations";
+import { findCustomerByMobile } from "../customers/find-by-mobile";
 import { tripFactsForLead, tripSummaryLine } from "../leads/trip-summary";
 import { findPriorTripNexioVisaByPassport } from "../leads/visa-extension-eligibility";
 import { getAiProvider } from "./get-ai-provider";
 import { answerFaqQuestion } from "@/lib/faq/answer-faq";
 import { BOT_INTENTS, isServiceIntent } from "./intents";
 import { buildWelcomeMenu, serviceTypeFromMenuId, MENU_TRACK_ID, MENU_AGENT_ID, MENU_FAQ_ID } from "./menu";
-import { getNextField, buildLeadDetails, buildLeadPassengers, botPassengers } from "./flows";
+import { getNextField, buildLeadDetails, buildLeadPassengers, botPassengers, otbReturnTicketDestinationId } from "./flows";
 import { whatsappStatusReply } from "./status-reply";
 import { faqAnswerByNumber, faqCountryList, faqTopicList, faqTopicMenu } from "./faq-menu";
 import { priceLeadForDirectPayment } from "../checkout/lead-direct-payment";
@@ -136,7 +138,7 @@ export async function handleInboundMessage(
     // eventually classify into — no separate menu-only code path to maintain.
     const tappedService = serviceTypeFromMenuId(trimmed, SERVICE_TYPES);
     if (tappedService) {
-      return await startCollecting(tappedService);
+      return await startCollecting(tappedService, conversation.waId);
     }
     // Client testing 2026-10-09 (C5) — status answered inside the chat (no website redirect).
     if (trimmed === MENU_TRACK_ID || TRACK_RE.test(trimmed)) {
@@ -159,7 +161,7 @@ export async function handleInboundMessage(
     }
 
     if (isServiceIntent(classification.intent)) {
-      return await startCollecting(classification.intent);
+      return await startCollecting(classification.intent, conversation.waId);
     }
 
     if (classification.intent === BOT_INTENTS.FAQ_QUESTION) {
@@ -173,8 +175,14 @@ export async function handleInboundMessage(
   }
 }
 
-async function startCollecting(serviceType: ServiceType): Promise<EngineResult> {
-  const field = await getNextField(serviceType, {});
+async function startCollecting(serviceType: ServiceType, waId: string): Promise<EngineResult> {
+  // Client doc 16 Nov (L5) — a returning customer (same WhatsApp number) isn't asked their name and email again.
+  const known = await findCustomerByMobile(db, waId).catch(() => null);
+  const prefilled: Record<string, string> = {
+    ...(known?.name ? { fullName: known.name } : {}),
+    ...(known?.email ? { email: known.email } : {}),
+  };
+  const field = await getNextField(serviceType, prefilled);
   if (!field || field.unavailable) {
     return { replyText: messages.handoff("This service isn't available to request right now."), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };
   }
@@ -182,7 +190,7 @@ async function startCollecting(serviceType: ServiceType): Promise<EngineResult> 
     replyText: messages.startingService(serviceType, field.prompt),
     nextState: "COLLECTING",
     nextServiceType: serviceType,
-    nextCollectedFields: {},
+    nextCollectedFields: prefilled,
   };
 }
 
@@ -294,6 +302,13 @@ async function continueCollecting(
       if (!payUrl) await notifyLeadReceived(result.leadId, { skipWhatsApp: true });
     }
 
+    // Client doc 16 Nov (C5 / B4) — OTB with "add a Return Verified Ticket": its own request for the same country and
+    // passengers, its own pay link, and the two bookings linked (as the website's combined order does).
+    let returnTicketPayUrl: string | null = null;
+    if (serviceType === "OTB" && nextCollected.addReturnTicket === "yes") {
+      returnTicketPayUrl = await createBotReturnTicket(waId, nextCollected, result.leadId);
+    }
+
     if (unmatchedApplicants.length > 0) {
       await writeAudit(db, {
         entityType: "Lead",
@@ -320,7 +335,8 @@ async function continueCollecting(
 
     return {
       replyText: payUrl
-        ? messages.leadCreatedWithPayLink(result.confirmationMessage, payUrl, tripSummaryLine(await tripFactsForLead(result.leadId)))
+        ? messages.leadCreatedWithPayLink(result.confirmationMessage, payUrl, tripSummaryLine(await tripFactsForLead(result.leadId))) +
+          (returnTicketPayUrl ? `\n\nReturn Verified Ticket — pay here: ${returnTicketPayUrl}` : "")
         : messages.leadCreated(result.confirmationMessage),
       ...(payUrl ? { replyCta: { label: "Pay Now", url: payUrl } } : {}),
       nextState: "COMPLETED",
@@ -331,6 +347,52 @@ async function continueCollecting(
   } catch (error) {
     console.error("[whatsapp-bot] createLeadFromSubmission failed", error);
     return { replyText: messages.handoff("Something went wrong while saving your request."), nextState: "HANDED_OFF", nextServiceType: null, nextCollectedFields: {} };
+  }
+}
+
+/**
+ * Client doc 16 Nov (C5 / B4) — the Return Verified Ticket added to a WhatsApp OTB request: same customer, country and
+ * passengers, the expected return date asked in chat; priced from Admin like the website, its booking linked to the
+ * OTB booking. Returns its pay link, or null (the OTB request is never lost; staff follow up).
+ */
+async function createBotReturnTicket(waId: string, collected: Record<string, string>, otbLeadId: string): Promise<string | null> {
+  try {
+    const destinationCountryId = await otbReturnTicketDestinationId(collected.destinationCountry);
+    if (!destinationCountryId) return null;
+    const rtCollected = { ...collected, destinationCountryId };
+    const result = await createLeadFromSubmission({
+      serviceType: "RETURN_TICKET",
+      source: "WhatsApp Bot",
+      contact: { fullName: collected.fullName, mobile: waId, email: collected.email },
+      passengers: await buildLeadPassengers("RETURN_TICKET", rtCollected),
+      details: { ...(await buildLeadDetails("RETURN_TICKET", rtCollected)), fromOtbLeadId: otbLeadId },
+      deferLeadReceivedNotice: true,
+    });
+    const lead = await db.lead.findUnique({ where: { id: result.leadId }, select: { serviceType: true, details: true, paxCount: true } });
+    const price = lead ? await priceLeadForDirectPayment(lead) : null;
+    const checkout = price?.ok
+      ? await createAutoCheckout({
+          leadId: result.leadId,
+          serviceType: price.serviceType,
+          totalPrice: price.totalPrice,
+          vendorCost: price.vendorCost,
+          invoiceLines: price.invoiceLines,
+          actorLabel: "WhatsApp bot checkout (OTB + Return Ticket)",
+          skipWhatsAppNotice: true,
+        })
+      : null;
+    if (!checkout) {
+      await notifyLeadReceived(result.leadId, { skipWhatsApp: true });
+      return null;
+    }
+    const otbBooking = await db.booking.findFirst({ where: { leadId: otbLeadId }, orderBy: { createdAt: "desc" }, select: { id: true } });
+    if (otbBooking) {
+      await db.$transaction((tx) => linkServiceBookings(tx, { bookingId: otbBooking.id, otherBookingId: checkout.bookingId, actorLabel: "WhatsApp bot (OTB + Return Ticket)" }));
+    }
+    return `${siteConfig.url}/pay/${checkout.token}`;
+  } catch (error) {
+    console.error("[whatsapp-bot] return ticket with OTB failed", error instanceof Error ? error.name : "error");
+    return null;
   }
 }
 
