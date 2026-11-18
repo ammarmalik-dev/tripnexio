@@ -49,7 +49,8 @@ export function serviceDetailsLine(serviceType: ServiceType, details: unknown, e
       return join([extra.airlineName ?? text(data.airline)]);
     case "RETURN_TICKET": {
       const returnDay = day(data.expectedReturnDate);
-      return join([text(data.destinationCountry) ? `To ${text(data.destinationCountry)}` : null, returnDay ? `Return ${returnDay}` : null]);
+      // Client doc 16 Nov (B3) — the country is already in its own Country column: not repeated here.
+      return join([returnDay ? `Return ${returnDay}` : null]);
     }
     case "FLIGHT_SPECIAL_FARE": {
       const from = place(data.origin);

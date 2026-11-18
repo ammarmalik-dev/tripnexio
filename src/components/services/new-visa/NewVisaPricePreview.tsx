@@ -10,7 +10,17 @@ interface PreviewLine {
   price: number;
 }
 
-type Preview = { configured: false; missingPaxTypes?: PreviewLine["paxType"][] } | { configured: true; lines: PreviewLine[]; subtotal: number; gst: number; gatewayFee: number; total: number };
+type Preview = { configured: false; missingPaxTypes?: PreviewLine["paxType"][] } | {
+      configured: true;
+      lines: PreviewLine[];
+      subtotal: number;
+      /** Client doc 16 Nov (F4) — null when Admin hasn't set a service charge for New Visa. */
+      visaFee: number | null;
+      serviceCharge: number | null;
+      gst: number;
+      gatewayFee: number;
+      total: number;
+    };
 
 const PAX_LABELS: Record<PreviewLine["paxType"], string> = { ADULT: "Adult", CHILD: "Child", INFANT: "Infant" };
 const RUPEES = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 });
@@ -92,6 +102,19 @@ export function NewVisaPricePreview({
           <span className="font-medium text-ink-primary">{RUPEES.format(line.price)}</span>
         </div>
       ))}
+      {/* Client doc 16 Nov (F4) — Visa Fee and Service Charge on their own lines. */}
+      {preview.visaFee !== null && preview.serviceCharge !== null ? (
+        <>
+          <div className="mt-2 flex items-center justify-between gap-4 border-t border-hairline py-1.5 text-sm">
+            <span className="text-ink-tertiary">Visa Fee</span>
+            <span className="text-ink-primary">{RUPEES.format(preview.visaFee)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-4 py-1.5 text-sm">
+            <span className="text-ink-tertiary">Service Charge</span>
+            <span className="text-ink-primary">{RUPEES.format(preview.serviceCharge)}</span>
+          </div>
+        </>
+      ) : null}
       <div className="mt-2 flex items-center justify-between gap-4 border-t border-hairline py-1.5 text-sm">
         <span className="text-ink-tertiary">GST</span>
         <span className="text-ink-primary">{RUPEES.format(preview.gst)}</span>

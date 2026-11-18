@@ -573,8 +573,9 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
         ]);
       }
       if (collected.insideUAE === "no") return null;
-      // Client doc 2026-10-20 (D5) — adults and children, then each passenger's name, passport and visa expiry.
-      return passengerStep(collected, true, { noInfants: true, withVisaExpiry: true });
+      // Client doc 16 Nov (E5) — one passenger count (extension charges are the same for everyone), then each
+      // passenger's name, passport and visa expiry.
+      return passengerStep(collected, true, { sameRateForAll: true, withVisaExpiry: true });
     }
 
     case "VISA_CHANGE": {

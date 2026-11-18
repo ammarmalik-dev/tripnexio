@@ -38,7 +38,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 ## B. Return Ticket
 - [ ] B1 Travel > 24 h away → task + On Hold + automatic customer message (wording per doc; see Q3)
 - [ ] B2 Pricing: Within 20 Days / After 20 Days categories, vendor rates for each, calendar split, auto price (see Q4)
-- [ ] B3 Country not repeated in Service Details
+- [x] B3 Country not repeated in Service Details — unit 6: Return Ticket service details no longer repeat the country (it has its own column)
 - [ ] B4 From OTB: don't ask return ticket again at upload; destination auto-selected with price
 
 ## C. OTB
@@ -61,11 +61,11 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] D8 Second form page message: "Our team will verify each applicant's visa details before sending your quotation."
 
 ## E. Visa Extension
-- [ ] E1 Mixed PAX (one TripNexio visa, one external) — allow extension for eligible passengers
+- [x] E1 Mixed PAX (one TripNexio visa, one external) — allow extension for eligible passengers — unit 6: mixed travellers — the extension goes ahead when at least one passenger has a TripNexio visa; the others are named for staff to review (bot already did this)
 - [ ] E2 Quotations only for eligible passengers
 - [ ] E3 Calendar: don't block past dates (Visa Change + Extension)
 - [x] E4 Proforma: service charge per Admin config, profit separate — unit 4: same rule — configured service charge, profit stays internal
-- [ ] E5 Bot: ask total PAX only; fix "TripNexio Visa Not Found"
+- [x] E5 Bot: ask total PAX only; fix "TripNexio Visa Not Found" — unit 6: bot asks one passenger count for Visa Extension; passport match ignores spaces / dashes (a false Visa Not Found)
 - [ ] E6 Manual lead: no travel date; passport number per passenger; configured documents auto-fetched
 - [ ] E7 No Applied to Embassy before document validation; validated documents not re-requested; download visa/passport copies; reject before expiry date + quotation
 - [ ] E8 Workflow: Documents Validated → Expiry Date → Quotation → Payment → Applied → Approved/Rejected; Approved needs Visa PDF; no approval notification before PDF; no direct refund after approval
@@ -75,7 +75,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] F1 Page 1 after visa selection: name, mobile, email, first applicant (saved for abandoned follow-up); page 2: applicants (name, DOB, passport expiry, occupation)
 - [ ] F2 Under-18 parent/guardian requirement per country (Admin setting)
 - [x] F3 Fix "Invalid option: expected one of FATHER|MOTHER" — unit 1: empty hidden value accepted, minors still must choose
-- [ ] F4 Booking summary: Visa Fee / Service Charge / Total separately
+- [x] F4 Booking summary: Visa Fee / Service Charge / Total separately — unit 6: New Visa summary shows Visa Fee and the configured Service Charge on separate lines, then GST, gateway fee, total
 - [x] F5 Workflow validation (backend + UI): document actions only on real uploads; additional docs / visa upload / rejection only after Applied; approval needs Visa PDF; no Hold after approval — unit 2b: document actions need an uploaded file, additional docs / visa upload / rejection only after Applied, approval needs the visa PDF, no hold after approval
 - [ ] F6 After applied: request only the Visa Copy, not a package
 - [ ] F7 Visa Type column shows Tourist / Transit / Any (not "New Visa"); service details: stay, entry (validity only if enabled)

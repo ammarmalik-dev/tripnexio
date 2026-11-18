@@ -7,15 +7,22 @@ export const NO_PRIOR_VISA_MESSAGE = "We currently provide visa extension servic
 
 export async function submitVisaExtensionRequest(values: VisaExtensionRequestValues): Promise<{ referenceId: string; confirmationMessage?: string }> {
   const result = await postJson<CreateLeadResult & { priorVisaFound: boolean; unmatchedApplicants: string[] }>("/api/leads/visa-extension", values);
-  if (!result.priorVisaFound) {
+  const applicantCount = 1 + values.additionalApplicants.length;
+  // Client doc 16 Nov (E1) — mixed travellers: when at least one passenger's visa was issued by TripNexio the request
+  // goes ahead for them; the others are named so our team checks their visa copy. Only when NO passenger matches is
+  // the customer offered Visa Change / New Visa instead.
+  if (!result.priorVisaFound && result.unmatchedApplicants.length >= applicantCount) {
     // The request is saved for our team (flagged noPriorVisa); the customer is offered the right service instead.
-    const partial = result.unmatchedApplicants.length < 1 + values.additionalApplicants.length;
     throw new RequestIneligibleOutcome(
       NO_PRIOR_VISA_MESSAGE,
-      `${partial ? `We couldn't find a TripNexio visa for ${result.unmatchedApplicants.join(", ")}. ` : ""}Your request ${result.referenceId} is saved and our team will contact you. Where are you right now?`,
+      `Your request ${result.referenceId} is saved and our team will contact you. Where are you right now?`,
       { label: "I'm inside the UAE", href: "/services/visa-change" },
       { label: "I'm outside the UAE", href: "/services/new-visa" }
     );
   }
-  return { referenceId: result.referenceId, confirmationMessage: result.confirmationMessage };
+  const note =
+    result.unmatchedApplicants.length > 0
+      ? `\n\nWe couldn't find a TripNexio visa for ${result.unmatchedApplicants.join(", ")} — our team will review their visa copy and confirm whether their extension can be processed.`
+      : "";
+  return { referenceId: result.referenceId, confirmationMessage: result.confirmationMessage ? `${result.confirmationMessage}${note}` : note.trim() || undefined };
 }

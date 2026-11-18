@@ -83,5 +83,8 @@ export async function POST(request: NextRequest) {
   const gst = roundToPaise(taxableServiceAmount(subtotal, configured.fee) * gstRate);
   const gatewayFee = roundToPaise(subtotal * gatewayFeeRate);
 
-  return jsonSuccess({ configured: true, lines, subtotal, gst, gatewayFee, total: roundToPaise(subtotal + gst + gatewayFee) });
+  // Client doc 16 Nov (F4) — the summary shows the Visa Fee and the configured Service Charge separately.
+  const serviceCharge = configured.fee !== null ? roundToPaise(Math.min(Math.max(configured.fee, 0), subtotal)) : null;
+  const visaFee = serviceCharge !== null ? roundToPaise(subtotal - serviceCharge) : null;
+  return jsonSuccess({ configured: true, lines, subtotal, visaFee, serviceCharge, gst, gatewayFee, total: roundToPaise(subtotal + gst + gatewayFee) });
 }

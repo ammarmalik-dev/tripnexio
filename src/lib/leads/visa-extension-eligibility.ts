@@ -131,9 +131,13 @@ async function findNewVisaBookingForTraveller(passenger: Prisma.PassengerWhereIn
 export async function findPriorTripNexioVisaByPassport(passportNumber: string): Promise<PriorTripNexioVisa | null> {
   const trimmed = passportNumber.trim();
   if (!trimmed) return null;
+  // Client doc 16 Nov (E5) — "N 1234567" / "N-1234567" typed in chat is the same passport as "N1234567".
+  const compact = trimmed.replace(/[\s-]/g, "");
   // Client testing 2026-10-09 (B20) — the passport must be a traveller on that
   // New Visa booking; a visa the same customer bought for someone else is not a match.
-  const preferred = await findNewVisaBookingForTraveller({ passportNumber: { equals: trimmed, mode: "insensitive" } });
+  const preferred = await findNewVisaBookingForTraveller({
+    OR: [{ passportNumber: { equals: trimmed, mode: "insensitive" } }, { passportNumber: { equals: compact, mode: "insensitive" } }],
+  });
   if (!preferred) return null;
   const lead = preferred.lead;
   const details = (lead.details ?? {}) as Record<string, unknown>;
