@@ -384,16 +384,21 @@ export function ManualLeadForm() {
 
       {serviceType === "VISA_EXTENSION" || serviceType === "VISA_CHANGE" ? (
         // Client doc 2026-10-20 (K1) — the form follows the service: the current visa's expiry for VE / VC.
+        // Client doc 16 Nov (E3) — the visa may already have expired: past dates are allowed.
         <DateField
           {...register("visaExpiryDate")}
           name="visaExpiryDate"
           label="Visa Expiry Date"
+          min="1900-01-01"
           error={errors.visaExpiryDate?.message}
           required
         />
       ) : null}
 
-      <DateField {...register("travelDate")} name="travelDate" label="Travel Date" error={errors.travelDate?.message} required />
+      {/* Client doc 16 Nov (D5 / E6) — Visa Change / Visa Extension don't ask a travel date. */}
+      {serviceType === "VISA_EXTENSION" || serviceType === "VISA_CHANGE" ? null : (
+        <DateField {...register("travelDate")} name="travelDate" label="Travel Date" error={errors.travelDate?.message} required />
+      )}
 
       {/* OTB and Return Ticket have one rate for every passenger (client reply 2026-10-13): just a passenger count. */}
       {serviceType === "OTB" || serviceType === "RETURN_TICKET" ? (

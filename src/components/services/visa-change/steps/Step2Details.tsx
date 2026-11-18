@@ -40,6 +40,10 @@ export function Step2Details() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Client doc 16 Nov (D8). */}
+      <p className="rounded-lg border border-hairline bg-surface-2 px-4 py-3 text-sm text-ink-secondary">
+        Our team will verify each applicant&apos;s visa details before sending your quotation.
+      </p>
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <TextField label="Full Name" required error={errors.fullName?.message} {...register("fullName")} />
         <TextField

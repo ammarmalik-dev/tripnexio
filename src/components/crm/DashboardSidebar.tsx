@@ -37,7 +37,7 @@ export function DashboardSidebar({
     });
 
   return (
-    <aside className={cn("crm-sidebar-liquid flex shrink-0 flex-col pt-5 transition-[width] duration-300", narrow ? "w-[4.5rem] px-2 pb-4" : "w-64 p-4")}>
+    <aside className={cn("crm-sidebar-liquid flex h-full shrink-0 flex-col overflow-y-auto pt-5 transition-[width] duration-300", narrow ? "w-[4.5rem] px-2 pb-4" : "w-64 p-4")}>
       <div className={cn("flex items-start justify-between gap-2 pb-4", narrow ? "flex-col items-center px-0" : "px-2")}>
         {narrow ? null : (
           <div>

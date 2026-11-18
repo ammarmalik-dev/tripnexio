@@ -28,11 +28,12 @@ export default async function AdminAuthenticatedLayout({ children }: { children:
 
   return (
     <StaffPermissionsProvider permissions={session.permissions} servicePermissions={session.servicePermissions} refundApprovalLimit={session.refundApprovalLimit}>
-    <div className="crm-shell flex min-h-screen">
+    {/* Client doc 16 Nov (K1) — the shell is the screen height: logo + sidebar and the top bar stay put, only main scrolls. */}
+    <div className="crm-shell flex h-dvh overflow-hidden">
       <AdminSidebar permissions={session.permissions} />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <CrmTopbar staffName={session.name} staffRole={session.role} />
-        <main className="flex-1 overflow-y-auto px-6 pb-6 pt-4">{children}</main>
+        <main className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-4">{children}</main>
       </div>
     </div>
     </StaffPermissionsProvider>

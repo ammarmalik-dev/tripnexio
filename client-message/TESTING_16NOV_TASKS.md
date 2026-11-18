@@ -45,7 +45,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] C1 Rejected only after Sent to Airlines — checked: OTB Rejected only after Sent to Airlines (engine)
 - [x] C2 Additional Documents Sent to Airline only when documents were requested (from Document Master) and uploaded — unit 2b: OTB additional documents only after Sent to Airlines and from the Document Master
 - [ ] C3 Manual lead: active countries + live airlines only, calendar rules, configured documents auto-fetched (staff upload or notify)
-- [ ] C4 No staff refund after OTB approved
+- [x] C4 No staff refund after OTB approved — checked: OTB Application Approved blocks refunds (blocksRefund); only an Admin override can refund
 - [ ] C5 WhatsApp bot offers Return Ticket in the OTB flow
 - [ ] C6 Airline Decision per passenger (Approved / Rejected / Pending)
 - [ ] C7 Website abandoned leads captured for OTB
@@ -55,21 +55,21 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] D2 Package: staff upload the real package documents (no generated PDF); "Visa Change Package", only after payment
 - [ ] D3 Pre-payment website status wrong (no Cancelled / On Hold on a processed booking)
 - [ ] D4 Partial visa upload in CRM
-- [ ] D5 Manual lead: no travel date; Exit Method (A2A / Border) + Nationality → document checklist; offline lead shows configured documents
+- [ ] D5 Manual lead: no travel date; Exit Method (A2A / Border) + Nationality → document checklist; offline lead shows configured documents — unit 6: manual lead no longer asks a travel date for Visa Change. Exit Method + Nationality → checklist still open
 - [ ] D6 Travel date = actual exit date (A2A + Border); shown when creating the bus itinerary
 - [x] D7 Proforma: "Fine" (not "Fine / Status-Change Charges"); service fee = configured fee not profit; tax invoice includes the fine — unit 4: line reads Fine; configured fee is the service charge (not profit); the tax invoice has the Fine line too
-- [ ] D8 Second form page message: "Our team will verify each applicant's visa details before sending your quotation."
+- [x] D8 Second form page message: "Our team will verify each applicant's visa details before sending your quotation." — unit 6: shown at the top of the Visa Change details step
 
 ## E. Visa Extension
 - [x] E1 Mixed PAX (one TripNexio visa, one external) — allow extension for eligible passengers — unit 6: mixed travellers — the extension goes ahead when at least one passenger has a TripNexio visa; the others are named for staff to review (bot already did this)
 - [ ] E2 Quotations only for eligible passengers
-- [ ] E3 Calendar: don't block past dates (Visa Change + Extension)
+- [x] E3 Calendar: don't block past dates (Visa Change + Extension) — unit 6: CRM manual lead visa expiry accepts past dates (website forms already did)
 - [x] E4 Proforma: service charge per Admin config, profit separate — unit 4: same rule — configured service charge, profit stays internal
 - [x] E5 Bot: ask total PAX only; fix "TripNexio Visa Not Found" — unit 6: bot asks one passenger count for Visa Extension; passport match ignores spaces / dashes (a false Visa Not Found)
-- [ ] E6 Manual lead: no travel date; passport number per passenger; configured documents auto-fetched
+- [ ] E6 Manual lead: no travel date; passport number per passenger; configured documents auto-fetched — unit 6: manual lead no longer asks a travel date for Visa Extension. Passport per passenger + auto documents still open
 - [ ] E7 No Applied to Embassy before document validation; validated documents not re-requested; download visa/passport copies; reject before expiry date + quotation
 - [ ] E8 Workflow: Documents Validated → Expiry Date → Quotation → Payment → Applied → Approved/Rejected; Approved needs Visa PDF; no approval notification before PDF; no direct refund after approval
-- [ ] E9 Travel date = applied date
+- [x] E9 Travel date = applied date — unit 2b: the Applied Date is the Visa Extension travel date (G8)
 
 ## F. New Visa
 - [ ] F1 Page 1 after visa selection: name, mobile, email, first applicant (saved for abandoned follow-up); page 2: applicants (name, DOB, passport expiry, occupation)
@@ -145,7 +145,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] J13 Reference IDs like Q-6UOFRN → configured serial format; "Booking" instead of "Application ID" — unit 1: quotation reference + proforma number = lead serial (11026VC105-Q2)
 
 ## K. CRM / Admin UI
-- [ ] K1 Sticky logo + sidebar; only content scrolls (CRM + Admin)
+- [x] K1 Sticky logo + sidebar; only content scrolls (CRM + Admin) — unit 6: CRM + Admin shell is the screen height; logo + sidebar and top bar stay, only the main content scrolls
 - [ ] K2 Compact list pages: filters ≤ 2 rows, full width, ≥ 10 rows visible, Express highlight only (no "Normal"), PAX inline — Leads, Quotations, Bookings, Payments, Invoices, Refunds, Tasks
 - [ ] K3 POC name column + filter: Tasks, Follow-ups, Documents, Refunds, Invoices, Payments
 - [ ] K4 Quick Booking Search icon in those sections + Admin Live Activity, OCR Monitor, Audit Trail; audit filters in one row
@@ -192,4 +192,4 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] S2 One common User Not Responding and Booking On Hold; "Quotation Sent" / customer "Quotation Ready" for all quotation services — unit 2a: one User Not Responding (common USER_NOT_RESPONDING template) + one Booking On Hold per list; Quotation Ready / Quotation Accepted
 - [ ] S3 Flight: pre-issuance cancellation uses shared Cancelled / Partially Cancelled; post-issuance ends at Ticket Cancelled; Cancelled by Airline / Rescheduled by Airline — unit 2a: statuses + templates exist (Cancelled by Airline / Rescheduled by Airline new); the post-issuance cancellation / reschedule FLOWS come with the Special Fare unit (A12, A14)
 - [ ] S4 Refund rules: gateway Refund ID in notification; bank transfer needs transaction no. before approval; remark required — unit 2a: Partially Cancelled / Cancelled messages now carry Refund ID + amount; bank-transfer transaction no. + remark come with unit 3 (H)
-- [ ] S5 "To Confirm / To Configure" rows: no automation until confirmed (Q6)
+- [x] S5 "To Confirm / To Configure" rows: no automation until confirmed (Q6) — respected: no automation was added for the To Confirm / To Configure rows

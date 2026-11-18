@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     contact: { fullName: data.fullName, mobile: data.mobile, email: data.email ?? "" },
     passengers,
     details: {
-      travelDate: data.travelDate,
+      travelDate: data.travelDate || undefined,
       travelers: String(travelerCount),
       adultCount: data.adultCount,
       childCount: data.childCount,

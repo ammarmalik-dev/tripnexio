@@ -43,7 +43,8 @@ export const manualLeadSchema = z
     serviceType: z.enum(serviceTypeValues, { error: "Select a service" }),
     /** Required only when serviceType === "OTHER" — enforced below, not by the field's own optionality. */
     otherServiceDescription: z.string().trim().max(200, "Keep it under 200 characters").optional(),
-    travelDate: z.string().min(1, "Select a travel date"),
+    /** Client doc 16 Nov (D5 / E6) — not asked for Visa Change / Visa Extension (enforced below for the others). */
+    travelDate: z.string(),
     adultCount: z.number().int().min(1, "At least 1 adult traveller is required"),
     childCount: z.number().int().min(0),
     infantCount: z.number().int().min(0),
@@ -74,7 +75,11 @@ export const manualLeadSchema = z
       if (!data.destinationCountryCode) ctx.addIssue({ code: "custom", message: "Select a destination country", path: ["destinationCountryCode"] });
       if (!data.processingType) ctx.addIssue({ code: "custom", message: "Select a processing type", path: ["processingType"] });
     }
-    if ((data.serviceType === "VISA_EXTENSION" || data.serviceType === "VISA_CHANGE") && !data.visaExpiryDate) {
+    const visaStatusChange = data.serviceType === "VISA_EXTENSION" || data.serviceType === "VISA_CHANGE";
+    if (!visaStatusChange && !data.travelDate) {
+      ctx.addIssue({ code: "custom", message: "Select a travel date", path: ["travelDate"] });
+    }
+    if (visaStatusChange && !data.visaExpiryDate) {
       ctx.addIssue({ code: "custom", message: "Select the visa expiry date", path: ["visaExpiryDate"] });
     }
     if (data.serviceType === "OTB") {
