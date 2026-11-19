@@ -1,8 +1,9 @@
 "use client";
 
+import { AirportSearchField } from "@/components/forms/AirportSearchField";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { TextField } from "@/components/forms/TextField";
@@ -78,15 +79,16 @@ export function ManualLeadForm() {
     void getJson<ReturnTicketDestinationOption[]>("/api/return-ticket/destinations").then(setDestinations).catch(() => undefined);
   }, []);
 
+  const methods = useForm<ManualLeadValues>({
+    resolver: zodResolver(manualLeadSchema),
+    defaultValues: { adultCount: 1, childCount: 0, infantCount: 0 },
+  });
   const {
     register,
     handleSubmit,
     watch,
     formState: { errors },
-  } = useForm<ManualLeadValues>({
-    resolver: zodResolver(manualLeadSchema),
-    defaultValues: { adultCount: 1, childCount: 0, infantCount: 0 },
-  });
+  } = methods;
 
   const serviceType = watch("serviceType");
   const destinationCountryCode = watch("destinationCountryCode");
@@ -188,6 +190,8 @@ export function ManualLeadForm() {
   }
 
   return (
+    // FormProvider — the shared airport search field (Special Fare) reads the form from context.
+    <FormProvider {...methods}>
     <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5 rounded-xl border border-hairline bg-surface-1 p-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <TextField {...register("fullName")} name="fullName" label="Name" error={errors.fullName?.message} required />
@@ -395,10 +399,27 @@ export function ManualLeadForm() {
         />
       ) : null}
 
+      {/* Client doc 16 Nov (A1) — Special Fare: departure / arrival (Airport master search, as on the website). */}
+      {serviceType === "FLIGHT_SPECIAL_FARE" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <AirportSearchField name="flightOrigin" label="Departure City / Airport" required error={errors.flightOrigin?.message} />
+          <AirportSearchField name="flightDestination" label="Arrival City / Airport" required error={errors.flightDestination?.message} />
+        </div>
+      ) : null}
+
       {/* Client doc 16 Nov (D5 / E6) — Visa Change / Visa Extension don't ask a travel date. */}
       {serviceType === "VISA_EXTENSION" || serviceType === "VISA_CHANGE" ? null : (
         <DateField {...register("travelDate")} name="travelDate" label="Travel Date" error={errors.travelDate?.message} required />
       )}
+      {serviceType === "FLIGHT_SPECIAL_FARE" ? (
+        <DateField
+          {...register("flightReturnDate")}
+          name="flightReturnDate"
+          label="Return Date (round trip only)"
+          hint="Leave empty for a one-way flight."
+          error={errors.flightReturnDate?.message}
+        />
+      ) : null}
 
       {/* OTB and Return Ticket have one rate for every passenger (client reply 2026-10-13): just a passenger count. */}
       {serviceType === "OTB" || serviceType === "RETURN_TICKET" ? (
@@ -456,6 +477,7 @@ export function ManualLeadForm() {
         </Button>
       </div>
     </form>
+    </FormProvider>
   );
 }
 

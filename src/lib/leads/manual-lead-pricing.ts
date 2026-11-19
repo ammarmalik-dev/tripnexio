@@ -55,6 +55,9 @@ export async function manualLeadServiceDetails(data: ManualLeadValues): Promise<
       return { visaExpiryDate: data.visaExpiryDate };
     case "VISA_CHANGE":
       return { visaLastDate: data.visaExpiryDate };
+    // Client doc 16 Nov (A1) — the same keys as the website's Special Fare request (round trip = a return date).
+    case "FLIGHT_SPECIAL_FARE":
+      return { origin: data.flightOrigin, destination: data.flightDestination, ...(data.flightReturnDate ? { returnDate: data.flightReturnDate } : {}) };
     default:
       return {};
   }

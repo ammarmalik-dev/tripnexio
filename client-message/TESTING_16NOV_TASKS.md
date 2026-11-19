@@ -19,7 +19,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] Q11 I11 says coupons only for New Visa / OTB / Return Ticket, but N9.2 sends unpaid-quotation coupons for Visa Change / Flight / Visa Extension. Which is right? (Today each coupon has its own service list in Admin.)
 
 ## A. Special Fare (flight)
-- [ ] A1 Manual lead: origin city, destination city, return date (round trip)
+- [x] A1 Manual lead: origin city, destination city, return date (round trip) — unit 9: Manual Lead → Flight Special Fare asks Departure and Arrival (Airport master search, as on the website) and an optional Return Date for a round trip (on or after the travel date); stored as origin / destination / returnDate like a website request, so CRM lists, the quote builder (round trip) and messages show it. Tested via API + browser
 - [ ] A2 Send multiple quotations in one click (Special Fare + Visa Change only)
 - [x] A3 Email heading: no airline logo of the first quotation — unit 6: email heading shows only the SELECTED flight airline (no logo while several options are open)
 - [x] A4 Ticket upload: reuse baggage from the quotation, don't ask again — unit 7: the Special Fare ticket step shows the quotation baggage read-only (no Baggage field); the ticket email keeps using the quote baggage

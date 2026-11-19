@@ -66,6 +66,10 @@ export const manualLeadSchema = z
     returnTicketDestinationCountryId: z.string().trim().optional(),
     /** Client update (2026-09-24): the customer's target return date, replacing the old visa-type selection. */
     returnTicketExpectedReturnDate: z.string().trim().optional(),
+    /** Client doc 16 Nov (A1) — Special Fare: departure / arrival city or airport, and a return date for a round trip. */
+    flightOrigin: z.string().trim().max(160).optional(),
+    flightDestination: z.string().trim().max(160).optional(),
+    flightReturnDate: z.string().trim().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.serviceType === "OTHER" && !data.otherServiceDescription) {
@@ -86,6 +90,16 @@ export const manualLeadSchema = z
       if (!data.destinationCountryCode) ctx.addIssue({ code: "custom", message: "Select a destination country", path: ["destinationCountryCode"] });
       if (!data.airlineCode) ctx.addIssue({ code: "custom", message: "Select an airline", path: ["airlineCode"] });
       if (!data.processingType) ctx.addIssue({ code: "custom", message: "Select a processing type", path: ["processingType"] });
+    }
+    if (data.serviceType === "FLIGHT_SPECIAL_FARE") {
+      if (!data.flightOrigin) ctx.addIssue({ code: "custom", message: "Enter the departure city or airport", path: ["flightOrigin"] });
+      if (!data.flightDestination) ctx.addIssue({ code: "custom", message: "Enter the arrival city or airport", path: ["flightDestination"] });
+      if (data.flightOrigin && data.flightDestination && data.flightOrigin.toLowerCase() === data.flightDestination.toLowerCase()) {
+        ctx.addIssue({ code: "custom", message: "Arrival must be different from departure", path: ["flightDestination"] });
+      }
+      if (data.flightReturnDate && data.travelDate && data.flightReturnDate < data.travelDate) {
+        ctx.addIssue({ code: "custom", message: "The return date must be on or after the travel date", path: ["flightReturnDate"] });
+      }
     }
     if (data.serviceType === "RETURN_TICKET") {
       if (!data.returnTicketDestinationCountryId) {
