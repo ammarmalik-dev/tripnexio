@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Mail, LifeBuoy, Compass } from "lucide-react";
+import { Mail, Compass } from "lucide-react";
 import { getSystemConfig } from "@/lib/settings/system-config";
 import { HelpSearch } from "@/components/crm/help/HelpSearch";
-import { ReportIssueForm } from "@/components/crm/help/ReportIssueForm";
+import { HelpTicketsSection } from "@/components/crm/help/HelpTicketsSection";
 
 export const metadata: Metadata = { title: "Help | Internal Dashboard" };
 
@@ -20,7 +20,8 @@ const HOW_TO_LINKS: { label: string; href: string; description: string }[] = [
  * contact admin, report an issue, and brief usage guidance. Open to every
  * signed-in staff member (the (authenticated) layout already enforces that).
  */
-export default async function CrmHelpPage() {
+export default async function CrmHelpPage({ searchParams }: { searchParams: Promise<{ ticket?: string }> }) {
+  const { ticket } = await searchParams;
   const config = await getSystemConfig();
   const adminEmail = config.systemAlertEmail;
 
@@ -40,16 +41,8 @@ export default async function CrmHelpPage() {
             <HelpSearch />
           </section>
 
-          <section className="rounded-xl border border-hairline bg-surface-1 p-5" aria-labelledby="report-issue-heading">
-            <h2 id="report-issue-heading" className="mb-1 flex items-center gap-2 text-sm font-semibold text-ink-heading">
-              <LifeBuoy className="h-4 w-4" aria-hidden="true" />
-              Report an issue
-            </h2>
-            <p className="mb-4 text-xs text-ink-tertiary">
-              Your report becomes a support task that admins see on the Tasks screen.
-            </p>
-            <ReportIssueForm />
-          </section>
+          {/* Client doc 16 Nov (L3) — help desk tickets. */}
+          <HelpTicketsSection initialTicketId={ticket ?? null} />
         </div>
 
         <div className="flex flex-col gap-6">

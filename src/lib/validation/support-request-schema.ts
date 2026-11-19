@@ -10,6 +10,11 @@ export const supportRequestSchema = z.object({
   /** The CRM page/URL the issue is about — free text, optional. */
   pageUrl: z.string().trim().max(500, "Keep the page/URL under 500 characters").optional(),
   priority: z.enum(taskPriorityValues, { error: "Select a priority" }),
+  /** Client doc 16 Nov (L3) — screenshots / supporting files (images or PDF, checked again on the server). */
+  attachments: z
+    .array(z.object({ fileName: z.string().trim().min(1).max(200), data: z.string().min(1) }))
+    .max(5, "Attach up to 5 files")
+    .optional(),
 });
 
 export type SupportRequestValues = z.infer<typeof supportRequestSchema>;

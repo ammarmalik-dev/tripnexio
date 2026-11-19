@@ -1,16 +1,16 @@
 import type { NextRequest } from "next/server";
 import { supportRequestSchema } from "@/lib/validation/support-request-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
-import { db } from "@/lib/db";
-import { writeAudit } from "@/lib/audit/log";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import { isRateLimited } from "@/lib/auth/rate-limit";
+import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
+import { checkBase64Upload } from "@/lib/uploads/validate-upload";
+import { createSupportTicket } from "@/lib/support/tickets";
+import { describeError } from "@/lib/api/describe-error";
 
 /**
- * P22 item 2 — CRM Help page "Report an issue" (CRM.md §28). Any signed-in
- * staff member can file one; it lands as an unassigned SUPPORT_REQUEST Task
- * linked to the reporter (entityType "User"), so admins pick it up from the
- * Tasks screen rather than a separate inbox.
+ * P22 item 2 — CRM Help page "Report an issue". Client doc 16 Nov (L3): it now raises a help desk ticket (TNIT0001…)
+ * with optional screenshots / files, emails the person who raised it and alerts Admin. Any signed-in staff member.
  */
 export async function POST(request: NextRequest) {
   const session = await getStaffSession();
@@ -31,34 +31,26 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
   }
-  const { title, description, pageUrl, priority } = parsed.data;
-  const reason = pageUrl ? `${description}\n\nPage / URL: ${pageUrl}` : description;
+  const { title, description, pageUrl, priority, attachments = [] } = parsed.data;
 
   try {
-    const task = await db.$transaction(async (tx) => {
-      const created = await tx.task.create({
-        data: {
-          type: "SUPPORT_REQUEST",
-          priority,
-          title,
-          reason,
-          entityType: "User",
-          entityId: session.id,
-        },
-      });
-      await writeAudit(tx, {
-        entityType: "Task",
-        entityId: created.id,
-        action: "CREATE",
-        byUserId: session.id,
-        note: `Support request "${created.title}" reported from the CRM Help page (by ${session.name})`,
-      });
-      return created;
-    });
-
-    return jsonSuccess({ id: task.id }, 201);
+    // Every file is checked (type from the bytes, 8MB) before anything is stored.
+    for (const file of attachments) {
+      const check = checkBase64Upload(file.data);
+      if (!check.ok) return jsonError(check.status, `${file.fileName}: ${check.message}`, { attachments: [check.message] });
+    }
+    const stored = [];
+    for (const file of attachments) {
+      const check = checkBase64Upload(file.data);
+      if (!check.ok) continue;
+      const { url } = await saveUploadedFile(file.data);
+      stored.push({ fileName: file.fileName, fileUrl: url, mimeType: check.mimeType, sizeBytes: check.buffer.length });
+    }
+    const ticket = await createSupportTicket({ id: session.id, name: session.name }, { title, description, pageUrl, priority, attachments: stored });
+    return jsonSuccess({ id: ticket.id, ticketNumber: ticket.ticketNumber }, 201);
   } catch (error) {
-    console.error("[support-requests] create failed", error instanceof Error ? error.message : "unknown");
+    if (error instanceof UploadValidationError) return jsonError(error.status, error.message);
+    console.error("[support-requests] create failed", describeError(error));
     return jsonError(500, "Couldn't submit your report. Please try again.");
   }
 }

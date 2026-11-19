@@ -2474,6 +2474,9 @@ model User {
   @@index([roleId])
   @@index([active])
   knowledgeDocuments KnowledgeDocument[] @relation("KnowledgeDocumentUploader")
+  supportTicketsRaised   SupportTicket[]        @relation("SupportTicketRaisedBy")
+  supportTicketsAssigned SupportTicket[]        @relation("SupportTicketAssignedTo")
+  supportTicketComments  SupportTicketComment[] @relation("SupportTicketCommentAuthor")
 }
 
 /// Step 48 (Internal Dashboard Merged §1) — a real forgot-password flow.
@@ -2785,6 +2788,67 @@ model KnowledgeDocument {
   uploadedBy User? @relation("KnowledgeDocumentUploader", fields: [uploadedById], references: [id])
 
   @@index([createdAt])
+}
+
+/// Client doc 16 Nov (L3) — the CRM Help desk: an issue a staff member raises (ticket TNIT0001…), handled by Admin.
+model SupportTicket {
+  id             String              @id @default(cuid())
+  ticketNumber   String              @unique
+  title          String
+  description    String
+  pageUrl        String?
+  priority       TaskPriority        @default(NORMAL)
+  status         SupportTicketStatus @default(OPEN)
+  raisedById     String
+  assignedToId   String?
+  resolutionNote String?
+  resolvedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  raisedBy    User                      @relation("SupportTicketRaisedBy", fields: [raisedById], references: [id])
+  assignedTo  User?                     @relation("SupportTicketAssignedTo", fields: [assignedToId], references: [id])
+  comments    SupportTicketComment[]
+  attachments SupportTicketAttachment[]
+
+  @@index([status])
+  @@index([raisedById])
+  @@index([assignedToId])
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+model SupportTicketComment {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String?
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?         @relation("SupportTicketCommentAuthor", fields: [authorId], references: [id])
+
+  @@index([ticketId])
+}
+
+/// A screenshot / file added to a ticket; the bytes are a private upload (/api/files id), served only through the ticket.
+model SupportTicketAttachment {
+  id           String   @id @default(cuid())
+  ticketId     String
+  fileName     String
+  fileUrl      String
+  mimeType     String
+  sizeBytes    Int
+  uploadedById String?
+  createdAt    DateTime @default(now())
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
 }
 
 /// Monthly sequence behind Lead.reference (P07). One row per period "MMYY"

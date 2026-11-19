@@ -233,6 +233,7 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "OCR Monitor", href: "/admin/ocr-monitor", icon: ScanText, permission: "automation.view" },
       { label: "Automation", href: "/admin/automation", icon: Activity, permission: "automation.view" },
       { label: "Audit Log", href: "/admin/audit-log", icon: ScrollText, permission: "staff.manage" },
+      { label: "Support Tickets", href: "/admin/support-tickets", icon: LifeBuoy, permission: "staff.manage" },
       { label: "Configuration History", href: "/admin/config-history", icon: History, permission: "masters.manage" },
     ],
   },

@@ -25,7 +25,9 @@ export type StaffNotificationType =
   | "NEW_ENQUIRY"
   | "COMPLAINT"
   /** Client doc 2026-10-20 (G3) — a WhatsApp customer asked for an agent, or wrote while the chat is with the team. */
-  | "WHATSAPP_CHAT";
+  | "WHATSAPP_CHAT"
+  /** Client doc 16 Nov (L3) — a staff member raised a help desk ticket. */
+  | "SUPPORT_TICKET";
 
 export interface NotifyStaffInput {
   type: StaffNotificationType;
