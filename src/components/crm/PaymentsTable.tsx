@@ -152,6 +152,7 @@ export function PaymentsTable() {
       {/* Client doc 2026-10-20 (L8) — filters and buttons on one line. */}
       {/* Client 2026-10-28 — the shared list toolbar: filters on the left, Refresh / Export on the first filter line. */}
       <ListToolbar
+        bookingSearch
         actions={
           <>
             <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />

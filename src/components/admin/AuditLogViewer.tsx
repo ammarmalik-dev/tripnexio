@@ -130,7 +130,8 @@ export function AuditLogViewer() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid gap-3 rounded-xl border border-hairline bg-surface-1 p-4 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Client doc 16 Nov (K4) — every audit filter on one row. */}
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-hairline bg-surface-1 p-4 2xl:flex-nowrap">
         <FilterSelect
           id="audit-user"
           label="User"
@@ -159,7 +160,7 @@ export function AuditLogViewer() {
           options={(facets?.actions ?? []).map((value) => ({ value, label: value }))}
           allLabel="All actions"
         />
-        <div className="flex flex-col gap-1 sm:col-span-2 lg:col-span-3">
+        <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-ink-tertiary">Date</span>
           <DateRangeFilter
             idPrefix="audit"
@@ -184,7 +185,7 @@ export function AuditLogViewer() {
           />
         </div>
         {/* Client 2026-10-28 — Refresh sits on the date line, right-aligned with the filter controls (h-9). */}
-        <div className="flex flex-wrap items-end justify-end gap-2 sm:col-span-2 lg:col-span-1">
+        <div className="ml-auto flex items-end justify-end gap-2">
           <ListRefreshButton onClick={() => setRefreshNonce((current) => current + 1)} loading={state === "loading"} />
           {hasFilters ? (
             <Button type="button" variant="ghost" size="sm" onClick={clearAll}>

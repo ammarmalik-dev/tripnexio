@@ -1,5 +1,6 @@
 "use client";
 
+import { BookingQuickSearch } from "./BookingQuickSearch";
 import { PocFilterSelect } from "./PocFilterSelect";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
@@ -381,6 +382,8 @@ export function InvoiceHistory({ canEdit = false }: { canEdit?: boolean } = {}) 
           {loading && !data ? "Loading invoices…" : `${matchCount.toLocaleString("en-IN")} invoice${matchCount === 1 ? "" : "s"} match the current filters`}
         </p>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Client doc 16 Nov (K4) — quick booking search. */}
+          <BookingQuickSearch />
           <Button type="button" variant="ghost" size="sm" onClick={() => setRefreshNonce((current) => current + 1)} disabled={loading}>
             <RotateCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden="true" />
             Refresh
