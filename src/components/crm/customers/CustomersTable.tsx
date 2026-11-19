@@ -13,6 +13,7 @@ import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormFiel
 import type { CustomerListItem, CustomerListResponse } from "@/lib/customers/types";
 import { formatCrmDate } from "./format";
 import { ListPagination } from "../ListPagination";
+import { ExportCsvButton } from "../ExportCsvButton";
 import { usePaginationState } from "../usePagination";
 
 type FetchState = "loading" | "success" | "error";
@@ -68,6 +69,7 @@ export function CustomersTable() {
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="relative w-full max-w-sm">
         <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
         <label htmlFor="customer-search" className="sr-only">
@@ -81,6 +83,9 @@ export function CustomersTable() {
           placeholder="Search by name, email or mobile"
           className={cn(fieldControlClass, fieldBorderClass(false), "h-9 pl-9 text-sm")}
         />
+      </div>
+        {/* Client doc 16 Nov (K7) — export the customers matching the search. */}
+        <ExportCsvButton href={`/api/customers/export${search ? `?search=${encodeURIComponent(search)}` : ""}`} />
       </div>
 
       {state === "loading" ? (

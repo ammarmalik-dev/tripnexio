@@ -14,7 +14,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] Q6 OTB "Additional Documents Received / Submitted" are marked "To Configure" — what triggers them?
 - [ ] Q7 Coupon accounting: "expense category in P&L considered as sale amount which is paid" — record the discount as an expense with gross sale, or net sale?
 - [ ] Q8 Gateway fee by payment method (Card/UPI/Net Banking): Razorpay payment links don't let us pick the method upfront — fee is known only after payment. OK to apply it from the webhook's method?
-- [ ] Q9 Removing Admin → Data Export: confirm every export it offered exists on the individual pages first.
+- [x] Q9 Removing Admin → Data Export: confirm every export it offered exists on the individual pages first. — answered by the doc itself (16 Nov §691: data export removed from admin as all filters are on the individual pages); done in K7
 - [ ] Q10 Bookings 11026FL112 / FL113 log review: production data — OK to read prod audit logs?
 - [ ] Q11 I11 says coupons only for New Visa / OTB / Return Ticket, but N9.2 sends unpaid-quotation coupons for Visa Change / Flight / Visa Extension. Which is right? (Today each coupon has its own service list in Admin.)
 
@@ -151,7 +151,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] K4 Quick Booking Search icon in those sections + Admin Live Activity, OCR Monitor, Audit Trail; audit filters in one row
 - [x] K5 No number-input spinner arrows — unit 6: number inputs have no spinner arrows anywhere (globals.css)
 - [x] K6 Website booking summary centred — unit 7: the review / summary step of every service form sits centred (max-w-2xl) and each row is two fixed columns (label | value, both left-aligned) instead of values hugging the right edge. Not checked in the browser yet
-- [ ] K7 Customer export; remove Admin → Data Export (see Q9)
+- [x] K7 Customer export; remove Admin → Data Export (see Q9) — unit 9: Customers page → Export CSV (the list search, service-scoped, row-capped + audited; GET /api/customers/export). Admin → Data Export removed (nav, panel, /api/admin/export/*); every export it offered — customers, leads, bookings, payments — is on its own list page; an old link redirects to Admin
 - [x] K8 Visa Entry Type master (+ add button) — unit 8: Admin → Visa Entry Types master (Create / Edit / disable, code fixed once created, used-by count); migration 20261118140000 converts NewVisaCountryConfig.entryKind from the SINGLE/MULTIPLE enum to the master code in place (data kept) and adds Single / Multiple Entry; the product form, filters and price / vendor labels read the master
 - [ ] K9 Pricing Dashboard: "Visa Price Table" (no Extra Charge column, visa product type, vendor cost fix); "All Services Vendor Prices" with filters + full edit; compact By-country spacing
 - [x] K10 Holidays: weekly offs per country; labels India / Destination Country; TAT excludes both countries' holidays — unit 9: processing time (New Visa minimum days + expected approval, OTB travel-date rules + expected completion, website forms, bot) counts on India + the destination country together: weekly offs and holidays of either are skipped (getProcessingCalendar / mergeCalendars). Weekly offs per country stay in Holidays → Working days by country; a country without its own uses the System Config Destination Country default. Labels now India / Destination Country (Holidays page, System Config)

@@ -3,7 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { isServiceScopeUnrestricted, serviceTypeCondition } from "@/lib/auth/service-scope";
-import { parseLeadReference } from "@/lib/leads/reference";
+import { customerListWhere } from "@/lib/customers/list-where";
 import { customerListQuerySchema } from "@/lib/customers/list-query-schema";
 import type { CustomerListItem, CustomerListResponse } from "@/lib/customers/types";
 import type { Prisma } from "@/generated/prisma/client";
@@ -30,28 +30,7 @@ export async function GET(request: NextRequest) {
     const unrestricted = isServiceScopeUnrestricted(auth.session);
     const leadScope: Prisma.LeadWhereInput = serviceTypeCondition(auth.session);
 
-    const conditions: Prisma.CustomerWhereInput[] = [];
-    if (!unrestricted) conditions.push({ leads: { some: leadScope } });
-
-    if (search) {
-      const contains = { contains: search, mode: "insensitive" as const };
-      const or: Prisma.CustomerWhereInput[] = [
-        { name: contains },
-        { mobile: contains },
-        { email: contains },
-        { passengers: { some: { passportNumber: contains } } },
-        { leads: { some: { reference: contains } } },
-        { bookings: { some: { bookingId: contains } } },
-      ];
-      // Leads created before stored references ("OTB-JYOQHX") only have a derived reference.
-      const legacy = parseLeadReference(search);
-      if (legacy) {
-        or.push({ leads: { some: { serviceType: legacy.serviceType, id: { endsWith: legacy.suffix } } } });
-      }
-      conditions.push({ OR: or });
-    }
-
-    const where: Prisma.CustomerWhereInput = conditions.length ? { AND: conditions } : {};
+    const where = customerListWhere(auth.session, search);
 
     const [total, customers] = await Promise.all([
       db.customer.count({ where }),

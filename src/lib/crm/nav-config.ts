@@ -28,7 +28,6 @@ import {
   HelpCircle,
   MessageSquareText,
   Percent,
-  Download,
   Activity,
   Globe2,
   LayoutGrid,
@@ -318,7 +317,6 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Refund Report", href: "/admin/refund-report", icon: Undo2, permission: "finance.manage" },
       { label: "Expenses", href: "/admin/expenses", icon: Wallet, permission: "finance.manage" },
       { label: "Expense Categories", href: "/admin/expense-categories", icon: Receipt, permission: "masters.manage" },
-      { label: "Data Export", href: "/admin/data-export", icon: Download, permission: "data.export" },
     ],
   },
   {
