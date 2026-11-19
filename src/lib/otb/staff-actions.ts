@@ -7,7 +7,7 @@ import { setBookingVendor, vendorRateProblem } from "../bookings/set-vendor";
 import { notifyRefundsRaised } from "../staff-notifications/triggers";
 import type { ServiceStatusSystemEvent } from "../service-status/events";
 import { getOtbGlobalRules, resolveAirlineRules } from "./get-otb-rules";
-import { getWorkingCalendar } from "../calendar/get-working-calendar";
+import { getProcessingCalendar } from "../calendar/get-working-calendar";
 import { addWorkingDays, addWorkingHours } from "../calendar/working-calendar";
 
 /**
@@ -24,7 +24,8 @@ export async function expectedOtbCompletion(input: { details: unknown; paidAt: D
   const airline = await db.airline.findUnique({ where: { code }, select: { standardProcessingDays: true, urgentProcessingHours: true } });
   if (!airline) return null;
   const rules = resolveAirlineRules(airline, await getOtbGlobalRules(), true);
-  const calendar = await getWorkingCalendar("INDIA");
+  // Client doc 16 Nov (K10) — India + the destination's working days and holidays.
+  const calendar = await getProcessingCalendar(typeof details.destinationCountry === "string" ? details.destinationCountry : null);
   if (details.processingType === "urgent" && rules.urgentHours !== null) {
     return addWorkingHours(input.paidAt, rules.urgentHours, calendar).toISOString();
   }

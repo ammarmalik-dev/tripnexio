@@ -321,7 +321,7 @@ export function SystemConfigManager() {
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <TextField
-            label="India Weekend Days"
+            label="India — weekly off days"
             name="weekendDaysIndia"
             hint="Weekday numbers, comma separated: 0 = Sunday, 6 = Saturday. e.g. 0,6"
             value={form.weekendDaysIndia}
@@ -330,9 +330,9 @@ export function SystemConfigManager() {
             disabled={saving}
           />
           <TextField
-            label="UAE Weekend Days"
+            label="Destination Country — default weekly off days"
             name="weekendDaysUae"
-            hint="Weekday numbers, comma separated: 0 = Sunday, 6 = Saturday. e.g. 0,6"
+            hint="For a destination without its own weekly offs (Holidays → Working days by country). 0 = Sunday … 6 = Saturday, e.g. 0,6"
             value={form.weekendDaysUae}
             onChange={(e) => setForm({ ...form, weekendDaysUae: e.target.value })}
             error={errors.weekendDaysUae?.[0]}

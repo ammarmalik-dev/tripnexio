@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { allowedProcessingTypes, productLabel } from "@/lib/new-visa/products";
 import { getNewVisaTravelRules } from "@/lib/new-visa/travel-rules";
 import { getNewVisaDestinations } from "@/lib/new-visa/destinations";
-import { getWorkingCalendarForCountry } from "@/lib/calendar/get-working-calendar";
+import { getProcessingCalendar } from "@/lib/calendar/get-working-calendar";
 import { workingDaysBetween } from "@/lib/calendar/working-calendar";
 import { flagShortPassportValidity } from "@/lib/new-visa/flag-passport-validity";
 import { rejectInvalidDocumentUploads } from "@/lib/uploads/validate-upload";
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
   // P10 — minimum working days before travel for the chosen processing type, on the
   // destination's own calendar (client doc 2026-10-15: country weekend + holidays).
   const travelRules = await getNewVisaTravelRules(destinationCountry);
-  const workingDays = workingDaysBetween(travelDate, new Date(), await getWorkingCalendarForCountry(destinationCountry));
+  const workingDays = workingDaysBetween(travelDate, new Date(), await getProcessingCalendar(destinationCountry));
   if (!allowedProcessingTypes(workingDays, travelRules).includes(processingType)) {
     const needed = processingType === "urgent" ? travelRules.minTravelDaysExpress : travelRules.minTravelDaysNormal;
     return jsonError(400, `${processingOption.label} processing needs your travel date at least ${needed} working days away.`, {

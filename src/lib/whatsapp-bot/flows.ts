@@ -12,7 +12,7 @@ import { getProcessingTypeOptions } from "../processing-types/get";
 import { getOtbGlobalRules, resolveAirlineRules } from "../otb/get-otb-rules";
 import { otbUrgentAvailable } from "../otb/pricing";
 import { evaluateOtbTravelDate } from "../otb/processing-rules";
-import { getWorkingCalendar, getWorkingCalendarForCountry } from "../calendar/get-working-calendar";
+import { getProcessingCalendar } from "../calendar/get-working-calendar";
 import type { LeadPassengerInput } from "../leads/create-lead";
 import { getNewVisaTravelRules } from "../new-visa/travel-rules";
 import { allowedProcessingTypes, productLabel } from "../new-visa/products";
@@ -147,7 +147,7 @@ async function getOtbTravelDateEvaluator(airlineCode: string, countryCode: strin
   // Urgent depends on the destination's OTB price; before the destination is known only the timeline matters.
   const urgentAvailable = countryCode ? await otbUrgentAvailable(airline.id, countryCode) : true;
   const rules = resolveAirlineRules(airline, await getOtbGlobalRules(), urgentAvailable);
-  const calendar = await getWorkingCalendar("INDIA");
+  const calendar = await getProcessingCalendar(countryCode);
   return (travelDate: string) => evaluateOtbTravelDate(travelDate, rules, new Date(), calendar);
 }
 
@@ -526,7 +526,7 @@ export async function getNextField(serviceType: ServiceType, collected: Record<s
       // Express; too soon for both asks for a later date. Client doc 2026-10-20 (E10) — counted on the
       // destination's own calendar (weekend + holidays), as the website does.
       const rules = await getNewVisaTravelRules(collected.destinationCountry);
-      const calendar = await getWorkingCalendarForCountry(collected.destinationCountry);
+      const calendar = await getProcessingCalendar(collected.destinationCountry);
       const allowedFor = (iso: string) => allowedProcessingTypes(workingDaysBetween(iso, new Date(), calendar), rules);
       if (!has("travelDate")) {
         return dateStep("travelDate", "What's your expected travel date?", newVisaRequestSchema.shape.travelDate, (iso) =>

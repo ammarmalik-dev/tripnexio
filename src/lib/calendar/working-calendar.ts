@@ -28,6 +28,18 @@ export const DEFAULT_WORKING_CALENDAR: WorkingCalendar = {
   offsetMs: IST_OFFSET_MS,
 };
 
+/**
+ * Client doc 16 Nov (K10) — processing runs in India and in the destination country, so a day counts only when it's a
+ * working day in both: weekly offs and public holidays of either are skipped. Business hours / timezone stay `primary`'s.
+ */
+export function mergeCalendars(primary: WorkingCalendar, other: WorkingCalendar): WorkingCalendar {
+  return {
+    ...primary,
+    weekendDays: [...new Set([...primary.weekendDays, ...other.weekendDays])].sort(),
+    holidays: [...new Set([...primary.holidays, ...other.holidays])].sort(),
+  };
+}
+
 /** "0,6" -> [0, 6]; ignores anything that isn't a weekday number. */
 export function parseWeekendDays(csv: string): number[] {
   return [...new Set(csv.split(",").map((part) => Number(part.trim())).filter((n) => Number.isInteger(n) && n >= 0 && n <= 6))];

@@ -7,7 +7,7 @@ import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { ButtonLink } from "@/components/ui/ButtonLink";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
-import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
+import { useProcessingCalendar } from "@/lib/calendar/use-working-calendar";
 import { formatOtbRupees, otbApplicantPrice, otbRulesForCountry, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
 import { useSiteContact } from "@/components/layout/SiteContactProvider";
 import type { OtbRequestValues } from "@/lib/validation/otb-schema";
@@ -34,7 +34,8 @@ export function Step2ProcessingType() {
   const destinationCountry = useWatch({ control, name: "destinationCountry" });
   const departureTime = useWatch({ control, name: "departureTime" });
   const { state, airlines } = useOtbAirlines();
-  const calendar = useWorkingCalendar("INDIA");
+  // Client doc 16 Nov (K10) — India + the destination country's working days and holidays, like the server.
+  const calendar = useProcessingCalendar(destinationCountry);
   const { state: optionsState, options: masterOptions } = useProcessingTypes("OTB");
   const offeredCodes = masterOptions.map((option) => option.code);
 

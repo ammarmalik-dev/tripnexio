@@ -9,8 +9,8 @@ export default function AdminHolidaysPage() {
       <div>
         <h1 className="text-xl font-semibold text-ink-heading">Holidays</h1>
         <p className="text-sm text-ink-tertiary">
-          Public holidays for India and the UAE. Working-day rules (OTB timelines, New Visa minimum days, the Visa
-          Extension same-day deadline) skip active holidays. Weekend days and business hours are set in System Config.
+          Public holidays and weekly offs for India and each destination country. Processing time (TAT) skips the holidays
+          and weekly offs of both India and the destination country. Business hours are set in System Config.
         </p>
       </div>
       <HolidaysManager />

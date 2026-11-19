@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { CalendarClock } from "lucide-react";
-import { useWorkingCalendar } from "@/lib/calendar/use-working-calendar";
+import { useProcessingCalendar } from "@/lib/calendar/use-working-calendar";
 import { earliestOtbTravelDates } from "@/lib/otb/processing-rules";
 import { Step2ProcessingType } from "./Step2ProcessingType";
 import { TextField } from "@/components/forms/TextField";
@@ -34,7 +34,8 @@ export function Step1BasicDetails() {
   const { state, airlines } = useOtbAirlines();
   const airlineCode = useWatch({ control, name: "airline" });
   const destinationCountry = useWatch({ control, name: "destinationCountry" });
-  const calendar = useWorkingCalendar("INDIA");
+  // Client doc 16 Nov (K10) — India + the destination country's working days and holidays, like the server.
+  const calendar = useProcessingCalendar(destinationCountry);
   // Client doc 2026-10-14 — destination country first, then only the airlines Admin priced OTB for in that country.
   const countryAirlines = useMemo(
     () =>

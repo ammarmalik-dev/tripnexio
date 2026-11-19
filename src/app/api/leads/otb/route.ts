@@ -15,7 +15,7 @@ import { createReturnTicketRequest } from "@/lib/return-ticket/create-request";
 import { linkServiceBookings } from "@/lib/return-ticket/operations";
 import { getOtbGlobalRules, resolveAirlineRules } from "@/lib/otb/get-otb-rules";
 import { evaluateOtbTravelDate } from "@/lib/otb/processing-rules";
-import { getWorkingCalendar } from "@/lib/calendar/get-working-calendar";
+import { getProcessingCalendar } from "@/lib/calendar/get-working-calendar";
 import { createTask } from "@/lib/tasks/create-task";
 import { describeError } from "@/lib/api/describe-error";
 import { isActiveProcessingType } from "@/lib/processing-types/get";
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     const rules = resolveAirlineRules(airlineRecord, await getOtbGlobalRules(), await otbUrgentAvailable(airlineRecord.id, destinationCountry));
     // P09 — enforced against the Admin-configured India working calendar
     // (weekends, holidays, business hours, timezone).
-    const outcome = evaluateOtbTravelDate(travelDate, rules, new Date(), await getWorkingCalendar("INDIA"), departureTime || null);
+    const outcome = evaluateOtbTravelDate(travelDate, rules, new Date(), await getProcessingCalendar(destinationCountry), departureTime || null);
     if (outcome.status === "BLOCKED") {
       return jsonError(400, outcome.message ?? "That travel date can't be processed.", { travelDate: [outcome.message ?? "Choose a later date."] });
     }

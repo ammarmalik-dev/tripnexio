@@ -1,7 +1,7 @@
 import { db } from "../db";
 import type { HolidayCountry } from "../../generated/prisma/enums";
 import { getSystemConfig } from "../settings/system-config";
-import { DEFAULT_WORKING_CALENDAR, parseWeekendDays, type WorkingCalendar } from "./working-calendar";
+import { DEFAULT_WORKING_CALENDAR, mergeCalendars, parseWeekendDays, type WorkingCalendar } from "./working-calendar";
 
 const LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -51,7 +51,7 @@ export async function getWorkingCalendarForCountry(countryCode: string): Promise
   if (legacyByName) return getWorkingCalendar(legacyByName);
   try {
     const config = await getSystemConfig();
-    const raw = await db.systemConfig.findUnique({ where: { id: "singleton" }, select: { workdayStartHour: true, workdayEndHour: true } });
+    const raw = await db.systemConfig.findUnique({ where: { id: "singleton" }, select: { workdayStartHour: true, workdayEndHour: true, weekendDaysUae: true } });
     const country = await db.country.findFirst({ where: { code: { equals: code, mode: "insensitive" } }, select: { id: true, weekendDays: true } });
     const now = Date.now();
     const holidays = country
@@ -60,7 +60,9 @@ export async function getWorkingCalendarForCountry(countryCode: string): Promise
           select: { date: true },
         })
       : [];
-    const weekend = country?.weekendDays ? parseWeekendDays(country.weekendDays) : [];
+    // Client doc 16 Nov (K10) — a country without its own weekly offs uses the System Configuration's Destination
+    // Country default (stored in the old weekendDaysUae column).
+    const weekend = country?.weekendDays ? parseWeekendDays(country.weekendDays) : raw?.weekendDaysUae ? parseWeekendDays(raw.weekendDaysUae) : [];
     return {
       weekendDays: weekend.length > 0 ? weekend : DEFAULT_WORKING_CALENDAR.weekendDays,
       holidays: holidays.map((holiday) => holiday.date.toISOString().slice(0, 10)),
@@ -108,4 +110,16 @@ export async function getWorkingCalendar(country: HolidayCountry): Promise<Worki
     console.error("[calendar] couldn't load the working calendar, using defaults", error);
     return DEFAULT_WORKING_CALENDAR;
   }
+}
+
+/**
+ * Client doc 16 Nov (K10) — the calendar a service's processing time (TAT) is counted on: India's working days and
+ * holidays together with the destination country's (each country's own weekly offs from Admin → Holidays). Without a
+ * destination (or for India itself) it is India's calendar.
+ */
+export async function getProcessingCalendar(destinationCountryCode: string | null | undefined): Promise<WorkingCalendar> {
+  const india = await getWorkingCalendar("INDIA");
+  const code = destinationCountryCode?.trim();
+  if (!code || LEGACY_COUNTRY_MATCH.INDIA.codes.includes(code.toUpperCase())) return india;
+  return mergeCalendars(india, await getWorkingCalendarForCountry(code));
 }

@@ -50,3 +50,28 @@ export function useCountryWorkingCalendar(countryCode: string | null | undefined
   }, [countryCode]);
   return calendar;
 }
+
+/**
+ * Client doc 16 Nov (K10) — the processing calendar for a destination (India + that country), or India's alone until a
+ * destination is chosen. The Monday-Friday default until it loads; the server re-checks on submit.
+ */
+export function useProcessingCalendar(countryCode: string | null | undefined): WorkingCalendar {
+  const [calendar, setCalendar] = useState<WorkingCalendar>(DEFAULT_WORKING_CALENDAR);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const url = countryCode ? `/api/working-calendar?countryCode=${encodeURIComponent(countryCode)}` : "/api/working-calendar?country=INDIA";
+        const result = await getJson<WorkingCalendar>(url);
+        if (!cancelled) setCalendar(result);
+      } catch {
+        // Keep the default — the server enforces the real calendar on submit.
+      }
+    }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [countryCode]);
+  return calendar;
+}
