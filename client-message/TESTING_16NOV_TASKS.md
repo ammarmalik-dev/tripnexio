@@ -140,7 +140,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] J8 Sales Overview: Converted Leads instead of Qualified; Sales vs Ops dashboard cards/filters per doc — unit 5: Command Centre shows Converted Leads instead of Qualified. Sales / Ops split of cards + filters still open
 - [ ] J9 Admin Sales Tracker: targets per POC, metrics, filters
 - [x] J10 Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations, Bookings — unit 5: Entry Source filter (Website / WhatsApp / Manual) on Leads, Quotations and Bookings — Manual = staff-created (details.manualEntry), WhatsApp = bot, Website = the rest; also via ?entrySource=
-- [ ] J11 Manual lead: edit instead of separate Add Passenger
+- [x] J11 Manual lead: edit instead of separate Add Passenger — unit 9: manual lead → Service Details → Edit details (travel date; flight route + return date; visa expiry for VE / VC; Return Ticket expected return date) until it is paid, with a reason, audited DETAILS_UPDATED old → new (PATCH /api/leads/[id]/details); no Add passenger on a manual lead — its passengers are edited in Applicants. Tested via API + browser
 - [x] J12 WhatsApp bot abandoned leads for every service — unit 6: once the bot has the name + email (or knows the customer) an abandoned draft lead is created for that service (draftChannel WhatsApp, Sales auto-assign) and refreshed with each answer (country / airline / date / processing); the finished request takes the same lead over
 - [x] J13 Reference IDs like Q-6UOFRN → configured serial format; "Booking" instead of "Application ID" — unit 1: quotation reference + proforma number = lead serial (11026VC105-Q2)
 

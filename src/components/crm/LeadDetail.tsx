@@ -1,5 +1,6 @@
 "use client";
 
+import { LeadDetailsEditor } from "./LeadDetailsEditor";
 import { useEffect, useState, type ReactNode } from "react";
 import { PurgedFileTag } from "./PurgedFileTag";
 import { DocumentFileLinks } from "./DocumentFileLinks";
@@ -264,6 +265,7 @@ export function LeadDetail({
   ]);
   // (New Visa/Visa Extension/Return Ticket store an applicant-wise list under details.applicants.)
   const detailEntries = Object.entries(lead.details).filter(([key]) => !INTERNAL_DETAIL_KEYS.has(key));
+  const leadPaid = lead.bookings.some((booking) => booking.payments.some((payment) => payment.status === "SUCCESS"));
   const selectedQuotation = lead.quotations.find((quotation) => quotation.isSelected && !quotation.isExpired);
   // Client doc 2026-10-20 (C6) — once a booking was paid (even if later cancelled / refunded) no new booking is offered.
   const hasActiveBooking = lead.bookings.some((booking) => booking.status !== "CANCELLED" || booking.payments.some((payment) => payment.status === "SUCCESS"));
@@ -393,7 +395,15 @@ export function LeadDetail({
             label: "Overview",
             content: (
               <div className="flex flex-col gap-5">
-                <RecordSection title="Service Details">
+                <RecordSection
+                  title="Service Details"
+                  action={
+                    // Client doc 16 Nov (J11) — a manual lead's details are edited here until it is paid.
+                    lead.details.manualEntry === true && !leadPaid ? (
+                      <LeadDetailsEditor leadId={lead.id} serviceType={lead.serviceType} details={lead.details} onSaved={refresh} />
+                    ) : undefined
+                  }
+                >
                   {detailEntries.length === 0 ? (
                     <p className="text-sm text-ink-tertiary">No captured details.</p>
                   ) : (
@@ -599,7 +609,8 @@ export function LeadDetail({
                   <ApplicantsTable
                     applicants={lead.applicants}
                     // Client doc 2026-10-27 (C12) — no passenger can be added free of charge once the lead is paid.
-                    editable={{ leadId: lead.id, onChanged: refresh, canAdd: !lead.bookings.some((booking) => booking.payments.some((payment) => payment.status === "SUCCESS")) }}
+                    // Client doc 16 Nov (J11) — a manual lead has no separate Add Passenger: its passengers are edited.
+                    editable={{ leadId: lead.id, onChanged: refresh, canAdd: !leadPaid && lead.details.manualEntry !== true }}
                   />
                 </RecordSection>
                 <RecordSection title="Passengers & Documents">
