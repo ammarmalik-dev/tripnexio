@@ -45,7 +45,8 @@ export async function GET(request: NextRequest) {
         },
         serviceStatus: { select: { name: true, customerLabel: true } },
         payments: { orderBy: { createdAt: "desc" }, take: 1 },
-        _count: { select: { passengers: true } },
+        // Client doc 16 Nov (H2) — the PAX count is the passengers still travelling (cancelled / rejected left out).
+        _count: { select: { passengers: { where: { OR: [{ outcome: null }, { outcome: { notIn: ["CANCELLED", "REJECTED"] } }] } } } },
       },
       orderBy: { createdAt: sort === "createdAt_asc" ? "asc" : "desc" },
       skip: (page - 1) * pageSize,

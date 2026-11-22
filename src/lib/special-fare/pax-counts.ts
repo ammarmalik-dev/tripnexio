@@ -17,24 +17,31 @@ function count(value: unknown): number {
  * count as adults. Used to show the counts on the quote and to price a quote
  * from its per-passenger fares (client doc 2026-10-14).
  */
-export async function specialFarePaxCounts(lead: { details: unknown; paxCount: number | null }): Promise<PaxCounts> {
+export async function specialFarePaxCounts(lead: { id?: string; details: unknown; paxCount: number | null }): Promise<PaxCounts> {
   const details = (lead.details ?? {}) as Record<string, unknown>;
+  // Client doc 16 Nov (H2 / A14 item 14) — a passenger cancelled on this lead's booking is no longer counted: a new
+  // quotation is for the remaining passengers only.
+  const cancelled = lead.id
+    ? await db.bookingPassenger.findMany({ where: { booking: { leadId: lead.id }, outcome: { in: ["CANCELLED", "REJECTED"] } }, select: { passengerId: true } })
+    : [];
+  const cancelledIds = new Set(cancelled.map((row) => row.passengerId));
   // The counts the customer gave (bot / manual lead) — client doc 2026-10-20 (A4): never fewer travellers than these.
   const asked = { adult: count(details.adultCount ?? details.adults), child: count(details.childCount ?? details.children), infant: count(details.infantCount ?? details.infants) };
   const askedTotal = asked.adult + asked.child + asked.infant;
   const ids = Array.isArray(details.passengerIds) ? details.passengerIds.filter((id): id is string => typeof id === "string") : [];
   if (ids.length > 0) {
-    const passengers = await db.passenger.findMany({ where: { id: { in: ids } }, select: { paxType: true } });
+    const passengers = await db.passenger.findMany({ where: { id: { in: ids } }, select: { id: true, paxType: true } });
     if (passengers.length > 0 && passengers.length >= askedTotal) {
+      const active = passengers.filter((p) => !cancelledIds.has(p.id));
       return {
-        adult: passengers.filter((p) => (p.paxType ?? "ADULT") === "ADULT").length,
-        child: passengers.filter((p) => p.paxType === "CHILD").length,
-        infant: passengers.filter((p) => p.paxType === "INFANT").length,
+        adult: active.filter((p) => (p.paxType ?? "ADULT") === "ADULT").length,
+        child: active.filter((p) => p.paxType === "CHILD").length,
+        infant: active.filter((p) => p.paxType === "INFANT").length,
       };
     }
   }
-  if (askedTotal > 0) return asked;
-  return { adult: Math.max(1, lead.paxCount ?? 1), child: 0, infant: 0 };
+  if (askedTotal > 0) return { ...asked, adult: Math.max(0, asked.adult - cancelledIds.size) };
+  return { adult: Math.max(1, (lead.paxCount ?? 1) - cancelledIds.size), child: 0, infant: 0 };
 }
 
 /**
