@@ -13,6 +13,7 @@ import { deliverOutput } from "@/lib/outputs/deliver-output";
 import { describeError } from "@/lib/api/describe-error";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
+import { checkTicketUpload, describeTicketMismatches, ticketExpectations } from "@/lib/special-fare/ticket-check";
 import {
   alternativeOptionSchema,
   confirmAvailability,
@@ -96,6 +97,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       if (issuedIds.has(null)) return jsonError(409, "A ticket for every passenger was already delivered.");
       const pending = input.passengerIds.filter((pid) => !issuedIds.has(pid));
       if (pending.length === 0) return jsonError(409, "Those passengers already have their ticket.");
+      // Client doc 16 Nov (A6) — the ticket is read and compared with the booking (passenger names, PNR, route, date)
+      // before it is saved; a difference blocks the upload with a clear message. Admin may override an OCR misread.
+      const pendingNames = booking.passengers.filter((row) => pending.includes(row.passengerId)).map((row) => row.passenger.fullName);
+      const ticketCheck = await checkTicketUpload(input.fileBase64, await ticketExpectations(booking.leadId, booking.pnr, pendingNames));
+      const overrideCheck = Boolean(input.overrideTicketCheckReason) && session.permissions.includes(ADMIN_FULL_PERMISSION);
+      if (ticketCheck.mismatches.length > 0 && !overrideCheck) {
+        return jsonError(422, describeTicketMismatches(ticketCheck.mismatches), { fileBase64: ticketCheck.mismatches.map((item) => `${item.field}: ticket "${item.ticket}" vs booking "${item.expected}"`) });
+      }
       let fileUrl: string;
       try {
         fileUrl = (await saveUploadedFile(input.fileBase64)).url;
@@ -116,7 +125,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           entityId: id,
           action: "FSF_TICKET_ISSUED",
           byUserId: session.id,
-          note: `Ticket delivered for ${names.join(", ")}${input.baggage ? `; baggage ${input.baggage}` : ""} (by ${session.name})`,
+          note: `Ticket delivered for ${names.join(", ")}${input.baggage ? `; baggage ${input.baggage}` : ""}${
+            ticketCheck.checked ? (ticketCheck.mismatches.length > 0 ? `; ticket check overridden by Admin: ${input.overrideTicketCheckReason}` : "; ticket details matched the booking") : "; ticket not machine-checked (OCR unavailable)"
+          } (by ${session.name})`,
         });
       });
       // P09 delivery -> once every passenger has a ticket, DELIVERED_TICKET_PDF -> "Ticket Issued"; the customer gets each ticket.

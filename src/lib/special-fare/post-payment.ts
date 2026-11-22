@@ -396,4 +396,6 @@ export const issueTicketSchema = z.object({
   passengerIds: z.array(z.string().min(1)).min(1, "Select the passenger(s) this ticket is for"),
   baggage: optionalText(120),
   fileBase64: z.string().min(1, "Choose the ticket file"),
+  /** Client doc 16 Nov (A6) — Admin only: upload although the ticket check found a difference (an OCR misread), with a reason. */
+  overrideTicketCheckReason: z.string().trim().min(5, "Give a reason (at least 5 characters)").max(500).optional(),
 });

@@ -9,6 +9,7 @@ import { getJson, postJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { SpecialFareAlternativeForm } from "./SpecialFareAlternativeForm";
+import { useHasPermission } from "./StaffPermissions";
 
 export interface SpecialFareBookingView {
   finalConfirmedAt: string | null;
@@ -125,6 +126,10 @@ export function SpecialFareActionsPanel({
     };
   }, [showAlternative, options, bookingId]);
 
+  // Client doc 16 Nov (A6) — the ticket didn't match the booking: the reason stays on screen; an Admin may override.
+  const [ticketCheckError, setTicketCheckError] = useState<string | null>(null);
+  const [ticketOverrideReason, setTicketOverrideReason] = useState("");
+  const isAdmin = useHasPermission("admin.full");
   const run = async (key: string, body: Record<string, unknown>) => {
     setPending(key);
     try {
@@ -134,8 +139,11 @@ export function SpecialFareActionsPanel({
       setOverrideReason("");
       setTicketFile(null);
       setTicketFor([]);
+      setTicketCheckError(null);
+      setTicketOverrideReason("");
       onChanged();
     } catch (error) {
+      if (key === "ISSUE_TICKET" && error instanceof ApiError && error.status === 422) setTicketCheckError(error.message);
       toast.error(error instanceof ApiError ? error.message : "Couldn't complete this action. Please try again.");
     } finally {
       setPending(null);
@@ -167,7 +175,8 @@ export function SpecialFareActionsPanel({
       toast.error("The ticket file is too large (8MB max).");
       return;
     }
-    await run("ISSUE_TICKET", { action: "ISSUE_TICKET", passengerIds: chosen, fileBase64: await readAsBase64(ticketFile) });
+    const override = ticketCheckError && isAdmin && ticketOverrideReason.trim().length >= 5 ? { overrideTicketCheckReason: ticketOverrideReason.trim() } : {};
+    await run("ISSUE_TICKET", { action: "ISSUE_TICKET", passengerIds: chosen, fileBase64: await readAsBase64(ticketFile), ...override });
   };
 
   const offer = view.alternativeOffer;
@@ -321,9 +330,31 @@ export function SpecialFareActionsPanel({
               <span className="rounded-md border border-hairline bg-surface-1 px-3 py-2 text-sm text-ink-primary">{view.quoteBaggage || "—"}</span>
             </div>
             <FormField label="Ticket file (PDF, PNG or JPG)" htmlFor={`sf-ticket-${bookingId}`}>
-              <FilePickerButton id={`sf-ticket-${bookingId}`} accept={ALLOWED_TICKET_TYPES.join(",")} fileName={ticketFile?.name ?? null} onFile={setTicketFile} disabled={pending !== null} />
+              <FilePickerButton
+                id={`sf-ticket-${bookingId}`}
+                accept={ALLOWED_TICKET_TYPES.join(",")}
+                fileName={ticketFile?.name ?? null}
+                onFile={(file) => {
+                  setTicketFile(file);
+                  setTicketCheckError(null);
+                }}
+                disabled={pending !== null}
+              />
             </FormField>
           </div>
+          {ticketCheckError ? (
+            <div role="alert" className="flex flex-col gap-2 rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-sm text-error">
+              <p>{ticketCheckError}</p>
+              {isAdmin ? (
+                <TextField
+                  label="Admin: upload anyway — reason (e.g. the OCR misread the ticket)"
+                  name="ticketOverrideReason"
+                  value={ticketOverrideReason}
+                  onChange={(event) => setTicketOverrideReason(event.target.value)}
+                />
+              ) : null}
+            </div>
+          ) : null}
           <div className="flex justify-end">
             <Button type="button" size="sm" onClick={() => void submitTicket()} isLoading={pending === "ISSUE_TICKET"} disabled={pending !== null || !ticketFile || chosen.length === 0}>
               Upload &amp; Deliver Ticket
