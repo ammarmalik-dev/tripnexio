@@ -78,8 +78,8 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] F4 Booking summary: Visa Fee / Service Charge / Total separately — unit 6: New Visa summary shows Visa Fee and the configured Service Charge on separate lines, then GST, gateway fee, total
 - [x] F5 Workflow validation (backend + UI): document actions only on real uploads; additional docs / visa upload / rejection only after Applied; approval needs Visa PDF; no Hold after approval — unit 2b: document actions need an uploaded file, additional docs / visa upload / rejection only after Applied, approval needs the visa PDF, no hold after approval
 - [ ] F6 After applied: request only the Visa Copy, not a package
-- [ ] F7 Visa Type column shows Tourist / Transit / Any (not "New Visa"); service details: stay, entry (validity only if enabled)
-- [ ] F8 Visa Validity: hidden everywhere customer/staff-facing; country-wise Admin toggle (off by default)
+- [x] F7 Visa Type column shows Tourist / Transit / Any (not "New Visa"); service details: stay, entry (validity only if enabled) — unit 12: CRM Leads / Bookings / Payments show the New Visa visa type (Tourist / Transit / Any) in the Service column instead of New Visa; Service Details = Stay · Entry only (type not repeated)
+- [x] F8 Visa Validity: hidden everywhere customer/staff-facing; country-wise Admin toggle (off by default) — unit 12: validity hidden everywhere (website, bot, CRM) unless Admin turns on Show visa validity for that country on its New Visa page (Country.showVisaValidity, migration 20261123120000, off by default)
 - [ ] F9 Pricing form: one form per visa product with all nationality × Adult/Child × Normal/Express prices; filters; remove the separate New Visa button
 - [ ] F10 Nationality-wise document configuration; document descriptions everywhere (website, bot, CRM)
 - [ ] F11 Service-specific nationalities (only enabled ones, no "All Nationalities")

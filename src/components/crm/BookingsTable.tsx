@@ -38,6 +38,8 @@ interface BookingListItem {
   createdAt: string;
   serviceType: ServiceType;
   subService: string | null;
+  /** Client doc 16 Nov (F7) — New Visa: Tourist / Transit / Any. */
+  visaTypeLabel?: string | null;
   /** Client doc 2026-10-15 (C4) — Normal / Urgent / Express. */
   processing: string | null;
   urgent: boolean;
@@ -461,7 +463,10 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                     <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                       <CountryCell name={booking.countryName} code={booking.countryCode} flag={booking.countryFlag} />
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[booking.serviceType]}</td>
+                    <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading" title={SERVICE_TYPE_LABELS[booking.serviceType]}>
+                    {/* Client doc 16 Nov (F7) — New Visa rows show the visa type (Tourist / Transit / Any). */}
+                    {booking.visaTypeLabel ?? SERVICE_TYPE_LABELS[booking.serviceType]}
+                  </td>
                     <td className="px-3 py-3 text-ink-secondary">
                       <span className="line-clamp-2" title={serviceDetailsText(booking.subService, booking.serviceDetails)}>
                         {serviceDetailsText(booking.subService, booking.serviceDetails)}

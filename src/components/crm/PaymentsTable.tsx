@@ -39,6 +39,8 @@ interface PaymentListItem {
   customer: { name: string; mobile: string; email: string | null };
   serviceType: ServiceType;
   subService: string | null;
+  /** Client doc 16 Nov (F7) — New Visa: Tourist / Transit / Any. */
+  visaTypeLabel?: string | null;
   serviceDetails?: string | null;
   /** Client doc 2026-10-15 (C4) — Normal / Urgent / Express. */
   processing: string | null;
@@ -294,7 +296,10 @@ export function PaymentsTable() {
                   <td className="px-4 py-3 whitespace-nowrap text-ink-secondary">
                     <CountryCell name={payment.countryName} code={payment.countryCode} flag={payment.countryFlag} />
                   </td>
-                  <td className="px-4 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[payment.serviceType]}</td>
+                  <td className="px-4 py-3 whitespace-nowrap font-semibold text-ink-heading" title={SERVICE_TYPE_LABELS[payment.serviceType]}>
+                    {/* Client doc 16 Nov (F7) — New Visa rows show the visa type (Tourist / Transit / Any). */}
+                    {payment.visaTypeLabel ?? SERVICE_TYPE_LABELS[payment.serviceType]}
+                  </td>
                   <td className="px-4 py-3 text-ink-secondary">
                     <span className="line-clamp-2">{[payment.subService, payment.serviceDetails].filter(Boolean).join(" · ") || "—"}</span>
                   </td>

@@ -1344,6 +1344,9 @@ model Country {
   /// (0 = Sunday … 6 = Saturday), e.g. "0" or "5,6". Null = the System
   /// Configuration default. Admin → Holidays sets it per country.
   weekendDays  String?
+  /// Client doc 16 Nov (F8) — show the New Visa validity (e.g. "30 Days") to customers and staff.
+  /// Off by default: validity stays an Admin-only product attribute.
+  showVisaValidity Boolean @default(false)
   active       Boolean  @default(true)
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())

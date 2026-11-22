@@ -10,7 +10,7 @@ import { AWAITING_QUOTE_SERVICES } from "@/lib/quotations/awaiting";
 import { isUrgentRequest } from "@/lib/crm/urgency";
 import { leadListWhere } from "@/lib/leads/list-where";
 import { PAYMENT_FAILED_STATUSES, latestBookingPaymentSelect, latestPaymentFailedStatus } from "@/lib/crm/payment-failed";
-import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { serviceDetailsLine, newVisaTypeLabel } from "@/lib/crm/service-details";
 import { newVisaOptionFiller } from "@/lib/new-visa/option-labels";
 import { countryFlagEmoji } from "@/lib/countries/flag";
 import { processingLabel, resolveSubServices } from "@/lib/crm/list-labels";
@@ -75,6 +75,7 @@ export async function GET(request: NextRequest) {
     countryFlag: lead.country ? countryFlagEmoji(lead.country) : null,
     countryCode: lead.country?.code ?? null,
     serviceDetails: serviceDetailsLine(lead.serviceType, fillOption(lead.details)),
+    visaTypeLabel: newVisaTypeLabel(lead.serviceType, fillOption(lead.details)),
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paxCount: lead.paxCount,
     subService: subServices[index],

@@ -28,7 +28,7 @@ export async function manualLeadServiceDetails(data: ManualLeadValues): Promise<
       const product = data.newVisaConfigId
         ? await db.newVisaCountryConfig.findUnique({
             where: { id: data.newVisaConfigId },
-            select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true, validityType: { select: { name: true } } },
+            select: { id: true, stayDays: true, duration: true, entryKind: true, entryType: true, visaCategory: true, validityType: { select: { name: true } }, country: { select: { showVisaValidity: true } } },
           })
         : null;
       const nationality = data.nationalityId ? await db.nationality.findFirst({ where: { id: data.nationalityId, active: true }, select: { id: true, name: true } }) : null;

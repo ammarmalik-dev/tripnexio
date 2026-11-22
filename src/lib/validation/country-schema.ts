@@ -23,6 +23,8 @@ export const createCountrySchema = z.object({
     ),
   displayOrder: z.number().int().default(0),
   active: z.boolean().default(true),
+  /** Client doc 16 Nov (F8) — show the New Visa validity for this country (off by default). */
+  showVisaValidity: z.boolean().default(false),
   /** Client corrections 2026-10-05 — weekend day numbers (0 = Sunday … 6 = Saturday), e.g. "5,6"; null = System Configuration default. */
   weekendDays: z
     .string()

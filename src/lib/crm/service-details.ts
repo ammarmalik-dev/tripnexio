@@ -38,11 +38,11 @@ export function serviceDetailsLine(serviceType: ServiceType, details: unknown, e
 
   switch (serviceType) {
     case "NEW_VISA": {
-      // Client doc 2026-10-20 (E7) — the option already ends with its category; don't repeat it.
-      const visaType = text(data.visaType);
+      // Client doc 16 Nov (F7) — the visa type sits in the Service column (newVisaTypeLabel): only Stay · Entry here.
       const option = text(data.visaOption);
-      const repeated = visaType && option?.toLowerCase().includes(visaType.toLowerCase());
-      return join([visaType && !repeated ? capitalise(visaType) : null, option], " | ");
+      if (option) return option;
+      const visaType = text(data.visaType);
+      return visaType ? capitalise(visaType) : null;
     }
     case "OTB":
       // Client doc 2026-10-20 (L6) — the travel date has its own column; not repeated here.
@@ -70,4 +70,17 @@ export function serviceDetailsLine(serviceType: ServiceType, details: unknown, e
     default:
       return null;
   }
+}
+
+/**
+ * Client doc 16 Nov (F7) — CRM tables show the actual visa type (Tourist / Transit / Any) for New Visa, not
+ * "New Visa". Reads the category the option filler adds (or an older lead's own visa type). null for other services.
+ */
+export function newVisaTypeLabel(serviceType: string, details: unknown): string | null {
+  if (serviceType !== "NEW_VISA") return null;
+  const data = details && typeof details === "object" && !Array.isArray(details) ? (details as Record<string, unknown>) : {};
+  const category = typeof data.visaCategory === "string" && data.visaCategory.trim() ? data.visaCategory.trim() : null;
+  const legacy = typeof data.visaType === "string" && data.visaType.trim() && data.visaType !== "NEW_VISA" ? data.visaType.trim() : null;
+  const value = category ?? legacy ?? "Any";
+  return value.charAt(0).toUpperCase() + value.slice(1);
 }

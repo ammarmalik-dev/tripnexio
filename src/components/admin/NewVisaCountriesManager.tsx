@@ -24,6 +24,39 @@ interface CountryData {
   name: string;
   code: string;
   active: boolean;
+  showVisaValidity?: boolean;
+}
+
+/** Client doc 16 Nov (F8) — per country: show the product's validity to customers and staff (off by default). */
+function VisaValidityToggle({ country, onChanged }: { country: CountryData; onChanged: (updated: CountryData) => void }) {
+  const [saving, setSaving] = useState(false);
+  const enabled = country.showVisaValidity === true;
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      const updated = await patchJson<CountryData>(`/api/admin/countries/${country.id}`, { showVisaValidity: !enabled });
+      onChanged(updated);
+      toast.success(!enabled ? `Visa validity is now shown for ${country.name}.` : `Visa validity is now hidden for ${country.name}.`);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't change the setting. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-card px-4 py-3">
+      <div>
+        <p className="text-sm font-semibold text-ink-heading">Show visa validity</p>
+        <p className="text-xs text-ink-tertiary">
+          Off: customers, the WhatsApp bot and the CRM see only Stay, Entry and Category. On: the validity is shown too.
+        </p>
+      </div>
+      <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-secondary">
+        <input type="checkbox" className="h-4 w-4 accent-[var(--color-accent)]" checked={enabled} disabled={saving} onChange={() => void toggle()} />
+        {enabled ? "Shown" : "Hidden"}
+      </label>
+    </div>
+  );
 }
 
 interface ConfigData {
@@ -606,9 +639,13 @@ export function NewVisaCountriesManager({ countryId }: { countryId?: string } = 
 
   // P10 — a country can have several products (stay duration x entry type).
   const availableCountries = countries.filter((c) => c.active);
+  const currentCountry = countryId ? countries.find((c) => c.id === countryId) : undefined;
 
   return (
     <div className="flex flex-col gap-4">
+      {currentCountry ? (
+        <VisaValidityToggle country={currentCountry} onChanged={(updated) => setCountries((current) => current.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)))} />
+      ) : null}
       {visibleConfigs.length === 0 ? (
         <EmptyState
           title={countryId ? "No New Visa products for this country yet" : "No New Visa countries yet"}

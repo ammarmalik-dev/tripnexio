@@ -429,7 +429,7 @@ async function getNewVisaProductOptions(countryCode: string) {
   const configs = await db.newVisaCountryConfig.findMany({
     where: { active: true, country: { code: countryCode, active: true } },
     orderBy: [{ displayOrder: "asc" }, { stayDays: "asc" }, { createdAt: "asc" }],
-    include: { validityType: { select: { name: true } } },
+    include: { validityType: { select: { name: true } }, country: { select: { showVisaValidity: true } } },
   });
   return configs.map((config) => ({ value: config.id, label: productLabel(config) }));
 }

@@ -59,9 +59,11 @@ export function productLabel(config: {
   visaCategory?: string | null;
   /** Client 2026-10-25 — several options per country: the validity tells two otherwise-equal options apart. */
   validityType?: { name: string } | null;
+  /** Client doc 16 Nov (F8) — validity is shown only for countries where Admin turned it on. */
+  country?: { showVisaValidity: boolean } | null;
 }): string {
   const category = config.visaCategory?.trim();
-  const validity = config.validityType?.name.trim();
+  const validity = config.country?.showVisaValidity ? config.validityType?.name.trim() : undefined;
   return [productStayLabel(config), productEntryLabel(config), ...(category ? [category] : []), ...(validity ? [`Validity ${validity}`] : [])].join(" · ");
 }
 

@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { serviceDetailsLine, newVisaTypeLabel } from "@/lib/crm/service-details";
 import { newVisaOptionFiller } from "@/lib/new-visa/option-labels";
 import { paymentListQuerySchema } from "@/lib/validation/payment-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
     // Client testing 2026-10-09 (E13) — the shared list layout.
     serviceType: payment.booking.lead.serviceType,
     subService: subServices[index],
+    visaTypeLabel: newVisaTypeLabel(payment.booking.lead.serviceType, fillOption(payment.booking.lead.details)),
     serviceDetails: serviceDetailsLine(payment.booking.lead.serviceType, fillOption(payment.booking.lead.details), {
       airlineName: airlineNames.get(String((payment.booking.lead.details as Record<string, unknown> | null)?.airline ?? "")) ?? null,
     }),

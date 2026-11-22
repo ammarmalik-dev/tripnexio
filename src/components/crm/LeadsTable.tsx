@@ -39,6 +39,8 @@ interface LeadListItem {
   travelDate: string | null;
   paxCount: number | null;
   subService: string | null;
+  /** Client doc 16 Nov (F7) — New Visa: Tourist / Transit / Any. */
+  visaTypeLabel?: string | null;
   /** Client doc 2026-10-15 (C4) — Normal / Urgent / Express. */
   processing: string | null;
   countryCode: string | null;
@@ -488,7 +490,10 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
                   <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">
                     <CountryCell name={lead.countryName} code={lead.countryCode} flag={lead.countryFlag} />
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading">{SERVICE_TYPE_LABELS[lead.serviceType]}</td>
+                  <td className="px-3 py-3 whitespace-nowrap font-semibold text-ink-heading" title={SERVICE_TYPE_LABELS[lead.serviceType]}>
+                    {/* Client doc 16 Nov (F7) — New Visa rows show the visa type (Tourist / Transit / Any). */}
+                    {lead.visaTypeLabel ?? SERVICE_TYPE_LABELS[lead.serviceType]}
+                  </td>
                   <td className="px-3 py-3 text-ink-secondary">
                     <span className="line-clamp-2" title={serviceDetailsText(lead.subService, lead.serviceDetails)}>
                       {serviceDetailsText(lead.subService, lead.serviceDetails)}

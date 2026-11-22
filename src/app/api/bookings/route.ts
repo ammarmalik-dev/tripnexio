@@ -11,7 +11,7 @@ import { assertServiceAction } from "@/lib/auth/service-actions";
 import { leadReference } from "@/lib/leads/reference";
 import { isUrgentRequest } from "@/lib/crm/urgency";
 import { bookingListWhere } from "@/lib/bookings/list-where";
-import { serviceDetailsLine } from "@/lib/crm/service-details";
+import { serviceDetailsLine, newVisaTypeLabel } from "@/lib/crm/service-details";
 import { newVisaOptionFiller } from "@/lib/new-visa/option-labels";
 import { DIRECT_VENDOR_NAME } from "@/lib/bookings/vendor-names";
 import { countryFlagEmoji } from "@/lib/countries/flag";
@@ -85,6 +85,7 @@ export async function GET(request: NextRequest) {
     // Client testing 2026-10-09 (E13) — flag + short code next to the country, and the service details line.
     countryCode: booking.lead.country?.code ?? null,
     countryFlag: booking.lead.country ? countryFlagEmoji(booking.lead.country) : null,
+    visaTypeLabel: newVisaTypeLabel(booking.lead.serviceType, fillOption(booking.lead.details)),
     serviceDetails: serviceDetailsLine(booking.lead.serviceType, fillOption(booking.lead.details), {
       airlineName: airlineNames.get(String((booking.lead.details as Record<string, unknown> | null)?.airline ?? "")) ?? null,
     }),
