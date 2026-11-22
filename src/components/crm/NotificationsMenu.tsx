@@ -1,5 +1,6 @@
 "use client";
 
+import { WHATSAPP_UNREAD_EVENT } from "./whatsapp-unread";
 import { useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Inbox, Loader2, Volume2, VolumeX } from "lucide-react";
@@ -86,7 +87,10 @@ export function NotificationsMenu() {
         const data = await getJson<StaffNotificationFeed>("/api/crm/notifications");
         if (cancelled) return;
         const previous = lastUnreadRef.current;
-        if (previous !== null && data.unreadCount > previous && data.sound) {
+        // Client doc 16 Nov (L1) — a new WhatsApp message chimes too, and its count shows on the WhatsApp Chats menu item.
+        const total = data.unreadCount + (data.whatsappUnread ?? 0);
+        window.dispatchEvent(new CustomEvent(WHATSAPP_UNREAD_EVENT, { detail: data.whatsappUnread ?? 0 }));
+        if (previous !== null && total > previous && data.sound) {
           const context = audioRef.current;
           if (context && context.state === "running") {
             try {
@@ -96,7 +100,7 @@ export function NotificationsMenu() {
             }
           }
         }
-        lastUnreadRef.current = data.unreadCount;
+        lastUnreadRef.current = total;
         setFeed(data);
         setSound(data.sound);
         setErrorMessage("");

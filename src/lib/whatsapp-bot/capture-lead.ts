@@ -1,4 +1,5 @@
 import type { ServiceType } from "../../generated/prisma/enums";
+import { autoAssignLead } from "../staff/auto-assign";
 import { db } from "../db";
 import { describeError } from "../api/describe-error";
 import { createLeadFromSubmission } from "../leads/create-lead";
@@ -195,6 +196,11 @@ export async function notifyWhatsAppChatMessage(input: { waId: string; profileNa
       });
       if (!recentUnlinked) await notifyUnlinkedChat(input.waId, input.profileName, input.text);
       return;
+    }
+    // Client doc 16 Nov (L1) — a chat whose lead has no POC yet goes to a Sales POC (fair round robin), who is alerted.
+    if (!target.pocId && target.leadId) {
+      await autoAssignLead(target.leadId, target.serviceType ?? "OTHER", { team: "SALES" }).catch(() => undefined);
+      target = (await chatTarget(await customerIdForWaId(input.waId), target.leadId)) ?? target;
     }
     const recent = await db.staffNotification.findFirst({
       where: { type: "WHATSAPP_CHAT", entityId: target.entityId, readAt: null, createdAt: { gte: new Date(Date.now() - CHAT_ALERT_COOLDOWN_MS) } },

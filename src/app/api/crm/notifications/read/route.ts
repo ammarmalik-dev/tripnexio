@@ -25,10 +25,12 @@ export async function POST(request: NextRequest) {
   try {
     const where =
       "all" in parsed.data
-        ? { userId: session.id, readAt: null }
-        : { userId: session.id, readAt: null, id: { in: parsed.data.ids } };
+        ? { userId: session.id, readAt: null, type: { not: "WHATSAPP_CHAT" } }
+        : "type" in parsed.data
+          ? { userId: session.id, readAt: null, type: parsed.data.type }
+          : { userId: session.id, readAt: null, id: { in: parsed.data.ids } };
     const result = await db.staffNotification.updateMany({ where, data: { readAt: new Date() } });
-    const unreadCount = await db.staffNotification.count({ where: { userId: session.id, readAt: null } });
+    const unreadCount = await db.staffNotification.count({ where: { userId: session.id, readAt: null, type: { not: "WHATSAPP_CHAT" } } });
     return jsonSuccess({ updated: result.count, unreadCount });
   } catch (error) {
     console.error("[api/crm/notifications/read]", (error as Error).name);

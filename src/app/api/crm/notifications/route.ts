@@ -1,4 +1,5 @@
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
+import { WHATSAPP_CHAT_NOTIFICATION } from "@/lib/validation/staff-notification-schema";
 import { db } from "@/lib/db";
 import { getStaffSession } from "@/lib/auth/staff-session";
 import type { StaffNotificationFeed } from "@/lib/validation/staff-notification-schema";
@@ -18,12 +19,13 @@ export async function GET() {
     // Sequential on purpose: this is polled every minute by every open CRM
     // tab, so it shouldn't take three pooled connections at once.
     const rows = await db.staffNotification.findMany({
-      where: { userId: session.id },
+      where: { userId: session.id, type: { not: WHATSAPP_CHAT_NOTIFICATION } },
       orderBy: { createdAt: "desc" },
       take: FEED_LIMIT,
       select: { id: true, type: true, title: true, body: true, link: true, readAt: true, createdAt: true },
     });
-    const unreadCount = await db.staffNotification.count({ where: { userId: session.id, readAt: null } });
+    const unreadCount = await db.staffNotification.count({ where: { userId: session.id, readAt: null, type: { not: WHATSAPP_CHAT_NOTIFICATION } } });
+    const whatsappUnread = await db.staffNotification.count({ where: { userId: session.id, readAt: null, type: WHATSAPP_CHAT_NOTIFICATION } });
     const user = await db.user.findUnique({ where: { id: session.id }, select: { notificationSound: true } });
 
     const feed: StaffNotificationFeed = {
@@ -33,6 +35,7 @@ export async function GET() {
         createdAt: row.createdAt.toISOString(),
       })),
       unreadCount,
+      whatsappUnread,
       sound: user?.notificationSound ?? false,
     };
     return jsonSuccess(feed);

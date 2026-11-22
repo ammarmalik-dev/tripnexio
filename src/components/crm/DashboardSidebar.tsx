@@ -1,5 +1,6 @@
 "use client";
 
+import { useWhatsAppUnread } from "./whatsapp-unread";
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronDown, PanelLeftClose, PanelLeftOpen, type LucideIcon } from "lucide-react";
@@ -98,6 +99,9 @@ export function DashboardSidebar({
 
 function NavLink({ item, active, narrow }: { item: CrmNavItem; active: boolean; narrow: boolean }) {
   const Icon: LucideIcon = item.icon;
+  // Client doc 16 Nov (L1) — new WhatsApp messages are counted on their own menu item.
+  const whatsappUnread = useWhatsAppUnread();
+  const badge = item.href === "/crm/whatsapp" && whatsappUnread > 0 ? whatsappUnread : 0;
   return (
     <Link
       href={item.href}
@@ -110,8 +114,16 @@ function NavLink({ item, active, narrow }: { item: CrmNavItem; active: boolean; 
         active ? "bg-[image:var(--gradient-accent)] text-white shadow-[0_4px_14px_rgb(62_111_219/0.35)]" : "text-ink-on-dark-secondary hover:bg-white/[0.07] hover:text-ink-on-dark-primary"
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <span className="relative shrink-0">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+        {badge && narrow ? <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-success" aria-hidden="true" /> : null}
+      </span>
       {narrow ? null : item.label}
+      {badge && !narrow ? (
+        <span className="ml-auto rounded-full bg-success px-1.5 py-0.5 text-[11px] font-semibold text-white" aria-label={`${badge} new WhatsApp message${badge === 1 ? "" : "s"}`}>
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
     </Link>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
+import { fieldBorderClass, fieldControlClass } from "@/components/forms/FormField";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageCircle, RotateCw } from "lucide-react";
+import { MessageCircle, RotateCw, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -41,6 +42,13 @@ export function WhatsAppChats() {
   const [selected, setSelected] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
   const [ending, setEnding] = useState(false);
+  const [section, setSection] = useState<"agent" | "bot">("agent");
+  const [query, setQuery] = useState("");
+
+  // Client doc 16 Nov (L1) — opening the chats clears their alerts on the menu item.
+  useEffect(() => {
+    void postJson("/api/crm/notifications/read", { type: "WHATSAPP_CHAT" }).catch(() => undefined);
+  }, [nonce]);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,7 +89,16 @@ export function WhatsAppChats() {
     return <EmptyState title="No WhatsApp chats yet" description="Conversations appear here as customers message the TripNexio WhatsApp number." />;
   }
 
-  const active = rows.find((row) => row.waId === selected) ?? rows[0];
+  // Client doc 16 Nov (L1) — Agent chats (handed to the team) and Bot chats apart; a search to open one directly.
+  const term = query.trim().toLowerCase();
+  const matches = (row: ChatRow) =>
+    !term || [row.customerName, row.waId, row.lead.reference ?? "", row.booking?.bookingId ?? ""].some((value) => value.toLowerCase().includes(term));
+  const listed = rows.filter((row) => (section === "agent" ? row.withTeam : !row.withTeam) && matches(row));
+  const agentCount = rows.filter((row) => row.withTeam).length;
+  const active = rows.find((row) => row.waId === selected) ?? listed[0] ?? rows[0];
+  const popOut = (leadId: string) => {
+    window.open(`/crm/chat-window/${leadId}`, `tn-chat-${leadId}`, "width=460,height=720,noopener=no");
+  };
 
   // Client doc 2026-10-20 (G4) — the agent closes the conversation; the bot answers the customer again.
   const endChat = async (waId: string) => {
@@ -100,15 +117,49 @@ export function WhatsAppChats() {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_1fr]">
       <div className="flex flex-col gap-2">
+        <div role="tablist" aria-label="Chat type" className="flex gap-1 rounded-lg bg-surface-2 p-1">
+          {(
+            [
+              ["agent", `Agent chats (${agentCount})`],
+              ["bot", `Bot chats (${rows.length - agentCount})`],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={section === value}
+              onClick={() => setSection(value)}
+              className={cn(
+                "flex-1 rounded-md px-2 py-1.5 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
+                section === value ? "bg-surface-1 text-ink-heading shadow-sm" : "text-ink-tertiary hover:text-ink-primary"
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <label htmlFor="whatsapp-chat-search" className="sr-only">
+          Find a chat
+        </label>
+        <input
+          id="whatsapp-chat-search"
+          type="search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Name, number, lead or booking ID"
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 text-sm")}
+        />
         <div className="flex items-center justify-between">
-          <span className="text-xs text-ink-tertiary">{rows.length} recent chats</span>
+          <span className="text-xs text-ink-tertiary">{listed.length} chats</span>
           <Button type="button" size="sm" variant="ghost" onClick={() => setNonce((n) => n + 1)}>
             <RotateCw className="h-4 w-4" aria-hidden="true" />
             Refresh
           </Button>
         </div>
         <ul className="flex max-h-[70vh] flex-col gap-1.5 overflow-y-auto">
-          {rows.map((row) => (
+          {listed.length === 0 ? <li className="px-1 py-3 text-xs text-ink-tertiary">No chats here.</li> : null}
+          {listed.map((row) => (
             <li key={row.waId}>
               <button
                 type="button"
@@ -158,6 +209,11 @@ export function WhatsAppChats() {
                 Open booking {active.booking.bookingId}
               </Link>
             ) : null}
+            {/* Client doc 16 Nov (L1) — keep chatting in a small window while working elsewhere in the CRM. */}
+            <Button type="button" size="sm" variant="ghost" onClick={() => popOut(active.lead.id)}>
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />
+              Pop out
+            </Button>
             <Link href={`/crm/leads/${active.lead.id}#tab-communication`} className="inline-flex h-8 items-center rounded-md border border-hairline px-3 text-xs font-semibold text-ink-primary">
               Open lead {active.lead.reference ?? ""}
             </Link>
