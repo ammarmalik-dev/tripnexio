@@ -354,6 +354,12 @@ body {
   max-width: 18rem;
 }
 
+/* Client doc 16 Nov (K2) — compact list rows, so at least ten fit on a laptop screen. */
+.crm-shell main .overflow-x-auto > table:not(:has(input, select, textarea)) tbody td {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
 /* The last column is usually a note / description (Audit Log, Config History): give it room to read. */
 .crm-shell main .overflow-x-auto > table:not(:has(input, select, textarea)) td:last-child {
   max-width: 32rem;

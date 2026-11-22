@@ -398,8 +398,8 @@ export function QuotationsTable() {
                     <Link href={`/crm/leads/${quotation.leadId}#tab-quotation`} className="font-semibold text-ink-accent hover:underline">
                       {quotation.leadReferenceId}
                     </Link>
+                    <span className="ml-1.5 text-xs whitespace-nowrap text-ink-tertiary">· {quotation.paxCount ?? "—"} PAX</span>
                     <ProcessingTag label={quotation.processing} />
-                    <span className="block text-xs text-ink-tertiary">{quotation.paxCount ?? "—"} PAX</span>
                   </td>
                   <td className="px-3 py-3">
                     <span className="block truncate font-semibold text-ink-heading">{quotation.customer.name}</span>

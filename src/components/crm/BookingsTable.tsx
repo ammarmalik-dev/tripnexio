@@ -450,8 +450,8 @@ export function BookingsTable({ detailBasePath = "/crm/bookings" }: { detailBase
                       <Link href={href} className="font-semibold text-ink-accent hover:underline">
                         {booking.bookingId}
                       </Link>
+                      <span className="ml-1.5 text-xs whitespace-nowrap text-ink-tertiary">· {booking.paxCount ?? "—"} PAX</span>
                       <ProcessingTag label={booking.processing} />
-                      <span className="block text-xs text-ink-tertiary">{booking.paxCount ?? "—"} PAX</span>
                     </td>
                     <td className="px-3 py-3">
                       <span className="block truncate font-semibold text-ink-heading">{booking.customer.name}</span>

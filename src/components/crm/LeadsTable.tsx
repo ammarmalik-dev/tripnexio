@@ -445,8 +445,8 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
                     <Link href={`/crm/leads/${lead.id}`} className="font-semibold text-ink-accent hover:underline">
                       {lead.referenceId}
                     </Link>
+                    <span className="ml-1.5 text-xs whitespace-nowrap text-ink-tertiary">· {lead.paxCount ?? "—"} PAX</span>
                     <ProcessingTag label={lead.processing} />
-                    <span className="block text-xs text-ink-tertiary">{lead.paxCount ?? "—"} PAX</span>
                     {lead.paymentFailedStatus || lead.abandoned || lead.awaitingQuotation ? (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {lead.awaitingQuotation ? (

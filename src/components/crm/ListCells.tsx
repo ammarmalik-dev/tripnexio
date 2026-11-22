@@ -7,7 +7,8 @@ import { FlagIcon } from "@/components/ui/FlagIcon";
  */
 export function ProcessingTag({ label }: { label: string | null | undefined }) {
   if (!label) return null;
-  if (label === "Normal") return <span className="block text-xs font-medium text-ink-secondary">Normal</span>;
+  // Client doc 16 Nov (K2) — only Express / Urgent is highlighted; Normal (the usual case) shows nothing.
+  if (label === "Normal") return null;
   return (
     <span className="mt-0.5 flex">
       <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-error/10 px-2 py-0.5 text-xs font-medium text-error" title={`${label} processing`}>

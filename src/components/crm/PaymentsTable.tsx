@@ -283,8 +283,8 @@ export function PaymentsTable() {
                     <Link href={`/crm/bookings/${payment.bookingId}`} className="font-semibold text-ink-accent hover:underline">
                       {payment.bookingDisplayId}
                     </Link>
+                    <span className="ml-1.5 text-xs whitespace-nowrap text-ink-tertiary">· {payment.paxCount ?? "—"} PAX</span>
                     <ProcessingTag label={payment.processing} />
-                    <span className="block text-xs text-ink-tertiary">{payment.paxCount ?? "—"} PAX</span>
                   </td>
                   <td className="px-4 py-3">
                     <span className="block font-semibold text-ink-heading">{payment.customer.name}</span>
