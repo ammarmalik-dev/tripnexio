@@ -24,9 +24,9 @@ export interface SpecialFareAlternativeView {
   cancellationCharge?: number | null;
   noShowCharge?: number | null;
   customerCancellationPolicy?: string | null;
-  direction: "HIGHER" | "LOWER" | "SAME";
+  direction: "HIGHER" | "LOWER" | "SAME" | "NONE";
   difference: number;
-  decision: "PAY" | "REFUND" | null;
+  decision: "PAY" | "ACCEPT" | "REFUND" | null;
 }
 
 function formatDateTime(value: string): string {
@@ -35,20 +35,18 @@ function formatDateTime(value: string): string {
 }
 
 /**
- * P16 — Flight_Special_Fare.md §18 on the booking's payment page: the paid
- * flight became unavailable. For a higher-fare alternative the customer
- * chooses "Pay Additional Amount" or "Request Refund" — never forced into
- * the higher fare. Lower/same-fare alternatives are shown for information
- * (a lower fare's difference is refunded automatically).
+ * P16 — Flight_Special_Fare.md §18 on the booking's payment page: the paid flight became unavailable.
+ * Client doc 16 Nov (A11) — the customer always chooses: Approve Alternative (a higher fare: pay the difference; a
+ * lower fare: the difference is refunded) or Request Refund. With no alternative yet, only Request Refund.
  */
 export function SpecialFareAlternativeCard({ token, offer, onChanged }: { token: string; offer: SpecialFareAlternativeView; onChanged: () => void }) {
-  const [pending, setPending] = useState<"PAY" | "REFUND" | null>(null);
+  const [pending, setPending] = useState<"PAY" | "ACCEPT" | "REFUND" | null>(null);
 
-  const choose = async (choice: "PAY" | "REFUND") => {
+  const choose = async (choice: "PAY" | "ACCEPT" | "REFUND") => {
     setPending(choice);
     try {
-      await postJson(`/api/pay/${token}/special-fare-choice`, { choice });
-      toast.success(choice === "PAY" ? "Great — please complete the additional payment below." : "Your refund request was raised. Our team will process it.");
+      const result = await postJson<{ message: string }>(`/api/pay/${token}/special-fare-choice`, { choice });
+      toast.success(choice === "REFUND" ? "Your refund request was raised. Our team will process it." : result.message);
       onChanged();
     } catch (error) {
       toast.error(error instanceof ApiError ? error.message : "Couldn't save your choice. Please try again.");
@@ -67,7 +65,8 @@ export function SpecialFareAlternativeCard({ token, offer, onChanged }: { token:
       </h2>
       <div className="flex flex-col gap-1 text-sm text-ink-secondary">
         <p className="font-medium text-ink-primary">
-          Alternative option{flight ? `: ${flight}` : ""}
+          {offer.direction === "NONE" ? "No alternative yet" : "Alternative option"}
+          {flight ? `: ${flight}` : ""}
           {offer.route ? ` · ${offer.route}` : ""}
         </p>
         {offer.flightDateTime ? (
@@ -103,31 +102,49 @@ export function SpecialFareAlternativeCard({ token, offer, onChanged }: { token:
         {offer.customerCancellationPolicy ? <p>{offer.customerCancellationPolicy}</p> : null}
       </div>
 
-      {offer.direction === "HIGHER" && !offer.decision ? (
+      {offer.decision === "PAY" ? (
+        <p className="text-sm text-ink-primary">You approved the alternative. Once the additional payment is received we&apos;ll issue your ticket.</p>
+      ) : offer.decision === "ACCEPT" ? (
+        <p className="text-sm text-ink-primary">
+          You approved the alternative — we&apos;re booking it{offer.direction === "LOWER" ? ` and refunding the ${formatRupees(-offer.difference)} difference` : ""}.
+        </p>
+      ) : offer.decision === "REFUND" ? (
+        <p className="text-sm text-ink-primary">You requested a refund. Our team is processing it.</p>
+      ) : (
         <>
           <p className="text-sm text-ink-primary">
-            This alternative costs <span className="font-semibold">{formatRupees(offer.difference)}</span> more (plus applicable GST and gateway fee). You
-            can pay the additional amount, or request a full refund instead — the choice is yours.
+            {offer.direction === "NONE" ? (
+              <>Our team is looking for an alternative flight. If you&apos;d rather not wait, you can request a full refund now.</>
+            ) : offer.direction === "HIGHER" ? (
+              <>
+                This alternative costs <span className="font-semibold">{formatRupees(offer.difference)}</span> more (plus applicable GST and gateway fee). Approve
+                it and pay the difference, or request a full refund — the choice is yours.
+              </>
+            ) : offer.direction === "LOWER" ? (
+              <>
+                This alternative costs <span className="font-semibold">{formatRupees(-offer.difference)}</span> less — approve it and the difference is refunded to
+                you, or request a full refund instead.
+              </>
+            ) : (
+              <>This alternative is at the same fare. Approve it, or request a full refund instead — the choice is yours.</>
+            )}
           </p>
           <div className="flex flex-wrap gap-3">
-            <Button type="button" onClick={() => void choose("PAY")} isLoading={pending === "PAY"} disabled={pending !== null}>
-              Pay Additional Amount
-            </Button>
+            {offer.direction !== "NONE" ? (
+              <Button
+                type="button"
+                onClick={() => void choose(offer.direction === "HIGHER" ? "PAY" : "ACCEPT")}
+                isLoading={pending === "PAY" || pending === "ACCEPT"}
+                disabled={pending !== null}
+              >
+                {offer.direction === "HIGHER" ? "Approve & Pay Difference" : "Approve Alternative"}
+              </Button>
+            ) : null}
             <Button type="button" variant="ghost" onClick={() => void choose("REFUND")} isLoading={pending === "REFUND"} disabled={pending !== null}>
               Request Refund
             </Button>
           </div>
         </>
-      ) : offer.decision === "PAY" ? (
-        <p className="text-sm text-ink-primary">You chose the alternative. Once the additional payment is received we&apos;ll issue your ticket.</p>
-      ) : offer.decision === "REFUND" ? (
-        <p className="text-sm text-ink-primary">You requested a refund. Our team is processing it.</p>
-      ) : offer.direction === "LOWER" ? (
-        <p className="text-sm text-ink-primary">
-          We&apos;ve booked the alternative for you. It costs {formatRupees(-offer.difference)} less, and the difference is being refunded.
-        </p>
-      ) : (
-        <p className="text-sm text-ink-primary">We&apos;ve booked the alternative for you at the same fare.</p>
       )}
     </section>
   );

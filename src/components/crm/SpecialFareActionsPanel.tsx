@@ -22,7 +22,7 @@ export interface SpecialFareBookingView {
     vendorName?: string | null;
     direction: "HIGHER" | "LOWER" | "SAME" | "NONE";
     difference: number;
-    decision: "PAY" | "REFUND" | null;
+    decision: "PAY" | "ACCEPT" | "REFUND" | null;
   } | null;
   pnr: string | null;
   pnrVendorReference: string | null;
@@ -219,11 +219,20 @@ export function SpecialFareActionsPanel({
 
       {offer ? (
         <p className="rounded-lg bg-surface-2 px-4 py-3 text-sm text-ink-secondary">
+          {/* Client doc 16 Nov (A11) — nothing is refunded or confirmed until the customer chooses. */}
           {offer.direction === "NONE"
-            ? "Flight unavailable — no suitable alternative; full refund raised."
+            ? `Flight unavailable — no alternative yet. Customer: ${offer.decision === "REFUND" ? "requested a refund (raised)" : "not decided yet (can request a refund; add an alternative if you find one)"}.`
             : `Alternative ${[offer.airline, offer.flightNumber].filter(Boolean).join(" ")} ${offer.route ?? ""} at ₹${offer.sellingPrice ?? "—"}${offer.vendorCost != null ? ` (cost ₹${offer.vendorCost}${offer.vendorName ? `, ${offer.vendorName}` : ""} — internal)` : ""} — ${
-                offer.direction === "HIGHER" ? `₹${offer.difference} higher` : offer.direction === "LOWER" ? `₹${-offer.difference} lower (difference refund raised)` : "same fare"
-              }${offer.direction === "HIGHER" ? ` · customer: ${offer.decision === "PAY" ? "paying the difference" : offer.decision === "REFUND" ? "requested refund" : "not decided yet"}` : ""}`}
+                offer.direction === "HIGHER" ? `₹${offer.difference} higher` : offer.direction === "LOWER" ? `₹${-offer.difference} lower` : "same fare"
+              } · customer: ${
+                offer.decision === "PAY"
+                  ? "approved, paying the difference"
+                  : offer.decision === "ACCEPT"
+                    ? `approved${offer.direction === "LOWER" ? " (difference refund raised)" : ""}`
+                    : offer.decision === "REFUND"
+                      ? "requested a refund (raised)"
+                      : "not decided yet"
+              }`}
         </p>
       ) : null}
 
@@ -255,7 +264,7 @@ export function SpecialFareActionsPanel({
           ) : null}
           <label className="flex items-center gap-2 text-sm text-ink-secondary">
             <input type="checkbox" checked={noAlternative} onChange={(e) => setNoAlternative(e.target.checked)} />
-            No suitable alternative (full refund)
+            No alternative yet (the customer may request a refund)
           </label>
           {!noAlternative ? (
             options ? (

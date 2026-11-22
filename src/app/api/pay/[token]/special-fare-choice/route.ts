@@ -12,7 +12,8 @@ interface RouteParams {
   params: Promise<{ token: string }>;
 }
 
-const choiceSchema = z.object({ choice: z.enum(["PAY", "REFUND"]) });
+/** Client doc 16 Nov (A11) — ACCEPT approves a same / lower-fare alternative; PAY a higher one (pays the difference). */
+const choiceSchema = z.object({ choice: z.enum(["PAY", "ACCEPT", "REFUND"]) });
 
 /**
  * P16 — Flight_Special_Fare.md §18: the paid flight became unavailable and
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Invalid request body.");
   }
   const parsed = choiceSchema.safeParse(body);
-  if (!parsed.success) return jsonError(400, "Choose to pay the difference or request a refund.");
+  if (!parsed.success) return jsonError(400, "Choose to approve the alternative or request a refund.");
 
   const booking = await db.booking.findUnique({ where: { customerToken: token }, include: { customer: true, lead: true } });
   if (!booking || booking.lead.serviceType !== "FLIGHT_SPECIAL_FARE") return jsonError(404, "Page not found.");

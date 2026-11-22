@@ -87,7 +87,8 @@ export interface AlternativeOffer extends Partial<Omit<AlternativeOptionInput, "
   /** Alternative selling price minus what was paid for the original fare (before GST/gateway). */
   difference: number;
   offeredAt: string;
-  decision: "PAY" | "REFUND" | null;
+  /** Client doc 16 Nov (A11) — ACCEPT = the customer approved a same / lower-fare alternative. */
+  decision: "PAY" | "ACCEPT" | "REFUND" | null;
   decidedAt: string | null;
 }
 
@@ -99,7 +100,7 @@ export function parseAlternativeOffer(raw: unknown): AlternativeOffer | null {
 
 /** Customer-safe view of an offer (no vendor cost). */
 export function customerAlternativeOffer(offer: AlternativeOffer | null) {
-  if (!offer || offer.direction === "NONE") return null;
+  if (!offer) return null;
   return {
     airline: offer.airline ?? null,
     flightNumber: offer.flightNumber ?? null,
@@ -243,24 +244,22 @@ export async function markUnavailable(bookingId: string, input: AlternativeOptio
   const result = await db.$transaction(async (tx): Promise<Result> => {
     const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { id: true, leadId: true, alternativeOffer: true } });
     if (!booking) return { ok: false as const, httpStatus: 404, error: "Booking not found." };
-    // Already marked unavailable with no alternative: its full refund is raised — never a second "unavailable".
-    if (parseAlternativeOffer(booking.alternativeOffer)?.direction === "NONE") {
-      return { ok: false as const, httpStatus: 409, error: "This booking is already marked unavailable — its full refund has been raised." };
-    }
+    // Client doc 16 Nov (A11) — once the customer has chosen, the offer is final. Marked unavailable without an
+    // alternative (still waiting): staff may still add the alternative they found.
+    const existing = parseAlternativeOffer(booking.alternativeOffer);
+    if (existing?.decision) return { ok: false as const, httpStatus: 409, error: "The customer has already chosen for this booking." };
+    if (existing && existing.direction !== "NONE") return { ok: false as const, httpStatus: 409, error: "An alternative is already waiting for the customer's choice." };
+    if (existing?.direction === "NONE" && !alternative) return { ok: false as const, httpStatus: 409, error: "Already marked unavailable — add the alternative you found, or wait for the customer's choice." };
     const now = new Date().toISOString();
 
     if (!alternative) {
-      // Client doc 2026-10-20 — no suitable alternative: a full refund (Refund Pending). The booking passes through
-      // "Seat Unavailable" (its alternative message has nothing to offer here, so only Refund Pending's goes out).
-      await throughSeatUnavailable(tx, bookingId, actor);
-      const moved = await moveTo(tx, bookingId, "REFUND_RAISED", "Flight unavailable — no suitable alternative", actor);
-      if (!moved.ok) return moved;
+      // Client doc 16 Nov (A11) — no automatic refund: the booking goes to "Seat Unavailable" and the customer chooses
+      // Request Refund on their page (or staff add an alternative they find). Nothing is refunded until that choice.
+      const seat = await throughSeatUnavailable(tx, bookingId, actor);
       const offer: AlternativeOffer = { direction: "NONE", difference: 0, offeredAt: now, decision: null, decidedAt: null };
       await tx.booking.update({ where: { id: bookingId }, data: { alternativeOffer: offer as unknown as Prisma.InputJsonValue } });
-      const refunds = await raiseFullRefundForBooking(tx, { bookingId, reason: "Special Fare unavailable — no suitable alternative (full refund)", actorLabel: actor.label });
-      raisedRefundIds.push(...refunds.map((refund) => refund.id));
-      await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_UNAVAILABLE", byUserId: actor.userId, note: `Flight unavailable, no alternative — full refund raised (${refunds.length} refund(s), ${actor.label})` });
-      return { ok: true as const, notifications: [moved.notification], message: "Full refund raised — it needs approval in Refunds." };
+      await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_UNAVAILABLE", byUserId: actor.userId, note: `Flight unavailable, no alternative yet — the customer is asked to choose; no refund raised until they do (${actor.label})` });
+      return { ok: true as const, notifications: [seat], message: "Marked unavailable — the customer chooses Request Refund on their page; add an alternative here if you find one." };
     }
 
     const base = await paidFareBase(tx, booking.leadId);
@@ -273,42 +272,18 @@ export async function markUnavailable(bookingId: string, input: AlternativeOptio
     // Client 2026-10-23 audit — the system enters "Seat Unavailable" (SF_27) first.
     const seatNotice = await throughSeatUnavailable(tx, bookingId, actor);
 
-    if (direction === "HIGHER") {
-      // The "Alternative Offered" message carries the same alternative and the fare difference, so SF_27 isn't sent too.
-      const moved = await moveTo(tx, bookingId, "FSF_ALTERNATIVE_OFFERED", `Alternative ${alternative.route} offered — ₹${difference} more`, actor);
-      if (!moved.ok) return moved;
-      await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_ALTERNATIVE_OFFERED", byUserId: actor.userId, note: `Flight unavailable; alternative ${alternative.route} at ₹${alternative.sellingPrice} (₹${difference} higher) — customer to choose pay or refund (${actor.label})` });
-      return { ok: true as const, notifications: [moved.notification], message: "Alternative offered — the customer chooses to pay the difference or get a refund on their payment page." };
-    }
-
-    // Lower or the same fare: the booking proceeds on the alternative; a lower fare's difference is refunded.
-    const moved = await moveTo(tx, bookingId, "FSF_AVAILABILITY_CONFIRMED", `Alternative ${alternative.route} confirmed (${direction === "LOWER" ? `₹${-difference} lower` : "same fare"})`, actor);
+    // Client doc 16 Nov (A11) — every alternative (higher, same or lower fare) waits for the customer: Approve
+    // Alternative or Request Refund. Never confirmed, sent to the airline or refunded automatically.
+    const moved = await moveTo(tx, bookingId, "FSF_ALTERNATIVE_OFFERED", `Alternative ${alternative.route} offered (${direction === "HIGHER" ? `₹${difference} more` : direction === "LOWER" ? `₹${-difference} less` : "same fare"})`, actor);
     if (!moved.ok) return moved;
-    await tx.booking.update({ where: { id: bookingId }, data: { finalConfirmedAt: new Date() } });
-    await applyAlternativeCost(tx, booking.leadId, bookingId, alternative, actor);
-    let note = `Flight unavailable; alternative ${alternative.route} at ₹${alternative.sellingPrice} — same fare, proceeding`;
-    if (direction === "LOWER") {
-      const primary = await tx.payment.findFirst({ where: { bookingId, status: "SUCCESS" }, orderBy: { createdAt: "asc" } });
-      let refundAmount = -difference;
-      if (primary) {
-        // Refund the difference together with the GST charged on it.
-        const net = Number(primary.amount) - Number(primary.couponDiscount ?? 0);
-        // Client doc 2026-10-27 (C5/F2) — a payment with a service-fee snapshot charged GST on that fixed fee only, so a
-        // fare difference (pass-through) carries no GST; older payments taxed the whole amount.
-        const gstRate = primary.invoiceServiceFee == null && net > 0 ? Number(primary.gstAmount) / net : 0;
-        refundAmount = round(-difference * (1 + gstRate));
-        const differenceRefund = await raiseRefund(tx, { paymentId: primary.id, amount: Math.min(refundAmount, paymentTotal(primary)), reason: `Special Fare alternative is ₹${-difference} cheaper — fare difference refund`, actorLabel: actor.label });
-        if (differenceRefund) raisedRefundIds.push(differenceRefund.id);
-      }
-      note = `Flight unavailable; alternative ${alternative.route} at ₹${alternative.sellingPrice} (₹${-difference} lower) — difference refund ₹${refundAmount} raised`;
-    }
-    await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_ALTERNATIVE_CONFIRMED", byUserId: actor.userId, note: `${note} (${actor.label})` });
-    return {
-      ok: true as const,
-      // "Seat Unavailable" tells the customer their flight changed to the alternative, then "Sent to Airlines".
-      notifications: [seatNotice, moved.notification],
-      message: direction === "LOWER" ? "Alternative confirmed — the fare difference refund was raised and needs approval." : "Alternative confirmed at the same fare.",
-    };
+    await writeAudit(tx, {
+      entityType: "Booking",
+      entityId: bookingId,
+      action: "FSF_ALTERNATIVE_OFFERED",
+      byUserId: actor.userId,
+      note: `Flight unavailable; alternative ${alternative.route} at ₹${alternative.sellingPrice} (${direction === "SAME" ? "same fare" : `₹${Math.abs(difference)} ${direction === "HIGHER" ? "higher" : "lower"}`}) — customer to approve or request a refund (${actor.label})`,
+    });
+    return { ok: true as const, notifications: [seatNotice, moved.notification].filter((item) => item !== null), message: "Alternative offered — the customer approves it or requests a refund on their payment page." };
   });
   await notifyRefundsRaised(raisedRefundIds);
   return result;
@@ -320,38 +295,64 @@ export async function markUnavailable(bookingId: string, input: AlternativeOptio
  * when they chose to pay — the caller creates the extra payment after this
  * transaction commits (the gateway call is external I/O).
  */
-export async function recordCustomerDecision(bookingId: string, decision: "PAY" | "REFUND"): Promise<Result & { payDifference?: number }> {
+export async function recordCustomerDecision(bookingId: string, choice: "PAY" | "ACCEPT" | "REFUND"): Promise<Result & { payDifference?: number }> {
   // P22 — see markUnavailable.
   const raisedRefundIds: string[] = [];
   const result = await db.$transaction(async (tx): Promise<Result & { payDifference?: number }> => {
-    const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { alternativeOffer: true } });
+    const booking = await tx.booking.findUnique({ where: { id: bookingId }, select: { leadId: true, alternativeOffer: true } });
     const offer = parseAlternativeOffer(booking?.alternativeOffer);
-    if (!offer || offer.direction !== "HIGHER") return { ok: false as const, httpStatus: 409, error: "There's no alternative waiting for your decision." };
+    if (!booking || !offer) return { ok: false as const, httpStatus: 409, error: "There's no alternative waiting for your decision." };
     if (offer.decision) return { ok: false as const, httpStatus: 409, error: "You've already made a choice for this alternative." };
+    if (offer.direction === "NONE" && choice !== "REFUND") return { ok: false as const, httpStatus: 409, error: "There's no alternative flight yet — you can request a refund, or wait for our team's alternative." };
     const actor = { label: "by the customer" };
-    const moved =
-      decision === "PAY"
-        ? await moveTo(tx, bookingId, "FSF_ADDITIONAL_PAYMENT_PENDING", `Customer chose to pay the ₹${offer.difference} difference`, actor)
-        : await moveTo(tx, bookingId, "REFUND_RAISED", "Customer declined the higher-fare alternative", actor);
-    if (!moved.ok) return moved;
+    // Client doc 16 Nov (A11) — approving a higher fare means paying the difference first.
+    const decision: "PAY" | "ACCEPT" | "REFUND" = choice === "REFUND" ? "REFUND" : offer.direction === "HIGHER" ? "PAY" : "ACCEPT";
+    const notifications: (StatusNotification | null)[] = [];
+    let note: string;
+    let message: string;
+
+    if (decision === "REFUND") {
+      const moved = await moveTo(tx, bookingId, "REFUND_RAISED", offer.direction === "NONE" ? "Customer requested a refund (flight unavailable)" : "Customer declined the alternative and requested a refund", actor);
+      if (!moved.ok) return moved;
+      notifications.push(moved.notification);
+      const refunds = await raiseFullRefundForBooking(tx, { bookingId, reason: "Special Fare unavailable — customer requested a refund (full refund)", actorLabel: "by the customer" });
+      raisedRefundIds.push(...refunds.map((refund) => refund.id));
+      note = "Customer requested a refund instead of the alternative (full refund raised)";
+      message = "Your refund request was raised.";
+    } else if (decision === "PAY") {
+      const moved = await moveTo(tx, bookingId, "FSF_ADDITIONAL_PAYMENT_PENDING", `Customer chose to pay the ₹${offer.difference} difference`, actor);
+      if (!moved.ok) return moved;
+      notifications.push(moved.notification);
+      note = `Customer approved the alternative and chose to pay the ₹${offer.difference} fare difference`;
+      message = "Please complete the additional payment.";
+    } else {
+      // Same or lower fare: the booking proceeds on the alternative; a lower fare's difference is refunded.
+      const moved = await moveTo(tx, bookingId, "FSF_AVAILABILITY_CONFIRMED", `Customer approved the alternative ${offer.route ?? ""}`.trim(), actor);
+      if (!moved.ok) return moved;
+      notifications.push(moved.notification);
+      await tx.booking.update({ where: { id: bookingId }, data: { finalConfirmedAt: new Date() } });
+      await applyAlternativeCost(tx, booking.leadId, bookingId, offer, actor);
+      note = `Customer approved the alternative ${offer.route ?? ""} at the same fare`;
+      message = "Thank you — we'll book the alternative flight.";
+      if (offer.direction === "LOWER") {
+        const primary = await tx.payment.findFirst({ where: { bookingId, status: "SUCCESS" }, orderBy: { createdAt: "asc" } });
+        let refundAmount = -offer.difference;
+        if (primary) {
+          // Refund the difference with the GST charged on it (a service-fee snapshot payment charged GST on the fee only).
+          const net = Number(primary.amount) - Number(primary.couponDiscount ?? 0);
+          const gstRate = primary.invoiceServiceFee == null && net > 0 ? Number(primary.gstAmount) / net : 0;
+          refundAmount = round(-offer.difference * (1 + gstRate));
+          const differenceRefund = await raiseRefund(tx, { paymentId: primary.id, amount: Math.min(refundAmount, paymentTotal(primary)), reason: `Special Fare alternative is ₹${-offer.difference} cheaper — fare difference refund`, actorLabel: actor.label });
+          if (differenceRefund) raisedRefundIds.push(differenceRefund.id);
+        }
+        note = `Customer approved the alternative ${offer.route ?? ""} (₹${-offer.difference} lower) — difference refund ₹${refundAmount} raised`;
+        message = "Thank you — we'll book the alternative flight and refund the fare difference.";
+      }
+    }
     const updated: AlternativeOffer = { ...offer, decision, decidedAt: new Date().toISOString() };
     await tx.booking.update({ where: { id: bookingId }, data: { alternativeOffer: updated as unknown as Prisma.InputJsonValue } });
-    if (decision === "REFUND") {
-      const refunds = await raiseFullRefundForBooking(tx, { bookingId, reason: "Customer declined the higher-fare Special Fare alternative (full refund)", actorLabel: "by the customer" });
-      raisedRefundIds.push(...refunds.map((refund) => refund.id));
-    }
-    await writeAudit(tx, {
-      entityType: "Booking",
-      entityId: bookingId,
-      action: "FSF_CUSTOMER_DECISION",
-      note: decision === "PAY" ? `Customer chose to pay the ₹${offer.difference} fare difference` : "Customer requested a refund instead of the higher fare (full refund raised)",
-    });
-    return {
-      ok: true as const,
-      notifications: [moved.notification],
-      message: decision === "PAY" ? "Please complete the additional payment." : "Your refund request was raised.",
-      payDifference: decision === "PAY" ? offer.difference : undefined,
-    };
+    await writeAudit(tx, { entityType: "Booking", entityId: bookingId, action: "FSF_CUSTOMER_DECISION", note });
+    return { ok: true as const, notifications, message, payDifference: decision === "PAY" ? offer.difference : undefined };
   });
   await notifyRefundsRaised(raisedRefundIds);
   return result;
