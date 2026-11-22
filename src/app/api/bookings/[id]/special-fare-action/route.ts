@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { applySystemEvent, dispatchStatusNotifications } from "@/lib/service-status/engine";
 import { bookingActionBlock } from "@/lib/bookings/action-block";
 import { z } from "zod";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -7,7 +8,6 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
 import { writeAudit } from "@/lib/audit/log";
-import { dispatchStatusNotifications } from "@/lib/service-status/engine";
 import { saveUploadedFile, UploadValidationError } from "@/lib/storage/local-file-storage";
 import { deliverOutput } from "@/lib/outputs/deliver-output";
 import { describeError } from "@/lib/api/describe-error";
@@ -121,6 +121,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       });
       // P09 delivery -> once every passenger has a ticket, DELIVERED_TICKET_PDF -> "Ticket Issued"; the customer gets each ticket.
       await deliverOutput({ booking, outputType: "TICKET_PDF", passengerId: pending[0], passengerIds: pending, fileUrl, actor, verb: "issued and delivered" });
+      // Client doc 16 Nov (A5) — only some tickets out: the booking reads "Partially Issued" (CRM and website) until the rest.
+      if (!coversRest) {
+        const notification = await db.$transaction((tx) =>
+          applySystemEvent(tx, { scope: "BOOKING", entityId: id, event: "FSF_PARTIALLY_ISSUED", userId: session.id, actorLabel: `${session.name} (partial ticket issue)` })
+        );
+        await dispatchStatusNotifications([notification]);
+      }
       return jsonSuccess({ message: coversRest ? "Ticket delivered — every passenger now has a ticket." : `Ticket delivered for ${names.join(", ")}.` });
     }
 

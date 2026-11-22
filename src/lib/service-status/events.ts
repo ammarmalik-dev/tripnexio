@@ -33,6 +33,8 @@ export const SERVICE_STATUS_SYSTEM_EVENTS = [
   // P16 — Flight Special Fare post-payment operations.
   "FSF_FINAL_CONFIRMATION",
   "FSF_AVAILABILITY_CONFIRMED",
+  // Client doc 16 Nov (A5) — some passengers' tickets issued.
+  "FSF_PARTIALLY_ISSUED",
   "FSF_ALTERNATIVE_OFFERED",
   "FSF_ADDITIONAL_PAYMENT_PENDING",
   "FSF_REFUND_PENDING",
@@ -107,6 +109,7 @@ export const SYSTEM_EVENT_LABELS: Record<ServiceStatusSystemEvent | typeof HOLD_
   VC_EXIT_COMPLETED: "Visa Change: exit completed",
   FSF_FINAL_CONFIRMATION: "Special Fare: awaiting final confirmation",
   FSF_AVAILABILITY_CONFIRMED: "Special Fare: availability confirmed",
+  FSF_PARTIALLY_ISSUED: "Special Fare: some tickets issued",
   FSF_ALTERNATIVE_OFFERED: "Special Fare: alternative offered",
   FSF_ADDITIONAL_PAYMENT_PENDING: "Special Fare: additional payment pending",
   FSF_REFUND_PENDING: "Special Fare: refund pending",
