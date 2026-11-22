@@ -42,7 +42,8 @@ export function WhatsAppChats() {
   const [selected, setSelected] = useState<string | null>(null);
   const [nonce, setNonce] = useState(0);
   const [ending, setEnding] = useState(false);
-  const [section, setSection] = useState<"agent" | "bot">("agent");
+  // null = pick automatically: Agent chats when there are any, else Bot chats.
+  const [chosenSection, setSection] = useState<"agent" | "bot" | null>(null);
   const [query, setQuery] = useState("");
 
   // Client doc 16 Nov (L1) — opening the chats clears their alerts on the menu item.
@@ -93,9 +94,11 @@ export function WhatsAppChats() {
   const term = query.trim().toLowerCase();
   const matches = (row: ChatRow) =>
     !term || [row.customerName, row.waId, row.lead.reference ?? "", row.booking?.bookingId ?? ""].some((value) => value.toLowerCase().includes(term));
-  const listed = rows.filter((row) => (section === "agent" ? row.withTeam : !row.withTeam) && matches(row));
   const agentCount = rows.filter((row) => row.withTeam).length;
-  const active = rows.find((row) => row.waId === selected) ?? listed[0] ?? rows[0];
+  const section = chosenSection ?? (agentCount > 0 ? "agent" : "bot");
+  const listed = rows.filter((row) => (section === "agent" ? row.withTeam : !row.withTeam) && matches(row));
+  // The open chat is always one from the list shown.
+  const active = listed.find((row) => row.waId === selected) ?? listed[0] ?? null;
   const popOut = (leadId: string) => {
     window.open(`/crm/chat-window/${leadId}`, `tn-chat-${leadId}`, "width=460,height=720,noopener=no");
   };
@@ -164,10 +167,10 @@ export function WhatsAppChats() {
               <button
                 type="button"
                 onClick={() => setSelected(row.waId)}
-                aria-current={row.waId === active.waId ? "true" : undefined}
+                aria-current={row.waId === active?.waId ? "true" : undefined}
                 className={cn(
                   "flex w-full flex-col gap-1 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:ring-2 focus-visible:ring-accent focus-visible:outline-none",
-                  row.waId === active.waId ? "border-accent/40 bg-accent/5" : "border-hairline bg-surface-1 hover:bg-surface-2"
+                  row.waId === active?.waId ? "border-accent/40 bg-accent/5" : "border-hairline bg-surface-1 hover:bg-surface-2"
                 )}
               >
                 <span className="flex items-center justify-between gap-2">
@@ -187,6 +190,11 @@ export function WhatsAppChats() {
         </ul>
       </div>
 
+      {!active ? (
+        <section className="flex items-center justify-center rounded-xl border border-dashed border-hairline bg-surface-1 p-8 text-sm text-ink-tertiary">
+          {section === "agent" ? "No customer is waiting for an agent right now." : "No bot chats match."}
+        </section>
+      ) : (
       <section className="flex flex-col gap-3 rounded-xl border border-hairline bg-surface-1 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -221,6 +229,7 @@ export function WhatsAppChats() {
         </div>
         <CommunicationsPanel key={active.lead.id} leadId={active.lead.id} />
       </section>
+      )}
     </div>
   );
 }
