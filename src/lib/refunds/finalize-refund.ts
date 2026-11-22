@@ -1,4 +1,5 @@
 import type { Prisma } from "../../generated/prisma/client";
+import { completeTicketCancellation } from "../special-fare/ticket-cancellation";
 import type { RefundStatus } from "../../generated/prisma/enums";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
@@ -69,6 +70,13 @@ export async function applyRefundStatus(
   });
   const totalRefunded = Number(completed._sum.refundAmount ?? 0);
   const fullyRefunded = totalPaid > 0 && totalRefunded + 0.001 >= totalPaid;
+
+  // Client doc 16 Nov (A12) — a Special Fare ticket cancellation ends at "Ticket Cancelled" once its refund completes.
+  const ticketFlow = await completeTicketCancellation(tx, booking.id, refund.passengerIds, { userId: actor.userId, label: actor.label });
+  if (ticketFlow.handled) {
+    if (ticketFlow.notification) notifications.push(ticketFlow.notification);
+    return notifications;
+  }
 
   // The per-service status first (it may set the coarse status too), then the coarse REFUNDED.
   const statusNotification = await applySystemEvent(tx, {

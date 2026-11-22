@@ -13,6 +13,11 @@ import { deliverOutput } from "@/lib/outputs/deliver-output";
 import { describeError } from "@/lib/api/describe-error";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
+import type { Prisma } from "@/generated/prisma/client";
+import { applyTicketFlowAction, parseTicketFlow, ticketFlowActionSchema } from "@/lib/special-fare/ticket-cancellation";
+import { applyFlowStatus } from "@/lib/service-status/engine";
+import { notifyRefundsRaised } from "@/lib/staff-notifications/triggers";
+import { sendStatusTemplate, statusTemplateByName } from "@/lib/notifications/status-template";
 import { checkTicketUpload, describeTicketMismatches, ticketExpectations } from "@/lib/special-fare/ticket-check";
 import {
   alternativeOptionSchema,
@@ -37,6 +42,9 @@ const actionSchema = z.discriminatedUnion("action", [
   }),
   z.object({ action: z.literal("RECORD_PNR") }).extend(recordPnrSchema.shape),
   z.object({ action: z.literal("ISSUE_TICKET") }).extend(issueTicketSchema.shape),
+  // Client doc 16 Nov (A12–A14) — after the ticket: customer cancellation, airline cancellation / reschedule.
+  z.object({ action: z.literal("TICKET_FLOW"), flow: ticketFlowActionSchema }),
+  z.object({ action: z.literal("RESCHEDULE_TICKET"), fileBase64: z.string().min(1, "Choose the new ticket file") }),
 ]);
 
 /**
@@ -55,10 +63,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   // Client doc 2026-10-15 (C6) — only the record's own staff (or a manager / Admin) can act on it.
   const ownershipError = await assertOwnsEntity(auth.session, "booking", id);
   if (ownershipError) return ownershipError;
-  // Client doc 16 Nov (H3 / H4) — nothing more on a cancelled booking, or while a refund on it is open.
-  const actionBlock = await bookingActionBlock(id);
-  if (actionBlock) return jsonError(409, actionBlock);
-
   let body: unknown;
   try {
     body = await request.json();
@@ -67,6 +71,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   }
   const parsed = actionSchema.safeParse(body);
   if (!parsed.success) return jsonError(400, "Please check the highlighted fields.", parsed.error.flatten().fieldErrors);
+  // Client doc 16 Nov (H3 / H4) — nothing more on a cancelled booking, or while a refund on it is open.
+  const actionBlock = await bookingActionBlock(id);
+  if (actionBlock) return jsonError(409, actionBlock);
 
   const booking = await db.booking.findUnique({
     where: { id },
@@ -83,6 +90,40 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const input = parsed.data;
 
   try {
+    if (input.action === "TICKET_FLOW") {
+      const flowResult = await applyTicketFlowAction(id, input.flow, actor);
+      if (!flowResult.ok) return jsonError(flowResult.httpStatus, flowResult.error);
+      await dispatchStatusNotifications(flowResult.notifications);
+      if (flowResult.refundIds?.length) await notifyRefundsRaised(flowResult.refundIds);
+      if (flowResult.reschedule) {
+        const statusTemplate = await statusTemplateByName("FLIGHT_SPECIAL_FARE", "Rescheduled by Airline");
+        if (statusTemplate) {
+          await sendStatusTemplate({ event: statusTemplate.event, scope: "BOOKING", entityId: id, statusLabel: statusTemplate.label, extraVariables: { alternative_itinerary: flowResult.reschedule.itinerary } });
+        }
+      }
+      return jsonSuccess({ message: flowResult.message });
+    }
+
+    if (input.action === "RESCHEDULE_TICKET") {
+      // A14 — the customer accepted the airline's new schedule: the new ticket replaces the old one for every passenger.
+      const flow = parseTicketFlow(booking.ticketCancellation);
+      if (flow?.kind !== "AIRLINE_RESCHEDULED" || flow.stage !== "ACCEPTED_NEW") return jsonError(409, "Upload the new ticket after the customer accepts the airline's new schedule.");
+      let fileUrl: string;
+      try {
+        fileUrl = (await saveUploadedFile(input.fileBase64)).url;
+      } catch (error) {
+        if (error instanceof UploadValidationError) return jsonError(error.status, error.message);
+        throw error;
+      }
+      await deliverOutput({ booking, outputType: "TICKET_PDF", passengerId: flow.passengerIds[0] ?? null, passengerIds: flow.passengerIds, fileUrl, actor, verb: "re-issued (airline reschedule) and delivered" });
+      await db.$transaction(async (tx) => {
+        await tx.booking.update({ where: { id }, data: { ticketIssuedAt: new Date(), ticketCancellation: { ...flow, stage: "DONE" } as unknown as Prisma.InputJsonValue } });
+        await applyFlowStatus(tx, { bookingId: id, statusName: "Ticket Issued", userId: session.id, actorLabel: actor.label, note: "New ticket after the airline's reschedule", silent: true });
+        await writeAudit(tx, { entityType: "Booking", entityId: id, action: "FSF_RESCHEDULE_TICKET", byUserId: session.id, note: `New ticket uploaded after the airline's reschedule (by ${session.name})` });
+      });
+      return jsonSuccess({ message: "New ticket delivered to the customer." });
+    }
+
     if (input.action === "ISSUE_TICKET") {
       if (!booking.pnr) return jsonError(409, "Record the PNR first — PNR and ticket issuance are separate steps.");
       // Client doc 2026-10-27 (A4) — a ticket only for a passenger still travelling (not cancelled / rejected).

@@ -1,4 +1,5 @@
 import { db } from "../db";
+import { customerTicketFlow, parseTicketFlow } from "../special-fare/ticket-cancellation";
 import { selectedFlightView } from "../special-fare/selected-flight";
 import { isMockGatewayActive } from "../payments/get-gateway";
 import { assertQuotationPayable } from "../payments/quotation-payable";
@@ -193,6 +194,8 @@ export async function loadCheckoutByToken(token: string) {
       /** P17 — Return Ticket: the destination's cancellation fee, shown before payment (null = not set / other services). */
       returnTicketCancellation:
         booking.lead.serviceType === "RETURN_TICKET" ? { fee: await returnTicketCancellationFee(booking.lead.details) } : null,
+      /** Client doc 16 Nov (A12 / A14) — a ticket cancellation quotation / airline reschedule waiting for the customer. */
+      ticketFlow: booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" ? customerTicketFlow(parseTicketFlow(booking.ticketCancellation)) : null,
       /** Client doc 16 Nov (A10) — the selected flight (cities, flight no., dates, times, PAX) on the payment page. */
       selectedFlight: booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" ? await selectedFlightView(booking.leadId, booking.lead.paxCount) : null,
       /** P16 — Special Fare alternative after the paid flight became unavailable (customer-safe; no vendor cost). */

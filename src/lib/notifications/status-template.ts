@@ -549,6 +549,15 @@ export async function sendStatusTemplate(input: {
   }
 }
 
+/** Client doc 16 Nov (A14) — the notification event of a booking status by its name (e.g. "Rescheduled by Airline"), or null. */
+export async function statusTemplateByName(serviceType: ServiceType, name: string): Promise<{ event: string; label: string } | null> {
+  const status = await db.serviceStatus.findFirst({
+    where: { serviceType, scope: "BOOKING", name, active: true, notificationEvent: { not: null } },
+    select: { notificationEvent: true, customerLabel: true, name: true },
+  });
+  return status?.notificationEvent ? { event: status.notificationEvent, label: status.customerLabel ?? status.name } : null;
+}
+
 /** The notification event of the status tagged `systemEvent` in a service's list (e.g. its "Refund Pending" template), or null. */
 export async function statusTemplateFor(serviceType: ServiceType, scope: StatusScope, systemEvent: string): Promise<{ event: string; label: string } | null> {
   const status = await db.serviceStatus.findFirst({

@@ -60,6 +60,7 @@ export async function PATCH(request: NextRequest) {
     preValidationDeduction: Number(updated.preValidationDeduction),
     postValidationDeduction: Number(updated.postValidationDeduction),
     noRefundAfter: updated.noRefundAfter,
+    ticketCancellationServiceCharge: Number(updated.ticketCancellationServiceCharge),
     defaults: DEFAULT_REFUND_CONFIG[serviceType],
   });
 }

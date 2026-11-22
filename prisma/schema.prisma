@@ -550,6 +550,9 @@ model Booking {
   /// The alternative offered when the paid flight became unavailable:
   /// { flight fields, sellingPrice, vendorCost (internal), difference,
   /// direction HIGHER|LOWER|SAME|NONE, offeredAt, decision PAY|REFUND|null, decidedAt }.
+  /// Client doc 16 Nov (A12–A14) — the post-ticket flow: customer cancellation (quotation), airline cancellation or
+  /// reschedule (src/lib/special-fare/ticket-cancellation.ts). Null = none.
+  ticketCancellation Json?
   alternativeOffer          Json?
   /// PNR and ticket issuance are separate states (Locked v2.0 Q18).
   pnr                       String?
@@ -768,6 +771,8 @@ model RefundConfig {
   /// Fixed deduction once every booking document is VERIFIED.
   postValidationDeduction Decimal      @default(0) @db.Decimal(10, 2)
   noRefundAfter           RefundCutoff @default(NEVER)
+  /// Client doc 16 Nov (A12) — Special Fare: the company's service charge on a ticket cancellation (GST on it); profit for MIS.
+  ticketCancellationServiceCharge Decimal @default(0) @db.Decimal(10, 2)
   updatedAt               DateTime     @updatedAt
   createdAt               DateTime     @default(now())
 }

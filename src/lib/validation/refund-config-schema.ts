@@ -13,6 +13,8 @@ export const updateRefundConfigSchema = z.object({
   preValidationDeduction: deduction("pre-validation deduction"),
   postValidationDeduction: deduction("post-validation deduction"),
   noRefundAfter: z.enum(cutoffValues),
+  /** Client doc 16 Nov (A12) — Special Fare only: the service charge on a ticket cancellation (GST is added on it). */
+  ticketCancellationServiceCharge: deduction("ticket cancellation service charge").optional(),
   /** Sensitive admin action — the confirmation reason, written to the audit trail. */
   reason: sensitiveReasonSchema,
 });

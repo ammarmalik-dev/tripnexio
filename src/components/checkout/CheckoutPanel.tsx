@@ -14,6 +14,7 @@ import { utilityLinks } from "@/lib/nav-config";
 import { REQUEST_CANCELLED_MESSAGE } from "@/lib/payments/not-payable-messages";
 import { TermsAgreement } from "@/components/terms/TermsAgreement";
 import { PostTicketOfferCard } from "@/components/cross-sell/PostTicketOfferCard";
+import { TicketFlowCard, type TicketFlowView } from "./TicketFlowCard";
 import { SpecialFareAlternativeCard, type SpecialFareAlternativeView } from "./SpecialFareAlternativeCard";
 import { countRequiredUploaded } from "@/lib/documents/upload-state";
 import { DOCUMENT_UPLOAD_ACCEPT, DOCUMENT_UPLOAD_BUTTON_CLASS, documentUploadError } from "@/lib/uploads/document-rules";
@@ -70,6 +71,8 @@ interface CheckoutView {
   postTicketOffer: boolean;
   /** P16 — Special Fare alternative offered after the paid flight became unavailable. */
   specialFareAlternative: SpecialFareAlternativeView | null;
+  /** Client doc 16 Nov (A12 / A14) — ticket cancellation quotation / airline reschedule. */
+  ticketFlow?: TicketFlowView | null;
   /** Client doc 16 Nov (A10) — the selected flight. */
   selectedFlight?: {
     tripType: string;
@@ -473,6 +476,7 @@ export function CheckoutPanel({ token }: { token: string }) {
       </div>
 
       {view.specialFareAlternative ? <SpecialFareAlternativeCard token={token} offer={view.specialFareAlternative} onChanged={refresh} /> : null}
+      {view.ticketFlow ? <TicketFlowCard token={token} flow={view.ticketFlow} onChanged={refresh} /> : null}
 
       {view.selectedFlight && view.selectedFlight.legs.length > 0 ? (
         <section aria-label="Selected flight" className="rounded-2xl border border-hairline bg-surface-1 p-5">

@@ -20,6 +20,7 @@ interface RefundConfigRow {
   preValidationDeduction: number;
   postValidationDeduction: number;
   noRefundAfter: RefundCutoff;
+  ticketCancellationServiceCharge?: number;
 }
 
 interface FormState {
@@ -27,6 +28,7 @@ interface FormState {
   preValidationDeduction: string;
   postValidationDeduction: string;
   noRefundAfter: RefundCutoff;
+  ticketCancellationServiceCharge: string;
 }
 
 const CUTOFF_OPTIONS: { value: RefundCutoff; label: string }[] = [
@@ -43,6 +45,7 @@ function toForm(row: RefundConfigRow): FormState {
     preValidationDeduction: String(row.preValidationDeduction),
     postValidationDeduction: String(row.postValidationDeduction),
     noRefundAfter: row.noRefundAfter,
+    ticketCancellationServiceCharge: String(row.ticketCancellationServiceCharge ?? 0),
   };
 }
 
@@ -63,6 +66,7 @@ function RefundConfigCard({ row, onSaved }: { row: RefundConfigRow; onSaved: (ro
         preValidationDeduction: Number(form.preValidationDeduction),
         postValidationDeduction: Number(form.postValidationDeduction),
         noRefundAfter: form.noRefundAfter,
+        ...(row.serviceType === "FLIGHT_SPECIAL_FARE" ? { ticketCancellationServiceCharge: Number(form.ticketCancellationServiceCharge || 0) } : {}),
         reason,
       });
       toast.success(`Refund rule for ${SERVICE_TYPE_LABELS[row.serviceType]} updated.`);
@@ -126,6 +130,19 @@ function RefundConfigCard({ row, onSaved }: { row: RefundConfigRow; onSaved: (ro
           onChange={(event) => setForm({ ...form, postValidationDeduction: event.target.value })}
           error={errors.postValidationDeduction?.[0]}
         />
+        {row.serviceType === "FLIGHT_SPECIAL_FARE" ? (
+          <TextField
+            label="Ticket cancellation service charge (₹)"
+            name="ticket-cancellation-service-charge"
+            type="number"
+            min={0}
+            step="0.01"
+            value={form.ticketCancellationServiceCharge}
+            onChange={(event) => setForm({ ...form, ticketCancellationServiceCharge: event.target.value })}
+            hint="Added to the airline's cancellation fee on a ticket cancellation quotation; GST applies on this charge."
+            error={errors.ticketCancellationServiceCharge?.[0]}
+          />
+        ) : null}
       </div>
       <p className="text-xs text-ink-tertiary">Deductions are added on top of the gateway charge and any cancellation charge staff enter.</p>
       <div className="flex justify-end">

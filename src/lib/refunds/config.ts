@@ -6,6 +6,8 @@ export interface RefundConfigValues {
   preValidationDeduction: number;
   postValidationDeduction: number;
   noRefundAfter: RefundCutoff;
+  /** Client doc 16 Nov (A12) — Special Fare ticket-cancellation service charge (₹). */
+  ticketCancellationServiceCharge?: number;
 }
 
 /**
@@ -31,5 +33,6 @@ export async function getRefundConfig(serviceType: ServiceType): Promise<RefundC
     preValidationDeduction: Number(row.preValidationDeduction),
     postValidationDeduction: Number(row.postValidationDeduction),
     noRefundAfter: row.noRefundAfter,
+    ticketCancellationServiceCharge: Number(row.ticketCancellationServiceCharge),
   };
 }

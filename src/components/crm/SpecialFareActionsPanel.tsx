@@ -10,6 +10,7 @@ import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { SpecialFareAlternativeForm } from "./SpecialFareAlternativeForm";
 import { useHasPermission } from "./StaffPermissions";
+import { TicketFlowPanel, type StaffTicketFlowView } from "./TicketFlowPanel";
 
 export interface SpecialFareBookingView {
   finalConfirmedAt: string | null;
@@ -24,6 +25,9 @@ export interface SpecialFareBookingView {
     difference: number;
     decision: "PAY" | "ACCEPT" | "REFUND" | null;
   } | null;
+  /** Client doc 16 Nov (A12–A14). */
+  ticketFlow?: StaffTicketFlowView | null;
+  ticketCancellationServiceCharge?: number;
   pnr: string | null;
   pnrVendorReference: string | null;
   pnrRecordedAt: string | null;
@@ -373,6 +377,13 @@ export function SpecialFareActionsPanel({
       ) : (
         <p className="border-t border-hairline pt-4 text-sm text-ink-secondary">Every passenger&apos;s ticket has been delivered{view.ticketIssuedAt ? ` (${fmt(view.ticketIssuedAt)})` : ""}.</p>
       )}
+      <TicketFlowPanel
+        bookingId={bookingId}
+        flow={view.ticketFlow ?? null}
+        tickets={view.tickets}
+        defaultServiceCharge={view.ticketCancellationServiceCharge ?? 0}
+        onChanged={onChanged}
+      />
     </section>
   );
 }

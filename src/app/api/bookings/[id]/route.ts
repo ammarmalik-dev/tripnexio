@@ -1,4 +1,5 @@
 import { assertCanViewRecord } from "@/lib/auth/ownership";
+import { parseTicketFlow, ticketCancellationServiceCharge } from "@/lib/special-fare/ticket-cancellation";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { subServiceLabel } from "@/lib/leads/sub-service-label";
@@ -229,6 +230,9 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
             paxCounts: await specialFarePaxCounts(booking.lead),
             quoteFromAirport: selectedQuotation?.fromAirportCode ?? null,
             quoteToAirport: selectedQuotation?.toAirportCode ?? null,
+            // Client doc 16 Nov (A12–A14) — the post-ticket flow and the configured cancellation service charge.
+            ticketFlow: parseTicketFlow(booking.ticketCancellation),
+            ticketCancellationServiceCharge: await ticketCancellationServiceCharge(),
           }
         : null,
     // P18 — OTB airline timeline for the staff actions panel.

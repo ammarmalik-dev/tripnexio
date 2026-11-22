@@ -198,6 +198,9 @@ export function staffMoveBlock(
     afterRefund?: boolean;
   } = {}
 ): string | null {
+  // Client doc 16 Nov (A12–A14) — the ticket-cancellation / airline-change steps follow the Ticket cancellation actions
+  // (only after the ticket is issued — A13), never a hand-picked status.
+  if (isFlowStepStatus(to)) return `"${to.name}" follows the Ticket cancellation actions on the booking (after the ticket is issued) — only an Admin can set it by hand.`;
   // Client doc 2026-10-27 (C2/C3) — refund statuses follow the refund itself, never a hand-picked status.
   if (!options.refundEngine && isRefundEngineStatus(to)) {
     return `"${to.name}" follows the refund itself — raise the refund (Payments) and the booking moves once it is approved / completed. Only an Admin can set it by hand.`;
@@ -560,6 +563,39 @@ export async function setServiceStatus(
   // Client doc 16 Nov (G12) — an Admin override never messages the customer (it is a correction, audited above).
   const notification = await applyStatus(tx, input.scope, entity, from, to, { ...input, silent: input.adminOverride === true });
   return { ok: true, changed: true, notification };
+}
+
+/** Client doc 16 Nov (A12–A14) — the Special Fare post-ticket steps, set only by their own actions. */
+export const FLOW_STEP_STATUS_NAMES = [
+  "Ticket Cancellation Requested",
+  "Sent to Airlines for Cancellation",
+  "Cancellation Quotation Sent",
+  "Cancellation Quotation Accepted",
+  "Ticket Cancelled",
+  "Cancelled by Airline",
+  "Rescheduled by Airline",
+] as const;
+export type FlowStepStatusName = (typeof FLOW_STEP_STATUS_NAMES)[number] | "Ticket Issued";
+
+export function isFlowStepStatus(status: Pick<ServiceStatus, "name">): boolean {
+  return (FLOW_STEP_STATUS_NAMES as readonly string[]).includes(status.name);
+}
+
+/**
+ * Client doc 16 Nov (A12–A14) — a step of a flow that checks its own order (the Special Fare ticket cancellation /
+ * airline cancellation / reschedule): moves the booking straight to the named status of its service (also out of
+ * "Ticket Issued"), audited like any status change. `silent` skips the status's own message (the flow sends its own).
+ */
+export async function applyFlowStatus(
+  tx: Tx,
+  input: { bookingId: string; statusName: FlowStepStatusName; userId?: string; actorLabel: string; note: string; inputs?: StatusInputs; silent?: boolean }
+): Promise<StatusNotification | null> {
+  const entity = await loadEntity(tx, "BOOKING", input.bookingId);
+  if (!entity) return null;
+  const to = await tx.serviceStatus.findFirst({ where: { serviceType: entity.serviceType, scope: "BOOKING", name: input.statusName, active: true } });
+  if (!to || entity.serviceStatusId === to.id) return null;
+  const from = entity.serviceStatusId ? await tx.serviceStatus.findUnique({ where: { id: entity.serviceStatusId } }) : null;
+  return applyStatus(tx, "BOOKING", entity, from, to, { userId: input.userId, actorLabel: input.actorLabel, note: input.note, inputs: input.inputs, silent: input.silent });
 }
 
 /**
