@@ -98,9 +98,10 @@ const quotationSent = (notify: string): CatalogStatus => ({
   maps: "QUOTATION_CREATED",
   from: ["Quotation Created"],
 });
-const quotationAccepted = (notify: string): CatalogStatus => ({
+/** Client doc 16 Nov (A10) — customers read "Quotation Selected" (Special Fare) / "Package Selected" (Visa Change). */
+const quotationAccepted = (notify: string, customerLabel = "Quotation Accepted"): CatalogStatus => ({
   name: "Quotation Accepted",
-  customerLabel: "Quotation Accepted",
+  customerLabel,
   notify,
   systemEvent: "QUOTATION_ACCEPTED",
   maps: "QUOTATION_ACCEPTED",
@@ -167,7 +168,7 @@ export const STATUS_CATALOG: CatalogList[] = [
       ...leadSales(false),
       { name: "Current Visa Review", customerLabel: "Current Visa Being Reviewed", notify: null, maps: "QUALIFIED", from: ["Qualified"] },
       quotationSent("VC_QUOTATION_SENT"),
-      quotationAccepted("VC_QUOTATION_APPROVED"),
+      quotationAccepted("VC_QUOTATION_APPROVED", "Package Selected"),
       { name: "Payment Pending", customerLabel: "Payment Pending", notify: "VC_PAYMENT_PENDING", maps: "PAYMENT_PENDING", from: ["Payment Pending"] },
       leadConverted,
       leadUnqualified,
@@ -329,7 +330,7 @@ export const STATUS_CATALOG: CatalogList[] = [
       { name: "Expiring", customerLabel: "Quotation Expiring Soon", notify: null, systemEvent: "QUOTE_EXPIRING", maps: "QUOTATION_CREATED" },
       { name: "Expired", customerLabel: "Quotation Expired", notify: "SF_05", systemEvent: "QUOTE_EXPIRED", maps: "QUOTATION_CREATED" },
       { name: "New Quote Requested", customerLabel: "New Quotation Request Received", notify: "SF_06", systemEvent: "NEW_QUOTE_REQUESTED", maps: "QUALIFIED" },
-      quotationAccepted("SF_03"),
+      quotationAccepted("SF_03", "Quotation Selected"),
       { name: "Payment Pending", customerLabel: "Payment Pending", notify: "SF_07", maps: "PAYMENT_PENDING", from: ["Payment Pending"] },
       leadConverted,
       leadUnqualified,

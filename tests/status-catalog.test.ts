@@ -116,7 +116,9 @@ describe("client doc 16 Nov — final status lists", () => {
     for (const list of STATUS_CATALOG.filter((entry) => entry.scope === "LEAD" && ["VISA_CHANGE", "VISA_EXTENSION", "FLIGHT_SPECIAL_FARE"].includes(entry.serviceType))) {
       const byName = new Map(list.statuses.map((status) => [status.name, status]));
       expect(byName.get("Quotation Sent")?.customerLabel, list.serviceType).toBe("Quotation Ready");
-      expect(byName.get("Quotation Accepted")?.customerLabel, list.serviceType).toBe("Quotation Accepted");
+      // Client doc 16 Nov (A10) — customers read Quotation Selected (Special Fare) / Package Selected (Visa Change).
+      const accepted = { FLIGHT_SPECIAL_FARE: "Quotation Selected", VISA_CHANGE: "Package Selected" }[list.serviceType as string] ?? "Quotation Accepted";
+      expect(byName.get("Quotation Accepted")?.customerLabel, list.serviceType).toBe(accepted);
       expect(byName.has("Quotation Approved"), list.serviceType).toBe(false);
     }
   });

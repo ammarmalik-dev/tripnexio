@@ -70,6 +70,12 @@ interface CheckoutView {
   postTicketOffer: boolean;
   /** P16 — Special Fare alternative offered after the paid flight became unavailable. */
   specialFareAlternative: SpecialFareAlternativeView | null;
+  /** Client doc 16 Nov (A10) — the selected flight. */
+  selectedFlight?: {
+    tripType: string;
+    pax: number | null;
+    legs: { label: string; route: string; flight: string | null; departAt: string | null; arriveAt: string | null }[];
+  } | null;
   /** P17 — Return Ticket cancellation terms shown before payment. */
   returnTicketCancellation: { fee: number | null } | null;
   /** P18 — the other half of an OTB + Return Verified Ticket order. */
@@ -467,6 +473,29 @@ export function CheckoutPanel({ token }: { token: string }) {
       </div>
 
       {view.specialFareAlternative ? <SpecialFareAlternativeCard token={token} offer={view.specialFareAlternative} onChanged={refresh} /> : null}
+
+      {view.selectedFlight && view.selectedFlight.legs.length > 0 ? (
+        <section aria-label="Selected flight" className="rounded-2xl border border-hairline bg-surface-1 p-5">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-base font-semibold text-ink-heading">Your selected flight</h2>
+            <span className="text-sm text-ink-secondary">
+              {view.selectedFlight.tripType}
+              {view.selectedFlight.pax ? ` · ${view.selectedFlight.pax} PAX` : ""}
+            </span>
+          </div>
+          <ul className="flex flex-col gap-3">
+            {view.selectedFlight.legs.map((leg, index) => (
+              <li key={`${leg.route}-${index}`} className="flex flex-col gap-0.5 border-t border-hairline pt-3 first:border-t-0 first:pt-0">
+                <span className="text-xs font-medium tracking-wide text-ink-tertiary uppercase">{leg.label}</span>
+                <span className="font-semibold text-ink-heading">{leg.route}</span>
+                <span className="text-sm text-ink-secondary">
+                  {[leg.flight, leg.departAt ? `Departs ${leg.departAt}` : null, leg.arriveAt ? `Arrives ${leg.arriveAt}` : null].filter(Boolean).join(" · ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {!payment ? (
         <ErrorState

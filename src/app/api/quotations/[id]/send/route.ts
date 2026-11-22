@@ -6,11 +6,8 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
 import { assertServiceAction } from "@/lib/auth/service-actions";
 import { sendQuotationSchema } from "@/lib/validation/quotation-schema";
-import { assertValidityWithinCap, effectiveQuoteValidity } from "@/lib/quotations/validity-cap";
-import { draftSendValidity } from "@/lib/quotations/send-validity";
-import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
-import { isAirportToAirportLead, parseOperationalBlock, visaChangeQuoteBlockReason } from "@/lib/visa-change/operational";
 import { applyQuotationSentEffects, notifyQuoteReady } from "@/lib/quotations/send-quotation";
+import { checkDraftSend } from "@/lib/quotations/send-draft";
 import { dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
 
@@ -60,42 +57,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   const actionError = assertServiceAction(session, lead.serviceType, "CREATE_QUOTATION");
   if (actionError) return actionError;
 
-  if (!quotation.isDraft) return jsonError(409, "This quotation has already been sent.");
-  if (quotation.isExpired) {
-    return jsonError(409, "This draft was closed (another quotation was selected, or it expired). Build a new quote instead.");
-  }
-
-  // Same lead-level gates as creating a quote — the lead may have changed since the draft was saved.
-  const extensionBlock = extensionQuoteBlockReason(lead.serviceType, lead.details);
-  if (extensionBlock) return jsonError(409, extensionBlock);
-  const visaChangeBlock = visaChangeQuoteBlockReason(lead.serviceType, lead.details);
-  if (visaChangeBlock) return jsonError(409, visaChangeBlock);
-  // B32 — an Airport-to-Airport option can't go to the customer without its own flights.
-  // Client doc 2026-10-20 (D8) — a Border Exit option needs its border before it goes to the customer.
-  if (lead.serviceType === "VISA_CHANGE" && !isAirportToAirportLead(lead.serviceType, lead.details) && parseOperationalBlock(quotation.operationalBlock)?.kind !== "BORDER") {
-    return jsonError(409, "Select the border (non-UAE side) for this option before sending it.");
-  }
-  if (isAirportToAirportLead(lead.serviceType, lead.details) && parseOperationalBlock(quotation.operationalBlock)?.kind !== "A2A") {
-    return jsonError(409, "Add the exit and re-entry flights to this option before sending it.");
-  }
-
-  if (parsed.data.validityExpiresAt) {
-    const capError = await assertValidityWithinCap(lead.serviceType, parsed.data.validityExpiresAt, lead.countryId);
-    if (capError) return jsonError(400, capError, { validityExpiresAt: [capError] });
-  }
-  // A flight draft saved without a validity goes out with the full window (client 2026-10-23 audit); client doc
-  // 2026-10-27 (A6) — so does one whose saved validity already passed while it sat as a draft.
-  const fallback = await effectiveQuoteValidity(lead.serviceType, undefined, lead.countryId);
-  const validityExpiresAt = draftSendValidity({
-    explicit: parsed.data.validityExpiresAt ? new Date(parsed.data.validityExpiresAt) : null,
-    stored: quotation.validityExpiresAt,
-    fallback: fallback ? new Date(fallback) : null,
-    now: new Date(),
-  });
-  if (validityExpiresAt && validityExpiresAt.getTime() <= Date.now()) {
-    const message = "This draft's validity has already passed — set a new validity before sending.";
-    return jsonError(409, message, { validityExpiresAt: [message] });
-  }
+  const check = await checkDraftSend(quotation, lead, parsed.data.validityExpiresAt);
+  if (!check.ok) return jsonError(check.status, check.message, check.field ? { [check.field]: [check.message] } : undefined);
+  const { validityExpiresAt } = check;
 
   const statusNotifications: (StatusNotification | null)[] = [];
   const sent = await db.$transaction(async (tx) => {

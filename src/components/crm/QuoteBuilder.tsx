@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Send } from "lucide-react";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ErrorState } from "@/components/ui/ErrorState";
@@ -301,6 +301,25 @@ export function QuoteBuilder({
     }
   };
 
+  // Client doc 16 Nov (A2) — Special Fare / Visa Change: every draft goes out in one click, one customer message.
+  const [sendingAll, setSendingAll] = useState(false);
+  const draftCount = quotations.filter((quotation) => quotation.isDraft === true).length;
+  const canSendAll = (serviceType === "FLIGHT_SPECIAL_FARE" || serviceType === "VISA_CHANGE") && draftCount >= 2;
+  const handleSendAll = async () => {
+    setSendingAll(true);
+    try {
+      const result = await postJson<{ sent: number; skipped: { id: string; reason: string }[] }>(`/api/leads/${leadId}/quotations/send-drafts`, {});
+      toast.success(`${result.sent} quotation${result.sent === 1 ? "" : "s"} sent to the customer in one message.`);
+      if (result.skipped.length > 0) toast.error(`${result.skipped.length} draft(s) not sent: ${result.skipped[0].reason}`);
+      setReloadNonce((current) => current + 1);
+      onLeadChanged();
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't send the drafts. Please try again.");
+    } finally {
+      setSendingAll(false);
+    }
+  };
+
   const startEditing = (quotation: QuoteCardData, mode: EditingQuote["mode"]) => {
     setShowForm(false);
     setEditing({ quotation, mode });
@@ -346,10 +365,18 @@ export function QuoteBuilder({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-ink-heading">Quotations</h2>
         {canQuote && !showForm && !editing ? (
-          <Button type="button" size="sm" variant="ghost" onClick={() => setShowForm(true)}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            {hasItinerary ? "New Itinerary Option" : "New Quote"}
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            {canSendAll ? (
+              <Button type="button" size="sm" onClick={() => void handleSendAll()} isLoading={sendingAll}>
+                <Send className="h-4 w-4" aria-hidden="true" />
+                Send all {draftCount} drafts
+              </Button>
+            ) : null}
+            <Button type="button" size="sm" variant="ghost" onClick={() => setShowForm(true)}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {hasItinerary ? "New Itinerary Option" : "New Quote"}
+            </Button>
+          </div>
         ) : null}
       </div>
 

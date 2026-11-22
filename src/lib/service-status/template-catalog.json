@@ -1807,9 +1807,9 @@
  {
   "event": "SF_03",
   "channel": "EMAIL",
-  "subject": "Your quotation has been approved — {{booking_id}}",
-  "heading": null,
-  "body": "Hi {{customer_name}},\n\nYour quotation {{booking_id}} is approved. Total: {{currency}} {{quoted_amount}}. Please complete payment before {{quote_expiry_time}}.",
+  "subject": "Your Flight Selection Has Been Received — {{booking_id}}",
+  "heading": "Flight Option Selected Successfully",
+  "body": "Hi {{customer_name}},\n\nThank you for selecting your preferred flight. Our team will review your selection and proceed with the booking.\n\nSelected flight: {{itinerary_summary}}\nAirline / flight no.: {{airline_flight_number}}\nPassengers: {{passenger_count}} PAX\nTotal: {{currency}} {{quoted_amount}}\n\nPlease complete payment before {{quote_expiry_time}}.",
   "ctaLabel": "Continue to Payment",
   "ctaLink": "payment_link"
  },
@@ -1818,7 +1818,7 @@
   "channel": "WHATSAPP",
   "subject": null,
   "heading": null,
-  "body": "Hi {{customer_name}},\n\nYour quotation {{booking_id}} is approved. Total: {{currency}} {{quoted_amount}}. Please complete payment before {{quote_expiry_time}}.",
+  "body": "Hi {{customer_name}},\n\nFlight option selected successfully — thank you. Our team will review your selection and proceed with the booking.\n\nSelected flight: {{itinerary_summary}}\nAirline / flight no.: {{airline_flight_number}}\nPassengers: {{passenger_count}} PAX\nTotal: {{currency}} {{quoted_amount}}\nPlease complete payment before {{quote_expiry_time}}.",
   "ctaLabel": "Continue to Payment",
   "ctaLink": "payment_link",
   "suggestedMetaName": "SF_03_WA"
