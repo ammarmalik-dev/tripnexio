@@ -12,6 +12,8 @@ import { leadReference } from "@/lib/leads/reference";
 import { money } from "@/lib/invoices/render-invoice";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { paymentTotal } from "@/lib/payments/totals";
+import { ensureLeadCustomerToken } from "@/lib/quotations/select-quotation";
+import { siteConfig } from "@/lib/site-config";
 
 const REMIND_AFTER_MS = 2 * 60 * 60 * 1000;
 const REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
     const summary = await recordAutomationRun("payment-followup", async () => {
       const pending = await db.payment.findMany({
         // Client 2026-10-27 — no payment reminders for a cancelled request (Lost / Closed lead, cancelled booking).
-        where: { status: "PENDING", booking: { status: { notIn: ["CANCELLED", "REFUNDED"] }, lead: { status: { notIn: ["LOST", "CLOSED"] } } } },
+        where: { status: "PENDING", booking: { status: { notIn: ["CANCELLED", "REFUNDED"] }, lead: { status: { notIn: ["LOST", "CLOSED"] }, followUpOptOut: false } } },
         include: { booking: { include: { customer: true, lead: true } } },
       });
 
@@ -56,7 +58,7 @@ export async function POST(request: NextRequest) {
         if (alreadyReminded) continue;
 
         // Client doc 2026-10-20 — services on the client's templates remind with their "Payment Pending" message.
-        if (payment.purpose !== "EXTRA" && (await sendPaymentReminderTemplate(payment.booking.leadId))) {
+        if (payment.purpose !== "EXTRA" && (await sendPaymentReminderTemplate(payment.booking.leadId, { unsubscribeLink: `${siteConfig.url}/follow-ups/stop/${await ensureLeadCustomerToken(payment.booking.lead)}` }))) {
           await logReminder("PAYMENT_REMINDER", "Payment", payment.id);
           remindersSent++;
           continue;
@@ -72,6 +74,8 @@ export async function POST(request: NextRequest) {
             bookingId: payment.booking.bookingId,
             leadReference: leadReference(payment.booking.lead),
             amount: money(total),
+            // Client doc 16 Nov (N14) — every reminder carries the booking's Stop Reminders link.
+            unsubscribeLink: `${siteConfig.url}/follow-ups/stop/${await ensureLeadCustomerToken(payment.booking.lead)}`,
           },
           auditTarget: { entityType: "Payment", entityId: payment.id },
         });

@@ -598,7 +598,8 @@ export async function sendCurrentStatusTemplate(
  * additional-documents stage the current status's own message is used. False when the service isn't on
  * status templates (the caller sends its own message).
  */
-export async function sendDocumentsStatusTemplate(bookingId: string, kind: "REQUESTED" | "REJECTED"): Promise<boolean> {
+/** `extraVariables` (client doc 16 Nov, N14): e.g. the reminder's Stop Reminders link. */
+export async function sendDocumentsStatusTemplate(bookingId: string, kind: "REQUESTED" | "REJECTED", extraVariables?: Record<string, string>): Promise<boolean> {
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
     select: { lead: { select: { serviceType: true } }, serviceStatus: { select: { systemEvent: true, notificationEvent: true, customerLabel: true, name: true } } },
@@ -606,13 +607,13 @@ export async function sendDocumentsStatusTemplate(bookingId: string, kind: "REQU
   if (!booking || !(await usesStatusTemplates(booking.lead.serviceType))) return false;
   const current = booking.serviceStatus;
   if (current?.notificationEvent && (current.systemEvent === "EMBASSY_ADDITIONAL_DOCS" || (kind === "REJECTED" && current.systemEvent === "DOCUMENTS_REJECTED") || (kind === "REQUESTED" && current.systemEvent === "DOCUMENTS_REQUESTED"))) {
-    await sendStatusTemplate({ event: current.notificationEvent, scope: "BOOKING", entityId: bookingId, statusLabel: current.customerLabel ?? current.name });
+    await sendStatusTemplate({ event: current.notificationEvent, scope: "BOOKING", entityId: bookingId, statusLabel: current.customerLabel ?? current.name, extraVariables });
     return true;
   }
   const serviceType = booking.lead.serviceType;
   const template =
     (kind === "REJECTED" ? await statusTemplateFor(serviceType, "BOOKING", "DOCUMENTS_REJECTED") : null) ?? (await statusTemplateFor(serviceType, "BOOKING", "DOCUMENTS_REQUESTED"));
-  if (template) await sendStatusTemplate({ event: template.event, scope: "BOOKING", entityId: bookingId, statusLabel: template.label });
+  if (template) await sendStatusTemplate({ event: template.event, scope: "BOOKING", entityId: bookingId, statusLabel: template.label, extraVariables });
   return true;
 }
 
@@ -622,7 +623,7 @@ export async function sendDocumentsStatusTemplate(bookingId: string, kind: "REQU
  * request still on "New" (New Visa / OTB / Return Ticket) gets its "complete payment" message again.
  * False when the service isn't on status templates.
  */
-export async function sendPaymentReminderTemplate(leadId: string): Promise<boolean> {
+export async function sendPaymentReminderTemplate(leadId: string, extraVariables?: Record<string, string>): Promise<boolean> {
   const lead = await db.lead.findUnique({
     where: { id: leadId },
     select: { serviceType: true, serviceStatusId: true, serviceStatus: { select: { displayOrder: true, notificationEvent: true, mapsToLeadStatus: true } } },
@@ -637,7 +638,7 @@ export async function sendPaymentReminderTemplate(leadId: string): Promise<boole
       const { setServiceStatus } = await import("../service-status/engine");
       await db.$transaction((tx) => setServiceStatus(tx, { scope: "LEAD", entityId: leadId, toStatusId: pendingStatus.id, actorLabel: "payment reminder" }));
     }
-    await sendStatusTemplate({ event: pendingStatus.notificationEvent, scope: "LEAD", entityId: leadId, statusLabel: pendingStatus.customerLabel ?? pendingStatus.name });
+    await sendStatusTemplate({ event: pendingStatus.notificationEvent, scope: "LEAD", entityId: leadId, statusLabel: pendingStatus.customerLabel ?? pendingStatus.name, extraVariables });
     return true;
   }
   if (lead.serviceStatus?.displayOrder === 0 && lead.serviceStatus.notificationEvent) await sendCurrentStatusTemplate("LEAD", leadId);

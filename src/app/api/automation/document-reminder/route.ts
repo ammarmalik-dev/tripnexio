@@ -10,6 +10,7 @@ import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { leadReference } from "@/lib/leads/reference";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { siteConfig } from "@/lib/site-config";
+import { ensureLeadCustomerToken } from "@/lib/quotations/select-quotation";
 import { OUTPUT_TYPES } from "@/lib/outputs/output-types";
 import { documentDisplayName, documentsByPassengerSummary } from "@/lib/documents/review-round";
 
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
       const bookings = await db.booking.findMany({
         where: {
           status: { notIn: ["CANCELLED", "REFUNDED", "COMPLETED"] },
-          lead: { status: { notIn: ["LOST", "CLOSED"] } },
+          // Client doc 16 Nov (N14) — no reminders once the customer stopped them for this booking.
+          lead: { status: { notIn: ["LOST", "CLOSED"] }, followUpOptOut: false },
           OR: [{ serviceStatusId: null }, { serviceStatus: { isTerminal: false } }],
           documents: { some: { status: { in: ["REQUIRED", "MISSING", "REJECTED"] }, type: { notIn: [...OUTPUT_TYPES] } } },
         },
@@ -61,7 +63,7 @@ export async function POST(request: NextRequest) {
           return true;
         });
         // Client doc 2026-10-20 — services on the client's templates get their own "Documents Pending" message.
-        if (await sendDocumentsStatusTemplate(booking.id, "REQUESTED")) {
+        if (await sendDocumentsStatusTemplate(booking.id, "REQUESTED", { unsubscribeLink: `${siteConfig.url}/follow-ups/stop/${await ensureLeadCustomerToken(booking.lead)}` })) {
           await logReminder(REMINDER_EVENT, "Booking", booking.id);
           remindersSent++;
           continue;
@@ -79,6 +81,7 @@ export async function POST(request: NextRequest) {
             leadReference: leadReference(booking.lead),
             requestReason: "",
             uploadLink: booking.customerToken ? `${siteConfig.url}/pay/${booking.customerToken}#documents` : `${siteConfig.url}/account`,
+            unsubscribeLink: `${siteConfig.url}/follow-ups/stop/${await ensureLeadCustomerToken(booking.lead)}`,
           },
           auditTarget: { entityType: "Booking", entityId: booking.id },
         });

@@ -184,8 +184,8 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] N11 Staff alerts 11:00 / 15:00 / 18:00 per POC (own items only) + Excel attachment
 - [ ] N12 Admin daily report 20:00 (email + one workbook, tab per category)
 - [ ] N13 Weekly report Monday 12:00
-- [ ] N14 Customer opt-out per booking (all customer reminders/upsells, both channels; staff alerts continue; audited)
-- [ ] N15 No automatic booking completion; keep retention/purge settings unchanged
+- [x] N14 Customer opt-out per booking (all customer reminders/upsells, both channels; staff alerts continue; audited) — unit 13: the Stop Reminders link (per booking: Lead.followUpOptOut, audited FOLLOW_UP_OPT_OUT) now goes in payment + document reminders too (also on the client status templates); payment, document, OTB document, follow-up, extension and coupon jobs all skip an opted-out booking; staff alerts / SLA escalation unaffected
+- [x] N15 No automatic booking completion; keep retention/purge settings unchanged — unit 13: return-ticket-auto-complete no longer completes anything — it only reports bookings past travel (due) for manual closing; retention / purge settings unchanged
 
 ## S. Final status lists (doc §2–§8)
 - [x] S1 Visa, Visa Change, Visa Extension, Flight, Return Ticket, OTB lists exactly per doc (CRM status, customer label, auto/manual) — unit 2a: catalog.ts + migration 20261116140000 (records on removed statuses moved, removed ones switched off)

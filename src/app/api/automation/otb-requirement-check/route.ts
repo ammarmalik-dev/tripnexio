@@ -35,7 +35,8 @@ export async function POST(request: NextRequest) {
   try {
     const summary = await recordAutomationRun("otb-requirement-check", async () => {
       const bookings = await db.booking.findMany({
-        where: { lead: { serviceType: "OTB" } },
+        // Client doc 16 Nov (N14) — skip bookings whose customer stopped reminders.
+        where: { lead: { serviceType: "OTB", followUpOptOut: false } },
         include: { lead: true, customer: true, documents: true },
       });
 

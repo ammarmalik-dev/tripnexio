@@ -4,7 +4,6 @@ import { db } from "@/lib/db";
 import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
 import { getServiceTimelineRules } from "@/lib/settings/service-timeline-config";
-import { applySystemEvent, dispatchStatusNotifications, type StatusNotification } from "@/lib/service-status/engine";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DELIVERED_OUTPUTS = ["RESERVATION_PDF", "TICKET_PDF"];
@@ -16,6 +15,10 @@ const DELIVERED_OUTPUTS = ["RESERVATION_PDF", "TICKET_PDF"];
  * (Admin → Timelines, "Auto-complete: days after travel date"; 0 when not
  * set). Forward-only through the status engine: a booking on hold, in an
  * exception status, or already completed is left alone.
+ *
+ * Client doc 16 Nov (N15): "Automatic Booking Completion after the travel date is NOT REQUIRED … continue using the
+ * existing manual completion process." The job now only REPORTS the bookings past their travel date (`due`) so staff
+ * can close them by hand; it never changes a status or notifies a customer.
  */
 export async function POST(request: NextRequest) {
   if (!verifyAutomationKey(request)) return jsonError(401, "Unauthorized.");
@@ -35,8 +38,7 @@ export async function POST(request: NextRequest) {
 
       const now = Date.now();
       let bookingsChecked = 0;
-      let completed = 0;
-      const notifications: (StatusNotification | null)[] = [];
+      let due = 0;
 
       for (const booking of bookings) {
         const travelDateRaw = (booking.lead.details as Record<string, unknown> | null)?.travelDate;
@@ -46,16 +48,10 @@ export async function POST(request: NextRequest) {
         // The whole travel day has to be over before the grace period starts.
         if (now < travelDate.getTime() + DAY_MS + graceDays * DAY_MS) continue;
 
-        const notification = await db.$transaction((tx) =>
-          applySystemEvent(tx, { scope: "BOOKING", entityId: booking.id, event: "RT_AUTO_COMPLETED", actorLabel: "automatic completion after travel" })
-        );
-        const after = await db.booking.findUnique({ where: { id: booking.id }, select: { status: true } });
-        if (after?.status === "COMPLETED") completed++;
-        notifications.push(notification);
+        due++;
       }
 
-      await dispatchStatusNotifications(notifications);
-      return { graceDays, bookingsChecked, completed };
+      return { graceDays, bookingsChecked, due, completed: 0, reportOnly: true };
     });
 
     return jsonSuccess(summary);
