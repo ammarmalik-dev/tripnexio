@@ -1,0 +1,41 @@
+-- Client doc 16 Nov (N5 / N7 / N8 / N10) - separate upsell templates, email + WhatsApp, Admin-editable afterwards.
+-- Neutral copy; never overwrites an existing template. WhatsApp rows need a Meta-approved template name to send
+-- outside the 24-hour window (skipped and audited until then).
+INSERT INTO "NotificationTemplate" ("id", "event", "channel", "subject", "heading", "body", "ctaLabel", "active", "updatedAt")
+VALUES
+  ('notification-template-otb-upsell', 'OTB_UPSELL', 'EMAIL',
+   'Need OTB (OK to Board) for your trip?', 'OK to Board for Your Trip',
+   E'Hi {{customerName}},\n\nYour {{serviceName}} for {{destination}} is ready (booking {{bookingId}}, travel date {{travelDate}}). Many airlines need an OK to Board (OTB) message before they let you board.\n\nApply for OTB in a few minutes and travel without last-minute surprises.',
+   'Apply for OTB', true, CURRENT_TIMESTAMP),
+  ('notification-template-otb-upsell-wa', 'OTB_UPSELL', 'WHATSAPP', NULL, NULL,
+   E'Hi {{customerName}}, travelling to {{destination}} on {{travelDate}}? Many airlines need an OK to Board (OTB) before boarding. Apply here: {{applyLink}}',
+   NULL, true, CURRENT_TIMESTAMP),
+  ('notification-template-return-ticket-upsell', 'RETURN_TICKET_UPSELL', 'EMAIL',
+   'Need a return ticket for {{destination}}?', 'Return Verified Ticket',
+   E'Hi {{customerName}},\n\nYou travel to {{destination}} on {{travelDate}} (booking {{bookingId}}). Immigration and airlines may ask for proof of return or onward travel.\n\nGet a verified return ticket reservation from TripNexio.',
+   'Apply for Return Ticket', true, CURRENT_TIMESTAMP),
+  ('notification-template-return-ticket-upsell-wa', 'RETURN_TICKET_UPSELL', 'WHATSAPP', NULL, NULL,
+   E'Hi {{customerName}}, travelling to {{destination}} on {{travelDate}}? You may be asked for proof of return travel. Get a verified return ticket here: {{applyLink}}',
+   NULL, true, CURRENT_TIMESTAMP),
+  ('notification-template-visa-extension-upsell', 'VISA_EXTENSION_UPSELL', 'EMAIL',
+   'Extend your UAE visa with TripNexio', 'Visa Extension',
+   E'Hi {{customerName}},\n\nIt has been {{dayNumber}} days since your visa change ({{bookingId}}). If you plan to stay longer in the UAE, apply for your visa extension before your visa expires.',
+   'Apply for Visa Extension', true, CURRENT_TIMESTAMP),
+  ('notification-template-visa-extension-upsell-wa', 'VISA_EXTENSION_UPSELL', 'WHATSAPP', NULL, NULL,
+   E'Hi {{customerName}}, it has been {{dayNumber}} days since your visa change ({{bookingId}}). Staying longer in the UAE? Apply for your visa extension here: {{applyLink}}',
+   NULL, true, CURRENT_TIMESTAMP),
+  ('notification-template-new-visa-upsell', 'NEW_VISA_UPSELL', 'EMAIL',
+   'Do you have your visa for {{destination}}?', 'Visa for Your Trip',
+   E'Hi {{customerName}},\n\nYour flight to {{destination}} departs on {{travelDate}} (booking {{bookingId}}). If you still need a visa, apply with TripNexio today.',
+   'Apply for Visa', true, CURRENT_TIMESTAMP),
+  ('notification-template-new-visa-upsell-wa', 'NEW_VISA_UPSELL', 'WHATSAPP', NULL, NULL,
+   E'Hi {{customerName}}, your flight to {{destination}} departs on {{travelDate}}. Still need a visa? Apply here: {{applyLink}}',
+   NULL, true, CURRENT_TIMESTAMP),
+  ('notification-template-flight-upsell', 'FLIGHT_UPSELL', 'EMAIL',
+   'Book your flight to {{destination}} at a special fare', 'Special Fare Flights',
+   E'Hi {{customerName}},\n\nYour visa for {{destination}} ({{bookingId}}) is with us and you travel on {{travelDate}}. Book your flight with TripNexio at a special fare.',
+   'Book a Flight', true, CURRENT_TIMESTAMP),
+  ('notification-template-flight-upsell-wa', 'FLIGHT_UPSELL', 'WHATSAPP', NULL, NULL,
+   E'Hi {{customerName}}, you travel to {{destination}} on {{travelDate}}. Book your flight at a special fare with TripNexio: {{applyLink}}',
+   NULL, true, CURRENT_TIMESTAMP)
+ON CONFLICT ("event", "channel") DO NOTHING;

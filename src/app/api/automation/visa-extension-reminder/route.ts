@@ -4,127 +4,132 @@ import { db } from "@/lib/db";
 import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
+import { isAutomationEnabled, localClock, localDateOf } from "@/lib/automation/settings";
+import { addDays, afterExtensionReminderDue, uaeVisaReminderDue } from "@/lib/automation/campaign-schedule";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 import { siteConfig } from "@/lib/site-config";
+import { ensureLeadCustomerToken } from "@/lib/quotations/select-quotation";
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+const ONCE_MS = 3650 * 24 * 60 * 60 * 1000;
+const SEND_HOUR = 12;
+const UAE = new Set(["AE", "ARE", "UAE"]);
 
-// docs/TripNexio_UAE_Visa_Extension_Final_Page_Content_Design_FAQ_FINAL.docx
-// §12 FAQ: "One reminder is scheduled around Day 25 after a successful
-// 30-day extension" — and §6 "New Extension Validity: Counted from the
-// original visa expiry date". The original developer handover
-// (TripNexio_Visa_Extension_Updated_Developer_Handover.docx) never
-// mentions a reminder at all, so the FINAL content doc is the only source
-// for the exact trigger. Read literally, "counted from the original visa
-// expiry date" is the ONE date explicitly tied to "counted from" language
-// for the new validity window, so REMINDER_DAY is measured from that date
-// (Lead.details.visaExpiryDate, the customer-submitted original expiry),
-// not from whenever the booking happened to reach CONFIRMED — a delayed
-// booking would otherwise get an inaccurately-late reminder relative to
-// when its actual 30-day window really ends. Flagged as a judgment call,
-// not asserted as unambiguous from the docs.
-const REMINDER_DAY = 25;
-// The reminder is only meaningful for the 5 days before the 30-day window
-// itself lapses (day 25-30) — outside that, either too early to matter or
-// already past the point of being useful.
-const RELEVANT_WINDOW_END_DAY = 30;
-// P13 — one reminder per booking, ever: a 10-year lookback on the reminder log.
-const REMINDER_COOLDOWN_MS = 3650 * DAY_MS;
+const shortDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 /**
- * P13: measured from the staff-verified expiry (fallback: the customer's
- * date), sent at most once per booking, and skipped when the customer opted
- * out of follow-ups (Lead.followUpOptOut, via the unsubscribe link) or has
- * since completed another extension or started a visa change.
- *
- * Called by n8n's "Visa Extension: Day-25 Re-Extension Reminder" workflow
- * — Item 10, client-message/PENDING_WORK_PROMPTS.md. Finds successfully
- * completed (payment received) Visa Extension bookings whose original
- * visa-expiry date (the basis the new 30-day extension validity is
- * "counted from," per the doc) is 25-30 days in the past, and sends a
- * VISA_EXTENSION_REMINDER nudge once per booking.
+ * Client doc 16 Nov (N6) — UAE visa extension reminders, 12:00 PM local time, Email + WhatsApp (Admin → Automation):
+ * - a UAE New Visa (delivered): a 30-day visa on day 20 / 25 / 30 from the travel date, a 60-day visa on day
+ *   50 / 55 / 60 — until the customer starts a Visa Extension;
+ * - after an extension application (Applied to Embassy): day 25 and 29 from the application date.
+ * Each reminder once per booking; never after the customer's Stop Reminders. Runs hourly, sends only at 12:00.
  */
 export async function POST(request: NextRequest) {
   if (!verifyAutomationKey(request)) return jsonError(401, "Unauthorized.");
 
   try {
     const summary = await recordAutomationRun("visa-extension-reminder", async () => {
-      const bookings = await db.booking.findMany({
-        where: {
-          status: { in: ["CONFIRMED", "PROCESSING", "COMPLETED"] },
-          lead: { serviceType: "VISA_EXTENSION", followUpOptOut: false },
-          // A Not Accepted / Rejected extension never gets a re-extension nudge.
-          OR: [{ extensionOutcome: null }, { extensionOutcome: "EXTENDED" }],
-        },
-        include: { lead: true, customer: true },
-      });
-
-      const now = Date.now();
-      let bookingsChecked = 0;
+      const clock = await localClock();
+      if (clock.hour !== SEND_HOUR || !(await isAutomationEnabled("VISA_EXTENSION_EXPIRY_REMINDER"))) {
+        return { skipped: "outside 12:00 or switched off", localHour: clock.hour };
+      }
       let remindersSent = 0;
 
-      for (const booking of bookings) {
-        // P13 — anchored on the staff-verified expiry, falling back to the customer's own date.
-        const details = (booking.lead.details as Record<string, unknown> | null) ?? {};
-        const visaExpiryRaw = typeof details.verifiedExpiryDate === "string" && details.verifiedExpiryDate ? details.verifiedExpiryDate : details.visaExpiryDate;
-        if (typeof visaExpiryRaw !== "string") continue;
-        const visaExpiryDate = new Date(visaExpiryRaw);
-        if (Number.isNaN(visaExpiryDate.getTime())) continue;
-
-        const daysSinceExpiry = (now - visaExpiryDate.getTime()) / DAY_MS;
-        if (daysSinceExpiry < REMINDER_DAY || daysSinceExpiry > RELEVANT_WINDOW_END_DAY) continue;
-
-        bookingsChecked++;
-
-        const alreadyReminded = await wasRecentlyReminded("VISA_EXTENSION_REMINDER", "Booking", booking.id, REMINDER_COOLDOWN_MS);
-        if (alreadyReminded) continue;
-
-        // P13 — stop once the customer has moved on: a later completed
-        // extension, or a later visa change (not cancelled/refunded).
-        const movedOn = await db.booking.findFirst({
-          where: {
-            customerId: booking.customerId,
-            id: { not: booking.id },
-            createdAt: { gt: booking.createdAt },
-            OR: [
-              { lead: { serviceType: "VISA_EXTENSION" }, status: "COMPLETED" },
-              { lead: { serviceType: "VISA_CHANGE" }, status: { notIn: ["CANCELLED", "REFUNDED"] } },
-            ],
-          },
-          select: { id: true },
-        });
-        if (movedOn) continue;
-
-        const extensionExpiry = new Date(visaExpiryDate.getTime() + RELEVANT_WINDOW_END_DAY * DAY_MS);
-
+      const send = async (
+        booking: { id: string; bookingId: string; customer: { name: string; email: string | null; mobile: string }; lead: { id: string; customerToken: string | null } },
+        day: number,
+        expiryIso: string | null
+      ) => {
+        const key = `VISA_EXTENSION_REMINDER:${day}`;
+        if (await wasRecentlyReminded(key, "Booking", booking.id, ONCE_MS)) return;
+        const token = await ensureLeadCustomerToken(booking.lead);
         await notifyCustomer({
           event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,
           emailTo: booking.customer.email,
           whatsappTo: toWhatsAppId(booking.customer.mobile),
-          smsTo: toWhatsAppId(booking.customer.mobile),
           variables: {
             customerName: booking.customer.name,
             bookingId: booking.bookingId,
-            extensionExpiryDate: extensionExpiry.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-            unsubscribeLink: booking.lead.customerToken ? `${siteConfig.url}/follow-ups/stop/${booking.lead.customerToken}` : "",
+            extensionExpiryDate: expiryIso ? shortDate(expiryIso) : "",
+            dayNumber: String(day),
+            applyLink: `${siteConfig.url}/services/visa-extension/request`,
+            unsubscribeLink: `${siteConfig.url}/follow-ups/stop/${token}`,
           },
           auditTarget: { entityType: "Booking", entityId: booking.id },
         });
-        await logReminder("VISA_EXTENSION_REMINDER", "Booking", booking.id);
+        await logReminder(key, "Booking", booking.id);
         remindersSent++;
+      };
+
+      // UAE New Visa customers.
+      const visas = await db.booking.findMany({
+        where: {
+          status: { in: ["CONFIRMED", "PROCESSING", "COMPLETED"] },
+          lead: { serviceType: "NEW_VISA", followUpOptOut: false, travelDate: { not: null } },
+          documents: { some: { type: "VISA_PDF", deliveredAt: { not: null } } },
+        },
+        select: {
+          id: true,
+          bookingId: true,
+          customerId: true,
+          createdAt: true,
+          customer: { select: { name: true, email: true, mobile: true } },
+          lead: { select: { id: true, customerToken: true, travelDate: true, details: true, country: { select: { code: true, name: true } } } },
+        },
+        take: 2000,
+      });
+      const configIds = [...new Set(visas.map((booking) => (booking.lead.details as Record<string, unknown> | null)?.newVisaConfigId).filter((id): id is string => typeof id === "string"))];
+      const stays = new Map((await db.newVisaCountryConfig.findMany({ where: { id: { in: configIds } }, select: { id: true, stayDays: true } })).map((row) => [row.id, row.stayDays]));
+      for (const booking of visas) {
+        const uae = UAE.has((booking.lead.country?.code ?? "").toUpperCase()) || /emirates/i.test(booking.lead.country?.name ?? "");
+        if (!uae || !booking.lead.travelDate) continue;
+        const configId = (booking.lead.details as Record<string, unknown> | null)?.newVisaConfigId;
+        const stayDays = typeof configId === "string" ? (stays.get(configId) ?? null) : null;
+        const travel = booking.lead.travelDate.toISOString().slice(0, 10);
+        const day = uaeVisaReminderDue(clock.date, travel, stayDays);
+        if (!day) continue;
+        const startedExtension = await db.lead.count({ where: { customerId: booking.customerId, serviceType: "VISA_EXTENSION", createdAt: { gt: booking.createdAt } } });
+        if (startedExtension > 0) continue;
+        await send(booking, day, stayDays ? addDays(travel, stayDays) : null);
       }
 
-      return { bookingsChecked, remindersSent };
+      // After an extension application.
+      const extensions = await db.booking.findMany({
+        where: {
+          status: { in: ["CONFIRMED", "PROCESSING", "COMPLETED"] },
+          appliedToEmbassyAt: { not: null },
+          lead: { serviceType: "VISA_EXTENSION", followUpOptOut: false },
+          OR: [{ extensionOutcome: null }, { extensionOutcome: "EXTENDED" }],
+        },
+        select: {
+          id: true,
+          bookingId: true,
+          customerId: true,
+          appliedToEmbassyAt: true,
+          customer: { select: { name: true, email: true, mobile: true } },
+          lead: { select: { id: true, customerToken: true } },
+        },
+        take: 2000,
+      });
+      for (const booking of extensions) {
+        const applied = localDateOf(booking.appliedToEmbassyAt!, clock.offsetMs);
+        const day = afterExtensionReminderDue(clock.date, applied);
+        if (!day) continue;
+        const newer = await db.lead.count({ where: { customerId: booking.customerId, serviceType: "VISA_EXTENSION", createdAt: { gt: booking.appliedToEmbassyAt! } } });
+        if (newer > 0) continue;
+        await send(booking, day, addDays(applied, 30));
+      }
+
+      return { localDate: clock.date, newVisaChecked: visas.length, extensionsChecked: extensions.length, remindersSent };
     });
 
     return jsonSuccess(summary);
   } catch (error) {
-    console.error("[automation/visa-extension-reminder]", error);
+    console.error("[automation/visa-extension-reminder]", error instanceof Error ? error.message : "error");
     return jsonError(500, "Visa Extension reminder job failed.");
   }
 }
 
-/** P26 — Vercel Cron calls this with GET (see vercel.json); same handler and auth as n8n's POST. */
+/** Same handler for GET (Vercel Cron) and POST (n8n / VPS scheduler). */
 export const GET = POST;

@@ -25,6 +25,11 @@ export const NOTIFICATION_EVENTS = {
   /** Client testing 2026-10-09 — refund raised / approved / completed / rejected. */
   REFUND_UPDATE: "REFUND_UPDATE",
   DOCUMENTS_REQUIRED: "DOCUMENTS_REQUIRED",
+  OTB_UPSELL: "OTB_UPSELL",
+  RETURN_TICKET_UPSELL: "RETURN_TICKET_UPSELL",
+  VISA_EXTENSION_UPSELL: "VISA_EXTENSION_UPSELL",
+  NEW_VISA_UPSELL: "NEW_VISA_UPSELL",
+  FLIGHT_UPSELL: "FLIGHT_UPSELL",
   /** Client doc 16 Nov (N4) — the scheduled document reminder (12:00 PM and 5:00 PM), its own template. */
   DOCUMENT_REMINDER: "DOCUMENT_REMINDER",
   DOCUMENT_APPROVED: "DOCUMENT_APPROVED",
@@ -144,6 +149,91 @@ export const NOTIFICATION_EVENT_CATALOG: {
     },
   },
   {
+    // Client doc 16 Nov — upsell campaign (Admin → Automation).
+    event: NOTIFICATION_EVENTS.OTB_UPSELL,
+    label: "OTB upsell (UAE / Oman visa or ticket)",
+    variables: ["customerName", "bookingId", "serviceName", "destination", "travelDate", "applyLink", "dayNumber", "unsubscribeLink"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "10626VI001",
+      serviceName: "New Visa",
+      destination: "United Arab Emirates",
+      travelDate: "20 Dec 2026",
+      applyLink: "https://tripnexio.com/services",
+      dayNumber: "50",
+      unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample-token",
+    },
+  },
+  {
+    // Client doc 16 Nov — upsell campaign (Admin → Automation).
+    event: NOTIFICATION_EVENTS.RETURN_TICKET_UPSELL,
+    label: "Return Ticket upsell (international visa or flight)",
+    variables: ["customerName", "bookingId", "serviceName", "destination", "travelDate", "applyLink", "dayNumber", "unsubscribeLink"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "10626VI001",
+      serviceName: "New Visa",
+      destination: "United Arab Emirates",
+      travelDate: "20 Dec 2026",
+      applyLink: "https://tripnexio.com/services",
+      dayNumber: "50",
+      unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample-token",
+    },
+  },
+  {
+    // Client doc 16 Nov — upsell campaign (Admin → Automation).
+    event: NOTIFICATION_EVENTS.VISA_EXTENSION_UPSELL,
+    label: "Visa Extension upsell after a Visa Change",
+    variables: ["customerName", "bookingId", "serviceName", "destination", "travelDate", "applyLink", "dayNumber", "unsubscribeLink"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "10626VI001",
+      serviceName: "New Visa",
+      destination: "United Arab Emirates",
+      travelDate: "20 Dec 2026",
+      applyLink: "https://tripnexio.com/services",
+      dayNumber: "50",
+      unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample-token",
+    },
+  },
+  {
+    // Client doc 16 Nov — upsell campaign (Admin → Automation).
+    event: NOTIFICATION_EVENTS.NEW_VISA_UPSELL,
+    label: "New Visa upsell after a flight ticket",
+    variables: ["customerName", "bookingId", "serviceName", "destination", "travelDate", "applyLink", "dayNumber", "unsubscribeLink"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "10626VI001",
+      serviceName: "New Visa",
+      destination: "United Arab Emirates",
+      travelDate: "20 Dec 2026",
+      applyLink: "https://tripnexio.com/services",
+      dayNumber: "50",
+      unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample-token",
+    },
+  },
+  {
+    // Client doc 16 Nov — upsell campaign (Admin → Automation).
+    event: NOTIFICATION_EVENTS.FLIGHT_UPSELL,
+    label: "Special Fare flight upsell after a New Visa",
+    variables: ["customerName", "bookingId", "serviceName", "destination", "travelDate", "applyLink", "dayNumber", "unsubscribeLink"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "10626VI001",
+      serviceName: "New Visa",
+      destination: "United Arab Emirates",
+      travelDate: "20 Dec 2026",
+      applyLink: "https://tripnexio.com/services",
+      dayNumber: "50",
+      unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample-token",
+    },
+  },
+  {
     event: NOTIFICATION_EVENTS.DOCUMENT_REMINDER,
     label: "Document reminder (12:00 PM and 5:00 PM while documents are pending)",
     variables: ["customerName", "bookingId", "serviceName", "documentName", "uploadLink", "unsubscribeLink"],
@@ -194,8 +284,8 @@ export const NOTIFICATION_EVENT_CATALOG: {
   },
   {
     event: NOTIFICATION_EVENTS.VISA_EXTENSION_REMINDER,
-    label: "Visa Extension: Day-25 re-extension reminder",
-    variables: ["customerName", "bookingId", "extensionExpiryDate", "unsubscribeLink"],
+    label: "UAE visa extension reminder (day 20/25/30, 50/55/60 from travel; 25/29 after an extension)",
+    variables: ["customerName", "bookingId", "extensionExpiryDate", "dayNumber", "applyLink", "unsubscribeLink"],
     wired: true,
     sampleVariables: {
       customerName: "Sample Customer",

@@ -63,6 +63,12 @@ export const AUTOMATION_WORKFLOWS: { key: string; label: string; intendedSchedul
     endpoint: "/api/automation/return-ticket-auto-complete",
   },
   {
+    key: "upsell-campaigns",
+    label: "Upsell campaigns: OTB, Return Ticket, Visa Extension, Flight ↔ New Visa",
+    intendedSchedule: "Every hour (each campaign sends at its own local hour)",
+    endpoint: "/api/automation/upsell-campaigns",
+  },
+  {
     key: "staff-alerts",
     label: "Staff Alerts: Follow-ups Due & Delayed Bookings",
     intendedSchedule: "Every hour",

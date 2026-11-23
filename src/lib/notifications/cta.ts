@@ -13,6 +13,12 @@ export const EVENT_CTA: Record<string, { variable: string; label: string }> = {
   OUTPUT_DELIVERED: { variable: "downloadLink", label: "Download" },
   DOCUMENTS_REQUIRED: { variable: "uploadLink", label: "Upload Documents" },
   DOCUMENT_REMINDER: { variable: "uploadLink", label: "Upload Documents" },
+  VISA_EXTENSION_REMINDER: { variable: "applyLink", label: "Apply for Visa Extension" },
+  OTB_UPSELL: { variable: "applyLink", label: "Apply for OTB" },
+  RETURN_TICKET_UPSELL: { variable: "applyLink", label: "Apply for Return Ticket" },
+  VISA_EXTENSION_UPSELL: { variable: "applyLink", label: "Apply for Visa Extension" },
+  NEW_VISA_UPSELL: { variable: "applyLink", label: "Apply for Visa" },
+  FLIGHT_UPSELL: { variable: "applyLink", label: "Book a Flight" },
   PAYMENT_REMINDER: { variable: "paymentLink", label: "Pay Now" },
   QUOTE_REMINDER: { variable: "reviewLink", label: "View & Pay" },
 };

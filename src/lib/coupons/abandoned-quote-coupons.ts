@@ -2,13 +2,13 @@ import crypto from "crypto";
 import { db } from "../db";
 import { writeAudit } from "../audit/log";
 import { getAbandonedCouponSettings, type AbandonedCouponSettings } from "../settings/coupon-config";
-import { isExpiredNow } from "../quotations/sync-expiry";
 import { ABANDONED_DRAFT_SOURCE } from "../leads/abandoned-draft";
 import { leadReference } from "../leads/reference";
 import { notifyCustomer } from "../notifications/notify";
 import { NOTIFICATION_EVENTS } from "../notifications/events";
 import { toWhatsAppId } from "../whatsapp/phone";
-import { logReminder } from "../automation/reminder-log";
+import { logReminder, wasRecentlyReminded } from "../automation/reminder-log";
+import { isAutomationEnabled, localDateOf } from "../automation/settings";
 import { money } from "../invoices/render-invoice";
 import { getSystemConfig } from "../settings/system-config";
 
@@ -16,6 +16,10 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const CLOSED_LEAD_STATUSES = ["CONVERTED", "LOST", "CLOSED"] as const;
 const UNPAID_PAYMENT_STATUSES = ["PENDING", "EXPIRED", "FAILED"] as const;
+/** Client doc 16 Nov (N9.2) — unpaid-quotation coupons are for these services. */
+const UNPAID_QUOTATION_SERVICES = ["VISA_CHANGE", "FLIGHT_SPECIAL_FARE", "VISA_EXTENSION"] as const;
+const SECOND_SEND_AFTER_MS = 4 * 60 * 60 * 1000;
+const SECOND_SEND_EVENT = "ABANDONED_QUOTE_COUPON:SECOND";
 /** No 0/O/1/I — the code is typed by hand from an email/WhatsApp message. */
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
@@ -81,6 +85,8 @@ export async function runAbandonedQuoteCouponJob(): Promise<AbandonedQuoteCoupon
   const byReason: Record<AbandonReason, number> = { QUOTE_EXPIRED: 0, PAYMENT_UNPAID: 0 };
   const settings = await getAbandonedCouponSettings();
   if (!settings) return { enabled: false, checked: 0, couponsCreated: 0, skippedAlreadyIssued: 0, byReason };
+  // Client doc 16 Nov (N1 / N9.2) — Admin's on / off in Admin → Automation too.
+  if (!(await isAutomationEnabled("COUPON_UNPAID_QUOTATION"))) return { enabled: false, checked: 0, couponsCreated: 0, skippedAlreadyIssued: 0, byReason };
 
   const { timezoneOffsetMinutes } = await getSystemConfig();
   const now = Date.now();
@@ -90,13 +96,13 @@ export async function runAbandonedQuoteCouponJob(): Promise<AbandonedQuoteCoupon
     where: {
       status: { notIn: [...CLOSED_LEAD_STATUSES] },
       followUpOptOut: false,
+      // Client doc 16 Nov (N9.2) — Visa Change / Flight / Visa Extension, once the customer selected a quotation.
+      serviceType: { in: [...UNPAID_QUOTATION_SERVICES] },
+      quotations: { some: { isSelected: true } },
       AND: [
         { OR: [{ source: null }, { source: { not: ABANDONED_DRAFT_SOURCE } }] },
         {
-          OR: [
-            { quotations: { some: { isDraft: false, createdAt: { lt: cutoff } } } },
-            { bookings: { some: { status: { not: "CANCELLED" }, payments: { some: { createdAt: { lt: cutoff }, status: { in: [...UNPAID_PAYMENT_STATUSES] } } } } } },
-          ],
+          bookings: { some: { status: { not: "CANCELLED" }, payments: { some: { createdAt: { lt: cutoff }, status: { in: [...UNPAID_PAYMENT_STATUSES] } } } } },
         },
       ],
       // Anything already paid is not abandoned.
@@ -114,26 +120,49 @@ export async function runAbandonedQuoteCouponJob(): Promise<AbandonedQuoteCoupon
 
   if (candidates.length === 0) return { enabled: true, checked: 0, couponsCreated: 0, skippedAlreadyIssued: 0, byReason };
 
-  const alreadyIssued = new Set(
-    (
-      await db.coupon.findMany({
-        where: { category: "ABANDONED_QUOTATION", leadId: { in: candidates.map((lead) => lead.id) } },
-        select: { leadId: true },
-      })
-    ).flatMap((coupon) => (coupon.leadId ? [coupon.leadId] : []))
-  );
+  const issuedCoupons = await db.coupon.findMany({
+    where: { category: "ABANDONED_QUOTATION", leadId: { in: candidates.map((lead) => lead.id) } },
+    select: { leadId: true, code: true, createdAt: true, usageCount: true, validUntil: true, type: true, value: true, maxDiscount: true },
+  });
+  const alreadyIssued = new Set(issuedCoupons.flatMap((coupon) => (coupon.leadId ? [coupon.leadId] : [])));
+  const offsetMs = timezoneOffsetMinutes * 60 * 1000;
+  const today = localDateOf(new Date(now), offsetMs);
 
   let couponsCreated = 0;
   let skippedAlreadyIssued = 0;
 
   for (const lead of candidates) {
     if (alreadyIssued.has(lead.id)) {
+      // N9.2 — sent twice, the same day only: the same coupon again a few hours later while it is still unpaid / unused.
+      const coupon = issuedCoupons.find((row) => row.leadId === lead.id);
+      if (
+        coupon &&
+        coupon.usageCount === 0 &&
+        (!coupon.validUntil || coupon.validUntil.getTime() > now) &&
+        localDateOf(coupon.createdAt, offsetMs) === today &&
+        now - coupon.createdAt.getTime() >= SECOND_SEND_AFTER_MS &&
+        !(await wasRecentlyReminded(SECOND_SEND_EVENT, "Lead", lead.id, 3650 * DAY_MS))
+      ) {
+        const couponSettings = { type: coupon.type, value: Number(coupon.value), maxDiscount: coupon.maxDiscount == null ? null : Number(coupon.maxDiscount) } as unknown as AbandonedCouponSettings;
+        await notifyCustomer({
+          event: NOTIFICATION_EVENTS.ABANDONED_QUOTE_COUPON,
+          emailTo: lead.customer.email,
+          whatsappTo: toWhatsAppId(lead.customer.mobile),
+          smsTo: toWhatsAppId(lead.customer.mobile),
+          variables: {
+            customerName: lead.customer.name,
+            leadReference: leadReference(lead),
+            couponCode: coupon.code,
+            couponValue: formatCouponValue(couponSettings),
+            validUntil: coupon.validUntil ? formatLocalDate(coupon.validUntil, timezoneOffsetMinutes) : "",
+          },
+          auditTarget: { entityType: "Lead", entityId: lead.id },
+        });
+        await logReminder(SECOND_SEND_EVENT, "Lead", lead.id);
+      }
       skippedAlreadyIssued++;
       continue;
     }
-
-    const latestQuote = lead.quotations[0];
-    const quoteAbandoned = latestQuote != null && isExpiredNow(latestQuote) && latestQuote.createdAt < cutoff;
 
     const latestPayment = lead.bookings
       .flatMap((booking) => booking.payments)
@@ -143,7 +172,8 @@ export async function runAbandonedQuoteCouponJob(): Promise<AbandonedQuoteCoupon
       (UNPAID_PAYMENT_STATUSES as readonly string[]).includes(latestPayment.status) &&
       latestPayment.createdAt < cutoff;
 
-    const reason: AbandonReason | null = quoteAbandoned ? "QUOTE_EXPIRED" : paymentAbandoned ? "PAYMENT_UNPAID" : null;
+    // N9.2 — the trigger is a selected quotation that isn't paid.
+    const reason: "PAYMENT_UNPAID" | null = paymentAbandoned ? "PAYMENT_UNPAID" : null;
     if (!reason) continue;
 
     const code = await uniqueCouponCode();
@@ -168,9 +198,7 @@ export async function runAbandonedQuoteCouponJob(): Promise<AbandonedQuoteCoupon
           active: true,
         },
       });
-      const note = `Abandoned-quotation coupon ${created.code} (${formatCouponValue(settings)}, valid until ${validUntil.toISOString()}) generated for lead ${reference} — ${
-        reason === "QUOTE_EXPIRED" ? "quotation expired" : "payment unpaid"
-      } (via abandoned-quote-coupons automation)`;
+      const note = `Abandoned-quotation coupon ${created.code} (${formatCouponValue(settings)}, valid until ${validUntil.toISOString()}) generated for lead ${reference} — selected quotation unpaid (via abandoned-quote-coupons automation)`;
       await writeAudit(tx, { entityType: "Coupon", entityId: created.id, action: "CREATE", note });
       await writeAudit(tx, { entityType: "Lead", entityId: lead.id, action: "ABANDONED_COUPON_ISSUED", note });
       return created;

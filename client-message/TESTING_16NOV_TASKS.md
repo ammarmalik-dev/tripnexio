@@ -175,12 +175,12 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] N2 SLA escalation per service: POC + Admin, repeat interval, further escalation, OFF = silent — SLA escalation: global on/off (off = nothing sent); POC emailed at once, managers/admins emailed + in-app; per rule: remind the POC every N hours, escalate further to Admin after N more hours
 - [x] N3 Payment reminders: VC/VE every 2 h until 18:00 same day; NV/OTB/RT daily; flight quote 10/20 min then every 10 min, expire at 30 min — payment reminders: VC/VE every 2 h until 6 PM the same day; NV/OTB/RT daily; Special Fare 10 and 20 minutes after (expires at 30); flight quote reminders once per lead per round; Admin toggle + Stop Reminders respected; job every 5 minutes
 - [x] N4 Document reminders 12:00 + 17:00 daily until complete; separate templates — document reminders at 12:00 PM and 5:00 PM local time while required / additional documents are pending, with the separate Document Reminder template
-- [ ] N5 OTB upsell UAE/Oman (day after delivery + 2 days before travel, 16:00, max 2, one per passenger)
-- [ ] N6 UAE extension reminders (30-day: day 20/25/30; 60-day: 50/55/60; after extension: 25/29), 12:00
-- [ ] N7 Visa Extension upsell after Visa Change approval (day 50/55/60), 12:00
-- [ ] N8 Return Ticket upsell (3 days + 1 day before travel, 16:00)
+- [x] N5 OTB upsell UAE/Oman (day after delivery + 2 days before travel, 16:00, max 2, one per passenger) — OTB upsell (UAE / Oman visa or ticket): day after delivery + 2 days before travel (1 day when close), 4 PM, max two, one per customer per trip, own template, skipped if OTB already started
+- [x] N6 UAE extension reminders (30-day: day 20/25/30; 60-day: 50/55/60; after extension: 25/29), 12:00 — UAE visa extension reminders: 30-day visa day 20/25/30, 60-day day 50/55/60 from travel; after an extension application day 25/29; 12 PM; stops once a Visa Extension is started
+- [x] N7 Visa Extension upsell after Visa Change approval (day 50/55/60), 12:00 — Visa Extension upsell day 50/55/60 after a Visa Change approval (visa delivered), 12 PM, own template
+- [x] N8 Return Ticket upsell (3 days + 1 day before travel, 16:00) — Return Ticket upsell for international visa / flight customers, 3 and 1 day before travel, 4 PM, own template
 - [ ] N9 Coupon automation: direct offers (NV/OTB/RT); unpaid-quotation offers (VC/Flight/VE) twice same day
-- [ ] N10 New upsells: Flight → New Visa and New Visa → Special Fare (two triggers, 20:00, one 2 days before departure); lead only when an application starts
+- [x] N10 New upsells: Flight → New Visa and New Visa → Special Fare (two triggers, 20:00, one 2 days before departure); lead only when an application starts — Flight → New Visa and New Visa → Flight upsells, 5 and 2 days before departure, 8 PM, normal application links (lead only when the application starts), own templates
 - [ ] N11 Staff alerts 11:00 / 15:00 / 18:00 per POC (own items only) + Excel attachment
 - [ ] N12 Admin daily report 20:00 (email + one workbook, tab per category)
 - [ ] N13 Weekly report Monday 12:00
