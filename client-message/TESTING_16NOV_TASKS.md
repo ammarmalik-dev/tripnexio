@@ -15,7 +15,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] Q7 Coupon accounting: "expense category in P&L considered as sale amount which is paid" — record the discount as an expense with gross sale, or net sale?
 - [ ] Q8 Gateway fee by payment method (Card/UPI/Net Banking): Razorpay payment links don't let us pick the method upfront — fee is known only after payment. OK to apply it from the webhook's method?
 - [x] Q9 Removing Admin → Data Export: confirm every export it offered exists on the individual pages first. — answered by the doc itself (16 Nov §691: data export removed from admin as all filters are on the individual pages); done in K7
-- [ ] Q10 Bookings 11026FL112 / FL113 log review: production data — OK to read prod audit logs?
+- [x] Q10 Bookings 11026FL112 / FL113 log review: production data — OK to read prod audit logs? — read-only review done (see H13)
 - [ ] Q11 I11 says coupons only for New Visa / OTB / Return Ticket, but N9.2 sends unpaid-quotation coupons for Visa Change / Flight / Visa Extension. Which is right? (Today each coupon has its own service list in Admin.)
 
 ## A. Special Fare (flight)
@@ -112,7 +112,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] H10 Track Refund button opens the refund page — unit 1: refund status section on the booking page
 - [ ] H11 Revenue / GST reduced by cancelled amounts; invoice regenerated for remaining passengers; cancellation template names each cancelled passenger — unit 4: finance reports deduct completed refunds from revenue (ex their GST / gateway-fee share); management GST liability net of refunded GST. Invoice regeneration for remaining passengers after a partial cancellation still open
 - [x] H12 After ticket issue / sent to airlines (flight) or OTB approved / visa approved: no direct refund — service cancellation flow only — unit 3: Special Fare Sent to Airlines / Ticket Issued block direct refunds (OTB / visa approvals already did); Admin override stays
-- [ ] H13 Log review of 11026FL112 (actions after cancellation) — see Q10
+- [x] H13 Log review of 11026FL112 (actions after cancellation) — see Q10 — log review of 11026FL112 (read-only): after the cancellation the document reminder kept going every 2 days and the travel-date job put it On Hold — reminders, payment follow-ups and the automatic hold now skip bookings with an open refund or On Hold
 
 ## I. Payments, invoices & coupons
 - [x] I1 Offline Bank Transfer in CRM; slip upload; lead stays pending until approver verifies; offline payment records table; switch method before payment — unit 4: switch an unpaid payment online link <-> bank transfer (link cancelled at the gateway first); bank transfer stays pending until the approver verifies the slip (existing maker-checker)
@@ -191,5 +191,5 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] S1 Visa, Visa Change, Visa Extension, Flight, Return Ticket, OTB lists exactly per doc (CRM status, customer label, auto/manual) — unit 2a: catalog.ts + migration 20261116140000 (records on removed statuses moved, removed ones switched off)
 - [x] S2 One common User Not Responding and Booking On Hold; "Quotation Sent" / customer "Quotation Ready" for all quotation services — unit 2a: one User Not Responding (common USER_NOT_RESPONDING template) + one Booking On Hold per list; Quotation Ready / Quotation Accepted
 - [x] S3 Flight: pre-issuance cancellation uses shared Cancelled / Partially Cancelled; post-issuance ends at Ticket Cancelled; Cancelled by Airline / Rescheduled by Airline — unit 2a: statuses + templates exist (Cancelled by Airline / Rescheduled by Airline new); the post-issuance cancellation / reschedule FLOWS come with the Special Fare unit (A12, A14) — unit 17: post-issuance cancellation ends at Ticket Cancelled; Cancelled by Airline / Rescheduled by Airline flows built (A12–A14); pre-issuance uses the shared Cancelled / Partially Cancelled refund flow
-- [ ] S4 Refund rules: gateway Refund ID in notification; bank transfer needs transaction no. before approval; remark required — unit 2a: Partially Cancelled / Cancelled messages now carry Refund ID + amount; bank-transfer transaction no. + remark come with unit 3 (H)
+- [x] S4 Refund rules: gateway Refund ID in notification; bank transfer needs transaction no. before approval; remark required — unit 2a: Partially Cancelled / Cancelled messages now carry Refund ID + amount; bank-transfer transaction no. + remark come with unit 3 (H) — bank-transfer refund approval requires transaction no. + date; every refund status change requires a remark (reason); Refund ID + amount in the cancellation messages
 - [x] S5 "To Confirm / To Configure" rows: no automation until confirmed (Q6) — respected: no automation was added for the To Confirm / To Configure rows

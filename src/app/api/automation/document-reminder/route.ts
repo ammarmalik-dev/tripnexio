@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
+import { NOT_ON_HOLD_WHERE, NO_OPEN_REFUND_WHERE } from "@/lib/automation/active-booking-where";
 import { sendDocumentsStatusTemplate } from "@/lib/notifications/status-template";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
@@ -37,7 +38,8 @@ export async function POST(request: NextRequest) {
           status: { notIn: ["CANCELLED", "REFUNDED", "COMPLETED"] },
           // Client doc 16 Nov (N14) — no reminders once the customer stopped them for this booking.
           lead: { status: { notIn: ["LOST", "CLOSED"] }, followUpOptOut: false },
-          OR: [{ serviceStatusId: null }, { serviceStatus: { isTerminal: false } }],
+          // H13 — never while a refund is open or the booking is On Hold.
+          AND: [NOT_ON_HOLD_WHERE, NO_OPEN_REFUND_WHERE],
           documents: { some: { status: { in: ["REQUIRED", "MISSING", "REJECTED"] }, type: { notIn: [...OUTPUT_TYPES] } } },
         },
         include: {

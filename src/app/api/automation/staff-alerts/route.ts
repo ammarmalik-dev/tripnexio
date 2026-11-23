@@ -1,3 +1,4 @@
+import { NOT_ON_HOLD_WHERE, NO_OPEN_REFUND_WHERE } from "@/lib/automation/active-booking-where";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -125,7 +126,8 @@ export async function POST(request: NextRequest) {
         where: {
           status: { in: ["CONFIRMED", "PROCESSING"] },
           lead: { travelDate: { lt: travelCutoff } },
-          OR: [{ serviceStatusId: null }, { serviceStatus: { isTerminal: false, OR: [{ systemEvent: null }, { systemEvent: { not: "ON_HOLD" } }] } }],
+          // H13 — a booking being cancelled (open refund) is never put On Hold.
+          AND: [NOT_ON_HOLD_WHERE, NO_OPEN_REFUND_WHERE],
         },
         select: { id: true, bookingId: true, leadId: true, lead: { select: { serviceType: true, travelDate: true } } },
         take: 200,

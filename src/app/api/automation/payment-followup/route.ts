@@ -1,3 +1,4 @@
+import { NOT_ON_HOLD_WHERE, NO_OPEN_REFUND_WHERE } from "@/lib/automation/active-booking-where";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -34,7 +35,7 @@ export async function POST(request: NextRequest) {
     const summary = await recordAutomationRun("payment-followup", async () => {
       const pending = await db.payment.findMany({
         // Client 2026-10-27 — no payment reminders for a cancelled request (Lost / Closed lead, cancelled booking).
-        where: { status: "PENDING", booking: { status: { notIn: ["CANCELLED", "REFUNDED"] }, lead: { status: { notIn: ["LOST", "CLOSED"] }, followUpOptOut: false } } },
+        where: { status: "PENDING", booking: { status: { notIn: ["CANCELLED", "REFUNDED"] }, lead: { status: { notIn: ["LOST", "CLOSED"] }, followUpOptOut: false }, AND: [NOT_ON_HOLD_WHERE, NO_OPEN_REFUND_WHERE] } },
         include: { booking: { include: { customer: true, lead: true } } },
       });
 
