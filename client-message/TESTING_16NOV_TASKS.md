@@ -80,7 +80,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] F6 After applied: request only the Visa Copy, not a package
 - [x] F7 Visa Type column shows Tourist / Transit / Any (not "New Visa"); service details: stay, entry (validity only if enabled) — unit 12: CRM Leads / Bookings / Payments show the New Visa visa type (Tourist / Transit / Any) in the Service column instead of New Visa; Service Details = Stay · Entry only (type not repeated)
 - [x] F8 Visa Validity: hidden everywhere customer/staff-facing; country-wise Admin toggle (off by default) — unit 12: validity hidden everywhere (website, bot, CRM) unless Admin turns on Show visa validity for that country on its New Visa page (Country.showVisaValidity, migration 20261123120000, off by default)
-- [ ] F9 Pricing form: one form per visa product with all nationality × Adult/Child × Normal/Express prices; filters; remove the separate New Visa button
+- [x] F9 Pricing form: one form per visa product with all nationality × Adult/Child × Normal/Express prices; filters; remove the separate New Visa button — New Visa pricing in one form per visa product (Service Configuration → Pricing): every nationality × Adult/Child × Normal/Express price in one grid, one reason, each price audited with history; filters for visa product / processing type / nationality; the single-rule form no longer offers New Visa
 - [ ] F10 Nationality-wise document configuration; document descriptions everywhere (website, bot, CRM)
 - [x] F11 Service-specific nationalities (only enabled ones, no "All Nationalities") — New Visa nationality list shows only the nationalities priced for the destination (all when a price covers every nationality or nothing is priced yet)
 

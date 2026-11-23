@@ -14,6 +14,7 @@ import { getJson, postJson, patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
 import { NationalitySelect, nationalityFormValue, nationalityPayload } from "./NationalitySelect";
+import { NewVisaPriceMatrix } from "./NewVisaPriceMatrix";
 import { ChangeHistoryList, type ChangeHistoryEntry, type HistoryJson } from "./ChangeHistoryList";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
 import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
@@ -231,7 +232,8 @@ function PricingFields({
             Select a service
           </option>
           {/* Only services that read pricing rules; an older rule for another service keeps its own value so it can still be edited or disabled. */}
-          {SERVICE_TYPE_OPTIONS.filter((option) => usesPricingRules(option.value) || option.value === form.serviceType).map((option) => (
+          {/* Client doc 16 Nov (F9) — New Visa is priced in its own one-product form (NewVisaPriceMatrix); an existing New Visa rule stays editable. */}
+          {SERVICE_TYPE_OPTIONS.filter((option) => (usesPricingRules(option.value) && option.value !== "NEW_VISA") || option.value === form.serviceType).map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -731,6 +733,11 @@ export function PricingRulesManager({
   const [countryFilter, setCountryFilter] = useState(initialCountryId ?? "");
   const [paxFilter, setPaxFilter] = useState<PaxType | "">("");
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+  // Client doc 16 Nov (F9) — New Visa filters: visa product, processing type, nationality.
+  const [productFilter, setProductFilter] = useState("");
+  const [processingFilter, setProcessingFilter] = useState("");
+  const [nationalityFilter, setNationalityFilter] = useState("");
+  const newVisaFilters = serviceFilter === "NEW_VISA";
 
   const query = search.trim().toLowerCase();
   const filtered = rules.filter((rule) => {
@@ -739,6 +746,9 @@ export function PricingRulesManager({
     if (paxFilter && rule.paxType !== paxFilter) return false;
     if (activeFilter === "active" && !rule.active) return false;
     if (activeFilter === "inactive" && rule.active) return false;
+    if (newVisaFilters && productFilter && rule.newVisaConfigId !== productFilter) return false;
+    if (newVisaFilters && processingFilter && rule.processingType !== processingFilter) return false;
+    if (newVisaFilters && nationalityFilter && rule.nationalityId !== nationalityFilter) return false;
     if (!query) return true;
     const haystack = [
       SERVICE_TYPE_LABELS[rule.serviceType],
@@ -755,13 +765,18 @@ export function PricingRulesManager({
     return haystack.includes(query);
   });
   const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
-  const hasFilters = query !== "" || serviceFilter !== "" || countryFilter !== "" || paxFilter !== "" || activeFilter !== "all";
+  const hasFilters =
+    query !== "" || serviceFilter !== "" || countryFilter !== "" || paxFilter !== "" || activeFilter !== "all" || productFilter !== "" || processingFilter !== "" || nationalityFilter !== "";
+  const nationalityChoices = [...new Map(rules.filter((rule) => rule.serviceType === "NEW_VISA" && rule.nationalityId).map((rule) => [rule.nationalityId as string, rule.nationality ?? "—"])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
   const clearFilters = () => {
     setSearch("");
     setServiceFilter("");
     setCountryFilter("");
     setPaxFilter("");
     setActiveFilter("all");
+    setProductFilter("");
+    setProcessingFilter("");
+    setNationalityFilter("");
     resetPage();
   };
 
@@ -926,6 +941,69 @@ export function PricingRulesManager({
               <option value="active">Active</option>
               <option value="inactive">Disabled</option>
             </select>
+            {newVisaFilters ? (
+              <>
+                <label htmlFor="pricing-rule-filter-product" className="sr-only">
+                  Filter by visa product
+                </label>
+                <select
+                  id="pricing-rule-filter-product"
+                  value={productFilter}
+                  onChange={(event) => {
+                    setProductFilter(event.target.value);
+                    resetPage();
+                  }}
+                  className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[170px]")}
+                >
+                  <option value="">All visa products</option>
+                  {lookups.products
+                    .filter((product) => !countryFilter || countryFilter === NO_COUNTRY || product.countryId === countryFilter)
+                    .map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {countryFilter ? product.label : `${lookups.countries.find((c) => c.id === product.countryId)?.name ?? ""} — ${product.label}`}
+                      </option>
+                    ))}
+                </select>
+                <label htmlFor="pricing-rule-filter-processing" className="sr-only">
+                  Filter by processing type
+                </label>
+                <select
+                  id="pricing-rule-filter-processing"
+                  value={processingFilter}
+                  onChange={(event) => {
+                    setProcessingFilter(event.target.value);
+                    resetPage();
+                  }}
+                  className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+                >
+                  <option value="">All processing types</option>
+                  {(lookups.serviceOptions.NEW_VISA?.processingTypes ?? []).map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <label htmlFor="pricing-rule-filter-nationality" className="sr-only">
+                  Filter by nationality
+                </label>
+                <select
+                  id="pricing-rule-filter-nationality"
+                  value={nationalityFilter}
+                  onChange={(event) => {
+                    setNationalityFilter(event.target.value);
+                    resetPage();
+                  }}
+                  className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+                >
+                  <option value="">All nationalities</option>
+                  {nationalityChoices.map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </>
+            ) : null}
             {hasFilters ? (
               <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
                 Clear filters
@@ -972,7 +1050,17 @@ export function PricingRulesManager({
           )}
         </>
       )}
-      <NewPricingRuleForm lookups={lookups} onCreated={(created) => setRules((current) => [...current, created])} />
+      {/* Client doc 16 Nov (F9) — New Visa: one form per visa product (every nationality × Adult / Child × processing type). */}
+      {serviceFilter === "" || serviceFilter === "NEW_VISA" ? (
+        <NewVisaPriceMatrix
+          countries={lookups.countries}
+          products={lookups.products}
+          processingTypes={lookups.serviceOptions.NEW_VISA?.processingTypes ?? []}
+          rules={rules}
+          onSaved={() => setReloadNonce((current) => current + 1)}
+        />
+      ) : null}
+      {serviceFilter !== "NEW_VISA" ? <NewPricingRuleForm lookups={lookups} onCreated={(created) => setRules((current) => [...current, created])} /> : null}
     </div>
   );
 }
