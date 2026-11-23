@@ -13,6 +13,8 @@ export const quotationListQuerySchema = z.object({
   entrySource: z.enum(["WEBSITE", "WHATSAPP", "MANUAL"]).optional(),
   serviceType: z.enum(serviceTypeValues).optional(),
   status: z.enum(["SELECTED", "EXPIRED", "PENDING"]).optional(),
+  /** Client doc 16 Nov (J3) — the payment status, apart from the quotation status. */
+  paymentStatus: z.enum(["PAID", "UNPAID"]).optional(),
   search: z.string().trim().min(1).optional(),
   /** Step 53 — Command Centre's Sales Overview cards are period-scoped by createdAt; a card's link needs this to make the linked list's count actually match. */
   dateFrom: z.string().optional(),

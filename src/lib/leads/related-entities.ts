@@ -1,6 +1,5 @@
 import { db } from "../db";
 import { syncExpiredQuotations } from "../quotations/sync-expiry";
-import { leadDocumentsWhere } from "../documents/document-lead";
 
 export interface EntityRef {
   entityType: string;
@@ -29,15 +28,33 @@ export async function getLeadRelatedEntityRefs(leadId: string): Promise<EntityRe
 
   const quotations = await syncExpiredQuotations(lead.quotations);
 
-  // Client testing 2026-10-09 (E6) / doc 2026-10-15 (C7) — only this request's documents (its own and its
-  // bookings'), never a passenger's earlier or later requests: those stay in Customer 360.
-  const relatedDocuments = await db.document.findMany({ where: leadDocumentsWhere(lead.id), select: { id: true } });
+  // Client doc 16 Nov (J4) — separate histories: the lead keeps its own activity, its quotations and the unpaid
+  // checkout (a booking that was never paid stays with its lead); a paid booking's activity is on that booking.
+  // Only this request's lead-stage documents, never a passenger's other requests (those stay in Customer 360).
+  const relatedDocuments = await db.document.findMany({ where: { leadId: lead.id, bookingId: null }, select: { id: true } });
+  const unpaidBookings = lead.bookings.filter((booking) => !booking.payments.some((payment) => payment.status === "SUCCESS"));
 
   return [
     { entityType: "Lead", entityId: lead.id },
     ...quotations.map((quotation) => ({ entityType: "Quotation", entityId: quotation.id })),
-    ...lead.bookings.map((booking) => ({ entityType: "Booking", entityId: booking.id })),
-    ...lead.bookings.flatMap((booking) => booking.payments.map((payment) => ({ entityType: "Payment", entityId: payment.id }))),
+    ...unpaidBookings.map((booking) => ({ entityType: "Booking", entityId: booking.id })),
+    ...unpaidBookings.flatMap((booking) => booking.payments.map((payment) => ({ entityType: "Payment", entityId: payment.id }))),
     ...relatedDocuments.map((document) => ({ entityType: "Document", entityId: document.id })),
+  ];
+}
+
+/** Client doc 16 Nov (J4) — one booking's own history: the booking, its payments and refunds, its own documents. */
+export async function getBookingEntityRefs(bookingId: string): Promise<EntityRef[]> {
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: { id: true, payments: { select: { id: true, refunds: { select: { id: true } } } }, documents: { select: { id: true } }, protectionPlans: { select: { id: true } } },
+  });
+  if (!booking) return [];
+  return [
+    { entityType: "Booking", entityId: booking.id },
+    ...booking.payments.map((payment) => ({ entityType: "Payment", entityId: payment.id })),
+    ...booking.payments.flatMap((payment) => payment.refunds.map((refund) => ({ entityType: "Refund", entityId: refund.id }))),
+    ...booking.documents.map((document) => ({ entityType: "Document", entityId: document.id })),
+    ...booking.protectionPlans.map((plan) => ({ entityType: "ProtectionPlan", entityId: plan.id })),
   ];
 }

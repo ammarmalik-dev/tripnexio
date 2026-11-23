@@ -74,6 +74,9 @@ function formatTravelDate(value: string | null): string {
 }
 
 /** `defaultStatus` pre-filters the list; `followUpsDue` lists the due follow-ups (client doc 16 Nov, J1 / J8). */
+/** Client doc 16 Nov (J2) — a lead whose quotation was selected / payment link sent but not paid. */
+const UNPAID_STATUSES: LeadStatus[] = ["QUOTATION_ACCEPTED", "PAYMENT_PENDING"];
+
 export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defaultStatus?: string; followUpsDue?: boolean } = {}) {
   // Step 53 — read once on mount, so a Command Centre KPI card's link
   // (e.g. /crm/leads?status=NEW&dateFrom=...&dateTo=...) lands pre-filtered.
@@ -89,6 +92,11 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
   const [temperature, setTemperature] = useState(() => searchParams.get("temperature") ?? "");
   const [entrySource, setEntrySource] = useState(() => searchParams.get("entrySource") ?? "");
   const [paymentFailed, setPaymentFailed] = useState(() => searchParams.get("paymentFailed") === "1");
+  // Client doc 16 Nov (J2 / J8) — Unpaid / Paid / Abandoned form (the Sales Overview cards link here with it).
+  const [salesStage, setSalesStage] = useState(() => {
+    const value = searchParams.get("salesStage");
+    return value === "UNPAID" || value === "PAID" || value === "ABANDONED" ? value : "";
+  });
   const { page, pageSize, setPage, paginationHandlers } = usePaginationState();
   const {
     dateFrom,
@@ -137,6 +145,7 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
     if (followUpsDue) params.set("followUpDue", "1");
     if (temperature) params.set("temperature", temperature);
     if (entrySource) params.set("entrySource", entrySource);
+    if (salesStage) params.set("salesStage", salesStage);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
@@ -177,7 +186,7 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
     };
     // buildFilterParams reads exactly the state listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceType, status, temperature, entrySource, paymentFailed, assignedStaffId, countryId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [serviceType, status, temperature, entrySource, paymentFailed, salesStage, assignedStaffId, countryId, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -278,15 +287,20 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
         </label>
         <select
           id="filter-payment-failed"
-          value={paymentFailed ? "1" : ""}
+          value={paymentFailed ? "1" : salesStage}
           onChange={(event) => {
-            setPaymentFailed(event.target.value === "1");
+            const value = event.target.value;
+            setPaymentFailed(value === "1");
+            setSalesStage(value === "UNPAID" || value === "PAID" || value === "ABANDONED" ? value : "");
             setPage(1);
           }}
           className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[13rem] text-sm")}
         >
           <option value="">All payments</option>
-          <option value="1">Payment failed</option>
+          <option value="UNPAID">Unpaid</option>
+          <option value="1">Payment failed / abandoned</option>
+          <option value="PAID">Paid</option>
+          <option value="ABANDONED">Abandoned form</option>
         </select>
 
         <label htmlFor="filter-poc" className="sr-only">
@@ -449,7 +463,7 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
                     </Link>
                     <span className="ml-1.5 text-xs whitespace-nowrap text-ink-tertiary">· {lead.paxCount ?? "—"} PAX</span>
                     <ProcessingTag label={lead.processing} />
-                    {lead.paymentFailedStatus || lead.abandoned || lead.awaitingQuotation ? (
+                    {lead.paymentFailedStatus || lead.abandoned || lead.awaitingQuotation || UNPAID_STATUSES.includes(lead.status) ? (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {lead.awaitingQuotation ? (
                           <span
@@ -467,6 +481,15 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
                             Abandoned
                           </span>
                         ) : null}
+                        {/* Client doc 16 Nov (J2) — a selected quotation / payment link not paid yet stays a lead: Unpaid. */}
+                        {!lead.paymentFailedStatus && UNPAID_STATUSES.includes(lead.status) ? (
+                          <span
+                            className="inline-flex items-center whitespace-nowrap rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning"
+                            title="Quotation selected / payment link sent — not paid yet (it becomes a booking once paid)"
+                          >
+                            Unpaid
+                          </span>
+                        ) : null}
                         {lead.paymentFailedStatus ? (
                           <span
                             className="inline-flex items-center whitespace-nowrap rounded-full bg-error/10 px-2 py-0.5 text-xs font-medium text-error"
@@ -476,7 +499,7 @@ export function LeadsTable({ defaultStatus = "", followUpsDue = false }: { defau
                                 : "Latest payment attempt failed"
                             }
                           >
-                            Payment failed
+                            {lead.paymentFailedStatus === "EXPIRED" ? "Payment Abandoned" : "Payment failed"}
                           </span>
                         ) : null}
                       </div>

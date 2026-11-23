@@ -1,3 +1,4 @@
+import { quotationPaymentWhere } from "@/lib/quotations/payment-filter";
 import { leadOwnershipWhere, seesAllForViewing } from "@/lib/auth/ownership";
 import { fillFlightLeadFromQuote } from "@/lib/special-fare/fill-lead-from-quote";
 import { entrySourceWhere } from "@/lib/leads/entry-source";
@@ -118,7 +119,8 @@ export async function GET(request: NextRequest) {
   // shaped `{ lead: ... }` objects into `where`) so a serviceType filter and
   // a search term combine correctly instead of one silently overwriting the
   // other's `lead` key.
-  const where = {
+  const where: Prisma.QuotationWhereInput = {
+    AND: [quotationPaymentWhere(parsed.data.paymentStatus)],
     ...(status === "SELECTED" ? { isSelected: true } : {}),
     ...(status === "EXPIRED" ? { isSelected: false, ...liveExpiredCondition } : {}),
     ...(status === "PENDING"
@@ -159,6 +161,7 @@ export async function GET(request: NextRequest) {
             customer: true,
             country: { select: { name: true, code: true, flagOverride: true } },
             assignedStaff: { select: { name: true, active: true } },
+            bookings: { select: { payments: { where: { status: "SUCCESS" }, select: { id: true }, take: 1 } } },
           },
         },
       },
@@ -177,6 +180,8 @@ export async function GET(request: NextRequest) {
     leadReferenceId: leadReference(quotation.lead),
     serviceType: quotation.lead.serviceType,
     status: quotationStatus(quotation, now),
+    // Client doc 16 Nov (J3) — payment status kept separate from the quotation status.
+    paymentStatus: quotation.isSelected ? (quotation.lead.bookings.some((booking) => booking.payments.length > 0) ? "PAID" : "UNPAID") : null,
     sellingPrice: quotation.sellingPrice,
     // Internal-only — omitted (not just hidden) unless the viewer may see costs.
     margin: canViewMargin ? quotation.margin : null,

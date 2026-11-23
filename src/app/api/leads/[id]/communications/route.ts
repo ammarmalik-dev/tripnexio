@@ -3,7 +3,7 @@ import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { assertServiceAccess } from "@/lib/auth/service-scope";
-import { getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
+import { getBookingEntityRefs, getLeadRelatedEntityRefs } from "@/lib/leads/related-entities";
 import { toWhatsAppId } from "@/lib/whatsapp/phone";
 
 const WHATSAPP_SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -37,7 +37,11 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   const scopeError = assertServiceAccess(auth.session, lead.serviceType);
   if (scopeError) return scopeError;
 
-  const entityRefs = await getLeadRelatedEntityRefs(id);
+  // Client doc 16 Nov (J4) — ?bookingId= : only that booking's messages (its emails, and WhatsApp from when it was booked).
+  const bookingParam = new URL(_request.url).searchParams.get("bookingId");
+  const booking = bookingParam ? await db.booking.findFirst({ where: { id: bookingParam, leadId: id }, select: { id: true, createdAt: true } }) : null;
+  if (bookingParam && !booking) return jsonError(404, "Booking not found.");
+  const entityRefs = booking ? await getBookingEntityRefs(booking.id) : await getLeadRelatedEntityRefs(id);
   const emailAuditRows = entityRefs.length
     ? await db.auditTrail.findMany({
         where: { OR: entityRefs, action: { in: EMAIL_AUDIT_ACTIONS } },
@@ -55,7 +59,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
   // Client testing 2026-10-09 (E6) — this request's own WhatsApp messages: from a
   // little before it was created (the chat that led to it) until the customer's
   // next request. Everything else is returned separately as history.
-  const windowStart = lead.createdAt.getTime() - CHAT_LEAD_IN_MS;
+  const windowStart = booking ? booking.createdAt.getTime() : lead.createdAt.getTime() - CHAT_LEAD_IN_MS;
   // Client doc 2026-10-27 (G1) — the chat the team took over for THIS request (the conversation points at this
   // lead, e.g. the agent replies from the customer's booking) keeps every later message here, not in "Earlier
   // conversations", even when the customer has a newer request.

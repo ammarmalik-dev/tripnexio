@@ -47,6 +47,8 @@ interface QuotationListItem {
   leadReferenceId: string;
   serviceType: ServiceType;
   status: QuotationStatus;
+  /** Client doc 16 Nov (J3) — selected quotations only. */
+  paymentStatus?: "PAID" | "UNPAID" | null;
   sellingPrice: string;
   margin: string | null;
   customer: { name: string; mobile: string; email: string | null };
@@ -92,6 +94,7 @@ export function QuotationsTable() {
   const searchParams = useSearchParams();
   const [serviceType, setServiceType] = useState(() => searchParams.get("serviceType") ?? "");
   const [status, setStatus] = useState(() => searchParams.get("status") ?? "");
+  const [paymentStatus, setPaymentStatus] = useState(() => searchParams.get("paymentStatus") ?? "");
   const { dateFrom, dateTo, applyPreset, applyCustomFrom, applyCustomTo, clear: clearDates } = useDateRangeFilter(
     searchParams.get("dateFrom") ?? "",
     searchParams.get("dateTo") ?? ""
@@ -116,6 +119,7 @@ export function QuotationsTable() {
     const params = new URLSearchParams();
     if (serviceType) params.set("serviceType", serviceType);
     if (status) params.set("status", status);
+    if (paymentStatus) params.set("paymentStatus", paymentStatus);
     if (dateFrom) params.set("dateFrom", dateFrom);
     if (dateTo) params.set("dateTo", dateTo);
     if (assignedStaffId) params.set("assignedStaffId", assignedStaffId);
@@ -156,7 +160,7 @@ export function QuotationsTable() {
     };
     // buildFilterParams reads exactly the state listed here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [serviceType, status, assignedStaffId, countryId, entrySource, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
+  }, [serviceType, status, paymentStatus, assignedStaffId, countryId, entrySource, travelFrom, travelTo, dateFrom, dateTo, search, sort, page, pageSize, refreshNonce]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -299,6 +303,23 @@ export function QuotationsTable() {
           ))}
         </select>
 
+        <label htmlFor="filter-quotation-payment" className="sr-only">
+          Filter by payment
+        </label>
+        <select
+          id="filter-quotation-payment"
+          value={paymentStatus}
+          onChange={(event) => {
+            setPaymentStatus(event.target.value);
+            resetPage();
+          }}
+          className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[120px] max-w-[11rem] text-sm")}
+        >
+          <option value="">All payments</option>
+          <option value="UNPAID">Unpaid</option>
+          <option value="PAID">Paid</option>
+        </select>
+
         <label htmlFor="sort-quotations" className="sr-only">
           Sort by created date
         </label>
@@ -430,6 +451,16 @@ export function QuotationsTable() {
                     >
                       {STATUS_LABELS[quotation.status]}
                     </span>
+                    {quotation.paymentStatus ? (
+                      <span
+                        className={cn(
+                          "mt-1 inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium",
+                          quotation.paymentStatus === "PAID" ? "bg-success/10 text-success" : "bg-warning/10 text-warning"
+                        )}
+                      >
+                        {quotation.paymentStatus === "PAID" ? "Paid" : "Unpaid"}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap text-ink-secondary">{money(quotation.sellingPrice)}</td>
                   {quotation.margin !== null ? (

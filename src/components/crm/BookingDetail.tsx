@@ -789,7 +789,7 @@ export function BookingDetail({
             content: (
               <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-3">
                 <RecordSection title="Communications" className="xl:col-span-2">
-                  <CommunicationsPanel leadId={booking.leadId} />
+                  <CommunicationsPanel leadId={booking.leadId} bookingId={booking.id} />
                 </RecordSection>
                 <AddTaskPanel bookingId={booking.id} />
               </div>

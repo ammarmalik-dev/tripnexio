@@ -1,3 +1,5 @@
+import type { Prisma } from "@/generated/prisma/client";
+import { quotationPaymentWhere } from "@/lib/quotations/payment-filter";
 import type { NextRequest } from "next/server";
 import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schema";
 import { jsonError } from "@/lib/api/respond";
@@ -39,7 +41,8 @@ export async function GET(request: NextRequest) {
 
   const liveExpiredCondition = { OR: [{ isExpired: true }, { validityExpiresAt: { lt: now } }] };
 
-  const where = {
+  const where: Prisma.QuotationWhereInput = {
+    AND: [quotationPaymentWhere(parsed.data.paymentStatus)],
     ...(status === "SELECTED" ? { isSelected: true } : {}),
     ...(status === "EXPIRED" ? { isSelected: false, ...liveExpiredCondition } : {}),
     ...(status === "PENDING"

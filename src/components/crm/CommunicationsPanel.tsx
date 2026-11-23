@@ -75,7 +75,9 @@ const COMMUNICATIONS_POLL_MS = 10_000;
  * Subject/Message fields for staff to review, edit, and then explicitly
  * hit Send (CRM.md §25: "never auto-send without staff action").
  */
-export function CommunicationsPanel({ leadId }: { leadId: string }) {
+/** Client doc 16 Nov (J4) — with `bookingId`, only that booking's messages. */
+export function CommunicationsPanel({ leadId, bookingId }: { leadId: string; bookingId?: string }) {
+  const query = bookingId ? `?bookingId=${encodeURIComponent(bookingId)}` : "";
   const [state, setState] = useState<FetchState>("loading");
   const [data, setData] = useState<CommunicationsResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -96,7 +98,7 @@ export function CommunicationsPanel({ leadId }: { leadId: string }) {
     async function load() {
       setState("loading");
       try {
-        const result = await getJson<CommunicationsResponse>(`/api/leads/${leadId}/communications`);
+        const result = await getJson<CommunicationsResponse>(`/api/leads/${leadId}/communications${query}`);
         if (cancelled) return;
         setData(result);
         setState("success");
@@ -120,7 +122,7 @@ export function CommunicationsPanel({ leadId }: { leadId: string }) {
       async function poll() {
         if (document.visibilityState !== "visible") return;
         try {
-          const result = await getJson<CommunicationsResponse>(`/api/leads/${leadId}/communications`);
+          const result = await getJson<CommunicationsResponse>(`/api/leads/${leadId}/communications${query}`);
           if (!cancelled) setData(result);
         } catch {
           // The next tick retries; the explicit load above shows errors.
