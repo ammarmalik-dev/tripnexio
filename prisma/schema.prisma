@@ -2421,6 +2421,8 @@ enum FlightScope {
 // ---------------------------------------------------------------------------
 
 model User {
+  /// Client doc 16 Nov (J9) — monthly sales targets (Admin → Sales Tracker).
+  salesTargets SalesTarget[]
   id                  String        @id @default(cuid())
   name                String
   email               String        @unique
@@ -3304,4 +3306,20 @@ model AutomationSetting {
   key       String   @id
   enabled   Boolean
   updatedAt DateTime @updatedAt
+}
+
+/// Client doc 16 Nov (J9) — a POC's monthly sales target (Admin → Sales Tracker): converted leads and revenue.
+model SalesTarget {
+  id              String   @id @default(cuid())
+  userId          String
+  /// "YYYY-MM"
+  month           String
+  targetConverted Int      @default(0)
+  targetRevenue   Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, month])
 }

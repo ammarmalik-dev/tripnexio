@@ -15,7 +15,12 @@ export default async function CrmIndexPage() {
 
   return (
     <Suspense>
-      <CommandCentre staffName={session.name} canManageMasters={hasPermission(session, "masters.manage")} />
+      <CommandCentre
+        staffName={session.name}
+        canManageMasters={hasPermission(session, "masters.manage")}
+        showSales={hasPermission(session, "leads.view")}
+        showOperations={hasPermission(session, "bookings.view")}
+      />
     </Suspense>
   );
 }

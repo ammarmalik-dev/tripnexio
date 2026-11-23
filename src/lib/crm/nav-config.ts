@@ -61,6 +61,7 @@ import {
   FileBarChart,
   ReceiptText,
   type LucideIcon,
+  Target,
 } from "lucide-react";
 import { hasPermission } from "@/lib/auth/permissions";
 
@@ -244,6 +245,8 @@ export const adminNavGroups: CrmNavGroup[] = [
       { label: "Staff", href: "/admin/users", icon: UserCog, permission: "staff.manage" },
       { label: "Staff Leave", href: "/admin/staff-leave", icon: CalendarOff, permission: "staff.manage" },
       { label: "Staff Roster", href: "/admin/roster", icon: CalendarClock, permission: "staff.manage" },
+      // Client doc 16 Nov (J9) — POC sales targets and performance.
+      { label: "Sales Tracker", href: "/admin/sales-tracker", icon: Target, permission: "staff.manage" },
       { label: "Bulk Reassignment", href: "/admin/bulk-reassignment", icon: Repeat, permission: "leads.reassign" },
       { label: "Assignment Rules", href: "/admin/assignment-rules", icon: Workflow, permission: "staff.manage" },
     ],

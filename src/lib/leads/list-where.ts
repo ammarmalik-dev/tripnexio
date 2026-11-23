@@ -4,6 +4,7 @@ import { serviceTypeCondition } from "../auth/service-scope";
 import type { StaffSession } from "../auth/staff-session";
 import type { LeadListQueryValues } from "../validation/lead-query-schema";
 import { entrySourceWhere } from "./entry-source";
+import { ABANDONED_DRAFT_SOURCE } from "./abandoned-draft";
 
 /**
  * The Leads list's where clause, shared by GET /api/leads and its CSV export
@@ -25,6 +26,9 @@ export function leadListWhere(
     ...(temperature ? { temperature } : {}),
     ...(assignedStaffId ? { assignedStaffId: assignedStaffId === "unassigned" ? null : assignedStaffId } : {}),
     ...(countryId ? { countryId } : {}),
+    ...(query.salesStage === "UNPAID" ? { status: { in: ["QUOTATION_ACCEPTED", "PAYMENT_PENDING"] as ("QUOTATION_ACCEPTED" | "PAYMENT_PENDING")[] } } : {}),
+    ...(query.salesStage === "PAID" ? { bookings: { some: { payments: { some: { status: "SUCCESS" as const } } } } } : {}),
+    ...(query.salesStage === "ABANDONED" ? { source: ABANDONED_DRAFT_SOURCE } : {}),
     ...(travelFrom || travelTo
       ? {
           travelDate: {

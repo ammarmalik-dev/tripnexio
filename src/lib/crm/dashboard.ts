@@ -1,3 +1,4 @@
+import { ABANDONED_DRAFT_SOURCE } from "../leads/abandoned-draft";
 import { db } from "../db";
 import { leadReference } from "../leads/reference";
 import { getDelayKpis } from "./delays";
@@ -41,6 +42,15 @@ export interface SalesOverview {
   conversionRate: number;
   paymentPending: number;
   paymentReceived: number;
+  /** Client doc 16 Nov (J8) — the Sales team's cards. */
+  contacted: number;
+  interested: number;
+  notResponding: number;
+  unqualified: number;
+  unpaid: number;
+  paid: number;
+  abandoned: number;
+  followUpsDue: number;
   /** Every lead created in the period, regardless of status — the funnel/temperature-donut baseline. */
   totalLeads: number;
   /**
@@ -62,6 +72,14 @@ export interface OperationsOverview {
   delayed: number;
   refundsRaised: number;
   completed: number;
+  /** Client doc 16 Nov (J8) — the Operations team's cards. */
+  todayTasks: number;
+  documentsUploaded: number;
+  onHold: number;
+  cancelled: number;
+  awaitingQuotations: number;
+  quotationsSent: number;
+  quotationsPaid: number;
 }
 
 export type ActionQueueItemType =
@@ -180,7 +198,24 @@ export async function getSalesOverview(period: DashboardPeriod, allowedServiceTy
     leadsByStatus[g.status] = (leadsByStatus[g.status] ?? 0) + g._count._all;
   }
 
+  // Client doc 16 Nov (J8) — paid / abandoned in the period, and follow-ups due now (same rules as the Leads filters).
+  const endOfToday = new Date();
+  endOfToday.setUTCHours(23, 59, 59, 999);
+  const paid = await db.lead.count({ where: { ...createdInPeriod, ...leadScope, bookings: { some: { payments: { some: { status: "SUCCESS" } } } } } });
+  const abandoned = await db.lead.count({ where: { ...createdInPeriod, ...leadScope, source: ABANDONED_DRAFT_SOURCE } });
+  const followUpsDue = await db.lead.count({
+    where: { ...leadScope, status: { notIn: ["CONVERTED", "LOST", "CLOSED"] }, OR: [{ status: "FOLLOW_UP_REQUIRED" }, { nextFollowUpAt: { lte: endOfToday } }] },
+  });
+
   return {
+    contacted: leadCountByStatus("CONTACTED"),
+    interested: leadCountByStatus("CUSTOMER_RESPONDED"),
+    notResponding: leadCountByStatus("FOLLOW_UP_REQUIRED"),
+    unqualified: leadCountByStatus("LOST") + leadCountByStatus("CLOSED"),
+    unpaid: leadCountByStatus("QUOTATION_ACCEPTED") + leadCountByStatus("PAYMENT_PENDING"),
+    paid,
+    abandoned,
+    followUpsDue,
     newLeads: leadCountByStatus("NEW"),
     qualifiedLeads: leadCountByStatus("QUALIFIED"),
     convertedLeads: leadCountByStatus("CONVERTED"),
@@ -355,6 +390,9 @@ export async function getRevenueTrend(allowedServiceTypes?: ServiceScope): Promi
  * CRM.md §4's "what needs action now", a live operational snapshot, not a
  * count of things created in a date range.
  */
+/** Client doc 16 Nov (J3 / J8) — the services quoted by Operations. */
+const QUOTED_SERVICES: ServiceType[] = ["FLIGHT_SPECIAL_FARE", "VISA_CHANGE", "VISA_EXTENSION"];
+
 export async function getOperationsOverview(allowedServiceTypes?: ServiceScope): Promise<OperationsOverview> {
   const bookingLeadScope = allowedServiceTypes ? { lead: { serviceType: { in: allowedServiceTypes } } } : {};
   const [bookingStatusGroups, documentStatusGroups, refundsRaised] = await Promise.all([
@@ -377,6 +415,16 @@ export async function getOperationsOverview(allowedServiceTypes?: ServiceScope):
   // P21 item 9 — the same delay helper /crm/delays uses; run after the
   // groupBys above (not in the Promise.all) to keep concurrent queries low.
   const delayKpis = await getDelayKpis(allowedServiceTypes);
+  // Client doc 16 Nov (J8) — the rest of the Operations cards (live state).
+  const startOfToday = new Date();
+  startOfToday.setUTCHours(0, 0, 0, 0);
+  const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const quoteLeadScope = { serviceType: { in: (allowedServiceTypes ?? QUOTED_SERVICES).filter((type) => QUOTED_SERVICES.includes(type)) } };
+  const todayTasks = await db.task.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] }, dueDate: { lte: endOfToday }, ...(allowedServiceTypes ? { serviceType: { in: allowedServiceTypes } } : {}) } });
+  const onHold = await db.booking.count({ where: { ...bookingLeadScope, serviceStatus: { systemEvent: "ON_HOLD" } } });
+  const awaitingQuotations = await db.lead.count({ where: { ...quoteLeadScope, status: { notIn: ["CONVERTED", "LOST", "CLOSED"] }, quotations: { none: { isDraft: false } } } });
+  const quotationsSent = await db.quotation.count({ where: { lead: quoteLeadScope, isDraft: false, isSelected: false, isExpired: false } });
+  const quotationsPaid = await db.quotation.count({ where: { lead: { ...quoteLeadScope, bookings: { some: { payments: { some: { status: "SUCCESS" } } } } }, isSelected: true } });
 
   return {
     // Client corrections 2026-10-05: an unpaid (PENDING) booking stays with its Lead, not in Bookings.
@@ -396,6 +444,13 @@ export async function getOperationsOverview(allowedServiceTypes?: ServiceScope):
     delayed: delayKpis.delayedBookings,
     refundsRaised,
     completed: bookingCount("COMPLETED"),
+    todayTasks,
+    documentsUploaded: documentCount("RECEIVED"),
+    onHold,
+    cancelled: bookingCount("CANCELLED") + bookingCount("REFUNDED"),
+    awaitingQuotations,
+    quotationsSent,
+    quotationsPaid,
   };
 }
 

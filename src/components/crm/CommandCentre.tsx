@@ -12,19 +12,21 @@ import {
   ListTodo,
   Link2,
   Users,
-  Flame,
-  Sun,
-  Snowflake,
   BadgeCheck,
   FileText,
   CheckCircle2,
-  TrendingUp,
   Wallet,
   Briefcase,
   FileWarning,
-  UserCog,
-  Users2,
   Send,
+  PhoneCall,
+  Heart,
+  UserX,
+  Ban,
+  PauseCircle,
+  FileCheck2,
+  CalendarClock,
+  Inbox,
 } from "lucide-react";
 import { DateField } from "@/components/forms/DateField";
 import { Button } from "@/components/ui/Button";
@@ -234,6 +236,9 @@ function QuickActionsBar({ canManageMasters }: { canManageMasters: boolean }) {
 interface CommandCentreProps {
   staffName: string;
   canManageMasters: boolean;
+  /** Client doc 16 Nov (J8) — Sales sees the sales cards, Operations the operations cards. */
+  showSales?: boolean;
+  showOperations?: boolean;
 }
 
 /**
@@ -243,7 +248,7 @@ interface CommandCentreProps {
  * and the "Most Action Required" priority queue. Read-only/reporting only
  * beyond the Quick Actions links — no mutation actions here.
  */
-export function CommandCentre({ staffName, canManageMasters }: CommandCentreProps) {
+export function CommandCentre({ staffName, canManageMasters, showSales = true, showOperations = true }: CommandCentreProps) {
   const [openQueue, setOpenQueue] = useState<"needsAttention" | "expiringSoon" | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -317,14 +322,6 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
     const params = new URLSearchParams({ ...extra, dateFrom: data!.period.startDate, dateTo: data!.period.endDate });
     return `/crm/leads?${params.toString()}`;
   }
-  function quotationsHref(extra: Record<string, string>): string {
-    const params = new URLSearchParams({ ...extra, dateFrom: data!.period.startDate, dateTo: data!.period.endDate });
-    return `/crm/quotations?${params.toString()}`;
-  }
-  function paymentsHref(extra: Record<string, string>): string {
-    const params = new URLSearchParams({ ...extra, dateFrom: data!.period.startDate, dateTo: data!.period.endDate });
-    return `/crm/payments?${params.toString()}`;
-  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -391,49 +388,43 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
         <ErrorState description={errorMessage} />
       ) : data ? (
         <>
+          {/* Client doc 16 Nov (J8) — the Sales team's cards (period-scoped; follow-ups due is live). */}
+          {showSales ? (
           <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-ink-heading">Sales Overview</h2>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
               <KpiCard label="New Leads" value={data.sales.newLeads} icon={Users} tint="accent" href={leadsHref({ status: "NEW" })} />
-              <KpiCard label="Hot Leads" value={data.sales.hotLeads} icon={Flame} tint="error" href={leadsHref({ temperature: "HOT" })} />
-              <KpiCard label="Warm Leads" value={data.sales.warmLeads} icon={Sun} tint="warning" href={leadsHref({ temperature: "WARM" })} />
-              <KpiCard label="Cold Leads" value={data.sales.coldLeads} icon={Snowflake} tint="neutral" href={leadsHref({ temperature: "COLD" })} />
-              {/* Client doc 16 Nov (J8) — Converted Leads (paid) instead of Qualified Leads. */}
+              <KpiCard label="Contacted" value={data.sales.contacted} icon={PhoneCall} tint="neutral" href={leadsHref({ status: "CONTACTED" })} />
+              <KpiCard label="Interested" value={data.sales.interested} icon={Heart} tint="success" href={leadsHref({ status: "CUSTOMER_RESPONDED" })} />
+              <KpiCard label="Not Responding" value={data.sales.notResponding} icon={UserX} tint="warning" href={leadsHref({ status: "FOLLOW_UP_REQUIRED" })} />
+              <KpiCard label="Unqualified" value={data.sales.unqualified} icon={Ban} tint="neutral" href={leadsHref({ status: "LOST" })} />
+              <KpiCard label="Unpaid" value={data.sales.unpaid} icon={Wallet} tint="warning" href={leadsHref({ salesStage: "UNPAID" })} />
+              <KpiCard label="Paid" value={data.sales.paid} icon={Wallet} tint="success" href={leadsHref({ salesStage: "PAID" })} />
+              <KpiCard label="Abandoned" value={data.sales.abandoned} icon={Inbox} tint="neutral" href={leadsHref({ salesStage: "ABANDONED" })} />
               <KpiCard label="Converted Leads" value={data.sales.convertedLeads} icon={BadgeCheck} tint="success" href={leadsHref({ status: "CONVERTED" })} />
-              <KpiCard label="Quotations" value={data.sales.quotationsCreated} icon={FileText} tint="accent" href={quotationsHref({})} />
-              <KpiCard label="Accepted Quotations" value={data.sales.acceptedQuotations} icon={CheckCircle2} tint="success" href={quotationsHref({ status: "SELECTED" })} />
-              <KpiCard
-                label="Conversion"
-                value={data.sales.conversionRate}
-                suffix="%"
-                icon={TrendingUp}
-                tint="success"
-                href={leadsHref({ status: "CONVERTED" })}
-                notClickableHint="Opens the Converted leads that make up the numerator — the percentage itself isn't a list."
-              />
-              <KpiCard label="Payment Pending" value={data.sales.paymentPending} icon={Wallet} tint="warning" href={paymentsHref({ status: "PENDING" })} />
-              <KpiCard label="Payment Received" value={data.sales.paymentReceived} icon={Wallet} tint="success" href={paymentsHref({ status: "SUCCESS" })} />
+              <KpiCard label="Follow-ups Due" value={data.sales.followUpsDue} icon={CalendarClock} tint="error" href="/crm/leads?followUpDue=1" />
             </div>
           </section>
+          ) : null}
 
+          {showOperations ? (
           <section className="flex flex-col gap-3">
             <h2 className="text-sm font-semibold text-ink-heading">Operations Overview</h2>
-            <p className="text-xs text-ink-tertiary">Current live state — not affected by the period filter above.</p>
+            <p className="text-xs text-ink-tertiary">Current live state — not affected by the period filter above. Quotations are handled by Operations.</p>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
               <KpiCard label="Active Bookings" value={data.operations.activeBookings} icon={Briefcase} tint="neutral" href="/crm/bookings?status=CONFIRMED,PROCESSING" />
+              <KpiCard label="Today's Tasks" value={data.operations.todayTasks} icon={ListTodo} tint="accent" href="/crm/tasks" />
               <KpiCard label="Documents Pending" value={data.operations.documentsPending} icon={FileWarning} tint="warning" href="/crm/documents?status=REQUIRED,MISSING" />
-              <KpiCard label="Customer Action Required" value={data.operations.customerActionRequired} icon={UserCog} tint="error" href="/crm/documents?status=MISSING" />
-              <KpiCard
-                label="Staff Action Required"
-                value={data.operations.staffActionRequired}
-                icon={Users2}
-                tint="neutral"
-                notClickableHint="Documents awaiting validation + bookings past their completion SLA — see Documents/Bookings/Delay Analysis separately, no single list shows this combined count."
-              />
+              <KpiCard label="Documents Uploaded" value={data.operations.documentsUploaded} icon={FileCheck2} tint="accent" href="/crm/documents?status=RECEIVED" />
+              <KpiCard label="Refund Raised" value={data.operations.refundsRaised} icon={RotateCcw} tint="warning" href="/crm/refunds?status=PENDING" />
               <KpiCard label="External Processing" value={data.operations.externalProcessing} icon={Send} tint="accent" href="/crm/bookings?status=PROCESSING" />
               <KpiCard label="Delayed" value={data.operations.delayed} icon={Clock} tint="error" href="/crm/delays" />
-              <KpiCard label="Refunds Raised" value={data.operations.refundsRaised} icon={RotateCcw} tint="warning" href="/crm/refunds?status=PENDING" />
+              <KpiCard label="On Hold" value={data.operations.onHold} icon={PauseCircle} tint="warning" href="/crm/bookings" notClickableHint="Bookings on Booking On Hold" />
               <KpiCard label="Completed" value={data.operations.completed} icon={CheckCircle2} tint="success" href="/crm/bookings?status=COMPLETED" />
+              <KpiCard label="Cancelled" value={data.operations.cancelled} icon={Ban} tint="neutral" href="/crm/bookings?status=CANCELLED,REFUNDED" />
+              <KpiCard label="Awaiting Quotations" value={data.operations.awaitingQuotations} icon={FileText} tint="warning" href="/crm/quotations?tab=awaiting" />
+              <KpiCard label="Quotations Sent" value={data.operations.quotationsSent} icon={Send} tint="accent" href="/crm/quotations" />
+              <KpiCard label="Quotations Paid" value={data.operations.quotationsPaid} icon={CheckCircle2} tint="success" href="/crm/quotations?status=SELECTED" />
               {/* Client testing 2026-10-09 (E2) — buttons that open a short list, not two long lists on the page. */}
               <KpiCard
                 label="Needs Attention"
@@ -479,6 +470,7 @@ export function CommandCentre({ staffName, canManageMasters }: CommandCentreProp
               </div>
             ) : null}
           </section>
+          ) : null}
 
           <section className="flex flex-col gap-4">
             <h2 className="text-sm font-semibold text-ink-heading">Insights</h2>

@@ -21,6 +21,8 @@ export const leadListQuerySchema = z.object({
   temperature: z.enum(leadTemperatureValues).optional(),
   /** Client doc 16 Nov (J1 / J8) — Follow-ups: leads not responding, or whose follow-up date is today or earlier. */
   followUpDue: z.enum(["1"]).optional(),
+  /** Client doc 16 Nov (J8) — the Sales Overview cards: unpaid (quotation selected / payment pending), paid, abandoned form. */
+  salesStage: z.enum(["UNPAID", "PAID", "ABANDONED"]).optional(),
   search: z.string().trim().min(1).optional(),
   /** Step 53 — Command Centre's Sales Overview cards are period-scoped by createdAt; a card's link needs this to make the linked list's count actually match. */
   dateFrom: z.string().optional(),
