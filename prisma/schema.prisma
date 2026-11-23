@@ -3161,6 +3161,10 @@ model EscalationRule {
   serviceStatusId String?
   hoursInStatus   Int
   escalateTo      String
+  /// Client doc 16 Nov (N2) — remind the POC again every N hours while the breach lasts (null = once).
+  repeatEveryHours          Int?
+  /// N2 — escalate further (email Admin again) when still unresolved this many hours after the first breach.
+  furtherEscalateAfterHours Int?
   active          Boolean      @default(true)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -3293,4 +3297,11 @@ model ServiceCountryTimeline {
 
   @@unique([serviceType, countryId])
   @@index([countryId])
+}
+
+/// Client doc 16 Nov (N1) — Admin's on / off per automation (Admin → Automation). No row = the automation's default.
+model AutomationSetting {
+  key       String   @id
+  enabled   Boolean
+  updatedAt DateTime @updatedAt
 }

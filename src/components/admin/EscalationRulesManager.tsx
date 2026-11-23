@@ -30,6 +30,8 @@ interface EscalationRuleData {
   serviceStatusId: string | null;
   hoursInStatus: number;
   escalateTo: string;
+  repeatEveryHours?: number | null;
+  furtherEscalateAfterHours?: number | null;
   active: boolean;
 }
 
@@ -45,6 +47,8 @@ interface Draft {
   serviceStatusId: string;
   hoursInStatus: string;
   escalateTo: EscalateTo;
+  repeatEveryHours: string;
+  furtherEscalateAfterHours: string;
 }
 
 type FieldErrors = Record<string, string[] | undefined>;
@@ -59,16 +63,31 @@ function toDraft(rule: EscalationRuleData): Draft {
     serviceStatusId: rule.serviceStatusId ?? "",
     hoursInStatus: String(rule.hoursInStatus),
     escalateTo: isEscalateTo(rule.escalateTo) ? rule.escalateTo : "MANAGERS",
+    repeatEveryHours: rule.repeatEveryHours ? String(rule.repeatEveryHours) : "",
+    furtherEscalateAfterHours: rule.furtherEscalateAfterHours ? String(rule.furtherEscalateAfterHours) : "",
   };
 }
 
-const EMPTY_DRAFT: Draft = { serviceType: "", serviceStatusId: "", hoursInStatus: "24", escalateTo: "MANAGERS" };
+const EMPTY_DRAFT: Draft = { serviceType: "", serviceStatusId: "", hoursInStatus: "24", escalateTo: "MANAGERS", repeatEveryHours: "", furtherEscalateAfterHours: "" };
+
+/** "" = not set (null); otherwise a whole number of hours (at least 1), or an error. */
+function optionalHours(value: string): number | null | "invalid" {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  return /^\d+$/.test(trimmed) && Number(trimmed) >= 1 ? Number(trimmed) : "invalid";
+}
 
 function toPayload(draft: Draft): { payload: Record<string, unknown> } | { errors: FieldErrors } {
   const hours = draft.hoursInStatus.trim();
   if (!/^\d+$/.test(hours) || Number(hours) < 1) return { errors: { hoursInStatus: ["Enter a whole number of hours (at least 1)"] } };
+  const repeat = optionalHours(draft.repeatEveryHours);
+  if (repeat === "invalid") return { errors: { repeatEveryHours: ["Whole hours (at least 1), or leave empty"] } };
+  const further = optionalHours(draft.furtherEscalateAfterHours);
+  if (further === "invalid") return { errors: { furtherEscalateAfterHours: ["Whole hours (at least 1), or leave empty"] } };
   return {
     payload: {
+      repeatEveryHours: repeat,
+      furtherEscalateAfterHours: further,
       serviceType: draft.serviceType || null,
       serviceStatusId: draft.serviceType ? draft.serviceStatusId || null : null,
       hoursInStatus: Number(hours),
@@ -142,6 +161,26 @@ function RuleFields({
         onChange={(event) => onChange({ ...draft, hoursInStatus: event.target.value })}
         error={errors.hoursInStatus?.[0]}
       />
+      <TextField
+        label="Remind the POC every (hours)"
+        name={`${idPrefix}-repeat`}
+        inputMode="numeric"
+        value={draft.repeatEveryHours}
+        disabled={disabled}
+        hint="Optional — repeats the POC email until the booking moves on."
+        onChange={(event) => onChange({ ...draft, repeatEveryHours: event.target.value })}
+        error={errors.repeatEveryHours?.[0]}
+      />
+      <TextField
+        label="Escalate further to Admin after (hours)"
+        name={`${idPrefix}-further`}
+        inputMode="numeric"
+        value={draft.furtherEscalateAfterHours}
+        disabled={disabled}
+        hint="Optional — counted from the first escalation."
+        onChange={(event) => onChange({ ...draft, furtherEscalateAfterHours: event.target.value })}
+        error={errors.furtherEscalateAfterHours?.[0]}
+      />
       <FormField label="Escalate to" htmlFor={`${idPrefix}-escalate-to`} error={errors.escalateTo?.[0]}>
         <select
           id={`${idPrefix}-escalate-to`}
@@ -164,7 +203,7 @@ function RuleFields({
 function describeRule(rule: EscalationRuleData, statuses: StatusOption[]): string {
   const service = rule.serviceType ? SERVICE_TYPE_LABELS[rule.serviceType] : "Every service";
   const status = rule.serviceStatusId ? (statuses.find((entry) => entry.id === rule.serviceStatusId)?.name ?? "Unknown status") : "any open status";
-  return `${service} · ${status} · after ${rule.hoursInStatus} h`;
+  return `${service} · ${status} · after ${rule.hoursInStatus} h${rule.repeatEveryHours ? ` · POC reminded every ${rule.repeatEveryHours} h` : ""}${rule.furtherEscalateAfterHours ? ` · to Admin after +${rule.furtherEscalateAfterHours} h` : ""}`;
 }
 
 function RuleCard({

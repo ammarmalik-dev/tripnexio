@@ -40,6 +40,10 @@ export const createEscalationRuleSchema = z.object({
     .min(1, "Must be at least 1 hour")
     .max(8760, "At most 8760 hours (one year)"),
   escalateTo: z.enum(ESCALATE_TO_VALUES, { error: "Choose who to escalate to" }),
+  /** Client doc 16 Nov (N2) — remind the POC every N hours while breached (null = once). */
+  repeatEveryHours: z.number().int("Enter whole hours").min(1, "At least 1 hour").max(720).nullable().optional(),
+  /** N2 — escalate further to Admin when still unresolved N hours after the first escalation (null = never). */
+  furtherEscalateAfterHours: z.number().int("Enter whole hours").min(1, "At least 1 hour").max(8760).nullable().optional(),
   active: z.boolean().default(true),
 });
 

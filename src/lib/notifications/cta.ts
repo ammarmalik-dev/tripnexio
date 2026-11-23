@@ -12,6 +12,9 @@ export const EVENT_CTA: Record<string, { variable: string; label: string }> = {
   QUOTE_READY: { variable: "reviewLink", label: "View & Pay" },
   OUTPUT_DELIVERED: { variable: "downloadLink", label: "Download" },
   DOCUMENTS_REQUIRED: { variable: "uploadLink", label: "Upload Documents" },
+  DOCUMENT_REMINDER: { variable: "uploadLink", label: "Upload Documents" },
+  PAYMENT_REMINDER: { variable: "paymentLink", label: "Pay Now" },
+  QUOTE_REMINDER: { variable: "reviewLink", label: "View & Pay" },
 };
 
 /**

@@ -1,3 +1,4 @@
+import { isAutomationEnabled } from "@/lib/automation/settings";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -67,13 +68,20 @@ export async function POST(request: NextRequest) {
 
       const stillActive = candidates.filter((q) => q.validityExpiresAt!.getTime() >= now);
       let remindersSent = 0;
+      // Client doc 16 Nov (N1 / N3 / N14) — reminders follow Admin's on / off and the customer's Stop Reminders, and a
+      // lead with several quotations sent together gets one reminder per round (not one per quotation).
+      const remindersOn = await isAutomationEnabled("PAYMENT_REMINDER");
+      const remindedLeads = new Set<string>();
       for (const quotation of stillActive) {
         const msLeft = quotation.validityExpiresAt!.getTime() - now;
         const isFlight = isFlightQuote(quotation.lead.serviceType);
 
-        const dueForReminder = isFlight
-          ? !(await wasRecentlyReminded("QUOTE_REMINDER", "Quotation", quotation.id, FLIGHT_REMINDER_COOLDOWN_MS))
-          : msLeft <= REMINDER_WINDOW_MS && !(await wasRecentlyReminded("QUOTE_REMINDER", "Quotation", quotation.id, REMINDER_COOLDOWN_MS));
+        const allowed = remindersOn && !quotation.lead.followUpOptOut && !remindedLeads.has(quotation.leadId);
+        const dueForReminder =
+          allowed &&
+          (isFlight
+            ? !(await wasRecentlyReminded("QUOTE_REMINDER", "Lead", quotation.leadId, FLIGHT_REMINDER_COOLDOWN_MS - 60 * 1000))
+            : msLeft <= REMINDER_WINDOW_MS && !(await wasRecentlyReminded("QUOTE_REMINDER", "Quotation", quotation.id, REMINDER_COOLDOWN_MS)));
 
         // Client doc 2026-10-20 — a Special Fare quote reminds every 10 minutes with the client's "Quotation Expiring"
         // template (from 10 minutes after it was sent), and the lead shows "Quotation Expiring Soon".
@@ -82,7 +90,8 @@ export async function POST(request: NextRequest) {
           if (now - sentAt >= FLIGHT_REMINDER_COOLDOWN_MS) {
             await db.$transaction((tx) => applySystemEvent(tx, { scope: "LEAD", entityId: quotation.leadId, event: "QUOTE_EXPIRING", actorLabel: "quotation expiring", silent: true }));
             await sendStatusTemplate({ event: "SF_04", scope: "LEAD", entityId: quotation.leadId, statusLabel: "Quotation Expiring Soon" });
-            await logReminder("QUOTE_REMINDER", "Quotation", quotation.id);
+            await logReminder("QUOTE_REMINDER", "Lead", quotation.leadId);
+            remindedLeads.add(quotation.leadId);
             remindersSent++;
           }
         } else if (dueForReminder) {

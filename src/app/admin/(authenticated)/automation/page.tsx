@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AutomationMonitor } from "@/components/admin/AutomationMonitor";
 import { IntegrationsHealth } from "@/components/admin/IntegrationsHealth";
+import { AutomationSettingsPanel } from "@/components/admin/AutomationSettingsPanel";
 
 export const metadata: Metadata = { title: "Automation | Admin" };
 
@@ -16,6 +17,16 @@ export default function AdminAutomationPage() {
           </p>
         </div>
         <IntegrationsHealth />
+      </div>
+
+      <div className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-ink-heading">Automation settings</h2>
+          <p className="text-sm text-ink-tertiary">
+            Switch each automation on or off, and its Email and WhatsApp messages separately. The message wording is in Notification Templates.
+          </p>
+        </div>
+        <AutomationSettingsPanel />
       </div>
 
       <div className="flex flex-col gap-3">

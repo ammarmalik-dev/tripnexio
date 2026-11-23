@@ -171,10 +171,10 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] M4 Admin templates: filter by Service / Country / Status; on/off per notification and channel; editable before/after-payment content; submission messages; reminder management; Meta template editing guidance; buttons + Stop Reminder link
 
 ## N. Automation (doc "Final Automation & Notification Requirements")
-- [ ] N1 Every automation: separate email + WhatsApp templates, independent on/off, dynamic variables per doc
-- [ ] N2 SLA escalation per service: POC + Admin, repeat interval, further escalation, OFF = silent
-- [ ] N3 Payment reminders: VC/VE every 2 h until 18:00 same day; NV/OTB/RT daily; flight quote 10/20 min then every 10 min, expire at 30 min
-- [ ] N4 Document reminders 12:00 + 17:00 daily until complete; separate templates
+- [x] N1 Every automation: separate email + WhatsApp templates, independent on/off, dynamic variables per doc — Admin → Automation → Automation settings: each automation on/off, and Email / WhatsApp separately (its templates); separate Payment Reminder and Document Reminder templates (DOCUMENT_REMINDER added, migration 20261124090000); variables incl. service name, payment / upload link, stop link. Upsell / coupon / report automations join this list as they are built
+- [x] N2 SLA escalation per service: POC + Admin, repeat interval, further escalation, OFF = silent — SLA escalation: global on/off (off = nothing sent); POC emailed at once, managers/admins emailed + in-app; per rule: remind the POC every N hours, escalate further to Admin after N more hours
+- [x] N3 Payment reminders: VC/VE every 2 h until 18:00 same day; NV/OTB/RT daily; flight quote 10/20 min then every 10 min, expire at 30 min — payment reminders: VC/VE every 2 h until 6 PM the same day; NV/OTB/RT daily; Special Fare 10 and 20 minutes after (expires at 30); flight quote reminders once per lead per round; Admin toggle + Stop Reminders respected; job every 5 minutes
+- [x] N4 Document reminders 12:00 + 17:00 daily until complete; separate templates — document reminders at 12:00 PM and 5:00 PM local time while required / additional documents are pending, with the separate Document Reminder template
 - [ ] N5 OTB upsell UAE/Oman (day after delivery + 2 days before travel, 16:00, max 2, one per passenger)
 - [ ] N6 UAE extension reminders (30-day: day 20/25/30; 60-day: 50/55/60; after extension: 25/29), 12:00
 - [ ] N7 Visa Extension upsell after Visa Change approval (day 50/55/60), 12:00

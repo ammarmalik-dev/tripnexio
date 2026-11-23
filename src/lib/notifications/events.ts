@@ -25,6 +25,8 @@ export const NOTIFICATION_EVENTS = {
   /** Client testing 2026-10-09 — refund raised / approved / completed / rejected. */
   REFUND_UPDATE: "REFUND_UPDATE",
   DOCUMENTS_REQUIRED: "DOCUMENTS_REQUIRED",
+  /** Client doc 16 Nov (N4) — the scheduled document reminder (12:00 PM and 5:00 PM), its own template. */
+  DOCUMENT_REMINDER: "DOCUMENT_REMINDER",
   DOCUMENT_APPROVED: "DOCUMENT_APPROVED",
   DOCUMENT_REJECTED: "DOCUMENT_REJECTED",
   LEAD_FOLLOWUP: "LEAD_FOLLOWUP",
@@ -129,9 +131,31 @@ export const NOTIFICATION_EVENT_CATALOG: {
   {
     event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,
     label: "Payment pending (reminder)",
-    variables: ["customerName", "bookingId", "leadReference", "amount"],
+    variables: ["customerName", "bookingId", "leadReference", "serviceName", "amount", "paymentLink", "unsubscribeLink"],
     wired: true,
-    sampleVariables: { customerName: "Sample Customer", bookingId: "10626OT002", leadReference: "10626OT002", amount: "Rs. 1,605.00" },
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "10626OT002",
+      leadReference: "10626OT002",
+      serviceName: "OTB",
+      amount: "Rs. 1,605.00",
+      paymentLink: "https://tripnexio.com/pay/sample-token",
+      unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample-token",
+    },
+  },
+  {
+    event: NOTIFICATION_EVENTS.DOCUMENT_REMINDER,
+    label: "Document reminder (12:00 PM and 5:00 PM while documents are pending)",
+    variables: ["customerName", "bookingId", "serviceName", "documentName", "uploadLink", "unsubscribeLink"],
+    wired: true,
+    sampleVariables: {
+      customerName: "Sample Customer",
+      bookingId: "10626VI001",
+      serviceName: "New Visa",
+      documentName: "Passport copy, Photograph",
+      uploadLink: "https://tripnexio.com/pay/sample-token#documents",
+      unsubscribeLink: "https://tripnexio.com/follow-ups/stop/sample-token",
+    },
   },
   {
     event: NOTIFICATION_EVENTS.DOCUMENTS_REQUIRED,

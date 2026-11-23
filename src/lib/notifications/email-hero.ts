@@ -23,6 +23,7 @@ const EVENT_HEADINGS: Record<string, string> = {
   PAYMENT_RECEIVED: "Payment Received",
   PAYMENT_REMINDER: "Payment Pending",
   DOCUMENTS_REQUIRED: "Documents Required",
+  DOCUMENT_REMINDER: "Documents Pending",
   DOCUMENT_APPROVED: "Document Approved",
   DOCUMENT_REJECTED: "Document Needs Attention",
   VISA_EXTENSION_REMINDER: "Visa Extension Reminder",

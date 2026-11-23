@@ -1,3 +1,5 @@
+import { isAutomationEnabled } from "@/lib/automation/settings";
+import { sendStaffEmail } from "@/lib/staff-notifications/staff-email";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import { db } from "@/lib/db";
@@ -49,6 +51,8 @@ export async function POST(request: NextRequest) {
 
   try {
     const summary = await recordAutomationRun("sla-escalation", async () => {
+      // Client doc 16 Nov (N2) — SLA escalation OFF = no escalation at all (dashboard or email).
+      if (!(await isAutomationEnabled("SLA_ESCALATION"))) return { skipped: "SLA escalation is switched off" };
       const now = Date.now();
       const rules = await db.escalationRule.findMany({ where: { active: true }, orderBy: { createdAt: "asc" }, take: 100 });
 
@@ -84,7 +88,7 @@ export async function POST(request: NextRequest) {
             createdAt: true,
             serviceStatusId: true,
             serviceStatus: { select: { name: true } },
-            lead: { select: { serviceType: true } },
+            lead: { select: { serviceType: true, assignedStaffId: true } },
           },
           orderBy: { createdAt: "asc" },
           take: BOOKINGS_PER_RULE,
@@ -113,11 +117,53 @@ export async function POST(request: NextRequest) {
 
           const statusKey = booking.serviceStatusId ?? "none";
           const event = `${EVENT_PREFIX}:${rule.id}:${statusKey}:${enteredAt.getTime()}`;
-          if (await wasRecentlyReminded(event, "Booking", booking.id, DEDUPE_LOOKBACK_MS)) continue;
-
           const hours = Math.floor(elapsedMs / HOUR_MS);
           const statusName = booking.serviceStatus?.name ?? "no status";
           const permission = ESCALATE_TO_PERMISSION[escalateTo];
+          const service = SERVICE_TYPE_LABELS[booking.lead.serviceType];
+          const poc = booking.lead.assignedStaffId ? { userIds: [booking.lead.assignedStaffId] } : null;
+          const overMs = elapsedMs - thresholdMs;
+
+          if (await wasRecentlyReminded(event, "Booking", booking.id, DEDUPE_LOOKBACK_MS)) {
+            // Client doc 16 Nov (N2) — while the breach lasts: remind the POC every `repeatEveryHours`, and escalate
+            // further to Admin once `furtherEscalateAfterHours` have passed since the first breach.
+            if (rule.repeatEveryHours && rule.repeatEveryHours > 0 && poc) {
+              const round = Math.floor(overMs / (rule.repeatEveryHours * HOUR_MS));
+              const repeatEvent = `${event}:R${round}`;
+              if (round >= 1 && !(await wasRecentlyReminded(repeatEvent, "Booking", booking.id, DEDUPE_LOOKBACK_MS))) {
+                await sendStaffEmail({
+                  recipients: poc,
+                  subject: `SLA reminder: ${booking.bookingId} still in ${statusName} (${hours} h)`,
+                  lines: [`${service} booking ${booking.bookingId} is still in "${statusName}" after ${hours} hours (SLA ${rule.hoursInStatus} h).`, "Please act on it — this reminder repeats until it moves on."],
+                  link: `/crm/bookings/${booking.id}`,
+                });
+                await logReminder(repeatEvent, "Booking", booking.id);
+              }
+            }
+            if (rule.furtherEscalateAfterHours && rule.furtherEscalateAfterHours > 0 && overMs >= rule.furtherEscalateAfterHours * HOUR_MS) {
+              const furtherEvent = `${event}:FURTHER`;
+              if (!(await wasRecentlyReminded(furtherEvent, "Booking", booking.id, DEDUPE_LOOKBACK_MS))) {
+                await notifyStaff({
+                  type: "DELAY",
+                  title: `Further escalation: ${booking.bookingId} in ${statusName} for ${hours} h`,
+                  body: `${service} — still unresolved ${rule.furtherEscalateAfterHours} h after the SLA escalation`,
+                  link: `/crm/bookings/${booking.id}`,
+                  entityType: "Booking",
+                  entityId: booking.id,
+                  recipients: { permission: ESCALATE_TO_PERMISSION.ADMINS, serviceType: booking.lead.serviceType },
+                });
+                await sendStaffEmail({
+                  recipients: { permission: ESCALATE_TO_PERMISSION.ADMINS, serviceType: booking.lead.serviceType },
+                  subject: `Further escalation: ${booking.bookingId} in ${statusName} for ${hours} h`,
+                  lines: [`${service} booking ${booking.bookingId} is still in "${statusName}" ${rule.furtherEscalateAfterHours} h after its SLA escalation (${hours} h in total, SLA ${rule.hoursInStatus} h).`],
+                  link: `/crm/bookings/${booking.id}`,
+                });
+                await writeAudit(db, { entityType: "Booking", entityId: booking.id, action: "SLA_ESCALATED", note: `Further escalation to admins — still in "${statusName}" after ${hours} h (rule ${rule.id}, via automation)` });
+                await logReminder(furtherEvent, "Booking", booking.id);
+              }
+            }
+            continue;
+          }
 
           await notifyStaff({
             type: "DELAY",
@@ -128,11 +174,15 @@ export async function POST(request: NextRequest) {
             entityId: booking.id,
             recipients: { permission, serviceType: booking.lead.serviceType },
           });
+          // Client doc 16 Nov (N2) — the POC is emailed at once, and Admin / managers are notified by email too.
+          const emailLines = [`${service} booking ${booking.bookingId} has been in "${statusName}" for ${hours} hours — over its ${rule.hoursInStatus} h SLA.`];
+          if (poc) await sendStaffEmail({ recipients: poc, subject: `SLA breached: ${booking.bookingId} in ${statusName} (${hours} h)`, lines: [...emailLines, "You are the POC — please act on it now."], link: `/crm/bookings/${booking.id}` });
+          await sendStaffEmail({ recipients: { permission, serviceType: booking.lead.serviceType }, subject: `SLA escalation: ${booking.bookingId} in ${statusName} (${hours} h)`, lines: emailLines, link: `/crm/bookings/${booking.id}` });
           await writeAudit(db, {
             entityType: "Booking",
             entityId: booking.id,
             action: "SLA_ESCALATED",
-            note: `In "${statusName}" for ${hours} h (limit ${rule.hoursInStatus} h) — escalated to ${escalateTo === "ADMINS" ? "admins" : "managers"} (rule ${rule.id}, via automation)`,
+            note: `In "${statusName}" for ${hours} h (limit ${rule.hoursInStatus} h) — escalated to ${escalateTo === "ADMINS" ? "admins" : "managers"}${poc ? " and the POC" : ""} by email (rule ${rule.id}, via automation)`,
           });
           await logReminder(event, "Booking", booking.id);
           escalated++;

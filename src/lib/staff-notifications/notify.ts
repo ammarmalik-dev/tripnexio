@@ -67,7 +67,7 @@ export async function notifyStaff(input: NotifyStaffInput): Promise<void> {
   }
 }
 
-async function resolveRecipients(recipients: NotifyStaffInput["recipients"]): Promise<string[]> {
+export async function resolveRecipients(recipients: NotifyStaffInput["recipients"]): Promise<string[]> {
   const ids = new Set<string>();
 
   const explicit = (recipients.userIds ?? []).filter((id): id is string => typeof id === "string" && id.length > 0);

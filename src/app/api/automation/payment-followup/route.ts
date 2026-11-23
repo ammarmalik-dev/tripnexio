@@ -1,3 +1,6 @@
+import { isAutomationEnabled, localClock } from "@/lib/automation/settings";
+import { reminderCooldownMs } from "@/lib/automation/payment-reminder-schedule";
+import { SERVICE_TYPE_LABELS } from "@/lib/crm/labels";
 import { NOT_ON_HOLD_WHERE, NO_OPEN_REFUND_WHERE } from "@/lib/automation/active-booking-where";
 import type { NextRequest } from "next/server";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
@@ -6,7 +9,6 @@ import { verifyAutomationKey } from "@/lib/automation/auth";
 import { recordAutomationRun } from "@/lib/automation/record-run";
 import { wasRecentlyReminded, logReminder } from "@/lib/automation/reminder-log";
 import { failPayment } from "@/lib/payments/complete-payment";
-import { sendPaymentReminderTemplate } from "@/lib/notifications/status-template";
 import { notifyCustomer } from "@/lib/notifications/notify";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications/events";
 import { leadReference } from "@/lib/leads/reference";
@@ -16,18 +18,6 @@ import { paymentTotal } from "@/lib/payments/totals";
 import { ensureLeadCustomerToken } from "@/lib/quotations/select-quotation";
 import { siteConfig } from "@/lib/site-config";
 
-const REMIND_AFTER_MS = 2 * 60 * 60 * 1000;
-const REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Called by n8n's "Payment Follow-up Reminders" workflow. Two jobs: (1)
- * a PENDING payment whose gateway link has actually expired
- * (linkExpiresAt in the past) gets marked EXPIRED — a PaymentStatus value
- * that existed in the schema since Phase 5A but nothing ever set it until
- * now, since only a customer paying or a webhook failure moved a payment
- * out of PENDING before this. (2) a still-payable PENDING payment that's
- * sat unpaid for a while gets a one-time PAYMENT_REMINDER nudge.
- */
 export async function POST(request: NextRequest) {
   if (!verifyAutomationKey(request)) return jsonError(401, "Unauthorized.");
 
@@ -42,6 +32,9 @@ export async function POST(request: NextRequest) {
       const now = Date.now();
       let expired = 0;
       let remindersSent = 0;
+      // Client doc 16 Nov (N1) — Admin's on / off for payment reminders (expiring links are still handled).
+      const remindersOn = await isAutomationEnabled("PAYMENT_REMINDER");
+      const clock = await localClock(new Date(now));
 
       for (const payment of pending) {
         const linkExpired = payment.linkExpiresAt && payment.linkExpiresAt.getTime() < now;
@@ -52,18 +45,12 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const createdLongEnoughAgo = now - payment.createdAt.getTime() >= REMIND_AFTER_MS;
-        if (!createdLongEnoughAgo) continue;
+        if (!remindersOn) continue;
+        const cooldown = reminderCooldownMs({ serviceType: payment.booking.lead.serviceType, purpose: payment.purpose, createdAt: payment.createdAt, now, clock });
+        if (cooldown === null) continue;
+        if (await wasRecentlyReminded("PAYMENT_REMINDER", "Payment", payment.id, cooldown)) continue;
 
-        const alreadyReminded = await wasRecentlyReminded("PAYMENT_REMINDER", "Payment", payment.id, REMINDER_COOLDOWN_MS);
-        if (alreadyReminded) continue;
-
-        // Client doc 2026-10-20 — services on the client's templates remind with their "Payment Pending" message.
-        if (payment.purpose !== "EXTRA" && (await sendPaymentReminderTemplate(payment.booking.leadId, { unsubscribeLink: `${siteConfig.url}/follow-ups/stop/${await ensureLeadCustomerToken(payment.booking.lead)}` }))) {
-          await logReminder("PAYMENT_REMINDER", "Payment", payment.id);
-          remindersSent++;
-          continue;
-        }
+        // Client doc 16 Nov (N1 / N3) — always the separate Payment Reminder template (never a status message).
         const total = paymentTotal(payment);
         await notifyCustomer({
           event: NOTIFICATION_EVENTS.PAYMENT_REMINDER,
@@ -75,6 +62,8 @@ export async function POST(request: NextRequest) {
             bookingId: payment.booking.bookingId,
             leadReference: leadReference(payment.booking.lead),
             amount: money(total),
+            serviceName: SERVICE_TYPE_LABELS[payment.booking.lead.serviceType],
+            paymentLink: payment.booking.customerToken ? `${siteConfig.url}/pay/${payment.booking.customerToken}` : `${siteConfig.url}/account`,
             // Client doc 16 Nov (N14) — every reminder carries the booking's Stop Reminders link.
             unsubscribeLink: `${siteConfig.url}/follow-ups/stop/${await ensureLeadCustomerToken(payment.booking.lead)}`,
           },
