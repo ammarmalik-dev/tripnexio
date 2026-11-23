@@ -62,13 +62,13 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 
 ## E. Visa Extension
 - [x] E1 Mixed PAX (one TripNexio visa, one external) — allow extension for eligible passengers — unit 6: mixed travellers — the extension goes ahead when at least one passenger has a TripNexio visa; the others are named for staff to review (bot already did this)
-- [ ] E2 Quotations only for eligible passengers
+- [x] E2 Quotations only for eligible passengers — each passenger verified on its own (expiry or Not accepted + reason); the quotation holds only eligible passengers (server-checked on create and edit; the quote builder lists only them)
 - [x] E3 Calendar: don't block past dates (Visa Change + Extension) — unit 6: CRM manual lead visa expiry accepts past dates (website forms already did)
 - [x] E4 Proforma: service charge per Admin config, profit separate — unit 4: same rule — configured service charge, profit stays internal
 - [x] E5 Bot: ask total PAX only; fix "TripNexio Visa Not Found" — unit 6: bot asks one passenger count for Visa Extension; passport match ignores spaces / dashes (a false Visa Not Found)
-- [ ] E6 Manual lead: no travel date; passport number per passenger; configured documents auto-fetched — unit 6: manual lead no longer asks a travel date for Visa Extension. Passport per passenger + auto documents still open
-- [ ] E7 No Applied to Embassy before document validation; validated documents not re-requested; download visa/passport copies; reject before expiry date + quotation
-- [ ] E8 Workflow: Documents Validated → Expiry Date → Quotation → Payment → Applied → Approved/Rejected; Approved needs Visa PDF; no approval notification before PDF; no direct refund after approval
+- [x] E6 Manual lead: no travel date; passport number per passenger; configured documents auto-fetched — unit 6: manual lead no longer asks a travel date for Visa Extension. Passport per passenger + auto documents still open — manual Visa Extension lead asks each passenger passport number; the configured Visa Extension documents appear on the lead per passenger as Pending for staff upload
+- [x] E7 No Applied to Embassy before document validation; validated documents not re-requested; download visa/passport copies; reject before expiry date + quotation — Applied to Embassy (VE/VC) refused until documents are validated; expiry is entered only after the passenger documents are validated or rejected; a validated document is never requested again; visa/passport copies have View/Download
+- [x] E8 Workflow: Documents Validated → Expiry Date → Quotation → Payment → Applied → Approved/Rejected; Approved needs Visa PDF; no approval notification before PDF; no direct refund after approval — approval = the extended visa PDF (Deliver to customer records Extended and sends the approval message only then); Extended can no longer be picked by hand (Admin only); refunds stay blocked after approval (blocksRefund)
 - [x] E9 Travel date = applied date — unit 2b: the Applied Date is the Visa Extension travel date (G8)
 
 ## F. New Visa

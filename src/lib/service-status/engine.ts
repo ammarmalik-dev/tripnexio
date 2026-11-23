@@ -117,6 +117,8 @@ const VALIDATED_STATUS_EVENTS = new Set<string>(["DOCUMENTS_VALIDATED", "ADDITIO
 export function needsValidatedDocuments(serviceType: ServiceType, status: Pick<ServiceStatus, "systemEvent">): boolean {
   if (!status.systemEvent) return false;
   if (VALIDATED_STATUS_EVENTS.has(status.systemEvent)) return true;
+  // Client doc 16 Nov (E7) — Visa Extension / Visa Change are never applied to the embassy before the documents are validated.
+  if ((serviceType === "VISA_EXTENSION" || serviceType === "VISA_CHANGE") && status.systemEvent === "EMBASSY_APPLIED") return true;
   return status.systemEvent === APPLY_STEP_EVENT[serviceType] || (serviceType === "OTB" && status.systemEvent === "OTB_ADDITIONAL_DOCUMENTS");
 }
 

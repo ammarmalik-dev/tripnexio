@@ -399,6 +399,22 @@ export function ManualLeadForm() {
         />
       ) : null}
 
+      {/* Client doc 16 Nov (E6) — Visa Extension: each passenger's passport number, for staff verification. */}
+      {serviceType === "VISA_EXTENSION" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {Array.from({ length: Math.min(20, Math.max(1, (Number(watch("adultCount")) || 0) + (Number(watch("childCount")) || 0))) }, (_, index) => (
+            <TextField
+              key={index}
+              {...register(`passportNumbers.${index}` as const)}
+              name={`passportNumbers.${index}`}
+              label={index === 0 ? "Passport Number — Passenger 1" : `Passport Number — Passenger ${index + 1}`}
+              error={errors.passportNumbers?.[index]?.message}
+              required
+            />
+          ))}
+        </div>
+      ) : null}
+
       {/* Client doc 16 Nov (A1) — Special Fare: departure / arrival (Airport master search, as on the website). */}
       {serviceType === "FLIGHT_SPECIAL_FARE" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

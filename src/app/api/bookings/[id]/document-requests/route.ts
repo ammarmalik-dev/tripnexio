@@ -98,6 +98,14 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     return jsonError(409, `Additional documents can be requested only after the application is ${booking.lead.serviceType === "OTB" ? "sent to the airline" : "applied to the embassy"}.`);
   }
 
+  // Client doc 16 Nov (E7) — a document already validated for that passenger is never asked for again.
+  const validated = await db.document.findMany({
+    where: { passengerId: { in: items.map((item) => item.passengerId) }, type: { in: items.map((item) => item.documentName) }, status: "VERIFIED", purgedAt: null, OR: [{ bookingId: booking.id }, { leadId: booking.leadId }] },
+    select: { passengerId: true, type: true },
+  });
+  const again = items.find((item) => validated.some((doc) => doc.passengerId === item.passengerId && doc.type === item.documentName));
+  if (again) return jsonError(409, `${passengerOf(again.passengerId)!.fullName}'s "${again.documentName}" is already validated — it isn't requested again.`);
+
   let statusNotifications: StatusNotification[] = [];
   const documents = await db.$transaction(async (tx) => {
     const created = [];

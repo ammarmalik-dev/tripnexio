@@ -68,7 +68,13 @@ export async function deliverOutput(input: {
       allCovered = coversAll || active.every((row) => deliveredIds.has(row.passengerId));
       someNotApproved = travellers.some((row) => row.outcome === "REJECTED" || row.outcome === "CANCELLED");
     }
-    const event = allCovered ? (outputType === "VISA_PDF" && someNotApproved ? "PARTIAL_APPROVED" : OUTPUT_DELIVERY_EVENT[outputType]) : outputType === "VISA_PDF" ? "PARTIAL_APPROVED" : null;
+    // Client doc 16 Nov (E8) — a Visa Extension is approved by its extended visa PDF: the delivery records the outcome
+    // and moves the booking to "Visa Application Approved" (its approval message goes out only now).
+    const extensionApproval = outputType === "EXTENDED_VISA_PDF" && booking.lead.serviceType === "VISA_EXTENSION" && !booking.extensionOutcome;
+    if (extensionApproval) await tx.booking.update({ where: { id: booking.id }, data: { extensionOutcome: "EXTENDED" } });
+    const event = extensionApproval
+      ? "EXTENSION_EXTENDED"
+      : allCovered ? (outputType === "VISA_PDF" && someNotApproved ? "PARTIAL_APPROVED" : OUTPUT_DELIVERY_EVENT[outputType]) : outputType === "VISA_PDF" ? "PARTIAL_APPROVED" : null;
     statusNotification = event
       ? await applySystemEvent(tx, { scope: "BOOKING", entityId: booking.id, event, userId: actor.userId, actorLabel: actor.label })
       : null;

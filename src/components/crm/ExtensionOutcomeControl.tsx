@@ -69,9 +69,8 @@ export function ExtensionOutcomeControl({ bookingId, outcome, onChanged }: Exten
         className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-auto min-w-[220px] text-sm")}
       >
         <option value="" disabled>
-          Record extension outcome…
+          Not approved…
         </option>
-        <option value="EXTENDED">Extended (then deliver the extended visa PDF)</option>
         <option value="NOT_ACCEPTED">Not Accepted (refund minus gateway)</option>
         <option value="REJECTED">Rejected (no refund)</option>
       </select>

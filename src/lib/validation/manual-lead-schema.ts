@@ -58,6 +58,8 @@ export const manualLeadSchema = z
     nationalityId: z.string().trim().optional(),
     /** Client doc 2026-10-20 (K1) — Visa Extension / Visa Change: the current visa's expiry date. */
     visaExpiryDate: z.string().trim().optional(),
+    /** Client doc 16 Nov (E6) — Visa Extension: each passenger's passport number, for staff verification. */
+    passportNumbers: z.array(z.string().trim().max(20, "Passport number is too long")).optional(),
     // Shared by New Visa and OTB
     processingType: z.enum(["normal", "urgent"]).optional(),
     // OTB pricing lookup
@@ -85,6 +87,12 @@ export const manualLeadSchema = z
     }
     if (visaStatusChange && !data.visaExpiryDate) {
       ctx.addIssue({ code: "custom", message: "Select the visa expiry date", path: ["visaExpiryDate"] });
+    }
+    if (data.serviceType === "VISA_EXTENSION") {
+      const count = data.adultCount + data.childCount + data.infantCount;
+      for (let i = 0; i < count; i++) {
+        if ((data.passportNumbers?.[i] ?? "").length < 5) ctx.addIssue({ code: "custom", message: "Enter the passport number", path: ["passportNumbers", i] });
+      }
     }
     if (data.serviceType === "OTB") {
       if (!data.destinationCountryCode) ctx.addIssue({ code: "custom", message: "Select a destination country", path: ["destinationCountryCode"] });

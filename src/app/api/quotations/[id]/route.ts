@@ -1,3 +1,4 @@
+import { extensionPaxQuoteError } from "@/lib/visa-extension/rules";
 import { resolveFlightRoute } from "@/lib/special-fare/flight-route";
 import { fillFlightLeadFromQuote } from "@/lib/special-fare/fill-lead-from-quote";
 import { specialFarePaxCounts, specialFareTotals } from "@/lib/special-fare/pax-counts";
@@ -199,7 +200,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   // Client doc 2026-10-15 — Visa Extension / Visa Change: the money fields come from the per-passenger lines.
   let paxCostingData: { paxCosting: Prisma.InputJsonValue; invoiceLines: Prisma.InputJsonValue } | undefined;
   if (usesPaxCosting(lead.serviceType) && parsed.data.paxCosting && parsed.data.paxCosting.length > 0) {
-    const costed = resolvePaxCosting(SERVICE_TYPE_LABELS[lead.serviceType], parsed.data.paxCosting, await leadPassengersFor(lead.details));
+    const leadPassengers = await leadPassengersFor(lead.details);
+    // Client doc 16 Nov (E2) — a Visa Extension is quoted only for the passengers verified eligible.
+    if (lead.serviceType === "VISA_EXTENSION") {
+      const quoted = parsed.data.paxCosting.map((line) => leadPassengers.find((row) => row.id === line.passengerId) ?? { id: line.passengerId, fullName: "This passenger" });
+      const eligibilityError = extensionPaxQuoteError(lead.details, quoted);
+      if (eligibilityError) return jsonError(409, eligibilityError, { paxCosting: [eligibilityError] });
+    }
+    const costed = resolvePaxCosting(SERVICE_TYPE_LABELS[lead.serviceType], parsed.data.paxCosting, leadPassengers);
     if (!costed.ok) return jsonError(400, costed.error, { paxCosting: [costed.error] });
     Object.assign(parsed.data, { vendorCost: costed.fields.vendorCost, feeAmount: costed.fields.feeAmount, fineOrCharges: costed.fields.fineOrCharges, otherCharges: 0, governmentFee: costed.fields.governmentFee });
     paxCostingData = {

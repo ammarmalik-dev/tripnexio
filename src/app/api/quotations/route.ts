@@ -10,7 +10,7 @@ import { createQuotationSchema } from "@/lib/validation/quotation-schema";
 import { quotationListQuerySchema } from "@/lib/validation/quotation-query-schema";
 import { jsonError, jsonSuccess } from "@/lib/api/respond";
 import type { Prisma } from "@/generated/prisma/client";
-import { extensionQuoteBlockReason } from "@/lib/visa-extension/rules";
+import { extensionQuoteBlockReason, extensionPaxQuoteError } from "@/lib/visa-extension/rules";
 import { borderQuoteBlock, isAirportToAirportLead, leadOperationalBlock, visaChangeQuoteBlockReason, type OperationalBlock } from "@/lib/visa-change/operational";
 import { buildA2ABlockForQuote } from "@/lib/visa-change/build-a2a-block";
 import { db } from "@/lib/db";
@@ -236,6 +236,12 @@ export async function POST(request: NextRequest) {
   let paxCostingFields: Extract<ReturnType<typeof resolvePaxCosting>, { ok: true }>["fields"] | null = null;
   if (sfLead && usesPaxCosting(sfLead.serviceType) && parsed.data.paxCosting && parsed.data.paxCosting.length > 0) {
     const leadPassengers = await leadPassengersFor(sfLead.details);
+    // Client doc 16 Nov (E2) — a Visa Extension is quoted only for the passengers verified eligible.
+    if (sfLead.serviceType === "VISA_EXTENSION") {
+      const quoted = parsed.data.paxCosting.map((line) => leadPassengers.find((row) => row.id === line.passengerId) ?? { id: line.passengerId, fullName: "This passenger" });
+      const eligibilityError = extensionPaxQuoteError(sfLead.details, quoted);
+      if (eligibilityError) return jsonError(409, eligibilityError, { paxCosting: [eligibilityError] });
+    }
     const costed = resolvePaxCosting(SERVICE_TYPE_LABELS[sfLead.serviceType], parsed.data.paxCosting, leadPassengers);
     if (!costed.ok) return jsonError(400, costed.error, { paxCosting: [costed.error] });
     paxCostingFields = costed.fields;

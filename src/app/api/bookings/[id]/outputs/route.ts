@@ -100,9 +100,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return jsonError(409, `The linked OTB booking ${otbState.otb?.bookingId} isn't approved yet — the ticket can't be issued before OTB approval.`);
     }
   }
-  // P13 — the extended visa PDF follows a recorded "Extended" outcome.
-  if (booking.lead.serviceType === "VISA_EXTENSION" && parsed.data.outputType === "EXTENDED_VISA_PDF" && booking.extensionOutcome !== "EXTENDED") {
-    return jsonError(409, "Record the extension outcome as Extended before delivering the extended visa PDF.");
+  // Client doc 16 Nov (E8) — the extended visa PDF is the approval: only after the application went to the embassy,
+  // never after a Not Accepted / Rejected outcome.
+  if (booking.lead.serviceType === "VISA_EXTENSION" && parsed.data.outputType === "EXTENDED_VISA_PDF") {
+    if (booking.extensionOutcome && booking.extensionOutcome !== "EXTENDED") return jsonError(409, "This extension was not approved — there's no extended visa to deliver.");
+    if (!booking.extensionOutcome && !(await hasReachedStatusEvent(id, "EMBASSY_APPLIED"))) {
+      return jsonError(409, "Apply to the embassy first — the extended visa PDF records the approval.");
+    }
   }
 
   const passengerIds = parsed.data.passengerIds?.length ? parsed.data.passengerIds : parsed.data.passengerId ? [parsed.data.passengerId] : [];

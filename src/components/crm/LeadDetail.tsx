@@ -43,7 +43,7 @@ import { toast } from "@/components/ui/Toaster";
 import type { ServiceType, LeadStatus, LeadTemperature, BookingStatus, PaymentStatus, PaxType, DocumentStatus } from "../../generated/prisma/enums";
 import { ApplicantsTable } from "./ApplicantsTable";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
-import { urgentDeadlineFromDetails } from "@/lib/visa-extension/rules";
+import { urgentDeadlineFromDetails, passengerChecksFrom } from "@/lib/visa-extension/rules";
 import { documentTypeLabel } from "@/lib/documents/type-label";
 
 /**
@@ -157,6 +157,14 @@ function formatDate(iso: string): string {
 }
 
 /** Client doc 2026-10-14 — the Special Fare quote is priced per Adult / Child / Infant. */
+/** Client doc 16 Nov (E2) — a Visa Extension is quoted only for the passengers verified eligible (once any is verified). */
+function quotablePassengers(lead: { serviceType: ServiceType; details: Record<string, unknown>; passengers: LeadPassenger[] }): LeadPassenger[] {
+  if (lead.serviceType !== "VISA_EXTENSION") return lead.passengers;
+  const checks = passengerChecksFrom(lead.details);
+  if (Object.keys(checks).length === 0) return lead.passengers;
+  return lead.passengers.filter((passenger) => checks[passenger.id]?.outcome === "ELIGIBLE" || checks[passenger.id]?.outcome === "URGENT_TODAY");
+}
+
 function paxCountsOf(passengers: { paxType: PaxType }[]): { adult: number; child: number; infant: number } {
   const counts = {
     adult: passengers.filter((p) => p.paxType === "ADULT").length,
@@ -472,6 +480,8 @@ export function LeadDetail({
                           : undefined
                       }
                       urgentDeadline={urgentDeadlineFromDetails(lead.details)}
+                      passengers={lead.passengers.map((passenger) => ({ id: passenger.id, fullName: passenger.fullName, passportNumber: passenger.passportNumber }))}
+                      passengerChecks={passengerChecksFrom(lead.details)}
                       onVerified={(result) =>
                         setLead((current) =>
                           current
@@ -479,8 +489,9 @@ export function LeadDetail({
                                 ...current,
                                 details: {
                                   ...current.details,
-                                  verifiedExpiryDate: result.verifiedExpiryDate,
+                                  verifiedExpiryDate: result.verifiedExpiryDate ?? undefined,
                                   eligibilityOutcome: result.outcome,
+                                  ...(result.passengerChecks ? { passengerChecks: result.passengerChecks } : {}),
                                   urgentDeadline: result.urgentDeadline ?? undefined,
                                 },
                               }
@@ -533,7 +544,7 @@ export function LeadDetail({
                     serviceType={lead.serviceType}
                     visaChangeMethod={typeof lead.details.changeType === "string" ? lead.details.changeType : null}
                     paxCounts={lead.specialFarePaxCounts ?? paxCountsOf(lead.passengers)}
-                    passengers={lead.passengers.map((passenger) => ({ id: passenger.id, fullName: passenger.fullName }))}
+                    passengers={quotablePassengers(lead).map((passenger) => ({ id: passenger.id, fullName: passenger.fullName }))}
                     flightRequest={{
                       fromCode: airportCodeOf(lead.details.origin),
                       toCode: airportCodeOf(lead.details.destination),

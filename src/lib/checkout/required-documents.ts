@@ -48,7 +48,7 @@ const LEGACY_TYPE_CODES: Record<string, string> = {
  * previous fixed list). Neither service collects nationality, so only rows
  * without a nationality apply; `countryId` narrows by destination country.
  */
-async function getRequirementDocumentTypes(serviceType: ServiceType, countryId: string | null): Promise<CheckoutDocumentType[]> {
+export async function getRequirementDocumentTypes(serviceType: ServiceType, countryId: string | null): Promise<CheckoutDocumentType[]> {
   const requirements = await db.documentRequirement.findMany({
     where: { serviceType, active: true, nationality: null, nationalityId: null },
     orderBy: [{ required: "desc" }, { documentName: "asc" }],

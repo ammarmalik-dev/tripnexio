@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/Button";
 import { patchJson, ApiError } from "@/lib/api/client";
 import { toast } from "@/components/ui/Toaster";
 import { cn } from "@/lib/cn";
-import { formatDeadlineDay, type UrgentDeadline, type VisaExtensionEligibilityOutcome as EligibilityOutcome } from "@/lib/visa-extension/rules";
+import { formatDeadlineDay, type PassengerExtensionCheck, type UrgentDeadline, type VisaExtensionEligibilityOutcome as EligibilityOutcome } from "@/lib/visa-extension/rules";
+import { TextField } from "@/components/forms/TextField";
 
 const OUTCOME_COPY: Record<EligibilityOutcome, { label: string; description: string; tone: string; icon: typeof CheckCircle2 }> = {
   ELIGIBLE: {
@@ -38,7 +39,100 @@ interface VisaExtensionEligibilityPanelProps {
   eligibilityOutcome?: EligibilityOutcome;
   /** P13 — URGENT_TODAY only: the 6:00 PM working-day deadline and any next-day UAE/India holiday. */
   urgentDeadline?: UrgentDeadline | null;
-  onVerified: (result: { verifiedExpiryDate: string; outcome: EligibilityOutcome; urgentDeadline: UrgentDeadline | null }) => void;
+  /** Client doc 16 Nov (E2) — the lead's passengers, each verified on its own. */
+  passengers?: { id: string; fullName: string; passportNumber: string | null }[];
+  passengerChecks?: Record<string, PassengerExtensionCheck>;
+  onVerified: (result: VerifyResult) => void;
+}
+
+type VerifyResult = {
+  verifiedExpiryDate: string | null;
+  outcome: EligibilityOutcome;
+  urgentDeadline: UrgentDeadline | null;
+  passengerChecks?: Record<string, PassengerExtensionCheck>;
+};
+
+const CHECK_LABEL: Record<EligibilityOutcome, string> = { ELIGIBLE: "Eligible", URGENT_TODAY: "Eligible — urgent (expires today)", NOT_ELIGIBLE: "Not eligible" };
+
+/** E2 / E7 — one passenger: documents validated first (server-checked), then the correct expiry or "Not accepted". */
+function PassengerCheckRow({
+  leadId,
+  passenger,
+  check,
+  onVerified,
+}: {
+  leadId: string;
+  passenger: { id: string; fullName: string; passportNumber: string | null };
+  check?: PassengerExtensionCheck;
+  onVerified: (result: VerifyResult) => void;
+}) {
+  const [date, setDate] = useState(check?.verifiedExpiryDate ?? "");
+  const [reason, setReason] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const save = async (body: Record<string, unknown>) => {
+    setSaving(true);
+    try {
+      const result = await patchJson<VerifyResult>(`/api/leads/${leadId}/visa-extension-verify`, { passengerId: passenger.id, ...body });
+      toast.success(`${passenger.fullName} saved.`);
+      setRejecting(false);
+      setReason("");
+      onVerified(result);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Couldn't save. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <li className="flex flex-col gap-2 rounded-lg border border-hairline p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-medium text-ink-primary">
+          {passenger.fullName}
+          {passenger.passportNumber ? <span className="ml-2 text-xs text-ink-tertiary">Passport {passenger.passportNumber}</span> : null}
+        </p>
+        {check ? (
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 text-xs font-medium",
+              check.outcome === "NOT_ELIGIBLE" ? "bg-error/10 text-error" : check.outcome === "URGENT_TODAY" ? "bg-warning/10 text-warning" : "bg-success/10 text-success"
+            )}
+          >
+            {CHECK_LABEL[check.outcome]}
+            {check.verifiedExpiryDate ? ` · expiry ${check.verifiedExpiryDate}` : ""}
+            {check.reason ? ` · ${check.reason}` : ""}
+          </span>
+        ) : (
+          <span className="rounded-full bg-surface-2 px-2.5 py-0.5 text-xs text-ink-secondary">Not verified</span>
+        )}
+      </div>
+      {rejecting ? (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-full max-w-[320px]">
+            <TextField label="Why isn't this extension accepted?" name={`reason-${passenger.id}`} value={reason} onChange={(e) => setReason(e.target.value)} />
+          </div>
+          <Button type="button" size="sm" onClick={() => void save({ notAccepted: true, reason: reason.trim() })} isLoading={saving} disabled={reason.trim().length < 3}>
+            Mark Not Accepted
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setRejecting(false)} disabled={saving}>
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-full max-w-[200px]">
+            <DateField label="Verified Expiry Date" name={`expiry-${passenger.id}`} value={date} onChange={(e) => setDate(e.target.value)} />
+          </div>
+          <Button type="button" size="sm" onClick={() => void save({ verifiedExpiryDate: date })} isLoading={saving} disabled={!date}>
+            Save &amp; Check
+          </Button>
+          <Button type="button" size="sm" variant="ghost" onClick={() => setRejecting(true)} disabled={saving}>
+            Not accepted…
+          </Button>
+        </div>
+      )}
+    </li>
+  );
 }
 
 /**
@@ -53,6 +147,8 @@ export function VisaExtensionEligibilityPanel({
   verifiedExpiryDate,
   eligibilityOutcome,
   urgentDeadline,
+  passengers = [],
+  passengerChecks = {},
   onVerified,
 }: VisaExtensionEligibilityPanelProps) {
   const [date, setDate] = useState(verifiedExpiryDate ?? "");
@@ -64,7 +160,7 @@ export function VisaExtensionEligibilityPanel({
     setSaving(true);
     setError(undefined);
     try {
-      const result = await patchJson<{ verifiedExpiryDate: string; outcome: EligibilityOutcome; urgentDeadline: UrgentDeadline | null }>(
+      const result = await patchJson<VerifyResult>(
         `/api/leads/${leadId}/visa-extension-verify`,
         { verifiedExpiryDate: date }
       );
@@ -89,14 +185,28 @@ export function VisaExtensionEligibilityPanel({
         sees this until you&apos;ve verified it.
       </p>
 
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="w-full max-w-[220px]">
-          <DateField label="Verified Expiry Date" name="verifiedExpiryDate" value={date} onChange={(e) => setDate(e.target.value)} error={error} />
+      {passengers.length > 0 ? (
+        <>
+          <p className="mb-3 text-xs text-ink-tertiary">
+            Each passenger is verified on their own: validate (or reject) their visa / passport copies first, then enter the correct expiry. A
+            passenger marked Not accepted is left out of the quotation.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {passengers.map((passenger) => (
+              <PassengerCheckRow key={passenger.id} leadId={leadId} passenger={passenger} check={passengerChecks[passenger.id]} onVerified={onVerified} />
+            ))}
+          </ul>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-end gap-3">
+          <div className="w-full max-w-[220px]">
+            <DateField label="Verified Expiry Date" name="verifiedExpiryDate" value={date} onChange={(e) => setDate(e.target.value)} error={error} />
+          </div>
+          <Button type="button" size="sm" onClick={() => void handleVerify()} isLoading={saving} disabled={!date}>
+            Save &amp; Check Eligibility
+          </Button>
         </div>
-        <Button type="button" size="sm" onClick={() => void handleVerify()} isLoading={saving} disabled={!date}>
-          Save &amp; Check Eligibility
-        </Button>
-      </div>
+      )}
 
       {outcomeCopy && OutcomeIcon ? (
         <div className={cn("mt-4 flex items-start gap-3 rounded-lg border p-3", outcomeCopy.tone)}>

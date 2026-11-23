@@ -11,6 +11,7 @@ import { dispatchStatusNotifications, setServiceStatusByEvent } from "@/lib/serv
 import type { ServiceStatusSystemEvent } from "@/lib/service-status/events";
 import type { ExtensionOutcome } from "@/generated/prisma/enums";
 import { assertOwnsEntity } from "@/lib/auth/ownership-entity";
+import { ADMIN_FULL_PERMISSION } from "@/lib/auth/permissions";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -66,6 +67,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   if (actionError) return actionError;
   if (booking.lead.serviceType !== "VISA_EXTENSION") {
     return jsonError(409, "This outcome only applies to Visa Extension bookings.");
+  }
+  // Client doc 16 Nov (E8) — approval is the extended visa PDF itself (Deliver to customer), so the customer is never
+  // told "approved" before the visa is uploaded. Only an Admin may record it by hand.
+  if (parsed.data.outcome === "EXTENDED" && !session.permissions.includes(ADMIN_FULL_PERMISSION)) {
+    return jsonError(409, "Upload the extended visa PDF (Deliver to customer) — that records the approval.");
   }
   if (booking.extensionOutcome) {
     return jsonError(409, "An outcome was already recorded for this extension.");

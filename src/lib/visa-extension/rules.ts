@@ -80,3 +80,63 @@ export function extensionQuoteBlockReason(serviceType: string, details: unknown)
 export function formatDeadlineDay(day: string): string {
   return new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
+
+/**
+ * Client doc 16 Nov (E2 / E7) — each passenger's visa is verified on its own: the staff-verified expiry (and so the
+ * eligibility) or "Not accepted" with a reason. Stored on Lead.details.passengerChecks, keyed by passenger id.
+ */
+export interface PassengerExtensionCheck {
+  verifiedExpiryDate: string | null;
+  outcome: VisaExtensionEligibilityOutcome;
+  reason?: string;
+  verifiedAt: string;
+}
+
+export function passengerChecksFrom(details: unknown): Record<string, PassengerExtensionCheck> {
+  const raw = ((details ?? {}) as Record<string, unknown>).passengerChecks;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const checks: Record<string, PassengerExtensionCheck> = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    const row = value as Partial<PassengerExtensionCheck> | null;
+    if (!row || (row.outcome !== "ELIGIBLE" && row.outcome !== "URGENT_TODAY" && row.outcome !== "NOT_ELIGIBLE")) continue;
+    checks[id] = {
+      verifiedExpiryDate: typeof row.verifiedExpiryDate === "string" ? row.verifiedExpiryDate : null,
+      outcome: row.outcome,
+      ...(typeof row.reason === "string" ? { reason: row.reason } : {}),
+      verifiedAt: typeof row.verifiedAt === "string" ? row.verifiedAt : "",
+    };
+  }
+  return checks;
+}
+
+/**
+ * The lead's overall verification from its passengers' checks: urgent when any eligible passenger's visa expires
+ * today, eligible when any passenger is eligible, otherwise not eligible. The date is the one that drives the
+ * urgency (the urgent passenger's, else the earliest eligible expiry). Null before any passenger is checked.
+ */
+export function aggregatePassengerChecks(checks: Record<string, PassengerExtensionCheck>): { outcome: VisaExtensionEligibilityOutcome; verifiedExpiryDate: string | null } | null {
+  const rows = Object.values(checks);
+  if (rows.length === 0) return null;
+  const earliest = (list: PassengerExtensionCheck[]) =>
+    list.map((row) => row.verifiedExpiryDate).filter((date): date is string => !!date).sort()[0] ?? null;
+  const urgent = rows.filter((row) => row.outcome === "URGENT_TODAY");
+  if (urgent.length > 0) return { outcome: "URGENT_TODAY", verifiedExpiryDate: earliest(urgent) };
+  const eligible = rows.filter((row) => row.outcome === "ELIGIBLE");
+  if (eligible.length > 0) return { outcome: "ELIGIBLE", verifiedExpiryDate: earliest(eligible) };
+  return { outcome: "NOT_ELIGIBLE", verifiedExpiryDate: earliest(rows) };
+}
+
+/**
+ * E2 — a Visa Extension quotation holds only passengers verified eligible; once any passenger has been checked,
+ * every quoted passenger must have been. Returns the refusal, or null.
+ */
+export function extensionPaxQuoteError(details: unknown, quoted: { id: string; fullName: string }[]): string | null {
+  const checks = passengerChecksFrom(details);
+  if (Object.keys(checks).length === 0) return null;
+  for (const passenger of quoted) {
+    const check = checks[passenger.id];
+    if (!check) return `Verify ${passenger.fullName}'s visa first (Staff Visa Verification), or leave them out of the quotation.`;
+    if (!QUOTABLE_EXTENSION_OUTCOMES.includes(check.outcome)) return `${passenger.fullName} is not eligible for the extension — leave them out of the quotation.`;
+  }
+  return null;
+}

@@ -1,3 +1,4 @@
+import { createLeadDocumentSlots } from "@/lib/documents/lead-document-slots";
 import type { NextRequest } from "next/server";
 import { manualLeadSchema, isFixedRateService } from "@/lib/validation/manual-lead-schema";
 import { createLeadFromSubmission, type LeadPassengerInput } from "@/lib/leads/create-lead";
@@ -66,6 +67,13 @@ export async function POST(request: NextRequest) {
     data.infantCount = 0;
   }
   const passengers = buildPlaceholderPassengers(data.fullName, data.adultCount, data.childCount, data.infantCount);
+  // Client doc 16 Nov (E6) — Visa Extension: each passenger's passport number, for staff verification.
+  if (data.serviceType === "VISA_EXTENSION") {
+    passengers.forEach((passenger, index) => {
+      const passport = data.passportNumbers?.[index]?.replace(/[\s-]/g, "").toUpperCase();
+      if (passport) passenger.passportNumber = passport;
+    });
+  }
   const travelerCount = data.adultCount + data.childCount + data.infantCount;
 
   // Client doc 2026-10-20 (K1) — the same configured price as the website / direct payment link (New Visa option +
@@ -98,6 +106,16 @@ export async function POST(request: NextRequest) {
       ...serviceDetails,
     },
   });
+
+  // Client doc 16 Nov (E6) — Visa Extension: the configured documents appear on the lead for every passenger, for
+  // staff to upload (or the customer, once asked).
+  if (data.serviceType === "VISA_EXTENSION") {
+    try {
+      await createLeadDocumentSlots(result.leadId, data.serviceType);
+    } catch (error) {
+      console.error("[api/leads/manual] document slots", error instanceof Error ? error.message : "failed");
+    }
+  }
 
   let bookingId: string | undefined;
   if (resolvedPrice) {
