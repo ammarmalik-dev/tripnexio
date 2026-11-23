@@ -77,19 +77,6 @@ export function VisaChangeActionsPanel({
     notes: "",
   });
 
-  const generatePackage = async () => {
-    setPending("PACKAGE");
-    try {
-      await postJson(`/api/bookings/${bookingId}/visa-change-package`, {});
-      toast.success("Package generated and sent to the customer.");
-      onChanged();
-    } catch (error) {
-      toast.error(error instanceof ApiError ? error.message : "Couldn't generate the package. Please try again.");
-    } finally {
-      setPending(null);
-    }
-  };
-
   const run = async (action: VisaChangeAction, extra: Record<string, unknown> = {}) => {
     setPending(action);
     try {
@@ -114,13 +101,11 @@ export function VisaChangeActionsPanel({
         {currentStatus ? <span className="text-xs text-ink-tertiary">Current status: {currentStatus}</span> : null}
       </div>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <Button type="button" size="sm" onClick={() => void generatePackage()} isLoading={pending === "PACKAGE"} disabled={pending !== null || view.packageGenerated}>
-          <FileDown className="h-4 w-4" aria-hidden="true" />
-          {view.packageGenerated ? "Package generated" : "Generate Package"}
-        </Button>
-        <span className="text-xs text-ink-tertiary">Needs payment received, complete operational details and every document verified.</span>
-      </div>
+      {/* Client doc 16 Nov (D2) — the real package documents are uploaded (no generated PDF), only after payment. */}
+      <p className="mb-4 rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-xs text-ink-secondary">
+        {view.packageGenerated ? "Visa Change Package sent. " : ""}Upload the Visa Change Package documents with Upload &amp; Deliver below (choose
+        &quot;Visa Change Package&quot;; one or more files) — after payment, once every customer document is validated.
+      </p>
 
       {view.changeType === "AIRPORT_TO_AIRPORT" ? (
         <div className="mb-4 flex flex-wrap items-end gap-2 rounded-lg border border-hairline bg-surface-2 p-3">

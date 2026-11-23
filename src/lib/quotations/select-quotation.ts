@@ -1,3 +1,4 @@
+import { parseOperationalBlock } from "../visa-change/operational";
 import crypto from "crypto";
 import { getTimezoneOffsetMinutes } from "../settings/system-config";
 import { parseStoredItinerary } from "./itinerary";
@@ -61,6 +62,11 @@ export async function selectQuotation(quotationId: string, actor: SelectActor) {
     });
 
     const lead = await tx.lead.findUnique({ where: { id: quotation.leadId } });
+    // Client doc 16 Nov (D6) — Visa Change Airport-to-Airport: the chosen option's exit flight date is the travel date.
+    const a2a = lead?.serviceType === "VISA_CHANGE" ? parseOperationalBlock(selected.operationalBlock) : null;
+    if (lead && a2a?.kind === "A2A" && /^\d{4}-\d{2}-\d{2}/.test(a2a.flightDate)) {
+      await tx.lead.update({ where: { id: lead.id }, data: { travelDate: new Date(`${a2a.flightDate.slice(0, 10)}T00:00:00Z`) } });
+    }
     // Step 49 — QUOTED -> QUOTATION_ACCEPTED. Skip the write if the lead is
     // already at (or past) that point in the funnel — same "don't
     // re-write/regress" intent as the old two-status guard, just naming all

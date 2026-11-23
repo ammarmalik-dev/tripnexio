@@ -26,6 +26,8 @@ const optionalText = (max: number) =>
  * number, drop / border location, bus operator or vendor fields any more. Printed on the package PDF.
  */
 const borderTripSchema = z.object({
+  // Client doc 16 Nov (D6) — the exit date is the lead's travel date.
+  travelDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter the exit / travel date"),
   pickupLocation: z.string().trim().min(2, "Enter the pickup location").max(200),
   vehicleNumber: optionalText(40),
   reportingTime: z.string().trim().min(1, "Enter the reporting time").max(40),
@@ -80,6 +82,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       const result = await tx.lead.update({
         where: { id },
         data: {
+          travelDate: new Date(`${parsed.data.travelDate}T00:00:00Z`),
           details: { ...existingDetails, borderOperationalDetails: { ...block, confirmedByStaffId: session.id, confirmedAt: new Date().toISOString() } } as unknown as Prisma.InputJsonValue,
         },
       });
@@ -88,7 +91,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         entityId: id,
         action: "VISA_CHANGE_BORDER_DETAILS_CONFIRMED",
         byUserId: session.id,
-        note: `Border trip details saved: ${block.borderName}, pickup ${block.pickupLocation}, reporting ${block.reportingTime}, travel ${block.travelTime} (by ${session.name})`,
+        note: `Border trip details saved: ${block.borderName}, exit / travel date ${parsed.data.travelDate}, pickup ${block.pickupLocation}, reporting ${block.reportingTime}, travel ${block.travelTime} (by ${session.name})`,
       });
       return result;
     });

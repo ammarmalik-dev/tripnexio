@@ -76,6 +76,8 @@ export interface BorderBlock {
   customerContactNumber?: string | null;
   reportingTime?: string | null;
   travelTime?: string | null;
+  /** Client doc 16 Nov (D6) — the exit (travel) date, "YYYY-MM-DD"; it is the lead's travel date. */
+  travelDate?: string | null;
   /** Removed from the form (client doc 2026-10-20); kept for older blocks. */
   dropLocation?: string | null;
   busOperator?: string | null;
@@ -89,7 +91,7 @@ export function borderQuoteBlock(border: { id: string; name: string; country: { 
   return { kind: "BORDER", borderId: border.id, borderName: border.name, borderCountryName: border.country?.name ?? null };
 }
 
-export const BORDER_TRIP_FIELDS = ["pickupLocation", "vehicleNumber", "reportingTime", "travelTime", "pickupPersonName", "pickupPersonContact", "instructions"] as const;
+export const BORDER_TRIP_FIELDS = ["travelDate", "pickupLocation", "vehicleNumber", "reportingTime", "travelTime", "pickupPersonName", "pickupPersonContact", "instructions"] as const;
 export const BORDER_TRIP_REQUIRED = ["pickupLocation", "reportingTime", "travelTime", "pickupPersonName"] as const;
 
 /** True once the booking's border trip details are complete (needed for the package PDF). */

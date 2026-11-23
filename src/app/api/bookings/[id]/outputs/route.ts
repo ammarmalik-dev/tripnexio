@@ -1,3 +1,4 @@
+import { bookingDocumentsWhere } from "@/lib/documents/document-lead";
 import type { NextRequest } from "next/server";
 import { bookingActionBlock } from "@/lib/bookings/action-block";
 import { z } from "zod";
@@ -80,8 +81,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
   if ((booking.lead.serviceType === "NEW_VISA" || booking.lead.serviceType === "VISA_CHANGE") && parsed.data.outputType === "VISA_PDF") {
     if (!(await hasReachedStatusEvent(booking.id, "EMBASSY_APPLIED"))) return jsonError(409, "Mark the application Applied to Embassy before delivering the visa.");
   }
+  // Client doc 16 Nov (D2) — staff upload the real Visa Change Package documents (one or more files), only after
+  // payment and once every customer document is validated.
   if (booking.lead.serviceType === "VISA_CHANGE" && parsed.data.outputType === "PACKAGE_PDF") {
-    return jsonError(409, "Use Generate Package — the Visa Change package is generated from the operational details.");
+    const paid = await db.payment.count({ where: { bookingId: booking.id, status: "SUCCESS" } });
+    if (paid === 0) return jsonError(409, "The Visa Change Package is sent only after payment.");
+    const unverified = await db.document.count({
+      where: { ...bookingDocumentsWhere({ id: booking.id, leadId: booking.leadId }), type: { notIn: [...OUTPUT_TYPES] }, purgedAt: null, status: { not: "VERIFIED" }, NOT: { status: "REQUIRED", fileUrl: null } },
+    });
+    if (unverified > 0) return jsonError(409, "Validate every customer document before sending the Visa Change Package.");
   }
   // P16 — a Special Fare ticket is issued only after its PNR is recorded (Issue Ticket on the booking).
   if (booking.lead.serviceType === "FLIGHT_SPECIAL_FARE" && parsed.data.outputType === "TICKET_PDF" && !booking.pnr) {

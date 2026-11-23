@@ -11,6 +11,8 @@ export function customerStatusLabel(
   serviceStatus: { customerLabel: string | null; name?: string | null } | null | undefined,
   coarse: LeadStatus | BookingStatus
 ): string {
+  // Client doc 16 Nov (D3) — an unpaid booking always reads "Payment Pending" to the customer.
+  if (scope === "BOOKING" && coarse === "PENDING") return CUSTOMER_BOOKING_STATUS_LABELS.PENDING;
   const label = serviceStatus?.customerLabel?.trim();
   if (label) return label;
   // Client doc 2026-10-15 (I3) — a rejection reads "Rejected", never the coarse "Cancelled".

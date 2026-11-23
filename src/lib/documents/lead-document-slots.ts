@@ -14,8 +14,12 @@ export async function createLeadDocumentSlots(leadId: string, serviceType: Servi
   if (!lead) return 0;
   const passengers = await leadPassengersFor(lead.details);
   if (passengers.length === 0) return 0;
+  // Client doc 16 Nov (D1 / D5) — Visa Change: before payment only the visa copy (the rest follows after payment).
   const uae = serviceType === "VISA_EXTENSION" ? await db.country.findFirst({ where: { code: { in: ["AE", "ARE", "UAE"], mode: "insensitive" } }, select: { id: true } }) : null;
-  const types = (await getRequirementDocumentTypes(serviceType, uae?.id ?? null)).filter((type) => !(OUTPUT_TYPES as readonly string[]).includes(type.type));
+  const types =
+    serviceType === "VISA_CHANGE"
+      ? [{ type: "VISA_COPY", label: "Visa copy", required: true }]
+      : (await getRequirementDocumentTypes(serviceType, uae?.id ?? null)).filter((type) => !(OUTPUT_TYPES as readonly string[]).includes(type.type));
   if (types.length === 0) return 0;
   const existing = await db.document.findMany({ where: { leadId, passengerId: { in: passengers.map((row) => row.id) } }, select: { passengerId: true, type: true } });
   const have = new Set(existing.map((doc) => `${doc.passengerId}|${doc.type}`));

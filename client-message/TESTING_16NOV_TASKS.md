@@ -51,12 +51,12 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] C7 Website abandoned leads captured for OTB — unit 6: the website draft is saved on Continue as soon as name/mobile/email are filled, even when country / airline / date still block the step; filled trip details (country, airline, travel date, processing) are kept on the draft lead
 
 ## D. Visa Change
-- [ ] D1 Before payment ask only the Visa Copy; after payment never re-ask visa/passport; configured docs after payment
-- [ ] D2 Package: staff upload the real package documents (no generated PDF); "Visa Change Package", only after payment
-- [ ] D3 Pre-payment website status wrong (no Cancelled / On Hold on a processed booking)
-- [ ] D4 Partial visa upload in CRM
-- [ ] D5 Manual lead: no travel date; Exit Method (A2A / Border) + Nationality → document checklist; offline lead shows configured documents — unit 6: manual lead no longer asks a travel date for Visa Change. Exit Method + Nationality → checklist still open
-- [ ] D6 Travel date = actual exit date (A2A + Border); shown when creating the bus itinerary
+- [x] D1 Before payment ask only the Visa Copy; after payment never re-ask visa/passport; configured docs after payment — website asks only the Visa Copy before payment; after payment the visa and passport copies are never asked again — only the other configured documents
+- [x] D2 Package: staff upload the real package documents (no generated PDF); "Visa Change Package", only after payment — no generated package: staff upload the real Visa Change Package documents (Upload & Deliver → Visa Change Package, one or more files), only after payment and once customer documents are validated
+- [x] D3 Pre-payment website status wrong (no Cancelled / On Hold on a processed booking) — before payment a booking cannot be put On Hold / Cancelled / Refunded by staff, and the customer always sees Payment Pending on an unpaid booking
+- [x] D4 Partial visa upload in CRM — partial visa upload: Upload & Deliver → Visa per passenger (Approved for partial applicants); after the package the form defaults to the visa
+- [x] D5 Manual lead: no travel date; Exit Method (A2A / Border) + Nationality → document checklist; offline lead shows configured documents — unit 6: manual lead no longer asks a travel date for Visa Change. Exit Method + Nationality → checklist still open — manual Visa Change lead: Exit Method (A2A / Border) + Nationality (on every passenger, deciding the checklist); a Visa Copy slot per passenger before payment
+- [x] D6 Travel date = actual exit date (A2A + Border); shown when creating the bus itinerary — travel date = actual exit date: A2A from the selected option exit flight; Border from the new Exit / Travel Date on the border trip (bus itinerary) form
 - [x] D7 Proforma: "Fine" (not "Fine / Status-Change Charges"); service fee = configured fee not profit; tax invoice includes the fine — unit 4: line reads Fine; configured fee is the service charge (not profit); the tax invoice has the Fine line too
 - [x] D8 Second form page message: "Our team will verify each applicant's visa details before sending your quotation." — unit 6: shown at the top of the Visa Change details step
 

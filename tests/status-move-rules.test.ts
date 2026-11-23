@@ -122,3 +122,12 @@ describe("automatic statuses are not manual moves (client 2026-10-28)", () => {
     expect(isAutoStatus("OTB", ev(null))).toBe(false);
   });
 });
+
+describe("before payment (client doc 16 Nov, D3)", () => {
+  it("an unpaid booking can't go On Hold, Cancelled or Refunded", () => {
+    const pending = s("Payment Pending", "PENDING");
+    expect(staffMoveBlock("BOOKING", pending, s("Booking On Hold", null, { systemEvent: "ON_HOLD" }))).toMatch(/before payment/);
+    expect(staffMoveBlock("BOOKING", pending, s("Cancelled", "CANCELLED"))).toMatch(/before payment/);
+    expect(staffMoveBlock("BOOKING", pending, s("Paid", "CONFIRMED"))).toBeNull();
+  });
+});

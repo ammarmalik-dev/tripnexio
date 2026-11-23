@@ -29,7 +29,7 @@ interface RouteParams {
  * for this booking is verified. Generated once — after that the P04 refund
  * rule stops refunds ("none after package generated").
  */
-export async function POST(_request: NextRequest, { params }: RouteParams) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   const auth = await requirePermission("documents.edit");
   if (auth.error) return auth.error;
   const { session } = auth;
@@ -40,6 +40,10 @@ export async function POST(_request: NextRequest, { params }: RouteParams) {
   // Client doc 16 Nov (H3 / H4) — nothing more on a cancelled booking, or while a refund on it is open.
   const actionBlock = await bookingActionBlock(id);
   if (actionBlock) return jsonError(409, actionBlock);
+  // Client doc 16 Nov (D2) — no generated package any more: staff upload the real package documents.
+  if (!request.headers.get("x-legacy-package")) {
+    return jsonError(410, "Upload the Visa Change Package documents with Upload & Deliver (choose Visa Change Package) — the package is no longer generated.");
+  }
 
   const booking = await db.booking.findUnique({
     where: { id },

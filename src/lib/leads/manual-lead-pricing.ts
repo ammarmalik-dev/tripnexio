@@ -53,8 +53,15 @@ export async function manualLeadServiceDetails(data: ManualLeadValues): Promise<
     }
     case "VISA_EXTENSION":
       return { visaExpiryDate: data.visaExpiryDate };
-    case "VISA_CHANGE":
-      return { visaLastDate: data.visaExpiryDate };
+    case "VISA_CHANGE": {
+      // Client doc 16 Nov (D5) — the exit method and nationality, as on the website request.
+      const nationality = data.nationalityId ? await db.nationality.findFirst({ where: { id: data.nationalityId, active: true }, select: { id: true, name: true } }) : null;
+      return {
+        visaLastDate: data.visaExpiryDate,
+        ...(data.visaChangeMethod ? { changeType: data.visaChangeMethod } : {}),
+        ...(nationality ? { nationalityId: nationality.id, nationality: nationality.name } : {}),
+      };
+    }
     // Client doc 16 Nov (A1) — the same keys as the website's Special Fare request (round trip = a return date).
     case "FLIGHT_SPECIAL_FARE":
       return { origin: data.flightOrigin, destination: data.flightDestination, ...(data.flightReturnDate ? { returnDate: data.flightReturnDate } : {}) };

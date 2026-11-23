@@ -14,15 +14,17 @@ export interface BorderTripView {
   vehicleNumber: string;
   reportingTime: string;
   travelTime: string;
+  /** Client doc 16 Nov (D6) — the exit date (the lead's travel date). */
+  travelDate?: string | null;
   pickupPersonName: string;
   pickupPersonContact: string;
   instructions: string;
   complete: boolean;
 }
 
-const FIELDS = ["pickupLocation", "vehicleNumber", "reportingTime", "travelTime", "pickupPersonName", "pickupPersonContact", "instructions"] as const;
+const FIELDS = ["travelDate", "pickupLocation", "vehicleNumber", "reportingTime", "travelTime", "pickupPersonName", "pickupPersonContact", "instructions"] as const;
 type FieldName = (typeof FIELDS)[number];
-const REQUIRED: FieldName[] = ["pickupLocation", "reportingTime", "travelTime", "pickupPersonName"];
+const REQUIRED: FieldName[] = ["travelDate", "pickupLocation", "reportingTime", "travelTime", "pickupPersonName"];
 
 /**
  * Client doc 2026-10-20 (D8) — a Border Exit booking's trip details, entered after payment from the vendor
@@ -50,7 +52,7 @@ export function VisaChangeBorderDetailsPanel({ leadId, border, onSaved }: { lead
     }
   };
 
-  const text = (field: FieldName, label: string, extra: { placeholder?: string } = {}) => (
+  const text = (field: FieldName, label: string, extra: { placeholder?: string; type?: string } = {}) => (
     <TextField
       label={label}
       name={`border-${field}`}
@@ -79,6 +81,7 @@ export function VisaChangeBorderDetailsPanel({ leadId, border, onSaved }: { lead
         </div>
       )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {text("travelDate", "Exit / Travel Date (the lead's travel date)", { type: "date" })}
         {text("pickupLocation", "Pickup Location")}
         {text("vehicleNumber", "Vehicle Number (optional)")}
         {text("reportingTime", "Reporting Time", { placeholder: "e.g. 6:00 AM" })}

@@ -1,3 +1,4 @@
+import { db } from "@/lib/db";
 import { createLeadDocumentSlots } from "@/lib/documents/lead-document-slots";
 import type { NextRequest } from "next/server";
 import { manualLeadSchema, isFixedRateService } from "@/lib/validation/manual-lead-schema";
@@ -67,6 +68,15 @@ export async function POST(request: NextRequest) {
     data.infantCount = 0;
   }
   const passengers = buildPlaceholderPassengers(data.fullName, data.adultCount, data.childCount, data.infantCount);
+  // Client doc 16 Nov (D5) — Visa Change: every passenger carries the nationality (it decides their document checklist).
+  if (data.serviceType === "VISA_CHANGE" && data.nationalityId) {
+    const nationality = await db.nationality.findFirst({ where: { id: data.nationalityId, active: true }, select: { id: true, name: true } });
+    if (!nationality) return jsonError(400, "Select a valid nationality.", { nationalityId: ["Select a valid nationality."] });
+    passengers.forEach((passenger) => {
+      passenger.nationalityId = nationality.id;
+      passenger.nationality = nationality.name;
+    });
+  }
   // Client doc 16 Nov (E6) — Visa Extension: each passenger's passport number, for staff verification.
   if (data.serviceType === "VISA_EXTENSION") {
     passengers.forEach((passenger, index) => {
@@ -109,7 +119,7 @@ export async function POST(request: NextRequest) {
 
   // Client doc 16 Nov (E6) — Visa Extension: the configured documents appear on the lead for every passenger, for
   // staff to upload (or the customer, once asked).
-  if (data.serviceType === "VISA_EXTENSION") {
+  if (data.serviceType === "VISA_EXTENSION" || data.serviceType === "VISA_CHANGE") {
     try {
       await createLeadDocumentSlots(result.leadId, data.serviceType);
     } catch (error) {

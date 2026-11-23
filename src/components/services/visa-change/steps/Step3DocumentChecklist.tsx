@@ -109,7 +109,7 @@ export function Step3DocumentChecklist() {
 
       <div className="flex flex-col gap-3">
         <p className="text-sm font-semibold text-ink-heading">Upload the current visa copy</p>
-        <p className="text-xs text-ink-tertiary">Passport pages and photo are uploaded after payment.</p>
+        <p className="text-xs text-ink-tertiary">Only the current visa copy is needed now. The other documents are requested after payment — the visa and passport copies are not asked again.</p>
         <PassportUploadField
           base64FieldName="visaImageBase64"
           mimeFieldName="visaImageMimeType"

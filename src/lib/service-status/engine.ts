@@ -209,6 +209,11 @@ export function staffMoveBlock(
   }
   // Client doc 2026-10-27 (C4) — after a completed refund (full or partial) staff have no further moves.
   if (from && !options.afterRefund && isRefundOutcomeStatus(from)) return `"${from.name}" is final once the refund is done — only an Admin can change it.`;
+  // Client doc 16 Nov (D3) — before payment a booking is only "Payment Pending": no hold, cancellation or refund
+  // status on an unpaid booking (an unpaid request is closed from its lead instead).
+  if (scope === "BOOKING" && from && from.mapsToBookingStatus === "PENDING" && (isManualPauseStatus(to) || to.mapsToBookingStatus === "CANCELLED" || to.mapsToBookingStatus === "REFUNDED")) {
+    return `"${to.name}" isn't available before payment — the booking stays "Payment Pending" until it is paid.`;
+  }
   // Leaving hold / not responding goes back to work — never back to "Payment Pending" on a paid booking.
   if (from && isManualPauseStatus(from) && scope === "BOOKING" && to.mapsToBookingStatus === "PENDING") {
     return `"${to.name}" is before payment — a booking on "${from.name}" moves on to its next working step.`;

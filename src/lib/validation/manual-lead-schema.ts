@@ -59,6 +59,8 @@ export const manualLeadSchema = z
     /** Client doc 2026-10-20 (K1) — Visa Extension / Visa Change: the current visa's expiry date. */
     visaExpiryDate: z.string().trim().optional(),
     /** Client doc 16 Nov (E6) — Visa Extension: each passenger's passport number, for staff verification. */
+    /** Client doc 16 Nov (D5) — Visa Change: the exit method (with the nationality it decides the document checklist). */
+    visaChangeMethod: z.enum(["AIRPORT_TO_AIRPORT", "BORDER_EXIT"]).optional(),
     passportNumbers: z.array(z.string().trim().max(20, "Passport number is too long")).optional(),
     // Shared by New Visa and OTB
     processingType: z.enum(["normal", "urgent"]).optional(),
@@ -87,6 +89,10 @@ export const manualLeadSchema = z
     }
     if (visaStatusChange && !data.visaExpiryDate) {
       ctx.addIssue({ code: "custom", message: "Select the visa expiry date", path: ["visaExpiryDate"] });
+    }
+    if (data.serviceType === "VISA_CHANGE") {
+      if (!data.visaChangeMethod) ctx.addIssue({ code: "custom", message: "Select the exit method", path: ["visaChangeMethod"] });
+      if (!data.nationalityId) ctx.addIssue({ code: "custom", message: "Select the nationality", path: ["nationalityId"] });
     }
     if (data.serviceType === "VISA_EXTENSION") {
       const count = data.adultCount + data.childCount + data.infantCount;

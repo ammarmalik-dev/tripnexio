@@ -545,7 +545,12 @@ export function BookingDetail({
                     passengers={booking.passengers}
                     documents={booking.documents}
                     onDelivered={refresh}
-                    defaultOutputType={DEFAULT_OUTPUT_BY_SERVICE[booking.serviceType]}
+                    // Client doc 16 Nov (D4) — Visa Change: after the package, the visa (per passenger — partial approval).
+                    defaultOutputType={
+                      booking.serviceType === "VISA_CHANGE" && booking.documents.some((document) => document.type === "PACKAGE_PDF")
+                        ? "VISA_PDF"
+                        : DEFAULT_OUTPUT_BY_SERVICE[booking.serviceType]
+                    }
                     allowedOutputTypes={OUTPUTS_BY_SERVICE[booking.serviceType]}
                   />
                 ) : null}

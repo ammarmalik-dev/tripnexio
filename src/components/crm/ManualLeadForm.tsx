@@ -399,6 +399,32 @@ export function ManualLeadForm() {
         />
       ) : null}
 
+      {/* Client doc 16 Nov (D5) — Visa Change: exit method + nationality decide the document checklist. */}
+      {serviceType === "VISA_CHANGE" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField label="Exit Method" htmlFor="visaChangeMethod" error={errors.visaChangeMethod?.message} required>
+            <select id="visaChangeMethod" defaultValue="" className={cn(fieldControlClass, fieldBorderClass(!!errors.visaChangeMethod))} {...register("visaChangeMethod", { setValueAs: (value: string) => value || undefined })}>
+              <option value="">Select the exit method</option>
+              <option value="AIRPORT_TO_AIRPORT">Airport to Airport (A2A)</option>
+              <option value="BORDER_EXIT">By Border</option>
+            </select>
+          </FormField>
+          <FormField label="Nationality (as on passport)" htmlFor="vcNationalityId" hint="Decides the document checklist." error={errors.nationalityId?.message} required>
+            <select id="vcNationalityId" defaultValue="" className={cn(fieldControlClass, fieldBorderClass(!!errors.nationalityId))} {...optionalField("nationalityId")}>
+              <option value="">Select the nationality</option>
+              {nationalities.map((nationality) => (
+                <option key={nationality.id} value={nationality.id}>
+                  {nationality.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <p className="text-xs text-ink-tertiary sm:col-span-2">
+            Before payment only the visa copy is needed (a slot is added for each passenger); the configured documents follow after payment.
+          </p>
+        </div>
+      ) : null}
+
       {/* Client doc 16 Nov (E6) — Visa Extension: each passenger's passport number, for staff verification. */}
       {serviceType === "VISA_EXTENSION" ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

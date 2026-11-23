@@ -35,6 +35,9 @@ const SPECIAL_FARE_DEFAULT_DOCUMENT: CheckoutDocumentType = { type: "Government 
  * same codes so documents uploaded before the move still line up; any other
  * row uses its own name as the type, the same as New Visa.
  */
+/** Client doc 16 Nov (D1) — taken (visa copy) or never re-asked (passport) after a Visa Change payment. */
+const VISA_CHANGE_PRE_PAYMENT_TYPES = new Set(["VISA_COPY", "PASSPORT", "PASSPORT_COPY"]);
+
 const LEGACY_TYPE_CODES: Record<string, string> = {
   "passport copy": "PASSPORT",
   "visa copy": "VISA_COPY",
@@ -214,7 +217,9 @@ export async function resolveCheckoutDocumentTypes(booking: {
   if (serviceType === "NEW_VISA") {
     return getNewVisaCheckoutDocumentTypes(country?.id ?? null, typeof details.nationalityId === "string" ? details.nationalityId : null);
   }
-  if (serviceType === "VISA_CHANGE") return getVisaChangeDocumentTypes(booking.id);
+  // Client doc 16 Nov (D1) — Visa Change: the visa copy was taken before payment; after payment the visa and
+  // passport copies are never asked again — only the other documents Admin configured.
+  if (serviceType === "VISA_CHANGE") return (await getVisaChangeDocumentTypes(booking.id)).filter((type) => !VISA_CHANGE_PRE_PAYMENT_TYPES.has(type.type));
   const types = await getRequirementDocumentTypes(serviceType, country?.id ?? null);
   if (serviceType === "FLIGHT_SPECIAL_FARE") return types.length > 0 ? types : [SPECIAL_FARE_DEFAULT_DOCUMENT];
   return serviceType === "OTB" ? markTicketsTripNexioProvides(types, booking) : types;
