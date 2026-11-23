@@ -181,9 +181,9 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] N8 Return Ticket upsell (3 days + 1 day before travel, 16:00) — Return Ticket upsell for international visa / flight customers, 3 and 1 day before travel, 4 PM, own template
 - [ ] N9 Coupon automation: direct offers (NV/OTB/RT); unpaid-quotation offers (VC/Flight/VE) twice same day
 - [x] N10 New upsells: Flight → New Visa and New Visa → Special Fare (two triggers, 20:00, one 2 days before departure); lead only when an application starts — Flight → New Visa and New Visa → Flight upsells, 5 and 2 days before departure, 8 PM, normal application links (lead only when the application starts), own templates
-- [ ] N11 Staff alerts 11:00 / 15:00 / 18:00 per POC (own items only) + Excel attachment
-- [ ] N12 Admin daily report 20:00 (email + one workbook, tab per category)
-- [ ] N13 Weekly report Monday 12:00
+- [x] N11 Staff alerts 11:00 / 15:00 / 18:00 per POC (own items only) + Excel attachment — staff alerts at 11 AM / 3 PM / 6 PM: one email per POC with only their own new leads, follow-ups due, pending sales actions, new bookings, pending tasks, documents to review, delays and SLA escalations + the same in an Excel attachment; nothing sent when nothing is pending
+- [x] N12 Admin daily report 20:00 (email + one workbook, tab per category) — Admin daily report at 8 PM: summary email + one Excel workbook, a tab per category (sales, operations, leads, bookings, completed work, pending tasks, delays, SLA, P&L, revenue, payments collected, refunds)
+- [x] N13 Weekly report Monday 12:00 — weekly report Monday 12 PM: Admin gets the last 7 days (email + workbook); each team member gets their own week only
 - [x] N14 Customer opt-out per booking (all customer reminders/upsells, both channels; staff alerts continue; audited) — unit 13: the Stop Reminders link (per booking: Lead.followUpOptOut, audited FOLLOW_UP_OPT_OUT) now goes in payment + document reminders too (also on the client status templates); payment, document, OTB document, follow-up, extension and coupon jobs all skip an opted-out booking; staff alerts / SLA escalation unaffected
 - [x] N15 No automatic booking completion; keep retention/purge settings unchanged — unit 13: return-ticket-auto-complete no longer completes anything — it only reports bookings past travel (due) for manual closing; retention / purge settings unchanged
 

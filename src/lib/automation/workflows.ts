@@ -69,6 +69,12 @@ export const AUTOMATION_WORKFLOWS: { key: string; label: string; intendedSchedul
     endpoint: "/api/automation/upsell-campaigns",
   },
   {
+    key: "staff-reports",
+    label: "Staff alerts (11/3/6), Admin daily report (8 PM), weekly report (Mon 12 PM) — with Excel",
+    intendedSchedule: "Every hour (each report sends at its own local hour)",
+    endpoint: "/api/automation/staff-reports",
+  },
+  {
     key: "staff-alerts",
     label: "Staff Alerts: Follow-ups Due & Delayed Bookings",
     intendedSchedule: "Every hour",
