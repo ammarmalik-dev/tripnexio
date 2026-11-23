@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
   // needs guardian details — enforced server-side, not just by the form.
   const travellerIssues = findNewVisaTravellerIssues({
     travelDate,
+    guardianRequired: (await getNewVisaTravelRules(destinationCountry)).guardianRequired,
     dob,
     guardianFullName,
     guardianPassportNumber,

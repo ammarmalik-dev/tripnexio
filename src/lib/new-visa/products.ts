@@ -76,6 +76,8 @@ export interface NewVisaTravelRules {
   /** Client corrections 2026-10-05 — processing working days for the Expected Approval Date; null = not configured (no date shown). */
   processingDaysNormal?: number | null;
   processingDaysExpress?: number | null;
+  /** Client doc 16 Nov (F2) — an applicant under 18 needs parent / guardian details for this destination (default true). */
+  guardianRequired?: boolean;
 }
 
 /** Which processing types can still meet the travel date, given the working days until it. */

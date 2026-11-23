@@ -9,7 +9,8 @@ import { Step3Summary } from "./steps/Step3Summary";
 import { submitNewVisaRequest } from "@/lib/api/new-visa";
 import {
   findNewVisaStep1Issues,
-  findNewVisaTravellerIssues,
+  findPrimaryApplicantIssues,
+  findOtherApplicantIssues,
   newVisaRequestSchema,
   newVisaStepFields,
   newVisaStepLabels,
@@ -85,7 +86,7 @@ export function NewVisaRequestFlow() {
       stepFields={newVisaStepFields}
       stepLabels={newVisaStepLabels}
       steps={steps}
-      extraStepValidation={{ 0: findNewVisaStep1Issues, 2: findNewVisaTravellerIssues }}
+      extraStepValidation={{ 0: findNewVisaStep1Issues, 1: findPrimaryApplicantIssues, 2: findOtherApplicantIssues }}
       onSubmit={submitNewVisaRequest}
       draftServiceType="NEW_VISA"
       // Live check 2026-10-21 — contact details are step 2 (Basic Details) since the client doc of 2026-10-15.

@@ -51,7 +51,8 @@ export function StepVisaDetails() {
 
   const { options: visaTypes, loading: visaTypesLoading } = useVisaTypes(destinationCountry);
   const { products, loading: productsLoading } = useNewVisaProducts();
-  const { options: nationalities, loading: nationalitiesLoading } = useNationalities();
+  // Client doc 16 Nov (F11) — only the nationalities priced for this destination (all when a price covers every nationality).
+  const { options: nationalities, loading: nationalitiesLoading } = useNationalities(destinationCountry ? { service: "NEW_VISA", country: destinationCountry } : undefined);
   const countryProducts = useMemo(() => products.filter((product) => product.countryCode === destinationCountry), [products, destinationCountry]);
   const productOptions = useMemo(() => countryProducts.map((product) => ({ value: product.id, label: product.label })), [countryProducts]);
   const nationalityOptions = useMemo(() => nationalities.map((nationality) => ({ value: nationality.id, label: nationality.name })), [nationalities]);
@@ -90,6 +91,11 @@ export function StepVisaDetails() {
     // Only one option for this destination: pick it rather than ask.
     if (available.length === 1 && !getValues("newVisaConfigId")) setValue("newVisaConfigId", available[0].id);
   }, [products, productsLoading, destinationCountry, setValue, getValues]);
+
+  // Client doc 16 Nov (F2) — parent / guardian details for minors only where this destination requires them.
+  useEffect(() => {
+    setValue("guardianRequired", rules.guardianRequired !== false);
+  }, [rules.guardianRequired, setValue]);
 
   // Client doc 2026-10-15 — nationality is asked whenever the master has any (prices can differ by it).
   useEffect(() => {

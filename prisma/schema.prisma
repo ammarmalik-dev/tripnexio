@@ -1352,6 +1352,9 @@ model Country {
   /// Client doc 16 Nov (F8) — show the New Visa validity (e.g. "30 Days") to customers and staff.
   /// Off by default: validity stays an Admin-only product attribute.
   showVisaValidity Boolean @default(false)
+  /// Client doc 16 Nov (F2) — a New Visa applicant under 18 must give parent / guardian details for this country.
+  /// On by default (the earlier rule); Admin turns it off where minors may apply on their own.
+  newVisaGuardianRequired Boolean @default(true)
   active       Boolean  @default(true)
   displayOrder Int      @default(0)
   createdAt    DateTime @default(now())

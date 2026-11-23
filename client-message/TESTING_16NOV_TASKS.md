@@ -72,8 +72,8 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] E9 Travel date = applied date — unit 2b: the Applied Date is the Visa Extension travel date (G8)
 
 ## F. New Visa
-- [ ] F1 Page 1 after visa selection: name, mobile, email, first applicant (saved for abandoned follow-up); page 2: applicants (name, DOB, passport expiry, occupation)
-- [ ] F2 Under-18 parent/guardian requirement per country (Admin setting)
+- [x] F1 Page 1 after visa selection: name, mobile, email, first applicant (saved for abandoned follow-up); page 2: applicants (name, DOB, passport expiry, occupation) — New Visa form: Visa Details → Your Details (name, mobile, email + first applicant passport, DOB, passport expiry, occupation — saved on the abandoned-application draft) → Other Applicants → Summary
+- [x] F2 Under-18 parent/guardian requirement per country (Admin setting) — Admin → New Visa country page: Parent / guardian for applicants under 18 (Required by default); the form and the server ask guardian details only where required (migration 20261123180000)
 - [x] F3 Fix "Invalid option: expected one of FATHER|MOTHER" — unit 1: empty hidden value accepted, minors still must choose
 - [x] F4 Booking summary: Visa Fee / Service Charge / Total separately — unit 6: New Visa summary shows Visa Fee and the configured Service Charge on separate lines, then GST, gateway fee, total
 - [x] F5 Workflow validation (backend + UI): document actions only on real uploads; additional docs / visa upload / rejection only after Applied; approval needs Visa PDF; no Hold after approval — unit 2b: document actions need an uploaded file, additional docs / visa upload / rejection only after Applied, approval needs the visa PDF, no hold after approval
@@ -82,7 +82,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [x] F8 Visa Validity: hidden everywhere customer/staff-facing; country-wise Admin toggle (off by default) — unit 12: validity hidden everywhere (website, bot, CRM) unless Admin turns on Show visa validity for that country on its New Visa page (Country.showVisaValidity, migration 20261123120000, off by default)
 - [ ] F9 Pricing form: one form per visa product with all nationality × Adult/Child × Normal/Express prices; filters; remove the separate New Visa button
 - [ ] F10 Nationality-wise document configuration; document descriptions everywhere (website, bot, CRM)
-- [ ] F11 Service-specific nationalities (only enabled ones, no "All Nationalities")
+- [x] F11 Service-specific nationalities (only enabled ones, no "All Nationalities") — New Visa nationality list shows only the nationalities priced for the destination (all when a price covers every nationality or nothing is priced yet)
 
 ## G. Status engine & workflow (all services)
 - [ ] G1 Replace status lists with §S; remove old statuses (incl. filters/templates); Admin can delete; status config per Service × Country with the workflow shown

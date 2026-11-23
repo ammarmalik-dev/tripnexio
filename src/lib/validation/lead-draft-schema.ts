@@ -14,7 +14,8 @@ export const DRAFT_SERVICE_TYPES = [
 export type DraftServiceType = (typeof DRAFT_SERVICE_TYPES)[number];
 
 /** The trip fields an abandoned draft may carry (any service form; missing ones are simply not sent). */
-export const DRAFT_TRIP_FIELDS = ["destinationCountry", "airline", "travelDate", "departureTime", "processingType"] as const;
+// Client doc 16 Nov (F1) — New Visa's first applicant (passport, date of birth, occupation, passport expiry) is kept too.
+export const DRAFT_TRIP_FIELDS = ["destinationCountry", "airline", "travelDate", "departureTime", "processingType", "passportNumber", "dob", "occupation", "passportExpiry"] as const;
 export type DraftTripField = (typeof DRAFT_TRIP_FIELDS)[number];
 
 /**

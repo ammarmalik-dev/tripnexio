@@ -25,6 +25,8 @@ export const createCountrySchema = z.object({
   active: z.boolean().default(true),
   /** Client doc 16 Nov (F8) — show the New Visa validity for this country (off by default). */
   showVisaValidity: z.boolean().default(false),
+  /** Client doc 16 Nov (F2) — New Visa: an applicant under 18 needs parent / guardian details (on by default). */
+  newVisaGuardianRequired: z.boolean().default(true),
   /** Client corrections 2026-10-05 — weekend day numbers (0 = Sunday … 6 = Saturday), e.g. "5,6"; null = System Configuration default. */
   weekendDays: z
     .string()

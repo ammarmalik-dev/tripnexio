@@ -25,6 +25,37 @@ interface CountryData {
   code: string;
   active: boolean;
   showVisaValidity?: boolean;
+  newVisaGuardianRequired?: boolean;
+}
+
+/** Client doc 16 Nov (F2) — per country: an applicant under 18 must give parent / guardian details (on by default). */
+function GuardianRequiredToggle({ country, onChanged }: { country: CountryData; onChanged: (updated: CountryData) => void }) {
+  const [saving, setSaving] = useState(false);
+  const enabled = country.newVisaGuardianRequired !== false;
+  const toggle = async () => {
+    setSaving(true);
+    try {
+      const updated = await patchJson<CountryData>(`/api/admin/countries/${country.id}`, { newVisaGuardianRequired: !enabled });
+      onChanged(updated);
+      toast.success(!enabled ? `Parent / guardian details are now required for minors (${country.name}).` : `Minors can now apply without parent / guardian details (${country.name}).`);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't change the setting. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-hairline bg-surface-card px-4 py-3">
+      <div>
+        <p className="text-sm font-semibold text-ink-heading">Parent / guardian for applicants under 18</p>
+        <p className="text-xs text-ink-tertiary">On: a minor must give a parent / guardian&apos;s name, passport and relationship. Off: minors apply on their own.</p>
+      </div>
+      <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-ink-secondary">
+        <input type="checkbox" className="h-4 w-4 accent-[var(--color-accent)]" checked={enabled} disabled={saving} onChange={() => void toggle()} />
+        {enabled ? "Required" : "Not required"}
+      </label>
+    </div>
+  );
 }
 
 /** Client doc 16 Nov (F8) — per country: show the product's validity to customers and staff (off by default). */
@@ -644,7 +675,10 @@ export function NewVisaCountriesManager({ countryId }: { countryId?: string } = 
   return (
     <div className="flex flex-col gap-4">
       {currentCountry ? (
-        <VisaValidityToggle country={currentCountry} onChanged={(updated) => setCountries((current) => current.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)))} />
+        <>
+          <VisaValidityToggle country={currentCountry} onChanged={(updated) => setCountries((current) => current.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)))} />
+          <GuardianRequiredToggle country={currentCountry} onChanged={(updated) => setCountries((current) => current.map((c) => (c.id === updated.id ? { ...c, ...updated } : c)))} />
+        </>
       ) : null}
       {visibleConfigs.length === 0 ? (
         <EmptyState

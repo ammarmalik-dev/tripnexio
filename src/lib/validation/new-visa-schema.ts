@@ -49,6 +49,8 @@ export const newVisaStep1Schema = z.object({
    */
   nationalityId: z.string().max(40).optional(),
   nationalityRequired: z.boolean().optional(),
+  /** Client doc 16 Nov (F2) — set by the first step from the destination's Admin setting; the API re-reads it. */
+  guardianRequired: z.boolean().optional(),
   travelers: z
     .string()
     .trim()
@@ -168,13 +170,14 @@ interface TravellerForCheck {
  * order) — used by the form's extraStepValidation and by the API route.
  */
 export function findNewVisaTravellerIssues(
-  values: TravellerForCheck & { travelDate?: string; additionalTravellers: TravellerForCheck[] }
+  values: TravellerForCheck & { travelDate?: string; guardianRequired?: boolean; additionalTravellers: TravellerForCheck[] }
 ) {
   const issues: { path: string; message: string }[] = [];
   // Age on the travel date — the same basis computePaxType uses.
   const ageOn = ageBasisDate(values.travelDate);
   const check = (traveller: TravellerForCheck, prefix: string) => {
-    if (isMinor(traveller.dob, ageOn)) {
+    // Client doc 16 Nov (F2) — only where the destination requires a parent / guardian for minors.
+    if (values.guardianRequired !== false && isMinor(traveller.dob, ageOn)) {
       if (!traveller.guardianFullName || traveller.guardianFullName.trim().length < 2) {
         issues.push({ path: `${prefix}guardianFullName`, message: "Enter the guardian's full name" });
       }
@@ -213,11 +216,21 @@ export type NewVisaRequestValues = z.infer<typeof newVisaRequestSchema>;
 
 export const newVisaStepFields: Record<number, (keyof NewVisaRequestValues)[]> = {
   0: ["destinationCountry", "newVisaConfigId", "visaType", "nationalityId", "travelDate", "processingType"],
-  1: ["fullName", "mobile", "email"],
-  2: ["passportNumber", "dob", "occupation", "additionalTravellers"],
+  // Client doc 16 Nov (F1) — contact details and the first applicant together (saved for abandoned follow-up),
+  // then the other applicants.
+  1: ["fullName", "mobile", "email", "passportNumber", "dob", "occupation", "passportExpiry"],
+  2: ["additionalTravellers"],
   3: [],
 };
 
 // Client doc 2026-10-15: Visa Details (country, option, travel date, Normal/Express with prices and the
 // approval date, all together) -> Basic Details -> Applicant Details -> Summary.
-export const newVisaStepLabels = ["Visa Details", "Basic Details", "Applicant Details", "Summary"];
+export const newVisaStepLabels = ["Visa Details", "Your Details", "Other Applicants", "Summary"];
+
+/** F1 — the first applicant's own checks (step 2) and the other applicants' (step 3). */
+export function findPrimaryApplicantIssues(values: Parameters<typeof findNewVisaTravellerIssues>[0]) {
+  return findNewVisaTravellerIssues(values).filter((issue) => !issue.path.startsWith("additionalTravellers."));
+}
+export function findOtherApplicantIssues(values: Parameters<typeof findNewVisaTravellerIssues>[0]) {
+  return findNewVisaTravellerIssues(values).filter((issue) => issue.path.startsWith("additionalTravellers."));
+}

@@ -29,7 +29,7 @@ function todayIso() {
  * others. A traveller under 18 is a minor: they must apply with a parent or
  * guardian, so guardian details appear (client's New Visa handover).
  */
-function TravellerFields({ prefix, label, nameField }: { prefix: string; label: string; nameField?: string }) {
+export function TravellerFields({ prefix, label, nameField }: { prefix: string; label: string; nameField?: string }) {
   const {
     register,
     control,
@@ -39,7 +39,9 @@ function TravellerFields({ prefix, label, nameField }: { prefix: string; label: 
   const dob = useWatch({ control, name: `${prefix}dob` }) as string | undefined;
   const travelDate = useWatch({ control, name: "travelDate" }) as string | undefined;
   const passportExpiry = useWatch({ control, name: `${prefix}passportExpiry` }) as string | undefined;
-  const minor = isMinor(dob, ageBasisDate(travelDate));
+  const guardianRequired = useWatch({ control, name: "guardianRequired" }) as boolean | undefined;
+  // Client doc 16 Nov (F2) — only where the destination requires a parent / guardian for minors.
+  const minor = guardianRequired !== false && isMinor(dob, ageBasisDate(travelDate));
   const shortValidity = passportValidityTooShort(passportExpiry, travelDate);
   const err = (field: string) => (get(errors, `${prefix}${field}`)?.message as string | undefined) ?? undefined;
   const occupationId = `${prefix}occupation`.replace(/[^a-zA-Z0-9]/g, "-");
@@ -140,22 +142,25 @@ export function StepTravellers() {
   const { fields, append, remove } = useFieldArray({ control, name: "additionalTravellers" });
   const primaryName = useWatch({ control, name: "fullName" });
 
+  // Client doc 16 Nov (F1) — the first applicant was entered with the contact details; this page adds the others.
   return (
     <div className="flex flex-col gap-5">
-
-      <TravellerFields prefix="" label={`Traveller 1 — ${primaryName || "you"}`} />
+      <p className="text-sm text-ink-secondary">
+        Applicant 1: <span className="font-medium text-ink-primary">{primaryName || "you"}</span>. Travelling with others? Add each applicant below —
+        or continue if you&apos;re applying alone.
+      </p>
 
       {fields.map((field, index) => (
         <div key={field.id} className="flex flex-col gap-2">
           <div className="flex justify-end">
             <Button type="button" variant="ghost" size="sm" onClick={() => remove(index)}>
               <Trash2 className="h-4 w-4" aria-hidden="true" />
-              Remove traveller {index + 2}
+              Remove applicant {index + 2}
             </Button>
           </div>
           <TravellerFields
             prefix={`additionalTravellers.${index}.`}
-            label={`Traveller ${index + 2}`}
+            label={`Applicant ${index + 2}`}
             nameField={`additionalTravellers.${index}.fullName`}
           />
         </div>
@@ -177,7 +182,7 @@ export function StepTravellers() {
           }
         >
           <Plus className="h-4 w-4" aria-hidden="true" />
-          Add Another Traveller
+          Add Applicant
         </Button>
       ) : null}
     </div>

@@ -13,7 +13,11 @@ export async function getNewVisaTravelRules(countryCode?: string | null): Promis
   const country = countryCode
     ? await db.newVisaCountryTimeline.findFirst({ where: { country: { code: { equals: countryCode, mode: "insensitive" } } } })
     : null;
+  const guardian = countryCode
+    ? await db.country.findFirst({ where: { code: { equals: countryCode, mode: "insensitive" } }, select: { newVisaGuardianRequired: true } })
+    : null;
   return {
+    guardianRequired: guardian?.newVisaGuardianRequired ?? true,
     minTravelDaysNormal: country?.minTravelDaysNormal ?? DEFAULT_MIN_TRAVEL_DAYS.normal,
     minTravelDaysExpress: country?.minTravelDaysExpress ?? DEFAULT_MIN_TRAVEL_DAYS.urgent,
     processingDaysNormal: country?.processingDaysNormal ?? null,
