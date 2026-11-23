@@ -18,6 +18,8 @@ import { useClientPagination } from "@/components/crm/usePagination";
 import type { NotificationChannel } from "../../generated/prisma/enums";
 import { NOTIFICATION_EVENT_CATALOG } from "@/lib/notifications/events";
 import { TEMPLATE_GROUP_OPTIONS, isRetiredNotificationEvent, templateGroupFor, type TemplateGroup } from "@/lib/notifications/template-groups";
+import { TEMPLATE_KIND_OPTIONS, templateKindFor, templateStageFor, type TemplateKind } from "@/lib/notifications/template-kinds";
+import { AutomationSettingsPanel } from "./AutomationSettingsPanel";
 
 interface TemplateData {
   id: string;
@@ -229,7 +231,41 @@ function TemplateFields({
   );
 }
 
-function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: (template: TemplateData) => void }) {
+/** Client doc 16 Nov (M4) — where each template is used (statuses + automations). */
+interface UsageData {
+  statuses: { event: string; serviceType: string; scope: string; name: string; stage: "BEFORE_PAYMENT" | "AFTER_PAYMENT" }[];
+  automations: { key: string; label: string; description: string; events: string[] }[];
+}
+const EMPTY_USAGE: UsageData = { statuses: [], automations: [] };
+
+function sentWhen(event: string, usage: UsageData): string | null {
+  const automation = usage.automations.find((row) => row.events.includes(event));
+  if (automation) return `${automation.label} — ${automation.description}`;
+  const statuses = usage.statuses.filter((row) => row.event === event);
+  if (statuses.length === 0) return null;
+  const names = [...new Set(statuses.map((row) => `"${row.name}"`))];
+  const stage = templateStageFor(event, usage);
+  return `When the ${statuses[0].scope === "LEAD" ? "lead" : "booking"} moves to ${names.join(" / ")}${stage === "BEFORE_PAYMENT" ? " (before payment)" : stage === "AFTER_PAYMENT" ? " (after payment)" : ""}.`;
+}
+
+/** Client doc 16 Nov (M4) — how a Meta-approved WhatsApp template is changed. */
+function MetaTemplateGuide() {
+  return (
+    <details className="rounded-xl border border-hairline bg-surface-1 px-5 py-4 text-sm text-ink-secondary">
+      <summary className="cursor-pointer font-semibold text-ink-heading">How to edit a WhatsApp (Meta-approved) template</summary>
+      <ol className="mt-3 list-decimal space-y-1.5 pl-5">
+        <li>Inside the 24-hour chat window the WhatsApp text below is sent as written — edit and save it here.</li>
+        <li>Outside the window WhatsApp sends only a Meta-approved template. Open Meta Business Manager → WhatsApp Manager → Message templates.</li>
+        <li>Create (or edit) the template with the same wording, using numbered placeholders {"{{1}}, {{2}}"}… in the order the variables first appear in this text.</li>
+        <li>An approved template can be edited at most once a day (10 times a month) and goes back to review; a rename means a new template.</li>
+        <li>Once Meta shows it Approved, copy its exact name and language (e.g. en) into &quot;Meta template name / language&quot; on this template and save.</li>
+        <li>Use &quot;Send test&quot; to check it. Until a Meta name is set, messages outside the 24-hour window are skipped (shown in the audit trail).</li>
+      </ol>
+    </details>
+  );
+}
+
+function TemplateCard({ template, onSaved, usage = EMPTY_USAGE }: { template: TemplateData; onSaved: (template: TemplateData) => void; usage?: UsageData }) {
   const [form, setForm] = useState<FormState>(toFormState(template));
   const [errors, setErrors] = useState<Record<string, string[] | undefined>>({});
   const [saving, setSaving] = useState(false);
@@ -303,7 +339,11 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
             >
               {template.active ? "Active" : "Retired"}
             </span>
+            <span className="rounded-md bg-accent/10 px-1.5 py-0.5 text-xs text-ink-secondary">
+              {TEMPLATE_KIND_OPTIONS.find((option) => option.value === templateKindFor(template.event, usage))?.label}
+            </span>
           </div>
+          {sentWhen(template.event, usage) ? <p className="mt-1 text-xs text-ink-secondary">Sent when: {sentWhen(template.event, usage)}</p> : null}
           <p className="mt-1 text-xs text-ink-tertiary">
             {isWhatsApp
               ? template.metaTemplateName?.trim()
@@ -314,8 +354,9 @@ function TemplateCard({ template, onSaved }: { template: TemplateData; onSaved: 
                 : "No subject set"}
           </p>
         </div>
+        {/* Client doc 16 Nov (M4) — Yes / No per notification and channel. */}
         <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
-          {template.active ? "Retire" : "Enable"}
+          {template.active ? "Turn off (No)" : "Turn on (Yes)"}
         </Button>
       </div>
       <TemplateFields form={form} onChange={setForm} errors={errors} disabled={saving} />
@@ -476,6 +517,11 @@ export function NotificationTemplatesManager() {
   const [search, setSearch] = useState("");
   const [channelFilter, setChannelFilter] = useState<NotificationChannel | "">("");
   const [groupFilter, setGroupFilter] = useState<TemplateGroup | "">("");
+  // Client doc 16 Nov (M4) — filter by kind, status and stage (before / after payment).
+  const [kindFilter, setKindFilter] = useState<TemplateKind | "">("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [stageFilter, setStageFilter] = useState<"" | "BEFORE_PAYMENT" | "AFTER_PAYMENT">("");
+  const [usage, setUsage] = useState<UsageData>(EMPTY_USAGE);
   // Client 2026-10-28 — only the templates in use by default; retired (switched-off) ones on request.
   const [showRetired, setShowRetired] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
@@ -488,13 +534,26 @@ export function NotificationTemplatesManager() {
       .filter((template) => {
         if (channelFilter && template.channel !== channelFilter) return false;
         if (groupFilter && templateGroupFor(template.event) !== groupFilter) return false;
+        if (kindFilter && templateKindFor(template.event, usage) !== kindFilter) return false;
+        if (statusFilter && !usage.statuses.some((row) => row.event === template.event && `${row.serviceType}|${row.name}` === statusFilter)) return false;
+        if (stageFilter) {
+          const stage = templateStageFor(template.event, usage);
+          if (stage !== stageFilter && stage !== "BOTH") return false;
+        }
         if (!term) return true;
         return [template.event, template.subject ?? "", template.body, template.metaTemplateName ?? ""].some((value) =>
           value.toLowerCase().includes(term)
         );
       })
       .sort(compareTemplates);
-  }, [templates, search, channelFilter, groupFilter]);
+  }, [templates, search, channelFilter, groupFilter, kindFilter, statusFilter, stageFilter, usage]);
+  const statusOptions = [
+    ...new Map(
+      usage.statuses
+        .filter((row) => !groupFilter || row.serviceType === groupFilter)
+        .map((row) => [`${row.serviceType}|${row.name}`, `${groupFilter ? "" : `${groupLabel(row.serviceType as TemplateGroup)} — `}${row.name}`])
+    ).entries(),
+  ];
   const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
 
   useEffect(() => {
@@ -504,8 +563,10 @@ export function NotificationTemplatesManager() {
       setState("loading");
       try {
         const result = await getJson<TemplateData[]>(`/api/admin/notification-templates${showRetired ? "?retired=include" : ""}`);
+        const usageResult = await getJson<UsageData>("/api/admin/notification-templates/usage").catch(() => EMPTY_USAGE);
         if (cancelled) return;
         setTemplates(result);
+        setUsage(usageResult);
         setState("success");
       } catch (error) {
         if (cancelled) return;
@@ -548,6 +609,9 @@ export function NotificationTemplatesManager() {
     setSearch("");
     setChannelFilter("");
     setGroupFilter("");
+    setKindFilter("");
+    setStatusFilter("");
+    setStageFilter("");
     resetPage();
   };
   const createOpen = showCreate || templates.length === 0;
@@ -586,6 +650,17 @@ export function NotificationTemplatesManager() {
           </div>
         ) : null}
       </section>
+
+      {/* Client doc 16 Nov (M4) — reminders, follow-ups and upsells: what is on and when it runs. */}
+      <details className="rounded-xl border border-hairline bg-surface-1 px-5 py-4">
+        <summary className="cursor-pointer text-sm font-semibold text-ink-heading">Reminders, follow-ups &amp; upsells — what is on and when it runs</summary>
+        <p className="mb-3 mt-2 text-xs text-ink-tertiary">
+          Switch each automation and its Email / WhatsApp messages on or off; filter Type → Reminders / Upsell below to edit their wording. Every reminder
+          carries its action button and a Stop Reminders link.
+        </p>
+        <AutomationSettingsPanel />
+      </details>
+      <MetaTemplateGuide />
 
       <TemplateCoverage
         templates={templates}
@@ -653,6 +728,51 @@ export function NotificationTemplatesManager() {
               </option>
             ))}
           </select>
+          <select
+            aria-label="Filter by type"
+            value={kindFilter}
+            onChange={(event) => {
+              setKindFilter(event.target.value as TemplateKind | "");
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-48")}
+          >
+            <option value="">All types</option>
+            {TEMPLATE_KIND_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={(event) => {
+              setStatusFilter(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-52")}
+          >
+            <option value="">All statuses</option>
+            {statusOptions.map(([value, text]) => (
+              <option key={value} value={value}>
+                {text}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by stage"
+            value={stageFilter}
+            onChange={(event) => {
+              setStageFilter(event.target.value as "" | "BEFORE_PAYMENT" | "AFTER_PAYMENT");
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "h-10 sm:w-44")}
+          >
+            <option value="">Before & after payment</option>
+            <option value="BEFORE_PAYMENT">Before payment</option>
+            <option value="AFTER_PAYMENT">After payment</option>
+          </select>
           <label className="flex shrink-0 cursor-pointer items-center gap-2 text-xs font-medium text-ink-secondary">
             <input
               type="checkbox"
@@ -692,6 +812,7 @@ export function NotificationTemplatesManager() {
               <div key={template.id} className="flex flex-col gap-3">
                 {startsGroup ? <h2 className="px-1 pt-2 text-sm font-semibold text-ink-heading">{groupLabel(group)}</h2> : null}
                 <TemplateCard
+                  usage={usage}
                   template={template}
                   onSaved={(updated) => setTemplates((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)))}
                 />
