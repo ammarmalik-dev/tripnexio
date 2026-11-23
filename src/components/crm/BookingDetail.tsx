@@ -52,6 +52,7 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { VENDOR_AFTER_DOCUMENTS_SERVICES } from "@/lib/bookings/vendor-names";
 import { PassengerOutcomeControl } from "./booking/PassengerOutcomeControl";
 import { documentTypeLabel } from "@/lib/documents/type-label";
+import { DocumentDescription } from "./DocumentDescription";
 
 interface DocumentItem {
   id: string;
@@ -321,6 +322,7 @@ export function BookingDetail({
             <PurgedFileTag purgedAt={document.purgedAt} />
             <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
             {!document.purgedAt ? <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={refresh} /> : null}
+            <DocumentDescription type={document.type} />
           </span>
           <DocumentStatusControl
             documentId={document.id}

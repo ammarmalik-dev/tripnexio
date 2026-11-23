@@ -45,6 +45,7 @@ import { ApplicantsTable } from "./ApplicantsTable";
 import type { ApplicantRow } from "@/lib/new-visa/applicants";
 import { urgentDeadlineFromDetails, passengerChecksFrom } from "@/lib/visa-extension/rules";
 import { documentTypeLabel } from "@/lib/documents/type-label";
+import { DocumentDescription } from "./DocumentDescription";
 
 /**
  * Client-side pagination for a lead-detail list that can grow without bound
@@ -654,6 +655,7 @@ export function LeadDetail({
                                   <span className="flex flex-wrap items-center gap-2 text-xs text-ink-secondary">
                                     <span className="font-medium text-ink-primary">{documentTypeLabel(document.type)}</span>
                                     <PurgedFileTag purgedAt={document.purgedAt} />
+                                    <DocumentDescription type={document.type} />
                                     <DocumentFileLinks fileUrl={document.fileUrl} purgedAt={document.purgedAt} />
                                     {!document.purgedAt ? (
                                       <DocumentUploadButton documentId={document.id} hasFile={Boolean(document.fileUrl)} onUploaded={refresh} />

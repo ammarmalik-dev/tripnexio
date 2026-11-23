@@ -16,7 +16,8 @@ export const OUTPUT_TYPE_LABELS: Record<OutputType, string> = {
   TICKET_PDF: "Ticket",
   // Only Return Ticket delivers it (client doc 2026-10-20: "just ask Return Verified Ticket").
   RESERVATION_PDF: "Return Verified Ticket",
-  PACKAGE_PDF: "Service package",
+  // Client doc 16 Nov — "Replace Service Package with Visa Change Package".
+  PACKAGE_PDF: "Visa Change Package",
   OTB_CONFIRMATION: "OTB confirmation",
 };
 

@@ -23,6 +23,7 @@ import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { DocumentStatus } from "../../generated/prisma/enums";
 import { documentTypeLabel } from "@/lib/documents/type-label";
+import { DocumentDescription } from "./DocumentDescription";
 
 interface DocumentListItem {
   id: string;
@@ -247,6 +248,7 @@ export function DocumentReviewQueue() {
                     <span className="flex flex-wrap items-center gap-2">
                       {documentTypeLabel(document.type)}
                       <PurgedFileTag purgedAt={document.purgedAt} />
+                      <DocumentDescription type={document.type} className="basis-full text-xs font-normal text-ink-tertiary" />
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-ink-tertiary">
