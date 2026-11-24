@@ -1,3 +1,4 @@
+import { reviseForCancelledPassengers } from "./revise-for-cancellation";
 import crypto from "crypto";
 import { db } from "../db";
 import { leadReference } from "../leads/reference";
@@ -65,6 +66,8 @@ export interface InvoiceDocument {
   grandTotal: number;
   /** Client doc 2026-10-15 (G6) — set when Admin edited this invoice. */
   editedNote: string | null;
+  /** Client doc 16 Nov (H11) — set when the invoice was revised for the remaining passengers after a partial cancellation. */
+  revisionNote?: string | null;
   verifyUrl: string | null;
   company: InvoiceCompanyDetails;
 }
@@ -263,6 +266,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
           customer: true,
           lead: { include: { quotations: { where: { isSelected: true }, take: 1 }, country: { select: { name: true } } } },
           _count: { select: { passengers: true } },
+          passengers: { select: { outcome: true, passenger: { select: { fullName: true, paxType: true } } } },
         },
       },
       refunds: { where: { status: { in: ["COMPLETED", "PENDING", "PROCESSING"] } }, select: { refundAmount: true, status: true } },
@@ -320,18 +324,31 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
   // Client doc 2026-10-15 (G6) — Admin's edited lines and GST replace the computed ones.
   const override = parseInvoiceOverride(payment.invoiceOverride);
   const couponDiscount = Number(payment.couponDiscount ?? 0);
-  const gstAmount = override ? override.gstAmount : Number(payment.gstAmount);
+  // Client doc 16 Nov (H11) — after a partial cancellation: only the remaining passengers, amount and GST recalculated
+  // (never over an Admin-edited invoice or an extra payment).
+  const revision =
+    !override && payment.purpose !== "EXTRA"
+      ? reviseForCancelledPassengers(
+          baseLines,
+          Number(payment.gstAmount),
+          booking.passengers.map((row) => ({ paxType: row.passenger.paxType, cancelled: row.outcome === "CANCELLED" }))
+        )
+      : null;
+  const cancelledNames = booking.passengers.filter((row) => row.outcome === "CANCELLED").map((row) => row.passenger.fullName);
+  const gstAmount = override ? override.gstAmount : revision ? revision.gstAmount : Number(payment.gstAmount);
   const gatewayFee = Number(payment.gatewayFee);
   const lines = withGst(
     override
       ? override.lines.map((line) => ({ description: line.description, sac, quantity: line.quantity, governmentFee: round2(line.governmentFee), serviceFee: round2(line.serviceFee) }))
-      : baseLines,
+      : revision
+        ? revision.lines
+        : baseLines,
     gstAmount
   );
   const lineTotal = round2(lines.reduce((sum, line) => sum + line.governmentFee + line.serviceFee, 0));
   // A coupon comes off the pass-through fee when the service fee is a fixed configured amount.
   const taxable = Math.max(0, lines.reduce((sum, line) => sum + line.serviceFee, 0) - (snapshotFee !== null && !override ? 0 : couponDiscount));
-  const grandTotal = round2((override ? lineTotal : amount) - couponDiscount + gstAmount + gatewayFee);
+  const grandTotal = round2((override || revision ? lineTotal : amount) - (revision ? Math.min(couponDiscount, lineTotal) : couponDiscount) + gstAmount + gatewayFee);
 
   // Client doc 2026-10-15 (G2) / 2026-10-27 (F1) — the shared rule, identical on the "Scan to verify" page.
   const paidTotal = round2(Math.max(0, amount - couponDiscount) + Number(payment.gstAmount) + gatewayFee);
@@ -351,7 +368,7 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
     leadReference: leadReference(lead),
     serviceLabel,
     subService,
-    paxCount: booking._count.passengers || lead.paxCount,
+    paxCount: revision ? revision.remaining : booking._count.passengers || lead.paxCount,
     bookingDate: booking.createdAt,
     travelDate: lead.travelDate ? lead.travelDate.toISOString().slice(0, 10) : null,
     paymentStatus,
@@ -365,6 +382,9 @@ export async function buildPaymentInvoiceDocument(paymentId: string): Promise<In
     gatewayFee,
     grandTotal,
     editedNote: override ? `Edited by ${override.editedBy}${override.note ? `: ${override.note}` : ""}` : null,
+    revisionNote: revision
+      ? `Revised after partial cancellation: ${revision.remaining} of ${revision.total} passengers. Cancelled: ${cancelledNames.join(", ")}.`
+      : null,
     verifyUrl: verifyUrlFor(invoiceNumber),
     company,
   };

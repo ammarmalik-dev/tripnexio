@@ -376,6 +376,11 @@ export async function renderInvoicePdf(invoice: InvoiceDocument): Promise<Buffer
     text(invoice.editedNote, rightCol + 8, ry, { size: 7, color: MUTED, width: rightW - 16 });
     ry = doc.y + 4;
   }
+  // Client doc 16 Nov (H11) — the revised passenger count and who was cancelled.
+  if (invoice.revisionNote) {
+    text(invoice.revisionNote, rightCol + 8, ry, { font: F.bold, size: 7.5, color: NAVY, width: rightW - 16 });
+    ry = doc.y + 4;
+  }
   y = Math.max(leftBottom, ry) + 8;
   if (y > 640) {
     doc.addPage();
