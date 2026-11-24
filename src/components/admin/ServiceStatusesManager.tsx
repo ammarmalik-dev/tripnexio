@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, X } from "lucide-react";
+import { ArrowRight, Plus, Search, Trash2, X } from "lucide-react";
 import { fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { TextField } from "@/components/forms/TextField";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -20,6 +20,13 @@ import { useConfirmAction } from "@/components/ui/ConfirmActionDialog";
 import { withReasonQuery } from "@/lib/validation/sensitive-action";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { useClientPagination } from "@/components/crm/usePagination";
+import { buildWorkflow, statusAppliesToCountry } from "@/lib/service-status/status-countries";
+
+interface CountryOption {
+  id: string;
+  name: string;
+  active: boolean;
+}
 
 /** Group filter value for "every group" (an empty string is the real "ungrouped" group). */
 const ALL_GROUPS = "__all";
@@ -43,6 +50,10 @@ interface StatusData {
   notificationEvent: string | null;
   systemEvent: string | null;
   active: boolean;
+  /** Client doc 16 Nov (G1) — empty = every country. */
+  countryIds: string[];
+  /** Leads / bookings currently on this status. */
+  recordCount: number;
   transitions: { id: string; toStatusId: string }[];
 }
 
@@ -57,6 +68,7 @@ interface StatusFormState {
   mapsTo: string;
   notificationEvent: string;
   systemEvent: string;
+  countryIds: string[];
 }
 
 function toFormState(status: StatusData): StatusFormState {
@@ -70,6 +82,7 @@ function toFormState(status: StatusData): StatusFormState {
     mapsTo: (status.scope === "LEAD" ? status.mapsToLeadStatus : status.mapsToBookingStatus) ?? "",
     notificationEvent: status.notificationEvent ?? "",
     systemEvent: status.systemEvent ?? "",
+    countryIds: [...status.countryIds].sort(),
   };
 }
 
@@ -83,6 +96,7 @@ const EMPTY_FORM: StatusFormState = {
   mapsTo: "",
   notificationEvent: "",
   systemEvent: "",
+  countryIds: [],
 };
 
 function buildPayload(form: StatusFormState, scope: StatusScope) {
@@ -98,7 +112,67 @@ function buildPayload(form: StatusFormState, scope: StatusScope) {
       : { mapsToBookingStatus: form.mapsTo === "" ? null : form.mapsTo }),
     notificationEvent: form.notificationEvent === "" ? null : form.notificationEvent,
     systemEvent: form.systemEvent === "" ? null : form.systemEvent,
+    countryIds: form.countryIds,
   };
+}
+
+/** Client doc 16 Nov (G1) — the countries a status applies to (none ticked = every country). */
+function CountryPicker({ idPrefix, value, countries, onChange, disabled }: { idPrefix: string; value: string[]; countries: CountryOption[]; onChange: (next: string[]) => void; disabled: boolean }) {
+  const names = countries.filter((country) => value.includes(country.id)).map((country) => country.name);
+  return (
+    <details className="rounded-lg border border-hairline bg-surface-1 px-3 py-2 text-sm sm:col-span-2">
+      <summary className="cursor-pointer text-ink-heading">
+        <span className="font-medium">Countries:</span>{" "}
+        <span className="text-ink-secondary">{names.length === 0 ? "Every country" : names.join(", ")}</span>
+      </summary>
+      <p className="mt-2 text-xs text-ink-tertiary">Tick the countries this status is used for. Leave all unticked to use it for every country.</p>
+      <div className="mt-2 grid max-h-48 grid-cols-2 gap-1 overflow-y-auto sm:grid-cols-3">
+        {countries.map((country) => (
+          <label key={country.id} htmlFor={`${idPrefix}-country-${country.id}`} className="flex items-center gap-2 text-ink-secondary">
+            <input
+              id={`${idPrefix}-country-${country.id}`}
+              type="checkbox"
+              disabled={disabled}
+              checked={value.includes(country.id)}
+              onChange={(event) => onChange(event.target.checked ? [...value, country.id].sort() : value.filter((id) => id !== country.id))}
+            />
+            {country.name}
+            {country.active ? null : <span className="text-xs text-ink-tertiary">(inactive)</span>}
+          </label>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+/** Client doc 16 Nov (G1) — the current workflow next to the configuration: each active status and where it may go next. */
+function WorkflowView({ statuses, countryId, countryName }: { statuses: StatusData[]; countryId: string | null; countryName: string }) {
+  const steps = buildWorkflow(statuses, countryId);
+  return (
+    <details open className="rounded-xl border border-hairline bg-surface-1 p-4">
+      <summary className="cursor-pointer text-sm font-semibold text-ink-heading">Current workflow — {countryName}</summary>
+      {steps.length === 0 ? (
+        <p className="mt-2 text-sm text-ink-tertiary">No active statuses for this selection.</p>
+      ) : (
+        <ol className="mt-3 flex flex-col gap-1.5 text-sm">
+          {steps.map((step, index) => (
+            <li key={step.id} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="w-6 text-right text-xs tabular-nums text-ink-tertiary">{index + 1}.</span>
+              <span className="font-medium text-ink-heading">{step.name}</span>
+              {step.customerLabel && step.customerLabel !== step.name ? <span className="text-xs text-ink-tertiary">(customer sees: {step.customerLabel})</span> : null}
+              {step.isTerminal ? <span className="rounded-full bg-ink-primary/[0.06] px-2 py-0.5 text-xs text-ink-secondary">Final</span> : null}
+              {step.next.length > 0 ? (
+                <>
+                  <ArrowRight className="h-3.5 w-3.5 text-ink-tertiary" aria-label="moves to" />
+                  <span className="text-xs text-ink-secondary">{step.next.join(" · ")}</span>
+                </>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      )}
+    </details>
+  );
 }
 
 function OptionSelect({
@@ -141,6 +215,7 @@ function StatusFields({
   onChange,
   disabled,
   scope,
+  countries,
 }: {
   /** Keeps control ids unique when several cards are on screen at once. */
   idPrefix: string;
@@ -148,6 +223,7 @@ function StatusFields({
   onChange: (next: StatusFormState) => void;
   disabled: boolean;
   scope: StatusScope;
+  countries: CountryOption[];
 }) {
   const id = (field: string) => `${idPrefix}-${field}`;
   return (
@@ -205,6 +281,7 @@ function StatusFields({
         disabled={disabled}
         className="sm:col-span-2"
       />
+      <CountryPicker idPrefix={idPrefix} value={form.countryIds} countries={countries} onChange={(countryIds) => onChange({ ...form, countryIds })} disabled={disabled} />
       <label className="flex items-center gap-2 text-sm text-ink-secondary">
         <input type="checkbox" checked={form.isTerminal} disabled={disabled} onChange={(e) => onChange({ ...form, isTerminal: e.target.checked })} />
         Terminal (no further transitions expected)
@@ -222,14 +299,19 @@ function StatusCard({
   allStatuses,
   onSaved,
   onTransitionChanged,
+  onDeleted,
+  countries,
 }: {
   status: StatusData;
   allStatuses: StatusData[];
   onSaved: (status: StatusData) => void;
   onTransitionChanged: () => void;
+  onDeleted: () => void;
+  countries: CountryOption[];
 }) {
   const [form, setForm] = useState<StatusFormState>(toFormState(status));
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
   const [newTransitionTarget, setNewTransitionTarget] = useState("");
   const [addingTransition, setAddingTransition] = useState(false);
@@ -275,6 +357,26 @@ function StatusCard({
     }
   };
 
+  // Client doc 16 Nov (G1) — remove an outdated status for good (only when no record is on it).
+  const handleDelete = async () => {
+    const reason = await confirm({
+      title: `Delete status "${status.name}"?`,
+      description: "The status, its transitions and its own customer templates are removed. This can't be undone — past moves stay in the history.",
+      confirmLabel: "Delete Status",
+    });
+    if (!reason) return;
+    setDeleting(true);
+    try {
+      await deleteJson(withReasonQuery(`/api/admin/service-statuses/${status.id}`, reason));
+      toast.success(`Status "${status.name}" deleted.`);
+      onDeleted();
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't delete this status. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const handleAddTransition = async () => {
     if (!newTransitionTarget) return;
     const reason = await confirm({
@@ -311,11 +413,31 @@ function StatusCard({
             <span className="rounded-full bg-ink-primary/[0.06] px-2.5 py-1 text-xs font-medium text-ink-secondary">Terminal</span>
           ) : null}
         </div>
-        <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
-          {status.active ? "Disable" : "Enable"}
-        </Button>
+        <div className="flex items-center gap-1">
+          {status.recordCount > 0 ? (
+            <span className="text-xs text-ink-tertiary">
+              {status.recordCount} record{status.recordCount === 1 ? "" : "s"} on it
+            </span>
+          ) : null}
+          <Button type="button" size="sm" variant="ghost" onClick={() => void handleToggleActive()} isLoading={togglingActive}>
+            {status.active ? "Disable" : "Enable"}
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            onClick={() => void handleDelete()}
+            isLoading={deleting}
+            disabled={status.recordCount > 0}
+            title={status.recordCount > 0 ? "Move its records to another status first" : "Delete this status"}
+            className="text-error"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            Delete
+          </Button>
+        </div>
       </div>
-      <StatusFields idPrefix={`status-${status.id}`} form={form} onChange={setForm} disabled={saving} scope={status.scope} />
+      <StatusFields idPrefix={`status-${status.id}`} form={form} onChange={setForm} disabled={saving} scope={status.scope} countries={countries} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleSave()} isLoading={saving} disabled={!dirty}>
           Save Changes
@@ -401,7 +523,7 @@ function RemoveTransitionButton({ transitionId, onRemoved }: { transitionId: str
   );
 }
 
-function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: ServiceType; scope: StatusScope; onCreated: (status: StatusData) => void }) {
+function NewStatusForm({ serviceType, scope, onCreated, countries }: { serviceType: ServiceType; scope: StatusScope; onCreated: (status: StatusData) => void; countries: CountryOption[] }) {
   const [form, setForm] = useState<StatusFormState>(EMPTY_FORM);
   const [creating, setCreating] = useState(false);
   const { confirm, dialog } = useConfirmAction();
@@ -429,7 +551,7 @@ function NewStatusForm({ serviceType, scope, onCreated }: { serviceType: Service
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-dashed border-hairline bg-surface-1 p-5">
       <h2 className="text-sm font-semibold text-ink-heading">New Status</h2>
-      <StatusFields idPrefix={`new-status-${scope}`} form={form} onChange={setForm} disabled={creating} scope={scope} />
+      <StatusFields idPrefix={`new-status-${scope}`} form={form} onChange={setForm} disabled={creating} scope={scope} countries={countries} />
       <div className="flex justify-end">
         <Button type="button" size="sm" onClick={() => void handleCreate()} isLoading={creating} disabled={!form.name.trim()}>
           <Plus className="h-4 w-4" aria-hidden="true" />
@@ -459,7 +581,12 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
   const [reloadNonce, setReloadNonce] = useState(0);
   const [search, setSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("all");
+  // Client doc 16 Nov (G1) — old (disabled) statuses are hidden unless asked for.
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>("active");
+  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [countryFilter, setCountryFilter] = useState("");
+  const [cleaning, setCleaning] = useState(false);
+  const { confirm: confirmCleanup, dialog: cleanupDialog } = useConfirmAction();
 
   // Display order: each group in first-seen order, statuses in API order within it (as before pagination).
   // Pagination runs over this flat, ordered list and each page is regrouped, so a group heading repeats on
@@ -471,15 +598,18 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
     if (groupFilter !== null && (status.group ?? "") !== groupFilter) return false;
     if (activeFilter === "active" && !status.active) return false;
     if (activeFilter === "inactive" && status.active) return false;
+    if (countryFilter && !statusAppliesToCountry(status, countryFilter)) return false;
     return !query || [status.name, status.customerLabel, status.group].filter(Boolean).join(" ").toLowerCase().includes(query);
   });
   const { pageItems, paginationProps, resetPage } = useClientPagination(filtered);
   const pageGroups = Array.from(new Set(pageItems.map((s) => s.group ?? "")));
-  const hasFilters = query !== "" || groupFilter !== null || activeFilter !== "all";
+  const hasFilters = query !== "" || groupFilter !== null || activeFilter !== "active" || countryFilter !== "";
+  const disabledCount = statuses.filter((status) => !status.active).length;
   const clearFilters = () => {
     setSearch("");
     setGroupFilter(null);
-    setActiveFilter("all");
+    setActiveFilter("active");
+    setCountryFilter("");
     resetPage();
   };
 
@@ -503,6 +633,41 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
       cancelled = true;
     };
   }, [serviceType, scope, reloadNonce]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadCountries() {
+      try {
+        const result = await getJson<CountryOption[]>("/api/admin/countries");
+        if (!cancelled) setCountries(result.map(({ id, name, active }) => ({ id, name, active })));
+      } catch {
+        // The picker just stays empty (every country) — the statuses still load.
+      }
+    }
+    void loadCountries();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const removeDisabled = async () => {
+    const reason = await confirmCleanup({
+      title: `Delete the ${disabledCount} disabled status${disabledCount === 1 ? "" : "es"}?`,
+      description: "Every disabled status of this list that no lead, booking or SLA rule uses is deleted with its transitions and its own templates. Disabled statuses still in use are kept.",
+      confirmLabel: "Delete Disabled Statuses",
+    });
+    if (!reason) return;
+    setCleaning(true);
+    try {
+      const result = await postJson<{ deleted: string[]; kept: string[] }>("/api/admin/service-statuses/cleanup", { serviceType, scope, reason });
+      toast.success(`${result.deleted.length} deleted${result.kept.length ? `; kept (still in use): ${result.kept.join(", ")}` : ""}.`);
+      setReloadNonce((current) => current + 1);
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : "Couldn't delete the disabled statuses. Please try again.");
+    } finally {
+      setCleaning(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -569,6 +734,10 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
       ) : null}
 
       {state === "success" && statuses.length > 0 ? (
+        <WorkflowView statuses={statuses} countryId={countryFilter || null} countryName={countries.find((country) => country.id === countryFilter)?.name ?? "every country"} />
+      ) : null}
+
+      {state === "success" && statuses.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[220px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-tertiary" aria-hidden="true" />
@@ -626,6 +795,31 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
             <option value="active">Active only</option>
             <option value="inactive">Disabled only</option>
           </select>
+          <label htmlFor="service-status-filter-country" className="sr-only">
+            Filter by country
+          </label>
+          <select
+            id="service-status-filter-country"
+            value={countryFilter}
+            onChange={(event) => {
+              setCountryFilter(event.target.value);
+              resetPage();
+            }}
+            className={cn(fieldControlClass, fieldBorderClass(false), "w-auto min-w-[150px]")}
+          >
+            <option value="">Every country</option>
+            {countries.map((country) => (
+              <option key={country.id} value={country.id}>
+                {country.name}
+              </option>
+            ))}
+          </select>
+          {disabledCount > 0 ? (
+            <Button type="button" variant="ghost" size="md" onClick={() => void removeDisabled()} isLoading={cleaning} className="text-error">
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              Delete disabled ({disabledCount})
+            </Button>
+          ) : null}
           {hasFilters ? (
             <Button type="button" variant="ghost" size="md" onClick={clearFilters}>
               Clear filters
@@ -660,6 +854,8 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
                     allStatuses={statuses}
                     onSaved={(updated) => setStatuses((current) => current.map((s) => (s.id === updated.id ? updated : s)))}
                     onTransitionChanged={() => setReloadNonce((current) => current + 1)}
+                    onDeleted={() => setReloadNonce((current) => current + 1)}
+                    countries={countries}
                   />
                 ))}
             </div>
@@ -669,8 +865,9 @@ export function ServiceStatusesManager({ serviceType: lockedServiceType }: { ser
       {state === "success" ? <ListPagination noun="status option" {...paginationProps} /> : null}
 
       {state === "success" ? (
-        <NewStatusForm key={`${serviceType}-${scope}`} serviceType={serviceType} scope={scope} onCreated={(created) => setStatuses((current) => [...current, created])} />
+        <NewStatusForm key={`${serviceType}-${scope}`} serviceType={serviceType} scope={scope} onCreated={(created) => setStatuses((current) => [...current, created])} countries={countries} />
       ) : null}
+      {cleanupDialog}
     </div>
   );
 }

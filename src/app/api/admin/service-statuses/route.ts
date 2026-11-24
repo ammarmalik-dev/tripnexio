@@ -7,6 +7,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { ServiceType, StatusScope } from "../../../../generated/prisma/enums";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { validCountryIds } from "@/lib/service-status/valid-country-ids";
 
 /**
  * Step 19 Unit 1 (audit §3.9/§7.3) — Admin CRUD for the per-service status
@@ -36,10 +37,22 @@ export async function GET(request: NextRequest) {
     orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
   });
 
+  // Client doc 16 Nov (G1) — how many records sit on each status, so Admin sees what can be deleted.
+  const ids = statuses.map((status) => status.id);
+  const [leadCounts, bookingCounts] = [
+    await db.lead.groupBy({ by: ["serviceStatusId"], where: { serviceStatusId: { in: ids } }, _count: { _all: true } }),
+    await db.booking.groupBy({ by: ["serviceStatusId"], where: { serviceStatusId: { in: ids } }, _count: { _all: true } }),
+  ];
+  const inUse = new Map<string, number>();
+  for (const row of [...leadCounts, ...bookingCounts]) {
+    if (row.serviceStatusId) inUse.set(row.serviceStatusId, (inUse.get(row.serviceStatusId) ?? 0) + row._count._all);
+  }
+
   return jsonSuccess(
     statuses.map(({ fromTransitions, ...status }) => ({
       ...status,
       transitions: fromTransitions,
+      recordCount: inUse.get(status.id) ?? 0,
     }))
   );
 }
@@ -80,8 +93,11 @@ export async function POST(request: NextRequest) {
     return jsonError(400, "Another status of this service already uses that system event.", { systemEvent: ["Already used by another status."] });
   }
 
+  const countryIds = await validCountryIds(parsed.data.countryIds);
+  if (countryIds === null) return jsonError(400, "Pick countries from the list.", { countryIds: ["Unknown country."] });
+
   const status = await db.$transaction(async (tx) => {
-    const created = await tx.serviceStatus.create({ data: parsed.data });
+    const created = await tx.serviceStatus.create({ data: { ...parsed.data, countryIds } });
     await writeAudit(tx, {
       entityType: "ServiceStatus",
       entityId: created.id,
@@ -92,5 +108,5 @@ export async function POST(request: NextRequest) {
     return created;
   });
 
-  return jsonSuccess({ ...status, transitions: [] }, 201);
+  return jsonSuccess({ ...status, transitions: [], recordCount: 0 }, 201);
 }

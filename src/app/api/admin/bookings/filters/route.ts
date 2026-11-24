@@ -19,7 +19,8 @@ export async function GET() {
       () => (db.vendor.findMany({ select: { id: true, name: true, active: true }, orderBy: { name: "asc" } })),
       () => (db.country.findMany({ where: { active: true }, select: { id: true, name: true, code: true }, orderBy: [{ displayOrder: "asc" }, { name: "asc" }] })),
       () => (db.serviceStatus.findMany({
-        where: { scope: "BOOKING" },
+        // Client doc 16 Nov (G1) — old (disabled) statuses are not offered as filters.
+        where: { scope: "BOOKING", active: true },
         select: { id: true, name: true, customerLabel: true, serviceType: true, active: true },
         orderBy: [{ serviceType: "asc" }, { displayOrder: "asc" }],
       }))]);

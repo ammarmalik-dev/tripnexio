@@ -24,6 +24,8 @@ export const createServiceStatusSchema = z.object({
   notificationEvent: z.enum(Object.values(NOTIFICATION_EVENTS) as [string, ...string[]]).nullable().optional(),
   /** P08 — system event that moves a record here, or the On Hold marker. */
   systemEvent: z.enum([...SERVICE_STATUS_SYSTEM_EVENTS, HOLD_MARKER, NOT_RESPONDING_MARKER]).nullable().optional(),
+  /** Client doc 16 Nov (G1) — the countries this status applies to; empty = every country. */
+  countryIds: z.array(z.string().trim().min(1)).max(300).optional(),
 });
 
 export const updateServiceStatusSchema = partialUpdateSchema(

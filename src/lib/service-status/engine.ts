@@ -1,3 +1,4 @@
+import { statusAppliesToCountry } from "./status-countries";
 import type { Prisma, ServiceStatus } from "../../generated/prisma/client";
 import type { ServiceType, StatusScope, LeadStatus, BookingStatus } from "../../generated/prisma/enums";
 import { db } from "../db";
@@ -27,6 +28,8 @@ interface EntityState {
   serviceType: ServiceType;
   serviceStatusId: string | null;
   coarseStatus: LeadStatus | BookingStatus;
+  /** Client doc 16 Nov (G1) — the lead's country, for statuses set up per country. */
+  countryId: string | null;
 }
 
 /** A customer message to send once the status change has committed. */
@@ -156,14 +159,16 @@ export type SetServiceStatusResult =
 
 async function loadEntity(tx: Tx, scope: StatusScope, entityId: string): Promise<EntityState | null> {
   if (scope === "LEAD") {
-    const lead = await tx.lead.findUnique({ where: { id: entityId }, select: { id: true, serviceType: true, serviceStatusId: true, status: true } });
-    return lead ? { id: lead.id, serviceType: lead.serviceType, serviceStatusId: lead.serviceStatusId, coarseStatus: lead.status } : null;
+    const lead = await tx.lead.findUnique({ where: { id: entityId }, select: { id: true, serviceType: true, serviceStatusId: true, status: true, countryId: true } });
+    return lead ? { id: lead.id, serviceType: lead.serviceType, serviceStatusId: lead.serviceStatusId, coarseStatus: lead.status, countryId: lead.countryId } : null;
   }
   const booking = await tx.booking.findUnique({
     where: { id: entityId },
-    select: { id: true, serviceStatusId: true, status: true, lead: { select: { serviceType: true } } },
+    select: { id: true, serviceStatusId: true, status: true, lead: { select: { serviceType: true, countryId: true } } },
   });
-  return booking ? { id: booking.id, serviceType: booking.lead.serviceType, serviceStatusId: booking.serviceStatusId, coarseStatus: booking.status } : null;
+  return booking
+    ? { id: booking.id, serviceType: booking.lead.serviceType, serviceStatusId: booking.serviceStatusId, coarseStatus: booking.status, countryId: booking.lead.countryId }
+    : null;
 }
 
 /** The first active status of a service's list for that scope (lowest display order, never On Hold) — what a new record starts on. */
@@ -376,12 +381,14 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
           where: { fromStatusId: movesFrom.id, to: { active: true }, toStatusId: { not: current.id } },
           select: {
             to: {
-              select: { id: true, name: true, customerLabel: true, displayOrder: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true, notificationEvent: true },
+              select: { id: true, name: true, customerLabel: true, displayOrder: true, isTerminal: true, systemEvent: true, mapsToBookingStatus: true, mapsToLeadStatus: true, notificationEvent: true, countryIds: true },
             },
           },
         })
       )
         .map((transition) => transition.to)
+        // Client doc 16 Nov (G1) — only the statuses of this record's country.
+        .filter((to) => statusAppliesToCountry(to, entity.countryId))
         // Client doc 2026-10-15 (I1) — only the moves staff may actually make.
         .filter((to) => staffMoveBlock(scope, movesFrom, to) === null)
         // Client 2026-10-27 — no skipping the hand-over to the airline / embassy.
@@ -403,16 +410,20 @@ export async function getAllowedNextServiceStatuses(scope: StatusScope, entityId
         await db.serviceStatus.findMany({
           where: { serviceType: entity.serviceType, scope, active: true },
           orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-          select: { id: true, name: true, customerLabel: true, displayOrder: true, notificationEvent: true, systemEvent: true },
+          select: { id: true, name: true, customerLabel: true, displayOrder: true, notificationEvent: true, systemEvent: true, countryIds: true },
         })
-      ).filter((to) => !isRefundEngineStatus(to) && !isAutoStatus(entity.serviceType, to) && (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)));
+      ).filter((to) => statusAppliesToCountry(to, entity.countryId) && !isRefundEngineStatus(to) && !isAutoStatus(entity.serviceType, to) && (scope !== "BOOKING" || !isApplyStepStatus(entity.serviceType, to)));
   // Client testing 2026-10-09 (E9) — the service's whole status list (internal name
   // + what the customer sees), so staff can see where a record is and what comes next.
-  const all = await db.serviceStatus.findMany({
-    where: { serviceType: entity.serviceType, scope, active: true },
-    orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, customerLabel: true, isTerminal: true },
-  });
+  const all = (
+    await db.serviceStatus.findMany({
+      where: { serviceType: entity.serviceType, scope, active: true },
+      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, customerLabel: true, isTerminal: true, countryIds: true },
+    })
+  )
+    .filter((status) => statusAppliesToCountry(status, entity.countryId))
+    .map((status) => ({ id: status.id, name: status.name, customerLabel: status.customerLabel, isTerminal: status.isTerminal }));
   // Client doc 2026-10-20 — per next status: does the customer get a message, and what must staff enter for it.
   const inputs = await statusInputsFor(allowed.map((status) => status.notificationEvent ?? ""));
   return {
@@ -523,6 +534,10 @@ export async function setServiceStatus(
   const to = await tx.serviceStatus.findUnique({ where: { id: input.toStatusId } });
   if (!to || !to.active || to.serviceType !== entity.serviceType || to.scope !== input.scope) {
     return { ok: false, httpStatus: 409, error: "That status isn't available for this service." };
+  }
+  // Client doc 16 Nov (G1) — a status set up for other countries is not offered to this record (system events too).
+  if (!statusAppliesToCountry(to, entity.countryId)) {
+    return { ok: false, httpStatus: 409, error: `"${to.name}" isn't used for this country.` };
   }
   if (entity.serviceStatusId === to.id) return { ok: true, changed: false, notification: null };
 

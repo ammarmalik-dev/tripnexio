@@ -7,6 +7,9 @@ import { writeAudit } from "@/lib/audit/log";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
+import { readDeleteReason } from "@/lib/api/sensitive-reason";
+import { removeServiceStatus, statusUsage, usageMessage } from "@/lib/service-status/remove-status";
+import { validCountryIds } from "@/lib/service-status/valid-country-ids";
 
 /** One status per system event per service and scope — otherwise the engine couldn't tell which one an event means. */
 async function systemEventTaken(serviceType: ServiceType, scope: StatusScope, systemEvent: string | null | undefined, exceptId?: string) {
@@ -55,8 +58,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     return jsonError(400, "Another status of this service already uses that system event.", { systemEvent: ["Already used by another status."] });
   }
 
+  const countryIds = parsed.data.countryIds === undefined ? undefined : await validCountryIds(parsed.data.countryIds);
+  if (countryIds === null) return jsonError(400, "Pick countries from the list.", { countryIds: ["Unknown country."] });
+
   const updated = await db.$transaction(async (tx) => {
-    const result = await tx.serviceStatus.update({ where: { id }, data: parsed.data });
+    const result = await tx.serviceStatus.update({ where: { id }, data: { ...parsed.data, ...(countryIds ? { countryIds } : {}) } });
     await writeAudit(tx, {
       entityType: "ServiceStatus",
       entityId: id,
@@ -68,5 +74,33 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   });
 
   const transitions = await db.serviceStatusTransition.findMany({ where: { fromStatusId: id }, select: { id: true, toStatusId: true } });
-  return jsonSuccess({ ...updated, transitions });
+  const usage = await statusUsage(db, id);
+  return jsonSuccess({ ...updated, transitions, recordCount: usage.leads + usage.bookings });
+}
+
+/**
+ * Client doc 16 Nov (G1) — Admin deletes an outdated status (with its transitions and its own customer templates).
+ * Refused while any lead / booking is on it or an SLA rule points at it; reason required, audited.
+ */
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
+  const auth = await requirePermission("masters.manage");
+  if (auth.error) return auth.error;
+  const { session } = auth;
+  const { id } = await params;
+  const reasonResult = await readDeleteReason(request);
+  if (reasonResult.error) return reasonResult.error;
+  const { reason } = reasonResult;
+
+  const existing = await db.serviceStatus.findUnique({ where: { id } });
+  if (!existing) return jsonError(404, "Status not found.");
+  const usage = await statusUsage(db, id);
+  if (usage.total > 0) return jsonError(409, usageMessage(existing.name, usage));
+
+  try {
+    const removed = await db.$transaction((tx) => removeServiceStatus(tx, existing, session, reason));
+    return jsonSuccess({ id, ...removed });
+  } catch (error) {
+    console.error("[admin/service-statuses] delete failed", (error as { code?: string }).code ?? (error as Error).name);
+    return jsonError(500, "Couldn't delete this status. Please try again.");
+  }
 }

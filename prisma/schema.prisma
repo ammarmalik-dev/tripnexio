@@ -1062,6 +1062,9 @@ model ServiceStatus {
   /// P08 — the system event (src/lib/service-status/events.ts) that moves a
   /// record onto this status, or "ON_HOLD" for the service's hold status.
   systemEvent         String?
+  /// Client doc 16 Nov (G1) — statuses per Service × Country: empty = every country of the service,
+  /// otherwise only records (leads / bookings) whose country is listed.
+  countryIds          String[]       @default([])
   active              Boolean        @default(true)
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
