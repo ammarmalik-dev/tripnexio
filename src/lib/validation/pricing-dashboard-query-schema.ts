@@ -18,6 +18,9 @@ export const pricingDashboardQuerySchema = z.object({
   subServiceId: z.string().min(1).optional(),
   visaTypeId: z.string().min(1).optional(),
   processingType: z.string().min(1).max(40).optional(),
+  /** Client doc 16 Nov (K9) — Visa Price Table: the country's visa product (e.g. 30 Days Single Entry) and nationality. */
+  newVisaConfigId: z.string().min(1).optional(),
+  nationalityId: z.string().min(1).optional(),
   active: z.enum(["true", "false"]).optional(),
   status: z.enum(PRICING_RULE_STATUSES).optional(),
   /** Rules in effect on this date: validityFrom ≤ date ≤ validityUntil, a null bound is open. */

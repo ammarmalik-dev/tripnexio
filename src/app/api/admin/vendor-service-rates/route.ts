@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/auth/require-permission";
 import { readBodyReason } from "@/lib/api/sensitive-reason";
 import { withReason } from "@/lib/validation/sensitive-action";
 import { createVendorServiceRateSchema, serializeVendorServiceRate, VENDOR_RATE_INCLUDE } from "@/lib/vendors/service-rates";
+import { prepareVendorRate } from "@/lib/vendors/prepare-rate";
 
 /**
  * Client doc 2026-10-14 — vendor rates for OTB / Return Ticket by vendor,
@@ -40,43 +41,9 @@ export async function POST(request: NextRequest) {
   if (reasonResult.error) return reasonResult.error;
   const { reason } = reasonResult;
 
-  const isNewVisa = parsed.data.serviceType === "NEW_VISA";
-  const data = {
-    ...parsed.data,
-    airlineId: parsed.data.serviceType === "OTB" ? (parsed.data.airlineId ?? null) : null,
-    nationalityId: isNewVisa ? (parsed.data.nationalityId ?? null) : null,
-    paxType: isNewVisa && parsed.data.paxType ? parsed.data.paxType : null,
-    newVisaConfigId: isNewVisa ? (parsed.data.newVisaConfigId ?? null) : null,
-    processingType: parsed.data.processingType || null,
-  };
-  const vendor = await db.vendor.findUnique({ where: { id: data.vendorId }, select: { id: true } });
-  if (!vendor) return jsonError(400, "Vendor not found.", { vendorId: ["Select a valid vendor."] });
-  const country = await db.country.findUnique({ where: { id: data.countryId }, select: { id: true } });
-  if (!country) return jsonError(400, "Country not found.", { countryId: ["Select a valid country."] });
-  if (data.airlineId && !(await db.airline.findUnique({ where: { id: data.airlineId }, select: { id: true } }))) {
-    return jsonError(400, "Airline not found.", { airlineId: ["Select a valid airline."] });
-  }
-  if (data.nationalityId && !(await db.nationality.findUnique({ where: { id: data.nationalityId }, select: { id: true } }))) {
-    return jsonError(400, "Nationality not found.", { nationalityId: ["Select a valid nationality."] });
-  }
-  // Client doc 2026-10-27 (E2) — the visa option must be one of this country's New Visa options.
-  if (data.newVisaConfigId && !(await db.newVisaCountryConfig.findFirst({ where: { id: data.newVisaConfigId, countryId: data.countryId }, select: { id: true } }))) {
-    return jsonError(400, "Visa type not found for this country.", { newVisaConfigId: ["Select one of this country's visa options."] });
-  }
-  const duplicate = await db.vendorServiceRate.findFirst({
-    where: {
-      vendorId: data.vendorId,
-      serviceType: data.serviceType,
-      countryId: data.countryId,
-      airlineId: data.airlineId,
-      nationalityId: data.nationalityId,
-      paxType: data.paxType,
-      newVisaConfigId: data.newVisaConfigId,
-      processingType: data.processingType,
-    },
-    select: { id: true },
-  });
-  if (duplicate) return jsonError(400, "This vendor already has this rate — edit it instead.", { countryId: ["Already added."] });
+  const prepared = await prepareVendorRate(parsed.data);
+  if (prepared.error) return prepared.error;
+  const { data } = prepared;
 
   const created = await db.$transaction(async (tx) => {
     const row = await tx.vendorServiceRate.create({ data, include: VENDOR_RATE_INCLUDE });

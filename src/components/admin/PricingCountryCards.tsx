@@ -342,7 +342,7 @@ interface RowProps<T> {
 /** The Return Ticket rate the website charges for this country (ReturnTicketDestination). */
 function ReturnTicketRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<ReturnTicketPrice>) {
   return (
-    <li className="px-3 py-2">
+    <li className="px-3 py-1.5">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className={cn("text-sm", row.active ? "text-ink-primary" : "text-ink-tertiary line-through")}>Per applicant (website price)</p>
@@ -384,7 +384,7 @@ function ReturnTicketRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<R
 /** An OTB price for this country and one airline + passenger type (OtbPrice). */
 function OtbPriceRow({ row, editing, onEdit, onCancel, onSaved }: RowProps<OtbCountryPrice>) {
   return (
-    <li className="px-3 py-2">
+    <li className="px-3 py-1.5">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className={cn("text-sm", row.active && row.airlineActive ? "text-ink-primary" : "text-ink-tertiary line-through")}>
@@ -532,7 +532,8 @@ export function PricingCountryCards() {
       {truncated ? <p className="text-xs text-warning">Showing the first 2,000 prices. Use the table view filters for the rest.</p> : null}
       {visible.length === 0 ? <p className="text-sm text-ink-tertiary">No country matches “{search}”.</p> : null}
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+      {/* Client doc 16 Nov (K9) — compact: cards flow in columns (no empty gap under a short card next to a tall one). */}
+      <div className="columns-1 gap-3 xl:columns-2">
         {visible.map((group) => {
           const services = [...new Set(group.rules.map((rule) => rule.serviceType))];
           const activeCount =
@@ -540,8 +541,8 @@ export function PricingCountryCards() {
             (group.returnTicket?.active ? 1 : 0) +
             group.otbPrices.filter((row) => row.active).length;
           return (
-            <section key={group.country?.id ?? "all"} className="glass-2 rounded-xl p-4">
-              <header className="mb-3 flex items-center justify-between gap-3">
+            <section key={group.country?.id ?? "all"} className="glass-2 mb-3 break-inside-avoid rounded-xl p-3">
+              <header className="mb-2 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5">
                   {group.country ? <FlagBadge code={group.country.code} flagOverride={group.country.flagOverride} /> : null}
                   <div>
@@ -554,7 +555,7 @@ export function PricingCountryCards() {
                 </div>
               </header>
 
-              <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-2">
                 {services.map((serviceType) => (
                   <div key={serviceType}>
                     <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">{SERVICE_TYPE_LABELS[serviceType]}</p>
@@ -562,7 +563,7 @@ export function PricingCountryCards() {
                       {group.rules
                         .filter((rule) => rule.serviceType === serviceType)
                         .map((rule) => (
-                          <li key={rule.id} className="px-3 py-2">
+                          <li key={rule.id} className="px-3 py-1.5">
                             <div className="flex items-center justify-between gap-3">
                               <div className="min-w-0">
                                 <p className={cn("text-sm", rule.active && rule.used ? "text-ink-primary" : "text-ink-tertiary line-through")}>{ruleLabel(rule) || "All passengers"}</p>
@@ -639,7 +640,7 @@ export function PricingCountryCards() {
                     <p className="mb-1 text-[11px] font-semibold tracking-wide text-ink-tertiary uppercase">Vendor rates (internal cost)</p>
                     <ul className="divide-y divide-hairline rounded-lg border border-hairline bg-surface-1">
                       {group.vendorRates.map((row) => (
-                        <li key={row.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                        <li key={row.id} className="flex items-center justify-between gap-3 px-3 py-1.5">
                           <div className="min-w-0">
                             <p className={cn("text-sm", row.active && row.vendorActive ? "text-ink-primary" : "text-ink-tertiary line-through")}>
                               {SERVICE_TYPE_LABELS[row.serviceType]} · {row.vendorName}

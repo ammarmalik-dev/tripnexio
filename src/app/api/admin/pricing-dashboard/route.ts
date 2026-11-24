@@ -6,6 +6,21 @@ import { describeError } from "@/lib/api/describe-error";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/auth/require-permission";
 import { pricingDashboardQuerySchema, type PricingRuleStatus } from "@/lib/validation/pricing-dashboard-query-schema";
+import { productLabel } from "@/lib/new-visa/products";
+import { pickVendorRate } from "@/lib/vendors/service-rates";
+
+const PRODUCT_SELECT = {
+  id: true,
+  countryId: true,
+  active: true,
+  stayDays: true,
+  duration: true,
+  entryKind: true,
+  entryType: true,
+  visaCategory: true,
+  validityType: { select: { name: true } },
+  country: { select: { showVisaValidity: true } },
+} as const;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const EXPIRING_SOON_DAYS = 30;
@@ -47,6 +62,14 @@ async function loadFilterOptions(processingOptions: { serviceType: ServiceType; 
     orderBy: [{ serviceType: "asc" }, { displayOrder: "asc" }, { name: "asc" }],
   });
   const visaTypes = await db.visaType.findMany({ select: { id: true, name: true, countryId: true, active: true }, orderBy: [{ displayOrder: "asc" }, { name: "asc" }] });
+  // Client doc 16 Nov (K9) — the visa products configured per country, and the nationalities, for the Visa Price Table.
+  const products = (await db.newVisaCountryConfig.findMany({ select: PRODUCT_SELECT, orderBy: [{ countryId: "asc" }, { displayOrder: "asc" }] })).map((product) => ({
+    id: product.id,
+    countryId: product.countryId,
+    label: productLabel(product),
+    active: product.active,
+  }));
+  const nationalities = await db.nationality.findMany({ select: { id: true, name: true, active: true }, orderBy: { name: "asc" } });
   const usedCodes = await db.pricingRule.findMany({
     where: { processingType: { not: null } },
     distinct: ["serviceType", "processingType"],
@@ -59,7 +82,7 @@ async function loadFilterOptions(processingOptions: { serviceType: ServiceType; 
       processingTypes.push({ serviceType: used.serviceType, code: used.processingType, label: used.processingType });
     }
   }
-  return { countries, subServices, visaTypes, processingTypes };
+  return { countries, subServices, visaTypes, processingTypes, products, nationalities };
 }
 
 /**
@@ -91,6 +114,8 @@ export async function GET(request: NextRequest) {
       ...(query.subServiceId ? { subServiceId: query.subServiceId } : {}),
       ...(query.visaTypeId ? { visaTypeId: query.visaTypeId } : {}),
       ...(query.processingType ? { processingType: query.processingType } : {}),
+      ...(query.newVisaConfigId ? { newVisaConfigId: query.newVisaConfigId } : {}),
+      ...(query.nationalityId ? { nationalityId: query.nationalityId } : {}),
       ...(query.active ? { active: query.active === "true" } : {}),
     };
 
@@ -114,6 +139,7 @@ export async function GET(request: NextRequest) {
           country: { select: { id: true, name: true } },
           subService: { select: { id: true, name: true } },
           visaType: { select: { id: true, name: true } },
+          newVisaConfig: { select: PRODUCT_SELECT },
         },
         orderBy: [{ validityUntil: { sort: "asc", nulls: "last" } }, { serviceType: "asc" }, { createdAt: "desc" }],
         skip: (query.page - 1) * query.pageSize,
@@ -134,8 +160,28 @@ export async function GET(request: NextRequest) {
     });
     const processingLabel = new Map(processingOptions.map((option) => [`${option.serviceType}:${option.code}`, option.label]));
 
+    // Client doc 16 Nov (K9) — New Visa vendor cost comes from the vendor rates (the lowest vendor's best-matching
+    // rate, as at checkout); the rule's own vendor cost is only the fallback when no vendor rate matches.
+    const visaCountryIds = [...new Set(rows.filter((rule) => rule.serviceType === "NEW_VISA" && rule.countryId).map((rule) => rule.countryId as string))];
+    const vendorRates = visaCountryIds.length
+      ? await db.vendorServiceRate.findMany({
+          where: { serviceType: "NEW_VISA", countryId: { in: visaCountryIds }, active: true, vendor: { active: true } },
+          select: { vendorId: true, countryId: true, airlineId: true, processingType: true, nationalityId: true, paxType: true, newVisaConfigId: true, cost: true },
+        })
+      : [];
+    const expectedVendorCost = (rule: (typeof rows)[number]): number | null => {
+      const byVendor = new Map<string, typeof vendorRates>();
+      for (const rate of vendorRates.filter((row) => row.countryId === rule.countryId)) byVendor.set(rate.vendorId, [...(byVendor.get(rate.vendorId) ?? []), rate]);
+      const costs = [...byVendor.values()]
+        .map((list) => pickVendorRate(list, { processingType: rule.processingType, nationalityId: rule.nationalityId, paxType: rule.paxType, newVisaConfigId: rule.newVisaConfigId }))
+        .filter((rate): rate is (typeof vendorRates)[number] => rate !== null)
+        .map((rate) => Number(rate.cost));
+      return costs.length ? Math.min(...costs) : null;
+    };
+
     const items = rows.map((rule) => {
-      const vendorCost = Number(rule.vendorCost);
+      const fromRates = rule.serviceType === "NEW_VISA" ? expectedVendorCost(rule) : null;
+      const vendorCost = fromRates ?? Number(rule.vendorCost);
       const sellingPrice = Number(rule.sellingPrice);
       const additionalCharges = Number(rule.additionalCharges);
       const totalPrice = sellingPrice + additionalCharges;
@@ -145,6 +191,8 @@ export async function GET(request: NextRequest) {
         country: rule.country,
         subService: rule.subService,
         visaType: rule.visaType,
+        product: rule.newVisaConfig ? { id: rule.newVisaConfig.id, label: productLabel(rule.newVisaConfig) } : null,
+        vendorCostSource: fromRates !== null ? "VENDOR_RATE" : "RULE",
         processingType: rule.processingType,
         processingLabel: rule.processingType ? (processingLabel.get(`${rule.serviceType}:${rule.processingType}`) ?? rule.processingType) : null,
         paxType: rule.paxType,

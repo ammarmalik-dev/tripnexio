@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/Button";
 import { FormField, fieldControlClass, fieldBorderClass } from "@/components/forms/FormField";
 import { ListPagination } from "@/components/crm/ListPagination";
 import { usePaginationState } from "@/components/crm/usePagination";
-import { SERVICE_TYPE_LABELS, SERVICE_TYPE_OPTIONS, PAX_TYPE_LABELS } from "@/lib/crm/labels";
-import { unusedRuleMessage, usesPricingRules } from "@/lib/pricing/price-sources";
+import { PAX_TYPE_LABELS } from "@/lib/crm/labels";
 import { getJson, ApiError } from "@/lib/api/client";
 import { cn } from "@/lib/cn";
 import type { ServiceType, PaxType } from "../../generated/prisma/enums";
@@ -24,6 +23,9 @@ interface DashboardRow {
   country: { id: string; name: string } | null;
   subService: { id: string; name: string } | null;
   visaType: { id: string; name: string } | null;
+  /** Client doc 16 Nov (K9) — the country's visa product (e.g. 30 Days · Single Entry · Tourist). */
+  product: { id: string; label: string } | null;
+  vendorCostSource: "VENDOR_RATE" | "RULE";
   processingType: string | null;
   processingLabel: string | null;
   paxType: PaxType;
@@ -53,6 +55,8 @@ interface DashboardOptions {
   subServices: { id: string; serviceType: ServiceType; name: string; active: boolean }[];
   visaTypes: { id: string; name: string; countryId: string | null; active: boolean }[];
   processingTypes: { serviceType: ServiceType; code: string; label: string }[];
+  products: { id: string; countryId: string; label: string; active: boolean }[];
+  nationalities: { id: string; name: string; active: boolean }[];
 }
 
 interface DashboardResponse {
@@ -66,10 +70,9 @@ interface DashboardResponse {
 
 interface Filters {
   countryId: string;
-  serviceType: ServiceType | "";
-  subServiceId: string;
-  visaTypeId: string;
+  newVisaConfigId: string;
   processingType: string;
+  nationalityId: string;
   active: "" | "true" | "false";
   status: RuleStatus | "";
   effectiveDate: string;
@@ -78,10 +81,9 @@ interface Filters {
 
 const EMPTY_FILTERS: Filters = {
   countryId: "",
-  serviceType: "",
-  subServiceId: "",
-  visaTypeId: "",
+  newVisaConfigId: "",
   processingType: "",
+  nationalityId: "",
   active: "",
   status: "",
   effectiveDate: "",
@@ -114,7 +116,8 @@ function formatDate(value: string | null): string {
 }
 
 function buildQuery(filters: Filters, page: number, pageSize: number): string {
-  const params = new URLSearchParams();
+  // Client doc 16 Nov (K9) — the Visa Price Table shows visa (New Visa) prices only.
+  const params = new URLSearchParams({ serviceType: "NEW_VISA" });
   for (const [key, value] of Object.entries(filters)) if (value) params.set(key, value);
   params.set("page", String(page));
   params.set("pageSize", String(pageSize));
@@ -225,16 +228,16 @@ export function PricingDashboard() {
     setPage(1);
   };
 
-  const subServiceOptions = (options?.subServices ?? [])
-    .filter((entry) => !filters.serviceType || entry.serviceType === filters.serviceType)
-    .map((entry) => ({ value: entry.id, label: `${entry.name}${filters.serviceType ? "" : ` (${SERVICE_TYPE_LABELS[entry.serviceType]})`}${entry.active ? "" : " — inactive"}` }));
-  const visaTypeOptions = (options?.visaTypes ?? [])
-    .filter((entry) => !filters.countryId || !entry.countryId || entry.countryId === filters.countryId)
-    .map((entry) => ({ value: entry.id, label: `${entry.name}${entry.active ? "" : " — inactive"}` }));
+  const countryName = new Map((options?.countries ?? []).map((entry) => [entry.id, entry.name]));
+  // Client doc 16 Nov (K9) — the products configured for the chosen country (all countries: with the country name).
+  const productOptions = (options?.products ?? [])
+    .filter((entry) => !filters.countryId || entry.countryId === filters.countryId)
+    .map((entry) => ({ value: entry.id, label: `${filters.countryId ? "" : `${countryName.get(entry.countryId) ?? ""} — `}${entry.label}${entry.active ? "" : " (inactive)"}` }));
+  const nationalityOptions = (options?.nationalities ?? []).map((entry) => ({ value: entry.id, label: `${entry.name}${entry.active ? "" : " — inactive"}` }));
   const processingOptions = [
     ...new Map(
       (options?.processingTypes ?? [])
-        .filter((entry) => !filters.serviceType || entry.serviceType === filters.serviceType)
+        .filter((entry) => entry.serviceType === "NEW_VISA")
         .map((entry) => [entry.code, { value: entry.code, label: entry.label }] as const)
     ).values(),
   ];
@@ -284,38 +287,21 @@ export function PricingDashboard() {
       <section aria-label="Filters" className="flex flex-col gap-4 rounded-xl border border-hairline bg-surface-1 p-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FilterSelect
-            id="pd-serviceType"
-            label="Service"
-            value={filters.serviceType}
-            allLabel="All services"
-            options={SERVICE_TYPE_OPTIONS}
-            onChange={(value) => updateFilters({ serviceType: value as ServiceType | "", subServiceId: "", processingType: "" })}
-          />
-          <FilterSelect
-            id="pd-subServiceId"
-            label="Sub-service"
-            value={filters.subServiceId}
-            allLabel="All sub-services"
-            options={subServiceOptions}
-            disabled={subServiceOptions.length === 0}
-            onChange={(value) => updateFilters({ subServiceId: value })}
-          />
-          <FilterSelect
             id="pd-countryId"
             label="Country"
             value={filters.countryId}
             allLabel="All countries"
             options={(options?.countries ?? []).map((entry) => ({ value: entry.id, label: `${entry.name}${entry.active ? "" : " — inactive"}` }))}
-            onChange={(value) => updateFilters({ countryId: value, visaTypeId: "" })}
+            onChange={(value) => updateFilters({ countryId: value, newVisaConfigId: "" })}
           />
           <FilterSelect
-            id="pd-visaTypeId"
-            label="Visa type"
-            value={filters.visaTypeId}
-            allLabel="All visa types"
-            options={visaTypeOptions}
-            disabled={visaTypeOptions.length === 0}
-            onChange={(value) => updateFilters({ visaTypeId: value })}
+            id="pd-newVisaConfigId"
+            label="Visa product type"
+            value={filters.newVisaConfigId}
+            allLabel="All visa products"
+            options={productOptions}
+            disabled={productOptions.length === 0}
+            onChange={(value) => updateFilters({ newVisaConfigId: value })}
           />
           <FilterSelect
             id="pd-processingType"
@@ -325,6 +311,15 @@ export function PricingDashboard() {
             options={processingOptions}
             disabled={processingOptions.length === 0}
             onChange={(value) => updateFilters({ processingType: value })}
+          />
+          <FilterSelect
+            id="pd-nationalityId"
+            label="Nationality"
+            value={filters.nationalityId}
+            allLabel="All nationalities"
+            options={nationalityOptions}
+            disabled={nationalityOptions.length === 0}
+            onChange={(value) => updateFilters({ nationalityId: value })}
           />
           <FilterSelect
             id="pd-active"
@@ -392,8 +387,8 @@ export function PricingDashboard() {
           </div>
         ) : data && data.items.length === 0 ? (
           <EmptyState
-            title={filtersApplied ? "No pricing rules match these filters" : "No pricing rules yet"}
-            description={filtersApplied ? "Try widening or clearing the filters." : "Create rules under Admin → Pricing."}
+            title={filtersApplied ? "No visa prices match these filters" : "No visa prices yet"}
+            description={filtersApplied ? "Try widening or clearing the filters." : "Set visa prices under Admin → Pricing (New Visa price form)."}
             action={
               filtersApplied ? (
                 <Button type="button" size="sm" onClick={() => updateFilters(EMPTY_FILTERS)}>
@@ -409,16 +404,14 @@ export function PricingDashboard() {
         ) : data ? (
           <>
             <div className={cn("overflow-x-auto rounded-xl border border-hairline bg-surface-1", state === "loading" && "opacity-60")}>
-              <table className="w-full min-w-[64rem] text-sm">
+              <table className="w-full min-w-[56rem] text-sm">
                 <thead className="bg-surface-2 text-left text-xs text-ink-tertiary">
                   <tr>
-                    <th scope="col" className="px-3 py-2.5 font-medium">Service</th>
                     <th scope="col" className="px-3 py-2.5 font-medium">Country</th>
-                    <th scope="col" className="px-3 py-2.5 font-medium">Visa type</th>
+                    <th scope="col" className="px-3 py-2.5 font-medium">Visa product type</th>
                     <th scope="col" className="px-3 py-2.5 font-medium">Processing</th>
                     <th scope="col" className="px-3 py-2.5 font-medium">Passenger</th>
-                    <th scope="col" className="px-3 py-2.5 text-right font-medium">Selling</th>
-                    <th scope="col" className="px-3 py-2.5 text-right font-medium">Extra charges</th>
+                    <th scope="col" className="px-3 py-2.5 text-right font-medium">Visa price</th>
                     <th scope="col" className="px-3 py-2.5 text-right font-medium">Vendor cost</th>
                     <th scope="col" className="px-3 py-2.5 text-right font-medium">Margin</th>
                     <th scope="col" className="px-3 py-2.5 font-medium">Validity</th>
@@ -428,21 +421,18 @@ export function PricingDashboard() {
                 <tbody>
                   {data.items.map((row) => (
                     <tr key={row.id} className="border-t border-hairline align-top">
-                      <td className="px-3 py-2.5">
-                        <div className="font-medium text-ink-primary">{SERVICE_TYPE_LABELS[row.serviceType]}</div>
-                        <div className="text-xs text-ink-tertiary">{row.subService?.name ?? "All sub-services"}</div>
-                        {!usesPricingRules(row.serviceType) ? <div className="mt-1 max-w-56 text-xs text-warning">{unusedRuleMessage(row.serviceType)}</div> : null}
-                      </td>
-                      <td className="px-3 py-2.5 text-ink-secondary">{row.country?.name ?? "All countries"}</td>
-                      <td className="px-3 py-2.5 text-ink-secondary">{row.visaType?.name ?? "Any"}</td>
+                      <td className="px-3 py-2.5 font-medium text-ink-primary">{row.country?.name ?? "All countries"}</td>
+                      <td className="px-3 py-2.5 text-ink-secondary">{row.product?.label ?? "Every product"}</td>
                       <td className="px-3 py-2.5 text-ink-secondary">{row.processingLabel ?? "Any"}</td>
                       <td className="px-3 py-2.5 text-ink-secondary">
                         <div>{PAX_TYPE_LABELS[row.paxType]}</div>
                         <div className="text-xs text-ink-tertiary">{row.nationality ?? "All nationalities"}</div>
                       </td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-primary">{money(row.sellingPrice)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-secondary">{money(row.additionalCharges)}</td>
-                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-secondary">{money(row.vendorCost)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-primary">{money(row.totalPrice)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-ink-secondary">
+                        <div>{money(row.vendorCost)}</div>
+                        <div className="text-xs text-ink-tertiary">{row.vendorCostSource === "VENDOR_RATE" ? "lowest vendor rate" : "no vendor rate"}</div>
+                      </td>
                       <td className={cn("px-3 py-2.5 text-right tabular-nums font-medium", row.margin < 0 ? "text-error" : "text-ink-primary")}>
                         {money(row.margin)}
                       </td>
@@ -458,7 +448,7 @@ export function PricingDashboard() {
               </table>
             </div>
             <ListPagination
-              noun="pricing rule"
+              noun="visa price"
               page={data.page}
               pageSize={data.pageSize}
               total={data.total}
@@ -466,7 +456,9 @@ export function PricingDashboard() {
               disabled={state === "loading"}
               {...paginationHandlers}
             />
-            <p className="text-xs text-ink-tertiary">Margin = selling price + extra charges − vendor cost (internal).</p>
+            <p className="text-xs text-ink-tertiary">
+              Vendor cost = the lowest matching vendor rate (Admin → Vendor rates), the same one checkout uses; without one, the price form&apos;s own vendor cost. Margin = visa price − vendor cost (internal).
+            </p>
           </>
         ) : null}
       </section>

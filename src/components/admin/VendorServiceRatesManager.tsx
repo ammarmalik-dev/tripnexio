@@ -75,75 +75,16 @@ function money(value: number): string {
   return formatRupees(value);
 }
 
-function RateEditor({ row, onSaved, onCancel }: { row: RateRow; onSaved: (row: RateRow) => void; onCancel: () => void }) {
-  const [cost, setCost] = useState(String(row.cost));
-  const [active, setActive] = useState(row.active);
-  const [error, setError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const { confirm, dialog } = useConfirmAction();
-
-  const save = async () => {
-    const value = Number(cost);
-    if (cost.trim() === "" || !Number.isFinite(value) || value < 0) {
-      setError("Enter 0 or more.");
-      return;
-    }
-    setError("");
-    const reason = await confirm({
-      title: `Change ${row.vendorName}'s rate to ${money(value)}?`,
-      description: "Bookings get this cost when this vendor is picked from now on. Bookings already costed keep their figure.",
-      confirmLabel: "Save Rate",
-    });
-    if (!reason) return;
-    setSaving(true);
-    try {
-      const updated = await patchJson<RateRow>(`/api/admin/vendor-service-rates/${row.id}`, { cost: value, active, reason });
-      toast.success("Vendor rate saved.");
-      onSaved(updated);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Couldn't save the rate. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="mt-2 flex flex-wrap items-end gap-3 rounded-lg border border-accent/25 bg-surface-1 p-3">
-      <label className="flex flex-col gap-1 text-xs text-ink-secondary">
-        <span className="font-medium">Cost per passenger (₹)</span>
-        <input
-          type="number"
-          min={0}
-          step="0.01"
-          value={cost}
-          onChange={(event) => setCost(event.target.value)}
-          aria-invalid={Boolean(error)}
-          className={cn(fieldControlClass, fieldBorderClass(Boolean(error)), "h-9 w-40 text-sm")}
-        />
-        {error ? <span className="text-error">{error}</span> : null}
-      </label>
-      <div className="flex h-9 items-center gap-2 text-xs text-ink-secondary">
-        <Switch checked={active} onChange={setActive} label="Rate active" />
-        Active
-      </div>
-      <Button type="button" size="sm" onClick={() => void save()} isLoading={saving}>
-        Save
-      </Button>
-      <Button type="button" size="sm" variant="ghost" onClick={onCancel} disabled={saving}>
-        Cancel
-      </Button>
-      {dialog}
-    </div>
-  );
-}
-
-function NewRateForm({
+/** Client doc 16 Nov (K9) — Add a rate, or (with `row`) edit every column of one. */
+function RateForm({
   vendors,
   countries,
   airlines,
   nationalities,
   visaOptions,
   onCreated,
+  row,
+  onCancel,
 }: {
   vendors: VendorOption[];
   countries: Option[];
@@ -151,14 +92,31 @@ function NewRateForm({
   nationalities: Option[];
   visaOptions: VisaOption[];
   onCreated: (row: RateRow) => void;
+  row?: RateRow;
+  onCancel?: () => void;
 }) {
   const empty = { vendorId: "", serviceType: "OTB" as RateService, countryId: "", airlineId: "", nationalityId: "", paxType: "", newVisaConfigId: "", processingType: "", cost: "" };
-  const [form, setForm] = useState(empty);
+  const initial = row
+    ? {
+        vendorId: row.vendorId,
+        serviceType: row.serviceType,
+        countryId: row.countryId,
+        airlineId: row.airlineId ?? "",
+        nationalityId: row.nationalityId ?? "",
+        paxType: row.paxType ?? "",
+        newVisaConfigId: row.newVisaConfigId ?? "",
+        processingType: row.processingType ?? "",
+        cost: String(row.cost),
+      }
+    : empty;
+  const [form, setForm] = useState(initial);
+  const [active, setActive] = useState(row?.active ?? true);
+  const idp = row ? `vr-${row.id}` : "vr";
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
   const { confirm, dialog } = useConfirmAction();
-  const serviceVendors = vendors.filter((vendor) => vendor.active && vendor.services.some((entry) => entry.service === form.serviceType));
-  const shownVendors = serviceVendors.length > 0 ? serviceVendors : vendors.filter((vendor) => vendor.active);
+  const serviceVendors = vendors.filter((vendor) => (vendor.active || vendor.id === row?.vendorId) && vendor.services.some((entry) => entry.service === form.serviceType));
+  const shownVendors = serviceVendors.length > 0 ? serviceVendors : vendors.filter((vendor) => vendor.active || vendor.id === row?.vendorId);
 
   const select = (id: string, label: string, value: string, onChange: (value: string) => void, options: { value: string; label: string }[], error?: string, placeholder?: string) => (
     <FormField label={label} htmlFor={id} error={error}>
@@ -176,18 +134,18 @@ function NewRateForm({
   const create = async () => {
     const cost = Number(form.cost);
     const reason = await confirm({
-      title: "Add this vendor rate?",
+      title: row ? `Save ${row.vendorName}'s rate?` : "Add this vendor rate?",
       description:
         form.serviceType === "NEW_VISA"
           ? "New Visa passengers for this country / visa type / nationality / passenger type / processing type get this cost when this vendor is picked."
           : "Bookings for this country / airline / processing type get this cost per passenger when this vendor is picked.",
-      confirmLabel: "Add Rate",
+      confirmLabel: row ? "Save Rate" : "Add Rate",
     });
     if (!reason) return;
     setSaving(true);
     setErrors({});
     try {
-      const created = await postJson<RateRow>("/api/admin/vendor-service-rates", {
+      const payload = {
         vendorId: form.vendorId,
         serviceType: form.serviceType,
         countryId: form.countryId,
@@ -198,13 +156,20 @@ function NewRateForm({
         processingType: form.processingType,
         cost,
         reason,
-      });
+      };
+      if (row) {
+        const updated = await patchJson<RateRow>(`/api/admin/vendor-service-rates/${row.id}`, { ...payload, active });
+        toast.success("Vendor rate saved.");
+        onCreated(updated);
+        return;
+      }
+      const created = await postJson<RateRow>("/api/admin/vendor-service-rates", payload);
       toast.success("Vendor rate added.");
       onCreated(created);
       setForm({ ...empty, vendorId: form.vendorId, serviceType: form.serviceType });
     } catch (err) {
       if (err instanceof ApiError && err.fieldErrors) setErrors(err.fieldErrors);
-      toast.error(err instanceof ApiError ? err.message : "Couldn't add the rate. Please try again.");
+      toast.error(err instanceof ApiError ? err.message : "Couldn't save the rate. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -213,24 +178,24 @@ function NewRateForm({
   const canSubmit = form.vendorId && form.countryId && form.cost.trim() !== "" && Number(form.cost) >= 0;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-dashed border-hairline bg-surface-1 p-4">
-      <p className="text-sm font-semibold text-ink-heading">Add a vendor rate</p>
+    <div className={cn("flex flex-col gap-3 rounded-xl border bg-surface-1 p-4", row ? "mt-2 border-accent/25" : "border-dashed border-hairline")}>
+      <p className="text-sm font-semibold text-ink-heading">{row ? "Edit vendor rate" : "Add a vendor rate"}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {select(
-          "vr-service",
+          `${idp}-service`,
           "Service",
           form.serviceType,
           (value) => setForm({ ...form, serviceType: value as RateService, vendorId: "", airlineId: "", nationalityId: "", paxType: "", newVisaConfigId: "" }),
           (Object.keys(SERVICE_LABELS) as RateService[]).map((key) => ({ value: key, label: SERVICE_LABELS[key] }))
         )}
-        {select("vr-vendor", "Vendor", form.vendorId, (value) => setForm({ ...form, vendorId: value }), shownVendors.map((v) => ({ value: v.id, label: v.name })), errors.vendorId?.[0], "Select a vendor")}
-        {select("vr-country", "Destination country", form.countryId, (value) => setForm({ ...form, countryId: value, newVisaConfigId: "" }), countries.map((c) => ({ value: c.id, label: c.name })), errors.countryId?.[0], "Select a country")}
+        {select(`${idp}-vendor`, "Vendor", form.vendorId, (value) => setForm({ ...form, vendorId: value }), shownVendors.map((v) => ({ value: v.id, label: v.name })), errors.vendorId?.[0], "Select a vendor")}
+        {select(`${idp}-country`, "Destination country", form.countryId, (value) => setForm({ ...form, countryId: value, newVisaConfigId: "" }), countries.map((c) => ({ value: c.id, label: c.name })), errors.countryId?.[0], "Select a country")}
         {form.serviceType === "OTB"
-          ? select("vr-airline", "Airline", form.airlineId, (value) => setForm({ ...form, airlineId: value }), airlines.map((a) => ({ value: a.id, label: a.name })), errors.airlineId?.[0], "Any airline")
+          ? select(`${idp}-airline`, "Airline", form.airlineId, (value) => setForm({ ...form, airlineId: value }), airlines.map((a) => ({ value: a.id, label: a.name })), errors.airlineId?.[0], "Any airline")
           : null}
         {form.serviceType === "NEW_VISA"
           ? select(
-              "vr-visa-type",
+              `${idp}-visa-type`,
               "Visa type",
               form.newVisaConfigId,
               (value) => setForm({ ...form, newVisaConfigId: value }),
@@ -240,13 +205,13 @@ function NewRateForm({
             )
           : null}
         {form.serviceType === "NEW_VISA"
-          ? select("vr-nationality", "Nationality", form.nationalityId, (value) => setForm({ ...form, nationalityId: value }), nationalities.map((n) => ({ value: n.id, label: n.name })), errors.nationalityId?.[0], "Any nationality")
+          ? select(`${idp}-nationality`, "Nationality", form.nationalityId, (value) => setForm({ ...form, nationalityId: value }), nationalities.map((n) => ({ value: n.id, label: n.name })), errors.nationalityId?.[0], "Any nationality")
           : null}
         {form.serviceType === "NEW_VISA"
-          ? select("vr-pax", "Passenger type", form.paxType, (value) => setForm({ ...form, paxType: value }), Object.entries(PAX_LABELS).map(([value, label]) => ({ value, label })), errors.paxType?.[0], "Adult and Child")
+          ? select(`${idp}-pax`, "Passenger type", form.paxType, (value) => setForm({ ...form, paxType: value }), Object.entries(PAX_LABELS).map(([value, label]) => ({ value, label })), errors.paxType?.[0], "Adult and Child")
           : null}
         {select(
-          "vr-processing",
+          `${idp}-processing`,
           "Processing type",
           form.processingType,
           (value) => setForm({ ...form, processingType: value }),
@@ -254,9 +219,9 @@ function NewRateForm({
           errors.processingType?.[0],
           "Any"
         )}
-        <FormField label="Cost per passenger (₹)" htmlFor="vr-cost" error={errors.cost?.[0]}>
+        <FormField label="Cost per passenger (₹)" htmlFor={`${idp}-cost`} error={errors.cost?.[0]}>
           <input
-            id="vr-cost"
+            id={`${idp}-cost`}
             type="number"
             min={0}
             step="0.01"
@@ -267,10 +232,21 @@ function NewRateForm({
           />
         </FormField>
       </div>
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        {row ? (
+          <div className="mr-auto flex items-center gap-2 text-xs text-ink-secondary">
+            <Switch checked={active} onChange={setActive} label="Rate active" />
+            Active
+          </div>
+        ) : null}
+        {onCancel ? (
+          <Button type="button" size="sm" variant="ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </Button>
+        ) : null}
         <Button type="button" size="sm" onClick={() => void create()} isLoading={saving} disabled={!canSubmit}>
-          <Plus className="h-4 w-4" aria-hidden="true" />
-          Add Rate
+          {row ? null : <Plus className="h-4 w-4" aria-hidden="true" />}
+          {row ? "Save Rate" : "Add Rate"}
         </Button>
       </div>
       {dialog}
@@ -296,6 +272,9 @@ export function VendorServiceRatesManager() {
   const [visaOptions, setVisaOptions] = useState<VisaOption[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [serviceFilter, setServiceFilter] = useState<RateService | "">("");
+  // Client doc 16 Nov (K9) — filters for Service, Country and Vendor.
+  const [countryFilter, setCountryFilter] = useState("");
+  const [vendorFilter, setVendorFilter] = useState("");
   const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
@@ -340,9 +319,17 @@ export function VendorServiceRatesManager() {
     };
   }, [reloadNonce]);
 
-  const visible = useMemo(() => rows.filter((row) => !serviceFilter || row.serviceType === serviceFilter), [rows, serviceFilter]);
+  const visible = useMemo(
+    () =>
+      rows.filter(
+        (row) => (!serviceFilter || row.serviceType === serviceFilter) && (!countryFilter || row.countryId === countryFilter) && (!vendorFilter || row.vendorId === vendorFilter)
+      ),
+    [rows, serviceFilter, countryFilter, vendorFilter]
+  );
   // Audit 23 Oct — paginated like the other masters.
-  const { pageItems, paginationProps } = useClientPagination(visible);
+  const { pageItems, paginationProps, resetPage } = useClientPagination(visible);
+  const rateCountries = [...new Map(rows.map((row) => [row.countryId, row.countryName])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  const rateVendors = [...new Map(rows.map((row) => [row.vendorId, row.vendorName])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
   if (state === "loading") return <Skeleton className="h-48 w-full rounded-xl" />;
   if (state === "error") {
@@ -363,23 +350,67 @@ export function VendorServiceRatesManager() {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-ink-secondary">What each vendor charges per passenger (internal — never shown to customers).</p>
-        <label className="flex items-center gap-2 text-sm text-ink-secondary">
-          <span className="sr-only">Filter by service</span>
-          <select
-            value={serviceFilter}
-            onChange={(event) => setServiceFilter(event.target.value as RateService | "")}
-            className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-48 text-sm")}
-          >
-            <option value="">All services</option>
-            <option value="OTB">OTB</option>
-            <option value="RETURN_TICKET">Return Ticket</option>
-            <option value="NEW_VISA">New Visa</option>
-          </select>
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-ink-secondary">
+            <span className="sr-only">Filter by service</span>
+            <select
+              value={serviceFilter}
+              onChange={(event) => {
+                setServiceFilter(event.target.value as RateService | "");
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-40 text-sm")}
+            >
+              <option value="">All services</option>
+              <option value="OTB">OTB</option>
+              <option value="RETURN_TICKET">Return Ticket</option>
+              <option value="NEW_VISA">New Visa</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink-secondary">
+            <span className="sr-only">Filter by country</span>
+            <select
+              value={countryFilter}
+              onChange={(event) => {
+                setCountryFilter(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-44 text-sm")}
+            >
+              <option value="">All countries</option>
+              {rateCountries.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-ink-secondary">
+            <span className="sr-only">Filter by vendor</span>
+            <select
+              value={vendorFilter}
+              onChange={(event) => {
+                setVendorFilter(event.target.value);
+                resetPage();
+              }}
+              className={cn(fieldControlClass, fieldBorderClass(false), "h-9 w-44 text-sm")}
+            >
+              <option value="">All vendors</option>
+              {rateVendors.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       {visible.length === 0 ? (
-        <EmptyState title="No vendor rates yet" description="Add what each vendor charges for OTB / Return Ticket / New Visa below." />
+        <EmptyState
+          title={rows.length ? "No vendor rates match these filters" : "No vendor rates yet"}
+          description={rows.length ? "Pick another service, country or vendor." : "Add what each vendor charges for OTB / Return Ticket / New Visa below."}
+        />
       ) : (
         <ul className="divide-y divide-hairline rounded-xl border border-hairline bg-surface-1">
           {pageItems.map((row) => (
@@ -409,10 +440,15 @@ export function VendorServiceRatesManager() {
                 </div>
               </div>
               {editingId === row.id ? (
-                <RateEditor
+                <RateForm
                   row={row}
+                  vendors={vendors}
+                  countries={countries.some((c) => c.id === row.countryId) ? countries : [...countries, { id: row.countryId, name: row.countryName, active: false }]}
+                  airlines={airlines}
+                  nationalities={nationalities}
+                  visaOptions={visaOptions}
                   onCancel={() => setEditingId(null)}
-                  onSaved={(updated) => {
+                  onCreated={(updated) => {
                     setRows((current) => current.map((entry) => (entry.id === updated.id ? updated : entry)));
                     setEditingId(null);
                   }}
@@ -424,7 +460,7 @@ export function VendorServiceRatesManager() {
       )}
       <ListPagination noun="vendor rate" {...paginationProps} />
 
-      <NewRateForm vendors={vendors} countries={countries} airlines={airlines} nationalities={nationalities} visaOptions={visaOptions} onCreated={(created) => setRows((current) => [...current, created])} />
+      <RateForm vendors={vendors} countries={countries} airlines={airlines} nationalities={nationalities} visaOptions={visaOptions} onCreated={(created) => setRows((current) => [...current, created])} />
     </div>
   );
 }
