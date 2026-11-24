@@ -14,8 +14,9 @@ describe("nonTaxableQuotationAmount (client testing 2026-10-09, G4/G5)", () => {
     expect(nonTaxableQuotationAmount("VISA_EXTENSION", quote(0, 750))).toBe(750);
   });
 
-  it("keeps other services' charges taxable", () => {
-    expect(nonTaxableQuotationAmount("FLIGHT_SPECIAL_FARE", quote(0, 500))).toBe(0);
+  it("puts other services' extra charges under the fee too (client doc 16 Nov, I12)", () => {
+    expect(nonTaxableQuotationAmount("FLIGHT_SPECIAL_FARE", quote(0, 500))).toBe(500);
+    expect(nonTaxableQuotationAmount("OTB", quote(200, 300))).toBe(500);
   });
 
   it("is 0 without a quotation", () => {

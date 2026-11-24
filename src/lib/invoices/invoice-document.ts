@@ -122,14 +122,16 @@ function verifyUrlFor(invoiceNumber: string): string | null {
 /** Client testing 2026-10-09 (G5) — services whose fines (overstay etc.) are pass-through fees, not our service fee. */
 export const FINE_AS_FEE_SERVICES: readonly ServiceType[] = ["VISA_CHANGE", "VISA_EXTENSION"];
 
-/** The non-taxable part of a quotation: the Govt./Airline/Vendor fee, plus the fine where that is a pass-through fee. */
+/**
+ * The non-taxable part of a quotation: the Govt./Airline/Vendor fee, plus the fine (Visa Change / Extension) or the
+ * staff's extra charges (client doc 16 Nov, I12 — "show additional charges under Vendor/Airline Fee, not in service fee").
+ */
 export function nonTaxableQuotationAmount(
-  serviceType: ServiceType,
+  _serviceType: ServiceType,
   quotation: Pick<Quotation, "governmentFee" | "fineOrCharges"> | null
 ): number {
   if (!quotation) return 0;
-  const fine = FINE_AS_FEE_SERVICES.includes(serviceType) ? Number(quotation.fineOrCharges ?? 0) : 0;
-  return round2(Number(quotation.governmentFee ?? 0) + fine);
+  return round2(Number(quotation.governmentFee ?? 0) + Number(quotation.fineOrCharges ?? 0));
 }
 
 function priceLines(input: {
@@ -152,9 +154,9 @@ function priceLines(input: {
     }));
     const fine = round2(Number(quotation?.fineOrCharges ?? 0));
     const other = round2(Number(quotation?.otherCharges ?? 0));
-    if (fineIsFee && fine > 0) lines.push({ description: "Fine", sac, quantity: 1, governmentFee: fine, serviceFee: 0 });
-    const extras = round2((fineIsFee ? 0 : fine) + other);
-    if (extras > 0) lines.push({ description: "Additional charges", sac, quantity: 1, governmentFee: 0, serviceFee: extras });
+    // Client doc 16 Nov (I12) — the fine / the staff's extra charges are pass-through: the Vendor/Airline fee column.
+    if (fine > 0) lines.push({ description: fineIsFee ? "Fine" : "Extra charges", sac, quantity: 1, governmentFee: fine, serviceFee: 0 });
+    if (other > 0) lines.push({ description: "Additional charges", sac, quantity: 1, governmentFee: 0, serviceFee: other });
     const sum = round2(lines.reduce((total, line) => total + line.governmentFee + line.serviceFee, 0));
     if (Math.abs(sum - serviceAmount) < 0.01) return lines;
   }
@@ -175,12 +177,14 @@ function configuredFeeLines(input: {
   description: string;
   sac: string | null;
 }): Omit<InvoiceDocumentLine, "gstAmount">[] {
-  const fine = FINE_AS_FEE_SERVICES.includes(input.serviceType) ? round2(Math.min(Math.max(Number(input.quotation?.fineOrCharges ?? 0), 0), input.serviceAmount)) : 0;
+  // Client doc 16 Nov (I12) — the fine (Visa Change / Extension) or the staff's extra charges get their own line in the
+  // Vendor/Airline fee column, never inside the service fee.
+  const fine = round2(Math.min(Math.max(Number(input.quotation?.fineOrCharges ?? 0), 0), input.serviceAmount));
   const fee = round2(Math.min(input.configuredFee, input.serviceAmount - fine));
   const lines: Omit<InvoiceDocumentLine, "gstAmount">[] = [
     { description: input.description, sac: input.sac, quantity: 1, governmentFee: round2(input.serviceAmount - fine - fee), serviceFee: fee },
   ];
-  if (fine > 0) lines.push({ description: "Fine", sac: input.sac, quantity: 1, governmentFee: fine, serviceFee: 0 });
+  if (fine > 0) lines.push({ description: FINE_AS_FEE_SERVICES.includes(input.serviceType) ? "Fine" : "Extra charges", sac: input.sac, quantity: 1, governmentFee: fine, serviceFee: 0 });
   return lines;
 }
 

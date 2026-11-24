@@ -570,7 +570,9 @@ function ManualLeadPricePanel({ preview }: { preview: ManualLeadPricePreview | n
       ) : null}
       {preview.extraCharges > 0 ? (
         <div className="flex justify-between">
-          <dt className="text-ink-secondary">Extra charges</dt>
+          <dt className="text-ink-secondary">
+            Extra charges <span className="text-xs text-ink-tertiary">(invoiced under the Vendor / Airline fee — no GST)</span>
+          </dt>
           <dd>+ {rupees(preview.extraCharges)}</dd>
         </div>
       ) : null}
