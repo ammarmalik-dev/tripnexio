@@ -10,7 +10,7 @@ import { OUTPUT_TYPES } from "../outputs/output-types";
  * upload them. Never touches an existing document; returns how many slots it created.
  */
 export async function createLeadDocumentSlots(leadId: string, serviceType: ServiceType): Promise<number> {
-  const lead = await db.lead.findUnique({ where: { id: leadId }, select: { details: true } });
+  const lead = await db.lead.findUnique({ where: { id: leadId }, select: { details: true, countryId: true } });
   if (!lead) return 0;
   const passengers = await leadPassengersFor(lead.details);
   if (passengers.length === 0) return 0;
@@ -19,7 +19,8 @@ export async function createLeadDocumentSlots(leadId: string, serviceType: Servi
   const types =
     serviceType === "VISA_CHANGE"
       ? [{ type: "VISA_COPY", label: "Visa copy", required: true }]
-      : (await getRequirementDocumentTypes(serviceType, uae?.id ?? null)).filter((type) => !(OUTPUT_TYPES as readonly string[]).includes(type.type));
+      : // Client doc 16 Nov (C3) — OTB: the destination country's documents (the lead's country).
+        (await getRequirementDocumentTypes(serviceType, serviceType === "VISA_EXTENSION" ? (uae?.id ?? null) : lead.countryId)).filter((type) => !(OUTPUT_TYPES as readonly string[]).includes(type.type));
   if (types.length === 0) return 0;
   const existing = await db.document.findMany({ where: { leadId, passengerId: { in: passengers.map((row) => row.id) } }, select: { passengerId: true, type: true } });
   const have = new Set(existing.map((doc) => `${doc.passengerId}|${doc.type}`));

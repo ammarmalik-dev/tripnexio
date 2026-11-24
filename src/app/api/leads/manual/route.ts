@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { manualOtbTripError } from "@/lib/otb/manual-trip-check";
 import { createLeadDocumentSlots } from "@/lib/documents/lead-document-slots";
 import type { NextRequest } from "next/server";
 import { manualLeadSchema, isFixedRateService } from "@/lib/validation/manual-lead-schema";
@@ -86,6 +87,12 @@ export async function POST(request: NextRequest) {
   }
   const travelerCount = data.adultCount + data.childCount + data.infantCount;
 
+  // Client doc 16 Nov (C3) — OTB: active country, live airline, and the airline's TAT on the working calendar.
+  if (data.serviceType === "OTB") {
+    const tripError = await manualOtbTripError(data);
+    if (tripError) return jsonError(400, tripError.message, { [tripError.field]: [tripError.message] });
+  }
+
   // Client doc 2026-10-20 (K1) — the same configured price as the website / direct payment link (New Visa option +
   // nationality, OTB airline + destination, Return Ticket destination), with the service's own details.
   const serviceDetails = await manualLeadServiceDetails(data);
@@ -119,7 +126,8 @@ export async function POST(request: NextRequest) {
 
   // Client doc 16 Nov (E6) — Visa Extension: the configured documents appear on the lead for every passenger, for
   // staff to upload (or the customer, once asked).
-  if (data.serviceType === "VISA_EXTENSION" || data.serviceType === "VISA_CHANGE") {
+  // Client doc 16 Nov (C3) — OTB too: the destination's configured documents, for staff to upload or ask for.
+  if (data.serviceType === "VISA_EXTENSION" || data.serviceType === "VISA_CHANGE" || data.serviceType === "OTB") {
     try {
       await createLeadDocumentSlots(result.leadId, data.serviceType);
     } catch (error) {

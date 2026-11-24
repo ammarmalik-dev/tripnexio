@@ -1,5 +1,8 @@
 "use client";
 
+import { useProcessingCalendar } from "@/lib/calendar/use-working-calendar";
+import { earliestOtbTravelDates } from "@/lib/otb/processing-rules";
+import { otbRulesForCountry, type OtbAirlineOption } from "@/lib/otb/use-otb-airlines";
 import { AirportSearchField } from "@/components/forms/AirportSearchField";
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -29,10 +32,6 @@ interface CountryOption {
   name: string;
 }
 
-interface OtbAirlineOption {
-  code: string;
-  name: string;
-}
 
 interface ReturnTicketDestinationOption {
   countryId: string;
@@ -61,7 +60,8 @@ const SERVICE_OPTIONS: { value: ServiceType; label: string }[] = (
  * literal field list didn't name them.
  */
 export function ManualLeadForm() {
-  const [countries, setCountries] = useState<CountryOption[]>([]);
+  // Client doc 16 Nov (C3) — OTB: only the active countries with a live OTB airline.
+  const [otbCountries, setOtbCountries] = useState<CountryOption[]>([]);
   const [newVisaCountries, setNewVisaCountries] = useState<CountryOption[]>([]);
   const { products } = useNewVisaProducts();
   const { options: nationalities } = useNationalities();
@@ -72,10 +72,10 @@ export function ManualLeadForm() {
   const [result, setResult] = useState<ManualLeadResult | null>(null);
 
   useEffect(() => {
-    void getJson<CountryOption[]>("/api/countries").then(setCountries).catch(() => undefined);
     // Client doc 2026-10-20 (E5) — New Visa: only the destinations Admin made live.
     void getJson<CountryOption[]>("/api/countries?service=NEW_VISA").then(setNewVisaCountries).catch(() => undefined);
     void getJson<OtbAirlineOption[]>("/api/otb/airlines").then(setAirlines).catch(() => undefined);
+    void getJson<CountryOption[]>("/api/countries?service=OTB").then(setOtbCountries).catch(() => undefined);
     void getJson<ReturnTicketDestinationOption[]>("/api/return-ticket/destinations").then(setDestinations).catch(() => undefined);
   }, []);
 
@@ -93,6 +93,15 @@ export function ManualLeadForm() {
   const serviceType = watch("serviceType");
   const destinationCountryCode = watch("destinationCountryCode");
   const countryProducts = products.filter((product) => product.countryCode === destinationCountryCode);
+  // Client doc 16 Nov (C3) — OTB: the airlines live for the chosen country, and the dates their TAT can meet.
+  const otbCalendar = useProcessingCalendar(serviceType === "OTB" ? destinationCountryCode : undefined);
+  const otbCountryAirlines = destinationCountryCode
+    ? airlines.filter((airline) => airline.prices.some((price) => price.countryCode.toLowerCase() === destinationCountryCode.toLowerCase()))
+    : [];
+  const otbAirline = otbCountryAirlines.find((airline) => airline.code === watch("airlineCode"));
+  const otbEarliest = serviceType === "OTB" && otbAirline ? earliestOtbTravelDates(otbRulesForCountry(otbAirline, destinationCountryCode ?? ""), new Date(), otbCalendar) : null;
+  const otbMinDate = otbEarliest ? [otbEarliest.normal, otbEarliest.urgent].filter((value): value is string => !!value).sort()[0] : undefined;
+  const fmtDay = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
   // Client doc 2026-10-20 (K1) — the configured amount, service fee, extra charges, coupon and final payable, live.
   const priceInputs = JSON.stringify({
@@ -313,8 +322,8 @@ export function ManualLeadForm() {
               className={cn(fieldControlClass, fieldBorderClass(!!errors.destinationCountryCode))}
               {...optionalField("destinationCountryCode")}
             >
-              <option value="">{countries.length === 0 ? "No active countries configured" : "Select a country"}</option>
-              {countries.map((country) => (
+              <option value="">{otbCountries.length === 0 ? "No active OTB countries configured" : "Select a country"}</option>
+              {otbCountries.map((country) => (
                 <option key={country.id} value={country.code}>
                   {country.name}
                 </option>
@@ -328,8 +337,8 @@ export function ManualLeadForm() {
               className={cn(fieldControlClass, fieldBorderClass(!!errors.airlineCode))}
               {...optionalField("airlineCode")}
             >
-              <option value="">{airlines.length === 0 ? "No active airlines configured" : "Select an airline"}</option>
-              {airlines.map((airline) => (
+              <option value="">{!destinationCountryCode ? "Select a country first" : otbCountryAirlines.length === 0 ? "No live airline for this country" : "Select an airline"}</option>
+              {otbCountryAirlines.map((airline) => (
                 <option key={airline.code} value={airline.code}>
                   {airline.name}
                 </option>
@@ -451,7 +460,19 @@ export function ManualLeadForm() {
 
       {/* Client doc 16 Nov (D5 / E6) — Visa Change / Visa Extension don't ask a travel date. */}
       {serviceType === "VISA_EXTENSION" || serviceType === "VISA_CHANGE" ? null : (
-        <DateField {...register("travelDate")} name="travelDate" label="Travel Date" error={errors.travelDate?.message} required />
+        <DateField
+          {...register("travelDate")}
+          name="travelDate"
+          label="Travel Date"
+          error={errors.travelDate?.message}
+          required
+          min={otbMinDate}
+          hint={
+            otbEarliest
+              ? `Earliest: ${otbEarliest.normal ? `Normal ${fmtDay(otbEarliest.normal)}` : "Normal not possible"}${otbEarliest.urgent ? ` · Express ${fmtDay(otbEarliest.urgent)}${otbEarliest.urgentFlightAfter ? ` (flights after ${otbEarliest.urgentFlightAfter})` : ""}` : ""} — holidays and weekly offs of India + the destination are skipped.`
+              : undefined
+          }
+        />
       )}
       {serviceType === "FLIGHT_SPECIAL_FARE" ? (
         <DateField
