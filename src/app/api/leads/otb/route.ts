@@ -59,11 +59,12 @@ export async function POST(request: NextRequest) {
     additionalApplicants,
     hasReturnTicket,
     addReturnTicket,
-    returnDestinationCountryId,
     expectedReturnDate,
   } = parsed.data;
   // P18 — a Return Verified Ticket added to this order (only when the customer has none).
-  const wantsReturnTicket = hasReturnTicket === "no" && addReturnTicket === "yes" && !!returnDestinationCountryId && !!expectedReturnDate;
+  // Client doc 16 Nov (B4) — its destination is the OTB destination country (a client-sent id is never trusted).
+  const wantsReturnTicket = hasReturnTicket === "no" && addReturnTicket === "yes" && !!expectedReturnDate;
+  let returnTicketCountryId: string | null = null;
 
   try {
     // The airline, its prices and the timeline rules all come from Admin
@@ -97,14 +98,15 @@ export async function POST(request: NextRequest) {
 
     if (wantsReturnTicket) {
       const destination = await db.returnTicketDestination.findFirst({
-        where: { countryId: returnDestinationCountryId, active: true, country: { active: true } },
-        select: { id: true },
+        where: { active: true, country: { active: true, code: { equals: destinationCountry, mode: "insensitive" } } },
+        select: { countryId: true },
       });
       if (!destination) {
-        return jsonError(400, "That return ticket destination isn't available right now.", {
-          returnDestinationCountryId: ["Select an available destination."],
+        return jsonError(400, "A Return Verified Ticket isn't available for this destination right now.", {
+          hasReturnTicket: ["A Return Verified Ticket isn't available for this destination right now."],
         });
       }
+      returnTicketCountryId = destination.countryId;
     }
 
     const applicants = [
@@ -206,7 +208,7 @@ export async function POST(request: NextRequest) {
         const rt = await createReturnTicketRequest({
           contact: { fullName, mobile, email },
           applicants: applicants.map((a) => ({ fullName: a.fullName, passportNumber: a.passportNumber })),
-          destinationCountryId: returnDestinationCountryId as string,
+          destinationCountryId: returnTicketCountryId as string,
           travelDate,
           expectedReturnDate: expectedReturnDate as string,
           source: "OTB order",

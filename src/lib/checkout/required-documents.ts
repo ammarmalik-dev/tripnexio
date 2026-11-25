@@ -253,9 +253,10 @@ async function markTicketsTripNexioProvides(
       : null,
   ]);
   const returnFromTripNexio = linked?.lead.serviceType === "RETURN_TICKET";
-  return types.map((type) => {
-    if (flightFromTripNexio && type.type === "ONWARD_TICKET") return { ...type, required: false, label: `${type.label} (booked with TripNexio — not needed)` };
-    if (returnFromTripNexio && type.type === "RETURN_TICKET") return { ...type, required: false, label: `${type.label} (issued by TripNexio — not needed)` };
-    return type;
-  });
+  return types
+    // Client doc 16 Nov (B4) — the Return Ticket was booked in this OTB order: never asked again at upload.
+    .filter((type) => !(returnFromTripNexio && type.type === "RETURN_TICKET"))
+    .map((type) =>
+      flightFromTripNexio && type.type === "ONWARD_TICKET" ? { ...type, required: false, label: `${type.label} (booked with TripNexio — not needed)` } : type
+    );
 }

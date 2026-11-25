@@ -4,7 +4,6 @@ import { useEffect } from "react";
 import { useFormContext } from "react-hook-form";
 import { RadioCardGroup } from "@/components/forms/RadioCardGroup";
 import { formatOtbRupees, otbApplicantPrice, useOtbAirlines } from "@/lib/otb/use-otb-airlines";
-import { SelectField } from "@/components/forms/SelectField";
 import { DateField } from "@/components/forms/DateField";
 import { formatRupees, useReturnTicketDestinations } from "@/lib/return-ticket/use-return-ticket-destinations";
 import { useDestinationCountryOptions } from "@/lib/use-destination-countries";
@@ -40,13 +39,17 @@ export function Step3Summary() {
   const hasReturnTicket = watch("hasReturnTicket");
   const addReturnTicket = watch("addReturnTicket");
   const returnDestinationCountryId = watch("returnDestinationCountryId");
-  const { destinations } = useReturnTicketDestinations();
-  const returnDestination = destinations.find((d) => d.countryId === returnDestinationCountryId);
-  // "No, I need one" always adds the Return Verified Ticket to this order; "Yes" never does.
+  const { state: destinationsState, destinations } = useReturnTicketDestinations();
+  // Client doc 16 Nov (B4) — the Return Verified Ticket goes to the OTB destination: never asked again, price shown.
+  const returnDestination = destinations.find((d) => d.countryCode.toUpperCase() === values.destinationCountry.toUpperCase());
+  // "No, I need one" adds the Return Verified Ticket to this order when it is offered for that country; "Yes" never does.
   useEffect(() => {
-    if (hasReturnTicket === "no" && addReturnTicket !== "yes") setValue("addReturnTicket", "yes");
-    if (hasReturnTicket === "yes" && addReturnTicket === "yes") setValue("addReturnTicket", "no");
-  }, [hasReturnTicket, addReturnTicket, setValue]);
+    if (destinationsState === "loading") return;
+    const wantAdd = hasReturnTicket === "no" && returnDestination ? "yes" : hasReturnTicket ? "no" : undefined;
+    if (addReturnTicket !== wantAdd) setValue("addReturnTicket", wantAdd);
+    const wantCountry = wantAdd === "yes" && returnDestination ? returnDestination.countryId : "";
+    if (returnDestinationCountryId !== wantCountry) setValue("returnDestinationCountryId", wantCountry);
+  }, [destinationsState, hasReturnTicket, addReturnTicket, returnDestination, returnDestinationCountryId, setValue]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,16 +110,13 @@ export function Step3Summary() {
           <p className="text-sm font-medium text-ink-heading">
             Return Verified Ticket — added to this order (destination rate × {applicantCount} applicant{applicantCount > 1 ? "s" : ""}, paid separately)
           </p>
-          {addReturnTicket === "yes" ? (
+          {addReturnTicket === "yes" && returnDestination ? (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <SelectField
-                label="Return ticket destination"
-                required
-                placeholder="Select a destination"
-                options={destinations.map((d) => ({ value: d.countryId, label: d.countryName }))}
-                error={errors.returnDestinationCountryId?.message}
-                {...register("returnDestinationCountryId")}
-              />
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-medium text-ink-heading">Return ticket destination</span>
+                <span className="rounded-lg border border-hairline bg-surface-2 px-3 py-2 text-sm text-ink-primary">{returnDestination.countryName}</span>
+                <span className="text-xs text-ink-tertiary">Same as your OTB destination.</span>
+              </div>
               <DateField
                 label="Expected return date"
                 required
@@ -138,6 +138,7 @@ export function Step3Summary() {
             </div>
           ) : (
             <p className="text-xs text-ink-secondary">
+              {destinationsState === "loading" ? "Checking the Return Verified Ticket for your destination… " : ""}
               OTB needs a return ticket. You can still submit — our team will follow up and can arrange a{" "}
               <a className="text-ink-accent underline" href="/services/return-ticket">
                 Return Verified Ticket

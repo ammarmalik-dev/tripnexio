@@ -6,6 +6,7 @@ import { getJson, ApiError } from "@/lib/api/client";
 export interface ReturnTicketDestinationOption {
   countryId: string;
   countryName: string;
+  countryCode: string;
   ratePerApplicant: number;
   cancellationFee: number | null;
 }

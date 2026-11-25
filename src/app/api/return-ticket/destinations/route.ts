@@ -11,12 +11,13 @@ export async function GET() {
   const destinations = await db.returnTicketDestination.findMany({
     where: { active: true, country: { active: true } },
     orderBy: [{ displayOrder: "asc" }, { country: { name: "asc" } }],
-    include: { country: { select: { id: true, name: true } } },
+    include: { country: { select: { id: true, name: true, code: true } } },
   });
   return jsonSuccess(
     destinations.map((d) => ({
       countryId: d.countryId,
       countryName: d.country.name,
+      countryCode: d.country.code,
       ratePerApplicant: Number(d.ratePerApplicant),
       // P17 — shown to the customer before payment.
       cancellationFee: d.cancellationFee === null ? null : Number(d.cancellationFee),
