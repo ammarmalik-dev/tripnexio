@@ -39,7 +39,7 @@ Status 16 Nov: unit 1 (broken bugs) deployed 16 Nov (commit 71440b0, backup pre-
 - [ ] B1 Travel > 24 h away → task + On Hold + automatic customer message (wording per doc; see Q3)
 - [ ] B2 Pricing: Within 20 Days / After 20 Days categories, vendor rates for each, calendar split, auto price (see Q4)
 - [x] B3 Country not repeated in Service Details — unit 6: Return Ticket service details no longer repeat the country (it has its own column)
-- [ ] B4 From OTB: don't ask return ticket again at upload; destination auto-selected with price — unit 6: the WhatsApp bot uses the OTB country for the added Return Ticket (not asked again). Website upload step still open
+- [x] B4 From OTB: don't ask return ticket again at upload; destination auto-selected with price — unit 6: the WhatsApp bot uses the OTB country for the added Return Ticket (not asked again). Website upload step still open — unit B4: website OTB with Return Ticket - the return destination is the OTB country (no dropdown, price shown; the server always uses the OTB country), and the return ticket is not asked at the upload step when it was booked in the same order. Tested via API + DB, deployed 25 Nov
 
 ## C. OTB
 - [x] C1 Rejected only after Sent to Airlines — checked: OTB Rejected only after Sent to Airlines (engine)
